@@ -3,3 +3,5 @@ node_modules/
 Thumbs.db
 *.log
 data/*.sqlite-journal
+data/*.sqlite-wal
+data/*.sqlite-shm
