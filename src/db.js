@@ -252,41 +252,53 @@ function getRabRowById(id) {
 
 function saveRabRow(row) {
   if (row.id) {
+    const existing = db.prepare('SELECT * FROM rab_baris WHERE id = ?').get(row.id);
+    if (!existing) {
+      throw new Error(`Baris dengan id ${row.id} tidak ditemukan.`);
+    }
+
+    const finalUrutan = row.urutan !== undefined && row.urutan !== null ? Number(row.urutan) : existing.urutan;
+    const finalRowType = row.row_type !== undefined ? row.row_type : existing.row_type;
+    const finalKode = row.kode !== undefined ? row.kode : existing.kode;
+    const finalUraian = row.uraian !== undefined ? row.uraian : existing.uraian;
+    const finalLevel = row.level_indent !== undefined ? Number(row.level_indent) : existing.level_indent;
+    const finalTarget = row.target_scope !== undefined ? row.target_scope : existing.target_scope;
+    const finalAkun = row.kode_akun !== undefined ? row.kode_akun : existing.kode_akun;
+    const finalPic = row.pic_bagian !== undefined ? row.pic_bagian : existing.pic_bagian;
+    const finalParentId = row.parent_rkb_row_id !== undefined ? row.parent_rkb_row_id : existing.parent_rkb_row_id;
+    const finalHarga = row.harga_satuan !== undefined ? (Number(row.harga_satuan) || 0) : existing.harga_satuan;
+    const finalSatuan = row.satuan_vol !== undefined ? row.satuan_vol : existing.satuan_vol;
+    const finalBasis = row.basis_pengali !== undefined ? row.basis_pengali : existing.basis_pengali;
+    const finalLabelKab = row.label_pengali_kab !== undefined ? row.label_pengali_kab : existing.label_pengali_kab;
+    const finalLabelAdhoc = row.label_pengali_adhoc !== undefined ? row.label_pengali_adhoc : existing.label_pengali_adhoc;
+    const finalCatatan = row.catatan_revisi_baris !== undefined ? row.catatan_revisi_baris : existing.catatan_revisi_baris;
+    const finalF1Val = row.f1_val !== undefined ? row.f1_val : existing.f1_val;
+    const finalF1Unit = row.f1_unit !== undefined ? row.f1_unit : existing.f1_unit;
+    const finalF1Var = row.f1_var !== undefined ? row.f1_var : existing.f1_var;
+    const finalF2Val = row.f2_val !== undefined ? row.f2_val : existing.f2_val;
+    const finalF2Unit = row.f2_unit !== undefined ? row.f2_unit : existing.f2_unit;
+    const finalF2Var = row.f2_var !== undefined ? row.f2_var : existing.f2_var;
+    const finalF3Val = row.f3_val !== undefined ? row.f3_val : existing.f3_val;
+    const finalF3Unit = row.f3_unit !== undefined ? row.f3_unit : existing.f3_unit;
+    const finalF3Var = row.f3_var !== undefined ? row.f3_var : existing.f3_var;
+    const finalF4Val = row.f4_val !== undefined ? row.f4_val : existing.f4_val;
+    const finalF4Unit = row.f4_unit !== undefined ? row.f4_unit : existing.f4_unit;
+    const finalF4Var = row.f4_var !== undefined ? row.f4_var : existing.f4_var;
+
     db.prepare(`
       UPDATE rab_baris SET
         urutan = ?, row_type = ?, kode = ?, uraian = ?, level_indent = ?, target_scope = ?, kode_akun = ?,
         f1_val = ?, f1_unit = ?, f1_var = ?, f2_val = ?, f2_unit = ?, f2_var = ?,
         f3_val = ?, f3_unit = ?, f3_var = ?, f4_val = ?, f4_unit = ?, f4_var = ?,
         basis_pengali = ?, label_pengali_kab = ?, label_pengali_adhoc = ?, satuan_vol = ?, harga_satuan = ?,
-        pic_bagian = ?, catatan_revisi_baris = ?
+        pic_bagian = ?, catatan_revisi_baris = ?, parent_rkb_row_id = ?
       WHERE id = ?
     `).run(
-      row.urutan || 0,
-      row.row_type || (row.level_indent >= 4 ? 'item' : 'header'),
-      row.kode || '',
-      row.uraian || '',
-      row.level_indent !== undefined ? row.level_indent : 4,
-      row.target_scope || 'KAB',
-      row.kode_akun || '',
-      row.f1_val !== undefined ? row.f1_val : null,
-      row.f1_unit || '',
-      row.f1_var || '',
-      row.f2_val !== undefined ? row.f2_val : null,
-      row.f2_unit || '',
-      row.f2_var || '',
-      row.f3_val !== undefined ? row.f3_val : null,
-      row.f3_unit || '',
-      row.f3_var || '',
-      row.f4_val !== undefined ? row.f4_val : null,
-      row.f4_unit || '',
-      row.f4_var || '',
-      row.basis_pengali || 'NONE',
-      row.label_pengali_kab || '',
-      row.label_pengali_adhoc || '',
-      row.satuan_vol || '',
-      row.harga_satuan !== undefined ? Number(row.harga_satuan) || 0 : 0,
-      row.pic_bagian || 'KUL',
-      row.catatan_revisi_baris || '',
+      finalUrutan, finalRowType, finalKode, finalUraian, finalLevel, finalTarget, finalAkun,
+      finalF1Val, finalF1Unit, finalF1Var, finalF2Val, finalF2Unit, finalF2Var,
+      finalF3Val, finalF3Unit, finalF3Var, finalF4Val, finalF4Unit, finalF4Var,
+      finalBasis, finalLabelKab, finalLabelAdhoc, finalSatuan, finalHarga,
+      finalPic, finalCatatan, finalParentId,
       row.id
     );
     return getRabRowById(row.id);

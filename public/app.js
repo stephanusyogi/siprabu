@@ -1072,6 +1072,8 @@ function openRowModal(rowId) {
   const row = AppState.rkbData.rows.find(r => r.id === rowId);
   if (!row) return;
 
+  AppState.activeEditingRow = row;
+
   setElText('modal-row-title', 'Edit Rincian Belanja RKB');
   setElVal('modal-row-id', row.id);
   setElVal('modal-row-level', row.level_indent || 4);
@@ -1103,6 +1105,7 @@ function openRowModal(rowId) {
 }
 
 function openAddRowModal() {
+  AppState.activeEditingRow = null;
   setElText('modal-row-title', 'Tambah Rincian Belanja Baru');
   setElVal('modal-row-id', '');
   setElVal('modal-row-level', '4');
@@ -1134,6 +1137,7 @@ function openAddRowModal() {
 }
 
 function closeRowModal() {
+  AppState.activeEditingRow = null;
   document.getElementById('modal-row').style.display = 'none';
 }
 
@@ -1178,6 +1182,10 @@ async function submitRowForm() {
 
   const payload = {
     id: rowId ? Number(rowId) : undefined,
+    urutan: AppState.activeEditingRow ? AppState.activeEditingRow.urutan : undefined,
+    kode: AppState.activeEditingRow ? AppState.activeEditingRow.kode : '',
+    row_type: AppState.activeEditingRow ? AppState.activeEditingRow.row_type : 'item',
+    level_indent: AppState.activeEditingRow ? AppState.activeEditingRow.level_indent : 4,
     uraian: document.getElementById('modal-uraian')?.value || '',
     pic_bagian: document.getElementById('modal-pic')?.value || 'KUL',
     target_scope: document.getElementById('modal-sasaran')?.value || 'KAB',
@@ -1192,8 +1200,7 @@ async function submitRowForm() {
     f4_val: document.getElementById('modal-f4-val')?.value ? Number(document.getElementById('modal-f4-val').value) : null,
     f4_unit: document.getElementById('modal-f4-unit')?.value || '',
     basis_pengali: document.getElementById('modal-basis-pengali')?.value || 'NONE',
-    satuan_vol: document.getElementById('modal-satuan-vol')?.value || 'Paket',
-    level_indent: 4
+    satuan_vol: document.getElementById('modal-satuan-vol')?.value || 'Paket'
   };
 
   try {
