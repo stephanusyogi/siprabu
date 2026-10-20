@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SI-PRABU v3.0 | KPU Kabupaten Ngawi</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app" class="app-layout">
+    <!-- TOP NAVIGATION BAR -->
+    <header class="top-nav">
+      <div class="nav-left">
+        <div class="brand">
+          <div class="brand-logo">🏛️</div>
+          <div class="brand-text">
+            <span class="app-title">SI-PRABU <span class="app-version">v3.0</span></span>
+            <span class="app-subtitle" id="satker-name-header">KPU KABUPATEN NGAWI</span>
+          </div>
+        </div>
+
+        <div class="context-pill" id="context-pill">
+          <span class="pulse-dot active" id="context-dot"></span>
+          <span class="context-title" id="context-nama-dokumen">Memuat Dokumen...</span>
+          <span class="context-status badge badge-success" id="context-badge-status">DRAFT AKTIF</span>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- Quick Switcher Role (Pair Testing / Multi-User) -->
+        <div class="user-switcher-container">
+          <label for="user-switcher">Ganti Peran:</label>
+          <select id="user-switcher" class="input-select-sm" onchange="switchUser(this.value)">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+
+        <!-- User Profile Pill -->
+        <div class="user-pill" id="user-profile-pill">
+          <div class="avatar" id="user-avatar">👤</div>
+          <div class="user-info">
+            <span class="user-name" id="user-nama-pejabat">Tamu</span>
+            <span class="user-role badge" id="user-role-badge">Level 1: Perencanaan</span>
+          </div>
+        </div>
+
+        <button class="btn btn-outline-danger btn-sm" onclick="logout()" title="Keluar">
+          🚪 Keluar
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN WRAPPER (SIDEBAR + CONTENT) -->
+    <div class="main-wrapper">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <nav class="nav-menu">
+          <div class="nav-section-label">NAVIGASI UTAMA</div>
+          <button class="nav-item active" data-view="view-dashboard" onclick="switchView('view-dashboard')">
+            <span class="icon">📊</span>
+            <span class="label">Dashboard KPI</span>
+          </button>
+          <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')">
+            <span class="icon">🔄</span>
+            <span class="label">Pusat Siklus & Revisi</span>
+          </button>
+          <button class="nav-item" data-view="view-rkb" onclick="switchView('view-rkb')">
+            <span class="icon">📋</span>
+            <span class="label">RKB Kabupaten</span>
+            <span class="badge badge-primary badge-sm" id="badge-total-items">953</span>
+          </button>
+          <button class="nav-item" data-view="view-adhoc" onclick="switchView('view-adhoc')">
+            <span class="icon">🏢</span>
+            <span class="label">Breakdown Adhoc</span>
+          </button>
+
+          <div class="nav-section-label">DATA & MASTER</div>
+          <button class="nav-item" data-view="view-master" onclick="switchView('view-master')">
+            <span class="icon">🗄️</span>
+            <span class="label">Master Wilayah & Akun</span>
+          </button>
+          <button class="nav-item" data-view="view-settings" onclick="switchView('view-settings')">
+            <span class="icon">⚙️</span>
+            <span class="label">Pengaturan Satker</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="app-credit">
+            <span>Sistem Informasi Terpadu</span>
+            <strong>KPU Kabupaten Ngawi</strong>
+            <small>Pengembang Resmi: <b>emenje</b></small>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CONTENT AREA -->
+      <main class="content-area">
+        <!-- GLOBAL BANNER (LOCK / READ-ONLY STATUS) -->
+        <div id="global-lock-banner" class="alert alert-warning" style="display: none;">
+          <div class="alert-icon">🔒</div>
+          <div class="alert-content">
+            <strong id="lock-banner-title">DOKUMEN INI TELAH DIKUNCI (NPHD SAH)</strong>
+            <p id="lock-banner-desc">Dokumen RKB ini berada dalam mode <b>READ-ONLY</b>. Perubahan atau pergeseran anggaran hanya dapat dilakukan melalui usulan revisi baru di menu <b>Pusat Siklus & Riwayat Revisi</b>.</p>
+          </div>
+          <div class="alert-action" id="lock-banner-action">
+            <button class="btn btn-sm btn-primary" onclick="switchView('view-siklus')">Buka Pusat Siklus</button>
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 1: DASHBOARD KPI -->
+        <!-- ================================================================= -->
+        <section id="view-dashboard" class="app-view active">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Dashboard Ringkasan Anggaran</h2>
+              <p class="view-desc">Ringkasan eksekutif alokasi Pagu NPHD Hibah Pilkada KPU Kabupaten Ngawi.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-success" onclick="downloadExcel()">
+                📥 Unduh Berkas Excel (.xlsx)
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI STAT CARDS -->
+          <div class="kpi-grid">
+            <div class="kpi-card highlight">
+              <div class="kpi-icon">💰</div>
+              <div class="kpi-info">
+                <span class="kpi-label">TOTAL PAGU DOKUMEN</span>
+                <span class="kpi-value" id="kpi-total-pagu">Rp 49.999.999.000</span>
+                <span class="kpi-sub" id="kpi-status-dokumen">Status: Draft Aktif</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon">📋</div>
+              <div class="kpi-info">
+                <span class="kpi-label">RINCIAN ITEM BELANJA</span>
+                <span class="kpi-value" id="kpi-total-items">953 Baris</span>
+                <span class="kpi-sub" id="kpi-total-rows">1.764 Total Komponen Hierarki</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon">🏛️</div>
+              <div class="kpi-info">
+                <span class="kpi-label">LINGKUP KABUPATEN</span>
+                <span class="kpi-value" id="kpi-pagu-kab">Rp 14.372.267.000</span>
+                <span class="kpi-sub" id="kpi-pct-kab">28,74% dari Pagu Total</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon">👥</div>
+              <div class="kpi-info">
+                <span class="kpi-label">ALOKASI BADAN ADHOC</span>
+                <span class="kpi-value" id="kpi-pagu-adhoc">Rp 31.383.229.300</span>
+                <span class="kpi-sub" id="kpi-pct-adhoc">62,77% (PPK, PPS, TPS, Pantarlih)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBBAG DISTRIBUTION & AKUN MATRIX -->
+          <div class="dashboard-grid">
+            <!-- DISTRIBUSI SUBBAG -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Distribusi Pagu Per Subbagian Pelaksana</h3>
+              </div>
+              <div class="card-body">
+                <div class="subbag-progress-list" id="subbag-distribution-list">
+                  <!-- Populated via JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- DISTRIBUSI SASARAN -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Distribusi Alokasi Berdasarkan Sasaran</h3>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Sasaran</th>
+                        <th class="text-right">Alokasi Anggaran (Rp)</th>
+                        <th class="text-right">Porsi (%)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-sasaran-body">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DISTRIBUSI AKUN BAS -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3>Distribusi Anggaran Berdasarkan Bagan Akun Standar (BAS)</h3>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th style="width: 120px;">Kode Akun</th>
+                      <th>Uraian Akun</th>
+                      <th class="text-right" style="width: 240px;">Jumlah Anggaran (Rp)</th>
+                      <th class="text-right" style="width: 120px;">Persentase</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-akun-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 2: PUSAT SIKLUS & RIWAYAT REVISI -->
+        <!-- ================================================================= -->
+        <section id="view-siklus" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Pusat Siklus & Riwayat Revisi</h2>
+              <p class="view-desc">Kelola siklus hidup dokumen RKB, penetapan status NPHD sah, penguncian, serta pembuatan usulan revisi pergeseran anggaran.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" onclick="openRevisionModal()" id="btn-buat-revisi">
+                ➕ Buat Usulan Revisi Baru
+              </button>
+            </div>
+          </div>
+
+          <!-- SIKLUS LIFECYCLE CONTROLLER CARD -->
+          <div class="card lifecycle-card">
+            <div class="card-header">
+              <h3>Kontrol Dokumen RKB Terpilih</h3>
+              <div id="lifecycle-badge"></div>
+            </div>
+            <div class="card-body">
+              <div class="lifecycle-info-grid">
+                <div class="info-group">
+                  <label>Nama Dokumen:</label>
+                  <strong id="siklus-nama-dokumen">-</strong>
+                </div>
+                <div class="info-group">
+                  <label>Versi / Tahap:</label>
+                  <span id="siklus-versi-revisi">-</span>
+                </div>
+                <div class="info-group">
+                  <label>Dasar Pengesahan:</label>
+                  <span id="siklus-dasar-pengesahan">-</span>
+                </div>
+                <div class="info-group">
+                  <label>Nomor BA TAPD / SK:</label>
+                  <span id="siklus-nomor-ba">-</span>
+                </div>
+                <div class="info-group">
+                  <label>Tanggal Pengesahan:</label>
+                  <span id="siklus-tanggal-ba">-</span>
+                </div>
+                <div class="info-group">
+                  <label>Catatan Riwayat:</label>
+                  <span id="siklus-catatan">-</span>
+                </div>
+              </div>
+
+              <hr class="divider">
+
+              <div class="lifecycle-actions">
+                <div class="action-desc">
+                  <strong>Otoritas Penguncian & Legalitas (Level 0 & 1):</strong>
+                  <p>Jika RKB Awal telah disahkan melalui NPHD resmi bersama Bupati Ngawi, kunci dokumen ini untuk menjadikannya baseline yang tidak dapat diubah (Read-Only).</p>
+                </div>
+                <div class="action-buttons" id="lifecycle-action-buttons">
+                  <!-- Populated via JS (Lock, Unlock, Edit Legalitas) -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIWAYAT DOKUMEN & VERSI -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3>Daftar Dokumen Siklus Anggaran (SSOT)</h3>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th style="width: 50px;">ID</th>
+                      <th>Nama Dokumen RKB</th>
+                      <th>Versi Revisi</th>
+                      <th>Dasar Pengesahan</th>
+                      <th>Status Dokumen</th>
+                      <th class="text-right">Total Item</th>
+                      <th class="text-center" style="width: 220px;">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-periode-history">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 3: RKB KABUPATEN (ACTIVE WORKBENCH) -->
+        <!-- ================================================================= -->
+        <section id="view-rkb" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">RKB Kabupaten (Lembar Kerja Perencanaan)</h2>
+              <p class="view-desc">Workbench aktif penyusunan & penyesuaian anggaran. Baris dapat disaring berdasarkan Subbag PIC dan Sasaran.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-outline-primary" onclick="downloadExcel()">
+                📥 Unduh Excel
+              </button>
+              <button class="btn btn-primary" onclick="openAddRowModal()" id="btn-tambah-baris">
+                ➕ Tambah Baris Belanja
+              </button>
+            </div>
+          </div>
+
+          <!-- WORKBENCH TOOLBAR -->
+          <div class="toolbar-card">
+            <div class="filter-group">
+              <label for="filter-pic">Subbag Pelaksana (PIC):</label>
+              <select id="filter-pic" class="input-select" onchange="applyRkbFilters()">
+                <option value="SEMUA">-- Semua Subbag --</option>
+                <option value="RENDATIN">Perencanaan, Data & Informasi (RENDATIN)</option>
+                <option value="KUL">Keuangan, Umum & Logistik (KUL)</option>
+                <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                <option value="HUKUM">Hukum & SDM (HUKUM)</option>
+                <option value="PARSDM">Partisipasi Masyarakat & SDM (PARSDM)</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="filter-sasaran">Sasaran Penyelenggara:</label>
+              <select id="filter-sasaran" class="input-select" onchange="applyRkbFilters()">
+                <option value="ALL">-- Semua Sasaran --</option>
+                <option value="KAB">KAB (Kabupaten)</option>
+                <option value="PPK">PPK (Kecamatan)</option>
+                <option value="PPS">PPS (Desa / Kelurahan)</option>
+                <option value="TPS">TPS (Kelompok KPPS & Linmas)</option>
+                <option value="PANTARLIH">Pantarlih</option>
+                <option value="PESERTA">Peserta Kegiatan</option>
+              </select>
+            </div>
+
+            <div class="filter-group flex-1">
+              <label for="filter-search">Pencarian Cepat:</label>
+              <input type="text" id="filter-search" class="input-text" placeholder="Ketik kata kunci uraian atau kode..." onkeyup="handleSearchDebounce()">
+            </div>
+          </div>
+
+          <!-- SPREADSHEET TABLE -->
+          <div class="card mt-3">
+            <div class="card-body p-0">
+              <div class="table-responsive rkb-table-wrapper">
+                <table class="table rkb-table" id="rkb-main-table">
+                  <thead>
+                    <tr>
+                      <th class="col-no">No</th>
+                      <th class="col-kode">Kode</th>
+                      <th class="col-uraian">Uraian Komponen / Akun / Rincian Belanja</th>
+                      <th class="col-pic">PIC Subbag</th>
+                      <th class="col-sasaran">Sasaran</th>
+                      <th class="col-formula">Rincian Perhitungan (Faktor x Pengali)</th>
+                      <th class="col-vol text-right">Vol</th>
+                      <th class="col-sat">Satuan</th>
+                      <th class="col-harga text-right">Harga Satuan (Rp)</th>
+                      <th class="col-total text-right">Jumlah Anggaran (Rp)</th>
+                      <th class="col-aksi text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rkb-table-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                  <tfoot>
+                    <tr class="rkb-tfoot-row">
+                      <td colspan="9" class="text-right"><strong>TOTAL PAGU RKB KABUPATEN NGAWI:</strong></td>
+                      <td class="text-right"><strong id="rkb-tfoot-total">Rp 49.999.999.000</strong></td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 4: MATRIKS BREAKDOWN ADHOC (PPK & PPS) -->
+        <!-- ================================================================= -->
+        <section id="view-adhoc" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Matriks Breakdown Adhoc (PPK & PPS)</h2>
+              <p class="view-desc">Distribusi alokasi dana operasional dan honorarium untuk 19 PPK (Kecamatan) dan 217 PPS (Desa) se-Kabupaten Ngawi.</p>
+            </div>
+          </div>
+
+          <div class="adhoc-grid">
+            <div class="card">
+              <div class="card-header">
+                <h3>19 Kecamatan (PPK)</h3>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 500px;">
+                  <table class="table table-striped table-sm">
+                    <thead>
+                      <tr>
+                        <th>No</th>
+                        <th>Nama Kecamatan</th>
+                        <th>Ketua PPK</th>
+                        <th>Sekretaris</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-ppk-body">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3>217 Desa / Kelurahan (PPS)</h3>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 500px;">
+                  <table class="table table-striped table-sm">
+                    <thead>
+                      <tr>
+                        <th>No</th>
+                        <th>Kecamatan</th>
+                        <th>Nama Desa</th>
+                        <th class="text-right">Jumlah TPS</th>
+                        <th class="text-right">Pantarlih</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-pps-body">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 5: MASTER DATA WILAYAH & AKUN (SSOT) -->
+        <!-- ================================================================= -->
+        <section id="view-master" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Master Data Wilayah & Akun (SSOT)</h2>
+              <p class="view-desc">Single Source of Truth untuk Bagan Akun Standar (BAS), Standar Biaya Masukan (SBM), dan Variabel Kuantitas Satker.</p>
+            </div>
+          </div>
+
+          <div class="master-tabs">
+            <button class="tab-btn active" onclick="switchMasterTab('tab-akun')">Bagan Akun Standar (BAS)</button>
+            <button class="tab-btn" onclick="switchMasterTab('tab-sbm')">Standar Biaya Masukan (SBM)</button>
+            <button class="tab-btn" onclick="switchMasterTab('tab-kuantitas')">Variabel Kuantitas & Wilayah</button>
+          </div>
+
+          <div class="card mt-3">
+            <div class="card-body p-0">
+              <!-- TAB AKUN -->
+              <div id="tab-akun" class="tab-content active">
+                <div class="table-responsive">
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th style="width: 140px;">Kode Akun</th>
+                        <th>Uraian Akun</th>
+                        <th>Kelompok</th>
+                        <th>Kategori DN</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-master-akun">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- TAB SBM -->
+              <div id="tab-sbm" class="tab-content">
+                <div class="table-responsive">
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Kategori</th>
+                        <th>Uraian Standar Biaya</th>
+                        <th>Satuan</th>
+                        <th class="text-right">Batas Pagu SBM (Rp)</th>
+                        <th>Dasar Regulasi</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-master-sbm">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- TAB KUANTITAS -->
+              <div id="tab-kuantitas" class="tab-content">
+                <div class="table-responsive">
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Kode Variabel</th>
+                        <th>Nama Variabel</th>
+                        <th class="text-right">Nilai Parameter</th>
+                        <th>Satuan</th>
+                        <th>Keterangan SSOT</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-master-kuantitas">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 6: PENGATURAN SATKER -->
+        <!-- ================================================================= -->
+        <section id="view-settings" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Pengaturan Satker & Pejabat Penandatangan</h2>
+              <p class="view-desc">Konfigurasi parameter instansi, KPA, PPKom, Bendahara, dan Ketua KPU.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" onclick="saveSatkerSettings()" id="btn-simpan-settings">
+                💾 Simpan Perubahan
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <form id="form-settings" class="settings-form-grid">
+                <div class="form-group">
+                  <label>Nama Satker:</label>
+                  <input type="text" id="set-nama-satker" class="input-text" value="KPU KABUPATEN NGAWI">
+                </div>
+                <div class="form-group">
+                  <label>Kode Satker:</label>
+                  <input type="text" id="set-kode-satker" class="input-text" value="657811">
+                </div>
+                <div class="form-group">
+                  <label>Tahun Anggaran:</label>
+                  <input type="text" id="set-tahun-anggaran" class="input-text" value="2029">
+                </div>
+                <div class="form-group">
+                  <label>Nama Agenda Pemilihan:</label>
+                  <input type="text" id="set-nama-agenda" class="input-text" value="PEMILIHAN BUPATI DAN WAKIL BUPATI NGAWI">
+                </div>
+
+                <hr class="form-divider" style="grid-column: 1 / -1;">
+
+                <div class="form-group">
+                  <label>Kuasa Pengguna Anggaran (KPA):</label>
+                  <input type="text" id="set-kpa-nama" class="input-text" value="BUDI RAHAYU">
+                </div>
+                <div class="form-group">
+                  <label>NIP KPA:</label>
+                  <input type="text" id="set-kpa-nip" class="input-text" value="19830503 200902 1 002">
+                </div>
+
+                <div class="form-group">
+                  <label>Pejabat Pembuat Komitmen (PPKom):</label>
+                  <input type="text" id="set-ppkom-nama" class="input-text" value="MOHAMMAD NOOR JIHAN">
+                </div>
+                <div class="form-group">
+                  <label>NIP PPKom:</label>
+                  <input type="text" id="set-ppkom-nip" class="input-text" value="19840101 200912 1 001">
+                </div>
+
+                <div class="form-group">
+                  <label>Bendahara Pengeluaran (BP):</label>
+                  <input type="text" id="set-bp-nama" class="input-text" value="IMAS MAESAROH">
+                </div>
+                <div class="form-group">
+                  <label>NIP BP:</label>
+                  <input type="text" id="set-bp-nip" class="input-text" value="19850615 200902 2 013">
+                </div>
+
+                <div class="form-group">
+                  <label>Ketua KPU Kabupaten Ngawi:</label>
+                  <input type="text" id="set-ketua-nama" class="input-text" value="SAMSU MUSTAKIM">
+                </div>
+                <div class="form-group">
+                  <label>Kota Penandatanganan:</label>
+                  <input type="text" id="set-kota-ttd" class="input-text" value="NGAWI">
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: EDIT / TAMBAH BARIS RKB -->
+    <!-- ===================================================================== -->
+    <div id="modal-row" class="modal-backdrop" style="display: none;">
+      <div class="modal-box modal-lg">
+        <div class="modal-header">
+          <h3 id="modal-row-title">Edit Baris Belanja RKB</h3>
+          <button class="btn-close" onclick="closeRowModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <form id="form-row" onsubmit="event.preventDefault(); submitRowForm();">
+            <input type="hidden" id="modal-row-id">
+            <input type="hidden" id="modal-row-level" value="4">
+            
+            <div class="form-row-grid">
+              <div class="form-group full-width">
+                <label>Uraian Rincian Belanja:</label>
+                <input type="text" id="modal-uraian" class="input-text" required placeholder="Contoh: -. Konsumsi Rapat Koordinasi">
+              </div>
+
+              <div class="form-group">
+                <label>Subbag Pelaksana (PIC):</label>
+                <select id="modal-pic" class="input-select" required>
+                  <option value="RENDATIN">RENDATIN (Perencanaan)</option>
+                  <option value="KUL">KUL (Keuangan, Umum & Logistik)</option>
+                  <option value="TEKNIS">TEKNIS (Teknis Penyelenggaraan)</option>
+                  <option value="HUKUM">HUKUM (Hukum & SDM)</option>
+                  <option value="PARSDM">PARSDM (Partisipasi Masyarakat)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Sasaran Penyelenggara:</label>
+                <select id="modal-sasaran" class="input-select" required>
+                  <option value="KAB">KAB (Kabupaten)</option>
+                  <option value="PPK">PPK (Kecamatan)</option>
+                  <option value="PPS">PPS (Desa / Kelurahan)</option>
+                  <option value="TPS">TPS (KPPS & Linmas)</option>
+                  <option value="PANTARLIH">PANTARLIH</option>
+                  <option value="PESERTA">PESERTA</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Kode Akun (BAS):</label>
+                <select id="modal-akun" class="input-select">
+                  <!-- Populated via JS -->
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Harga Satuan (Rp):</label>
+                <input type="number" id="modal-harga" class="input-text" required min="0" step="100" oninput="calculateModalTotal()">
+              </div>
+            </div>
+
+            <!-- FAKTOR 1 SAMPAI 4 -->
+            <div class="factors-section mt-3">
+              <h4>Faktor Multiplier Volume (F1 x F2 x F3 x F4 x Basis Pengali)</h4>
+              <div class="factors-grid">
+                <div class="factor-card">
+                  <span class="factor-badge">Faktor 1</span>
+                  <input type="number" id="modal-f1-val" class="input-text input-sm" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
+                  <input type="text" id="modal-f1-unit" class="input-text input-sm mt-1" placeholder="Satuan (e.g. Org)">
+                </div>
+
+                <div class="factor-card">
+                  <span class="factor-badge">Faktor 2</span>
+                  <input type="number" id="modal-f2-val" class="input-text input-sm" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
+                  <input type="text" id="modal-f2-unit" class="input-text input-sm mt-1" placeholder="Satuan (e.g. Keg)">
+                </div>
+
+                <div class="factor-card">
+                  <span class="factor-badge">Faktor 3</span>
+                  <input type="number" id="modal-f3-val" class="input-text input-sm" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
+                  <input type="text" id="modal-f3-unit" class="input-text input-sm mt-1" placeholder="Satuan (e.g. Hari)">
+                </div>
+
+                <div class="factor-card">
+                  <span class="factor-badge">Faktor 4</span>
+                  <input type="number" id="modal-f4-val" class="input-text input-sm" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
+                  <input type="text" id="modal-f4-unit" class="input-text input-sm mt-1" placeholder="Satuan (e.g. Kali)">
+                </div>
+              </div>
+
+              <div class="form-row-grid mt-2">
+                <div class="form-group">
+                  <label>Basis Pengali (Wilayah / Kuantitas):</label>
+                  <select id="modal-basis-pengali" class="input-select" onchange="calculateModalTotal()">
+                    <option value="NONE">NONE (Tanpa Pengali Khusus)</option>
+                    <option value="PPK">PPK (19 Kecamatan)</option>
+                    <option value="PPS">PPS (217 Desa/Kelurahan)</option>
+                    <option value="TPS_RKB">TPS_RKB (1.371 TPS Pagu NPHD)</option>
+                    <option value="FIXED">FIXED</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Satuan Total Volume:</label>
+                  <input type="text" id="modal-satuan-vol" class="input-text" placeholder="Contoh: OK, Keg, Paket">
+                </div>
+              </div>
+
+              <!-- PREVIEW PERHITUNGAN MODAL -->
+              <div class="calc-preview-card mt-3">
+                <div class="calc-line">
+                  <span>Rumus Perhitungan:</span>
+                  <strong id="modal-preview-formula">-</strong>
+                </div>
+                <div class="calc-line">
+                  <span>Total Volume:</span>
+                  <strong id="modal-preview-volume">0</strong>
+                </div>
+                <div class="calc-line total-line">
+                  <span>Total Anggaran:</span>
+                  <strong id="modal-preview-total">Rp 0</strong>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeRowModal()">Batal</button>
+          <button class="btn btn-primary" onclick="submitRowForm()">Simpan Baris Belanja</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: BUAT USULAN REVISI BARU -->
+    <!-- ===================================================================== -->
+    <div id="modal-revisi" class="modal-backdrop" style="display: none;">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>Buat Usulan Revisi RKB Baru</h3>
+          <button class="btn-close" onclick="closeRevisionModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-note">
+            Sistem akan menduplikasi seluruh 953 rincian belanja dari dokumen aktif saat ini ke dokumen revisi baru yang berstatus <b>DRAFT AKTIF</b> sehingga dapat dilakukan pergeseran anggaran. Dokumen lama akan tetap tersimpan sebagai arsip historis.
+          </p>
+          <form id="form-revisi" onsubmit="event.preventDefault(); submitRevisionForm();">
+            <div class="form-group">
+              <label>Nama Dokumen Revisi:</label>
+              <input type="text" id="rev-nama-periode" class="input-text" required value="RKB Revisi 1 (Pergeseran Anggaran Pilkada 2029)">
+            </div>
+            <div class="form-group">
+              <label>Versi / Label Revisi:</label>
+              <input type="text" id="rev-versi" class="input-text" required value="Revisi 1">
+            </div>
+            <div class="form-group">
+              <label>Dasar Pengesahan:</label>
+              <input type="text" id="rev-dasar" class="input-text" required value="Berita Acara TAPD">
+            </div>
+            <div class="form-group">
+              <label>Nomor Surat / BA TAPD:</label>
+              <input type="text" id="rev-nomor-ba" class="input-text" placeholder="Contoh: 000.1.2/BA-TAPD/2026">
+            </div>
+            <div class="form-group">
+              <label>Tanggal Surat / BA:</label>
+              <input type="date" id="rev-tanggal-ba" class="input-text">
+            </div>
+            <div class="form-group">
+              <label>Alasan / Catatan Pergeseran Anggaran:</label>
+              <textarea id="rev-catatan" class="input-textarea" rows="3" placeholder="Jelaskan kebutuhan pergeseran antar subbag/komponen..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeRevisionModal()">Batal</button>
+          <button class="btn btn-primary" onclick="submitRevisionForm()">🚀 Terbitkan Usulan Revisi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
