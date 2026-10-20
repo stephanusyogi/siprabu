@@ -17,25 +17,43 @@ function exportRkbToExcelBuffer(periodeId) {
   const { rows, summary } = calculateRkbDataset(rawRows);
   const settings = (getMasters && getMasters().settings) ? getMasters().settings : {};
 
+  let statusLabel = 'DRAFT AKTIF (LEMBAR KERJA)';
+  if (periode && periode.is_locked) {
+    if (periode.tahap_revisi === 'PRA_NPHD') statusLabel = `ARSIP PRA-NPHD (${periode.dasar_pengesahan || 'USULAN'})`;
+    else if (periode.dasar_pengesahan === 'NPHD' || periode.tahap_revisi === 'RKB_AWAL') statusLabel = 'TERKUNCI (NPHD SAH - BASELINE)';
+    else statusLabel = `TERKUNCI PASCA-NPHD (${periode.dasar_pengesahan || 'BA TAPD'})`;
+  }
+
   // 1. Data Sheet RKB_KABUPATEN
   const rkbData = [
     ['SISTEM INFORMASI PERENCANAAN ANGGARAN & BIAYA TERPADU (SI-PRABU)'],
     [`RENCANA KEBUTUHAN BIAYA (RKB) - ${periode ? periode.nama_periode : 'KPU KABUPATEN NGAWI'}`],
-    [`Versi: ${periode ? periode.versi_revisi : '-'} | Status: ${periode && periode.is_locked ? 'TERKUNCI (NPHD SAH)' : 'DRAFT AKTIF'}`],
+    [`Versi: ${periode ? periode.versi_revisi : '-'} | Dasar: ${periode ? (periode.dasar_pengesahan || '-') : '-'} | Status: ${statusLabel}`],
     [],
     [
-      'No', 'Level', 'Kode', 'Uraian Komponen / Akun / Rincian',
+      'No', 'Leveling RKB', 'Kode', 'Uraian Komponen / Akun / Rincian Belanja',
       'Vol', 'Satuan', 'Rincian Perhitungan (Faktor x Pengali)',
       'Harga Satuan (Rp)', 'Jumlah Anggaran (Rp)',
       'PIC Subbag', 'Sasaran', 'Akun'
     ]
   ];
 
+  function getRkbLevelName(lvl) {
+    const n = Number(lvl);
+    if (n === 0) return 'L1 - Bagian Utama (A/B)';
+    if (n === 1) return 'L2 - Tahapan (I/II)';
+    if (n === 2) return 'L3 - 28 Komponen Kegiatan';
+    if (n >= 21 && n <= 25) return 'L4 - Sub-Komponen';
+    if (n === 3) return 'L5 - Akun BAS (6 Digit)';
+    if (n === 41 || n === 42) return 'Header Sub-Akun';
+    return 'L6 - Rincian Belanja';
+  }
+
   rows.forEach((r, idx) => {
     const isItem = Number(r.level_indent) === 4;
     rkbData.push([
       r.urutan || (idx + 1),
-      r.level_indent,
+      getRkbLevelName(r.level_indent),
       r.kode || '',
       r.uraian || '',
       isItem ? r.computed_volume : '',
