@@ -58,34 +58,88 @@
       <!-- SIDEBAR -->
       <aside class="sidebar">
         <nav class="nav-menu">
-          <div class="nav-section-label">NAVIGASI UTAMA</div>
+          <!-- MENU UTAMA: BERANDA -->
           <button class="nav-item active" data-view="view-dashboard" onclick="switchView('view-dashboard')">
             <span class="icon">📊</span>
-            <span class="label">Dashboard KPI</span>
-          </button>
-          <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')">
-            <span class="icon">🔄</span>
-            <span class="label">Pusat Siklus & Revisi</span>
-          </button>
-          <button class="nav-item" data-view="view-rkb" onclick="switchView('view-rkb')">
-            <span class="icon">📋</span>
-            <span class="label">RKB Kabupaten</span>
-            <span class="badge badge-primary badge-sm" id="badge-total-items">953</span>
-          </button>
-          <button class="nav-item" data-view="view-adhoc" onclick="switchView('view-adhoc')">
-            <span class="icon">🏢</span>
-            <span class="label">Breakdown Adhoc</span>
+            <span class="label">Beranda Ringkasan</span>
           </button>
 
-          <div class="nav-section-label">DATA & MASTER</div>
-          <button class="nav-item" data-view="view-master" onclick="switchView('view-master')">
-            <span class="icon">🗄️</span>
-            <span class="label">Master Wilayah & Akun</span>
-          </button>
-          <button class="nav-item" data-view="view-settings" onclick="switchView('view-settings')">
-            <span class="icon">⚙️</span>
-            <span class="label">Pengaturan Satker</span>
-          </button>
+          <!-- FOLDER 1: PENGANGGARAN -->
+          <div class="sakti-tree-group" id="folder-penganggaran">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-penganggaran', event)">
+              <span class="sakti-folder-label">
+                <span>📁 PENGANGGARAN</span>
+              </span>
+              <span class="sakti-chevron">▾</span>
+            </button>
+            <div class="sakti-tree-children">
+              <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" style="margin-bottom: 2px;">
+                <span class="icon">🔄</span>
+                <span class="label">Pusat Siklus & Revisi</span>
+              </button>
+              <button class="nav-item" data-view="view-rkb" onclick="switchView('view-rkb')">
+                <span class="icon">📘</span>
+                <span class="label">RKB Kabupaten</span>
+                <span class="badge badge-primary badge-sm" id="badge-total-items">953</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- FOLDER 2: DATABASE MASTER SATKER (SSOT) -->
+          <div class="sakti-tree-group" id="folder-master">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-master', event)">
+              <span class="sakti-folder-label">
+                <span>🗄️ DATABASE MASTER (SSOT)</span>
+              </span>
+              <span class="sakti-chevron">▾</span>
+            </button>
+            <div class="sakti-tree-children">
+              <button class="nav-item" data-view="view-master" onclick="switchView('view-master'); switchMasterTab('tab-ppk');">
+                <span class="icon">🏛️</span>
+                <span class="label">Database PPK (19 Kec)</span>
+              </button>
+              <button class="nav-item" data-view="view-master" onclick="switchView('view-master'); switchMasterTab('tab-pps');">
+                <span class="icon">🏘️</span>
+                <span class="label">Database PPS (217 Desa)</span>
+              </button>
+              <button class="nav-item" data-view="view-master" onclick="switchView('view-master'); switchMasterTab('tab-variabel');">
+                <span class="icon">📐</span>
+                <span class="label">Variabel & Kuantitas</span>
+              </button>
+              <button class="nav-item" data-view="view-settings" onclick="switchView('view-settings')">
+                <span class="icon">⚙️</span>
+                <span class="label">Pengaturan Satker & Pejabat</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- FOLDER 3: REFERENSI & REGULASI -->
+          <div class="sakti-tree-group" id="folder-referensi">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-referensi', event)">
+              <span class="sakti-folder-label">
+                <span>📜 REFERENSI & REGULASI</span>
+              </span>
+              <span class="sakti-chevron">▾</span>
+            </button>
+            <div class="sakti-tree-children">
+              <button class="nav-item" data-view="view-referensi" onclick="switchView('view-referensi'); switchRefTab('ref-sbm');">
+                <span class="icon">💰</span>
+                <span class="label">Standar Biaya Masukan</span>
+              </button>
+              <button class="nav-item" data-view="view-referensi" onclick="switchView('view-referensi'); switchRefTab('ref-bas');">
+                <span class="icon">💳</span>
+                <span class="label">Bagan Akun Standar (BAS)</span>
+              </button>
+              <button class="nav-item" data-view="view-referensi" onclick="switchView('view-referensi'); switchRefTab('ref-regulasi');">
+                <span class="icon">📜</span>
+                <span class="label">Regulasi & Dasar Hukum</span>
+              </button>
+              <button class="nav-item" data-view="view-referensi" onclick="switchView('view-referensi'); switchRefTab('ref-hierarki');">
+                <span class="icon">🔢</span>
+                <span class="label">Skema Penomoran L1-L4</span>
+              </button>
+            </div>
+          </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -340,6 +394,135 @@
             </div>
           </div>
 
+          <!-- WORKFLOW HEADER CARD (STEPPER & SUB-MENU REVISI) -->
+          <div class="card" style="padding: 12px 18px; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">📘</span>
+                <div>
+                  <strong id="rkb-stepper-title" style="font-size: 14px;">RKB KPU Kabupaten Ngawi</strong>
+                  <div style="font-size: 11px; color: var(--text-muted);" id="rkb-stepper-sub">Dokumen Induk Pagu NPHD Pilkada 2029</div>
+                </div>
+              </div>
+              <div id="rkb-revision-pills" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <!-- Populated via JS: pills for RKB Awal, Revisi 1, dst. -->
+              </div>
+              <div id="rkb-quick-actions" style="display: flex; align-items: center; gap: 8px;">
+                <!-- Populated via JS: Kunci/Buka, Unduh Excel -->
+              </div>
+            </div>
+          </div>
+
+          <!-- BANNER AUDIT & REKAP PAGU RKB INDUK (ANTI MISKONSEPSI 21 MILIAR) -->
+          <div id="rkbAuditPaguBanner" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 14px 18px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border: 1px solid #334155; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="font-size:28px;background:rgba(255,255,255,0.08);width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid rgba(255,255,255,0.15);">🏛️</div>
+              <div>
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:700;">AUDIT SISTEM: PAGU RKB INDUK NPHD KABUPATEN NGAWI (100% UTUH)</div>
+                <div style="font-size:20px;font-weight:900;letter-spacing:0.5px;color:#38bdf8;display:flex;align-items:center;gap:8px;">
+                  <span id="rkbBannerTotalPagu">Rp 49.999.999.000</span>
+                  <span style="font-size:11.5px;background:#15803d;color:#dcfce7;padding:2px 10px;border-radius:12px;font-weight:700;border:1px solid #86efac;">✅ 100% BALANCE (50 MILIAR)</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;">
+              <div style="background:rgba(255,255,255,0.06);padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);">
+                <div style="color:#94a3b8;font-size:10.5px;">1. Tahapan Pemilihan (1-17):</div>
+                <div style="font-weight:800;font-size:13px;color:#fde047;" id="rkbBannerTahapan">Rp 20.117.805.269</div>
+                <div style="font-size:9.5px;color:#cbd5e1;">(Subtotal Tahapan ~20,1 M)</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.06);padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);">
+                <div style="color:#94a3b8;font-size:10.5px;">2. Operasional Kantor (18-28):</div>
+                <div style="font-weight:800;font-size:13px;color:#6ee7b7;" id="rkbBannerOperasional">Rp 6.496.893.731</div>
+                <div style="font-size:9.5px;color:#cbd5e1;">(Subtotal Operasional ~6,5 M)</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.06);padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);">
+                <div style="color:#94a3b8;font-size:10.5px;">3. Honor Pokja & Adhoc:</div>
+                <div style="font-weight:800;font-size:13px;color:#93c5fd;" id="rkbBannerHonor">Rp 23.385.300.000</div>
+                <div style="font-size:9.5px;color:#cbd5e1;">(PPS Rp 12,7 M + KPPS Rp 10 M + Pokja)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BILAH AKSI KONTEKSTUAL ALA SAKTI (BERUBAH SESUAI BARIS YANG DIKLIK) -->
+          <div class="sakti-context-bar" id="saktiContextBar">
+            <div class="sakti-selected-info" id="saktiSelectedInfo">
+              <span class="sakti-selected-pill">Belum Ada Baris Dipilih</span>
+              <span style="font-size:12px;color:var(--text-muted);">Klik salah satu baris pada tabel di bawah untuk memunculkan tombol Rekam Sub-Level / Akun / Detail.</span>
+            </div>
+            <div class="sakti-action-buttons" id="saktiActionButtons">
+              <button class="btn btn-primary btn-sm" onclick="openAddHierarchyModal(null, 'L1')">
+                ➕ Rekam Bagian Utama (Level 1)
+              </button>
+            </div>
+          </div>
+
+          <!-- STRIP 6 TINGKAT PENYELENGGARA (KPU KAB, PPK, PPS, PANTARLIH, TPS, PESERTA) -->
+          <div class="penyelenggara-strip">
+            <div class="penyelenggara-box" style="border-left: 4px solid #0284c7;">
+              <div class="p-title">
+                <span>🏢 1. KPU Kabupaten</span>
+                <span class="badge badge-sasaran-kab badge-sm">KAB</span>
+              </div>
+              <div class="p-val" id="strip-pagu-kab">Rp 0</div>
+              <div class="p-sub">Satker KPU Kabupaten Ngawi</div>
+            </div>
+
+            <div class="penyelenggara-box" style="border-left: 4px solid #16a34a;">
+              <div class="p-title">
+                <span>🏛️ 2. PPK (19 Kec)</span>
+                <span class="badge badge-sasaran-ppk badge-sm">PPK</span>
+              </div>
+              <div class="p-val" id="strip-pagu-ppk">Rp 0</div>
+              <div class="p-sub">19 Kecamatan (5 Anggota + 3 Sekr)</div>
+            </div>
+
+            <div class="penyelenggara-box" style="border-left: 4px solid #a21caf;">
+              <div class="p-title">
+                <span>🏘️ 3. PPS Murni (217)</span>
+                <span class="badge badge-sasaran-pps badge-sm">PPS</span>
+              </div>
+              <div class="p-val" id="strip-pagu-pps">Rp 0</div>
+              <div class="p-sub">217 Desa/Kel (3 Anggota + 3 Sekr)</div>
+            </div>
+
+            <div class="penyelenggara-box" style="border-left: 4px solid #d97706;">
+              <div class="p-title">
+                <span>📋 4. Pantarlih</span>
+                <span class="badge badge-sasaran-pantarlih badge-sm">PANTARLIH</span>
+              </div>
+              <div class="p-val" id="strip-pagu-pantarlih">Rp 0</div>
+              <div class="p-sub">Petugas Pemutakhiran Data Pemilih</div>
+            </div>
+
+            <div class="penyelenggara-box" style="border-left: 4px solid #7c3aed;">
+              <div class="p-title">
+                <span>🗳️ 5. TPS (KPPS + Linmas)</span>
+                <span class="badge badge-sasaran-tps badge-sm">TPS</span>
+              </div>
+              <div class="p-val" id="strip-pagu-tps">Rp 0</div>
+              <div class="p-sub">1.371 TPS (7 KPPS & 2 Linmas/TPS)</div>
+            </div>
+
+            <div class="penyelenggara-box" style="border-left: 4px solid #dc2626; background: #fff5f5;">
+              <div class="p-title" style="color: #991b1b;">
+                <span>🎯 6. Peserta Pemilihan</span>
+                <span class="badge badge-sasaran-peserta badge-sm">PESERTA</span>
+              </div>
+              <div class="p-val" id="strip-pagu-peserta" style="color: #dc2626;">Rp 0</div>
+              <div class="p-sub" style="color: #991b1b;">Paslon, Parpol, Bahan Kampanye, APK, Debat</div>
+            </div>
+
+            <div class="penyelenggara-box" style="border-left: 4px solid #15803d; background: #f0fdf4;">
+              <div class="p-title" style="color: #166534;">
+                <span>📦 Total Alokasi Level PPS</span>
+                <span class="badge badge-success badge-sm">217 DESA</span>
+              </div>
+              <div class="p-val" id="strip-pagu-total-pps" style="color: #15803d;">Rp 0</div>
+              <div class="p-sub" style="color: #166534;">Akumulasi PPS + Pantarlih + TPS</div>
+            </div>
+          </div>
+
           <!-- WORKBENCH TOOLBAR -->
           <div class="toolbar-card">
             <div class="filter-group">
@@ -373,12 +556,50 @@
             </div>
           </div>
 
+          <!-- TOOLBAR LIPATAN HIERARKI RKB (TREE LEVEL QUICK BAR) & RESUME SASARAN -->
+          <div class="tree-quick-bar" id="treeQuickBar">
+            <div style="display:inline-flex;align-items:center;gap:8px;">
+              <span style="font-size:11.5px;font-weight:700;color:#64748b;">
+                <span>📂 Lipatan:</span>
+              </span>
+              <div class="tree-segmented-group">
+                <button type="button" class="tree-level-btn" id="btnTreeL1" onclick="setTreeExpandLevel(1)" title="Lipat Semua ke Level 1 (Bagian Utama)">
+                  📁 L1
+                </button>
+                <button type="button" class="tree-level-btn active" id="btnTreeL2" onclick="setTreeExpandLevel(2)" title="Tampilan Default: Terlipat di Level 2 (Tahapan)">
+                  📂 L2
+                </button>
+                <button type="button" class="tree-level-btn" id="btnTreeL3" onclick="setTreeExpandLevel(3)" title="Buka hingga Level 3 (28 Kegiatan)">
+                  📂 L3
+                </button>
+                <button type="button" class="tree-level-btn" id="btnTreeL4" onclick="setTreeExpandLevel(4)" title="Buka hingga Level 4 (Sub-Kegiatan)">
+                  📂 L4
+                </button>
+                <button type="button" class="tree-level-btn" id="btnTreeAkun" onclick="setTreeExpandLevel(5)" title="Buka hingga Akun Belanja (52xxxx)">
+                  💳 Akun
+                </button>
+                <button type="button" class="tree-level-btn" id="btnTreeAll" onclick="setTreeExpandLevel(6)" title="Buka Seluruh Cabang & Detail Item Rincian">
+                  📖 Buka Semua
+                </button>
+              </div>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:10px;">
+              <label id="lblToggleSanding" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer;background:#eff6ff;padding:4px 10px;border-radius:6px;border:1px solid #bfdbfe;">
+                <input type="checkbox" id="chkRevisionSanding" onchange="toggleRevisionSandingMode(this.checked)">
+                ⚖️ Mode Sanding Semula - Menjadi
+              </label>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="openResumeSasaranModal()" style="font-weight:600;display:inline-flex;align-items:center;gap:5px;" title="Buka Resume Cepat Perbandingan Anggaran Penyelenggara vs Peserta">
+                <span>📊 Resume Cepat Sasaran</span>
+              </button>
+            </div>
+          </div>
+
           <!-- SPREADSHEET TABLE -->
           <div class="card mt-3">
             <div class="card-body p-0">
               <div class="table-responsive rkb-table-wrapper">
                 <table class="table rkb-table" id="rkb-main-table">
-                  <thead>
+                  <thead id="rkb-table-head">
                     <tr>
                       <th class="col-no">No</th>
                       <th class="col-kode">Kode</th>
@@ -410,103 +631,7 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 4: MATRIKS BREAKDOWN ADHOC (PPK & PPS) -->
-        <!-- ================================================================= -->
-        <section id="view-adhoc" class="app-view">
-          <div class="view-header">
-            <div>
-              <h2 class="view-title">Matriks Breakdown Anggaran Adhoc (PPK & PPS)</h2>
-              <p class="view-desc">Distribusi dan rincian alokasi belanja operasional dan honorarium untuk 19 PPK dan 217 PPS se-Kabupaten Ngawi.</p>
-            </div>
-            <div class="header-actions">
-              <button class="btn btn-outline-primary" onclick="downloadExcel()">
-                📥 Unduh Rekap Anggaran
-              </button>
-            </div>
-          </div>
-
-          <!-- KPI ADHOC -->
-          <div class="kpi-grid">
-            <div class="kpi-card highlight">
-              <div class="kpi-icon">🏢</div>
-              <div class="kpi-info">
-                <span class="kpi-label">TOTAL ALOKASI BADAN ADHOC</span>
-                <span class="kpi-value" id="adhoc-total-pagu">Rp 31.383.229.300</span>
-                <span class="kpi-sub">62,77% dari Total Pagu NPHD</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-icon">🏛️</div>
-              <div class="kpi-info">
-                <span class="kpi-label">TINGKAT PPK (19 KECAMATAN)</span>
-                <span class="kpi-value" id="adhoc-pagu-ppk">Rp 2.526.164.500</span>
-                <span class="kpi-sub">Rata-rata Rp 132,9 Juta / PPK</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-icon">🏡</div>
-              <div class="kpi-info">
-                <span class="kpi-label">TINGKAT PPS (217 DESA)</span>
-                <span class="kpi-value" id="adhoc-pagu-pps">Rp 18.268.231.800</span>
-                <span class="kpi-sub">Honor & Operasional 217 PPS</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-icon">🗳️</div>
-              <div class="kpi-info">
-                <span class="kpi-label">TINGKAT TPS & PANTARLIH</span>
-                <span class="kpi-value" id="adhoc-pagu-tps">Rp 10.767.063.000</span>
-                <span class="kpi-sub">KPPS (7 Org), Linmas (2 Org) & Pantarlih</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- TABEL MATRIKS BREAKDOWN 19 KECAMATAN -->
-          <div class="card">
-            <div class="card-header">
-              <h3>Matriks Distribusi Anggaran Per Kecamatan (PPK & PPS)</h3>
-              <div class="filter-group" style="margin-bottom: 0;">
-                <input type="text" id="adhoc-search-kec" class="input-text input-sm" placeholder="Cari kecamatan..." onkeyup="filterAdhocMatrix()">
-              </div>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-striped table-hover" id="adhoc-matrix-table">
-                  <thead>
-                    <tr>
-                      <th style="width: 50px;">No</th>
-                      <th>Kecamatan</th>
-                      <th class="text-center" style="width: 110px;">Jumlah Desa</th>
-                      <th class="text-center" style="width: 100px;">Jumlah TPS</th>
-                      <th class="text-right" style="width: 180px;">Alokasi PPK (Rp)</th>
-                      <th class="text-right" style="width: 200px;">Alokasi PPS & TPS (Rp)</th>
-                      <th class="text-right" style="width: 200px;">Total Anggaran (Rp)</th>
-                      <th class="text-center" style="width: 130px;">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="table-adhoc-matrix-body">
-                    <!-- Populated via JS -->
-                  </tbody>
-                  <tfoot>
-                    <tr class="rkb-tfoot-row" style="font-size: 13px;">
-                      <td colspan="4" class="text-right"><strong>TOTAL ALOKASI BADAN ADHOC SE-KABUPATEN:</strong></td>
-                      <td class="text-right"><strong id="foot-ppk-total">Rp 0</strong></td>
-                      <td class="text-right"><strong id="foot-pps-total">Rp 0</strong></td>
-                      <td class="text-right"><strong id="foot-grand-total">Rp 0</strong></td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ================================================================= -->
-        <!-- VIEW 5: MASTER DATA WILAYAH & AKUN (SSOT) -->
+        <!-- VIEW: MASTER DATA WILAYAH & AKUN (SSOT) -->
         <!-- ================================================================= -->
         <section id="view-master" class="app-view">
           <div class="view-header">
@@ -657,6 +782,152 @@
 
         <!-- ================================================================= -->
         <!-- VIEW 6: PENGATURAN SATKER -->
+        <!-- ================================================================= -->
+        <!-- ================================================================= -->
+        <!-- VIEW: REFERENSI & STANDAR BIAYA REGULASI                           -->
+        <!-- ================================================================= -->
+        <section id="view-referensi" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Referensi Standar Biaya & Regulasi</h2>
+              <p class="view-desc">Standar Biaya Masukan (SBM), Bagan Akun Standar (BAS), Dasar Hukum dan Skema Penomoran RKB Pilkada KPU Kabupaten Ngawi.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="tab-header">
+              <button class="tab-btn active" id="btn-tab-ref-sbm" onclick="switchRefTab('ref-sbm')">💰 Standar Biaya Masukan (SBM)</button>
+              <button class="tab-btn" id="btn-tab-ref-bas" onclick="switchRefTab('ref-bas')">💳 Bagan Akun Standar (BAS)</button>
+              <button class="tab-btn" id="btn-tab-ref-regulasi" onclick="switchRefTab('ref-regulasi')">📜 Dasar Hukum & Regulasi</button>
+              <button class="tab-btn" id="btn-tab-ref-hierarki" onclick="switchRefTab('ref-hierarki')">🔢 Skema Penomoran L1-L4</button>
+            </div>
+
+            <div class="card-body">
+              <!-- TAB 1: SBM -->
+              <div id="ref-sbm" class="ref-tab-pane">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th style="width: 60px;">No</th>
+                        <th>Kategori & Uraian Biaya</th>
+                        <th style="width: 130px;">Sasaran</th>
+                        <th style="width: 100px;">Satuan</th>
+                        <th class="text-right" style="width: 180px;">Besaran Standar Biaya</th>
+                        <th>Dasar Ketentuan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="background:#f8fafc;font-weight:700;"><td colspan="6">HONORARIUM BADAN ADHOC PPK (19 KECAMATAN)</td></tr>
+                      <tr><td>1</td><td>Honorarium Ketua PPK</td><td><span class="badge badge-sasaran-ppk">PPK</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 2.500.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>2</td><td>Honorarium Anggota PPK (4 Org)</td><td><span class="badge badge-sasaran-ppk">PPK</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 2.200.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>3</td><td>Honorarium Sekretaris PPK (1 Org)</td><td><span class="badge badge-sasaran-ppk">PPK</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.850.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>4</td><td>Honorarium Staf Sekretariat PPK (2 Org)</td><td><span class="badge badge-sasaran-ppk">PPK</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.300.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      
+                      <tr style="background:#f8fafc;font-weight:700;"><td colspan="6">HONORARIUM BADAN ADHOC PPS (217 DESA / KELURAHAN)</td></tr>
+                      <tr><td>5</td><td>Honorarium Ketua PPS</td><td><span class="badge badge-sasaran-pps">PPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.500.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>6</td><td>Honorarium Anggota PPS (2 Org)</td><td><span class="badge badge-sasaran-pps">PPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.300.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>7</td><td>Honorarium Sekretaris PPS (1 Org)</td><td><span class="badge badge-sasaran-pps">PPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.150.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>8</td><td>Honorarium Staf Sekretariat PPS (2 Org)</td><td><span class="badge badge-sasaran-pps">PPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.050.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+
+                      <tr style="background:#f8fafc;font-weight:700;"><td colspan="6">HONORARIUM KPPS, LINMAS & PANTARLIH (DI BAWAH PPS)</td></tr>
+                      <tr><td>9</td><td>Honorarium Pantarlih / PPDP (2.537 Petugas)</td><td><span class="badge badge-sasaran-pantarlih">PANTARLIH</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.000.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>10</td><td>Honorarium Ketua KPPS (1.371 TPS)</td><td><span class="badge badge-sasaran-tps">TPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.200.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>11</td><td>Honorarium Anggota KPPS (6 Org / TPS)</td><td><span class="badge badge-sasaran-tps">TPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.100.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+                      <tr><td>12</td><td>Honorarium Petugas Ketertiban TPS (Linmas 2 Org / TPS)</td><td><span class="badge badge-sasaran-tps">TPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 700.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
+
+                      <tr style="background:#f8fafc;font-weight:700;"><td colspan="6">BIAYA OPERASIONAL, KONSUMSI & TRANSPORTASI</td></tr>
+                      <tr><td>13</td><td>Konsumsi Rapat Koordinasi (Makan)</td><td><span class="badge badge-sasaran-kab">KAB</span></td><td>Porsi</td><td class="text-right"><strong>Rp 45.000</strong></td><td>SBM Standar Daerah Kab. Ngawi</td></tr>
+                      <tr><td>14</td><td>Konsumsi Rapat Koordinasi (Snack)</td><td><span class="badge badge-sasaran-kab">KAB</span></td><td>Porsi</td><td class="text-right"><strong>Rp 20.000</strong></td><td>SBM Standar Daerah Kab. Ngawi</td></tr>
+                      <tr><td>15</td><td>Uang Transport Koordinasi Dalam Kota</td><td><span class="badge badge-sasaran-kab">KAB</span></td><td>Orang / Hari</td><td class="text-right"><strong>Rp 150.000</strong></td><td>SBM Standar Daerah Kab. Ngawi</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- TAB 2: BAS -->
+              <div id="ref-bas" class="ref-tab-pane" style="display: none;">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th style="width: 120px;">Kode Akun</th>
+                        <th>Uraian Akun Belanja (BAS)</th>
+                        <th>Lingkup Belanja & Peruntukan</th>
+                        <th style="width: 160px;">Kelompok Output</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><code>521211</code></td><td><strong>Belanja Bahan</strong></td><td>ATK, fotokopi/penggandaan dokumen, konsumsi rapat kerja & bimtek, spanduk, seminar kit</td><td>Barang & Jasa</td></tr>
+                      <tr><td><code>521213</code></td><td><strong>Honor Output Kegiatan</strong></td><td>Honorarium Pokja Pemilihan & seluruh Badan Adhoc (PPK, PPS, KPPS, Pantarlih, Linmas)</td><td>Honorarium</td></tr>
+                      <tr><td><code>521219</code></td><td><strong>Belanja Barang Non Operasional Lainnya</strong></td><td>Jasa publikasi media massa, iklan kampanye, pembuatan jingle/maskot, audit kantor akuntan publik (KAP), fasilitasi debat paslon</td><td>Barang & Jasa</td></tr>
+                      <tr><td><code>522141</code></td><td><strong>Belanja Sewa Gedung dan Kantor</strong></td><td>Sewa gudang sentral logistik pemilihan, sewa aula rapat pleno, sewa ruangan sekretariat</td><td>Operasional</td></tr>
+                      <tr><td><code>522151</code></td><td><strong>Belanja Sewa Kendaraan</strong></td><td>Sewa truk distribusi kotak dan bilik suara ke 19 PPK dan 217 PPS, sewa kendaraan operasional komisioner</td><td>Operasional</td></tr>
+                      <tr><td><code>524111</code></td><td><strong>Belanja Perjalanan Dinas Biasa</strong></td><td>Perjalanan dinas luar kota/provinsi (koordinasi dan konsultasi ke KPU RI di Jakarta dan KPU Provinsi Jawa Timur di Surabaya)</td><td>Perjalanan Dinas</td></tr>
+                      <tr><td><code>524113</code></td><td><strong>Belanja Perjalanan Dinas Dalam Kota</strong></td><td>Monitoring, supervisi, dan verifikasi faktual lapangan ke 19 PPK dan 217 PPS se-Kabupaten Ngawi</td><td>Perjalanan Dinas</td></tr>
+                      <tr><td><code>532111</code></td><td><strong>Belanja Modal Peralatan dan Mesin</strong></td><td>Pengadaan perangkat keras TI penunjang SIREKAP, SIDALIH, SILOG, laptop, printer, scanner dokumen</td><td>Belanja Modal</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- TAB 3: REGULASI -->
+              <div id="ref-regulasi" class="ref-tab-pane" style="display: none;">
+                <div style="display: grid; gap: 14px;">
+                  <div class="card" style="padding: 16px; border-left: 4px solid #0284c7;">
+                    <h4 style="margin: 0 0 6px 0; color: #0284c7;">1. Keputusan Komisi Pemilihan Umum Nomor 574 Tahun 2024</h4>
+                    <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                      Pedoman Teknis Pengelolaan dan Pelaksanaan Anggaran Hibah Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota. Menjadi acuan tata kelola penatausahaan keuangan RKB dan RKK di tingkat KPU Kabupaten.
+                    </p>
+                  </div>
+                  <div class="card" style="padding: 16px; border-left: 4px solid #16a34a;">
+                    <h4 style="margin: 0 0 6px 0; color: #16a34a;">2. Peraturan Menteri Dalam Negeri Nomor 41 Tahun 2020</h4>
+                    <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                      Perubahan atas Permendagri No. 54 Tahun 2019 tentang Pendanaan Kegiatan Pemilihan Gubernur, Bupati, dan Walikota yang Bersumber dari APBD. Menetapkan mekanisme pencairan bertahap dan pengamanan sisa dana hibah.
+                    </p>
+                  </div>
+                  <div class="card" style="padding: 16px; border-left: 4px solid #d97706;">
+                    <h4 style="margin: 0 0 6px 0; color: #d97706;">3. Keputusan KPU Nomor 472 Tahun 2022</h4>
+                    <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                      Satuan Biaya Masukan Lainnya (SBML) di Lingkungan Komisi Pemilihan Umum. Mengatur besaran honorarium resmi seluruh penyelenggara adhoc (PPK, PPS, KPPS, Pantarlih, dan Linmas).
+                    </p>
+                  </div>
+                  <div class="card" style="padding: 16px; border-left: 4px solid #7c3aed;">
+                    <h4 style="margin: 0 0 6px 0; color: #7c3aed;">4. Naskah Perjanjian Hibah Daerah (NPHD) Kabupaten Ngawi</h4>
+                    <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                      Naskah Perjanjian Hibah Daerah Antara Pemerintah Daerah Kabupaten Ngawi dan Komisi Pemilihan Umum Kabupaten Ngawi tentang Pelaksanaan Pemilihan Bupati dan Wakil Bupati Ngawi Tahun 2024 / 2029 dengan total nilai pagu disahkan sebesar <strong>Rp 49.999.999.000 (Empat Puluh Sembilan Miliar Sembilan Ratus Sembilan Puluh Sembilan Juta Sembilan Ratus Sembilan Puluh Sembilan Ribu Rupiah)</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TAB 4: HIERARKI -->
+              <div id="ref-hierarki" class="ref-tab-pane" style="display: none;">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th style="width: 100px;">Level</th>
+                        <th style="width: 140px;">Sebutan Hierarki</th>
+                        <th>Format Penomoran / Kode</th>
+                        <th>Contoh pada RKB KPU Ngawi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><strong>Level 0</strong></td><td>Grand Title</td><td>Huruf Kapital (A, B)</td><td>A. KEBUTUHAN BARANG DAN JASA<br>B. HONORARIUM POKJA DAN PENYELENGGARA</td></tr>
+                      <tr><td><strong>Level 1</strong></td><td>Bagian Utama</td><td>Angka Romawi (I, II)</td><td>I. TAHAPAN PERSIAPAN DAN PELAKSANAAN<br>II. OPERASIONAL DAN ADMINISTRASI KANTOR</td></tr>
+                      <tr><td><strong>Level 2</strong></td><td>Tahapan / Kegiatan</td><td>Angka Biasa (1 s.d 28)</td><td>1. Perencanaan Program dan Anggaran<br>5. Pembentukan dan Pembubaran PPK, PPS, KPPS<br>18. Pemeliharaan</td></tr>
+                      <tr><td><strong>Level 21-25</strong></td><td>Sub-Tahapan (Level 4)</td><td>Desimal (4.1, 4.2, ...) atau Strip (-)</td><td>4.1. Sosialisasi Pemilih Pemula<br>4.2. Bimbingan Teknis Sirekap</td></tr>
+                      <tr><td><strong>Level 3</strong></td><td>Akun Belanja (BAS)</td><td>Kode 6 Digit</td><td>[521211] Belanja Bahan<br>[521213] Honor Output Kegiatan<br>[524111] Belanja Perjalanan Dinas Biasa</td></tr>
+                      <tr><td><strong>Level 4</strong></td><td>Detail Item Belanja</td><td>Uraian Item (Rumus Multi-Faktor)</td><td>-. Konsumsi Rapat (15 Org x 5 Keg x Rp 65.000 = Rp 4.875.000)</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- ================================================================= -->
         <section id="view-settings" class="app-view">
           <div class="view-header">
@@ -922,50 +1193,116 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <script src="/app.js"></script>
+<!-- ===================================================================== -->
+    <!-- MODAL: RESUME CEPAT SASARAN (PENYELENGGARA VS PESERTA)                 -->
     <!-- ===================================================================== -->
-    <!-- MODAL: DETAIL RINCIAN ALOKASI ADHOC KECAMATAN -->
-    <!-- ===================================================================== -->
-    <div id="modal-adhoc-detail" class="modal-backdrop" style="display: none;">
+    <div id="modal-resume-sasaran" class="modal-backdrop" style="display: none;">
       <div class="modal-box modal-lg">
         <div class="modal-header">
           <div>
-            <h3 id="adhoc-modal-title">Rincian Alokasi Belanja Badan Adhoc</h3>
-            <p id="adhoc-modal-subtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Kecamatan</p>
+            <h3 style="margin: 0; font-size: 16px;">📊 Resume Sasaran Anggaran RKB Pilkada</h3>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+              Perbandingan Alokasi Anggaran Penyelenggara Pemilihan vs Peserta Pemilihan (NPHD Rp 49.999.999.000)
+            </div>
           </div>
-          <button class="btn-close" onclick="closeAdhocModal()">✕</button>
+          <button class="btn-close" onclick="closeResumeSasaranModal()">✕</button>
         </div>
-        <div class="modal-body p-0">
-          <div class="table-responsive" style="max-height: 480px;">
-            <table class="table table-striped table-sm">
-              <thead style="position: sticky; top: 0; background: #1e293b; color: #fff; z-index: 5;">
-                <tr>
-                  <th style="width: 40px;">No</th>
-                  <th>Uraian Komponen Belanja</th>
-                  <th>Sasaran</th>
-                  <th>Perhitungan (Vol x Satuan)</th>
-                  <th class="text-right">Harga (Rp)</th>
-                  <th class="text-right">Jumlah Alokasi (Rp)</th>
+        <div class="modal-body" style="padding: 16px;">
+          <div class="table-responsive">
+            <table class="table" style="font-size: 13px;">
+              <thead>
+                <tr style="background: #f1f5f9;">
+                  <th>Tingkat Sasaran / Penerima Anggaran</th>
+                  <th style="width: 140px;">Cakupan Entitas</th>
+                  <th class="text-right" style="width: 180px;">Total Alokasi (Rp)</th>
+                  <th class="text-right" style="width: 90px;">Porsi (%)</th>
+                  <th>Keterangan Alokasi</th>
                 </tr>
               </thead>
-              <tbody id="adhoc-modal-table-body">
+              <tbody id="resume-sasaran-tbody">
                 <!-- Populated via JS -->
               </tbody>
               <tfoot>
-                <tr class="rkb-tfoot-row" style="font-size: 13px;">
-                  <td colspan="5" class="text-right"><strong>TOTAL ALOKASI WILAYAH INI:</strong></td>
-                  <td class="text-right"><strong id="adhoc-modal-total">Rp 0</strong></td>
+                <tr style="background: #e2e8f0; font-weight: 800;">
+                  <td colspan="2">TOTAL PAGU NPHD KABUPATEN NGAWI:</td>
+                  <td class="text-right" id="resume-sasaran-total-rp">Rp 49.999.999.000</td>
+                  <td class="text-right" id="resume-sasaran-total-pct">100.00%</td>
+                  <td><span class="badge badge-success">✅ 100% BALANCE</span></td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeAdhocModal()">Tutup</button>
+          <button class="btn btn-secondary" onclick="closeResumeSasaranModal()">Tutup</button>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="/app.js"></script>
-</body>
+    <!-- ===================================================================== -->
+    <!-- MODAL: CEPAT GANTI SUBBAG PIC                                          -->
+    <!-- ===================================================================== -->
+    <div id="modal-quick-pic" class="modal-backdrop" style="display: none;">
+      <div class="modal-box modal-sm">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 15px;">Ubah Subbagian PIC</h3>
+          <button class="btn-close" onclick="closeQuickPicModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="quick-pic-row-id">
+          <p id="quick-pic-uraian" style="font-size: 12.5px; font-weight: 600; color: #1e293b; margin-bottom: 12px;"></p>
+          <div class="form-group">
+            <label>Pilih Subbag Pelaksana:</label>
+            <select id="quick-pic-select" class="input-select" style="font-weight: 600;">
+              <option value="RENDATIN">🔵 Perencanaan, Data & Informasi (RENDATIN)</option>
+              <option value="KUL">🟠 Keuangan, Umum & Logistik (KUL)</option>
+              <option value="TEKNIS">🟣 Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+              <option value="HUKUM">🔷 Hukum & SDM (HUKUM)</option>
+              <option value="PARSDM">🟢 Partisipasi Masyarakat & SDM (PARSDM)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" onclick="closeQuickPicModal()">Batal</button>
+          <button class="btn btn-primary btn-sm" onclick="submitQuickPic()">Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: CEPAT GANTI KODE AKUN BAS                                       -->
+    <!-- ===================================================================== -->
+    <div id="modal-quick-akun" class="modal-backdrop" style="display: none;">
+      <div class="modal-box modal-sm">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 15px;">Ubah Kode Akun (BAS)</h3>
+          <button class="btn-close" onclick="closeQuickAkunModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="quick-akun-row-id">
+          <p id="quick-akun-uraian" style="font-size: 12.5px; font-weight: 600; color: #1e293b; margin-bottom: 12px;"></p>
+          <div class="form-group">
+            <label>Pilih Akun Belanja (BAS):</label>
+            <select id="quick-akun-select" class="input-select" style="font-weight: 600;">
+              <option value="521211">[521211] Belanja Bahan (ATK, Konsumsi, Penggandaan)</option>
+              <option value="521213">[521213] Honor Output Kegiatan (Honor Adhoc / Pokja)</option>
+              <option value="521219">[521219] Belanja Barang Non Operasional Lainnya</option>
+              <option value="522141">[522141] Belanja Sewa Gedung dan Kantor</option>
+              <option value="522151">[522151] Belanja Sewa Kendaraan / Truk Logistik</option>
+              <option value="524111">[524111] Belanja Perjalanan Dinas Biasa (Luar Kota)</option>
+              <option value="524113">[524113] Belanja Perjalanan Dinas Dalam Kota (Supervisi)</option>
+              <option value="532111">[532111] Belanja Modal Peralatan dan Mesin</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" onclick="closeQuickAkunModal()">Batal</button>
+          <button class="btn btn-primary btn-sm" onclick="submitQuickAkun()">Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

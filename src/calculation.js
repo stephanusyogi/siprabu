@@ -1,6 +1,6 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
- * Modul Engine Perhitungan RKB & Rollup Hierarki Anggaran
+ * Modul Engine Perhitungan RKB, Rollup Hierarki Anggaran & Perbandingan Revisi
  * Pengembang: emenje
  */
 
@@ -248,7 +248,23 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null) {
 }
 
 /**
- * Menghitung seluruh rollup hierarki RKB secara hierarkis presisi
+ * Menghitung tingkat hierarki (rank) untuk nesting & rollup
+ */
+function getHierarchyRank(row) {
+  if (!row || row.row_type !== 'header') return 99;
+  const lvl = Number(row.level_indent ?? 2);
+  if (lvl === 0) return 10;                     // Level 0 (Grand Title: A, B)
+  if (lvl === 1) return 20;                     // Level 1 (Tahapan/Operasional: I, II)
+  if (lvl === 2) return 30;                     // Level 2 (Kegiatan 1..28)
+  if (lvl >= 21 && lvl <= 29) return 40 + (lvl - 20); // Level 4 (4.1..4.9)
+  if (lvl === 3) return 50;                     // Akun Belanja (5xxxxx)
+  if (lvl === 4 || lvl === 41) return 61;       // Header 1 di bawah Akun
+  if (lvl === 42) return 62;                    // Sub-Header di bawah Header 1
+  return 45;
+}
+
+/**
+ * Menghitung seluruh rollup hierarki RKB secara hierarkis presisi (SAKTI standard)
  */
 function calculateRkbDataset(rawRows) {
   let grandTotal = 0;
@@ -257,12 +273,14 @@ function calculateRkbDataset(rawRows) {
   const byAkun = {};
   const bySasaran = { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 };
 
-  // 1. Hitung seluruh baris item (level_indent === 4)
+  // 1. Hitung seluruh baris item (level_indent === 4 dan row_type !== 'header')
   const processedRows = rawRows.map(r => {
     const isItem = r.row_type !== 'header' && (Number(r.level_indent) === 4);
     if (!isItem) {
       return {
         ...r,
+        is_header: true,
+        hierarchy_rank: getHierarchyRank(r),
         computed_volume: null,
         computed_formula: '',
         computed_total: 0
@@ -292,30 +310,111 @@ function calculateRkbDataset(rawRows) {
 
     return {
       ...r,
+      is_header: false,
+      hierarchy_rank: 99,
       computed_volume: calc.volume,
       computed_formula: calc.formulaText,
       computed_total: calc.total_anggaran
     };
   });
 
-  // 2. Rollup subtotals hierarki presisi:
-  // Untuk setiap baris header (level_indent < 4 atau level 41),
-  // totalnya adalah jumlah seluruh item (level_indent === 4) setelahnya sampai bertemu header setingkat atau lebih tinggi
+  // 2. Build Tree Hierarchy (tree_id, parent_tree_id, tree_level, effective_indent, has_children)
+  const headerStack = [];
+  for (let idx = 0; idx < processedRows.length; idx++) {
+    const row = processedRows[idx];
+    const rowId = String(row.id || idx);
+    row.tree_id = row.is_header ? `h_${rowId}` : `i_${rowId}`;
+
+    if (row.is_header) {
+      const lvl = Number(row.level_indent ?? 2);
+      let treeLvl = 3;
+      if (lvl === 0) treeLvl = 1;
+      else if (lvl === 1) treeLvl = 2;
+      else if (lvl === 2) treeLvl = 3;
+      else if (lvl >= 21 && lvl <= 25) treeLvl = 4;
+      else if (lvl === 3 || lvl === 41 || lvl === 42) treeLvl = 5;
+      row.tree_level = treeLvl;
+
+      const rank = row.hierarchy_rank;
+      while (headerStack.length > 0 && headerStack[headerStack.length - 1].rank >= rank) {
+        headerStack.pop();
+      }
+
+      const parentNode = headerStack.length > 0 ? headerStack[headerStack.length - 1] : null;
+      row.parent_tree_id = parentNode ? parentNode.tree_id : null;
+
+      if (lvl === 3) {
+        row.effective_indent = parentNode ? Math.max(parentNode.effective_indent, 28) : 28;
+        row.is_akun_row = true;
+      } else {
+        row.effective_indent = lvl === 0 ? 0 : (lvl === 1 ? 14 : (lvl === 2 ? 28 : (lvl >= 21 && lvl <= 25 ? (28 + (lvl - 20) * 14) : 42)));
+        row.is_akun_row = false;
+      }
+
+      headerStack.push({
+        rank,
+        tree_id: row.tree_id,
+        tree_level: treeLvl,
+        effective_indent: row.effective_indent
+      });
+    } else {
+      row.tree_level = 6;
+      row.is_item_row = true;
+      const parentNode = headerStack.length > 0 ? headerStack[headerStack.length - 1] : null;
+      row.parent_tree_id = parentNode ? parentNode.tree_id : null;
+      row.effective_indent = parentNode ? (parentNode.effective_indent + 14) : 42;
+    }
+  }
+
+  // Hitung jumlah anak (child_count) dan has_children
+  const childCountMap = {};
+  for (const row of processedRows) {
+    if (row.parent_tree_id) {
+      childCountMap[row.parent_tree_id] = (childCountMap[row.parent_tree_id] || 0) + 1;
+    }
+  }
+  for (const row of processedRows) {
+    row.child_count = childCountMap[row.tree_id] || 0;
+    row.has_children = row.child_count > 0;
+  }
+
+  // 3. Rollup Subtotals Hierarkis Presisi:
+  // Setiap baris header menjumlahkan seluruh item detail di bawah cabangnya sampai bertemu header setingkat atau lebih tinggi
   for (let i = 0; i < processedRows.length; i++) {
     const r = processedRows[i];
-    if (Number(r.level_indent) !== 4) {
-      const lvl = Number(r.level_indent);
+    if (r.is_header) {
+      const curRank = r.hierarchy_rank;
       let sum = 0;
       for (let j = i + 1; j < processedRows.length; j++) {
-        const nextLvl = Number(processedRows[j].level_indent);
-        if (nextLvl <= lvl) break;
-        if (nextLvl === 4) {
-          sum += processedRows[j].computed_total;
+        const next = processedRows[j];
+        if (next.is_header && next.hierarchy_rank <= curRank) break;
+        if (!next.is_header) {
+          sum += next.computed_total;
         }
       }
       r.computed_total = sum;
     }
   }
+
+  // 4. Hitung Anti-Miskonsepsi Banner Metrics:
+  // Tahapan 1-17, Operasional 18-28, dan Honor Adhoc + Pokja
+  let tahapanTotal = 0;
+  let operasionalTotal = 0;
+  let honorTotal = 0;
+
+  for (const r of processedRows) {
+    if (r.is_header) {
+      if (r.level_indent === 1 && r.kode === 'I.' && r.uraian.includes('TAHAPAN')) {
+        tahapanTotal = r.computed_total;
+      } else if (r.level_indent === 1 && r.kode === 'II.' && r.uraian.includes('OPERASIONAL')) {
+        operasionalTotal = r.computed_total;
+      } else if (r.level_indent === 0 && r.kode === 'B' && r.uraian.includes('HONORARIUM')) {
+        honorTotal = r.computed_total;
+      }
+    }
+  }
+
+  const totalLevelPps = (bySasaran.PPS || 0) + (bySasaran.PANTARLIH || 0) + (bySasaran.TPS || 0);
 
   return {
     rows: processedRows,
@@ -325,8 +424,138 @@ function calculateRkbDataset(rawRows) {
       totalRows: processedRows.length,
       bySubbag,
       byAkun,
-      bySasaran
+      bySasaran,
+      banner: {
+        totalPagu: grandTotal,
+        tahapanTotal,
+        operasionalTotal,
+        honorTotal,
+        penyelenggara: {
+          kab: bySasaran.KAB || 0,
+          ppk: bySasaran.PPK || 0,
+          pps: bySasaran.PPS || 0,
+          pantarlih: bySasaran.PANTARLIH || 0,
+          tps: bySasaran.TPS || 0,
+          peserta: bySasaran.PESERTA || 0,
+          totalLevelPps
+        },
+        is_balance: grandTotal === 49999999000
+      }
     }
+  };
+}
+
+/**
+ * Menghitung perbandingan Semula - Menjadi untuk Dokumen Revisi RKB
+ */
+function getRevisionComparison(periodeId) {
+  const periode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periodeId));
+  if (!periode || !periode.parent_periode_id) {
+    return {
+      has_parent: false,
+      parent_periode: null,
+      summary: null,
+      by_row_id: {},
+      log_detail: []
+    };
+  }
+
+  const parentPeriode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periode.parent_periode_id));
+  if (!parentPeriode) {
+    return {
+      has_parent: false,
+      parent_periode: null,
+      summary: null,
+      by_row_id: {},
+      log_detail: []
+    };
+  }
+
+  const parentRawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(parentPeriode.id);
+  const currRawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(periode.id);
+
+  const parentCalc = calculateRkbDataset(parentRawRows);
+  const currCalc = calculateRkbDataset(currRawRows);
+
+  const parentMap = {};
+  for (const pr of parentCalc.rows) {
+    parentMap[pr.id] = pr;
+  }
+
+  const byRowId = {};
+  const logDetail = [];
+  let totalSemula = parentCalc.summary.grandTotal;
+  let totalMenjadi = currCalc.summary.grandTotal;
+  let deltaBertambah = 0;
+  let deltaBerkurang = 0;
+
+  for (const cr of currCalc.rows) {
+    const semulaRow = cr.semula_row_id ? parentMap[cr.semula_row_id] : null;
+    const sVol = semulaRow ? semulaRow.computed_volume : null;
+    const sHarga = semulaRow ? Number(semulaRow.harga_satuan) || 0 : null;
+    const sJml = semulaRow ? semulaRow.computed_total : 0;
+    const mJml = cr.computed_total || 0;
+    const diff = mJml - sJml;
+
+    let status = 'TETAP';
+    if (!semulaRow) {
+      status = 'BARU';
+      deltaBertambah += diff;
+    } else if (diff > 0) {
+      status = 'BERTAMBAH';
+      deltaBertambah += diff;
+    } else if (diff < 0) {
+      status = 'BERKURANG';
+      deltaBerkurang += Math.abs(diff);
+    }
+
+    const itemDiff = {
+      row_id: cr.id,
+      tree_id: cr.tree_id,
+      status,
+      diff,
+      semula_vol: sVol,
+      semula_satuan: semulaRow ? (semulaRow.satuan_vol || '') : '',
+      semula_formula: semulaRow ? (semulaRow.computed_formula || '') : '',
+      semula_harga: sHarga,
+      semula_jumlah: sJml,
+      menjadi_vol: cr.computed_volume,
+      menjadi_satuan: cr.satuan_vol || '',
+      menjadi_formula: cr.computed_formula || '',
+      menjadi_harga: Number(cr.harga_satuan) || 0,
+      menjadi_jumlah: mJml,
+      catatan: cr.catatan_revisi_baris || ''
+    };
+
+    byRowId[cr.id] = itemDiff;
+
+    if (status !== 'TETAP' && !cr.is_header) {
+      logDetail.push({
+        ...itemDiff,
+        kode: cr.kode || '',
+        uraian: cr.uraian,
+        kode_akun: cr.kode_akun || ''
+      });
+    }
+  }
+
+  return {
+    has_parent: true,
+    parent_periode: {
+      id: parentPeriode.id,
+      nama: parentPeriode.nama_periode,
+      versi_revisi: parentPeriode.versi_revisi
+    },
+    summary: {
+      totalSemula,
+      totalMenjadi,
+      netSelisih: totalMenjadi - totalSemula,
+      deltaBertambah,
+      deltaBerkurang,
+      totalPerubahanItems: logDetail.length
+    },
+    by_row_id: byRowId,
+    log_detail: logDetail
   };
 }
 
@@ -335,5 +564,7 @@ module.exports = {
   getKuantitasMap,
   resolveVarValue,
   computeRowFactors,
-  calculateRkbDataset
+  getHierarchyRank,
+  calculateRkbDataset,
+  getRevisionComparison
 };

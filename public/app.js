@@ -13,6 +13,10 @@ const AppState = {
   rkbData: null,
   masters: null,
   activeView: 'view-dashboard',
+  treeExpandLevel: 2, // 1=L1, 2=L2 (default), 3=L3, 4=L4, 5=Akun, 6=Buka Semua
+  treeNodeOverrides: {},
+  selectedRowId: null,
+  revisionViewMode: 'STANDARD', // 'STANDARD' | 'SANDING'
   filters: {
     pic: 'SEMUA',
     sasaran: 'ALL',
@@ -35,6 +39,16 @@ function formatNumber(num) {
   return Number(num).toLocaleString('id-ID');
 }
 
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 async function apiFetch(endpoint, options = {}) {
   const token = localStorage.getItem('siprabu_token');
   const headers = {
@@ -51,7 +65,6 @@ async function apiFetch(endpoint, options = {}) {
   });
 
   if (res.status === 401) {
-    // Sesi berakhir
     console.warn('Unauthorized request');
   }
 
@@ -80,17 +93,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initAuth() {
-  // Ambil daftar user
   const usersRes = await apiFetch('/api/users');
   AppState.usersList = usersRes.users || [];
 
-  // Populate user switcher di navbar
   const switcher = document.getElementById('user-switcher');
-  switcher.innerHTML = AppState.usersList.map(u => `
-    <option value="${u.username}">[Level ${u.level}] ${u.nama_pejabat} (${u.username})</option>
-  `).join('');
+  if (switcher) {
+    switcher.innerHTML = AppState.usersList.map(u => `
+      <option value="${u.username}">[Level ${u.level}] ${u.nama_pejabat} (${u.username})</option>
+    `).join('');
+  }
 
-  // Cek apakah ada token tersimpan
   const savedToken = localStorage.getItem('siprabu_token');
   let loggedInUser = null;
 
@@ -103,7 +115,6 @@ async function initAuth() {
     }
   }
 
-  // Jika belum login, default login sebagai Kasubbag Perencanaan (Level 1)
   if (!loggedInUser) {
     const defaultUser = AppState.usersList.find(u => u.username === 'perencanaan') || AppState.usersList[0];
     if (defaultUser) {
@@ -120,55 +131,56 @@ async function performLogin(username, password) {
     method: 'POST',
     body: JSON.stringify({ username, password })
   });
-  AppState.currentUser = res.user;
   localStorage.setItem('siprabu_token', res.token);
+  AppState.currentUser = res.user;
   updateUserNavbar();
 }
 
+function updateUserNavbar() {
+  const user = AppState.currentUser;
+  if (!user) return;
+
+  const namaEl = document.getElementById('user-nama-pejabat');
+  const roleEl = document.getElementById('user-role-badge');
+  const avatarEl = document.getElementById('user-avatar');
+  const switcher = document.getElementById('user-switcher');
+
+  if (namaEl) namaEl.textContent = user.nama_pejabat;
+  if (switcher) switcher.value = user.username;
+
+  if (roleEl) {
+    roleEl.textContent = `Level ${user.level}: ${user.role}`;
+    if (user.level === 0) roleEl.className = 'user-role badge badge-primary';
+    else if (user.level === 1) roleEl.className = 'user-role badge badge-success';
+    else if (user.level === 2) roleEl.className = 'user-role badge badge-warning';
+    else roleEl.className = 'user-role badge badge-secondary';
+  }
+
+  if (avatarEl) {
+    if (user.username === 'emenje') avatarEl.textContent = '👨‍💻';
+    else if (user.level === 0) avatarEl.textContent = '👑';
+    else if (user.level === 1) avatarEl.textContent = '📑';
+    else if (user.level === 2) avatarEl.textContent = '💼';
+    else avatarEl.textContent = '👤';
+  }
+}
+
 async function switchUser(username) {
-  const u = AppState.usersList.find(x => x.username === username);
-  if (!u) return;
-  // Login dengan password default
-  const pwdMap = {
-    emenje: 'emenje123',
-    perencanaan: 'perencanaan123',
-    staf_perencanaan: 'perencanaan123',
-    op_perencanaan: 'perencanaan123',
-    teknis: 'teknis123',
-    hukum: 'hukum123',
-    parmas: 'parmas123',
-    kul: 'kul123',
-    sekretaris: 'sekretaris123',
-    komisioner: 'komisioner123'
-  };
-  const pwd = pwdMap[u.username] || 'perencanaan123';
-  await performLogin(u.username, pwd);
-  
-  // Refresh view agar hak akses tombol/tabel terupdate seketika
-  renderAllViews();
+  const targetUser = AppState.usersList.find(u => u.username === username);
+  if (!targetUser) return;
+  const pass = username === 'emenje' ? 'emenje123' : `${username}123`;
+  try {
+    await performLogin(username, pass);
+    await loadRkbData();
+    renderAllViews();
+  } catch (err) {
+    alert('Gagal berganti user: ' + err.message);
+  }
 }
 
 function logout() {
   localStorage.removeItem('siprabu_token');
   location.reload();
-}
-
-function updateUserNavbar() {
-  const u = AppState.currentUser;
-  if (!u) return;
-
-  document.getElementById('user-nama-pejabat').textContent = u.nama_pejabat;
-  const roleBadge = document.getElementById('user-role-badge');
-  roleBadge.textContent = `Level ${u.level}: ${u.role_id}`;
-  
-  if (u.level === 0) roleBadge.className = 'user-role badge badge-secondary';
-  else if (u.level === 1) roleBadge.className = 'user-role badge badge-primary';
-  else if (u.level === 2) roleBadge.className = 'user-role badge badge-warning';
-  else roleBadge.className = 'user-role badge badge-success';
-
-  // Sinkronkan pilihan di select switcher
-  const switcher = document.getElementById('user-switcher');
-  if (switcher) switcher.value = u.username;
 }
 
 // ============================================================================
@@ -177,20 +189,14 @@ function updateUserNavbar() {
 
 async function loadMasters() {
   AppState.masters = await apiFetch('/api/masters');
-  // Update header satker name if available
-  if (AppState.masters.settings && AppState.masters.settings.nama_satker) {
-    document.getElementById('satker-name-header').textContent = AppState.masters.settings.nama_satker;
-  }
 }
 
 async function loadPeriodes() {
   const res = await apiFetch('/api/periodes');
   AppState.periodesList = res.periodes || [];
-
-  const activeRes = await apiFetch('/api/periodes/active');
-  AppState.currentPeriode = activeRes.periode || AppState.periodesList[0];
-
-  updateContextNavbar();
+  if (!AppState.currentPeriode && AppState.periodesList.length > 0) {
+    AppState.currentPeriode = AppState.periodesList[0];
+  }
 }
 
 async function loadRkbData() {
@@ -210,28 +216,42 @@ function updateContextNavbar() {
   const p = AppState.currentPeriode;
   if (!p) return;
 
-  document.getElementById('context-nama-dokumen').textContent = p.nama_periode;
+  const docEl = document.getElementById('context-nama-dokumen');
+  if (docEl) docEl.textContent = p.nama_periode;
   const badge = document.getElementById('context-badge-status');
   const dot = document.getElementById('context-dot');
   const banner = document.getElementById('global-lock-banner');
 
   if (p.is_locked) {
-    badge.textContent = '🔒 TERKUNCI (NPHD SAH)';
-    badge.className = 'context-status badge badge-danger';
-    dot.className = 'pulse-dot locked';
-    banner.style.display = 'flex';
-    document.getElementById('lock-banner-title').textContent = `DOKUMEN ${p.versi_revisi.toUpperCase()} TELAH DIKUNCI (NPHD SAH)`;
+    if (badge) {
+      badge.textContent = '🔒 TERKUNCI (NPHD SAH)';
+      badge.className = 'context-status badge badge-danger';
+    }
+    if (dot) dot.className = 'pulse-dot locked';
+    if (banner) {
+      banner.style.display = 'flex';
+      const lockTitle = document.getElementById('lock-banner-title');
+      if (lockTitle) lockTitle.textContent = `DOKUMEN ${(p.versi_revisi || '').toUpperCase()} TELAH DIKUNCI (NPHD SAH)`;
+    }
   } else {
-    badge.textContent = '🟢 DRAFT AKTIF';
-    badge.className = 'context-status badge badge-success';
-    dot.className = 'pulse-dot active';
-    banner.style.display = 'none';
+    if (badge) {
+      badge.textContent = '🟢 DRAFT AKTIF';
+      badge.className = 'context-status badge badge-success';
+    }
+    if (dot) dot.className = 'pulse-dot active';
+    if (banner) banner.style.display = 'none';
   }
 }
 
 // ============================================================================
-// VIEW SWITCHER & RENDERERS
+// SIDEBAR & VIEW SWITCHER
 // ============================================================================
+
+function toggleSidebarFolder(folderId, event) {
+  if (event) event.stopPropagation();
+  const el = document.getElementById(folderId);
+  if (el) el.classList.toggle('collapsed');
+}
 
 function switchView(viewId) {
   AppState.activeView = viewId;
@@ -243,13 +263,22 @@ function switchView(viewId) {
   const targetView = document.getElementById(viewId);
   if (targetView) targetView.classList.add('active');
 
-  // Trigger render spesifik
   if (viewId === 'view-dashboard') renderDashboard();
   else if (viewId === 'view-siklus') renderSiklus();
   else if (viewId === 'view-rkb') renderRkbTable();
-  else if (viewId === 'view-adhoc') renderAdhocMatrix();
   else if (viewId === 'view-master') renderMasterTabs();
   else if (viewId === 'view-settings') renderSettings();
+  else if (viewId === 'view-referensi') switchRefTab('ref-sbm');
+}
+
+function switchRefTab(tabId) {
+  document.querySelectorAll('.ref-tab-pane').forEach(el => el.style.display = 'none');
+  const target = document.getElementById(tabId);
+  if (target) target.style.display = 'block';
+
+  document.querySelectorAll('#view-referensi .tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.id === `btn-tab-${tabId}`);
+  });
 }
 
 function renderAllViews() {
@@ -257,312 +286,531 @@ function renderAllViews() {
   renderDashboard();
   renderSiklus();
   renderRkbTable();
-  renderAdhocMatrix();
   renderMasterTabs();
   renderSettings();
 }
 
-// ----------------------------------------------------------------------------
-// VIEW 1: DASHBOARD
-// ----------------------------------------------------------------------------
+// ============================================================================
+// VIEW 1: DASHBOARD KPI EKSEKUTIF
+// ============================================================================
+
 function renderDashboard() {
-  if (!AppState.rkbData || !AppState.rkbData.summary) return;
+  if (!AppState.rkbData) return;
   const { summary, periode } = AppState.rkbData;
 
   document.getElementById('kpi-total-pagu').textContent = formatRupiah(summary.grandTotal);
-  document.getElementById('kpi-total-items').textContent = formatNumber(summary.totalItems) + ' Baris';
-  document.getElementById('kpi-total-rows').textContent = formatNumber(summary.totalRows) + ' Total Komponen Hierarki';
+  document.getElementById('kpi-total-items').textContent = formatNumber(summary.totalItems);
+  document.getElementById('kpi-status-revisi').textContent = periode.versi_revisi;
   document.getElementById('badge-total-items').textContent = formatNumber(summary.totalItems);
 
-  const paguKab = summary.bySasaran.KAB || 0;
-  const paguAdhoc = (summary.bySasaran.PPK || 0) + (summary.bySasaran.PPS || 0) + (summary.bySasaran.TPS || 0) + (summary.bySasaran.PANTARLIH || 0);
-  
-  document.getElementById('kpi-pagu-kab').textContent = formatRupiah(paguKab);
-  document.getElementById('kpi-pagu-adhoc').textContent = formatRupiah(paguAdhoc);
+  // Subbag Cards
+  const sub = summary.bySubbag || {};
+  document.getElementById('pagu-subbag-kul').textContent = formatRupiah(sub.KUL || 0);
+  document.getElementById('pagu-subbag-rendatin').textContent = formatRupiah(sub.RENDATIN || 0);
+  document.getElementById('pagu-subbag-teknis').textContent = formatRupiah(sub.TEKNIS || 0);
+  document.getElementById('pagu-subbag-hukum').textContent = formatRupiah(sub.HUKUM || 0);
+  document.getElementById('pagu-subbag-parsdm').textContent = formatRupiah(sub.PARSDM || 0);
 
-  const pctKab = summary.grandTotal > 0 ? ((paguKab / summary.grandTotal) * 100).toFixed(2) : '0';
-  const pctAdhoc = summary.grandTotal > 0 ? ((paguAdhoc / summary.grandTotal) * 100).toFixed(2) : '0';
-
-  document.getElementById('kpi-pct-kab').textContent = `${pctKab}% dari Pagu Total`;
-  document.getElementById('kpi-pct-adhoc').textContent = `${pctAdhoc}% (PPK, PPS, TPS, Pantarlih)`;
-  document.getElementById('kpi-status-dokumen').textContent = periode.is_locked ? 'Status: Terkunci (NPHD Sah)' : 'Status: Draft Aktif';
-
-  // Subbag Distribution
-  const subbagList = document.getElementById('subbag-distribution-list');
-  const subbagNames = {
-    KUL: { name: 'Keuangan, Umum & Logistik (KUL)', color: '#3b82f6' },
-    RENDATIN: { name: 'Perencanaan, Data & Informasi (RENDATIN)', color: '#10b981' },
-    TEKNIS: { name: 'Teknis Penyelenggaraan Pemilu (TEKNIS)', color: '#8b5cf6' },
-    HUKUM: { name: 'Hukum & SDM (HUKUM)', color: '#f59e0b' },
-    PARSDM: { name: 'Partisipasi Masyarakat & SDM (PARSDM)', color: '#ec4899' }
+  // Progress Bar Subbag
+  const total = summary.grandTotal || 1;
+  const setBar = (id, val) => {
+    const pct = ((val / total) * 100).toFixed(1);
+    const bar = document.getElementById(id);
+    if (bar) bar.style.width = `${pct}%`;
   };
+  setBar('bar-subbag-kul', sub.KUL || 0);
+  setBar('bar-subbag-rendatin', sub.RENDATIN || 0);
+  setBar('bar-subbag-teknis', sub.TEKNIS || 0);
+  setBar('bar-subbag-hukum', sub.HUKUM || 0);
+  setBar('bar-subbag-parsdm', sub.PARSDM || 0);
 
-  subbagList.innerHTML = Object.entries(summary.bySubbag).map(([pic, amt]) => {
-    const meta = subbagNames[pic] || { name: pic, color: '#64748b' };
-    const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
+  // Sasaran KPI
+  const sas = summary.bySasaran || {};
+  const paguAdhoc = (sas.PPK || 0) + (sas.PPS || 0) + (sas.TPS || 0) + (sas.PANTARLIH || 0);
+  document.getElementById('kpi-pagu-kab').textContent = formatRupiah(sas.KAB || 0);
+  document.getElementById('kpi-pagu-adhoc').textContent = formatRupiah(paguAdhoc);
+  document.getElementById('kpi-pagu-peserta').textContent = formatRupiah(sas.PESERTA || 0);
+
+  const pctAdhoc = summary.grandTotal > 0 ? ((paguAdhoc / summary.grandTotal) * 100).toFixed(2) : '0';
+  document.getElementById('kpi-pct-adhoc').textContent = `${pctAdhoc}% (PPK, PPS, TPS, Pantarlih)`;
+
+  // Satker Details
+  if (AppState.masters && AppState.masters.settings) {
+    const s = AppState.masters.settings;
+    document.getElementById('dash-nama-satker').textContent = s.nama_satker;
+    document.getElementById('dash-nama-kpa').textContent = s.kpa_nama;
+    document.getElementById('dash-nip-kpa').textContent = s.kpa_nip;
+    document.getElementById('dash-nama-ppkom').textContent = s.ppkom_nama;
+    document.getElementById('dash-nama-bendahara').textContent = s.bendahara_nama;
+    document.getElementById('satker-name-header').textContent = s.nama_satker.toUpperCase();
+  }
+}
+
+// ============================================================================
+// VIEW 2: PUSAT SIKLUS & RIWAYAT REVISI
+// ============================================================================
+
+function renderSiklus() {
+  const container = document.getElementById('siklus-tree-container');
+  if (!container) return;
+
+  const periodes = AppState.periodesList;
+  const current = AppState.currentPeriode;
+
+  container.innerHTML = periodes.map(p => {
+    const isCurrent = current && current.id === p.id;
     return `
-      <div class="subbag-progress-item">
-        <div class="subbag-meta">
-          <span class="subbag-name">${meta.name}</span>
-          <span class="subbag-amount">${formatRupiah(amt)} (${pct}%)</span>
+      <div class="siklus-node ${isCurrent ? 'active-node' : ''}">
+        <div class="siklus-header">
+          <div class="siklus-title">
+            <span class="icon">${p.is_locked ? '🔒' : '📄'}</span>
+            <strong>${p.nama_periode}</strong>
+            <span class="badge ${p.is_locked ? 'badge-danger' : 'badge-success'}">
+              ${p.is_locked ? 'TERKUNCI' : 'DRAFT AKTIF'}
+            </span>
+            ${isCurrent ? '<span class="badge badge-primary">DIBUKA SAAT INI</span>' : ''}
+          </div>
+          <div class="siklus-actions">
+            <button class="btn btn-sm btn-outline-primary" onclick="selectPeriode(${p.id})">
+              ${isCurrent ? 'Sedang Dibuka' : 'Buka Dokumen'}
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="exportExcelPeriode(${p.id})">
+              📥 Excel
+            </button>
+          </div>
         </div>
-        <div class="progress-track">
-          <div class="progress-bar" style="width: ${pct}%; background-color: ${meta.color};"></div>
+        <div class="siklus-details">
+          <span>Versi: <b>${p.versi_revisi}</b></span> |
+          <span>Dasar: <b>${p.dasar_pengesahan || 'NPHD'}</b></span> |
+          <span>Total Baris: <b>${formatNumber(p.total_baris)}</b></span> |
+          <span>Items Belanja: <b>${formatNumber(p.total_items)}</b></span>
         </div>
+        ${p.catatan_revisi ? `<div class="siklus-catatan">${p.catatan_revisi}</div>` : ''}
       </div>
     `;
   }).join('');
-
-  // Sasaran Table
-  const sasaranBody = document.getElementById('table-sasaran-body');
-  const sasaranOrder = ['KAB', 'PPK', 'PPS', 'TPS', 'PANTARLIH', 'PESERTA'];
-  sasaranBody.innerHTML = sasaranOrder.map(s => {
-    const amt = summary.bySasaran[s] || 0;
-    const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
-    return `
-      <tr>
-        <td><span class="badge badge-sasaran-${s.toLowerCase()}">${s}</span></td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(amt)}</td>
-        <td class="text-right" style="font-family: var(--font-mono);">${pct}%</td>
-      </tr>
-    `;
-  }).join('');
-
-  // Akun BAS Table
-  const akunBody = document.getElementById('table-akun-body');
-  const akunsMap = {};
-  if (AppState.masters && AppState.masters.akuns) {
-    for (const a of AppState.masters.akuns) akunsMap[a.kode] = a.uraian;
-  }
-
-  const sortedAkun = Object.entries(summary.byAkun).sort((a, b) => b[1] - a[1]);
-  akunBody.innerHTML = sortedAkun.map(([code, amt]) => {
-    const desc = akunsMap[code] || 'Belanja Terkait';
-    const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
-    return `
-      <tr>
-        <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${code}</code></td>
-        <td>${desc}</td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(amt)}</td>
-        <td class="text-right" style="font-family: var(--font-mono);">${pct}%</td>
-      </tr>
-    `;
-  }).join('');
 }
 
-// ----------------------------------------------------------------------------
-// VIEW 2: PUSAT SIKLUS & RIWAYAT REVISI
-// ----------------------------------------------------------------------------
-function renderSiklus() {
-  const p = AppState.currentPeriode;
-  if (!p) return;
-
-  document.getElementById('siklus-nama-dokumen').textContent = p.nama_periode;
-  document.getElementById('siklus-versi-revisi').textContent = p.versi_revisi;
-  document.getElementById('siklus-dasar-pengesahan').textContent = p.dasar_pengesahan || 'NPHD';
-  document.getElementById('siklus-nomor-ba').textContent = p.nomor_ba_tapd || '-';
-  document.getElementById('siklus-tanggal-ba').textContent = p.tanggal_ba_tapd || '-';
-  document.getElementById('siklus-catatan').textContent = p.catatan_revisi || 'Baseline NPHD Awal Pilkada Ngawi';
-
-  const badgeBox = document.getElementById('lifecycle-badge');
-  if (p.is_locked) {
-    badgeBox.innerHTML = '<span class="badge badge-danger" style="font-size: 13px;">🔒 TERKUNCI (NPHD SAH)</span>';
-  } else {
-    badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🟢 DRAFT AKTIF (TERBUKA)</span>';
-  }
-
-  // Tombol aksi penguncian berdasarkan level
-  const actionContainer = document.getElementById('lifecycle-action-buttons');
-  const user = AppState.currentUser;
-  const canManage = user && (user.level === 0 || user.level === 1);
-
-  let buttonsHtml = '';
-  if (p.is_locked) {
-    if (canManage) {
-      buttonsHtml += `
-        <button class="btn btn-warning" onclick="toggleLockPeriode(${p.id}, false)">
-          🔓 Buka Kunci Dokumen
-        </button>
-      `;
-    }
-    buttonsHtml += `
-      <button class="btn btn-primary" onclick="openRevisionModal()">
-        ➕ Buat Usulan Revisi Baru
-      </button>
-    `;
-  } else {
-    if (canManage) {
-      buttonsHtml += `
-        <button class="btn btn-danger" onclick="toggleLockPeriode(${p.id}, true)">
-          🔒 Kunci NPHD Sah
-        </button>
-      `;
-    }
-  }
-
-  buttonsHtml += `
-    <button class="btn btn-outline-primary" onclick="downloadExcel()">
-      📥 Unduh Excel Resmi
-    </button>
-  `;
-
-  actionContainer.innerHTML = buttonsHtml;
-
-  // History Table
-  const historyTbody = document.getElementById('table-periode-history');
-  historyTbody.innerHTML = AppState.periodesList.map(item => `
-    <tr class="${item.id === p.id ? 'table-primary-row' : ''}">
-      <td>${item.id}</td>
-      <td><strong>${item.nama_periode}</strong></td>
-      <td><span class="badge badge-secondary">${item.versi_revisi}</span></td>
-      <td>${item.dasar_pengesahan || 'NPHD'}</td>
-      <td>
-        ${item.is_locked 
-          ? '<span class="badge badge-danger">🔒 Terkunci</span>' 
-          : '<span class="badge badge-success">🟢 Draft Aktif</span>'}
-      </td>
-      <td class="text-right" style="font-family: var(--font-mono);">${formatNumber(item.total_items)} item</td>
-      <td class="text-center">
-        <button class="btn btn-sm btn-outline-primary" onclick="selectPeriode(${item.id})">
-          ${item.id === p.id ? 'Sedang Aktif' : 'Buka Dokumen'}
-        </button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-async function selectPeriode(id) {
-  const p = AppState.periodesList.find(x => x.id === id);
+async function selectPeriode(periodeId) {
+  const p = AppState.periodesList.find(x => x.id === periodeId);
   if (!p) return;
   AppState.currentPeriode = p;
+  AppState.treeNodeOverrides = {};
   await loadRkbData();
   renderAllViews();
 }
 
-async function toggleLockPeriode(id, shouldLock) {
-  const endpoint = `/api/periodes/${id}/${shouldLock ? 'lock' : 'unlock'}`;
-  const msg = shouldLock 
-    ? 'Apakah Anda yakin ingin MENGUNCI dokumen ini sebagai NPHD Sah? Dokumen akan menjadi Read-Only.' 
-    : 'Buka kembali kunci dokumen untuk mengizinkan perubahan?';
-  
-  if (!confirm(msg)) return;
+async function toggleLockPeriode(periodeId, lockState) {
+  const user = AppState.currentUser;
+  if (!user || user.level > 1) {
+    alert('Hanya Ketua KPU (Level 0) atau KPA/Sekretaris (Level 1) yang berwenang mengunci atau membuka kunci dokumen.');
+    return;
+  }
+
+  const promptMsg = lockState
+    ? 'Apakah Anda yakin ingin MENGUNCI dokumen RKB ini? Setelah dikunci, rincian belanja tidak dapat diedit secara langsung.'
+    : 'Buka kunci dokumen RKB ini untuk mengizinkan perubahan langsung?';
+
+  if (!confirm(promptMsg)) return;
 
   try {
-    const res = await apiFetch(endpoint, { method: 'POST' });
-    AppState.currentPeriode = res.periode;
+    const res = await apiFetch(`/api/periodes/${periodeId}/lock`, {
+      method: 'POST',
+      body: JSON.stringify({ is_locked: lockState })
+    });
+    alert(res.message);
     await loadPeriodes();
+    AppState.currentPeriode = AppState.periodesList.find(x => x.id === periodeId);
     await loadRkbData();
     renderAllViews();
-    alert(shouldLock ? 'Dokumen berhasil dikunci (NPHD Sah).' : 'Kunci dokumen berhasil dibuka.');
   } catch (err) {
-    alert('Gagal mengubah status penguncian: ' + err.message);
+    alert('Gagal mengubah status kunci: ' + err.message);
   }
 }
 
-// ----------------------------------------------------------------------------
-// VIEW 3: RKB KABUPATEN (ACTIVE WORKBENCH)
-// ----------------------------------------------------------------------------
+// ============================================================================
+// VIEW 3: RKB KABUPATEN (TREE HIERARKI SAKTI & SEMULA-MENJADI)
+// ============================================================================
+
+function setTreeExpandLevel(lvl) {
+  AppState.treeExpandLevel = Number(lvl) || 2;
+  AppState.treeNodeOverrides = {};
+  ['btnTreeL1', 'btnTreeL2', 'btnTreeL3', 'btnTreeL4', 'btnTreeAkun', 'btnTreeAll'].forEach((id, idx) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle('active', (idx + 1) === AppState.treeExpandLevel);
+  });
+  renderRkbTable();
+}
+
+function toggleTreeNode(treeId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const currentExpanded = isNodeExpanded(treeId);
+  AppState.treeNodeOverrides[treeId] = !currentExpanded;
+  renderRkbTable();
+}
+
+function isNodeExpanded(treeId, treeLevel) {
+  if (AppState.filters.search.trim()) {
+    return true;
+  }
+  if (treeId in AppState.treeNodeOverrides) {
+    return Boolean(AppState.treeNodeOverrides[treeId]);
+  }
+  return (treeLevel || 3) < (AppState.treeExpandLevel || 2);
+}
+
+function toggleRevisionSandingMode(checked) {
+  AppState.revisionViewMode = checked ? 'SANDING' : 'STANDARD';
+  renderRkbTable();
+}
+
+function selectRow(rowId) {
+  AppState.selectedRowId = Number(rowId);
+  const rows = AppState.rkbData?.rows || [];
+  const row = rows.find(r => Number(r.id) === Number(rowId));
+  const pill = document.querySelector('.sakti-selected-pill');
+  const actBox = document.getElementById('saktiActionButtons');
+  const user = AppState.currentUser;
+  const isLocked = Boolean(AppState.currentPeriode?.is_locked);
+  const canEdit = checkCanEditRow(user, row, isLocked);
+
+  if (!row) {
+    if (pill) pill.textContent = 'Belum Ada Baris Dipilih';
+    if (actBox) {
+      actBox.innerHTML = !isLocked ? `<button class="btn btn-primary btn-sm" onclick="openAddRowModal()">➕ Rekam Baris Belanja</button>` : '';
+    }
+    return;
+  }
+
+  const cleanUraian = (row.uraian || '').substring(0, 50);
+  const lvlLabel = row.is_header ? `Level ${row.level_indent}` : 'Detail Belanja';
+  if (pill) pill.innerHTML = `<strong>[${row.kode || lvlLabel}]</strong> ${cleanUraian}`;
+
+  if (actBox) {
+    let btns = '';
+    if (row.is_header) {
+      if (row.level_indent === 0) {
+        btns += `<button class="btn btn-primary btn-sm" onclick="openAddRowModal()">➕ Rekam Sub-Level</button>`;
+      } else if (row.level_indent === 1) {
+        btns += `<button class="btn btn-primary btn-sm" onclick="openAddRowModal()">➕ Rekam Kegiatan</button>`;
+      } else if (row.level_indent === 2 || (row.level_indent >= 21 && row.level_indent <= 25)) {
+        btns += `<button class="btn btn-success btn-sm" onclick="openAddRowModal()">➕ Tambah Detail Belanja</button>`;
+      } else if (row.level_indent === 3) {
+        btns += `<button class="btn btn-success btn-sm" onclick="openAddRowModal()">➕ Tambah Detail Belanja (Multi-Faktor)</button>`;
+      }
+    } else {
+      if (canEdit) {
+        btns += `<button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id})">✏️ Ubah Rincian</button>`;
+        btns += `<button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id})">🗑️ Hapus</button>`;
+      }
+    }
+    actBox.innerHTML = btns;
+  }
+
+  document.querySelectorAll('#rkb-table-body tr').forEach(tr => tr.classList.remove('table-row-selected'));
+  const activeTr = document.getElementById(`row-${rowId}`);
+  if (activeTr) activeTr.classList.add('table-row-selected');
+}
+
 function renderRkbTable() {
   if (!AppState.rkbData) return;
-  const { rows, summary, periode } = AppState.rkbData;
+  const { rows, summary, periode, revision_comparison } = AppState.rkbData;
   const user = AppState.currentUser;
   const isLocked = Boolean(periode.is_locked);
+  const hasParentRev = Boolean(revision_comparison && revision_comparison.has_parent);
+  const isSanding = hasParentRev && AppState.revisionViewMode === 'SANDING';
 
-  document.getElementById('rkb-tfoot-total').textContent = formatRupiah(summary.grandTotal);
+  // Total footer
+  const tfootTotal = document.getElementById('rkb-tfoot-total');
+  if (tfootTotal) tfootTotal.textContent = formatRupiah(summary.grandTotal);
 
-  // Disable button tambah baris jika locked atau unauthorized
+  // Banner Audit Pagu Induk
+  const bTotal = document.getElementById('rkbBannerTotalPagu');
+  const bTahapan = document.getElementById('rkbBannerTahapan');
+  const bOperasional = document.getElementById('rkbBannerOperasional');
+  const bHonor = document.getElementById('rkbBannerHonor');
+
+  if (bTotal) bTotal.textContent = formatRupiah(summary.grandTotal);
+  if (bTahapan) bTahapan.textContent = formatRupiah(summary.banner?.tahapanTotal || 20112930269);
+  if (bOperasional) bOperasional.textContent = formatRupiah(summary.banner?.operasionalTotal || 6496893731);
+  if (bHonor) bHonor.textContent = formatRupiah(summary.banner?.honorTotal || 23385300000);
+
+  // Stepper Header
+  const stepperTitle = document.getElementById('rkb-stepper-title');
+  const stepperSub = document.getElementById('rkb-stepper-sub');
+  if (stepperTitle) stepperTitle.textContent = periode.nama_periode;
+  if (stepperSub) {
+    stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🔒 Terkunci (NPHD Sah)</span>' : '<span class="badge badge-success">🟢 Draft Aktif</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'NPHD'}</strong>`;
+  }
+
+  // Revision Sanding Toggle Visibility
+  const lblSanding = document.getElementById('lblToggleSanding');
+  if (lblSanding) {
+    lblSanding.style.display = hasParentRev ? 'inline-flex' : 'none';
+  }
+
+  // Revision Pills
+  const revisionPills = document.getElementById('rkb-revision-pills');
+  if (revisionPills) {
+    let pillsHtml = AppState.periodesList.map(item => `
+      <button class="btn btn-sm ${item.id === periode.id ? 'btn-primary' : 'btn-secondary'}" onclick="selectPeriode(${item.id})">
+        ${item.is_locked ? '🔒' : '📄'} ${item.versi_revisi}
+      </button>
+    `).join('');
+
+    if (user && (user.level === 0 || user.level === 1)) {
+      pillsHtml += `
+        <button class="btn btn-sm btn-outline-primary" onclick="openRevisionModal()" title="Buat Dokumen Revisi Baru">
+          ➕ Buat Revisi Baru
+        </button>
+      `;
+    }
+    revisionPills.innerHTML = pillsHtml;
+  }
+
+  // Quick Actions (Kunci / Buka Kunci)
+  const quickActions = document.getElementById('rkb-quick-actions');
+  if (quickActions) {
+    let actionsHtml = '';
+    if (user && (user.level === 0 || user.level === 1)) {
+      if (isLocked) {
+        actionsHtml += `
+          <button class="btn btn-sm btn-warning" onclick="toggleLockPeriode(${periode.id}, false)">
+            🔓 Buka Kunci
+          </button>
+        `;
+      } else {
+        actionsHtml += `
+          <button class="btn btn-sm btn-danger" onclick="toggleLockPeriode(${periode.id}, true)">
+            🔒 Kunci NPHD
+          </button>
+        `;
+      }
+    }
+    quickActions.innerHTML = actionsHtml;
+  }
+
+  // Strip 6 Tingkat Penyelenggara
+  const sas = summary.bySasaran || {};
+  const setEl = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = formatRupiah(val);
+  };
+  setEl('strip-pagu-kab', sas.KAB || 0);
+  setEl('strip-pagu-ppk', sas.PPK || 0);
+  setEl('strip-pagu-pps', sas.PPS || 0);
+  setEl('strip-pagu-pantarlih', sas.PANTARLIH || 0);
+  setEl('strip-pagu-tps', sas.TPS || 0);
+  setEl('strip-pagu-peserta', sas.PESERTA || 0);
+  const totalLevelPps = (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
+  setEl('strip-pagu-total-pps', totalLevelPps);
+
   const btnTambah = document.getElementById('btn-tambah-baris');
   if (btnTambah) {
     btnTambah.disabled = isLocked || (user && user.level === 3);
-    if (isLocked) {
-      btnTambah.title = 'Dokumen terkunci. Buat usulan revisi untuk menambah/mengubah baris.';
+  }
+
+  // Table Thead Switcher
+  const thead = document.getElementById('rkb-table-head');
+  if (thead) {
+    if (isSanding) {
+      thead.innerHTML = `
+        <tr>
+          <th class="col-no" style="width: 50px;">No</th>
+          <th class="col-kode" style="width: 90px;">Kode</th>
+          <th class="col-uraian">Uraian Kegiatan / Komponen / Akun / Detail Item</th>
+          <th class="text-right" style="width: 170px; background: #f8fafc;">SEMULA<br><span style="font-size:10px;font-weight:500;color:#64748b;">(Vol × Harga = Jumlah)</span></th>
+          <th class="text-right" style="width: 170px; background: #eff6ff;">MENJADI<br><span style="font-size:10px;font-weight:500;color:#1e40af;">(Vol × Harga = Jumlah)</span></th>
+          <th class="text-right" style="width: 150px; background: #fffbeb;">SELISIH (+/-)<br><span style="font-size:10px;font-weight:500;color:#92400e;">Bertambah / Berkurang</span></th>
+          <th style="width: 140px;">Status & Catatan</th>
+        </tr>
+      `;
     } else {
-      btnTambah.title = 'Tambah rincian belanja baru.';
+      thead.innerHTML = `
+        <tr>
+          <th class="col-no">No</th>
+          <th class="col-kode">Kode</th>
+          <th class="col-uraian">Uraian Komponen / Akun / Rincian Belanja</th>
+          <th class="col-pic">PIC Subbag</th>
+          <th class="col-sasaran">Sasaran</th>
+          <th class="col-formula">Rincian Perhitungan (Faktor x Pengali)</th>
+          <th class="col-vol text-right">Vol</th>
+          <th class="col-sat">Satuan</th>
+          <th class="col-harga text-right">Harga Satuan (Rp)</th>
+          <th class="col-total text-right">Jumlah Anggaran (Rp)</th>
+          <th class="col-aksi text-center">Aksi</th>
+        </tr>
+      `;
     }
   }
 
   const tbody = document.getElementById('rkb-table-body');
   if (!rows || rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" class="text-center" style="padding: 30px;">Tidak ada data baris yang cocok dengan filter.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${isSanding ? 7 : 11}" class="text-center" style="padding: 30px;">Tidak ada data baris yang cocok dengan filter.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = rows.map((r, idx) => {
-    const lvl = Number(r.level_indent);
-    const isItem = lvl === 4;
-    const rowClass = `rkb-row-lvl-${lvl}`;
+  // Pre-compute Tree Hierarchy Parent Map
+  const parentMap = {};
+  const nodeLevelMap = {};
+  for (const r of rows) {
+    parentMap[r.tree_id] = r.parent_tree_id;
+    nodeLevelMap[r.tree_id] = r.tree_level;
+  }
 
-    // Indentasi visual uraian
-    let indentPx = 0;
-    if (lvl === 0) indentPx = 0;
-    else if (lvl === 1) indentPx = 16;
-    else if (lvl === 2) indentPx = 32;
-    else if (lvl >= 21 && lvl <= 24) indentPx = 48;
-    else if (lvl === 3) indentPx = 64;
-    else if (lvl === 41) indentPx = 80;
-    else if (lvl === 4) indentPx = 96;
-
-    // Badges
-    const pic = (r.pic_bagian || 'KUL').toUpperCase();
-    const picBadge = isItem ? `<span class="badge badge-pic-${pic.toLowerCase()}">${pic}</span>` : '';
-    
-    const sas = (r.target_scope || 'KAB').toUpperCase();
-    const sasBadge = isItem ? `<span class="badge badge-sasaran-${sas.toLowerCase()}">${sas}</span>` : '';
-
-    // Cek otorisasi edit baris ini
-    const canEdit = checkCanEditRow(user, r, isLocked);
-
-    let aksiHtml = '';
-    if (isItem) {
-      if (canEdit) {
-        aksiHtml = `
-          <button class="btn btn-sm btn-primary" onclick="openRowModal(${r.id})" title="Edit Rincian">✏️</button>
-          <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(${r.id})" title="Hapus">🗑️</button>
-        `;
-      } else {
-        aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
+  // Search auto-expand
+  const searchQ = (AppState.filters.search || '').trim().toLowerCase();
+  const searchExpandedSet = new Set();
+  if (searchQ) {
+    for (const r of rows) {
+      const hay = `${r.kode || ''} ${r.uraian || ''} ${r.kode_akun || ''} ${r.target_scope || ''} ${r.pic_bagian || ''}`.toLowerCase();
+      if (hay.includes(searchQ)) {
+        let p = r.parent_tree_id;
+        while (p) {
+          searchExpandedSet.add(p);
+          p = parentMap[p];
+        }
       }
     }
+  }
 
-    return `
-      <tr class="${rowClass}">
-        <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
-        <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.kode || ''}</td>
-        <td class="col-uraian uraian-cell" style="padding-left: ${indentPx}px;">
-          ${r.uraian || ''}
-        </td>
-        <td class="col-pic">${picBadge}</td>
-        <td class="col-sasaran">${sasBadge}</td>
-        <td class="col-formula" style="font-family: var(--font-mono); font-size: 11px; color: ${isItem ? '#475569' : 'inherit'};">
-          ${isItem ? r.computed_formula : ''}
-        </td>
-        <td class="col-vol text-right" style="font-family: var(--font-mono); font-weight: 600;">
-          ${isItem && r.computed_volume !== null ? formatNumber(r.computed_volume) : ''}
-        </td>
-        <td class="col-sat">${isItem ? (r.satuan_vol || '') : ''}</td>
-        <td class="col-harga text-right" style="font-family: var(--font-mono);">
-          ${isItem && r.harga_satuan ? formatRupiah(r.harga_satuan) : ''}
-        </td>
-        <td class="col-total text-right" style="font-family: var(--font-mono); font-weight: 700;">
-          ${formatRupiah(r.computed_total)}
-        </td>
-        <td class="col-aksi text-center">${aksiHtml}</td>
-      </tr>
-    `;
-  }).join('');
+  const isRowVisible = (treeId, parentTreeId) => {
+    if (searchQ) return true;
+    let p = parentTreeId;
+    while (p) {
+      const pLvl = nodeLevelMap[p] || 1;
+      const isExp = (p in AppState.treeNodeOverrides) ? Boolean(AppState.treeNodeOverrides[p]) : (pLvl < (AppState.treeExpandLevel || 2));
+      if (!isExp) return false;
+      p = parentMap[p];
+    }
+    return true;
+  };
+
+  const revByRowId = (revision_comparison && revision_comparison.by_row_id) || {};
+
+  let rowsHtml = '';
+  for (let idx = 0; idx < rows.length; idx++) {
+    const r = rows[idx];
+    if (!isRowVisible(r.tree_id, r.parent_tree_id)) continue;
+
+    const lvl = Number(r.level_indent);
+    const isItem = !r.is_header;
+    const isExpanded = isNodeExpanded(r.tree_id, r.tree_level);
+    const isSelected = AppState.selectedRowId === r.id;
+
+    const toggleChevron = r.has_children
+      ? `<button type="button" class="tree-toggle-btn" onclick="toggleTreeNode('${r.tree_id}', event)" title="${isExpanded ? 'Lipat baris ini' : 'Buka cabang ini'}">${isExpanded ? '▾' : '▸'}</button>`
+      : `<span style="display:inline-block;width:24px;"></span>`;
+
+    const pic = (r.pic_bagian || 'KUL').toUpperCase();
+    const picChip = `<span class="pic-chip pic-${pic}" onclick="openQuickPicModal(${r.id}, event)" title="Klik untuk mengubah Subbagian PIC">${pic}</span>`;
+
+    const targetSas = (r.target_scope || 'KAB').toUpperCase();
+    const sasChip = `<span class="scope-chip scope-${targetSas}">${targetSas}</span>`;
+
+    const canEdit = checkCanEditRow(user, r, isLocked);
+
+    if (isSanding) {
+      const diffInfo = revByRowId[r.id] || {
+        status: 'TETAP', diff: 0,
+        semula_vol: r.computed_volume, semula_harga: r.harga_satuan, semula_jumlah: r.computed_total,
+        menjadi_vol: r.computed_volume, menjadi_harga: r.harga_satuan, menjadi_jumlah: r.computed_total,
+        catatan: ''
+      };
+
+      let badgeClass = 'diff-tetap';
+      let badgeLabel = '⚪ Tetap';
+      if (diffInfo.status === 'BERTAMBAH') { badgeClass = 'diff-bertambah'; badgeLabel = '🟢 Bertambah'; }
+      else if (diffInfo.status === 'BERKURANG') { badgeClass = 'diff-berkurang'; badgeLabel = '🔴 Berkurang'; }
+      else if (diffInfo.status === 'BARU') { badgeClass = 'diff-baru'; badgeLabel = '✨ Baru'; }
+
+      rowsHtml += `
+        <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id})">
+          <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
+          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.kode || ''}</td>
+          <td class="col-uraian" style="padding-left: ${r.effective_indent || 0}px;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+              ${toggleChevron}
+              ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
+              <span>${escHtml(r.uraian || '')}</span>
+            </div>
+          </td>
+          <td class="text-right" style="font-family: var(--font-mono); background: #f8fafc;">
+            ${isItem && diffInfo.semula_vol ? `${formatNumber(diffInfo.semula_vol)} ${diffInfo.semula_satuan || ''}<br>` : ''}
+            <strong>${formatRupiah(diffInfo.semula_jumlah)}</strong>
+          </td>
+          <td class="text-right" style="font-family: var(--font-mono); background: #eff6ff;">
+            ${isItem && diffInfo.menjadi_vol ? `${formatNumber(diffInfo.menjadi_vol)} ${diffInfo.menjadi_satuan || ''}<br>` : ''}
+            <strong>${formatRupiah(diffInfo.menjadi_jumlah)}</strong>
+          </td>
+          <td class="text-right" style="font-family: var(--font-mono); background: #fffbeb; font-weight: 700; color: ${diffInfo.diff > 0 ? '#15803d' : (diffInfo.diff < 0 ? '#b91c1c' : '#64748b')};">
+            ${diffInfo.diff > 0 ? '+' : ''}${formatRupiah(diffInfo.diff)}
+          </td>
+          <td>
+            <span class="diff-badge ${badgeClass}">${badgeLabel}</span>
+            ${diffInfo.catatan ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${escHtml(diffInfo.catatan)}</div>` : ''}
+          </td>
+        </tr>
+      `;
+    } else {
+      let aksiHtml = '';
+      if (isItem) {
+        if (canEdit) {
+          aksiHtml = `
+            <button class="btn btn-sm btn-primary" onclick="openRowModal(${r.id})" title="Edit Rincian">✏️</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(${r.id})" title="Hapus">🗑️</button>
+          `;
+        } else {
+          aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
+        }
+      }
+
+      rowsHtml += `
+        <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id})">
+          <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
+          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.kode || ''}</td>
+          <td class="col-uraian" style="padding-left: ${r.effective_indent || 0}px;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+              ${toggleChevron}
+              ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)" title="Klik untuk mengubah Akun Belanja ini">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
+              <span>${escHtml(r.uraian || '')}</span>
+            </div>
+          </td>
+          <td class="col-pic">${isItem ? picChip : ''}</td>
+          <td class="col-sasaran">${isItem ? sasChip : ''}</td>
+          <td class="col-formula" style="font-family: var(--font-mono); font-size: 11px; color: ${isItem ? '#475569' : 'inherit'};">
+            ${isItem ? (r.computed_formula || '-') : ''}
+          </td>
+          <td class="col-vol text-right" style="font-family: var(--font-mono); font-weight: 600;">
+            ${isItem && r.computed_volume !== null ? formatNumber(r.computed_volume) : ''}
+          </td>
+          <td class="col-sat">${isItem ? (r.satuan_vol || '') : ''}</td>
+          <td class="col-harga text-right" style="font-family: var(--font-mono);">
+            ${isItem && r.harga_satuan ? formatRupiah(r.harga_satuan) : ''}
+          </td>
+          <td class="col-total text-right" style="font-family: var(--font-mono); font-weight: 700;">
+            ${formatRupiah(r.computed_total || 0)}
+          </td>
+          <td class="col-aksi text-center">${aksiHtml}</td>
+        </tr>
+      `;
+    }
+  }
+
+  tbody.innerHTML = rowsHtml;
 }
 
 function checkCanEditRow(user, row, isLocked) {
   if (!user || isLocked) return false;
   if (user.level === 0 || user.level === 1) return true;
+  if (user.level === 3) return false;
   if (user.level === 2) {
-    const userPic = (user.pic_subbag || '').toUpperCase();
+    const userSub = (user.pic_subbag || '').toUpperCase();
     const rowPic = (row.pic_bagian || '').toUpperCase();
-    if (userPic === 'SEMUA') return true;
-    if (userPic === 'PERENCANAAN' && (rowPic === 'RENDATIN' || rowPic === 'PERENCANAAN')) return true;
-    if (userPic === 'KEUANGAN' && (rowPic === 'KUL' || rowPic === 'KEUANGAN')) return true;
-    if (userPic === 'PARMAS' && (rowPic === 'PARSDM' || rowPic === 'PARMAS')) return true;
-    return userPic === rowPic;
+    return userSub === rowPic;
   }
   return false;
 }
@@ -578,483 +826,205 @@ function handleSearchDebounce() {
   AppState.searchDebounceTimer = setTimeout(() => {
     AppState.filters.search = document.getElementById('filter-search').value;
     loadRkbData().then(() => renderRkbTable());
-  }, 300);
+  }, 250);
 }
 
-// ----------------------------------------------------------------------------
-// VIEW 4: MATRIKS BREAKDOWN ANGGARAN ADHOC (PPK & PPS)
-// ----------------------------------------------------------------------------
-let adhocCalculatedMatrix = [];
+// ============================================================================
+// RESUME CEPAT SASARAN MODAL
+// ============================================================================
 
-function renderAdhocMatrix() {
-  if (!AppState.masters || !AppState.rkbData) return;
-  const { kecamatans, desas } = AppState.masters;
-  const rows = AppState.rkbData.rows.filter(r => Number(r.level_indent) === 4);
+function openResumeSasaranModal() {
+  if (!AppState.rkbData) return;
+  const { summary } = AppState.rkbData;
+  const sas = summary.bySasaran || {};
+  const total = summary.grandTotal || 49999999000;
 
-  // Peta desa per kecamatan
-  const desaByKec = {};
-  for (const d of desas) {
-    if (!desaByKec[d.kecamatan_id]) desaByKec[d.kecamatan_id] = [];
-    desaByKec[d.kecamatan_id].push(d);
-  }
+  const dataSasaran = [
+    { title: '🏢 1. KPU Kabupaten', scope: 'KAB', entitas: 'Satker KPU Kab. Ngawi', val: sas.KAB || 0, desc: 'Operasional satker, logistik sentral, bimtek, sosialisasi, advokasi hukum' },
+    { title: '🏛️ 2. PPK (19 Kecamatan)', scope: 'PPK', entitas: '19 Kecamatan', val: sas.PPK || 0, desc: 'Operasional sekretariat PPK, honorarium PPK & sekretariat 19 kecamatan' },
+    { title: '🏘️ 3. PPS Murni (217 Desa)', scope: 'PPS', entitas: '217 Desa / Kelurahan', val: sas.PPS || 0, desc: 'Operasional sekretariat PPS, honorarium PPS & sekretariat 217 desa' },
+    { title: '📋 4. Pantarlih / PPDP', scope: 'PANTARLIH', entitas: '2.537 Petugas', val: sas.PANTARLIH || 0, desc: 'Honorarium petugas pemutakhiran data pemilih (di bawah koordinasi PPS)' },
+    { title: '🗳️ 5. TPS (KPPS + Linmas)', scope: 'TPS', entitas: '1.371 TPS', val: sas.TPS || 0, desc: 'Honorarium KPPS (7 org) dan Linmas (2 org) per TPS se-Kabupaten Ngawi' },
+    { title: '🎯 6. Peserta Pemilihan', scope: 'PESERTA', entitas: 'Paslon & Parpol', val: sas.PESERTA || 0, desc: 'Bahan kampanye, alat peraga kampanye (APK), fasilitasi debat paslon, audit KAP' }
+  ];
 
-  // Hitung alokasi per kecamatan
-  let grandTotalPpk = 0;
-  let grandTotalPps = 0;
+  const totalPenyelenggara = (sas.KAB || 0) + (sas.PPK || 0) + (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
+  const pctPenyelenggara = ((totalPenyelenggara / total) * 100).toFixed(2);
 
-  adhocCalculatedMatrix = kecamatans.map((k, idx) => {
-    const kecDesas = desaByKec[k.id] || [];
-    const totalTpsKec = kecDesas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
-
-    // Alokasi PPK
-    let ppkSum = 0;
-    for (const r of rows) {
-      if (r.target_scope === 'PPK') {
-        const mult = (r.basis_pengali === 'PPK' || r.basis_pengali === 'FIXED' || !r.basis_pengali || r.basis_pengali === 'NONE') ? 1 : 1;
-        const f1 = Number(r.f1_val) || 1;
-        const f2 = Number(r.f2_val) || 1;
-        const f3 = Number(r.f3_val) || 1;
-        const f4 = Number(r.f4_val) || 1;
-        const vol = f1 * (r.f2_val ? f2 : 1) * (r.f3_val ? f3 : 1) * (r.f4_val ? f4 : 1) * mult;
-        ppkSum += vol * (Number(r.harga_satuan) || 0);
-      }
-    }
-
-    // Alokasi PPS & TPS di wilayah kecamatan ini
-    let ppsSum = 0;
-    for (const d of kecDesas) {
-      for (const r of rows) {
-        if (r.target_scope === 'PPS') {
-          const f1 = Number(r.f1_val) || 1;
-          const f2 = Number(r.f2_val) || 1;
-          const f3 = Number(r.f3_val) || 1;
-          const f4 = Number(r.f4_val) || 1;
-          const vol = f1 * (r.f2_val ? f2 : 1) * (r.f3_val ? f3 : 1) * (r.f4_val ? f4 : 1);
-          ppsSum += vol * (Number(r.harga_satuan) || 0);
-        } else if (r.target_scope === 'TPS') {
-          const tpsCount = Number(d.tps) || 0;
-          const f1 = Number(r.f1_val) || 1;
-          const f2 = Number(r.f2_val) || 1;
-          const f3 = Number(r.f3_val) || 1;
-          const vol = f1 * (r.f2_val ? f2 : 1) * (r.f3_val ? f3 : 1) * tpsCount;
-          ppsSum += vol * (Number(r.harga_satuan) || 0);
-        } else if (r.target_scope === 'PANTARLIH') {
-          const pantarlihCount = Number(d.pantarlih) || Number(d.tps) || 0;
-          const f1 = Number(r.f1_val) || 1;
-          const f2 = Number(r.f2_val) || 1;
-          const vol = f1 * (r.f2_val ? f2 : 1) * pantarlihCount;
-          ppsSum += vol * (Number(r.harga_satuan) || 0);
-        }
-      }
-    }
-
-    const totalWilayah = ppkSum + ppsSum;
-    grandTotalPpk += ppkSum;
-    grandTotalPps += ppsSum;
-
-    return {
-      id: k.id,
-      noUrut: idx + 1,
-      nama: k.nama,
-      ketua_nama: k.ketua_nama,
-      sekretaris_nama: k.sekretaris_nama,
-      jumlahDesa: kecDesas.length,
-      totalTps: totalTpsKec,
-      ppkSum,
-      ppsSum,
-      totalWilayah
-    };
-  });
-
-  // Update KPI Adhoc Cards
-  const totalCombined = grandTotalPpk + grandTotalPps;
-  document.getElementById('adhoc-total-pagu').textContent = formatRupiah(totalCombined);
-  document.getElementById('adhoc-pagu-ppk').textContent = formatRupiah(grandTotalPpk);
-  document.getElementById('adhoc-pagu-pps').textContent = formatRupiah(grandTotalPps);
-
-  // Update Footer Totals
-  document.getElementById('foot-ppk-total').textContent = formatRupiah(grandTotalPpk);
-  document.getElementById('foot-pps-total').textContent = formatRupiah(grandTotalPps);
-  document.getElementById('foot-grand-total').textContent = formatRupiah(totalCombined);
-
-  filterAdhocMatrix();
-}
-
-function filterAdhocMatrix() {
-  const keyword = (document.getElementById('adhoc-search-kec')?.value || '').toLowerCase().trim();
-  const tbody = document.getElementById('table-adhoc-matrix-body');
-  if (!tbody) return;
-
-  const filtered = adhocCalculatedMatrix.filter(k => k.nama.toLowerCase().includes(keyword));
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px;">Tidak ada kecamatan yang cocok dengan pencarian.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(k => `
-    <tr>
-      <td class="text-center">${k.noUrut}</td>
-      <td><strong>${k.nama}</strong></td>
-      <td class="text-center"><span class="badge badge-secondary">${k.jumlahDesa} Desa</span></td>
-      <td class="text-center"><span class="badge badge-primary">${formatNumber(k.totalTps)} TPS</span></td>
-      <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(k.ppkSum)}</td>
-      <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(k.ppsSum)}</td>
-      <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${formatRupiah(k.totalWilayah)}</td>
-      <td class="text-center">
-        <button class="btn btn-sm btn-outline-primary" onclick="openAdhocDetail(${k.id})">
-          📄 Rincian RKK
-        </button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-function openAdhocDetail(kecId) {
-  const kec = adhocCalculatedMatrix.find(x => x.id === kecId);
-  if (!kec) return;
-
-  document.getElementById('adhoc-modal-title').textContent = `Rincian Alokasi RKK: Kecamatan ${kec.nama}`;
-  document.getElementById('adhoc-modal-subtitle').textContent = `Wilayah: ${kec.jumlahDesa} Desa/Kelurahan | Total TPS: ${formatNumber(kec.totalTps)} TPS | Total Alokasi: ${formatRupiah(kec.totalWilayah)}`;
-  document.getElementById('adhoc-modal-total').textContent = formatRupiah(kec.totalWilayah);
-
-  // Ambil baris-baris belanja untuk PPK dan PPS
-  const rows = AppState.rkbData.rows.filter(r => Number(r.level_indent) === 4 && ['PPK', 'PPS', 'TPS', 'PANTARLIH'].includes(r.target_scope));
-  const tbody = document.getElementById('adhoc-modal-table-body');
-
-  tbody.innerHTML = rows.map((r, idx) => {
-    let vol = 0;
-    let labelVol = '';
-
-    if (r.target_scope === 'PPK') {
-      const f1 = Number(r.f1_val) || 1;
-      const f2 = Number(r.f2_val) || 1;
-      vol = f1 * (r.f2_val ? f2 : 1);
-      labelVol = `${vol} ${r.satuan_vol || ''}`;
-    } else if (r.target_scope === 'PPS') {
-      const f1 = Number(r.f1_val) || 1;
-      const f2 = Number(r.f2_val) || 1;
-      vol = f1 * (r.f2_val ? f2 : 1) * kec.jumlahDesa;
-      labelVol = `${kec.jumlahDesa} Desa x ${f1} ${r.satuan_vol || ''}`;
-    } else if (r.target_scope === 'TPS') {
-      const f1 = Number(r.f1_val) || 1;
-      vol = f1 * kec.totalTps;
-      labelVol = `${kec.totalTps} TPS x ${f1} ${r.satuan_vol || ''}`;
-    } else if (r.target_scope === 'PANTARLIH') {
-      const f1 = Number(r.f1_val) || 1;
-      vol = f1 * kec.totalTps;
-      labelVol = `${kec.totalTps} Org x ${f1} ${r.satuan_vol || ''}`;
-    }
-
-    const jumlah = vol * (Number(r.harga_satuan) || 0);
-
-    return `
-      <tr>
-        <td class="text-center">${idx + 1}</td>
-        <td><strong>${r.uraian}</strong></td>
-        <td><span class="badge badge-sasaran-${(r.target_scope || 'PPK').toLowerCase()}">${r.target_scope}</span></td>
-        <td style="font-family: var(--font-mono); font-size: 11px;">${labelVol}</td>
-        <td class="text-right" style="font-family: var(--font-mono);">${formatRupiah(r.harga_satuan)}</td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(jumlah)}</td>
-      </tr>
-    `;
-  }).join('');
-
-  document.getElementById('modal-adhoc-detail').style.display = 'flex';
-}
-
-function closeAdhocModal() {
-  document.getElementById('modal-adhoc-detail').style.display = 'none';
-}
-
-// ----------------------------------------------------------------------------
-// VIEW 5: DATABASE MASTER WILAYAH & AKUN (SSOT)
-// ----------------------------------------------------------------------------
-function switchMasterTab(tabId) {
-  document.querySelectorAll('.master-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('#view-master .tab-content').forEach(tc => tc.classList.remove('active'));
-  
-  if (event && event.target) {
-    event.target.classList.add('active');
-  }
-  const content = document.getElementById(tabId);
-  if (content) content.classList.add('active');
-}
-
-function renderMasterTabs() {
-  if (!AppState.masters) return;
-  const { kecamatans, desas, akuns, sbms, kuantitas } = AppState.masters;
-
-  // Peta desa per kecamatan
-  const desaByKec = {};
-  for (const d of desas) {
-    if (!desaByKec[d.kecamatan_id]) desaByKec[d.kecamatan_id] = [];
-    desaByKec[d.kecamatan_id].push(d);
-  }
-
-  // 1. TAB MASTER PPK (19 KECAMATAN)
-  const tbodyPpk = document.getElementById('table-master-ppk');
-  if (tbodyPpk) {
-    tbodyPpk.innerHTML = kecamatans.map((k, idx) => {
-      const kecDesas = desaByKec[k.id] || [];
-      const totalTps = kecDesas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
+  const tbody = document.getElementById('resume-sasaran-tbody');
+  if (tbody) {
+    let rowsHtml = dataSasaran.map(d => {
+      const pct = ((d.val / total) * 100).toFixed(2);
       return `
         <tr>
-          <td class="text-center">${idx + 1}</td>
-          <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${k.no_urut || (idx + 1)}</td>
-          <td><strong>${k.nama}</strong></td>
-          <td>${k.ketua_nama || '-'}</td>
-          <td>${k.sekretaris_nama || '-'}</td>
-          <td style="font-family: var(--font-mono);">${k.sekretaris_nip || '-'}</td>
-          <td class="text-center"><span class="badge badge-secondary">${kecDesas.length} Desa</span></td>
-          <td class="text-center"><span class="badge badge-primary">${formatNumber(totalTps)} TPS</span></td>
+          <td><strong>${d.title}</strong></td>
+          <td><span class="scope-chip scope-${d.scope}">${d.entitas}</span></td>
+          <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(d.val)}</td>
+          <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${pct}%</td>
+          <td style="font-size: 11.5px; color: var(--text-muted);">${d.desc}</td>
         </tr>
       `;
     }).join('');
-  }
 
-  // 2. TAB MASTER PPS (217 DESA / KELURAHAN)
-  const selectPpsKec = document.getElementById('filter-pps-kec');
-  if (selectPpsKec && selectPpsKec.options.length <= 1) {
-    selectPpsKec.innerHTML = '<option value="ALL">-- Semua Kecamatan (217 Desa) --</option>' +
-      kecamatans.map(k => `<option value="${k.id}">Kecamatan ${k.nama}</option>`).join('');
-  }
-  filterMasterPps();
-
-  // 3. TAB AKUN
-  const tbodyAkun = document.getElementById('table-master-akun');
-  if (tbodyAkun) {
-    tbodyAkun.innerHTML = akuns.map(a => `
-      <tr>
-        <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${a.kode}</code></td>
-        <td><strong>${a.uraian}</strong></td>
-        <td>${a.kelompok || '-'}</td>
-        <td>${a.kategori_dn || '-'}</td>
+    rowsHtml += `
+      <tr style="background: #f0fdf4; font-weight: 700; border-top: 2px solid #86efac;">
+        <td colspan="2">📦 TOTAL ALOKASI PENYELENGGARA (1 s.d 5):</td>
+        <td class="text-right" style="font-family: var(--font-mono); color: #166534;">${formatRupiah(totalPenyelenggara)}</td>
+        <td class="text-right" style="font-family: var(--font-mono); color: #166534;">${pctPenyelenggara}%</td>
+        <td style="font-size: 11.5px; color: #166534;">Akumulasi anggaran seluruh tingkatan penyelenggara pilkada</td>
       </tr>
-    `).join('');
+    `;
+
+    tbody.innerHTML = rowsHtml;
   }
 
-  // 4. TAB SBM
-  const tbodySbm = document.getElementById('table-master-sbm');
-  if (tbodySbm) {
-    tbodySbm.innerHTML = sbms.map(s => `
-      <tr>
-        <td><span class="badge badge-secondary">${s.kategori}</span></td>
-        <td><strong>${s.uraian}</strong></td>
-        <td>${s.satuan}</td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(s.harga_satuan || s.pagu_sbm)}</td>
-        <td><small>${s.jenis_regulasi || 'SBM'} ${s.dasar_hukum || ''}</small></td>
-      </tr>
-    `).join('');
-  }
+  const elTotRp = document.getElementById('resume-sasaran-total-rp');
+  if (elTotRp) elTotRp.textContent = formatRupiah(total);
 
-  // 5. TAB KUANTITAS
-  const tbodyKuantitas = document.getElementById('table-master-kuantitas');
-  if (tbodyKuantitas) {
-    tbodyKuantitas.innerHTML = kuantitas.map(k => `
-      <tr>
-        <td><code style="font-family: var(--font-mono); font-weight: 700;">@${k.kode}</code></td>
-        <td><strong>${k.nama}</strong></td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${formatNumber(k.nilai)}</td>
-        <td>${k.satuan}</td>
-        <td><small>${k.keterangan || '-'}</small></td>
-      </tr>
-    `).join('');
-  }
+  document.getElementById('modal-resume-sasaran').style.display = 'flex';
 }
 
-function filterMasterPpk() {
-  const keyword = (document.getElementById('filter-master-ppk')?.value || '').toLowerCase().trim();
-  const rows = document.querySelectorAll('#table-master-ppk tr');
-  rows.forEach(r => {
-    const text = r.textContent.toLowerCase();
-    r.style.display = text.includes(keyword) ? '' : 'none';
-  });
+function closeResumeSasaranModal() {
+  document.getElementById('modal-resume-sasaran').style.display = 'none';
 }
 
-function filterMasterPps() {
-  if (!AppState.masters) return;
-  const { kecamatans, desas } = AppState.masters;
-  const kecId = document.getElementById('filter-pps-kec')?.value || 'ALL';
-  const keyword = (document.getElementById('filter-master-pps')?.value || '').toLowerCase().trim();
-  
-  const kecMap = {};
-  for (const k of kecamatans) kecMap[k.id] = k.nama;
+// ============================================================================
+// QUICK PIC & QUICK AKUN SHORTCUTS
+// ============================================================================
 
-  const filtered = desas.filter(d => {
-    if (kecId !== 'ALL' && String(d.kecamatan_id) !== String(kecId)) return false;
-    if (keyword) {
-      const kecName = (kecMap[d.kecamatan_id] || '').toLowerCase();
-      const match = d.nama.toLowerCase().includes(keyword) || 
-                    kecName.includes(keyword) || 
-                    (d.ketua_nama && d.ketua_nama.toLowerCase().includes(keyword)) ||
-                    (d.sekretaris_nama && d.sekretaris_nama.toLowerCase().includes(keyword));
-      if (!match) return false;
-    }
-    return true;
-  });
+function openQuickPicModal(rowId, event) {
+  if (event) event.stopPropagation();
+  const row = (AppState.rkbData?.rows || []).find(r => r.id === rowId);
+  if (!row) return;
 
-  const tbody = document.getElementById('table-master-pps');
-  if (!tbody) return;
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center" style="padding: 20px;">Tidak ada desa/kelurahan yang cocok dengan kriteria filter.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = filtered.map((d, idx) => `
-    <tr>
-      <td class="text-center">${idx + 1}</td>
-      <td><strong>${kecMap[d.kecamatan_id] || '-'}</strong></td>
-      <td><strong>${d.nama}</strong></td>
-      <td class="text-center"><span class="badge badge-primary">${formatNumber(d.tps)} TPS</span></td>
-      <td class="text-center">${formatNumber(d.pantarlih)}</td>
-      <td class="text-center">${formatNumber(d.kotak)}</td>
-      <td class="text-center">${formatNumber(d.rohaniwan)}</td>
-      <td>${d.ketua_nama || '-'}</td>
-      <td>${d.sekretaris_nama || '-'}</td>
-      <td style="font-family: var(--font-mono); font-size: 11px;">${d.sekretaris_nip || '-'}</td>
-    </tr>
-  `).join('');
+  document.getElementById('quick-pic-row-id').value = row.id;
+  document.getElementById('quick-pic-uraian').textContent = `[${row.kode || '-'}] ${row.uraian}`;
+  document.getElementById('quick-pic-select').value = (row.pic_bagian || 'KUL').toUpperCase();
+  document.getElementById('modal-quick-pic').style.display = 'flex';
 }
 
-// ----------------------------------------------------------------------------
-// VIEW 6: SETTINGS
-// ----------------------------------------------------------------------------
-function renderSettings() {
-  if (!AppState.masters || !AppState.masters.settings) return;
-  const s = AppState.masters.settings;
-
-  const setVal = (id, val) => {
-    const el = document.getElementById(id);
-    if (el && val !== undefined) el.value = val;
-  };
-
-  setVal('set-nama-satker', s.nama_satker);
-  setVal('set-kode-satker', s.kode_satker);
-  setVal('set-tahun-anggaran', s.tahun_anggaran || s.tahun_anggaran_pilkada);
-  setVal('set-nama-agenda', s.nama_agenda_pilkada);
-
-  // Urutan Pejabat dari atas ke bawah: Ketua, Sekretaris, PPK, BP
-  setVal('set-ketua-nama', s.ketua_kpu_nama);
-  setVal('set-ketua-jabatan', s.ketua_kpu_jabatan || 'Ketua Komisi Pemilihan Umum Kabupaten Ngawi');
-  setVal('set-kpa-nama', s.kpa_nama);
-  setVal('set-kpa-nip', s.kpa_nip);
-  setVal('set-ppkom-nama', s.ppkom_nama);
-  setVal('set-ppkom-nip', s.ppkom_nip);
-  setVal('set-bp-nama', s.bp_nama);
-  setVal('set-bp-nip', s.bp_nip);
-  setVal('set-kota-ttd', s.kota_ttd);
-
-  // Disable simpan jika user level > 1
-  const user = AppState.currentUser;
-  const btnSave = document.getElementById('btn-simpan-settings');
-  if (btnSave) btnSave.disabled = !user || user.level > 1;
+function closeQuickPicModal() {
+  document.getElementById('modal-quick-pic').style.display = 'none';
 }
 
-async function saveSatkerSettings() {
-  // Urutan Pejabat dari atas ke bawah: Ketua, Sekretaris, PPK, BP
-  const settings = {
-    nama_satker: document.getElementById('set-nama-satker').value,
-    kode_satker: document.getElementById('set-kode-satker').value,
-    tahun_anggaran: document.getElementById('set-tahun-anggaran').value,
-    nama_agenda_pilkada: document.getElementById('set-nama-agenda').value,
-    ketua_kpu_nama: document.getElementById('set-ketua-nama').value,
-    ketua_kpu_jabatan: document.getElementById('set-ketua-jabatan').value,
-    kpa_nama: document.getElementById('set-kpa-nama').value,
-    kpa_nip: document.getElementById('set-kpa-nip').value,
-    ppkom_nama: document.getElementById('set-ppkom-nama').value,
-    ppkom_nip: document.getElementById('set-ppkom-nip').value,
-    bp_nama: document.getElementById('set-bp-nama').value,
-    bp_nip: document.getElementById('set-bp-nip').value,
-    kota_ttd: document.getElementById('set-kota-ttd').value
-  };
+async function submitQuickPic() {
+  const rowId = Number(document.getElementById('quick-pic-row-id').value);
+  const pic = document.getElementById('quick-pic-select').value;
+  const periodeId = AppState.currentPeriode.id;
 
   try {
-    await apiFetch('/api/settings', {
+    await apiFetch(`/api/rkb/${periodeId}/quick-pic`, {
       method: 'POST',
-      body: JSON.stringify(settings)
+      body: JSON.stringify({ row_id: rowId, pic_bagian: pic })
     });
-    alert('Pengaturan satker berhasil diperbarui!');
-    await loadMasters();
+    closeQuickPicModal();
+    await loadRkbData();
     renderAllViews();
   } catch (err) {
-    alert('Gagal menyimpan pengaturan: ' + err.message);
+    alert('Gagal mengubah PIC: ' + err.message);
+  }
+}
+
+function openQuickAkunModal(rowId, event) {
+  if (event) event.stopPropagation();
+  const row = (AppState.rkbData?.rows || []).find(r => r.id === rowId);
+  if (!row) return;
+
+  document.getElementById('quick-akun-row-id').value = row.id;
+  document.getElementById('quick-akun-uraian').textContent = `[${row.kode || '-'}] ${row.uraian}`;
+  document.getElementById('quick-akun-select').value = row.kode_akun || '521211';
+  document.getElementById('modal-quick-akun').style.display = 'flex';
+}
+
+function closeQuickAkunModal() {
+  document.getElementById('modal-quick-akun').style.display = 'none';
+}
+
+async function submitQuickAkun() {
+  const rowId = Number(document.getElementById('quick-akun-row-id').value);
+  const akun = document.getElementById('quick-akun-select').value;
+  const periodeId = AppState.currentPeriode.id;
+
+  try {
+    await apiFetch(`/api/rkb/${periodeId}/quick-akun`, {
+      method: 'POST',
+      body: JSON.stringify({ row_id: rowId, kode_akun: akun })
+    });
+    closeQuickAkunModal();
+    await loadRkbData();
+    renderAllViews();
+  } catch (err) {
+    alert('Gagal mengubah Akun: ' + err.message);
   }
 }
 
 // ============================================================================
-// MODAL: EDIT & TAMBAH BARIS BELANJA
+// MODAL: FORM TAMBAH / EDIT BARIS BELANJA
 // ============================================================================
 
-function openRowModal(rowId = null) {
-  const modal = document.getElementById('modal-row');
-  const title = document.getElementById('modal-row-title');
+function openRowModal(rowId) {
+  const row = AppState.rkbData.rows.find(r => r.id === rowId);
+  if (!row) return;
 
-  // Populate Akun Select
+  document.getElementById('modal-row-title').textContent = 'Edit Rincian Belanja RKB';
+  document.getElementById('modal-row-id').value = row.id;
+  document.getElementById('modal-row-level').value = row.level_indent || 4;
+  document.getElementById('modal-uraian').value = row.uraian;
+  document.getElementById('modal-pic').value = row.pic_bagian || 'KUL';
+  document.getElementById('modal-sasaran').value = row.target_scope || 'KAB';
+
   const akunSelect = document.getElementById('modal-akun');
   if (AppState.masters && AppState.masters.akuns) {
     akunSelect.innerHTML = AppState.masters.akuns.map(a => `
-      <option value="${a.kode}">${a.kode} - ${a.uraian}</option>
+      <option value="${a.kode}" ${a.kode === row.kode_akun ? 'selected' : ''}>[${a.kode}] ${a.uraian}</option>
     `).join('');
   }
 
-  if (rowId) {
-    title.textContent = 'Edit Rincian Belanja RKB';
-    const row = AppState.rkbData.rows.find(r => r.id === rowId);
-    if (!row) return;
-
-    document.getElementById('modal-row-id').value = row.id;
-    document.getElementById('modal-uraian').value = row.uraian || '';
-    document.getElementById('modal-pic').value = (row.pic_bagian || 'KUL').toUpperCase();
-    document.getElementById('modal-sasaran').value = (row.target_scope || 'KAB').toUpperCase();
-    document.getElementById('modal-akun').value = row.kode_akun || '521211';
-    document.getElementById('modal-harga').value = row.harga_satuan || 0;
-
-    document.getElementById('modal-f1-val').value = row.f1_val !== null ? row.f1_val : '';
-    document.getElementById('modal-f1-unit').value = row.f1_unit || '';
-    document.getElementById('modal-f2-val').value = row.f2_val !== null ? row.f2_val : '';
-    document.getElementById('modal-f2-unit').value = row.f2_unit || '';
-    document.getElementById('modal-f3-val').value = row.f3_val !== null ? row.f3_val : '';
-    document.getElementById('modal-f3-unit').value = row.f3_unit || '';
-    document.getElementById('modal-f4-val').value = row.f4_val !== null ? row.f4_val : '';
-    document.getElementById('modal-f4-unit').value = row.f4_unit || '';
-
-    document.getElementById('modal-basis-pengali').value = row.basis_pengali || 'NONE';
-    document.getElementById('modal-satuan-vol').value = row.satuan_vol || '';
-  } else {
-    title.textContent = 'Tambah Rincian Belanja Baru';
-    document.getElementById('modal-row-id').value = '';
-    document.getElementById('modal-uraian').value = '';
-    
-    // Default PIC sesuai user login
-    const user = AppState.currentUser;
-    let defPic = 'KUL';
-    if (user && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
-      defPic = user.pic_subbag.toUpperCase();
-      if (defPic === 'PERENCANAAN') defPic = 'RENDATIN';
-      if (defPic === 'PARMAS') defPic = 'PARSDM';
-    }
-    document.getElementById('modal-pic').value = defPic;
-    document.getElementById('modal-sasaran').value = 'KAB';
-    document.getElementById('modal-akun').value = '521211';
-    document.getElementById('modal-harga').value = 0;
-
-    document.getElementById('modal-f1-val').value = 1;
-    document.getElementById('modal-f1-unit').value = 'Keg';
-    document.getElementById('modal-f2-val').value = '';
-    document.getElementById('modal-f2-unit').value = '';
-    document.getElementById('modal-f3-val').value = '';
-    document.getElementById('modal-f3-unit').value = '';
-    document.getElementById('modal-f4-val').value = '';
-    document.getElementById('modal-f4-unit').value = '';
-
-    document.getElementById('modal-basis-pengali').value = 'NONE';
-    document.getElementById('modal-satuan-vol').value = 'Keg';
-  }
+  document.getElementById('modal-harga').value = row.harga_satuan || 0;
+  document.getElementById('modal-f1-val').value = row.f1_val !== null ? row.f1_val : '';
+  document.getElementById('modal-f1-unit').value = row.f1_unit || '';
+  document.getElementById('modal-f2-val').value = row.f2_val !== null ? row.f2_val : '';
+  document.getElementById('modal-f2-unit').value = row.f2_unit || '';
+  document.getElementById('modal-f3-val').value = row.f3_val !== null ? row.f3_val : '';
+  document.getElementById('modal-f3-unit').value = row.f3_unit || '';
+  document.getElementById('modal-f4-val').value = row.f4_val !== null ? row.f4_val : '';
+  document.getElementById('modal-f4-unit').value = row.f4_unit || '';
+  document.getElementById('modal-basis-pengali').value = row.basis_pengali || 'NONE';
+  document.getElementById('modal-satuan-vol').value = row.satuan_vol || 'Paket';
 
   calculateModalTotal();
-  modal.style.display = 'flex';
+  document.getElementById('modal-row').style.display = 'flex';
+}
+
+function openAddRowModal() {
+  document.getElementById('modal-row-title').textContent = 'Tambah Rincian Belanja Baru';
+  document.getElementById('modal-row-id').value = '';
+  document.getElementById('modal-row-level').value = '4';
+  document.getElementById('modal-uraian').value = '';
+  document.getElementById('modal-pic').value = 'KUL';
+  document.getElementById('modal-sasaran').value = 'KAB';
+
+  const akunSelect = document.getElementById('modal-akun');
+  if (AppState.masters && AppState.masters.akuns) {
+    akunSelect.innerHTML = AppState.masters.akuns.map(a => `
+      <option value="${a.kode}">[${a.kode}] ${a.uraian}</option>
+    `).join('');
+  }
+
+  document.getElementById('modal-harga').value = 0;
+  document.getElementById('modal-f1-val').value = 1;
+  document.getElementById('modal-f1-unit').value = 'Keg';
+  document.getElementById('modal-f2-val').value = '';
+  document.getElementById('modal-f2-unit').value = '';
+  document.getElementById('modal-f3-val').value = '';
+  document.getElementById('modal-f3-unit').value = '';
+  document.getElementById('modal-f4-val').value = '';
+  document.getElementById('modal-f4-unit').value = '';
+  document.getElementById('modal-basis-pengali').value = 'NONE';
+  document.getElementById('modal-satuan-vol').value = 'Paket';
+
+  calculateModalTotal();
+  document.getElementById('modal-row').style.display = 'flex';
 }
 
 function closeRowModal() {
@@ -1063,13 +1033,13 @@ function closeRowModal() {
 
 function calculateModalTotal() {
   const f1 = Number(document.getElementById('modal-f1-val').value) || 1;
-  const f1u = document.getElementById('modal-f1-unit').value.trim();
+  const f1u = document.getElementById('modal-f1-unit').value || '';
   const f2 = Number(document.getElementById('modal-f2-val').value) || 1;
-  const f2u = document.getElementById('modal-f2-unit').value.trim();
+  const f2u = document.getElementById('modal-f2-unit').value || '';
   const f3 = Number(document.getElementById('modal-f3-val').value) || 1;
-  const f3u = document.getElementById('modal-f3-unit').value.trim();
+  const f3u = document.getElementById('modal-f3-unit').value || '';
   const f4 = Number(document.getElementById('modal-f4-val').value) || 1;
-  const f4u = document.getElementById('modal-f4-unit').value.trim();
+  const f4u = document.getElementById('modal-f4-unit').value || '';
 
   const basis = document.getElementById('modal-basis-pengali').value;
   let mult = 1;
@@ -1188,4 +1158,197 @@ function downloadExcel() {
   if (!AppState.currentPeriode) return;
   const url = `/api/export-excel/${AppState.currentPeriode.id}`;
   window.open(url, '_blank');
+}
+
+function exportExcelPeriode(periodeId) {
+  const url = `/api/export-excel/${periodeId}`;
+  window.open(url, '_blank');
+}
+
+// ============================================================================
+// VIEW 4: MASTER DATA WILAYAH & AKUN (SSOT)
+// ============================================================================
+
+function switchMasterTab(tabId) {
+  document.querySelectorAll('#view-master .tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('#view-master .tab-btn').forEach(el => el.classList.remove('active'));
+
+  const content = document.getElementById(tabId);
+  if (content) content.classList.add('active');
+
+  const btn = document.querySelector(`#view-master .tab-btn[onclick*="${tabId}"]`);
+  if (btn) btn.classList.add('active');
+}
+
+function renderMasterTabs() {
+  if (!AppState.masters) return;
+  const { kecamatans, desas, akuns, sbms, kuantitas } = AppState.masters;
+
+  const desaByKec = {};
+  for (const d of desas) {
+    if (!desaByKec[d.kecamatan_id]) desaByKec[d.kecamatan_id] = [];
+    desaByKec[d.kecamatan_id].push(d);
+  }
+
+  // 1. TAB MASTER PPK (19 KECAMATAN)
+  const tbodyPpk = document.getElementById('table-master-ppk');
+  if (tbodyPpk) {
+    tbodyPpk.innerHTML = kecamatans.map((k, idx) => {
+      const kecDesas = desaByKec[k.id] || [];
+      const totalTps = kecDesas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
+      return `
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${k.no_urut || (idx + 1)}</td>
+          <td><strong>${k.nama}</strong></td>
+          <td>${k.ketua_nama || '-'}</td>
+          <td>${k.sekretaris_nama || '-'}</td>
+          <td style="font-family: var(--font-mono);">${k.sekretaris_nip || '-'}</td>
+          <td class="text-center"><span class="badge badge-secondary">${kecDesas.length} Desa</span></td>
+          <td class="text-center"><span class="badge badge-primary">${formatNumber(totalTps)} TPS</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // 2. TAB MASTER PPS (217 DESA / KELURAHAN)
+  const selectPpsKec = document.getElementById('filter-pps-kec');
+  if (selectPpsKec && selectPpsKec.options.length <= 1) {
+    selectPpsKec.innerHTML = '<option value="ALL">-- Semua Kecamatan (217 Desa) --</option>' +
+      kecamatans.map(k => `<option value="${k.id}">Kecamatan ${k.nama}</option>`).join('');
+  }
+  filterMasterPps();
+
+  // 3. TAB AKUN
+  const tbodyAkun = document.getElementById('table-master-akun');
+  if (tbodyAkun) {
+    tbodyAkun.innerHTML = akuns.map(a => `
+      <tr>
+        <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${a.kode}</code></td>
+        <td><strong>${a.uraian}</strong></td>
+        <td>${a.kelompok || '-'}</td>
+        <td>${a.kategori_dn || '-'}</td>
+      </tr>
+    `).join('');
+  }
+
+  // 4. TAB SBM
+  const tbodySbm = document.getElementById('table-master-sbm');
+  if (tbodySbm) {
+    tbodySbm.innerHTML = sbms.map(s => `
+      <tr>
+        <td><span class="badge badge-secondary">${s.kategori}</span></td>
+        <td><strong>${s.uraian}</strong></td>
+        <td>${s.satuan}</td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(s.nominal)}</td>
+      </tr>
+    `).join('');
+  }
+
+  // 5. TAB KUANTITAS
+  const tbodyKuan = document.getElementById('table-master-kuantitas');
+  if (tbodyKuan) {
+    tbodyKuan.innerHTML = kuantitas.map(q => `
+      <tr>
+        <td><code style="font-family: var(--font-mono); font-weight: 700;">${q.kode}</code></td>
+        <td><strong>${q.uraian}</strong></td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--primary);">${formatNumber(q.nilai)}</td>
+        <td>${q.satuan || ''}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+function filterMasterPps() {
+  if (!AppState.masters) return;
+  const { kecamatans, desas } = AppState.masters;
+  const kecId = document.getElementById('filter-pps-kec')?.value || 'ALL';
+  const keyword = (document.getElementById('search-pps-name')?.value || '').toLowerCase().trim();
+
+  const kecMap = {};
+  for (const k of kecamatans) kecMap[k.id] = k.nama;
+
+  const filtered = desas.filter(d => {
+    const matchKec = kecId === 'ALL' || String(d.kecamatan_id) === String(kecId);
+    const matchName = d.nama.toLowerCase().includes(keyword) || (kecMap[d.kecamatan_id] || '').toLowerCase().includes(keyword);
+    return matchKec && matchName;
+  });
+
+  const countBadge = document.getElementById('pps-count-badge');
+  if (countBadge) countBadge.textContent = `${filtered.length} Desa`;
+
+  const tbody = document.getElementById('table-master-pps');
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 20px;">Tidak ada desa/kelurahan yang cocok.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((d, idx) => `
+    <tr>
+      <td class="text-center">${idx + 1}</td>
+      <td><strong>Kecamatan ${kecMap[d.kecamatan_id] || '-'}</strong></td>
+      <td><strong>${d.nama}</strong></td>
+      <td>${d.ketua_nama || '-'}</td>
+      <td class="text-center"><span class="badge badge-primary">${formatNumber(d.tps)} TPS</span></td>
+      <td class="text-center"><span class="badge badge-secondary">${formatNumber(d.pantarlih || d.tps)} Petugas</span></td>
+      <td class="text-center"><span class="badge badge-secondary">${formatNumber(d.kotak || (Number(d.tps) * 2))} Kotak</span></td>
+    </tr>
+  `).join('');
+}
+
+// ============================================================================
+// VIEW 5: PENGATURAN SATKER & PEJABAT PENANDATANGAN
+// ============================================================================
+
+function renderSettings() {
+  if (!AppState.masters || !AppState.masters.settings) return;
+  const s = AppState.masters.settings;
+
+  document.getElementById('set-nama-satker').value = s.nama_satker || '';
+  document.getElementById('set-kode-satker').value = s.kode_satker || '';
+  document.getElementById('set-kpa-nama').value = s.kpa_nama || '';
+  document.getElementById('set-kpa-nip').value = s.kpa_nip || '';
+  document.getElementById('set-kpa-jabatan').value = s.kpa_jabatan || '';
+  document.getElementById('set-ppkom-nama').value = s.ppkom_nama || '';
+  document.getElementById('set-ppkom-nip').value = s.ppkom_nip || '';
+  document.getElementById('set-ppkom-jabatan').value = s.ppkom_jabatan || '';
+  document.getElementById('set-bendahara-nama').value = s.bendahara_nama || '';
+  document.getElementById('set-bendahara-nip').value = s.bendahara_nip || '';
+  document.getElementById('set-bendahara-jabatan').value = s.bendahara_jabatan || '';
+  document.getElementById('set-ketua-nama').value = s.ketua_kpu_nama || '';
+  document.getElementById('set-ketua-jabatan').value = s.ketua_kpu_jabatan || '';
+  document.getElementById('set-kota').value = s.kota_penandatangan || '';
+}
+
+async function saveSettingsForm() {
+  const payload = {
+    nama_satker: document.getElementById('set-nama-satker').value,
+    kode_satker: document.getElementById('set-kode-satker').value,
+    kpa_nama: document.getElementById('set-kpa-nama').value,
+    kpa_nip: document.getElementById('set-kpa-nip').value,
+    kpa_jabatan: document.getElementById('set-kpa-jabatan').value,
+    ppkom_nama: document.getElementById('set-ppkom-nama').value,
+    ppkom_nip: document.getElementById('set-ppkom-nip').value,
+    ppkom_jabatan: document.getElementById('set-ppkom-jabatan').value,
+    bendahara_nama: document.getElementById('set-bendahara-nama').value,
+    bendahara_nip: document.getElementById('set-bendahara-nip').value,
+    bendahara_jabatan: document.getElementById('set-bendahara-jabatan').value,
+    ketua_kpu_nama: document.getElementById('set-ketua-nama').value,
+    ketua_kpu_jabatan: document.getElementById('set-ketua-jabatan').value,
+    kota_penandatangan: document.getElementById('set-kota').value
+  };
+
+  try {
+    const res = await apiFetch('/api/settings', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    alert(res.message);
+    await loadMasters();
+    renderAllViews();
+  } catch (err) {
+    alert('Gagal menyimpan pengaturan: ' + err.message);
+  }
 }

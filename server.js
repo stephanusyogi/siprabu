@@ -29,7 +29,7 @@ const {
   updateSettings
 } = require('./src/db');
 
-const { calculateRkbDataset } = require('./src/calculation');
+const { calculateRkbDataset, getRevisionComparison } = require('./src/calculation');
 const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle } = require('./src/auth');
 const { exportRkbToExcelBuffer } = require('./src/excel_io');
 
@@ -237,12 +237,54 @@ const server = http.createServer(async (req, res) => {
       // Ambil seluruh baris untuk periode ini
       const rawRows = getRabRows(periodeId, { pic, target_scope, search });
       const { rows, summary } = calculateRkbDataset(rawRows);
+      const revision_comparison = getRevisionComparison(periodeId);
 
       return sendJson(res, 200, {
         periode,
         summary,
-        rows
+        rows,
+        revision_comparison
       });
+    }
+
+    // 10b. QUICK UPDATE PIC & KODE AKUN (INLINE SPREADSHEET SHORTCUT)
+    const quickPicMatch = pathname.match(/^\/api\/rkb\/(\d+)\/quick-pic$/);
+    if (quickPicMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(quickPicMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+      if (Number(periode.is_locked) === 1) return sendJson(res, 403, { error: 'Dokumen berstatus terkunci.' });
+
+      const body = await parseJsonBody(req);
+      const { row_id, pic_bagian } = body;
+      db.prepare('UPDATE rab_baris SET pic_bagian = ? WHERE id = ? AND periode_id = ?').run(pic_bagian, row_id, periodeId);
+      return sendJson(res, 200, { ok: true, message: 'PIC baris berhasil diperbarui.' });
+    }
+
+    const quickAkunMatch = pathname.match(/^\/api\/rkb\/(\d+)\/quick-akun$/);
+    if (quickAkunMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(quickAkunMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+      if (Number(periode.is_locked) === 1) return sendJson(res, 403, { error: 'Dokumen berstatus terkunci.' });
+
+      const body = await parseJsonBody(req);
+      const { row_id, kode_akun } = body;
+      db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ? AND periode_id = ?').run(kode_akun, row_id, periodeId);
+      return sendJson(res, 200, { ok: true, message: 'Kode Akun berhasil diperbarui.' });
+    }
+
+    // 10c. RESUME SASARAN CEPAT (PENYELENGGARA VS PESERTA)
+    const resumeSasaranMatch = pathname.match(/^\/api\/rkb\/(\d+)\/resume-sasaran$/);
+    if (resumeSasaranMatch && method === 'GET') {
+      const periodeId = Number(resumeSasaranMatch[1]);
+      const rawRows = getRabRows(periodeId);
+      const { summary } = calculateRkbDataset(rawRows);
+      return sendJson(res, 200, { ok: true, resume: summary });
     }
 
     // 11. SIMPAN / UPDATE BARIS RKB
