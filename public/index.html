@@ -415,56 +415,91 @@
         <section id="view-adhoc" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Matriks Breakdown Adhoc (PPK & PPS)</h2>
-              <p class="view-desc">Distribusi alokasi dana operasional dan honorarium untuk 19 PPK (Kecamatan) dan 217 PPS (Desa) se-Kabupaten Ngawi.</p>
+              <h2 class="view-title">Matriks Breakdown Anggaran Adhoc (PPK & PPS)</h2>
+              <p class="view-desc">Distribusi dan rincian alokasi belanja operasional dan honorarium untuk 19 PPK dan 217 PPS se-Kabupaten Ngawi.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-outline-primary" onclick="downloadExcel()">
+                📥 Unduh Rekap Anggaran
+              </button>
             </div>
           </div>
 
-          <div class="adhoc-grid">
-            <div class="card">
-              <div class="card-header">
-                <h3>19 Kecamatan (PPK)</h3>
-              </div>
-              <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 500px;">
-                  <table class="table table-striped table-sm">
-                    <thead>
-                      <tr>
-                        <th>No</th>
-                        <th>Nama Kecamatan</th>
-                        <th>Ketua PPK</th>
-                        <th>Sekretaris</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-ppk-body">
-                      <!-- Populated via JS -->
-                    </tbody>
-                  </table>
-                </div>
+          <!-- KPI ADHOC -->
+          <div class="kpi-grid">
+            <div class="kpi-card highlight">
+              <div class="kpi-icon">🏢</div>
+              <div class="kpi-info">
+                <span class="kpi-label">TOTAL ALOKASI BADAN ADHOC</span>
+                <span class="kpi-value" id="adhoc-total-pagu">Rp 31.383.229.300</span>
+                <span class="kpi-sub">62,77% dari Total Pagu NPHD</span>
               </div>
             </div>
 
-            <div class="card">
-              <div class="card-header">
-                <h3>217 Desa / Kelurahan (PPS)</h3>
+            <div class="kpi-card">
+              <div class="kpi-icon">🏛️</div>
+              <div class="kpi-info">
+                <span class="kpi-label">TINGKAT PPK (19 KECAMATAN)</span>
+                <span class="kpi-value" id="adhoc-pagu-ppk">Rp 2.526.164.500</span>
+                <span class="kpi-sub">Rata-rata Rp 132,9 Juta / PPK</span>
               </div>
-              <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 500px;">
-                  <table class="table table-striped table-sm">
-                    <thead>
-                      <tr>
-                        <th>No</th>
-                        <th>Kecamatan</th>
-                        <th>Nama Desa</th>
-                        <th class="text-right">Jumlah TPS</th>
-                        <th class="text-right">Pantarlih</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-pps-body">
-                      <!-- Populated via JS -->
-                    </tbody>
-                  </table>
-                </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon">🏡</div>
+              <div class="kpi-info">
+                <span class="kpi-label">TINGKAT PPS (217 DESA)</span>
+                <span class="kpi-value" id="adhoc-pagu-pps">Rp 18.268.231.800</span>
+                <span class="kpi-sub">Honor & Operasional 217 PPS</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon">🗳️</div>
+              <div class="kpi-info">
+                <span class="kpi-label">TINGKAT TPS & PANTARLIH</span>
+                <span class="kpi-value" id="adhoc-pagu-tps">Rp 10.767.063.000</span>
+                <span class="kpi-sub">KPPS (7 Org), Linmas (2 Org) & Pantarlih</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABEL MATRIKS BREAKDOWN 19 KECAMATAN -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Matriks Distribusi Anggaran Per Kecamatan (PPK & PPS)</h3>
+              <div class="filter-group" style="margin-bottom: 0;">
+                <input type="text" id="adhoc-search-kec" class="input-text input-sm" placeholder="Cari kecamatan..." onkeyup="filterAdhocMatrix()">
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-striped table-hover" id="adhoc-matrix-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 50px;">No</th>
+                      <th>Kecamatan</th>
+                      <th class="text-center" style="width: 110px;">Jumlah Desa</th>
+                      <th class="text-center" style="width: 100px;">Jumlah TPS</th>
+                      <th class="text-right" style="width: 180px;">Alokasi PPK (Rp)</th>
+                      <th class="text-right" style="width: 200px;">Alokasi PPS & TPS (Rp)</th>
+                      <th class="text-right" style="width: 200px;">Total Anggaran (Rp)</th>
+                      <th class="text-center" style="width: 130px;">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-adhoc-matrix-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                  <tfoot>
+                    <tr class="rkb-tfoot-row" style="font-size: 13px;">
+                      <td colspan="4" class="text-right"><strong>TOTAL ALOKASI BADAN ADHOC SE-KABUPATEN:</strong></td>
+                      <td class="text-right"><strong id="foot-ppk-total">Rp 0</strong></td>
+                      <td class="text-right"><strong id="foot-pps-total">Rp 0</strong></td>
+                      <td class="text-right"><strong id="foot-grand-total">Rp 0</strong></td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             </div>
           </div>
@@ -476,21 +511,90 @@
         <section id="view-master" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Master Data Wilayah & Akun (SSOT)</h2>
-              <p class="view-desc">Single Source of Truth untuk Bagan Akun Standar (BAS), Standar Biaya Masukan (SBM), dan Variabel Kuantitas Satker.</p>
+              <h2 class="view-title">Database Master Wilayah & Akun (SSOT)</h2>
+              <p class="view-desc">Single Source of Truth untuk Data Wilayah PPK, PPS, Bagan Akun Standar (BAS), Standar Biaya Masukan (SBM), dan Kuantitas Satker.</p>
             </div>
           </div>
 
           <div class="master-tabs">
-            <button class="tab-btn active" onclick="switchMasterTab('tab-akun')">Bagan Akun Standar (BAS)</button>
-            <button class="tab-btn" onclick="switchMasterTab('tab-sbm')">Standar Biaya Masukan (SBM)</button>
-            <button class="tab-btn" onclick="switchMasterTab('tab-kuantitas')">Variabel Kuantitas & Wilayah</button>
+            <button class="tab-btn active" onclick="switchMasterTab('tab-ppk')">🏛️ PPK (19 Kecamatan)</button>
+            <button class="tab-btn" onclick="switchMasterTab('tab-pps')">🏡 PPS (217 Desa/Kelurahan)</button>
+            <button class="tab-btn" onclick="switchMasterTab('tab-akun')">📑 Bagan Akun Standar (BAS)</button>
+            <button class="tab-btn" onclick="switchMasterTab('tab-sbm')">🏷️ Standar Biaya Masukan (SBM)</button>
+            <button class="tab-btn" onclick="switchMasterTab('tab-kuantitas')">🔢 Variabel Kuantitas Satker</button>
           </div>
 
           <div class="card mt-3">
             <div class="card-body p-0">
-              <!-- TAB AKUN -->
-              <div id="tab-akun" class="tab-content active">
+              <!-- TAB 1: MASTER PPK (19 KECAMATAN) -->
+              <div id="tab-ppk" class="tab-content active">
+                <div class="toolbar-card" style="border: none; border-bottom: 1px solid var(--border-color); border-radius: 0; margin-bottom: 0;">
+                  <div class="filter-group flex-1">
+                    <label>Pencarian Kecamatan / Pejabat PPK:</label>
+                    <input type="text" id="filter-master-ppk" class="input-text input-sm" placeholder="Ketik nama kecamatan atau nama pejabat..." onkeyup="filterMasterPpk()">
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-striped table-hover">
+                    <thead>
+                      <tr>
+                        <th style="width: 50px;">No</th>
+                        <th style="width: 80px;">No Urut</th>
+                        <th>Nama Kecamatan (PPK)</th>
+                        <th>Ketua PPK</th>
+                        <th>Sekretaris PPK</th>
+                        <th>NIP Sekretaris</th>
+                        <th class="text-center" style="width: 120px;">Jumlah Desa</th>
+                        <th class="text-center" style="width: 110px;">Total TPS</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-master-ppk">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- TAB 2: MASTER PPS (217 DESA / KELURAHAN) -->
+              <div id="tab-pps" class="tab-content">
+                <div class="toolbar-card" style="border: none; border-bottom: 1px solid var(--border-color); border-radius: 0; margin-bottom: 0;">
+                  <div class="filter-group" style="min-width: 200px;">
+                    <label>Filter Kecamatan:</label>
+                    <select id="filter-pps-kec" class="input-select input-sm" onchange="filterMasterPps()">
+                      <option value="ALL">-- Semua Kecamatan (217 Desa) --</option>
+                      <!-- Populated via JS -->
+                    </select>
+                  </div>
+                  <div class="filter-group flex-1">
+                    <label>Pencarian Desa / Kelurahan / Pejabat PPS:</label>
+                    <input type="text" id="filter-master-pps" class="input-text input-sm" placeholder="Ketik nama desa atau pejabat..." onkeyup="filterMasterPps()">
+                  </div>
+                </div>
+                <div class="table-responsive" style="max-height: 550px;">
+                  <table class="table table-striped table-hover">
+                    <thead>
+                      <tr>
+                        <th style="width: 50px;">No</th>
+                        <th>Kecamatan</th>
+                        <th>Nama Desa / Kelurahan (PPS)</th>
+                        <th class="text-center" style="width: 100px;">Jumlah TPS</th>
+                        <th class="text-center" style="width: 90px;">Pantarlih</th>
+                        <th class="text-center" style="width: 80px;">Kotak</th>
+                        <th class="text-center" style="width: 90px;">Rohaniwan</th>
+                        <th>Ketua PPS</th>
+                        <th>Sekretaris PPS</th>
+                        <th>NIP Sekretaris</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-master-pps">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- TAB 3: TAB AKUN -->
+              <div id="tab-akun" class="tab-content">
                 <div class="table-responsive">
                   <table class="table table-striped">
                     <thead>
@@ -508,7 +612,7 @@
                 </div>
               </div>
 
-              <!-- TAB SBM -->
+              <!-- TAB 4: TAB SBM -->
               <div id="tab-sbm" class="tab-content">
                 <div class="table-responsive">
                   <table class="table table-striped">
@@ -528,7 +632,7 @@
                 </div>
               </div>
 
-              <!-- TAB KUANTITAS -->
+              <!-- TAB 5: TAB KUANTITAS -->
               <div id="tab-kuantitas" class="tab-content">
                 <div class="table-responsive">
                   <table class="table table-striped">
@@ -815,6 +919,48 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeRevisionModal()">Batal</button>
           <button class="btn btn-primary" onclick="submitRevisionForm()">🚀 Terbitkan Usulan Revisi</button>
+        </div>
+      </div>
+    </div>
+    <!-- ===================================================================== -->
+    <!-- MODAL: DETAIL RINCIAN ALOKASI ADHOC KECAMATAN -->
+    <!-- ===================================================================== -->
+    <div id="modal-adhoc-detail" class="modal-backdrop" style="display: none;">
+      <div class="modal-box modal-lg">
+        <div class="modal-header">
+          <div>
+            <h3 id="adhoc-modal-title">Rincian Alokasi Belanja Badan Adhoc</h3>
+            <p id="adhoc-modal-subtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Kecamatan</p>
+          </div>
+          <button class="btn-close" onclick="closeAdhocModal()">✕</button>
+        </div>
+        <div class="modal-body p-0">
+          <div class="table-responsive" style="max-height: 480px;">
+            <table class="table table-striped table-sm">
+              <thead style="position: sticky; top: 0; background: #1e293b; color: #fff; z-index: 5;">
+                <tr>
+                  <th style="width: 40px;">No</th>
+                  <th>Uraian Komponen Belanja</th>
+                  <th>Sasaran</th>
+                  <th>Perhitungan (Vol x Satuan)</th>
+                  <th class="text-right">Harga (Rp)</th>
+                  <th class="text-right">Jumlah Alokasi (Rp)</th>
+                </tr>
+              </thead>
+              <tbody id="adhoc-modal-table-body">
+                <!-- Populated via JS -->
+              </tbody>
+              <tfoot>
+                <tr class="rkb-tfoot-row" style="font-size: 13px;">
+                  <td colspan="5" class="text-right"><strong>TOTAL ALOKASI WILAYAH INI:</strong></td>
+                  <td class="text-right"><strong id="adhoc-modal-total">Rp 0</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeAdhocModal()">Tutup</button>
         </div>
       </div>
     </div>

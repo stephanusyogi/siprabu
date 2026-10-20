@@ -582,85 +582,338 @@ function handleSearchDebounce() {
 }
 
 // ----------------------------------------------------------------------------
-// VIEW 4: MATRIKS ADHOC
+// VIEW 4: MATRIKS BREAKDOWN ANGGARAN ADHOC (PPK & PPS)
 // ----------------------------------------------------------------------------
+let adhocCalculatedMatrix = [];
+
 function renderAdhocMatrix() {
-  if (!AppState.masters) return;
+  if (!AppState.masters || !AppState.rkbData) return;
   const { kecamatans, desas } = AppState.masters;
+  const rows = AppState.rkbData.rows.filter(r => Number(r.level_indent) === 4);
 
-  const ppkBody = document.getElementById('table-ppk-body');
-  ppkBody.innerHTML = kecamatans.map((k, idx) => `
+  // Peta desa per kecamatan
+  const desaByKec = {};
+  for (const d of desas) {
+    if (!desaByKec[d.kecamatan_id]) desaByKec[d.kecamatan_id] = [];
+    desaByKec[d.kecamatan_id].push(d);
+  }
+
+  // Hitung alokasi per kecamatan
+  let grandTotalPpk = 0;
+  let grandTotalPps = 0;
+
+  adhocCalculatedMatrix = kecamatans.map((k, idx) => {
+    const kecDesas = desaByKec[k.id] || [];
+    const totalTpsKec = kecDesas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
+
+    // Alokasi PPK
+    let ppkSum = 0;
+    for (const r of rows) {
+      if (r.target_scope === 'PPK') {
+        const mult = (r.basis_pengali === 'PPK' || r.basis_pengali === 'FIXED' || !r.basis_pengali || r.basis_pengali === 'NONE') ? 1 : 1;
+        const f1 = Number(r.f1_val) || 1;
+        const f2 = Number(r.f2_val) || 1;
+        const f3 = Number(r.f3_val) || 1;
+        const f4 = Number(r.f4_val) || 1;
+        const vol = f1 * (r.f2_val ? f2 : 1) * (r.f3_val ? f3 : 1) * (r.f4_val ? f4 : 1) * mult;
+        ppkSum += vol * (Number(r.harga_satuan) || 0);
+      }
+    }
+
+    // Alokasi PPS & TPS di wilayah kecamatan ini
+    let ppsSum = 0;
+    for (const d of kecDesas) {
+      for (const r of rows) {
+        if (r.target_scope === 'PPS') {
+          const f1 = Number(r.f1_val) || 1;
+          const f2 = Number(r.f2_val) || 1;
+          const f3 = Number(r.f3_val) || 1;
+          const f4 = Number(r.f4_val) || 1;
+          const vol = f1 * (r.f2_val ? f2 : 1) * (r.f3_val ? f3 : 1) * (r.f4_val ? f4 : 1);
+          ppsSum += vol * (Number(r.harga_satuan) || 0);
+        } else if (r.target_scope === 'TPS') {
+          const tpsCount = Number(d.tps) || 0;
+          const f1 = Number(r.f1_val) || 1;
+          const f2 = Number(r.f2_val) || 1;
+          const f3 = Number(r.f3_val) || 1;
+          const vol = f1 * (r.f2_val ? f2 : 1) * (r.f3_val ? f3 : 1) * tpsCount;
+          ppsSum += vol * (Number(r.harga_satuan) || 0);
+        } else if (r.target_scope === 'PANTARLIH') {
+          const pantarlihCount = Number(d.pantarlih) || Number(d.tps) || 0;
+          const f1 = Number(r.f1_val) || 1;
+          const f2 = Number(r.f2_val) || 1;
+          const vol = f1 * (r.f2_val ? f2 : 1) * pantarlihCount;
+          ppsSum += vol * (Number(r.harga_satuan) || 0);
+        }
+      }
+    }
+
+    const totalWilayah = ppkSum + ppsSum;
+    grandTotalPpk += ppkSum;
+    grandTotalPps += ppsSum;
+
+    return {
+      id: k.id,
+      noUrut: idx + 1,
+      nama: k.nama,
+      ketua_nama: k.ketua_nama,
+      sekretaris_nama: k.sekretaris_nama,
+      jumlahDesa: kecDesas.length,
+      totalTps: totalTpsKec,
+      ppkSum,
+      ppsSum,
+      totalWilayah
+    };
+  });
+
+  // Update KPI Adhoc Cards
+  const totalCombined = grandTotalPpk + grandTotalPps;
+  document.getElementById('adhoc-total-pagu').textContent = formatRupiah(totalCombined);
+  document.getElementById('adhoc-pagu-ppk').textContent = formatRupiah(grandTotalPpk);
+  document.getElementById('adhoc-pagu-pps').textContent = formatRupiah(grandTotalPps);
+
+  // Update Footer Totals
+  document.getElementById('foot-ppk-total').textContent = formatRupiah(grandTotalPpk);
+  document.getElementById('foot-pps-total').textContent = formatRupiah(grandTotalPps);
+  document.getElementById('foot-grand-total').textContent = formatRupiah(totalCombined);
+
+  filterAdhocMatrix();
+}
+
+function filterAdhocMatrix() {
+  const keyword = (document.getElementById('adhoc-search-kec')?.value || '').toLowerCase().trim();
+  const tbody = document.getElementById('table-adhoc-matrix-body');
+  if (!tbody) return;
+
+  const filtered = adhocCalculatedMatrix.filter(k => k.nama.toLowerCase().includes(keyword));
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px;">Tidak ada kecamatan yang cocok dengan pencarian.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(k => `
     <tr>
-      <td>${idx + 1}</td>
+      <td class="text-center">${k.noUrut}</td>
       <td><strong>${k.nama}</strong></td>
-      <td>${k.ketua_nama || '-'}</td>
-      <td>${k.sekretaris_nama || '-'}</td>
-    </tr>
-  `).join('');
-
-  const ppsBody = document.getElementById('table-pps-body');
-  const kecMap = {};
-  for (const k of kecamatans) kecMap[k.id] = k.nama;
-
-  ppsBody.innerHTML = desas.map((d, idx) => `
-    <tr>
-      <td>${idx + 1}</td>
-      <td>${kecMap[d.kecamatan_id] || '-'}</td>
-      <td><strong>${d.nama}</strong></td>
-      <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatNumber(d.tps)} TPS</td>
-      <td class="text-right" style="font-family: var(--font-mono);">${formatNumber(d.pantarlih)}</td>
+      <td class="text-center"><span class="badge badge-secondary">${k.jumlahDesa} Desa</span></td>
+      <td class="text-center"><span class="badge badge-primary">${formatNumber(k.totalTps)} TPS</span></td>
+      <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(k.ppkSum)}</td>
+      <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(k.ppsSum)}</td>
+      <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${formatRupiah(k.totalWilayah)}</td>
+      <td class="text-center">
+        <button class="btn btn-sm btn-outline-primary" onclick="openAdhocDetail(${k.id})">
+          📄 Rincian RKK
+        </button>
+      </td>
     </tr>
   `).join('');
 }
 
+function openAdhocDetail(kecId) {
+  const kec = adhocCalculatedMatrix.find(x => x.id === kecId);
+  if (!kec) return;
+
+  document.getElementById('adhoc-modal-title').textContent = `Rincian Alokasi RKK: Kecamatan ${kec.nama}`;
+  document.getElementById('adhoc-modal-subtitle').textContent = `Wilayah: ${kec.jumlahDesa} Desa/Kelurahan | Total TPS: ${formatNumber(kec.totalTps)} TPS | Total Alokasi: ${formatRupiah(kec.totalWilayah)}`;
+  document.getElementById('adhoc-modal-total').textContent = formatRupiah(kec.totalWilayah);
+
+  // Ambil baris-baris belanja untuk PPK dan PPS
+  const rows = AppState.rkbData.rows.filter(r => Number(r.level_indent) === 4 && ['PPK', 'PPS', 'TPS', 'PANTARLIH'].includes(r.target_scope));
+  const tbody = document.getElementById('adhoc-modal-table-body');
+
+  tbody.innerHTML = rows.map((r, idx) => {
+    let vol = 0;
+    let labelVol = '';
+
+    if (r.target_scope === 'PPK') {
+      const f1 = Number(r.f1_val) || 1;
+      const f2 = Number(r.f2_val) || 1;
+      vol = f1 * (r.f2_val ? f2 : 1);
+      labelVol = `${vol} ${r.satuan_vol || ''}`;
+    } else if (r.target_scope === 'PPS') {
+      const f1 = Number(r.f1_val) || 1;
+      const f2 = Number(r.f2_val) || 1;
+      vol = f1 * (r.f2_val ? f2 : 1) * kec.jumlahDesa;
+      labelVol = `${kec.jumlahDesa} Desa x ${f1} ${r.satuan_vol || ''}`;
+    } else if (r.target_scope === 'TPS') {
+      const f1 = Number(r.f1_val) || 1;
+      vol = f1 * kec.totalTps;
+      labelVol = `${kec.totalTps} TPS x ${f1} ${r.satuan_vol || ''}`;
+    } else if (r.target_scope === 'PANTARLIH') {
+      const f1 = Number(r.f1_val) || 1;
+      vol = f1 * kec.totalTps;
+      labelVol = `${kec.totalTps} Org x ${f1} ${r.satuan_vol || ''}`;
+    }
+
+    const jumlah = vol * (Number(r.harga_satuan) || 0);
+
+    return `
+      <tr>
+        <td class="text-center">${idx + 1}</td>
+        <td><strong>${r.uraian}</strong></td>
+        <td><span class="badge badge-sasaran-${(r.target_scope || 'PPK').toLowerCase()}">${r.target_scope}</span></td>
+        <td style="font-family: var(--font-mono); font-size: 11px;">${labelVol}</td>
+        <td class="text-right" style="font-family: var(--font-mono);">${formatRupiah(r.harga_satuan)}</td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(jumlah)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('modal-adhoc-detail').style.display = 'flex';
+}
+
+function closeAdhocModal() {
+  document.getElementById('modal-adhoc-detail').style.display = 'none';
+}
+
 // ----------------------------------------------------------------------------
-// VIEW 5: MASTER DATA (SSOT)
+// VIEW 5: DATABASE MASTER WILAYAH & AKUN (SSOT)
 // ----------------------------------------------------------------------------
 function switchMasterTab(tabId) {
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+  document.querySelectorAll('.master-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('#view-master .tab-content').forEach(tc => tc.classList.remove('active'));
   
-  event.target.classList.add('active');
+  if (event && event.target) {
+    event.target.classList.add('active');
+  }
   const content = document.getElementById(tabId);
   if (content) content.classList.add('active');
 }
 
 function renderMasterTabs() {
   if (!AppState.masters) return;
-  const { akuns, sbms, kuantitas } = AppState.masters;
+  const { kecamatans, desas, akuns, sbms, kuantitas } = AppState.masters;
 
-  // Akun
+  // Peta desa per kecamatan
+  const desaByKec = {};
+  for (const d of desas) {
+    if (!desaByKec[d.kecamatan_id]) desaByKec[d.kecamatan_id] = [];
+    desaByKec[d.kecamatan_id].push(d);
+  }
+
+  // 1. TAB MASTER PPK (19 KECAMATAN)
+  const tbodyPpk = document.getElementById('table-master-ppk');
+  if (tbodyPpk) {
+    tbodyPpk.innerHTML = kecamatans.map((k, idx) => {
+      const kecDesas = desaByKec[k.id] || [];
+      const totalTps = kecDesas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
+      return `
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${k.no_urut || (idx + 1)}</td>
+          <td><strong>${k.nama}</strong></td>
+          <td>${k.ketua_nama || '-'}</td>
+          <td>${k.sekretaris_nama || '-'}</td>
+          <td style="font-family: var(--font-mono);">${k.sekretaris_nip || '-'}</td>
+          <td class="text-center"><span class="badge badge-secondary">${kecDesas.length} Desa</span></td>
+          <td class="text-center"><span class="badge badge-primary">${formatNumber(totalTps)} TPS</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // 2. TAB MASTER PPS (217 DESA / KELURAHAN)
+  const selectPpsKec = document.getElementById('filter-pps-kec');
+  if (selectPpsKec && selectPpsKec.options.length <= 1) {
+    selectPpsKec.innerHTML = '<option value="ALL">-- Semua Kecamatan (217 Desa) --</option>' +
+      kecamatans.map(k => `<option value="${k.id}">Kecamatan ${k.nama}</option>`).join('');
+  }
+  filterMasterPps();
+
+  // 3. TAB AKUN
   const tbodyAkun = document.getElementById('table-master-akun');
-  tbodyAkun.innerHTML = akuns.map(a => `
-    <tr>
-      <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${a.kode}</code></td>
-      <td><strong>${a.uraian}</strong></td>
-      <td>${a.kelompok || '-'}</td>
-      <td>${a.kategori_dn || '-'}</td>
-    </tr>
-  `).join('');
+  if (tbodyAkun) {
+    tbodyAkun.innerHTML = akuns.map(a => `
+      <tr>
+        <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${a.kode}</code></td>
+        <td><strong>${a.uraian}</strong></td>
+        <td>${a.kelompok || '-'}</td>
+        <td>${a.kategori_dn || '-'}</td>
+      </tr>
+    `).join('');
+  }
 
-  // SBM
+  // 4. TAB SBM
   const tbodySbm = document.getElementById('table-master-sbm');
-  tbodySbm.innerHTML = sbms.map(s => `
-    <tr>
-      <td><span class="badge badge-secondary">${s.kategori}</span></td>
-      <td><strong>${s.uraian}</strong></td>
-      <td>${s.satuan}</td>
-      <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(s.harga_satuan || s.pagu_sbm)}</td>
-      <td><small>${s.jenis_regulasi || 'SBM'} ${s.dasar_hukum || ''}</small></td>
-    </tr>
-  `).join('');
+  if (tbodySbm) {
+    tbodySbm.innerHTML = sbms.map(s => `
+      <tr>
+        <td><span class="badge badge-secondary">${s.kategori}</span></td>
+        <td><strong>${s.uraian}</strong></td>
+        <td>${s.satuan}</td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(s.harga_satuan || s.pagu_sbm)}</td>
+        <td><small>${s.jenis_regulasi || 'SBM'} ${s.dasar_hukum || ''}</small></td>
+      </tr>
+    `).join('');
+  }
 
-  // Kuantitas
+  // 5. TAB KUANTITAS
   const tbodyKuantitas = document.getElementById('table-master-kuantitas');
-  tbodyKuantitas.innerHTML = kuantitas.map(k => `
+  if (tbodyKuantitas) {
+    tbodyKuantitas.innerHTML = kuantitas.map(k => `
+      <tr>
+        <td><code style="font-family: var(--font-mono); font-weight: 700;">@${k.kode}</code></td>
+        <td><strong>${k.nama}</strong></td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${formatNumber(k.nilai)}</td>
+        <td>${k.satuan}</td>
+        <td><small>${k.keterangan || '-'}</small></td>
+      </tr>
+    `).join('');
+  }
+}
+
+function filterMasterPpk() {
+  const keyword = (document.getElementById('filter-master-ppk')?.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#table-master-ppk tr');
+  rows.forEach(r => {
+    const text = r.textContent.toLowerCase();
+    r.style.display = text.includes(keyword) ? '' : 'none';
+  });
+}
+
+function filterMasterPps() {
+  if (!AppState.masters) return;
+  const { kecamatans, desas } = AppState.masters;
+  const kecId = document.getElementById('filter-pps-kec')?.value || 'ALL';
+  const keyword = (document.getElementById('filter-master-pps')?.value || '').toLowerCase().trim();
+  
+  const kecMap = {};
+  for (const k of kecamatans) kecMap[k.id] = k.nama;
+
+  const filtered = desas.filter(d => {
+    if (kecId !== 'ALL' && String(d.kecamatan_id) !== String(kecId)) return false;
+    if (keyword) {
+      const kecName = (kecMap[d.kecamatan_id] || '').toLowerCase();
+      const match = d.nama.toLowerCase().includes(keyword) || 
+                    kecName.includes(keyword) || 
+                    (d.ketua_nama && d.ketua_nama.toLowerCase().includes(keyword)) ||
+                    (d.sekretaris_nama && d.sekretaris_nama.toLowerCase().includes(keyword));
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  const tbody = document.getElementById('table-master-pps');
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center" style="padding: 20px;">Tidak ada desa/kelurahan yang cocok dengan kriteria filter.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((d, idx) => `
     <tr>
-      <td><code style="font-family: var(--font-mono); font-weight: 700;">@${k.kode}</code></td>
-      <td><strong>${k.nama}</strong></td>
-      <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${formatNumber(k.nilai)}</td>
-      <td>${k.satuan}</td>
-      <td><small>${k.keterangan || '-'}</small></td>
+      <td class="text-center">${idx + 1}</td>
+      <td><strong>${kecMap[d.kecamatan_id] || '-'}</strong></td>
+      <td><strong>${d.nama}</strong></td>
+      <td class="text-center"><span class="badge badge-primary">${formatNumber(d.tps)} TPS</span></td>
+      <td class="text-center">${formatNumber(d.pantarlih)}</td>
+      <td class="text-center">${formatNumber(d.kotak)}</td>
+      <td class="text-center">${formatNumber(d.rohaniwan)}</td>
+      <td>${d.ketua_nama || '-'}</td>
+      <td>${d.sekretaris_nama || '-'}</td>
+      <td style="font-family: var(--font-mono); font-size: 11px;">${d.sekretaris_nip || '-'}</td>
     </tr>
   `).join('');
 }

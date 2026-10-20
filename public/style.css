@@ -951,6 +951,9 @@ tr.rkb-row-lvl-4:hover {
   display: flex;
   gap: 8px;
   border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 2px;
 }
 
 .tab-btn {
