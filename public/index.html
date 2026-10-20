@@ -588,27 +588,43 @@
                 </div>
 
                 <hr class="form-divider" style="grid-column: 1 / -1;">
+                <h4 style="grid-column: 1 / -1; margin: 6px 0 10px; color: var(--primary); font-size: 14px; font-weight: 700;">
+                  Pejabat Penandatangan Dokumen (Urutan Hierarki: Ketua, Sekretaris, PPK, BP):
+                </h4>
 
+                <!-- 1. KETUA -->
                 <div class="form-group">
-                  <label>Kuasa Pengguna Anggaran (KPA):</label>
+                  <label>1. Ketua KPU Kabupaten Ngawi:</label>
+                  <input type="text" id="set-ketua-nama" class="input-text" value="SAMSU MUSTAKIM">
+                </div>
+                <div class="form-group">
+                  <label>Jabatan Ketua:</label>
+                  <input type="text" id="set-ketua-jabatan" class="input-text" value="Ketua Komisi Pemilihan Umum Kabupaten Ngawi">
+                </div>
+
+                <!-- 2. SEKRETARIS (KPA) -->
+                <div class="form-group">
+                  <label>2. Sekretaris KPU / Kuasa Pengguna Anggaran (KPA):</label>
                   <input type="text" id="set-kpa-nama" class="input-text" value="BUDI RAHAYU">
                 </div>
                 <div class="form-group">
-                  <label>NIP KPA:</label>
+                  <label>NIP Sekretaris (KPA):</label>
                   <input type="text" id="set-kpa-nip" class="input-text" value="19830503 200902 1 002">
                 </div>
 
+                <!-- 3. PPK (PPKom) -->
                 <div class="form-group">
-                  <label>Pejabat Pembuat Komitmen (PPKom):</label>
+                  <label>3. Pejabat Pembuat Komitmen (PPK):</label>
                   <input type="text" id="set-ppkom-nama" class="input-text" value="MOHAMMAD NOOR JIHAN">
                 </div>
                 <div class="form-group">
-                  <label>NIP PPKom:</label>
+                  <label>NIP PPK:</label>
                   <input type="text" id="set-ppkom-nip" class="input-text" value="19840101 200912 1 001">
                 </div>
 
+                <!-- 4. BP (Bendahara Pengeluaran) -->
                 <div class="form-group">
-                  <label>Bendahara Pengeluaran (BP):</label>
+                  <label>4. Bendahara Pengeluaran (BP):</label>
                   <input type="text" id="set-bp-nama" class="input-text" value="IMAS MAESAROH">
                 </div>
                 <div class="form-group">
@@ -616,11 +632,8 @@
                   <input type="text" id="set-bp-nip" class="input-text" value="19850615 200902 2 013">
                 </div>
 
-                <div class="form-group">
-                  <label>Ketua KPU Kabupaten Ngawi:</label>
-                  <input type="text" id="set-ketua-nama" class="input-text" value="SAMSU MUSTAKIM">
-                </div>
-                <div class="form-group">
+                <!-- KOTA TTD -->
+                <div class="form-group full-width">
                   <label>Kota Penandatanganan:</label>
                   <input type="text" id="set-kota-ttd" class="input-text" value="NGAWI">
                 </div>

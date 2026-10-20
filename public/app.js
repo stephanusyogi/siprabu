@@ -681,13 +681,16 @@ function renderSettings() {
   setVal('set-kode-satker', s.kode_satker);
   setVal('set-tahun-anggaran', s.tahun_anggaran || s.tahun_anggaran_pilkada);
   setVal('set-nama-agenda', s.nama_agenda_pilkada);
+
+  // Urutan Pejabat dari atas ke bawah: Ketua, Sekretaris, PPK, BP
+  setVal('set-ketua-nama', s.ketua_kpu_nama);
+  setVal('set-ketua-jabatan', s.ketua_kpu_jabatan || 'Ketua Komisi Pemilihan Umum Kabupaten Ngawi');
   setVal('set-kpa-nama', s.kpa_nama);
   setVal('set-kpa-nip', s.kpa_nip);
   setVal('set-ppkom-nama', s.ppkom_nama);
   setVal('set-ppkom-nip', s.ppkom_nip);
   setVal('set-bp-nama', s.bp_nama);
   setVal('set-bp-nip', s.bp_nip);
-  setVal('set-ketua-nama', s.ketua_kpu_nama);
   setVal('set-kota-ttd', s.kota_ttd);
 
   // Disable simpan jika user level > 1
@@ -697,18 +700,20 @@ function renderSettings() {
 }
 
 async function saveSatkerSettings() {
+  // Urutan Pejabat dari atas ke bawah: Ketua, Sekretaris, PPK, BP
   const settings = {
     nama_satker: document.getElementById('set-nama-satker').value,
     kode_satker: document.getElementById('set-kode-satker').value,
     tahun_anggaran: document.getElementById('set-tahun-anggaran').value,
     nama_agenda_pilkada: document.getElementById('set-nama-agenda').value,
+    ketua_kpu_nama: document.getElementById('set-ketua-nama').value,
+    ketua_kpu_jabatan: document.getElementById('set-ketua-jabatan').value,
     kpa_nama: document.getElementById('set-kpa-nama').value,
     kpa_nip: document.getElementById('set-kpa-nip').value,
     ppkom_nama: document.getElementById('set-ppkom-nama').value,
     ppkom_nip: document.getElementById('set-ppkom-nip').value,
     bp_nama: document.getElementById('set-bp-nama').value,
     bp_nip: document.getElementById('set-bp-nip').value,
-    ketua_kpu_nama: document.getElementById('set-ketua-nama').value,
     kota_ttd: document.getElementById('set-kota-ttd').value
   };
 

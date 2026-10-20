@@ -5,7 +5,7 @@
  */
 
 const XLSX = require('xlsx');
-const { getRabRows, saveRabRow, clearRabRows, getPeriodeById } = require('./db');
+const { getRabRows, saveRabRow, clearRabRows, getPeriodeById, getMasters } = require('./db');
 const { calculateRkbDataset } = require('./calculation');
 
 /**
@@ -15,6 +15,7 @@ function exportRkbToExcelBuffer(periodeId) {
   const periode = getPeriodeById(periodeId);
   const rawRows = getRabRows(periodeId);
   const { rows, summary } = calculateRkbDataset(rawRows);
+  const settings = (getMasters && getMasters().settings) ? getMasters().settings : {};
 
   // 1. Data Sheet RKB_KABUPATEN
   const rkbData = [
@@ -47,6 +48,30 @@ function exportRkbToExcelBuffer(periodeId) {
       r.kode_akun || ''
     ]);
   });
+
+  // Tanda Tangan Resmi (Urutan Hierarki: Ketua, Sekretaris, PPK, BP)
+  const kota = settings.kota_ttd || 'NGAWI';
+  const tglTtd = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  rkbData.push([]);
+  rkbData.push([]);
+  rkbData.push(['', '', '', '', '', '', '', '', `${kota}, ${tglTtd}`]);
+  rkbData.push([]);
+  rkbData.push(['', '', '1. Mengetahui / Menyetujui:', '', '', '', '', '', '2. Kuasa Pengguna Anggaran (KPA):']);
+  rkbData.push(['', '', 'Ketua KPU Kabupaten Ngawi,', '', '', '', '', '', 'Sekretaris KPU Kabupaten Ngawi,']);
+  rkbData.push([]);
+  rkbData.push([]);
+  rkbData.push([]);
+  rkbData.push(['', '', settings.ketua_kpu_nama || 'SAMSU MUSTAKIM', '', '', '', '', '', settings.kpa_nama || 'BUDI RAHAYU']);
+  rkbData.push(['', '', '', '', '', '', '', '', `NIP. ${settings.kpa_nip || '19830503 200902 1 002'}`]);
+  rkbData.push([]);
+  rkbData.push(['', '', '3. Pejabat Pembuat Komitmen (PPK):', '', '', '', '', '', '4. Bendahara Pengeluaran (BP):']);
+  rkbData.push(['', '', 'Kepala Sub Bagian Perencanaan, Data & Informasi', '', '', '', '', '', 'Bendahara Pengeluaran,']);
+  rkbData.push([]);
+  rkbData.push([]);
+  rkbData.push([]);
+  rkbData.push(['', '', settings.ppkom_nama || 'MOHAMMAD NOOR JIHAN', '', '', '', '', '', settings.bp_nama || 'IMAS MAESAROH']);
+  rkbData.push(['', '', `NIP. ${settings.ppkom_nip || '19840101 200912 1 001'}`, '', '', '', '', '', `NIP. ${settings.bp_nip || '19850615 200902 2 013'}`]);
 
   // 2. Data Sheet RINGKASAN_PAGU
   const summaryData = [
