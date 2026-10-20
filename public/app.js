@@ -26,7 +26,7 @@ const AppState = {
 };
 
 // ============================================================================
-// UTILITIES & API CLIENT
+// UTILITIES & DEFENSIVE DOM HELPERS
 // ============================================================================
 
 function formatRupiah(num) {
@@ -47,6 +47,21 @@ function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function setElText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text !== undefined && text !== null ? text : '';
+}
+
+function setElHtml(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html !== undefined && html !== null ? html : '';
+}
+
+function setElVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val !== undefined && val !== null ? val : '';
 }
 
 async function apiFetch(endpoint, options = {}) {
@@ -140,22 +155,20 @@ function updateUserNavbar() {
   const user = AppState.currentUser;
   if (!user) return;
 
-  const namaEl = document.getElementById('user-nama-pejabat');
-  const roleEl = document.getElementById('user-role-badge');
-  const avatarEl = document.getElementById('user-avatar');
+  setElText('user-nama-pejabat', user.nama_pejabat);
   const switcher = document.getElementById('user-switcher');
-
-  if (namaEl) namaEl.textContent = user.nama_pejabat;
   if (switcher) switcher.value = user.username;
 
+  const roleEl = document.getElementById('user-role-badge');
   if (roleEl) {
-    roleEl.textContent = `Level ${user.level}: ${user.role}`;
+    roleEl.textContent = `Level ${user.level}: ${user.role || user.role_id || 'User'}`;
     if (user.level === 0) roleEl.className = 'user-role badge badge-primary';
     else if (user.level === 1) roleEl.className = 'user-role badge badge-success';
     else if (user.level === 2) roleEl.className = 'user-role badge badge-warning';
     else roleEl.className = 'user-role badge badge-secondary';
   }
 
+  const avatarEl = document.getElementById('user-avatar');
   if (avatarEl) {
     if (user.username === 'emenje') avatarEl.textContent = '👨‍💻';
     else if (user.level === 0) avatarEl.textContent = '👑';
@@ -168,7 +181,19 @@ function updateUserNavbar() {
 async function switchUser(username) {
   const targetUser = AppState.usersList.find(u => u.username === username);
   if (!targetUser) return;
-  const pass = username === 'emenje' ? 'emenje123' : `${username}123`;
+  const pwdMap = {
+    emenje: 'emenje123',
+    perencanaan: 'perencanaan123',
+    staf_perencanaan: 'perencanaan123',
+    op_perencanaan: 'perencanaan123',
+    teknis: 'teknis123',
+    hukum: 'hukum123',
+    parmas: 'parmas123',
+    kul: 'kul123',
+    sekretaris: 'sekretaris123',
+    komisioner: 'komisioner123'
+  };
+  const pass = pwdMap[username] || `${username}123`;
   try {
     await performLogin(username, pass);
     await loadRkbData();
@@ -216,8 +241,7 @@ function updateContextNavbar() {
   const p = AppState.currentPeriode;
   if (!p) return;
 
-  const docEl = document.getElementById('context-nama-dokumen');
-  if (docEl) docEl.textContent = p.nama_periode;
+  setElText('context-nama-dokumen', p.nama_periode);
   const badge = document.getElementById('context-badge-status');
   const dot = document.getElementById('context-dot');
   const banner = document.getElementById('global-lock-banner');
@@ -230,8 +254,7 @@ function updateContextNavbar() {
     if (dot) dot.className = 'pulse-dot locked';
     if (banner) {
       banner.style.display = 'flex';
-      const lockTitle = document.getElementById('lock-banner-title');
-      if (lockTitle) lockTitle.textContent = `DOKUMEN ${(p.versi_revisi || '').toUpperCase()} TELAH DIKUNCI (NPHD SAH)`;
+      setElText('lock-banner-title', `DOKUMEN ${(p.versi_revisi || '').toUpperCase()} TELAH DIKUNCI (NPHD SAH)`);
     }
   } else {
     if (badge) {
@@ -295,54 +318,100 @@ function renderAllViews() {
 // ============================================================================
 
 function renderDashboard() {
-  if (!AppState.rkbData) return;
+  if (!AppState.rkbData || !AppState.rkbData.summary) return;
   const { summary, periode } = AppState.rkbData;
 
-  document.getElementById('kpi-total-pagu').textContent = formatRupiah(summary.grandTotal);
-  document.getElementById('kpi-total-items').textContent = formatNumber(summary.totalItems);
-  document.getElementById('kpi-status-revisi').textContent = periode.versi_revisi;
-  document.getElementById('badge-total-items').textContent = formatNumber(summary.totalItems);
+  setElText('kpi-total-pagu', formatRupiah(summary.grandTotal));
+  setElText('kpi-total-items', formatNumber(summary.totalItems) + ' Baris');
+  setElText('kpi-total-rows', formatNumber(summary.totalRows) + ' Total Komponen Hierarki');
+  setElText('badge-total-items', formatNumber(summary.totalItems));
+  setElText('kpi-status-dokumen', periode.is_locked ? 'Status: Terkunci (NPHD Sah)' : 'Status: Draft Aktif');
 
-  // Subbag Cards
-  const sub = summary.bySubbag || {};
-  document.getElementById('pagu-subbag-kul').textContent = formatRupiah(sub.KUL || 0);
-  document.getElementById('pagu-subbag-rendatin').textContent = formatRupiah(sub.RENDATIN || 0);
-  document.getElementById('pagu-subbag-teknis').textContent = formatRupiah(sub.TEKNIS || 0);
-  document.getElementById('pagu-subbag-hukum').textContent = formatRupiah(sub.HUKUM || 0);
-  document.getElementById('pagu-subbag-parsdm').textContent = formatRupiah(sub.PARSDM || 0);
+  const paguKab = (summary.bySasaran && summary.bySasaran.KAB) || 0;
+  const paguAdhoc = ((summary.bySasaran && summary.bySasaran.PPK) || 0) +
+                    ((summary.bySasaran && summary.bySasaran.PPS) || 0) +
+                    ((summary.bySasaran && summary.bySasaran.TPS) || 0) +
+                    ((summary.bySasaran && summary.bySasaran.PANTARLIH) || 0);
 
-  // Progress Bar Subbag
-  const total = summary.grandTotal || 1;
-  const setBar = (id, val) => {
-    const pct = ((val / total) * 100).toFixed(1);
-    const bar = document.getElementById(id);
-    if (bar) bar.style.width = `${pct}%`;
-  };
-  setBar('bar-subbag-kul', sub.KUL || 0);
-  setBar('bar-subbag-rendatin', sub.RENDATIN || 0);
-  setBar('bar-subbag-teknis', sub.TEKNIS || 0);
-  setBar('bar-subbag-hukum', sub.HUKUM || 0);
-  setBar('bar-subbag-parsdm', sub.PARSDM || 0);
+  setElText('kpi-pagu-kab', formatRupiah(paguKab));
+  setElText('kpi-pagu-adhoc', formatRupiah(paguAdhoc));
 
-  // Sasaran KPI
-  const sas = summary.bySasaran || {};
-  const paguAdhoc = (sas.PPK || 0) + (sas.PPS || 0) + (sas.TPS || 0) + (sas.PANTARLIH || 0);
-  document.getElementById('kpi-pagu-kab').textContent = formatRupiah(sas.KAB || 0);
-  document.getElementById('kpi-pagu-adhoc').textContent = formatRupiah(paguAdhoc);
-  document.getElementById('kpi-pagu-peserta').textContent = formatRupiah(sas.PESERTA || 0);
-
+  const pctKab = summary.grandTotal > 0 ? ((paguKab / summary.grandTotal) * 100).toFixed(2) : '0';
   const pctAdhoc = summary.grandTotal > 0 ? ((paguAdhoc / summary.grandTotal) * 100).toFixed(2) : '0';
-  document.getElementById('kpi-pct-adhoc').textContent = `${pctAdhoc}% (PPK, PPS, TPS, Pantarlih)`;
 
-  // Satker Details
+  setElText('kpi-pct-kab', `${pctKab}% dari Pagu Total`);
+  setElText('kpi-pct-adhoc', `${pctAdhoc}% (PPK, PPS, TPS, Pantarlih)`);
+
+  // Subbag Distribution List
+  const subbagList = document.getElementById('subbag-distribution-list');
+  if (subbagList && summary.bySubbag) {
+    const subbagNames = {
+      KUL: { name: 'Keuangan, Umum & Logistik (KUL)', color: '#3b82f6' },
+      RENDATIN: { name: 'Perencanaan, Data & Informasi (RENDATIN)', color: '#10b981' },
+      TEKNIS: { name: 'Teknis Penyelenggaraan Pemilu (TEKNIS)', color: '#8b5cf6' },
+      HUKUM: { name: 'Hukum & SDM (HUKUM)', color: '#f59e0b' },
+      PARSDM: { name: 'Partisipasi Masyarakat & SDM (PARSDM)', color: '#ec4899' }
+    };
+
+    subbagList.innerHTML = Object.entries(summary.bySubbag).map(([pic, amt]) => {
+      const meta = subbagNames[pic] || { name: pic, color: '#64748b' };
+      const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
+      return `
+        <div class="subbag-progress-item">
+          <div class="subbag-meta">
+            <span class="subbag-name">${meta.name}</span>
+            <span class="subbag-amount">${formatRupiah(amt)} (${pct}%)</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar" style="width: ${pct}%; background-color: ${meta.color};"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Sasaran Table
+  const sasaranBody = document.getElementById('table-sasaran-body');
+  if (sasaranBody && summary.bySasaran) {
+    const sasaranOrder = ['KAB', 'PPK', 'PPS', 'TPS', 'PANTARLIH', 'PESERTA'];
+    sasaranBody.innerHTML = sasaranOrder.map(s => {
+      const amt = summary.bySasaran[s] || 0;
+      const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
+      return `
+        <tr>
+          <td><span class="badge badge-sasaran-${s.toLowerCase()}">${s}</span></td>
+          <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(amt)}</td>
+          <td class="text-right" style="font-family: var(--font-mono);">${pct}%</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Akun BAS Table
+  const akunBody = document.getElementById('table-akun-body');
+  if (akunBody && summary.byAkun) {
+    const akunsMap = {};
+    if (AppState.masters && AppState.masters.akuns) {
+      for (const a of AppState.masters.akuns) akunsMap[a.kode] = a.uraian;
+    }
+    const sortedAkun = Object.entries(summary.byAkun).sort((a, b) => b[1] - a[1]);
+    akunBody.innerHTML = sortedAkun.map(([code, amt]) => {
+      const desc = akunsMap[code] || 'Belanja Terkait';
+      const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
+      return `
+        <tr>
+          <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${code}</code></td>
+          <td>${desc}</td>
+          <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(amt)}</td>
+          <td class="text-right" style="font-family: var(--font-mono);">${pct}%</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   if (AppState.masters && AppState.masters.settings) {
     const s = AppState.masters.settings;
-    document.getElementById('dash-nama-satker').textContent = s.nama_satker;
-    document.getElementById('dash-nama-kpa').textContent = s.kpa_nama;
-    document.getElementById('dash-nip-kpa').textContent = s.kpa_nip;
-    document.getElementById('dash-nama-ppkom').textContent = s.ppkom_nama;
-    document.getElementById('dash-nama-bendahara').textContent = s.bendahara_nama;
-    document.getElementById('satker-name-header').textContent = s.nama_satker.toUpperCase();
+    setElText('satker-name-header', (s.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase());
   }
 }
 
@@ -351,44 +420,94 @@ function renderDashboard() {
 // ============================================================================
 
 function renderSiklus() {
-  const container = document.getElementById('siklus-tree-container');
-  if (!container) return;
+  const p = AppState.currentPeriode;
+  if (!p) return;
 
-  const periodes = AppState.periodesList;
-  const current = AppState.currentPeriode;
+  setElText('siklus-nama-dokumen', p.nama_periode);
+  setElText('siklus-versi-revisi', p.versi_revisi);
+  setElText('siklus-dasar-pengesahan', p.dasar_pengesahan || 'NPHD');
+  setElText('siklus-nomor-ba', p.nomor_ba_tapd || '-');
+  setElText('siklus-tanggal-ba', p.tanggal_ba_tapd || '-');
+  setElText('siklus-catatan', p.catatan_revisi || 'Baseline NPHD Awal Pilkada Ngawi');
 
-  container.innerHTML = periodes.map(p => {
-    const isCurrent = current && current.id === p.id;
-    return `
-      <div class="siklus-node ${isCurrent ? 'active-node' : ''}">
-        <div class="siklus-header">
-          <div class="siklus-title">
-            <span class="icon">${p.is_locked ? '🔒' : '📄'}</span>
-            <strong>${p.nama_periode}</strong>
-            <span class="badge ${p.is_locked ? 'badge-danger' : 'badge-success'}">
-              ${p.is_locked ? 'TERKUNCI' : 'DRAFT AKTIF'}
+  const badgeBox = document.getElementById('lifecycle-badge');
+  if (badgeBox) {
+    if (p.is_locked) {
+      badgeBox.innerHTML = '<span class="badge badge-danger" style="font-size: 13px;">🔒 TERKUNCI (NPHD SAH)</span>';
+    } else {
+      badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🟢 DRAFT AKTIF (TERBUKA)</span>';
+    }
+  }
+
+  const actionContainer = document.getElementById('lifecycle-action-buttons');
+  const user = AppState.currentUser;
+  const canManage = user && (user.level === 0 || user.level === 1);
+
+  if (actionContainer) {
+    let buttonsHtml = '';
+    if (p.is_locked) {
+      if (canManage) {
+        buttonsHtml += `
+          <button class="btn btn-warning" onclick="toggleLockPeriode(${p.id}, false)">
+            🔓 Buka Kunci Dokumen
+          </button>
+        `;
+      }
+      buttonsHtml += `
+        <button class="btn btn-primary" onclick="openRevisionModal()">
+          ➕ Buat Usulan Revisi Baru
+        </button>
+      `;
+    } else {
+      if (canManage) {
+        buttonsHtml += `
+          <button class="btn btn-danger" onclick="toggleLockPeriode(${p.id}, true)">
+            🔒 Kunci NPHD Sah
+          </button>
+        `;
+      }
+    }
+
+    buttonsHtml += `
+      <button class="btn btn-outline-primary" onclick="downloadExcel()">
+        📥 Unduh Excel Resmi
+      </button>
+    `;
+
+    actionContainer.innerHTML = buttonsHtml;
+  }
+
+  // History Table
+  const historyTbody = document.getElementById('table-periode-history');
+  if (historyTbody) {
+    historyTbody.innerHTML = AppState.periodesList.map(item => {
+      const isCurrent = item.id === p.id;
+      return `
+        <tr class="${isCurrent ? 'table-row-selected' : ''}">
+          <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${item.id}</td>
+          <td><strong>${item.nama_periode}</strong></td>
+          <td><span class="badge badge-primary">${item.versi_revisi}</span></td>
+          <td>${item.dasar_pengesahan || 'NPHD'}</td>
+          <td>
+            <span class="badge ${item.is_locked ? 'badge-danger' : 'badge-success'}">
+              ${item.is_locked ? '🔒 Terkunci' : '🟢 Draft Aktif'}
             </span>
-            ${isCurrent ? '<span class="badge badge-primary">DIBUKA SAAT INI</span>' : ''}
-          </div>
-          <div class="siklus-actions">
-            <button class="btn btn-sm btn-outline-primary" onclick="selectPeriode(${p.id})">
+          </td>
+          <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">
+            ${formatNumber(item.total_items || 953)}
+          </td>
+          <td class="text-center">
+            <button class="btn btn-sm ${isCurrent ? 'btn-secondary' : 'btn-outline-primary'}" onclick="selectPeriode(${item.id})">
               ${isCurrent ? 'Sedang Dibuka' : 'Buka Dokumen'}
             </button>
-            <button class="btn btn-sm btn-secondary" onclick="exportExcelPeriode(${p.id})">
+            <button class="btn btn-sm btn-success" onclick="exportExcelPeriode(${item.id})" title="Unduh Excel">
               📥 Excel
             </button>
-          </div>
-        </div>
-        <div class="siklus-details">
-          <span>Versi: <b>${p.versi_revisi}</b></span> |
-          <span>Dasar: <b>${p.dasar_pengesahan || 'NPHD'}</b></span> |
-          <span>Total Baris: <b>${formatNumber(p.total_baris)}</b></span> |
-          <span>Items Belanja: <b>${formatNumber(p.total_items)}</b></span>
-        </div>
-        ${p.catatan_revisi ? `<div class="siklus-catatan">${p.catatan_revisi}</div>` : ''}
-      </div>
-    `;
-  }).join('');
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
 }
 
 async function selectPeriode(periodeId) {
@@ -524,24 +643,17 @@ function renderRkbTable() {
   const isSanding = hasParentRev && AppState.revisionViewMode === 'SANDING';
 
   // Total footer
-  const tfootTotal = document.getElementById('rkb-tfoot-total');
-  if (tfootTotal) tfootTotal.textContent = formatRupiah(summary.grandTotal);
+  setElText('rkb-tfoot-total', formatRupiah(summary.grandTotal));
 
   // Banner Audit Pagu Induk
-  const bTotal = document.getElementById('rkbBannerTotalPagu');
-  const bTahapan = document.getElementById('rkbBannerTahapan');
-  const bOperasional = document.getElementById('rkbBannerOperasional');
-  const bHonor = document.getElementById('rkbBannerHonor');
-
-  if (bTotal) bTotal.textContent = formatRupiah(summary.grandTotal);
-  if (bTahapan) bTahapan.textContent = formatRupiah(summary.banner?.tahapanTotal || 20112930269);
-  if (bOperasional) bOperasional.textContent = formatRupiah(summary.banner?.operasionalTotal || 6496893731);
-  if (bHonor) bHonor.textContent = formatRupiah(summary.banner?.honorTotal || 23385300000);
+  setElText('rkbBannerTotalPagu', formatRupiah(summary.grandTotal));
+  setElText('rkbBannerTahapan', formatRupiah(summary.banner?.tahapanTotal || 20112930269));
+  setElText('rkbBannerOperasional', formatRupiah(summary.banner?.operasionalTotal || 6496893731));
+  setElText('rkbBannerHonor', formatRupiah(summary.banner?.honorTotal || 23385300000));
 
   // Stepper Header
-  const stepperTitle = document.getElementById('rkb-stepper-title');
+  setElText('rkb-stepper-title', periode.nama_periode);
   const stepperSub = document.getElementById('rkb-stepper-sub');
-  if (stepperTitle) stepperTitle.textContent = periode.nama_periode;
   if (stepperSub) {
     stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🔒 Terkunci (NPHD Sah)</span>' : '<span class="badge badge-success">🟢 Draft Aktif</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'NPHD'}</strong>`;
   }
@@ -595,18 +707,14 @@ function renderRkbTable() {
 
   // Strip 6 Tingkat Penyelenggara
   const sas = summary.bySasaran || {};
-  const setEl = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = formatRupiah(val);
-  };
-  setEl('strip-pagu-kab', sas.KAB || 0);
-  setEl('strip-pagu-ppk', sas.PPK || 0);
-  setEl('strip-pagu-pps', sas.PPS || 0);
-  setEl('strip-pagu-pantarlih', sas.PANTARLIH || 0);
-  setEl('strip-pagu-tps', sas.TPS || 0);
-  setEl('strip-pagu-peserta', sas.PESERTA || 0);
+  setElText('strip-pagu-kab', formatRupiah(sas.KAB || 0));
+  setElText('strip-pagu-ppk', formatRupiah(sas.PPK || 0));
+  setElText('strip-pagu-pps', formatRupiah(sas.PPS || 0));
+  setElText('strip-pagu-pantarlih', formatRupiah(sas.PANTARLIH || 0));
+  setElText('strip-pagu-tps', formatRupiah(sas.TPS || 0));
+  setElText('strip-pagu-peserta', formatRupiah(sas.PESERTA || 0));
   const totalLevelPps = (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
-  setEl('strip-pagu-total-pps', totalLevelPps);
+  setElText('strip-pagu-total-pps', formatRupiah(totalLevelPps));
 
   const btnTambah = document.getElementById('btn-tambah-baris');
   if (btnTambah) {
@@ -878,9 +986,7 @@ function openResumeSasaranModal() {
     tbody.innerHTML = rowsHtml;
   }
 
-  const elTotRp = document.getElementById('resume-sasaran-total-rp');
-  if (elTotRp) elTotRp.textContent = formatRupiah(total);
-
+  setElText('resume-sasaran-total-rp', formatRupiah(total));
   document.getElementById('modal-resume-sasaran').style.display = 'flex';
 }
 
@@ -897,9 +1003,9 @@ function openQuickPicModal(rowId, event) {
   const row = (AppState.rkbData?.rows || []).find(r => r.id === rowId);
   if (!row) return;
 
-  document.getElementById('quick-pic-row-id').value = row.id;
-  document.getElementById('quick-pic-uraian').textContent = `[${row.kode || '-'}] ${row.uraian}`;
-  document.getElementById('quick-pic-select').value = (row.pic_bagian || 'KUL').toUpperCase();
+  setElVal('quick-pic-row-id', row.id);
+  setElText('quick-pic-uraian', `[${row.kode || '-'}] ${row.uraian}`);
+  setElVal('quick-pic-select', (row.pic_bagian || 'KUL').toUpperCase());
   document.getElementById('modal-quick-pic').style.display = 'flex';
 }
 
@@ -908,8 +1014,8 @@ function closeQuickPicModal() {
 }
 
 async function submitQuickPic() {
-  const rowId = Number(document.getElementById('quick-pic-row-id').value);
-  const pic = document.getElementById('quick-pic-select').value;
+  const rowId = Number(document.getElementById('quick-pic-row-id')?.value);
+  const pic = document.getElementById('quick-pic-select')?.value;
   const periodeId = AppState.currentPeriode.id;
 
   try {
@@ -930,9 +1036,9 @@ function openQuickAkunModal(rowId, event) {
   const row = (AppState.rkbData?.rows || []).find(r => r.id === rowId);
   if (!row) return;
 
-  document.getElementById('quick-akun-row-id').value = row.id;
-  document.getElementById('quick-akun-uraian').textContent = `[${row.kode || '-'}] ${row.uraian}`;
-  document.getElementById('quick-akun-select').value = row.kode_akun || '521211';
+  setElVal('quick-akun-row-id', row.id);
+  setElText('quick-akun-uraian', `[${row.kode || '-'}] ${row.uraian}`);
+  setElVal('quick-akun-select', row.kode_akun || '521211');
   document.getElementById('modal-quick-akun').style.display = 'flex';
 }
 
@@ -941,8 +1047,8 @@ function closeQuickAkunModal() {
 }
 
 async function submitQuickAkun() {
-  const rowId = Number(document.getElementById('quick-akun-row-id').value);
-  const akun = document.getElementById('quick-akun-select').value;
+  const rowId = Number(document.getElementById('quick-akun-row-id')?.value);
+  const akun = document.getElementById('quick-akun-select')?.value;
   const periodeId = AppState.currentPeriode.id;
 
   try {
@@ -966,62 +1072,62 @@ function openRowModal(rowId) {
   const row = AppState.rkbData.rows.find(r => r.id === rowId);
   if (!row) return;
 
-  document.getElementById('modal-row-title').textContent = 'Edit Rincian Belanja RKB';
-  document.getElementById('modal-row-id').value = row.id;
-  document.getElementById('modal-row-level').value = row.level_indent || 4;
-  document.getElementById('modal-uraian').value = row.uraian;
-  document.getElementById('modal-pic').value = row.pic_bagian || 'KUL';
-  document.getElementById('modal-sasaran').value = row.target_scope || 'KAB';
+  setElText('modal-row-title', 'Edit Rincian Belanja RKB');
+  setElVal('modal-row-id', row.id);
+  setElVal('modal-row-level', row.level_indent || 4);
+  setElVal('modal-uraian', row.uraian);
+  setElVal('modal-pic', row.pic_bagian || 'KUL');
+  setElVal('modal-sasaran', row.target_scope || 'KAB');
 
   const akunSelect = document.getElementById('modal-akun');
-  if (AppState.masters && AppState.masters.akuns) {
+  if (akunSelect && AppState.masters && AppState.masters.akuns) {
     akunSelect.innerHTML = AppState.masters.akuns.map(a => `
       <option value="${a.kode}" ${a.kode === row.kode_akun ? 'selected' : ''}>[${a.kode}] ${a.uraian}</option>
     `).join('');
   }
 
-  document.getElementById('modal-harga').value = row.harga_satuan || 0;
-  document.getElementById('modal-f1-val').value = row.f1_val !== null ? row.f1_val : '';
-  document.getElementById('modal-f1-unit').value = row.f1_unit || '';
-  document.getElementById('modal-f2-val').value = row.f2_val !== null ? row.f2_val : '';
-  document.getElementById('modal-f2-unit').value = row.f2_unit || '';
-  document.getElementById('modal-f3-val').value = row.f3_val !== null ? row.f3_val : '';
-  document.getElementById('modal-f3-unit').value = row.f3_unit || '';
-  document.getElementById('modal-f4-val').value = row.f4_val !== null ? row.f4_val : '';
-  document.getElementById('modal-f4-unit').value = row.f4_unit || '';
-  document.getElementById('modal-basis-pengali').value = row.basis_pengali || 'NONE';
-  document.getElementById('modal-satuan-vol').value = row.satuan_vol || 'Paket';
+  setElVal('modal-harga', row.harga_satuan || 0);
+  setElVal('modal-f1-val', row.f1_val !== null ? row.f1_val : '');
+  setElVal('modal-f1-unit', row.f1_unit || '');
+  setElVal('modal-f2-val', row.f2_val !== null ? row.f2_val : '');
+  setElVal('modal-f2-unit', row.f2_unit || '');
+  setElVal('modal-f3-val', row.f3_val !== null ? row.f3_val : '');
+  setElVal('modal-f3-unit', row.f3_unit || '');
+  setElVal('modal-f4-val', row.f4_val !== null ? row.f4_val : '');
+  setElVal('modal-f4-unit', row.f4_unit || '');
+  setElVal('modal-basis-pengali', row.basis_pengali || 'NONE');
+  setElVal('modal-satuan-vol', row.satuan_vol || 'Paket');
 
   calculateModalTotal();
   document.getElementById('modal-row').style.display = 'flex';
 }
 
 function openAddRowModal() {
-  document.getElementById('modal-row-title').textContent = 'Tambah Rincian Belanja Baru';
-  document.getElementById('modal-row-id').value = '';
-  document.getElementById('modal-row-level').value = '4';
-  document.getElementById('modal-uraian').value = '';
-  document.getElementById('modal-pic').value = 'KUL';
-  document.getElementById('modal-sasaran').value = 'KAB';
+  setElText('modal-row-title', 'Tambah Rincian Belanja Baru');
+  setElVal('modal-row-id', '');
+  setElVal('modal-row-level', '4');
+  setElVal('modal-uraian', '');
+  setElVal('modal-pic', 'KUL');
+  setElVal('modal-sasaran', 'KAB');
 
   const akunSelect = document.getElementById('modal-akun');
-  if (AppState.masters && AppState.masters.akuns) {
+  if (akunSelect && AppState.masters && AppState.masters.akuns) {
     akunSelect.innerHTML = AppState.masters.akuns.map(a => `
       <option value="${a.kode}">[${a.kode}] ${a.uraian}</option>
     `).join('');
   }
 
-  document.getElementById('modal-harga').value = 0;
-  document.getElementById('modal-f1-val').value = 1;
-  document.getElementById('modal-f1-unit').value = 'Keg';
-  document.getElementById('modal-f2-val').value = '';
-  document.getElementById('modal-f2-unit').value = '';
-  document.getElementById('modal-f3-val').value = '';
-  document.getElementById('modal-f3-unit').value = '';
-  document.getElementById('modal-f4-val').value = '';
-  document.getElementById('modal-f4-unit').value = '';
-  document.getElementById('modal-basis-pengali').value = 'NONE';
-  document.getElementById('modal-satuan-vol').value = 'Paket';
+  setElVal('modal-harga', 0);
+  setElVal('modal-f1-val', 1);
+  setElVal('modal-f1-unit', 'Keg');
+  setElVal('modal-f2-val', '');
+  setElVal('modal-f2-unit', '');
+  setElVal('modal-f3-val', '');
+  setElVal('modal-f3-unit', '');
+  setElVal('modal-f4-val', '');
+  setElVal('modal-f4-unit', '');
+  setElVal('modal-basis-pengali', 'NONE');
+  setElVal('modal-satuan-vol', 'Paket');
 
   calculateModalTotal();
   document.getElementById('modal-row').style.display = 'flex';
@@ -1032,16 +1138,16 @@ function closeRowModal() {
 }
 
 function calculateModalTotal() {
-  const f1 = Number(document.getElementById('modal-f1-val').value) || 1;
-  const f1u = document.getElementById('modal-f1-unit').value || '';
-  const f2 = Number(document.getElementById('modal-f2-val').value) || 1;
-  const f2u = document.getElementById('modal-f2-unit').value || '';
-  const f3 = Number(document.getElementById('modal-f3-val').value) || 1;
-  const f3u = document.getElementById('modal-f3-unit').value || '';
-  const f4 = Number(document.getElementById('modal-f4-val').value) || 1;
-  const f4u = document.getElementById('modal-f4-unit').value || '';
+  const f1 = Number(document.getElementById('modal-f1-val')?.value) || 1;
+  const f1u = document.getElementById('modal-f1-unit')?.value || '';
+  const f2 = Number(document.getElementById('modal-f2-val')?.value) || 1;
+  const f2u = document.getElementById('modal-f2-unit')?.value || '';
+  const f3 = Number(document.getElementById('modal-f3-val')?.value) || 1;
+  const f3u = document.getElementById('modal-f3-unit')?.value || '';
+  const f4 = Number(document.getElementById('modal-f4-val')?.value) || 1;
+  const f4u = document.getElementById('modal-f4-unit')?.value || '';
 
-  const basis = document.getElementById('modal-basis-pengali').value;
+  const basis = document.getElementById('modal-basis-pengali')?.value || 'NONE';
   let mult = 1;
   let multLabel = '';
   if (basis === 'PPK') { mult = 19; multLabel = '19 Kec'; }
@@ -1049,44 +1155,44 @@ function calculateModalTotal() {
   else if (basis === 'TPS_RKB') { mult = 1371; multLabel = '1.371 TPS'; }
 
   const parts = [];
-  if (document.getElementById('modal-f1-val').value) parts.push(`${f1} ${f1u}`.trim());
-  if (document.getElementById('modal-f2-val').value) parts.push(`${f2} ${f2u}`.trim());
-  if (document.getElementById('modal-f3-val').value) parts.push(`${f3} ${f3u}`.trim());
-  if (document.getElementById('modal-f4-val').value) parts.push(`${f4} ${f4u}`.trim());
+  if (document.getElementById('modal-f1-val')?.value) parts.push(`${f1} ${f1u}`.trim());
+  if (document.getElementById('modal-f2-val')?.value) parts.push(`${f2} ${f2u}`.trim());
+  if (document.getElementById('modal-f3-val')?.value) parts.push(`${f3} ${f3u}`.trim());
+  if (document.getElementById('modal-f4-val')?.value) parts.push(`${f4} ${f4u}`.trim());
   if (multLabel) parts.push(multLabel);
 
-  const totalVol = f1 * (document.getElementById('modal-f2-val').value ? f2 : 1) * 
-                        (document.getElementById('modal-f3-val').value ? f3 : 1) * 
-                        (document.getElementById('modal-f4-val').value ? f4 : 1) * mult;
-  const harga = Number(document.getElementById('modal-harga').value) || 0;
+  const totalVol = f1 * (document.getElementById('modal-f2-val')?.value ? f2 : 1) * 
+                        (document.getElementById('modal-f3-val')?.value ? f3 : 1) * 
+                        (document.getElementById('modal-f4-val')?.value ? f4 : 1) * mult;
+  const harga = Number(document.getElementById('modal-harga')?.value) || 0;
   const totalAnggaran = totalVol * harga;
 
-  document.getElementById('modal-preview-formula').textContent = parts.join(' x ') || '-';
-  document.getElementById('modal-preview-volume').textContent = formatNumber(totalVol) + ' ' + (document.getElementById('modal-satuan-vol').value || '');
-  document.getElementById('modal-preview-total').textContent = formatRupiah(totalAnggaran);
+  setElText('modal-preview-formula', parts.join(' x ') || '-');
+  setElText('modal-preview-volume', formatNumber(totalVol) + ' ' + (document.getElementById('modal-satuan-vol')?.value || ''));
+  setElText('modal-preview-total', formatRupiah(totalAnggaran));
 }
 
 async function submitRowForm() {
-  const rowId = document.getElementById('modal-row-id').value;
+  const rowId = document.getElementById('modal-row-id')?.value;
   const periodeId = AppState.currentPeriode.id;
 
   const payload = {
     id: rowId ? Number(rowId) : undefined,
-    uraian: document.getElementById('modal-uraian').value,
-    pic_bagian: document.getElementById('modal-pic').value,
-    target_scope: document.getElementById('modal-sasaran').value,
-    kode_akun: document.getElementById('modal-akun').value,
-    harga_satuan: Number(document.getElementById('modal-harga').value) || 0,
-    f1_val: document.getElementById('modal-f1-val').value ? Number(document.getElementById('modal-f1-val').value) : null,
-    f1_unit: document.getElementById('modal-f1-unit').value,
-    f2_val: document.getElementById('modal-f2-val').value ? Number(document.getElementById('modal-f2-val').value) : null,
-    f2_unit: document.getElementById('modal-f2-unit').value,
-    f3_val: document.getElementById('modal-f3-val').value ? Number(document.getElementById('modal-f3-val').value) : null,
-    f3_unit: document.getElementById('modal-f3-unit').value,
-    f4_val: document.getElementById('modal-f4-val').value ? Number(document.getElementById('modal-f4-val').value) : null,
-    f4_unit: document.getElementById('modal-f4-unit').value,
-    basis_pengali: document.getElementById('modal-basis-pengali').value,
-    satuan_vol: document.getElementById('modal-satuan-vol').value,
+    uraian: document.getElementById('modal-uraian')?.value || '',
+    pic_bagian: document.getElementById('modal-pic')?.value || 'KUL',
+    target_scope: document.getElementById('modal-sasaran')?.value || 'KAB',
+    kode_akun: document.getElementById('modal-akun')?.value || '521211',
+    harga_satuan: Number(document.getElementById('modal-harga')?.value) || 0,
+    f1_val: document.getElementById('modal-f1-val')?.value ? Number(document.getElementById('modal-f1-val').value) : null,
+    f1_unit: document.getElementById('modal-f1-unit')?.value || '',
+    f2_val: document.getElementById('modal-f2-val')?.value ? Number(document.getElementById('modal-f2-val').value) : null,
+    f2_unit: document.getElementById('modal-f2-unit')?.value || '',
+    f3_val: document.getElementById('modal-f3-val')?.value ? Number(document.getElementById('modal-f3-val').value) : null,
+    f3_unit: document.getElementById('modal-f3-unit')?.value || '',
+    f4_val: document.getElementById('modal-f4-val')?.value ? Number(document.getElementById('modal-f4-val').value) : null,
+    f4_unit: document.getElementById('modal-f4-unit')?.value || '',
+    basis_pengali: document.getElementById('modal-basis-pengali')?.value || 'NONE',
+    satuan_vol: document.getElementById('modal-satuan-vol')?.value || 'Paket',
     level_indent: 4
   };
 
@@ -1129,12 +1235,12 @@ function closeRevisionModal() {
 async function submitRevisionForm() {
   const currentId = AppState.currentPeriode.id;
   const payload = {
-    nama_periode: document.getElementById('rev-nama-periode').value,
-    versi_revisi: document.getElementById('rev-versi').value,
-    dasar_pengesahan: document.getElementById('rev-dasar').value,
-    nomor_ba_tapd: document.getElementById('rev-nomor-ba').value,
-    tanggal_ba_tapd: document.getElementById('rev-tanggal-ba').value,
-    catatan_revisi: document.getElementById('rev-catatan').value
+    nama_periode: document.getElementById('rev-nama-periode')?.value || '',
+    versi_revisi: document.getElementById('rev-versi')?.value || '',
+    dasar_pengesahan: document.getElementById('rev-dasar')?.value || '',
+    nomor_ba_tapd: document.getElementById('rev-nomor-ba')?.value || '',
+    tanggal_ba_tapd: document.getElementById('rev-tanggal-ba')?.value || '',
+    catatan_revisi: document.getElementById('rev-catatan')?.value || ''
   };
 
   try {
@@ -1240,7 +1346,8 @@ function renderMasterTabs() {
         <td><span class="badge badge-secondary">${s.kategori}</span></td>
         <td><strong>${s.uraian}</strong></td>
         <td>${s.satuan}</td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(s.nominal)}</td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(s.harga_satuan || s.pagu_sbm)}</td>
+        <td><small>${s.jenis_regulasi || 'SBM'} ${s.dasar_hukum || ''}</small></td>
       </tr>
     `).join('');
   }
@@ -1250,28 +1357,45 @@ function renderMasterTabs() {
   if (tbodyKuan) {
     tbodyKuan.innerHTML = kuantitas.map(q => `
       <tr>
-        <td><code style="font-family: var(--font-mono); font-weight: 700;">${q.kode}</code></td>
-        <td><strong>${q.uraian}</strong></td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--primary);">${formatNumber(q.nilai)}</td>
+        <td><code style="font-family: var(--font-mono); font-weight: 700;">@${q.kode}</code></td>
+        <td><strong>${q.nama || q.uraian}</strong></td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${formatNumber(q.nilai)}</td>
         <td>${q.satuan || ''}</td>
+        <td><small>${q.keterangan || '-'}</small></td>
       </tr>
     `).join('');
   }
+}
+
+function filterMasterPpk() {
+  const keyword = (document.getElementById('filter-master-ppk')?.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#table-master-ppk tr');
+  rows.forEach(r => {
+    const text = r.textContent.toLowerCase();
+    r.style.display = text.includes(keyword) ? '' : 'none';
+  });
 }
 
 function filterMasterPps() {
   if (!AppState.masters) return;
   const { kecamatans, desas } = AppState.masters;
   const kecId = document.getElementById('filter-pps-kec')?.value || 'ALL';
-  const keyword = (document.getElementById('search-pps-name')?.value || '').toLowerCase().trim();
+  const keyword = (document.getElementById('filter-master-pps')?.value || '').toLowerCase().trim();
 
   const kecMap = {};
   for (const k of kecamatans) kecMap[k.id] = k.nama;
 
   const filtered = desas.filter(d => {
-    const matchKec = kecId === 'ALL' || String(d.kecamatan_id) === String(kecId);
-    const matchName = d.nama.toLowerCase().includes(keyword) || (kecMap[d.kecamatan_id] || '').toLowerCase().includes(keyword);
-    return matchKec && matchName;
+    if (kecId !== 'ALL' && String(d.kecamatan_id) !== String(kecId)) return false;
+    if (keyword) {
+      const kecName = (kecMap[d.kecamatan_id] || '').toLowerCase();
+      const match = d.nama.toLowerCase().includes(keyword) || 
+                    kecName.includes(keyword) || 
+                    (d.ketua_nama && d.ketua_nama.toLowerCase().includes(keyword)) ||
+                    (d.sekretaris_nama && d.sekretaris_nama.toLowerCase().includes(keyword));
+      if (!match) return false;
+    }
+    return true;
   });
 
   const countBadge = document.getElementById('pps-count-badge');
@@ -1281,19 +1405,22 @@ function filterMasterPps() {
   if (!tbody) return;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 20px;">Tidak ada desa/kelurahan yang cocok.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center" style="padding: 20px;">Tidak ada desa/kelurahan yang cocok dengan kriteria filter.</td></tr>';
     return;
   }
 
   tbody.innerHTML = filtered.map((d, idx) => `
     <tr>
       <td class="text-center">${idx + 1}</td>
-      <td><strong>Kecamatan ${kecMap[d.kecamatan_id] || '-'}</strong></td>
+      <td><strong>${kecMap[d.kecamatan_id] || '-'}</strong></td>
       <td><strong>${d.nama}</strong></td>
-      <td>${d.ketua_nama || '-'}</td>
       <td class="text-center"><span class="badge badge-primary">${formatNumber(d.tps)} TPS</span></td>
-      <td class="text-center"><span class="badge badge-secondary">${formatNumber(d.pantarlih || d.tps)} Petugas</span></td>
-      <td class="text-center"><span class="badge badge-secondary">${formatNumber(d.kotak || (Number(d.tps) * 2))} Kotak</span></td>
+      <td class="text-center">${formatNumber(d.pantarlih)}</td>
+      <td class="text-center">${formatNumber(d.kotak)}</td>
+      <td class="text-center">${formatNumber(d.rohaniwan)}</td>
+      <td>${d.ketua_nama || '-'}</td>
+      <td>${d.sekretaris_nama || '-'}</td>
+      <td style="font-family: var(--font-mono); font-size: 11px;">${d.sekretaris_nip || '-'}</td>
     </tr>
   `).join('');
 }
@@ -1306,38 +1433,36 @@ function renderSettings() {
   if (!AppState.masters || !AppState.masters.settings) return;
   const s = AppState.masters.settings;
 
-  document.getElementById('set-nama-satker').value = s.nama_satker || '';
-  document.getElementById('set-kode-satker').value = s.kode_satker || '';
-  document.getElementById('set-kpa-nama').value = s.kpa_nama || '';
-  document.getElementById('set-kpa-nip').value = s.kpa_nip || '';
-  document.getElementById('set-kpa-jabatan').value = s.kpa_jabatan || '';
-  document.getElementById('set-ppkom-nama').value = s.ppkom_nama || '';
-  document.getElementById('set-ppkom-nip').value = s.ppkom_nip || '';
-  document.getElementById('set-ppkom-jabatan').value = s.ppkom_jabatan || '';
-  document.getElementById('set-bendahara-nama').value = s.bendahara_nama || '';
-  document.getElementById('set-bendahara-nip').value = s.bendahara_nip || '';
-  document.getElementById('set-bendahara-jabatan').value = s.bendahara_jabatan || '';
-  document.getElementById('set-ketua-nama').value = s.ketua_kpu_nama || '';
-  document.getElementById('set-ketua-jabatan').value = s.ketua_kpu_jabatan || '';
-  document.getElementById('set-kota').value = s.kota_penandatangan || '';
+  setElVal('set-nama-satker', s.nama_satker);
+  setElVal('set-kode-satker', s.kode_satker);
+  setElVal('set-tahun-anggaran', s.tahun_anggaran || '2029');
+  setElVal('set-nama-agenda', s.nama_agenda || 'PEMILIHAN BUPATI DAN WAKIL BUPATI NGAWI');
+  setElVal('set-ketua-nama', s.ketua_kpu_nama);
+  setElVal('set-ketua-jabatan', s.ketua_kpu_jabatan || 'Ketua Komisi Pemilihan Umum Kabupaten Ngawi');
+  setElVal('set-kpa-nama', s.kpa_nama);
+  setElVal('set-kpa-nip', s.kpa_nip);
+  setElVal('set-ppkom-nama', s.ppkom_nama);
+  setElVal('set-ppkom-nip', s.ppkom_nip);
+  setElVal('set-bp-nama', s.bendahara_nama);
+  setElVal('set-bp-nip', s.bendahara_nip);
+  setElVal('set-kota-ttd', s.kota_penandatangan || 'NGAWI');
 }
 
-async function saveSettingsForm() {
+async function saveSatkerSettings() {
   const payload = {
-    nama_satker: document.getElementById('set-nama-satker').value,
-    kode_satker: document.getElementById('set-kode-satker').value,
-    kpa_nama: document.getElementById('set-kpa-nama').value,
-    kpa_nip: document.getElementById('set-kpa-nip').value,
-    kpa_jabatan: document.getElementById('set-kpa-jabatan').value,
-    ppkom_nama: document.getElementById('set-ppkom-nama').value,
-    ppkom_nip: document.getElementById('set-ppkom-nip').value,
-    ppkom_jabatan: document.getElementById('set-ppkom-jabatan').value,
-    bendahara_nama: document.getElementById('set-bendahara-nama').value,
-    bendahara_nip: document.getElementById('set-bendahara-nip').value,
-    bendahara_jabatan: document.getElementById('set-bendahara-jabatan').value,
-    ketua_kpu_nama: document.getElementById('set-ketua-nama').value,
-    ketua_kpu_jabatan: document.getElementById('set-ketua-jabatan').value,
-    kota_penandatangan: document.getElementById('set-kota').value
+    nama_satker: document.getElementById('set-nama-satker')?.value || '',
+    kode_satker: document.getElementById('set-kode-satker')?.value || '',
+    tahun_anggaran: document.getElementById('set-tahun-anggaran')?.value || '2029',
+    nama_agenda: document.getElementById('set-nama-agenda')?.value || '',
+    ketua_kpu_nama: document.getElementById('set-ketua-nama')?.value || '',
+    ketua_kpu_jabatan: document.getElementById('set-ketua-jabatan')?.value || '',
+    kpa_nama: document.getElementById('set-kpa-nama')?.value || '',
+    kpa_nip: document.getElementById('set-kpa-nip')?.value || '',
+    ppkom_nama: document.getElementById('set-ppkom-nama')?.value || '',
+    ppkom_nip: document.getElementById('set-ppkom-nip')?.value || '',
+    bendahara_nama: document.getElementById('set-bp-nama')?.value || '',
+    bendahara_nip: document.getElementById('set-bp-nip')?.value || '',
+    kota_penandatangan: document.getElementById('set-kota-ttd')?.value || 'NGAWI'
   };
 
   try {
