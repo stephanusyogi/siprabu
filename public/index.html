@@ -1148,33 +1148,102 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- MODAL: BUAT USULAN REVISI BARU -->
+    <!-- MODAL: KUNCI DOKUMEN RKB (PILIH DASAR PENGESAHAN: PRA / NPHD / PASCA)   -->
+    <!-- ===================================================================== -->
+    <div id="modal-kunci" class="modal-backdrop" style="display: none;">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>🔒 Kunci Dokumen RKB (Arsip Resmi)</h3>
+          <button class="btn-close" onclick="closeLockModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-note">
+            Dokumen yang dikunci akan menjadi arsip <b>READ-ONLY</b>. Rincian belanja tidak dapat diedit secara langsung. Perubahan anggaran selanjutnya hanya dapat diproses melalui <b>Usulan Revisi Baru</b>.
+          </p>
+          <form id="form-kunci" onsubmit="event.preventDefault(); submitLockForm();">
+            <input type="hidden" id="lock-periode-id">
+            <div class="form-group">
+              <label>Fase Siklus Dokumen:</label>
+              <select id="lock-fase" class="input-select" onchange="onLockFaseChange()">
+                <option value="NPHD_SAH">🏛️ NPHD Sah (Baseline Induk Hibah Bersama Bupati)</option>
+                <option value="PASCA_NPHD">🔄 Pasca-NPHD (Revisi / Pergeseran Anggaran Berjalan)</option>
+                <option value="PRA_NPHD">🌿 Pra-NPHD (Arsip Tonggak Pembahasan Bersama TAPD)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Dasar Pengesahan Legalitas:</label>
+              <select id="lock-dasar" class="input-select">
+                <option value="NPHD">Naskah Perjanjian Hibah Daerah (NPHD)</option>
+                <option value="BA TAPD">Berita Acara (BA) Kesepakatan TAPD Pemda</option>
+                <option value="SK KPU">Keputusan KPU (SK KPU Kabupaten Ngawi)</option>
+                <option value="Surat Usulan KPU">Surat Usulan Resmi KPU ke Pemda</option>
+                <option value="Review Provinsi">Hasil Review KPU Provinsi Jawa Timur</option>
+                <option value="Adendum NPHD">Adendum Naskah Perjanjian Hibah</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Nomor Surat / NPHD / BA TAPD:</label>
+              <input type="text" id="lock-nomor-ba" class="input-text" placeholder="Contoh: 000.1.2/BA-TAPD/2026 atau NPHD.01/KPU-Ngw/2024">
+            </div>
+            <div class="form-group">
+              <label>Tanggal Dokumen Legalitas:</label>
+              <input type="date" id="lock-tanggal-ba" class="input-text">
+            </div>
+            <div class="form-group">
+              <label>Catatan Pengesahan / Keterangan:</label>
+              <textarea id="lock-catatan" class="input-textarea" rows="2" placeholder="Catatan pengesahan dokumen ini..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeLockModal()">Batal</button>
+          <button class="btn btn-danger" onclick="submitLockForm()">🔒 Kunci Dokumen Sekarang</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: BUAT USULAN REVISI BARU (DUPLIKASI SIKLUS PRA / PASCA NPHD)     -->
     <!-- ===================================================================== -->
     <div id="modal-revisi" class="modal-backdrop" style="display: none;">
       <div class="modal-box">
         <div class="modal-header">
-          <h3>Buat Usulan Revisi RKB Baru</h3>
+          <h3>➕ Buat Dokumen Usulan Revisi RKB</h3>
           <button class="btn-close" onclick="closeRevisionModal()">✕</button>
         </div>
         <div class="modal-body">
           <p class="modal-note">
-            Sistem akan menduplikasi seluruh 953 rincian belanja dari dokumen aktif saat ini ke dokumen revisi baru yang berstatus <b>DRAFT AKTIF</b> sehingga dapat dilakukan pergeseran anggaran. Dokumen lama akan tetap tersimpan sebagai arsip historis.
+            Sistem akan menduplikasi seluruh 1.764 baris rincian belanja dari dokumen aktif saat ini ke dokumen revisi baru yang berstatus <b>DRAFT AKTIF (LEMBAR KERJA TERBUKA)</b> sehingga dapat dilakukan pergeseran anggaran. Dokumen lama akan tetap tersimpan sebagai arsip historis.
           </p>
           <form id="form-revisi" onsubmit="event.preventDefault(); submitRevisionForm();">
             <div class="form-group">
+              <label>Fase Siklus Anggaran:</label>
+              <select id="rev-fase" class="input-select" onchange="onRevFaseChange()">
+                <option value="PASCA_NPHD">🔄 Pasca-NPHD (Revisi Anggaran Berjalan / Pergeseran Belanja)</option>
+                <option value="PRA_NPHD">🌿 Pra-NPHD (Usulan / Simulasi Baru / Rasionalisasi Pembahasan TAPD)</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Nama Dokumen Revisi:</label>
-              <input type="text" id="rev-nama-periode" class="input-text" required value="RKB Revisi 1 (Pergeseran Anggaran Pilkada 2029)">
+              <input type="text" id="rev-nama-periode" class="input-text" required value="RKB KPU Kabupaten Ngawi (Revisi 1 - Pasca NPHD)">
             </div>
             <div class="form-group">
               <label>Versi / Label Revisi:</label>
               <input type="text" id="rev-versi" class="input-text" required value="Revisi 1">
             </div>
             <div class="form-group">
-              <label>Dasar Pengesahan:</label>
-              <input type="text" id="rev-dasar" class="input-text" required value="Berita Acara TAPD">
+              <label>Dasar Pengesahan / Acuan:</label>
+              <select id="rev-dasar" class="input-select">
+                <option value="Berita Acara (BA) TAPD">Berita Acara (BA) TAPD Pemda</option>
+                <option value="SK KPU">Surat Keputusan (SK) KPU Ngawi</option>
+                <option value="Surat Permohonan Pergeseran">Surat Permohonan Pergeseran Anggaran ke Pemda</option>
+                <option value="Review KPU Provinsi">Review KPU Provinsi Jawa Timur</option>
+                <option value="Hasil Pembahasan Internal">Hasil Pembahasan &amp; Simulasi Internal</option>
+                <option value="Adendum NPHD">Adendum NPHD</option>
+              </select>
             </div>
             <div class="form-group">
-              <label>Nomor Surat / BA TAPD:</label>
+              <label>Nomor Surat / BA TAPD (Opsional):</label>
               <input type="text" id="rev-nomor-ba" class="input-text" placeholder="Contoh: 000.1.2/BA-TAPD/2026">
             </div>
             <div class="form-group">
@@ -1182,14 +1251,14 @@
               <input type="date" id="rev-tanggal-ba" class="input-text">
             </div>
             <div class="form-group">
-              <label>Alasan / Catatan Pergeseran Anggaran:</label>
-              <textarea id="rev-catatan" class="input-textarea" rows="3" placeholder="Jelaskan kebutuhan pergeseran antar subbag/komponen..."></textarea>
+              <label>Alasan / Catatan Kebutuhan Revisi:</label>
+              <textarea id="rev-catatan" class="input-textarea" rows="3" placeholder="Jelaskan kebutuhan pergeseran anggaran..."></textarea>
             </div>
           </form>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeRevisionModal()">Batal</button>
-          <button class="btn btn-primary" onclick="submitRevisionForm()">🚀 Terbitkan Usulan Revisi</button>
+          <button class="btn btn-primary" onclick="submitRevisionForm()">🚀 Terbitkan Usulan Revisi Baru</button>
         </div>
       </div>
     </div>

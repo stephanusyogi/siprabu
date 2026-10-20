@@ -178,11 +178,12 @@ const server = http.createServer(async (req, res) => {
     if (lockMatch && method === 'POST') {
       const user = getUserFromReq(req);
       if (!canManageLifecycle(user)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Kasubbag Perencanaan dan Pengembang yang dapat mengunci NPHD.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Kasubbag Perencanaan dan Pengembang yang dapat mengunci dokumen.' });
       }
       const id = Number(lockMatch[1]);
-      const updated = lockPeriode(id);
-      return sendJson(res, 200, { success: true, periode: updated });
+      const body = await parseJsonBody(req);
+      const updated = lockPeriode(id, body);
+      return sendJson(res, 200, { success: true, message: 'Dokumen berhasil dikunci (Mode Read-Only).', periode: updated });
     }
 
     // 7. BUKA KUNCI PERIODE (UNLOCK)
@@ -190,11 +191,11 @@ const server = http.createServer(async (req, res) => {
     if (unlockMatch && method === 'POST') {
       const user = getUserFromReq(req);
       if (!canManageLifecycle(user)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Kasubbag Perencanaan dan Pengembang yang dapat membuka kunci.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Kasubbag Perencanaan dan Pengembang yang dapat membuka kunci dokumen.' });
       }
       const id = Number(unlockMatch[1]);
       const updated = unlockPeriode(id);
-      return sendJson(res, 200, { success: true, periode: updated });
+      return sendJson(res, 200, { success: true, message: 'Kunci dokumen berhasil dibuka. Dokumen kini berstatus LEMBAR KERJA AKTIF.', periode: updated });
     }
 
     // 8. UPDATE LEGALITAS PERIODE (SK / BA TAPD)

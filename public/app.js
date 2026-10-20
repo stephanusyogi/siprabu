@@ -246,19 +246,38 @@ function updateContextNavbar() {
   const dot = document.getElementById('context-dot');
   const banner = document.getElementById('global-lock-banner');
 
+  const isPra = p.tahap_revisi === 'PRA_NPHD';
+  const isNphdInduk = p.dasar_pengesahan === 'NPHD' || p.tahap_revisi === 'RKB_AWAL';
+
   if (p.is_locked) {
     if (badge) {
-      badge.textContent = '🔒 TERKUNCI (NPHD SAH)';
-      badge.className = 'context-status badge badge-danger';
+      if (isPra) {
+        badge.textContent = `🔒 ARSIP PRA-NPHD (${p.dasar_pengesahan || 'USULAN'})`;
+        badge.className = 'context-status badge badge-warning';
+      } else if (isNphdInduk) {
+        badge.textContent = '🏛️ NPHD SAH (BASELINE)';
+        badge.className = 'context-status badge badge-danger';
+      } else {
+        badge.textContent = `🔒 REVISI TERKUNCI (${p.dasar_pengesahan || 'BA TAPD'})`;
+        badge.className = 'context-status badge badge-info';
+      }
     }
     if (dot) dot.className = 'pulse-dot locked';
     if (banner) {
       banner.style.display = 'flex';
-      setElText('lock-banner-title', `DOKUMEN ${(p.versi_revisi || '').toUpperCase()} TELAH DIKUNCI (NPHD SAH)`);
+      const faseTxt = isPra ? 'PRA-NPHD' : (isNphdInduk ? 'NPHD SAH' : 'PASCA-NPHD');
+      setElText('lock-banner-title', `DOKUMEN ${(p.versi_revisi || '').toUpperCase()} TELAH DIKUNCI (${faseTxt})`);
+      setElText('lock-banner-desc', `Dokumen RKB "${p.nama_periode}" berada dalam mode READ-ONLY (Dasar: ${p.dasar_pengesahan || '-'}). Perubahan rincian dapat dilakukan melalui "Buat Usulan Revisi Baru" atau Buka Kunci di Pusat Siklus.`);
     }
   } else {
     if (badge) {
-      badge.textContent = '🟢 DRAFT AKTIF';
+      if (isPra) {
+        badge.textContent = '🌿 DRAFT PRA-NPHD';
+      } else if (isNphdInduk) {
+        badge.textContent = '🟢 DRAFT NPHD INDUK';
+      } else {
+        badge.textContent = '🔄 DRAFT REVISI AKTIF';
+      }
       badge.className = 'context-status badge badge-success';
     }
     if (dot) dot.className = 'pulse-dot active';
@@ -432,10 +451,24 @@ function renderSiklus() {
 
   const badgeBox = document.getElementById('lifecycle-badge');
   if (badgeBox) {
+    const isPra = p.tahap_revisi === 'PRA_NPHD';
+    const isNphdInduk = p.dasar_pengesahan === 'NPHD' || p.tahap_revisi === 'RKB_AWAL';
     if (p.is_locked) {
-      badgeBox.innerHTML = '<span class="badge badge-danger" style="font-size: 13px;">🔒 TERKUNCI (NPHD SAH)</span>';
+      if (isPra) {
+        badgeBox.innerHTML = `<span class="badge" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size: 13px; font-weight:700;">🔒 ARSIP RESMI PRA-NPHD (${p.dasar_pengesahan || 'USULAN'})</span>`;
+      } else if (isNphdInduk) {
+        badgeBox.innerHTML = '<span class="badge badge-danger" style="font-size: 13px; font-weight:700;">🏛️ TERKUNCI (NPHD SAH - BASELINE)</span>';
+      } else {
+        badgeBox.innerHTML = `<span class="badge" style="background:#fdf4ff;color:#86198f;border:1px solid #f0abfc;font-size: 13px; font-weight:700;">🔒 ARSIP RESMI PASCA-NPHD (${p.dasar_pengesahan || 'REVISI'})</span>`;
+      }
     } else {
-      badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🟢 DRAFT AKTIF (TERBUKA)</span>';
+      if (isPra) {
+        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🌿 DRAFT PRA-NPHD (LEMBAR KERJA AKTIF)</span>';
+      } else if (isNphdInduk) {
+        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🟢 DRAFT NPHD INDUK (LEMBAR KERJA AKTIF)</span>';
+      } else {
+        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🔄 DRAFT REVISI AKTIF (LEMBAR KERJA TERBUKA)</span>';
+      }
     }
   }
 
@@ -462,10 +495,15 @@ function renderSiklus() {
       if (canManage) {
         buttonsHtml += `
           <button class="btn btn-danger" onclick="toggleLockPeriode(${p.id}, true)">
-            🔒 Kunci NPHD Sah
+            🔒 Kunci Dokumen (Tetapkan Arsip Resmi)
           </button>
         `;
       }
+      buttonsHtml += `
+        <button class="btn btn-primary" onclick="openRevisionModal()">
+          ➕ Buat Usulan Revisi Baru
+        </button>
+      `;
     }
 
     buttonsHtml += `
@@ -526,24 +564,25 @@ async function toggleLockPeriode(periodeId, lockState) {
     return;
   }
 
-  const promptMsg = lockState
-    ? 'Apakah Anda yakin ingin MENGUNCI dokumen RKB ini? Setelah dikunci, rincian belanja tidak dapat diedit secara langsung.'
-    : 'Buka kunci dokumen RKB ini untuk mengizinkan perubahan langsung?';
+  if (lockState) {
+    // Tampilkan modal kunci jika mengunci agar pengguna bisa memilih fase & dasar pengesahan
+    openLockModal(periodeId);
+  } else {
+    // Buka kunci
+    if (!confirm('Apakah Anda yakin ingin MEMBUKA KUNCI dokumen RKB ini?\n\nSetelah dibuka, dokumen akan kembali berstatus "LEMBAR KERJA AKTIF" sehingga rincian belanja dapat diedit kembali.')) return;
 
-  if (!confirm(promptMsg)) return;
-
-  try {
-    const res = await apiFetch(`/api/periodes/${periodeId}/lock`, {
-      method: 'POST',
-      body: JSON.stringify({ is_locked: lockState })
-    });
-    alert(res.message);
-    await loadPeriodes();
-    AppState.currentPeriode = AppState.periodesList.find(x => x.id === periodeId);
-    await loadRkbData();
-    renderAllViews();
-  } catch (err) {
-    alert('Gagal mengubah status kunci: ' + err.message);
+    try {
+      const res = await apiFetch(`/api/periodes/${periodeId}/unlock`, {
+        method: 'POST'
+      });
+      alert(res.message || 'Kunci dokumen berhasil dibuka! Dokumen kini kembali berstatus LEMBAR KERJA AKTIF.');
+      await loadPeriodes();
+      AppState.currentPeriode = AppState.periodesList.find(x => x.id === periodeId) || AppState.periodesList[0];
+      await loadRkbData();
+      renderAllViews();
+    } catch (err) {
+      alert('Gagal membuka kunci dokumen: ' + err.message);
+    }
   }
 }
 
@@ -1228,10 +1267,95 @@ async function deleteRow(rowId) {
 }
 
 // ============================================================================
-// MODAL: BUAT USULAN REVISI
+// MODAL: KUNCI DOKUMEN (PILIH DASAR PENGESAHAN: PRA / NPHD / PASCA)
+// ============================================================================
+
+function openLockModal(periodeId) {
+  const p = AppState.periodesList.find(x => x.id === periodeId) || AppState.currentPeriode;
+  if (!p) return;
+
+  setElVal('lock-periode-id', p.id);
+  
+  const faseSelect = document.getElementById('lock-fase');
+  if (faseSelect) {
+    if (p.tahap_revisi === 'PRA_NPHD') faseSelect.value = 'PRA_NPHD';
+    else if (p.revisi_ke === 0) faseSelect.value = 'NPHD_SAH';
+    else faseSelect.value = 'PASCA_NPHD';
+  }
+  
+  onLockFaseChange();
+  
+  setElVal('lock-nomor-ba', p.nomor_ba_tapd || '');
+  setElVal('lock-tanggal-ba', p.tanggal_ba_tapd || new Date().toISOString().slice(0, 10));
+  setElVal('lock-catatan', p.catatan_revisi || '');
+  
+  document.getElementById('modal-kunci').style.display = 'flex';
+}
+
+function closeLockModal() {
+  document.getElementById('modal-kunci').style.display = 'none';
+}
+
+function onLockFaseChange() {
+  const fase = document.getElementById('lock-fase')?.value || 'NPHD_SAH';
+  const dasarSelect = document.getElementById('lock-dasar');
+  if (!dasarSelect) return;
+
+  if (fase === 'PRA_NPHD') {
+    dasarSelect.innerHTML = `
+      <option value="Surat Usulan KPU">Surat Usulan Resmi KPU ke TAPD</option>
+      <option value="BA Pembahasan TAPD">Berita Acara (BA) Pembahasan Bersama TAPD</option>
+      <option value="Review Provinsi">Hasil Review KPU Provinsi Jawa Timur</option>
+      <option value="Kertas Kerja Penyusunan">Kertas Kerja Penyusunan Internal</option>
+    `;
+  } else if (fase === 'NPHD_SAH') {
+    dasarSelect.innerHTML = `
+      <option value="NPHD">Naskah Perjanjian Hibah Daerah (NPHD)</option>
+      <option value="BA Kesepakatan Final">BA Kesepakatan Final TAPD dan KPU</option>
+    `;
+  } else {
+    dasarSelect.innerHTML = `
+      <option value="BA TAPD">Berita Acara (BA) Persetujuan TAPD Pemda</option>
+      <option value="SK KPU">Keputusan KPU (SK KPU Kabupaten Ngawi)</option>
+      <option value="Surat Persetujuan KPA">Surat Persetujuan KPA (Pergeseran Internal)</option>
+      <option value="Adendum NPHD">Adendum Naskah Perjanjian Hibah</option>
+    `;
+  }
+}
+
+async function submitLockForm() {
+  const periodeId = Number(document.getElementById('lock-periode-id')?.value) || AppState.currentPeriode.id;
+  const payload = {
+    is_locked: 1,
+    tahap_revisi: document.getElementById('lock-fase')?.value || 'NPHD_SAH',
+    dasar_pengesahan: document.getElementById('lock-dasar')?.value || 'NPHD',
+    nomor_ba_tapd: document.getElementById('lock-nomor-ba')?.value || '',
+    tanggal_ba_tapd: document.getElementById('lock-tanggal-ba')?.value || '',
+    catatan_revisi: document.getElementById('lock-catatan')?.value || ''
+  };
+
+  try {
+    const res = await apiFetch(`/api/periodes/${periodeId}/lock`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    closeLockModal();
+    alert(res.message || 'Dokumen berhasil dikunci sebagai Arsip Resmi!');
+    await loadPeriodes();
+    AppState.currentPeriode = AppState.periodesList.find(x => x.id === periodeId) || AppState.periodesList[0];
+    await loadRkbData();
+    renderAllViews();
+  } catch (err) {
+    alert('Gagal mengunci dokumen: ' + err.message);
+  }
+}
+
+// ============================================================================
+// MODAL: BUAT USULAN REVISI (PRA / PASCA NPHD)
 // ============================================================================
 
 function openRevisionModal() {
+  onRevFaseChange();
   document.getElementById('modal-revisi').style.display = 'flex';
 }
 
@@ -1239,11 +1363,44 @@ function closeRevisionModal() {
   document.getElementById('modal-revisi').style.display = 'none';
 }
 
+function onRevFaseChange() {
+  const fase = document.getElementById('rev-fase')?.value || 'PASCA_NPHD';
+  const nextRevNum = (AppState.periodesList?.filter(p => p.tahap_revisi !== 'PRA_NPHD' && p.revisi_ke > 0).length || 0) + 1;
+  const revVersi = document.getElementById('rev-versi');
+  const revNama = document.getElementById('rev-nama-periode');
+  const dasarSelect = document.getElementById('rev-dasar');
+
+  if (fase === 'PRA_NPHD') {
+    if (revVersi) revVersi.value = 'Pra-NPHD Usulan 2';
+    if (revNama) revNama.value = 'RKB KPU Kabupaten Ngawi (Rasionalisasi Pembahasan Bersama TAPD)';
+    if (dasarSelect) {
+      dasarSelect.innerHTML = `
+        <option value="Hasil Pembahasan Internal">Hasil Pembahasan &amp; Simulasi Internal</option>
+        <option value="Surat Usulan Resmi KPU">Surat Usulan Resmi KPU ke TAPD</option>
+        <option value="Review KPU Provinsi">Review KPU Provinsi Jawa Timur</option>
+        <option value="BA TAPD">BA Pembahasan Bersama TAPD</option>
+      `;
+    }
+  } else {
+    if (revVersi) revVersi.value = `Revisi ${nextRevNum}`;
+    if (revNama) revNama.value = `RKB KPU Kabupaten Ngawi (Revisi ${nextRevNum} - Pasca NPHD)`;
+    if (dasarSelect) {
+      dasarSelect.innerHTML = `
+        <option value="Berita Acara (BA) TAPD">Berita Acara (BA) TAPD Pemda</option>
+        <option value="SK KPU">Keputusan KPU (SK KPU Ngawi)</option>
+        <option value="Surat Permohonan Pergeseran">Surat Permohonan Pergeseran Anggaran ke Pemda</option>
+        <option value="Adendum NPHD">Adendum NPHD</option>
+      `;
+    }
+  }
+}
+
 async function submitRevisionForm() {
   const currentId = AppState.currentPeriode.id;
   const payload = {
     nama_periode: document.getElementById('rev-nama-periode')?.value || '',
     versi_revisi: document.getElementById('rev-versi')?.value || '',
+    tahap_revisi: document.getElementById('rev-fase')?.value || 'PASCA_NPHD',
     dasar_pengesahan: document.getElementById('rev-dasar')?.value || '',
     nomor_ba_tapd: document.getElementById('rev-nomor-ba')?.value || '',
     tanggal_ba_tapd: document.getElementById('rev-tanggal-ba')?.value || '',
@@ -1256,7 +1413,7 @@ async function submitRevisionForm() {
       body: JSON.stringify(payload)
     });
     closeRevisionModal();
-    alert(`Usulan revisi baru "${res.periode.versi_revisi}" berhasil dibuat! Dokumen revisi baru ini sekarang AKTIF dan siap disesuaikan.`);
+    alert(`Dokumen usulan revisi "${res.periode.versi_revisi}" berhasil dibuat!\n\nDokumen revisi baru ini sekarang AKTIF (dapat diedit) dan rincian belanja telah disalin lengkap.`);
     await loadPeriodes();
     AppState.currentPeriode = res.periode;
     await loadRkbData();

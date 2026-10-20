@@ -91,9 +91,31 @@ function getActivePeriode() {
   return null;
 }
 
-function lockPeriode(id) {
+function lockPeriode(id, details = {}) {
   const now = new Date().toISOString();
-  db.prepare('UPDATE periode_anggaran SET is_locked = 1, locked_at = ? WHERE id = ?').run(now, id);
+  if (details && (details.dasar_pengesahan || details.catatan_revisi || details.nomor_ba_tapd || details.tahap_revisi)) {
+    db.prepare(`
+      UPDATE periode_anggaran SET 
+        is_locked = 1, 
+        locked_at = ?,
+        dasar_pengesahan = COALESCE(?, dasar_pengesahan),
+        tahap_revisi = COALESCE(?, tahap_revisi),
+        nomor_ba_tapd = COALESCE(?, nomor_ba_tapd),
+        tanggal_ba_tapd = COALESCE(?, tanggal_ba_tapd),
+        catatan_revisi = COALESCE(?, catatan_revisi)
+      WHERE id = ?
+    `).run(
+      now, 
+      details.dasar_pengesahan || null, 
+      details.tahap_revisi || null, 
+      details.nomor_ba_tapd || null, 
+      details.tanggal_ba_tapd || null, 
+      details.catatan_revisi || null, 
+      id
+    );
+  } else {
+    db.prepare('UPDATE periode_anggaran SET is_locked = 1, locked_at = ? WHERE id = ?').run(now, id);
+  }
   return getPeriodeById(id);
 }
 
@@ -136,76 +158,97 @@ function updatePeriodeLegalitas(id, {
 
 function createPeriode({
   nama_periode, versi_revisi, tahap_revisi, dasar_pengesahan,
-  nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi, parent_periode_id
+  nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi, parent_periode_id,
+  kode_singkat, revisi_ke, sumber_dana
 }) {
+  const countRev = db.prepare("SELECT COUNT(*) as c FROM periode_anggaran WHERE tipe_dokumen = 'RKB'").get()?.c || 1;
+  const calcRevisiKe = revisi_ke !== undefined ? revisi_ke : countRev;
+  const calcKodeSingkat = kode_singkat || `RKB-REV-${calcRevisiKe}`;
+
   const res = db.prepare(`
     INSERT INTO periode_anggaran (
       nama_periode, versi_revisi, tahap_revisi, dasar_pengesahan,
       nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi, parent_periode_id,
-      is_locked, sumber_dana
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'KABUPATEN')
+      is_locked, sumber_dana, tipe_dokumen, jenis_agenda, kode_singkat, revisi_ke
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'RKB', 'PILKADA', ?, ?)
   `).run(
-    nama_periode || 'RKB Baru',
-    versi_revisi || 'Revisi Baru',
-    tahap_revisi || 'REVISI',
+    nama_periode || `RKB Revisi ${calcRevisiKe}`,
+    versi_revisi || `Revisi ${calcRevisiKe}`,
+    tahap_revisi || 'PASCA_NPHD',
     dasar_pengesahan || 'BA TAPD',
     nomor_ba_tapd || '',
     tanggal_ba_tapd || '',
     catatan_revisi || '',
-    parent_periode_id || null
+    parent_periode_id || null,
+    sumber_dana || 'KABUPATEN',
+    calcKodeSingkat,
+    calcRevisiKe
   );
   return getPeriodeById(res.lastInsertRowid);
 }
 
 function clonePeriodeToRevision(sourcePeriodeId, {
-  nama_periode, versi_revisi, dasar_pengesahan, nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi
+  nama_periode, versi_revisi, tahap_revisi, dasar_pengesahan, nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi
 }) {
   const source = getPeriodeById(sourcePeriodeId);
   if (!source) throw new Error('Dokumen sumber tidak ditemukan.');
 
-  // Buat periode baru
+  const nextRev = (source.revisi_ke || 0) + 1;
+  const defaultVersi = versi_revisi || `Revisi ${nextRev}`;
+
   const newPeriode = createPeriode({
-    nama_periode: nama_periode || `RKB ${versi_revisi} (Pergeseran Anggaran)`,
-    versi_revisi: versi_revisi || 'Revisi 1',
-    tahap_revisi: 'REVISI',
+    nama_periode: nama_periode || `RKB KPU Kabupaten Ngawi (${defaultVersi})`,
+    versi_revisi: defaultVersi,
+    tahap_revisi: tahap_revisi || 'PASCA_NPHD',
     dasar_pengesahan: dasar_pengesahan || 'BA TAPD',
     nomor_ba_tapd: nomor_ba_tapd || '',
     tanggal_ba_tapd: tanggal_ba_tapd || '',
     catatan_revisi: catatan_revisi || `Turunan revisi dari ${source.versi_revisi}`,
-    parent_periode_id: source.id
+    parent_periode_id: source.id,
+    revisi_ke: nextRev,
+    kode_singkat: `RKB-REV-${nextRev}`
   });
 
-  // Kloning seluruh baris dari source ke periode baru
+  // Kloning seluruh baris dari source ke periode baru secara efisien dalam transaksi
   const rows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(sourcePeriodeId);
   
-  const idMap = {};
-  for (const r of rows) {
-    const parentNewId = r.parent_rkb_row_id && idMap[r.parent_rkb_row_id] ? idMap[r.parent_rkb_row_id] : null;
-    const res = db.prepare(`
-      INSERT INTO rab_baris (
-        periode_id, urutan, row_type, kode, uraian, level_indent, target_scope, kode_akun,
-        f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var,
-        basis_pengali, label_pengali_kab, label_pengali_adhoc, satuan_vol, harga_satuan,
-        pic_bagian, sifat_biaya, jenis_biaya, blokir_rm, selalu_tampil_print, parent_rkb_row_id,
-        catatan_realisasi, semula_row_id, semula_vol, semula_rincian, semula_satuan, semula_harga, semula_jumlah,
-        catatan_revisi_baris, cost_sharing
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?, ?,
-        ?, ?
-      )
-    `).run(
-      newPeriode.id, r.urutan, r.row_type, r.kode, r.uraian, r.level_indent, r.target_scope, r.kode_akun,
-      r.f1_val, r.f1_unit, r.f1_var, r.f2_val, r.f2_unit, r.f2_var, r.f3_val, r.f3_unit, r.f3_var, r.f4_val, r.f4_unit, r.f4_var,
-      r.basis_pengali, r.label_pengali_kab, r.label_pengali_adhoc, r.satuan_vol, r.harga_satuan,
-      r.pic_bagian, r.sifat_biaya, r.jenis_biaya, r.blokir_rm, r.selalu_tampil_print, parentNewId,
-      r.catatan_realisasi, r.id, null, null, null, null, null,
-      r.catatan_revisi_baris, r.cost_sharing
-    );
-    idMap[r.id] = res.lastInsertRowid;
+  const insertStmt = db.prepare(`
+    INSERT INTO rab_baris (
+      periode_id, urutan, row_type, kode, uraian, level_indent, target_scope, kode_akun,
+      f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var,
+      basis_pengali, label_pengali_kab, label_pengali_adhoc, satuan_vol, harga_satuan,
+      pic_bagian, sifat_biaya, jenis_biaya, blokir_rm, selalu_tampil_print, parent_rkb_row_id,
+      catatan_realisasi, semula_row_id, semula_vol, semula_rincian, semula_satuan, semula_harga, semula_jumlah,
+      catatan_revisi_baris, cost_sharing
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?,
+      ?, ?
+    )
+  `);
+
+  db.exec('BEGIN TRANSACTION');
+  try {
+    const idMap = {};
+    for (const r of rows) {
+      const parentNewId = r.parent_rkb_row_id && idMap[r.parent_rkb_row_id] ? idMap[r.parent_rkb_row_id] : null;
+      const res = insertStmt.run(
+        newPeriode.id, r.urutan, r.row_type, r.kode, r.uraian, r.level_indent, r.target_scope, r.kode_akun,
+        r.f1_val, r.f1_unit, r.f1_var, r.f2_val, r.f2_unit, r.f2_var, r.f3_val, r.f3_unit, r.f3_var, r.f4_val, r.f4_unit, r.f4_var,
+        r.basis_pengali, r.label_pengali_kab, r.label_pengali_adhoc, r.satuan_vol, r.harga_satuan,
+        r.pic_bagian, r.sifat_biaya, r.jenis_biaya, r.blokir_rm, r.selalu_tampil_print, parentNewId,
+        r.catatan_realisasi, r.id, null, null, null, null, null,
+        r.catatan_revisi_baris, r.cost_sharing
+      );
+      idMap[r.id] = res.lastInsertRowid;
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
   }
 
   return getPeriodeById(newPeriode.id);
