@@ -878,6 +878,18 @@
 
           <div class="card">
             <div class="toolbar-card">
+              <div class="filter-group" style="min-width: 220px;">
+                <label>Kategori Parameter:</label>
+                <select id="filter-db-kuantitas-kat" class="input-select input-sm" onchange="filterDbKuantitas()">
+                  <option value="ALL">-- Semua Kategori SSOT --</option>
+                  <option value="PERSONIL">👥 Personil (Komisioner, Sekretariat)</option>
+                  <option value="WAKTU">⏱️ Waktu &amp; Masa Kerja (Bulan)</option>
+                  <option value="POKJA">📋 Kelompok Kerja (Pokja)</option>
+                  <option value="PESERTA">🗳️ Peserta Pemilu &amp; Parpol</option>
+                  <option value="WILAYAH">🏛️ Kewilayahan &amp; Badan Adhoc</option>
+                  <option value="PEMILIH">👤 Pemilih &amp; DPT</option>
+                </select>
+              </div>
               <div class="filter-group flex-1">
                 <label>Pencarian Variabel / Parameter Kuantitas:</label>
                 <input type="text" id="filter-db-kuantitas" class="input-text input-sm" placeholder="Ketik kode variabel atau nama parameter..." onkeyup="filterDbKuantitas()">
@@ -890,8 +902,9 @@
                     <th style="width: 160px;">Kode Variabel</th>
                     <th>Nama Parameter Kuantitas</th>
                     <th class="text-right" style="width: 140px;">Nilai Saat Ini</th>
-                    <th style="width: 120px;">Satuan</th>
+                    <th style="width: 100px;">Satuan</th>
                     <th>Keterangan / Sumber Basis Data SSOT</th>
+                    <th class="text-center" style="width: 110px;">Aksi</th>
                   </tr>
                 </thead>
                 <tbody id="table-db-kuantitas">
@@ -2863,6 +2876,50 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModalDesa()">Batal</button>
           <button type="button" class="btn btn-primary" onclick="submitModalDesa()">💾 Simpan Desa</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: EDIT PARAMETER KUANTITAS SSOT                                  -->
+    <!-- ===================================================================== -->
+    <div id="modal-kuantitas" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 520px;">
+        <div class="modal-header">
+          <h3 id="modal-kuantitas-title" style="margin: 0; font-size: 16px;">📐 Edit Parameter Kuantitas SSOT</h3>
+          <button type="button" class="btn-close" onclick="closeModalKuantitas()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <form id="form-kuantitas">
+            <input type="hidden" id="kuantitas-id">
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 11px; font-weight: 700; color: #64748b;">KODE VARIABEL:</span>
+                <code id="modal-kuantitas-kode-chip" style="font-family: var(--font-mono); font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 13px;">@kode</code>
+              </div>
+              <div style="font-size: 13px; font-weight: 700; color: #0f172a;" id="modal-kuantitas-nama">Nama Parameter</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 130px; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">Nilai / Volume Angka:</label>
+                <input type="number" id="kuantitas-nilai" class="input-text" required min="0" step="any" placeholder="0" style="font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: #1e40af;">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Satuan:</label>
+                <input type="text" id="kuantitas-satuan" class="input-text" required placeholder="Org / Bln / Kali">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label style="font-weight: 700;">Keterangan / Dasar Kebijakan Satker:</label>
+              <textarea id="kuantitas-keterangan" class="input-text" rows="3" placeholder="Catatan atau dasar aturan penetapan kuantitas..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalKuantitas()">Batal</button>
+          <button type="button" class="btn btn-primary" onclick="submitModalKuantitas()">💾 Simpan Parameter</button>
         </div>
       </div>
     </div>

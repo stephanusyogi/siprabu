@@ -4554,22 +4554,39 @@ function renderDbKuantitas() {
   const tbody = document.getElementById('table-db-kuantitas');
   if (!tbody) return;
 
+  const reactiveDesa = ['tps_rkb', 'pemilih_dpt', 'dpt', 'pantarlih', 'desa_pps'];
+  const reactivePpk = ['kec_ppk'];
+  const reactivePaslon = ['paslon'];
+  const formulaKeys = [
+    'kpps_ketua', 'kpps_anggota', 'linmas_tps', 'petugas_tps', 'kpps_all',
+    'ppk_ketua', 'ppk_anggota', 'ppk_komisioner', 'ppk_sekretaris', 'ppk_staf', 'ppk_sekretariat',
+    'pps_ketua', 'pps_anggota', 'pps_komisioner', 'pps_sekretaris', 'pps_staf', 'pps_sekretariat',
+    'kpu_all'
+  ];
+
   tbody.innerHTML = kuantitas.map(q => {
     let sourceBadge = '';
-    if (['tps_rkb', 'pemilih_dpt', 'dpt', 'pantarlih'].includes(q.kode)) {
+    let actionBtn = '';
+
+    if (reactiveDesa.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-success" style="font-size:11px;">Reaktif: Detail Desa/TPS</span>';
-    } else if (q.kode === 'kec_ppk') {
+      actionBtn = `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-pps')" title="Ubah data di Master Desa & TPS"><i class="fas fa-external-link-alt"></i> Buka Master</button>`;
+    } else if (reactivePpk.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-info" style="font-size:11px;">Reaktif: Master PPK</span>';
-    } else if (q.kode === 'paslon') {
+      actionBtn = `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-ppk')" title="Ubah data di Master Kecamatan (PPK)"><i class="fas fa-external-link-alt"></i> Buka Master</button>`;
+    } else if (reactivePaslon.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-primary" style="font-size:11px;">Reaktif: Master Paslon</span>';
-    } else if (['kpps_ketua', 'kpps_anggota', 'linmas_tps', 'petugas_tps', 'ppk_ketua', 'pps_ketua'].includes(q.kode)) {
+      actionBtn = `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-paslon')" title="Ubah data di Master Pasangan Calon"><i class="fas fa-external-link-alt"></i> Buka Master</button>`;
+    } else if (formulaKeys.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-secondary" style="font-size:11px;">Formula Agregat Otomatis</span>';
+      actionBtn = `<span class="badge badge-secondary" style="font-size:11px; font-weight: 600;" title="Dihitung otomatis oleh formula"><i class="fas fa-calculator"></i> ∑ Rumus</span>`;
     } else {
-      sourceBadge = '<span class="badge badge-warning" style="font-size:11px;">Konfigurasi Koefisien</span>';
+      sourceBadge = '<span class="badge badge-warning" style="font-size:11px;">Konfigurasi Koefisien Mandiri</span>';
+      actionBtn = `<button type="button" class="btn btn-xs btn-primary" onclick="openModalKuantitas(${q.id})" title="Edit Parameter Kuantitas"><i class="fas fa-pencil-alt"></i> Edit</button>`;
     }
 
     return `
-      <tr>
+      <tr data-kategori="${escapeHtml(q.kategori || '')}">
         <td><code style="font-family: var(--font-mono); font-weight: 700; color: #0284c7;">@${q.kode}</code></td>
         <td><strong>${escapeHtml(q.nama || q.uraian)}</strong></td>
         <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 13.5px;">${formatNumber(q.nilai)}</td>
@@ -4578,18 +4595,87 @@ function renderDbKuantitas() {
           ${sourceBadge}
           <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(q.keterangan || '-')}</div>
         </td>
+        <td class="text-center" style="white-space: nowrap;">
+          ${actionBtn}
+        </td>
       </tr>
     `;
   }).join('');
 }
 
 function filterDbKuantitas() {
+  const selectedKat = document.getElementById('filter-db-kuantitas-kat')?.value || 'ALL';
   const keyword = (document.getElementById('filter-db-kuantitas')?.value || '').toLowerCase().trim();
   const rows = document.querySelectorAll('#table-db-kuantitas tr');
   rows.forEach(r => {
+    const kat = r.getAttribute('data-kategori') || '';
     const text = r.textContent.toLowerCase();
-    r.style.display = text.includes(keyword) ? '' : 'none';
+    const matchKat = (selectedKat === 'ALL' || kat === selectedKat);
+    const matchText = (!keyword || text.includes(keyword));
+    r.style.display = (matchKat && matchText) ? '' : 'none';
   });
+}
+
+function openModalKuantitas(id) {
+  const modal = document.getElementById('modal-kuantitas');
+  if (!modal) return;
+  const q = (AppState.masters?.kuantitas || []).find(item => item.id === Number(id));
+  if (!q) return;
+
+  setElText('modal-kuantitas-title', `📐 Edit Parameter SSOT: ${q.nama || q.kode}`);
+  setElVal('kuantitas-id', q.id);
+  setElText('modal-kuantitas-kode-chip', `@${q.kode}`);
+  setElText('modal-kuantitas-nama', q.nama || q.kode);
+  setElVal('kuantitas-nilai', q.nilai);
+  setElVal('kuantitas-satuan', q.satuan || '');
+  setElVal('kuantitas-keterangan', q.keterangan || '');
+
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('kuantitas-nilai')?.focus(), 100);
+}
+
+function closeModalKuantitas() {
+  const modal = document.getElementById('modal-kuantitas');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitModalKuantitas() {
+  const id = document.getElementById('kuantitas-id')?.value;
+  const nilai = parseFloat(document.getElementById('kuantitas-nilai')?.value);
+  const satuan = (document.getElementById('kuantitas-satuan')?.value || '').trim();
+  const keterangan = (document.getElementById('kuantitas-keterangan')?.value || '').trim();
+
+  if (isNaN(nilai) || nilai < 0) {
+    showToast('Nilai parameter harus berupa angka positif.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/master/kuantitas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AppState.token || ''}`
+      },
+      body: JSON.stringify({ id: Number(id), nilai, satuan, keterangan })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast(result.message || 'Parameter SSOT berhasil diperbarui!', 'success');
+      closeModalKuantitas();
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } else {
+      showToast(result.error || 'Gagal memperbarui parameter kuantitas.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan: ' + err.message, 'error');
+  }
+}
+
+function navigateToMaster(viewId) {
+  switchView(viewId);
 }
 
 // ============================================================================
@@ -5302,4 +5388,8 @@ window.exportKecamatanExcel = exportKecamatanExcel;
 window.triggerImportKecamatan = triggerImportKecamatan;
 window.handleExcelUploadKecamatan = handleExcelUploadKecamatan;
 window.downloadAllSubbagZip = downloadAllSubbagZip;
+window.openModalKuantitas = openModalKuantitas;
+window.closeModalKuantitas = closeModalKuantitas;
+window.submitModalKuantitas = submitModalKuantitas;
+window.navigateToMaster = navigateToMaster;
 

@@ -35,6 +35,8 @@ const {
   getMasters,
   updateSettings,
   syncPrimaryKuantitas,
+  getKuantitasList,
+  saveKuantitas,
   getPaslonList,
   savePaslon,
   deletePaslon,
@@ -800,6 +802,25 @@ const server = http.createServer(async (req, res) => {
       }
       deletePaslon(Number(delPaslonMatch[1]));
       return sendJson(res, 200, { success: true, list: getPaslonList() });
+    }
+
+    // 13b. MASTER KUANTITAS (SSOT)
+    if (pathname === '/api/master/kuantitas' && method === 'GET') {
+      return sendJson(res, 200, getKuantitasList());
+    }
+    if (pathname === '/api/master/kuantitas' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Tim Perencanaan dan Pengembang yang dapat mengubah parameter SSOT.' });
+      }
+      try {
+        const body = await parseJsonBody(req);
+        const list = saveKuantitas(body);
+        clearRkbDatasetCache();
+        return sendJson(res, 200, { success: true, list, message: 'Parameter SSOT berhasil diperbarui!' });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
     }
 
     // 13c. MASTER KECAMATAN (19 PPK)

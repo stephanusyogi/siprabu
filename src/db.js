@@ -976,6 +976,13 @@ function syncPrimaryKuantitas() {
   updateKuantitasStmt.run(totalTps * 9, 'petugas_tps');
   updateKuantitasStmt.run(totalTps * 7, 'kpps_all');
 
+  // Update kpu_all = komisioner + sekretariat_kpu
+  try {
+    const kVal = Number(db.prepare("SELECT nilai FROM master_kuantitas WHERE kode = 'komisioner'").get()?.nilai) || 5;
+    const sVal = Number(db.prepare("SELECT nilai FROM master_kuantitas WHERE kode = 'sekretariat_kpu'").get()?.nilai) || 35;
+    updateKuantitasStmt.run(kVal + sVal, 'kpu_all');
+  } catch (e) {}
+
   return {
     totalKec: countKec,
     totalDesa,
@@ -984,6 +991,54 @@ function syncPrimaryKuantitas() {
     totalPemilih,
     totalPaslon: countPaslon
   };
+}
+
+function getKuantitasList() {
+  return db.prepare('SELECT * FROM master_kuantitas ORDER BY id ASC').all();
+}
+
+function getKuantitasById(id) {
+  return db.prepare('SELECT * FROM master_kuantitas WHERE id = ?').get(id);
+}
+
+function saveKuantitas(data) {
+  const id = Number(data.id);
+  const existing = db.prepare('SELECT * FROM master_kuantitas WHERE id = ?').get(id);
+  if (!existing) throw new Error('Parameter kuantitas tidak ditemukan.');
+
+  const reactiveKeys = ['tps_rkb', 'pemilih_dpt', 'dpt', 'pantarlih', 'kec_ppk', 'desa_pps', 'paslon'];
+  if (reactiveKeys.includes(existing.kode)) {
+    throw new Error(`Variabel @${existing.kode} bersumber otomatis dari Master Database primer. Silakan lakukan perubahan melalui menu Master bersangkutan agar tidak terjadi dualitas data.`);
+  }
+
+  const formulaKeys = [
+    'kpps_ketua', 'kpps_anggota', 'linmas_tps', 'petugas_tps', 'kpps_all',
+    'ppk_ketua', 'ppk_anggota', 'ppk_komisioner', 'ppk_sekretaris', 'ppk_staf', 'ppk_sekretariat',
+    'pps_ketua', 'pps_anggota', 'pps_komisioner', 'pps_sekretaris', 'pps_staf', 'pps_sekretariat',
+    'kpu_all'
+  ];
+  if (formulaKeys.includes(existing.kode)) {
+    throw new Error(`Variabel @${existing.kode} adalah rumus turunan otomatis dan akan terkalkulasi seketika saat variabel dasarnya disesuaikan.`);
+  }
+
+  const nilai = Number(data.nilai);
+  if (isNaN(nilai) || nilai < 0) {
+    throw new Error('Nilai parameter harus berupa angka positif.');
+  }
+
+  const satuan = (data.satuan || existing.satuan || '').trim();
+  const keterangan = (data.keterangan !== undefined ? data.keterangan : existing.keterangan || '').trim();
+
+  db.prepare(`
+    UPDATE master_kuantitas 
+    SET nilai = ?, satuan = ?, keterangan = ?
+    WHERE id = ?
+  `).run(nilai, satuan, keterangan, id);
+
+  // Recalculate derived formulas
+  syncPrimaryKuantitas();
+
+  return getKuantitasList();
 }
 
 // Master Paslon CRUD
@@ -1574,6 +1629,9 @@ module.exports = {
   getMasters,
   updateSettings,
   syncPrimaryKuantitas,
+  getKuantitasList,
+  getKuantitasById,
+  saveKuantitas,
   getPaslonList,
   savePaslon,
   deletePaslon,
