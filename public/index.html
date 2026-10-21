@@ -184,7 +184,13 @@
               <h2 class="view-title">Dashboard Ringkasan Anggaran</h2>
               <p class="view-desc">Ringkasan eksekutif alokasi Pagu NPHD Hibah Pilkada KPU Kabupaten Ngawi.</p>
             </div>
-            <div class="header-actions">
+            <div class="header-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label for="dashboard-periode-select" style="font-size: 12px; font-weight: 600; color: #475569;">Versi Dokumen:</label>
+                <select id="dashboard-periode-select" class="input-select-sm" onchange="selectPeriode(Number(this.value))" style="font-weight: 600; min-width: 220px;">
+                  <!-- Populated via JS -->
+                </select>
+              </div>
               <button class="btn btn-success" onclick="downloadExcel()">
                 📥 Unduh Berkas Excel (.xlsx)
               </button>

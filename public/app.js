@@ -323,8 +323,16 @@ async function loadMasters() {
 async function loadPeriodes() {
   const res = await apiFetch('/api/periodes');
   AppState.periodesList = res.periodes || [];
-  if (!AppState.currentPeriode && AppState.periodesList.length > 0) {
-    AppState.currentPeriode = AppState.periodesList[0];
+  if (!AppState.currentPeriode) {
+    try {
+      const actRes = await apiFetch('/api/periodes/active');
+      if (actRes && actRes.periode) {
+        AppState.currentPeriode = actRes.periode;
+      }
+    } catch (e) {}
+    if (!AppState.currentPeriode && AppState.periodesList.length > 0) {
+      AppState.currentPeriode = AppState.periodesList[AppState.periodesList.length - 1];
+    }
   }
 }
 
@@ -446,6 +454,16 @@ function renderAllViews() {
 function renderDashboard() {
   if (!AppState.rkbData || !AppState.rkbData.summary) return;
   const { summary, periode } = AppState.rkbData;
+
+  // Sinkronisasi pemilih versi dokumen di dashboard
+  const pSelect = document.getElementById('dashboard-periode-select');
+  if (pSelect && AppState.periodesList) {
+    pSelect.innerHTML = AppState.periodesList.map(item => `
+      <option value="${item.id}" ${item.id === periode.id ? 'selected' : ''}>
+        ${item.is_locked ? '🔒' : '✏️'} ${item.versi_revisi} (${item.nama_periode})
+      </option>
+    `).join('');
+  }
 
   setElText('kpi-total-pagu', formatRupiah(summary.grandTotal));
   setElText('kpi-total-items', formatNumber(summary.totalItems) + ' Baris');
