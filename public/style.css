@@ -545,68 +545,137 @@ body {
 .rkb-table thead th {
   position: sticky;
   top: 0;
-  background-color: #1e293b;
-  color: #ffffff;
-  z-index: 10;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.text-right { text-align: right; }
-.text-center { text-align: center; }
-
-/* HIERARCHY LEVEL ROW STYLES */
-/* Level 0: Kategori Utama (e.g. A. KEBUTUHAN BARANG DAN JASA) */
-tr.rkb-row-lvl-0 {
-  background-color: #0f172a !important;
+  background-color: #2563eb !important; /* Vivid SAKTI Blue */
   color: #ffffff !important;
-  font-weight: 800;
-  font-size: 14px;
-}
-tr.rkb-row-lvl-0 td { border-bottom: 2px solid #000; }
-
-/* Level 1: Tahapan (e.g. I. TAHAPAN PERSIAPAN DAN PELAKSANAAN) */
-tr.rkb-row-lvl-1 {
-  background-color: #1e293b !important;
-  color: #f8fafc !important;
+  z-index: 10;
+  font-size: 11.5px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid #1d4ed8;
+  padding: 9px 10px;
+}
+
+/* HIERARCHY LEVEL ROW STYLES (SAKTI AUTHENTIC THEME) */
+
+/* Level 0: Kelompok Belanja Utama (e.g. A. KEBUTUHAN BARANG DAN JASA) - SAKTI Yellow Highlight */
+tr.rkb-row-lvl-0 {
+  background-color: #fef9c3 !important; /* Soft Pastel Yellow SAKTI */
+  color: #0f172a !important;
+  font-weight: 800;
   font-size: 13.5px;
 }
-
-/* Level 2: Program / Kegiatan (e.g. 1. Perencanaan Program) */
-tr.rkb-row-lvl-2 {
-  background-color: #334155 !important;
-  color: #f1f5f9 !important;
-  font-weight: 600;
+tr.rkb-row-lvl-0 td {
+  border-top: 1px solid #fde047;
+  border-bottom: 2px solid #eab308;
+  color: #0f172a !important;
 }
-
-/* Level 21-24: Sub-kegiatan */
-tr.rkb-row-lvl-21, tr.rkb-row-lvl-22, tr.rkb-row-lvl-23, tr.rkb-row-lvl-24 {
-  background-color: #475569 !important;
-  color: #f8fafc !important;
-  font-weight: 500;
-}
-
-/* Level 3: Akun Belanja (e.g. 521211 Belanja Bahan) */
-tr.rkb-row-lvl-3 {
+tr.rkb-row-lvl-0 td.col-kode {
   background-color: #e2e8f0 !important;
   color: #0f172a !important;
+  text-align: center;
+  border-right: 1px solid #cbd5e1;
+  font-weight: 800;
+}
+
+/* Level 1: Tahapan (e.g. I. TAHAPAN PERSIAPAN DAN PELAKSANAAN) - SAKTI Underlined Bold */
+tr.rkb-row-lvl-1 {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  font-weight: 700;
+  font-size: 13px;
+}
+tr.rkb-row-lvl-1 td {
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a !important;
+}
+tr.rkb-row-lvl-1 td.col-kode {
+  text-decoration: underline;
+  background-color: #f1f5f9;
+  text-align: center;
   font-weight: 700;
 }
-
-/* Level 41: Sub-rincian / Header Rincian */
-tr.rkb-row-lvl-41 {
-  background-color: #f1f5f9 !important;
-  font-style: italic;
-  font-weight: 600;
-  color: #334155 !important;
+tr.rkb-row-lvl-1 td.col-uraian span {
+  text-decoration: underline;
+}
+tr.rkb-row-lvl-1 td.col-total {
+  text-decoration: underline;
 }
 
-/* Level 4: Item Rincian Belanja Riil */
+/* Level 2: Program / Kegiatan (e.g. 1. Perencanaan Program) - SAKTI Clean Bold */
+tr.rkb-row-lvl-2 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  font-weight: 700;
+  font-size: 12.5px;
+}
+tr.rkb-row-lvl-2 td {
+  border-bottom: 1px solid #f1f5f9;
+  color: #0f172a !important;
+}
+tr.rkb-row-lvl-2 td.col-kode {
+  font-weight: 700;
+  color: #1e3a8a;
+  text-align: center;
+  background-color: #f8fafc;
+}
+
+/* Level 21-24: Sub-kegiatan - SAKTI SubOutput */
+tr.rkb-row-lvl-21, tr.rkb-row-lvl-22, tr.rkb-row-lvl-23, tr.rkb-row-lvl-24 {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  font-weight: 600;
+  font-size: 12px;
+}
+tr.rkb-row-lvl-21 td, tr.rkb-row-lvl-22 td, tr.rkb-row-lvl-23 td, tr.rkb-row-lvl-24 td {
+  border-bottom: 1px solid #f8fafc;
+}
+
+/* Level 3: Akun Belanja (e.g. 521211 Belanja Bahan) - SAKTI Underlined Akun */
+tr.rkb-row-lvl-3 {
+  background-color: #ffffff !important;
+  color: #1e3a8a !important;
+  font-weight: 700;
+  font-size: 12px;
+}
+tr.rkb-row-lvl-3 td {
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e3a8a !important;
+}
+tr.rkb-row-lvl-3 td.col-kode {
+  text-decoration: underline;
+  color: #1e3a8a !important;
+  font-weight: 700;
+  text-align: center;
+}
+tr.rkb-row-lvl-3 td.col-uraian span {
+  text-decoration: underline;
+}
+tr.rkb-row-lvl-3 td.col-total {
+  text-decoration: underline;
+}
+
+/* Level 41: Sub-rincian / Header Rincian (e.g. a. Kantor/Inventaris) - SAKTI SubKomponen Italic */
+tr.rkb-row-lvl-41 {
+  background-color: #ffffff !important;
+  font-style: italic;
+  font-weight: 600;
+  color: #475569 !important;
+  font-size: 12px;
+}
+tr.rkb-row-lvl-41 td {
+  border-bottom: 1px solid #f8fafc;
+}
+tr.rkb-row-lvl-41 td.col-kode {
+  text-align: center;
+  font-style: italic;
+}
+
+/* Level 4: Item Rincian Belanja Riil - SAKTI Item */
 tr.rkb-row-lvl-4 {
   background-color: #ffffff;
   color: var(--text-main);
+  font-size: 12px;
 }
 tr.rkb-row-lvl-4:hover {
   background-color: #f8fafc;
@@ -1311,40 +1380,40 @@ tr.rkb-row-lvl-4:hover {
   border-bottom: 2px solid #2563eb !important;
 }
 
-/* High-Specificity Overrides for Selected Header Rows */
+/* High-Specificity Overrides for Selected Header Rows (SAKTI Theme) */
 tr.rkb-row-lvl-0.table-row-selected {
-  background-color: #1e3a8a !important;
-  color: #ffffff !important;
-  box-shadow: inset 8px 0 0 #60a5fa !important;
+  background-color: #fef08a !important;
+  color: #0f172a !important;
+  box-shadow: inset 8px 0 0 #eab308 !important;
 }
 tr.rkb-row-lvl-0.table-row-selected td {
-  border-top: 2px solid #60a5fa !important;
-  border-bottom: 2px solid #60a5fa !important;
-  color: #ffffff !important;
+  border-top: 2px solid #ca8a04 !important;
+  border-bottom: 2px solid #ca8a04 !important;
+  color: #0f172a !important;
 }
 
 /* Level 1: Tahapan (I. Persiapan & Pelaksanaan / II. Operasional) */
 tr.rkb-row-lvl-1.table-row-selected {
-  background-color: #0284c7 !important; /* Sky Blue 600 vibrant */
-  color: #ffffff !important;
-  box-shadow: inset 8px 0 0 #38bdf8 !important;
+  background-color: #e0f2fe !important;
+  color: #0f172a !important;
+  box-shadow: inset 8px 0 0 #0284c7 !important;
 }
 tr.rkb-row-lvl-1.table-row-selected td {
-  border-top: 2px solid #38bdf8 !important;
-  border-bottom: 2px solid #38bdf8 !important;
-  color: #ffffff !important;
+  border-top: 2px solid #0284c7 !important;
+  border-bottom: 2px solid #0284c7 !important;
+  color: #0f172a !important;
 }
 
 /* Level 2: 28 Komponen Kegiatan */
 tr.rkb-row-lvl-2.table-row-selected {
-  background-color: #0369a1 !important; /* Ocean Blue 700 */
-  color: #ffffff !important;
-  box-shadow: inset 8px 0 0 #7dd3fc !important;
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  box-shadow: inset 8px 0 0 #2563eb !important;
 }
 tr.rkb-row-lvl-2.table-row-selected td {
-  border-top: 2px solid #7dd3fc !important;
-  border-bottom: 2px solid #7dd3fc !important;
-  color: #ffffff !important;
+  border-top: 2px solid #2563eb !important;
+  border-bottom: 2px solid #2563eb !important;
+  color: #0f172a !important;
 }
 
 /* Level 21-25: Sub-Komponen */
@@ -1353,43 +1422,43 @@ tr.rkb-row-lvl-22.table-row-selected,
 tr.rkb-row-lvl-23.table-row-selected,
 tr.rkb-row-lvl-24.table-row-selected,
 tr.rkb-row-lvl-25.table-row-selected {
-  background-color: #0ea5e9 !important;
-  color: #ffffff !important;
-  box-shadow: inset 8px 0 0 #bae6fd !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  box-shadow: inset 8px 0 0 #0ea5e9 !important;
 }
 tr.rkb-row-lvl-21.table-row-selected td,
 tr.rkb-row-lvl-22.table-row-selected td,
 tr.rkb-row-lvl-23.table-row-selected td,
 tr.rkb-row-lvl-24.table-row-selected td,
 tr.rkb-row-lvl-25.table-row-selected td {
-  border-top: 2px solid #bae6fd !important;
-  border-bottom: 2px solid #bae6fd !important;
-  color: #ffffff !important;
+  border-top: 2px solid #0ea5e9 !important;
+  border-bottom: 2px solid #0ea5e9 !important;
+  color: #0f172a !important;
 }
 
 /* Level 3: Akun Belanja (521211, dll) */
 tr.rkb-row-lvl-3.table-row-selected {
-  background-color: #bae6fd !important;
-  color: #0c4a6e !important;
+  background-color: #eff6ff !important;
+  color: #1e3a8a !important;
   font-weight: 800 !important;
-  box-shadow: inset 8px 0 0 #0284c7 !important;
+  box-shadow: inset 8px 0 0 #2563eb !important;
 }
 tr.rkb-row-lvl-3.table-row-selected td {
-  border-top: 2px solid #0284c7 !important;
-  border-bottom: 2px solid #0284c7 !important;
-  color: #0c4a6e !important;
+  border-top: 2px solid #2563eb !important;
+  border-bottom: 2px solid #2563eb !important;
+  color: #1e3a8a !important;
 }
 
 /* Level 41: Header Sub-rincian */
 tr.rkb-row-lvl-41.table-row-selected {
-  background-color: #e0f2fe !important;
-  color: #0369a1 !important;
-  box-shadow: inset 8px 0 0 #0284c7 !important;
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+  box-shadow: inset 8px 0 0 #64748b !important;
 }
 tr.rkb-row-lvl-41.table-row-selected td {
-  border-top: 2px solid #0284c7 !important;
-  border-bottom: 2px solid #0284c7 !important;
-  color: #0369a1 !important;
+  border-top: 2px solid #64748b !important;
+  border-bottom: 2px solid #64748b !important;
+  color: #334155 !important;
 }
 
 /* STRIP SOROT TAHAPAN RKB */
