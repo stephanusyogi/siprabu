@@ -267,7 +267,7 @@ function initDb() {
     if (!checkYogi) {
       db.prepare(`
         INSERT INTO satker_users (username, password, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active)
-        VALUES ('stephanusyogi', 'teknis123', 'Stephanus Yogi', 'Operator Subbag Teknis & IT', 'stephanusyogi12@gmail.com', 'op_teknis', 2, 'TEKNIS', 1)
+        VALUES ('stephanusyogi', 'Op#TekNgw&2026*', 'Stephanus Yogi', 'Operator Subbag Teknis & IT', 'stephanusyogi12@gmail.com', 'op_teknis', 2, 'TEKNIS', 1)
       `).run();
     }
   } catch (e) {}

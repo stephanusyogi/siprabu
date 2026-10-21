@@ -427,7 +427,8 @@ async function switchUser(username) {
         divisi_teknis: 'Kom#TekNgw&2026*',
         divisi_hukum: 'Kom#HukNgw&2026*',
         divisi_parmas: 'Kom#ParNgw&2026*',
-        divisi_kul: 'Kom#KulNgw&2026*'
+        divisi_kul: 'Kom#KulNgw&2026*',
+        stephanusyogi: 'Op#TekNgw&2026*'
       };
       const pass = pwdMap[username] || 'Rnd#Ngawi$2026!P';
       await performLogin(username, pass);
