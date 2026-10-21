@@ -1971,6 +1971,9 @@ function openRowModal(rowId, event) {
     `).join('');
   }
 
+  // Update BAS Account Card Display & Quick SBM Chips
+  updateAkunCardDisplay(row.kode_akun || '521211');
+
   setElVal('modal-harga', row.harga_satuan || 0);
   setElVal('modal-f1-val', row.f1_val !== null ? row.f1_val : '');
   setElVal('modal-f1-unit', row.f1_unit || '');
@@ -1981,7 +1984,10 @@ function openRowModal(rowId, event) {
   setElVal('modal-f4-val', row.f4_val !== null ? row.f4_val : '');
   setElVal('modal-f4-unit', row.f4_unit || '');
   setElVal('modal-basis-pengali', row.basis_pengali || 'NONE');
-  setElVal('modal-satuan-vol', row.satuan_vol || 'Paket');
+
+  // Update Satuan Volume Dropdown & Custom
+  setSatuanVolValue(row.satuan_vol || 'Paket');
+
   setElVal('modal-catatan-revisi', row.catatan_revisi_baris || '');
 
   calculateModalTotal();
@@ -2027,6 +2033,9 @@ function openAddRowModal() {
     }
   }
 
+  // Update BAS Account Card Display & Quick SBM Chips
+  updateAkunCardDisplay(selectedRow?.kode_akun || '521211');
+
   setElVal('modal-harga', 0);
   setElVal('modal-f1-val', 1);
   setElVal('modal-f1-unit', 'Keg');
@@ -2037,7 +2046,10 @@ function openAddRowModal() {
   setElVal('modal-f4-val', '');
   setElVal('modal-f4-unit', '');
   setElVal('modal-basis-pengali', 'NONE');
-  setElVal('modal-satuan-vol', 'Paket');
+
+  // Update Satuan Volume Dropdown & Custom
+  setSatuanVolValue('Paket');
+
   setElVal('modal-catatan-revisi', '');
 
   calculateModalTotal();
@@ -2160,6 +2172,415 @@ async function deleteRow(rowId, event) {
   } catch (err) {
     alert('Gagal menghapus baris: ' + err.message);
   }
+}
+
+// ============================================================================
+// BAS ACCOUNT PICKER DATATABLE LOGIC
+// ============================================================================
+AppState.akunPickerFilter = 'SEMUA';
+
+function updateAkunCardDisplay(kode) {
+  const akuns = AppState.masters?.akuns || [];
+  const found = akuns.find(a => a.kode === kode) || {
+    kode: kode || '521211',
+    uraian: 'Belanja Bahan',
+    kelompok: '521 - Belanja Barang'
+  };
+
+  const badge = document.getElementById('modal-akun-code-badge');
+  const uraian = document.getElementById('modal-akun-uraian-display');
+  const meta = document.getElementById('modal-akun-meta-display');
+  const hiddenSelect = document.getElementById('modal-akun');
+
+  if (badge) badge.textContent = found.kode;
+  if (uraian) uraian.textContent = found.uraian;
+  if (meta) meta.textContent = `Kelompok: ${found.kelompok || '-'} ${found.kategori_dn ? '| DN: ' + found.kategori_dn : ''}`;
+  if (hiddenSelect) hiddenSelect.value = found.kode;
+
+  // Sync quick SBM chips for this account
+  renderQuickSbmChips(found.kode);
+}
+
+function onModalAkunChange(kode) {
+  updateAkunCardDisplay(kode);
+}
+
+function openAkunPickerModal() {
+  AppState.akunPickerFilter = 'SEMUA';
+  const searchInput = document.getElementById('akun-picker-search');
+  if (searchInput) searchInput.value = '';
+
+  // Reset tab buttons
+  document.querySelectorAll('.tab-filter-akun').forEach(btn => {
+    if (btn.getAttribute('data-filter') === 'SEMUA') {
+      btn.className = 'btn btn-xs btn-primary tab-filter-akun';
+    } else {
+      btn.className = 'btn btn-xs btn-outline tab-filter-akun';
+    }
+  });
+
+  filterAkunPickerTable();
+  const modal = document.getElementById('modal-akun-picker');
+  if (modal) {
+    modal.style.display = 'flex';
+    setTimeout(() => {
+      document.getElementById('akun-picker-search')?.focus();
+    }, 100);
+  }
+}
+
+function closeAkunPickerModal() {
+  const modal = document.getElementById('modal-akun-picker');
+  if (modal) modal.style.display = 'none';
+}
+
+function setAkunPickerFilter(filter, btn) {
+  AppState.akunPickerFilter = filter;
+  document.querySelectorAll('.tab-filter-akun').forEach(b => {
+    b.className = 'btn btn-xs btn-outline tab-filter-akun';
+  });
+  if (btn) btn.className = 'btn btn-xs btn-primary tab-filter-akun';
+  filterAkunPickerTable();
+}
+
+function filterAkunPickerTable() {
+  const q = (document.getElementById('akun-picker-search')?.value || '').toLowerCase().trim();
+  const filter = AppState.akunPickerFilter || 'SEMUA';
+  const akuns = AppState.masters?.akuns || [];
+  const activeKode = document.getElementById('modal-akun')?.value || '';
+
+  const filtered = akuns.filter(a => {
+    // Check category filter
+    if (filter !== 'SEMUA') {
+      if (!a.kode.startsWith(filter)) return false;
+    }
+    // Check search text
+    if (!q) return true;
+    return (
+      a.kode.toLowerCase().includes(q) ||
+      (a.uraian && a.uraian.toLowerCase().includes(q)) ||
+      (a.kelompok && a.kelompok.toLowerCase().includes(q)) ||
+      (a.keterangan && a.keterangan.toLowerCase().includes(q))
+    );
+  });
+
+  const tbody = document.getElementById('akun-picker-tbody');
+  const summaryEl = document.getElementById('akun-picker-summary');
+  const countAllEl = document.getElementById('count-akun-all');
+
+  if (countAllEl) countAllEl.textContent = akuns.length;
+  if (summaryEl) summaryEl.textContent = `Menampilkan ${filtered.length} dari ${akuns.length} akun BAS`;
+
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center" style="padding: 24px; color: #64748b;">
+          🔍 Tidak ditemukan akun BAS yang sesuai dengan pencarian "<strong>${escHtml(q)}</strong>".
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(a => {
+    const isSelected = a.kode === activeKode;
+    return `
+      <tr class="${isSelected ? 'table-row-active-picker' : ''}" onclick="selectAkunFromPicker('${a.kode}')" style="cursor: pointer;">
+        <td>
+          <code style="font-family: var(--font-mono); font-weight: 800; color: var(--accent); font-size: 13px;">${a.kode}</code>
+          ${isSelected ? '<span class="badge badge-success ml-1" style="font-size: 9px; padding: 1px 4px;">Aktif</span>' : ''}
+        </td>
+        <td><strong>${escHtml(a.uraian)}</strong></td>
+        <td><span class="badge badge-subtle" style="font-size: 11px;">${escHtml(a.kelompok || '-')}</span></td>
+        <td style="color: #475569; font-size: 11.5px; line-height: 1.35;">${escHtml(a.keterangan || '-')}</td>
+        <td class="text-center">
+          <button type="button" class="btn btn-xs ${isSelected ? 'btn-primary' : 'btn-outline-primary'}" onclick="event.stopPropagation(); selectAkunFromPicker('${a.kode}')">
+            ${isSelected ? '✓ Terpilih' : 'Pilih'}
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function selectAkunFromPicker(kode) {
+  updateAkunCardDisplay(kode);
+  closeAkunPickerModal();
+  document.getElementById('modal-harga')?.focus();
+}
+
+// ============================================================================
+// SBM LOKAL & STANDAR HARGA SATUAN LOGIC
+// ============================================================================
+AppState.sbmPickerFilter = 'SEMUA';
+
+function renderQuickSbmChips(kodeAkun) {
+  const container = document.getElementById('modal-sbm-quick-chips');
+  const statusEl = document.getElementById('sbm-quick-status');
+  if (!container) return;
+
+  const sbms = AppState.masters?.sbms || [];
+  const matched = sbms.filter(s => s.kode_akun === kodeAkun);
+
+  if (matched.length === 0) {
+    if (statusEl) statusEl.textContent = `(Tidak ada tarif spesifik untuk akun ${kodeAkun})`;
+    container.innerHTML = `
+      <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Standar tarif akun ini fleksibel / riil cost.</span>
+      <button type="button" class="sbm-chip" onclick="openSbmPickerModal()" style="background:#f1f5f9; color:#475569; border-color:#cbd5e1;">
+        🏷️ Buka Katalog SBM (51 Tarif)
+      </button>
+    `;
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = `(${matched.length} tarif ditemukan)`;
+
+  container.innerHTML = matched.map(s => {
+    const shortLabel = s.uraian.replace(/Honorarium /i, '').replace(/Konsumsi Rapat /i, 'Konsumsi ').replace(/Perjalanan Dinas \/ /i, '');
+    const priceFmt = (s.harga_satuan >= 1000000)
+      ? (s.harga_satuan / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' Jt'
+      : (s.harga_satuan / 1000).toLocaleString('id-ID') + ' Rb';
+
+    return `
+      <button type="button" class="sbm-chip" onclick="applySbmRate(${s.id})" title="${escHtml(s.uraian)}: Rp ${Number(s.harga_satuan).toLocaleString('id-ID')} / ${s.satuan}">
+        <span>${escHtml(shortLabel)}</span>
+        <span class="sbm-chip-rate">Rp ${priceFmt} / ${s.satuan}</span>
+      </button>
+    `;
+  }).join('') + `
+    <button type="button" class="sbm-chip" onclick="openSbmPickerModal()" style="background:#f8fafc; border-color:#94a3b8; color:#334155;">
+      🔍 Semua SBM ➔
+    </button>
+  `;
+}
+
+function openSbmPickerModal() {
+  AppState.sbmPickerFilter = 'SEMUA';
+  const searchInput = document.getElementById('sbm-picker-search');
+  if (searchInput) searchInput.value = '';
+
+  document.querySelectorAll('.tab-filter-sbm').forEach(btn => {
+    if (btn.getAttribute('data-filter') === 'SEMUA') {
+      btn.className = 'btn btn-xs btn-primary tab-filter-sbm';
+    } else {
+      btn.className = 'btn btn-xs btn-outline tab-filter-sbm';
+    }
+  });
+
+  filterSbmPickerTable();
+  const modal = document.getElementById('modal-sbm-picker');
+  if (modal) {
+    modal.style.display = 'flex';
+    setTimeout(() => {
+      document.getElementById('sbm-picker-search')?.focus();
+    }, 100);
+  }
+}
+
+function closeSbmPickerModal() {
+  const modal = document.getElementById('modal-sbm-picker');
+  if (modal) modal.style.display = 'none';
+}
+
+function setSbmPickerFilter(filter, btn) {
+  AppState.sbmPickerFilter = filter;
+  document.querySelectorAll('.tab-filter-sbm').forEach(b => {
+    b.className = 'btn btn-xs btn-outline tab-filter-sbm';
+  });
+  if (btn) btn.className = 'btn btn-xs btn-primary tab-filter-sbm';
+  filterSbmPickerTable();
+}
+
+function filterSbmPickerTable() {
+  const q = (document.getElementById('sbm-picker-search')?.value || '').toLowerCase().trim();
+  const filter = AppState.sbmPickerFilter || 'SEMUA';
+  const sbms = AppState.masters?.sbms || [];
+
+  const filtered = sbms.filter(s => {
+    // Category tabs filter
+    if (filter === 'HONOR_ADHOC') {
+      const kat = (s.kategori || '').toUpperCase();
+      if (!kat.includes('PPK') && !kat.includes('PPS') && !kat.includes('KPPS') && !kat.includes('PANTARLIH')) return false;
+    } else if (filter === 'KONSUMSI') {
+      const kat = (s.kategori || '').toUpperCase();
+      if (!kat.includes('KONSUMSI') && !kat.includes('MAKAN') && !kat.includes('SNACK')) return false;
+    } else if (filter === 'POKJA') {
+      const kat = (s.kategori || '').toUpperCase();
+      if (!kat.includes('POKJA')) return false;
+    } else if (filter === 'PERJALANAN') {
+      const kat = (s.kategori || '').toUpperCase();
+      if (!kat.includes('PERJALANAN') && !kat.includes('TRANSPORT') && !kat.includes('MEETING')) return false;
+    } else if (filter === 'SANTUNAN') {
+      const kat = (s.kategori || '').toUpperCase();
+      if (!kat.includes('SANTUNAN') && !kat.includes('PEMAKAMAN')) return false;
+    } else if (filter === 'SEWA_JASA') {
+      const kat = (s.kategori || '').toUpperCase();
+      if (!kat.includes('SEWA') && !kat.includes('JASA') && !kat.includes('PROFESI') && !kat.includes('ATK')) return false;
+    }
+
+    if (!q) return true;
+    return (
+      (s.uraian && s.uraian.toLowerCase().includes(q)) ||
+      (s.kategori && s.kategori.toLowerCase().includes(q)) ||
+      (s.satuan && s.satuan.toLowerCase().includes(q)) ||
+      (s.kode_akun && s.kode_akun.toLowerCase().includes(q)) ||
+      (s.dasar_hukum && s.dasar_hukum.toLowerCase().includes(q)) ||
+      (s.keterangan && s.keterangan.toLowerCase().includes(q))
+    );
+  });
+
+  const tbody = document.getElementById('sbm-picker-tbody');
+  const summaryEl = document.getElementById('sbm-picker-summary');
+  const countAllEl = document.getElementById('count-sbm-all');
+
+  if (countAllEl) countAllEl.textContent = sbms.length;
+  if (summaryEl) summaryEl.textContent = `Menampilkan ${filtered.length} dari ${sbms.length} standar biaya`;
+
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center" style="padding: 24px; color: #64748b;">
+          🔍 Tidak ditemukan standar biaya masukan yang sesuai dengan pencarian "<strong>${escHtml(q)}</strong>".
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(s => {
+    return `
+      <tr onclick="applySbmRate(${s.id})" style="cursor: pointer;">
+        <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${s.kode_akun || '-'}</code></td>
+        <td><strong>${escHtml(s.uraian)}</strong></td>
+        <td><span class="badge badge-subtle" style="font-size: 11px;">${escHtml(s.kategori || '-')}</span></td>
+        <td class="text-center"><span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${escHtml(s.satuan || '-')}</span></td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #16a34a; font-size: 13px;">
+          Rp ${Number(s.harga_satuan).toLocaleString('id-ID')}
+        </td>
+        <td style="font-size: 11px; color: #64748b;">
+          <div>${s.pagu_sbm ? 'Max: Rp ' + Number(s.pagu_sbm).toLocaleString('id-ID') : '-'}</div>
+          <div style="font-size: 10px; color: #94a3b8;">${escHtml(s.dasar_hukum || '')}</div>
+        </td>
+        <td class="text-center">
+          <button type="button" class="btn btn-xs btn-outline-primary" onclick="event.stopPropagation(); applySbmRate(${s.id})">
+            ⚡ Gunakan
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function applySbmRate(sbmId) {
+  const sbms = AppState.masters?.sbms || [];
+  const item = sbms.find(s => s.id === sbmId);
+  if (!item) return;
+
+  // 1. Set Harga Satuan
+  setElVal('modal-harga', item.harga_satuan || 0);
+
+  // 2. Set Satuan Total Volume
+  setSatuanVolValue(item.satuan || 'Paket');
+
+  // 3. Set Kode Akun BAS if exists
+  if (item.kode_akun) {
+    updateAkunCardDisplay(item.kode_akun);
+  }
+
+  // 4. If uraian is empty or just standard default, fill with SBM title
+  const uraianEl = document.getElementById('modal-uraian');
+  if (uraianEl && (!uraianEl.value.trim() || uraianEl.value.trim() === '-.')) {
+    uraianEl.value = '-. ' + item.uraian;
+  }
+
+  // 5. Recalculate preview
+  calculateModalTotal();
+
+  // 6. Close SBM Picker if open
+  closeSbmPickerModal();
+
+  // Flash highlight on harga input to give user visual feedback
+  const hargaEl = document.getElementById('modal-harga');
+  if (hargaEl) {
+    hargaEl.focus();
+    hargaEl.style.transition = 'all 0.3s';
+    hargaEl.style.borderColor = '#16a34a';
+    hargaEl.style.boxShadow = '0 0 0 3px rgba(22, 163, 74, 0.25)';
+    setTimeout(() => {
+      hargaEl.style.borderColor = '';
+      hargaEl.style.boxShadow = '';
+    }, 1200);
+  }
+}
+
+// ============================================================================
+// SATUAN TOTAL VOLUME LOGIC (DROPDOWN + CUSTOM ENTRY)
+// ============================================================================
+function setSatuanVolValue(val) {
+  const select = document.getElementById('modal-satuan-vol-select');
+  const customInput = document.getElementById('modal-satuan-vol-custom');
+  const hiddenInput = document.getElementById('modal-satuan-vol');
+  const badge = document.getElementById('badge-satuan-selected');
+
+  val = (val || 'Paket').trim();
+  if (hiddenInput) hiddenInput.value = val;
+  if (badge) badge.textContent = val;
+
+  if (!select) return;
+
+  let optionFound = false;
+  for (let i = 0; i < select.options.length; i++) {
+    if (select.options[i].value.toLowerCase() === val.toLowerCase()) {
+      select.selectedIndex = i;
+      optionFound = true;
+      break;
+    }
+  }
+
+  if (optionFound) {
+    if (customInput) customInput.style.display = 'none';
+  } else {
+    // Custom unit
+    select.value = '__CUSTOM__';
+    if (customInput) {
+      customInput.style.display = 'block';
+      customInput.value = val;
+    }
+  }
+}
+
+function onSatuanVolSelectChange(selVal) {
+  const customInput = document.getElementById('modal-satuan-vol-custom');
+  const hiddenInput = document.getElementById('modal-satuan-vol');
+  const badge = document.getElementById('badge-satuan-selected');
+
+  if (selVal === '__CUSTOM__') {
+    if (customInput) {
+      customInput.style.display = 'block';
+      customInput.focus();
+      const currentVal = customInput.value.trim() || 'Paket';
+      if (hiddenInput) hiddenInput.value = currentVal;
+      if (badge) badge.textContent = currentVal;
+    }
+  } else {
+    if (customInput) customInput.style.display = 'none';
+    if (hiddenInput) hiddenInput.value = selVal;
+    if (badge) badge.textContent = selVal;
+  }
+  calculateModalTotal();
+}
+
+function onSatuanVolCustomInput(customVal) {
+  const hiddenInput = document.getElementById('modal-satuan-vol');
+  const badge = document.getElementById('badge-satuan-selected');
+  const cleanVal = customVal.trim() || 'Paket';
+  if (hiddenInput) hiddenInput.value = cleanVal;
+  if (badge) badge.textContent = cleanVal;
+  calculateModalTotal();
 }
 
 // ============================================================================

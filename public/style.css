@@ -1541,3 +1541,149 @@ tr.rkb-row-lvl-41.table-row-selected td {
   line-height: 1.4;
 }
 
+/* ========================================================================= */
+/* KODE AKUN BAS PICKER & SBM LOKAL STYLES                                   */
+/* ========================================================================= */
+.akun-selected-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.akun-selected-card:hover {
+  border-color: var(--primary);
+  background: #eff6ff;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+}
+
+.akun-badge {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 13px;
+  color: #1e40af;
+  background: #dbeafe;
+  padding: 4px 9px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  border: 1px solid #bfdbfe;
+  white-space: nowrap;
+}
+
+.akun-info {
+  flex: 1;
+  margin: 0 12px;
+  min-width: 0;
+}
+
+.akun-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.akun-meta {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* SBM QUICK CHIPS UNDER HARGA SATUAN */
+.sbm-quick-container {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.sbm-quick-chips-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  align-items: center;
+  scrollbar-width: thin;
+}
+
+.sbm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.sbm-chip:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sbm-chip-rate {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #1e40af;
+  background: #eff6ff;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.sbm-chip:hover .sbm-chip-rate {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.btn-outline-primary {
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-outline-primary:hover {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.tab-filter-akun, .tab-filter-sbm {
+  white-space: nowrap;
+}
+
+.table-hover tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f1f5f9 !important;
+  cursor: pointer;
+}
+
+.table-row-active-picker {
+  background-color: #dbeafe !important;
+  font-weight: 600;
+}
+
+
