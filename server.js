@@ -235,14 +235,31 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
       }
 
-      // Ambil seluruh baris untuk periode ini
-      const rawRows = getRabRows(periodeId, { pic, target_scope, search });
-      const { rows, summary } = calculateRkbDataset(rawRows);
+      // 1. Ambil summary INDUK dokumen (UNFILTERED SSOT) agar Pagu 50 Miliar & rekap seluruh subbag tidak terdistorsi filter
+      const allRawRows = getRabRows(periodeId);
+      const { summary: docSummary } = calculateRkbDataset(allRawRows);
+
+      // 2. Jika ada filter (pic, target_scope, search), ambil baris terfilter khusus lembar kerja workbench
+      const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (search && search.trim()));
+      let rows, filteredSummary = null;
+
+      if (hasFilter) {
+        const filteredRawRows = getRabRows(periodeId, { pic, target_scope, search });
+        const filteredResult = calculateRkbDataset(filteredRawRows);
+        rows = filteredResult.rows;
+        filteredSummary = filteredResult.summary;
+      } else {
+        const fullResult = calculateRkbDataset(allRawRows);
+        rows = fullResult.rows;
+        filteredSummary = docSummary;
+      }
+
       const revision_comparison = getRevisionComparison(periodeId);
 
       return sendJson(res, 200, {
         periode,
-        summary,
+        summary: docSummary,
+        filtered_summary: filteredSummary,
         rows,
         revision_comparison
       });

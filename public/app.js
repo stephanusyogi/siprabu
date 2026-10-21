@@ -959,7 +959,9 @@ function renderRkbTable() {
   const isSanding = hasParentRev && AppState.revisionViewMode === 'SANDING';
 
   // Total footer
-  setElText('rkb-tfoot-total', formatRupiah(summary.grandTotal));
+  const hasFilter = Boolean(AppState.filters.pic !== 'SEMUA' || AppState.filters.sasaran !== 'ALL' || (AppState.filters.search && AppState.filters.search.trim()));
+  const displayTotal = (hasFilter && AppState.rkbData.filtered_summary) ? AppState.rkbData.filtered_summary.grandTotal : summary.grandTotal;
+  setElText('rkb-tfoot-total', formatRupiah(displayTotal));
 
   // Stepper Header
   setElText('rkb-stepper-title', periode.nama_periode);
