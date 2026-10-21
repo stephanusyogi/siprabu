@@ -544,7 +544,7 @@ const server = http.createServer(async (req, res) => {
       const periode = getPeriodeById(periodeId);
       if (!periode) return sendJson(res, 404, { error: 'Dokumen tidak ditemukan.' });
 
-      const buffer = exportRkbToExcelBuffer(periodeId, query);
+      const buffer = await exportRkbToExcelBuffer(periodeId, query);
       const filterSuffix = (query.pic && query.pic !== 'SEMUA' ? `_${query.pic}` : '') + (query.sasaran && query.sasaran !== 'ALL' ? `_${query.sasaran}` : '');
       const filename = `RUH_Belanja_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}${filterSuffix}_${Date.now()}.xlsx`;
 
