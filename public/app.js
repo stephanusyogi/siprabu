@@ -95,7 +95,12 @@ async function apiFetch(endpoint, options = {}) {
   });
 
   if (res.status === 401) {
-    console.warn('Unauthorized request');
+    console.warn('Unauthorized request:', endpoint);
+    if (endpoint !== '/api/login' && endpoint !== '/api/me' && AppState.currentUser) {
+      localStorage.removeItem('siprabu_token');
+      AppState.currentUser = null;
+      showLoginScreen();
+    }
   }
 
   const data = await res.json().catch(() => ({}));
@@ -112,15 +117,16 @@ async function apiFetch(endpoint, options = {}) {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     startServerClockTicker();
-    await initAuth();
     await initGoogleAuth();
-    await loadMasters();
-    await loadPeriodes();
-    await loadRkbData();
-    renderAllViews();
+    await initAuth();
+    if (AppState.currentUser) {
+      await loadMasters();
+      await loadPeriodes();
+      await loadRkbData();
+      renderAllViews();
+    }
   } catch (err) {
     console.error('Initialization error:', err);
-    alert('Terjadi kesalahan inisialisasi: ' + err.message);
   }
 });
 
@@ -135,18 +141,98 @@ async function initAuth() {
       const meRes = await apiFetch('/api/me');
       loggedInUser = meRes.user;
     } catch (e) {
+      console.warn('Sesi tidak valid / kadaluarsa:', e.message);
       localStorage.removeItem('siprabu_token');
     }
   }
 
-  if (!loggedInUser) {
-    const defaultUser = AppState.usersList.find(u => u.username === 'perencanaan') || AppState.usersList[0];
-    if (defaultUser) {
-      await performLogin(defaultUser.username, defaultUser.username === 'emenje' ? 'emenje123' : 'perencanaan123');
-    }
-  } else {
+  if (loggedInUser) {
     AppState.currentUser = loggedInUser;
+    showMainApp();
     updateUserNavbar();
+  } else {
+    AppState.currentUser = null;
+    showLoginScreen();
+  }
+}
+
+function showLoginScreen() {
+  const loginScreen = document.getElementById('login-screen');
+  const appLayout = document.getElementById('app');
+  if (loginScreen) loginScreen.style.display = 'flex';
+  if (appLayout) appLayout.style.display = 'none';
+
+  const uInput = document.getElementById('screen-login-username');
+  const pInput = document.getElementById('screen-login-password');
+  const errBox = document.getElementById('login-screen-error');
+  if (uInput) {
+    uInput.value = '';
+    setTimeout(() => uInput.focus(), 150);
+  }
+  if (pInput) pInput.value = '';
+  if (errBox) errBox.style.display = 'none';
+
+  renderGoogleButton();
+}
+
+function showMainApp() {
+  const loginScreen = document.getElementById('login-screen');
+  const appLayout = document.getElementById('app');
+  if (loginScreen) loginScreen.style.display = 'none';
+  if (appLayout) appLayout.style.display = 'flex';
+
+  applyRolePermissionsToUI();
+}
+
+function toggleScreenPasswordVisibility() {
+  const input = document.getElementById('screen-login-password');
+  const icon = document.getElementById('screen-pwd-icon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    if (icon) icon.textContent = '👁️';
+  }
+}
+
+async function submitScreenLoginForm() {
+  const username = document.getElementById('screen-login-username')?.value?.trim();
+  const password = document.getElementById('screen-login-password')?.value;
+  const errorBox = document.getElementById('login-screen-error');
+  const errorText = document.getElementById('login-screen-error-text');
+  const btnSubmit = document.getElementById('btn-screen-login-submit');
+  const btnText = document.getElementById('screen-login-btn-text');
+
+  if (!username || !password) {
+    if (errorBox && errorText) {
+      errorText.textContent = 'Nama pengguna dan kata sandi wajib diisi.';
+      errorBox.style.display = 'block';
+    }
+    return;
+  }
+
+  if (errorBox) errorBox.style.display = 'none';
+  if (btnSubmit) btnSubmit.disabled = true;
+  if (btnText) btnText.textContent = 'Memverifikasi kredensial...';
+
+  try {
+    const res = await performLogin(username, password);
+    showMainApp();
+    showToast(res.message || `Selamat datang, ${res.user.nama_pejabat}!`, 'success');
+    await loadMasters();
+    await loadPeriodes();
+    await loadRkbData();
+    renderAllViews();
+  } catch (err) {
+    if (errorBox && errorText) {
+      errorText.textContent = err.message || 'Username atau kata sandi tidak sesuai. Silakan coba lagi.';
+      errorBox.style.display = 'block';
+    }
+  } finally {
+    if (btnSubmit) btnSubmit.disabled = false;
+    if (btnText) btnText.innerHTML = 'Masuk ke Sistem SI-PRABU &rarr;';
   }
 }
 
@@ -178,6 +264,7 @@ async function performLogin(username, password) {
   localStorage.setItem('siprabu_token', res.token);
   AppState.currentUser = res.user;
   updateUserNavbar();
+  return res;
 }
 
 function updateUserNavbar() {
@@ -218,6 +305,11 @@ function updateUserNavbar() {
     else if (user.level === 2) avatarEl.textContent = '🛠️';
     else avatarEl.textContent = '👔';
   }
+
+  const btnLogin = document.getElementById('btn-nav-login');
+  const btnLogout = document.getElementById('btn-nav-logout');
+  if (btnLogin) btnLogin.style.display = 'none';
+  if (btnLogout) btnLogout.style.display = 'inline-flex';
 
   applyRolePermissionsToUI();
 }
@@ -286,6 +378,12 @@ function applyRolePermissionsToUI() {
   if (btnTambahBas) btnTambahBas.style.display = isLevel1 ? 'inline-flex' : 'none';
   const btnImportBas = document.getElementById('btn-import-bas');
   if (btnImportBas) btnImportBas.style.display = isLevel1 ? 'inline-flex' : 'none';
+
+  // 7. Pengendali Switcher Cepat: Hanya tampil untuk Developer dan Tim Rendatin (Level <= 1)
+  const switcherContainer = document.getElementById('user-switcher-container');
+  if (switcherContainer) {
+    switcherContainer.style.display = (user.level <= 1) ? 'inline-flex' : 'none';
+  }
 }
 
 async function switchUser(username) {
@@ -334,8 +432,15 @@ async function switchUser(username) {
 }
 
 function logout() {
+  const konfirmasi = confirm('Apakah Anda yakin ingin keluar dari sistem SI-PRABU?');
+  if (!konfirmasi) return;
+
   localStorage.removeItem('siprabu_token');
-  location.reload();
+  AppState.currentUser = null;
+  AppState.rkbData = null;
+  AppState.currentPeriode = null;
+  showLoginScreen();
+  showToast('Anda telah berhasil keluar dari sistem.', 'info');
 }
 
 // ============================================================================
@@ -355,41 +460,52 @@ async function initGoogleAuth() {
 }
 
 function renderGoogleButton() {
-  const container = document.getElementById('google-btn-wrapper');
-  const hint = document.getElementById('google-hint');
-  if (!container) return;
-
-  if (googleAuthConfig.client_id && window.google && window.google.accounts && window.google.accounts.id) {
-    container.innerHTML = '';
-    try {
-      google.accounts.id.initialize({
-        client_id: googleAuthConfig.client_id,
-        callback: handleGoogleSignInCallback,
-        auto_select: false
-      });
-      google.accounts.id.renderButton(container, {
-        theme: 'outline',
-        size: 'large',
-        text: 'signin_with',
-        shape: 'rectangular',
-        logo_alignment: 'left',
-        width: 320
-      });
-      if (hint) {
-        hint.innerHTML = `Domain diizinkan: <strong>${escapeHtml(googleAuthConfig.allowed_domains || 'kpu.go.id, gmail.com')}</strong>`;
-      }
-    } catch (e) {
-      console.warn('GSI renderButton error:', e);
+  const targets = [
+    {
+      container: document.getElementById('login-screen-google-btn-wrapper'),
+      hint: document.getElementById('login-screen-google-hint')
+    },
+    {
+      container: document.getElementById('google-btn-wrapper'),
+      hint: document.getElementById('google-hint')
     }
-  } else if (!googleAuthConfig.client_id) {
-    container.innerHTML = `
-      <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 10px 14px; border-radius: 8px; font-size: 11.5px; color: #64748b; width: 100%;">
-        ℹ️ Google Client ID belum diatur.<br>
-        Atur di menu <strong>Database ➔ Pengaturan Satker KPU</strong> untuk mengaktifkan Google Sign-In.
-      </div>
-    `;
-    if (hint) hint.innerHTML = '';
-  }
+  ];
+
+  targets.forEach(({ container, hint }) => {
+    if (!container) return;
+
+    if (googleAuthConfig.client_id && window.google && window.google.accounts && window.google.accounts.id) {
+      container.innerHTML = '';
+      try {
+        google.accounts.id.initialize({
+          client_id: googleAuthConfig.client_id,
+          callback: handleGoogleSignInCallback,
+          auto_select: false
+        });
+        google.accounts.id.renderButton(container, {
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: 320
+        });
+        if (hint) {
+          hint.innerHTML = `Domain diizinkan: <strong>${escapeHtml(googleAuthConfig.allowed_domains || 'kpu.go.id, gmail.com')}</strong>`;
+        }
+      } catch (e) {
+        console.warn('GSI renderButton error:', e);
+      }
+    } else if (!googleAuthConfig.client_id) {
+      container.innerHTML = `
+        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 8px 12px; border-radius: 8px; font-size: 11px; color: #64748b; width: 100%;">
+          ℹ️ Single Sign-On Google belum diaktifkan.<br>
+          Silakan masuk menggunakan Akun Lokal di bawah.
+        </div>
+      `;
+      if (hint) hint.innerHTML = '';
+    }
+  });
 }
 
 async function handleGoogleSignInCallback(response) {
@@ -407,19 +523,31 @@ async function handleGoogleSignInCallback(response) {
     if (res.success && res.token) {
       localStorage.setItem('siprabu_token', res.token);
       AppState.currentUser = res.user;
+      showMainApp();
       updateUserNavbar();
       closeLoginModal();
       showToast(res.message || `Selamat datang, ${res.user.nama_pejabat}!`, 'success');
       await loadMasters();
+      await loadPeriodes();
       await loadRkbData();
       renderAllViews();
     } else {
+      const errBox = document.getElementById('login-screen-error');
+      const errText = document.getElementById('login-screen-error-text');
+      if (errBox && errText) {
+        errText.textContent = res.error || 'Login Google gagal.';
+        errBox.style.display = 'block';
+      }
       showToast(res.error || 'Login Google gagal.', 'error');
-      alert(res.error || 'Login Google gagal.');
     }
   } catch (err) {
+    const errBox = document.getElementById('login-screen-error');
+    const errText = document.getElementById('login-screen-error-text');
+    if (errBox && errText) {
+      errText.textContent = err.message || 'Terjadi kesalahan saat verifikasi akun Google.';
+      errBox.style.display = 'block';
+    }
     showToast(err.message || 'Terjadi kesalahan saat verifikasi akun Google.', 'error');
-    alert(err.message);
   }
 }
 
@@ -6115,4 +6243,9 @@ window.submitModalCatatanPleno = submitModalCatatanPleno;
 window.openModalMatriks = openModalMatriks;
 window.closeModalMatriks = closeModalMatriks;
 window.filterMatriksModalRows = filterMatriksModalRows;
+window.showLoginScreen = showLoginScreen;
+window.showMainApp = showMainApp;
+window.toggleScreenPasswordVisibility = toggleScreenPasswordVisibility;
+window.submitScreenLoginForm = submitScreenLoginForm;
+window.logout = logout;
 

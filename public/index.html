@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SI-PRABU v3.0 | KPU Kabupaten Ngawi</title>
-  <link rel="stylesheet" href="/style.css?v=3.3.0">
+  <link rel="stylesheet" href="/style.css?v=3.4.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -12,7 +12,94 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-  <div id="app" class="app-layout">
+  <!-- ===================================================================== -->
+  <!-- FULLSCREEN LOGIN GATEWAY (OPSI A: DEDICATED LOGIN SCREEN)            -->
+  <!-- ===================================================================== -->
+  <div id="login-screen" class="login-screen-wrapper">
+    <div class="login-card">
+      <!-- Header Instansi -->
+      <div class="login-card-header">
+        <div class="login-crest-badge">
+          <span style="font-size: 30px;">🏛️</span>
+        </div>
+        <div class="login-nation-tag">REPUBLIK INDONESIA</div>
+        <h1 class="login-title">SI-PRABU</h1>
+        <div class="login-subtitle">Sistem Informasi Perencanaan &amp; Anggaran Biaya Umum</div>
+        <div class="login-satker-name">KOMISI PEMILIHAN UMUM KABUPATEN NGAWI</div>
+      </div>
+
+      <!-- Body / Form -->
+      <div class="login-card-body">
+        <!-- Error Alert Banner -->
+        <div id="login-screen-error" class="login-alert-danger" style="display: none;">
+          <span id="login-screen-error-text">Username atau kata sandi tidak sesuai.</span>
+        </div>
+
+        <!-- Google SSO Section -->
+        <div id="login-screen-google-section" style="margin-bottom: 16px; text-align: center;">
+          <div style="font-size: 11.5px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+            Single Sign-On (SSO) Akun Instansi
+          </div>
+          <div id="login-screen-google-btn-wrapper" style="display: flex; justify-content: center; min-height: 40px;">
+            <!-- Rendered via Google Identity Services -->
+          </div>
+          <div id="login-screen-google-hint" style="font-size: 11px; color: #64748b; margin-top: 5px;"></div>
+        </div>
+
+        <!-- Divider -->
+        <div class="login-divider">
+          <span>ATAU MASUK DENGAN AKUN LOKAL</span>
+        </div>
+
+        <!-- Form Login Lokal -->
+        <form id="form-screen-login" onsubmit="event.preventDefault(); submitScreenLoginForm();">
+          <div class="login-form-group">
+            <label for="screen-login-username">Nama Pengguna (Username):</label>
+            <div class="login-input-wrapper">
+              <span class="login-input-icon">👤</span>
+              <input type="text" id="screen-login-username" class="login-input-control" required placeholder="Contoh: perencanaan, teknis, kul" autocomplete="username">
+            </div>
+          </div>
+
+          <div class="login-form-group">
+            <label for="screen-login-password">Kata Sandi (Password):</label>
+            <div class="login-input-wrapper">
+              <span class="login-input-icon">🔒</span>
+              <input type="password" id="screen-login-password" class="login-input-control" required placeholder="Masukkan kata sandi" autocomplete="current-password">
+              <button type="button" class="login-toggle-pwd" onclick="toggleScreenPasswordVisibility()" title="Lihat / Sembunyikan Kata Sandi">
+                <span id="screen-pwd-icon">👁️</span>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btn-screen-login-submit" class="login-submit-btn">
+            <span id="screen-login-btn-text">Masuk ke Sistem SI-PRABU &rarr;</span>
+          </button>
+        </form>
+
+        <!-- Akun Bantuan / Informasi Role -->
+        <div class="login-helper-box">
+          <div style="font-weight: 700; color: #166534; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; font-size: 11.5px;">
+            <span>ℹ️ Informasi Hak Akses Peran Satker:</span>
+            <span style="font-size: 10px; font-weight: normal; color: #475569;">v3.3.0</span>
+          </div>
+          <div style="font-size: 11px; color: #334155; line-height: 1.5;">
+            <div>&bull; <b>Tim Rendatin (Level 1)</b>: <code>perencanaan</code></div>
+            <div>&bull; <b>Operator PIC (Level 2)</b>: <code>teknis</code>, <code>hukum</code>, <code>parmas</code>, <code>kul</code></div>
+            <div>&bull; <b>Pimpinan &amp; Komisioner (Level 3)</b>: <code>sekretaris</code>, <code>ketua</code>, <code>divisi_rendatin</code>, dsb.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="login-card-footer">
+        Hak Cipta &copy; 2026 Komisi Pemilihan Umum Kabupaten Ngawi.<br>
+        Sistem Informasi Perencanaan &amp; Penganggaran Terpadu.
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="app-layout" style="display: none;">
     <!-- TOP NAVIGATION BAR -->
     <header class="top-nav">
       <div class="nav-left">
@@ -44,7 +131,7 @@
 
       <div class="nav-right">
         <!-- Quick Switcher Role (Pair Testing / Multi-User) -->
-        <div class="user-switcher-container">
+        <div class="user-switcher-container" id="user-switcher-container">
           <label for="user-switcher">Ganti Peran:</label>
           <select id="user-switcher" class="input-select-sm" onchange="switchUser(this.value)">
             <!-- Populated via JS -->
@@ -3264,7 +3351,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.3.0"></script>
+    <script src="/app.js?v=3.4.0"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
