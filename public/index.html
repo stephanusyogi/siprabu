@@ -2104,12 +2104,17 @@
             <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
               <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
                 <input type="radio" name="exportScope" value="FULL" id="export-scope-full" checked onchange="toggleExportFilterScope()">
-                <span><strong>Cetak Seluruh Dokumen (Penuh)</strong> &mdash; <span style="color: #64748b;">Semua Subbag &amp; Sasaran</span></span>
+                <span><strong>Cetak Seluruh Dokumen (Penuh)</strong> &mdash; <span style="color: #64748b;">Semua Subbag &amp; Sasaran (4 Sheet)</span></span>
               </label>
 
               <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
                 <input type="radio" name="exportScope" value="FILTERED" id="export-scope-filtered" onchange="toggleExportFilterScope()">
-                <span><strong>Cetak Berdasarkan Bagian / Filter</strong></span>
+                <span><strong>Cetak Berdasarkan Bagian / Filter Tertentu</strong></span>
+              </label>
+
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                <input type="radio" name="exportScope" value="ZIP_ALL_SUBBAG" id="export-scope-zip" onchange="toggleExportFilterScope()">
+                <span><strong>📦 Paket 5 Subbagian Terpecah (.zip)</strong> &mdash; <span style="color: #059669; font-weight: 700;">1-Klik Unduh Sekaligus</span> <span style="font-size:11.5px; color:#475569;">(KUL, Rendatin, Teknis, Hukum, ParSDM)</span></span>
               </label>
             </div>
 
@@ -2146,11 +2151,18 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
-          <button type="button" class="btn btn-secondary" onclick="closeExportModal()">Batal</button>
-          <button type="button" class="btn btn-success" onclick="executeExportExcel()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
-            📥 Unduh Sekarang (.xlsx)
-          </button>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <div>
+            <button type="button" class="btn btn-outline-success" id="btn-quick-zip" onclick="downloadAllSubbagZip()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;" title="1-Klik mengunduh seluruh 5 file Excel kasubbag yang sudah terpecah dalam 1 paket arsip ZIP">
+              📦 Unduh 5 Kasubbag Sekaligus (.zip)
+            </button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" onclick="closeExportModal()">Batal</button>
+            <button type="button" class="btn btn-success" id="btn-execute-export" onclick="executeExportExcel()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
+              📥 Unduh Sekarang (.xlsx)
+            </button>
+          </div>
         </div>
       </div>
     </div>

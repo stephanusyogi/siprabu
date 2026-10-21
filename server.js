@@ -557,6 +557,46 @@ const server = http.createServer(async (req, res) => {
       return res.end(buffer);
     }
 
+    // 15b. DOWNLOAD / EXPORT ZIP BUNDLE 5 SUBBAGIAN TERPECAH (1-KLIK SEMUA KASUBAG)
+    const exportZipMatch = pathname.match(/^\/api\/export-excel-zip\/(\d+)$/);
+    if (exportZipMatch && method === 'GET') {
+      const periodeId = Number(exportZipMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen tidak ditemukan.' });
+
+      const archiver = require('archiver');
+      const filename = `Paket_RUH_5_Subbagian_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.zip`;
+
+      res.writeHead(200, {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="${filename}"`
+      });
+
+      const archive = archiver('zip', { zlib: { level: 6 } });
+      archive.on('error', err => {
+        console.error('Archive error:', err);
+        if (!res.headersSent) res.writeHead(500);
+        res.end();
+      });
+      archive.pipe(res);
+
+      const subbags = [
+        { code: 'KUL', filename: `1_RUH_KUL_Keuangan_Umum_Logistik_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'RENDATIN', filename: `2_RUH_RENDATIN_Perencanaan_Data_Informasi_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'TEKNIS', filename: `3_RUH_TEKNIS_Teknis_Penyelenggaraan_Pemilu_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'HUKUM', filename: `4_RUH_HUKUM_Hukum_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'PARSDM', filename: `5_RUH_PARSDM_Partisipasi_Masyarakat_SDM_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` }
+      ];
+
+      for (const s of subbags) {
+        const buf = await exportRkbToExcelBuffer(periodeId, { pic: s.code });
+        archive.append(buf, { name: s.filename });
+      }
+
+      await archive.finalize();
+      return;
+    }
+
     // ========================================================================
     // STATIC ASSETS (FRONTEND)
     // ========================================================================

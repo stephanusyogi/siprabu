@@ -3495,10 +3495,16 @@ function downloadExcel(periodeId = null) {
     // Role checking (Level 0 Developer, Level 1 Perencanaan)
     const user = AppState.currentUser;
     const roleNotice = document.getElementById('export-role-notice');
+    const scopeZipRadio = document.getElementById('export-scope-zip');
+    const btnQuickZip = document.getElementById('btn-quick-zip');
+
     if (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
       // Wewenang Subbagian
       if (scopeFilteredRadio) scopeFilteredRadio.checked = true;
       if (scopeFullRadio) scopeFullRadio.disabled = true;
+      if (scopeZipRadio) scopeZipRadio.disabled = true;
+      if (btnQuickZip) btnQuickZip.style.display = 'none';
+
       let userPic = (user.pic_subbag || '').toUpperCase();
       if (userPic === 'PERENCANAAN') userPic = 'RENDATIN';
       if (userPic === 'KEUANGAN') userPic = 'KUL';
@@ -3515,7 +3521,10 @@ function downloadExcel(periodeId = null) {
     } else {
       // Level 0 & Level 1 (Full Access)
       if (scopeFullRadio) scopeFullRadio.disabled = false;
+      if (scopeZipRadio) scopeZipRadio.disabled = false;
+      if (btnQuickZip) btnQuickZip.style.display = 'inline-flex';
       if (picSelect) picSelect.disabled = false;
+
       if (isFiltered) {
         if (scopeFilteredRadio) scopeFilteredRadio.checked = true;
       } else {
@@ -3553,14 +3562,34 @@ function closeExportModal() {
 
 function toggleExportFilterScope() {
   const isFiltered = document.getElementById('export-scope-filtered')?.checked;
+  const isZip = document.getElementById('export-scope-zip')?.checked;
   const filterDetails = document.getElementById('export-filter-details');
+  const btnExecute = document.getElementById('btn-execute-export');
+
   if (filterDetails) {
     filterDetails.style.display = isFiltered ? 'block' : 'none';
+  }
+
+  if (btnExecute) {
+    if (isZip) {
+      btnExecute.innerHTML = '📦 Unduh Paket 5 Kasubbag (.zip)';
+      btnExecute.className = 'btn btn-primary';
+    } else {
+      btnExecute.innerHTML = '📥 Unduh Sekarang (.xlsx)';
+      btnExecute.className = 'btn btn-success';
+    }
   }
 }
 
 function executeExportExcel() {
   if (!pendingExportPeriodeId) return;
+
+  const isZip = document.getElementById('export-scope-zip')?.checked;
+  if (isZip) {
+    downloadAllSubbagZip(pendingExportPeriodeId);
+    closeExportModal();
+    return;
+  }
 
   const isFiltered = document.getElementById('export-scope-filtered')?.checked;
   const queryParams = new URLSearchParams();
@@ -3586,6 +3615,21 @@ function executeExportExcel() {
   closeExportModal();
 }
 
+function downloadAllSubbagZip(periodeId = null) {
+  const pId = periodeId || pendingExportPeriodeId || (AppState.currentPeriode ? AppState.currentPeriode.id : 1);
+  if (!pId) return;
+
+  const url = `/api/export-excel-zip/${pId}`;
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  closeExportModal();
+}
+
 function exportExcelPeriode(periodeId) {
   downloadExcel(periodeId);
 }
@@ -3593,6 +3637,7 @@ function exportExcelPeriode(periodeId) {
 // Expose fungsi ke window untuk inline HTML onclick
 window.escapeHtml = escapeHtml;
 window.downloadExcel = downloadExcel;
+window.downloadAllSubbagZip = downloadAllSubbagZip;
 window.closeExportModal = closeExportModal;
 window.toggleExportFilterScope = toggleExportFilterScope;
 window.executeExportExcel = executeExportExcel;
