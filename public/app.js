@@ -4025,7 +4025,6 @@ function renderDbPpk() {
         <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${k.no_urut || (idx + 1)}</td>
         <td><strong>${escapeHtml(k.nama)}</strong></td>
         <td><code style="font-family: var(--font-mono);">${escapeHtml(k.kode || '-')}</code></td>
-        <td>${escapeHtml(k.camat_nama || '-')}</td>
         <td>${escapeHtml(k.ketua_ppk || k.ketua_nama || '-')}</td>
         <td>${escapeHtml(k.sekretaris_ppk || k.sekretaris_nama || '-')}</td>
         <td style="font-family: var(--font-mono); font-size: 11px;">${escapeHtml(k.sekretaris_nip || '-')}</td>
@@ -4061,7 +4060,6 @@ function openModalKecamatan(id = null) {
       setElVal('kecamatan-no-urut', k.no_urut || 1);
       setElVal('kecamatan-kode', k.kode || '');
       setElVal('kecamatan-nama', k.nama || '');
-      setElVal('kecamatan-camat', k.camat_nama || '');
       setElVal('kecamatan-ketua', k.ketua_ppk || k.ketua_nama || '');
       setElVal('kecamatan-sekretaris', k.sekretaris_ppk || k.sekretaris_nama || '');
       setElVal('kecamatan-sekretaris-nip', k.sekretaris_nip || '');
@@ -4083,7 +4081,6 @@ async function submitModalKecamatan() {
   const no_urut = document.getElementById('kecamatan-no-urut')?.value;
   const kode = document.getElementById('kecamatan-kode')?.value;
   const nama = document.getElementById('kecamatan-nama')?.value;
-  const camat_nama = document.getElementById('kecamatan-camat')?.value;
   const ketua_ppk = document.getElementById('kecamatan-ketua')?.value;
   const sekretaris_ppk = document.getElementById('kecamatan-sekretaris')?.value;
   const sekretaris_nip = document.getElementById('kecamatan-sekretaris-nip')?.value;
@@ -4100,7 +4097,7 @@ async function submitModalKecamatan() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${AppState.token || ''}`
       },
-      body: JSON.stringify({ id, no_urut, kode, nama, camat_nama, ketua_ppk, sekretaris_ppk, sekretaris_nip })
+      body: JSON.stringify({ id, no_urut, kode, nama, ketua_ppk, sekretaris_ppk, sekretaris_nip })
     });
     const result = await res.json();
     if (result.success) {
@@ -4136,6 +4133,42 @@ async function deleteKecamatan(id) {
   } catch (err) {
     showToast('Terjadi kesalahan jaringan.', 'error');
   }
+}
+
+function exportKecamatanExcel() {
+  window.location.href = '/api/master/kecamatan/export';
+}
+
+function triggerImportKecamatan() {
+  document.getElementById('input-file-kecamatan')?.click();
+}
+
+async function handleExcelUploadKecamatan(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  event.target.value = '';
+
+  if (!confirm(`Mulai unggah berkas "${file.name}" untuk update masal data Kecamatan & Penyelenggara PPK?\nData akan dicocokkan otomatis berdasarkan ID Database atau Nama Kecamatan.`)) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const base64Data = e.target.result.split(',')[1];
+      const res = await apiFetch('/api/master/kecamatan/import', {
+        method: 'POST',
+        body: JSON.stringify({ file_base64: base64Data, filename: file.name })
+      });
+      alert(`✅ ${res.message || 'Update masal Kecamatan/PPK berhasil!'}`);
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } catch (err) {
+      alert('❌ Gagal mengimpor data Kecamatan/PPK: ' + err.message);
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ============================================================================
@@ -5265,5 +5298,8 @@ window.handleExcelUploadBas = handleExcelUploadBas;
 window.exportDesaExcel = exportDesaExcel;
 window.triggerImportDesa = triggerImportDesa;
 window.handleExcelUploadDesa = handleExcelUploadDesa;
+window.exportKecamatanExcel = exportKecamatanExcel;
+window.triggerImportKecamatan = triggerImportKecamatan;
+window.handleExcelUploadKecamatan = handleExcelUploadKecamatan;
 window.downloadAllSubbagZip = downloadAllSubbagZip;
 

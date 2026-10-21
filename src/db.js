@@ -92,6 +92,7 @@ function initDb() {
 
   // 3. Kolom pemilih di master_desa (DPT per desa)
   safeAddColumn('master_desa', 'pemilih INTEGER DEFAULT 0');
+  safeAddColumn('master_kecamatan', 'kode TEXT DEFAULT ""');
 
   // Seed nilai pemilih di master_desa jika masih 0, proporsional berdasarkan TPS (total DPT: 701.425)
   try {
@@ -1035,9 +1036,8 @@ function saveKecamatan(data) {
   const no_urut = Number(data.no_urut) || 1;
   const nama = (data.nama || '').trim();
   const kode = (data.kode || '').trim();
-  const camat_nama = (data.camat_nama || '').trim();
-  const ketua_ppk = (data.ketua_ppk || '').trim();
-  const sekretaris_ppk = (data.sekretaris_ppk || '').trim();
+  const ketua_ppk = (data.ketua_ppk || data.ketua_nama || '').trim();
+  const sekretaris_ppk = (data.sekretaris_ppk || data.sekretaris_nama || '').trim();
   const sekretaris_nip = (data.sekretaris_nip || '').trim();
 
   if (!nama) throw new Error('Nama kecamatan tidak boleh kosong.');
@@ -1045,14 +1045,14 @@ function saveKecamatan(data) {
   if (id) {
     db.prepare(`
       UPDATE master_kecamatan
-      SET no_urut = ?, nama = ?, kode = ?, camat_nama = ?, ketua_ppk = ?, sekretaris_ppk = ?, sekretaris_nip = ?
+      SET no_urut = ?, nama = ?, kode = ?, ketua_nama = ?, sekretaris_nama = ?, sekretaris_nip = ?
       WHERE id = ?
-    `).run(no_urut, nama, kode, camat_nama, ketua_ppk, sekretaris_ppk, sekretaris_nip, id);
+    `).run(no_urut, nama, kode, ketua_ppk, sekretaris_ppk, sekretaris_nip, id);
   } else {
     db.prepare(`
-      INSERT INTO master_kecamatan (no_urut, nama, kode, camat_nama, ketua_ppk, sekretaris_ppk, sekretaris_nip)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(no_urut, nama, kode, camat_nama, ketua_ppk, sekretaris_ppk, sekretaris_nip);
+      INSERT INTO master_kecamatan (no_urut, nama, kode, ketua_nama, sekretaris_nama, sekretaris_nip)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(no_urut, nama, kode, ketua_ppk, sekretaris_ppk, sekretaris_nip);
   }
 
   syncPrimaryKuantitas();
@@ -1067,6 +1067,64 @@ function deleteKecamatan(id) {
   db.prepare('DELETE FROM master_kecamatan WHERE id = ?').run(id);
   syncPrimaryKuantitas();
   return { success: true };
+}
+
+function bulkUpsertKecamatan(items) {
+  let inserted = 0;
+  let updated = 0;
+
+  const checkByIdStmt = db.prepare('SELECT id FROM master_kecamatan WHERE id = ?');
+  const checkByNameStmt = db.prepare('SELECT id FROM master_kecamatan WHERE LOWER(TRIM(nama)) = LOWER(TRIM(?))');
+
+  const updateStmt = db.prepare(`
+    UPDATE master_kecamatan
+    SET no_urut = COALESCE(?, no_urut),
+        nama = ?,
+        kode = ?,
+        ketua_nama = ?,
+        sekretaris_nama = ?,
+        sekretaris_nip = ?
+    WHERE id = ?
+  `);
+
+  const insertStmt = db.prepare(`
+    INSERT INTO master_kecamatan (no_urut, nama, kode, ketua_nama, sekretaris_nama, sekretaris_nip)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  db.exec('BEGIN');
+  try {
+    for (const item of items) {
+      const cleanNama = (item.nama || '').trim();
+      if (!cleanNama) continue;
+
+      const noUrut = item.no_urut ? Number(item.no_urut) : null;
+      const kode = (item.kode || '').trim();
+      const ketua = (item.ketua_ppk || item.ketua_nama || '').trim();
+      const sekretaris = (item.sekretaris_ppk || item.sekretaris_nama || '').trim();
+      const nip = (item.sekretaris_nip || '').trim();
+
+      let targetId = item.id ? checkByIdStmt.get(item.id)?.id : null;
+      if (!targetId) {
+        targetId = checkByNameStmt.get(cleanNama)?.id;
+      }
+
+      if (targetId) {
+        updateStmt.run(noUrut, cleanNama, kode, ketua, sekretaris, nip, targetId);
+        updated++;
+      } else {
+        insertStmt.run(noUrut || 1, cleanNama, kode, ketua, sekretaris, nip);
+        inserted++;
+      }
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
+  syncPrimaryKuantitas();
+  return { success: true, processed: inserted + updated, inserted, updated };
 }
 
 // Master Desa CRUD
@@ -1522,6 +1580,7 @@ module.exports = {
   getKecamatans,
   saveKecamatan,
   deleteKecamatan,
+  bulkUpsertKecamatan,
   getDesas,
   saveDesa,
   deleteDesa,

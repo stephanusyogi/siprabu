@@ -41,6 +41,7 @@ const {
   getKecamatans,
   saveKecamatan,
   deleteKecamatan,
+  bulkUpsertKecamatan,
   getDesas,
   saveDesa,
   deleteDesa,
@@ -71,7 +72,9 @@ const {
   exportBasToExcelBuffer, 
   parseBasExcelBuffer,
   exportDesaToExcelBuffer,
-  parseDesaExcelBuffer
+  parseDesaExcelBuffer,
+  exportKecamatanToExcelBuffer,
+  parseKecamatanExcelBuffer
 } = require('./src/excel_io');
 
 const PORT = process.env.PORT || 3456;
@@ -824,6 +827,41 @@ const server = http.createServer(async (req, res) => {
       } catch (e) {
         return sendJson(res, 400, { error: e.message });
       }
+    }
+    if (pathname === '/api/master/kecamatan/export' && (method === 'GET' || method === 'HEAD')) {
+      const buffer = await exportKecamatanToExcelBuffer();
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="Master_Kecamatan_PPK_KPU_Ngawi.xlsx"',
+        'Content-Length': buffer.length
+      });
+      if (method === 'HEAD') return res.end();
+      return res.end(buffer);
+    }
+    if (pathname === '/api/master/kecamatan/import' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Kecamatan.' });
+      }
+      const body = await parseJsonBody(req);
+      if (!body.file_base64) {
+        return sendJson(res, 400, { error: 'Berkas Excel wajib diunggah (base64).' });
+      }
+      const buf = Buffer.from(body.file_base64, 'base64');
+      const items = parseKecamatanExcelBuffer(buf);
+      if (!items || items.length === 0) {
+        return sendJson(res, 400, { error: 'Tidak ada baris data Kecamatan/PPK yang valid ditemukan dalam berkas Excel.' });
+      }
+      const result = bulkUpsertKecamatan(items);
+      clearRkbDatasetCache();
+      return sendJson(res, 200, {
+        success: true,
+        processed: result.processed,
+        inserted: result.inserted,
+        updated: result.updated,
+        list: getKecamatans(),
+        message: `Berhasil mengupdate masal ${result.processed} data Kecamatan/PPK (${result.inserted} baru, ${result.updated} diperbarui).`
+      });
     }
 
     // 13d. MASTER DESA / KELURAHAN (217 PPS, TPS, PEMILIH, PANTARLIH)

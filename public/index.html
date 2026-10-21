@@ -608,10 +608,17 @@
               <h2 class="view-title">Master Kecamatan & Penyelenggara PPK (19 Kecamatan)</h2>
               <p class="view-desc">Basis Data Kewilayahan Penyelenggara Pemilu Adhoc Tingkat Kecamatan se-Kabupaten Ngawi.</p>
             </div>
-            <div class="header-actions">
-              <button class="btn btn-primary" onclick="openModalKecamatan()">
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="openModalKecamatan()">
                 ➕ Tambah Kecamatan
               </button>
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportKecamatanExcel()" title="Unduh data 19 Kecamatan &amp; PPK ke format Excel resmi">
+                📥 Unduh Excel
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="triggerImportKecamatan()" title="Unggah berkas Excel untuk memperbarui data PPK secara masal">
+                📤 Unggah Excel Masal
+              </button>
+              <input type="file" id="input-file-kecamatan" accept=".xlsx,.xls" style="display: none;" onchange="handleExcelUploadKecamatan(event)">
             </div>
           </div>
 
@@ -649,7 +656,6 @@
                     <th style="width: 80px;">No Urut</th>
                     <th>Nama Kecamatan (PPK)</th>
                     <th>Kode</th>
-                    <th>Nama Camat</th>
                     <th>Ketua PPK</th>
                     <th>Sekretaris PPK</th>
                     <th>NIP Sekretaris</th>
@@ -2886,10 +2892,6 @@
                 <label style="font-weight: 700;">Nama Kecamatan:</label>
                 <input type="text" id="kecamatan-nama" class="input-text" required placeholder="Misal: Ngawi, Sine, Kendal">
               </div>
-            </div>
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label style="font-weight: 700;">Nama Camat:</label>
-              <input type="text" id="kecamatan-camat" class="input-text" placeholder="Nama Camat beserta gelar">
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
               <div class="form-group">
