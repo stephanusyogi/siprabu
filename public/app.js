@@ -1342,7 +1342,8 @@ function updateSelectedRowUI() {
   }
 
   const cleanUraian = (row.uraian || '').substring(0, 48);
-  const treeLvl = row.tree_level || (row.is_header ? (row.level_indent === 0 ? 1 : (row.level_indent === 1 ? 2 : (row.level_indent === 2 ? 3 : (row.level_indent === 3 ? 5 : 4)))) : 6);
+  const isSubHeader = Boolean(row.is_sub_header || row.level_indent === 41 || row.level_indent === 42);
+  const treeLvl = isSubHeader ? 5.5 : (row.tree_level || (row.is_header ? (row.level_indent === 0 ? 1 : (row.level_indent === 1 ? 2 : (row.level_indent === 2 ? 3 : (row.level_indent === 3 ? 5 : 4)))) : 6));
 
   const lvlBadges = {
     1: '<span class="badge" style="background:#fef3c7;color:#92400e;font-weight:800;border:1px solid #fde68a;font-size:10.5px;">L1 (Bagian)</span>',
@@ -1350,6 +1351,7 @@ function updateSelectedRowUI() {
     3: '<span class="badge" style="background:#fef08a;color:#854d0e;font-weight:800;border:1px solid #fde047;font-size:10.5px;">L3 (28 Komp)</span>',
     4: '<span class="badge" style="background:#e0e7ff;color:#3730a3;font-weight:800;border:1px solid #c7d2fe;font-size:10.5px;">L4 (Sub-Komp)</span>',
     5: '<span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:800;border:1px solid #bae6fd;font-size:10.5px;">L5 (Akun BAS)</span>',
+    5.5: '<span class="badge" style="background:#ecfdf5;color:#047857;font-weight:800;border:1px solid #a7f3d0;font-size:10.5px;">📑 Header Teks</span>',
     6: '<span class="badge" style="background:#f1f5f9;color:#334155;font-weight:800;border:1px solid #cbd5e1;font-size:10.5px;">L6 (Detail)</span>'
   };
   const badgeHtml = lvlBadges[treeLvl] || `<span class="badge">Level ${treeLvl}</span>`;
@@ -1427,13 +1429,32 @@ function updateSelectedRowUI() {
           </button>
         `;
       } else if (treeLvl === 5) {
-        // L5: Tambah L5 (Akun Sejajar) + Tambah L6 (Detail Belanja)
+        // L5 (Akun BAS): Tambah Detail (L6) + Tambah Header Teks + Tambah Akun Sejajar (L5)
         btns += `
           <button class="btn btn-success btn-sm" onclick="openAddRowModalWithParent(${row.id})" style="font-weight:700;">
             ➕ Tambah Detail Belanja (L6)
           </button>
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(5.5, ${row.id})" style="font-weight:700;" title="Tambah Baris Header Teks / Sub-Header Pengelompok (seperti a., b., Paket 1)">
+            📑 Tambah Header Teks
+          </button>
           <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;">
             🏷️ Tambah Akun Sejajar (L5)
+          </button>
+        `;
+      } else if (treeLvl === 5.5) {
+        // L5.5 (Header Teks / Sub-Header): Tambah Detail (L6) di bawahnya + Tambah Header Teks Sejajar + Ubah Teks + Hapus
+        btns += `
+          <button class="btn btn-success btn-sm" onclick="openAddRowModalWithParent(${row.id})" style="font-weight:700;" title="Tambah Rincian Belanja di bawah kelompok teks ini">
+            ➕ Tambah Detail Belanja (L6)
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(5.5, ${row.id})" style="font-weight:700;" title="Tambah Header Teks Sejajar (misal: b. Kendaraan Dinas)">
+            📑 Tambah Header Teks Sejajar
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
+            ✏️ Ubah Teks
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Header Teks ini">
+            🗑️ Hapus
           </button>
         `;
       } else if (treeLvl === 6) {
@@ -1786,6 +1807,18 @@ function renderRkbTable() {
                 ➕ +Detail
               </button>
             `;
+          } else if (lvl === 41 || lvl === 42) {
+            aksiHtml = `
+              <button class="btn btn-xs btn-outline-success" onclick="openAddRowModalWithParent(${r.id}, event)" title="Tambah Detail Belanja di bawah kelompok teks ini" style="font-size:10px;padding:2px 6px;font-weight:700;border-radius:4px;white-space:nowrap;">
+                ➕ +Detail
+              </button>
+              <button class="btn btn-xs btn-outline-primary" onclick="openEditHeaderModal(${r.id}, event)" title="Ubah Teks Header ini" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;margin-left:2px;">
+                ✏️
+              </button>
+              <button class="btn btn-xs btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus Header Teks ini" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;margin-left:2px;">
+                🗑️
+              </button>
+            `;
           }
         }
       }
@@ -2101,6 +2134,14 @@ function openRowModal(rowId, event) {
   const posBox = document.getElementById('modal-row-pos-container');
   if (posBox) posBox.style.display = 'none';
 
+  const isSub = Boolean(row.is_sub_header || row.level_indent === 41 || row.level_indent === 42);
+  const chk = document.getElementById('modal-is-header-checkbox');
+  if (chk) chk.checked = isSub;
+  toggleModalHeaderMode(isSub);
+  if (isSub) {
+    setElVal('modal-header-kode-input', row.kode || '');
+  }
+
   const ctxAlert = document.getElementById('modal-insertion-context');
   if (ctxAlert) {
     ctxAlert.style.display = 'block';
@@ -2150,6 +2191,11 @@ function openAddRowModal() {
   setElVal('modal-row-id', '');
   setElVal('modal-row-level', '4');
   setElVal('modal-uraian', '');
+
+  const chk = document.getElementById('modal-is-header-checkbox');
+  if (chk) chk.checked = false;
+  toggleModalHeaderMode(false);
+  setElVal('modal-header-kode-input', '');
 
   const selectedRow = AppState.selectedRowId ? AppState.rkbData?.rows.find(r => r.id === AppState.selectedRowId) : null;
   const ctxAlert = document.getElementById('modal-insertion-context');
@@ -2285,29 +2331,32 @@ async function submitRowForm() {
     }
   }
 
+  const isHeaderMode = Boolean(document.getElementById('modal-is-header-checkbox')?.checked);
+  const headerKode = (document.getElementById('modal-header-kode-input')?.value || '').trim();
+
   const payload = {
     id: rowId ? Number(rowId) : undefined,
     target_before_urutan: targetBeforeUrutan,
     target_after_urutan: targetAfterUrutan,
     urutan: AppState.activeEditingRow ? AppState.activeEditingRow.urutan : undefined,
-    kode: AppState.activeEditingRow ? AppState.activeEditingRow.kode : '',
-    row_type: AppState.activeEditingRow ? AppState.activeEditingRow.row_type : 'item',
-    level_indent: AppState.activeEditingRow ? AppState.activeEditingRow.level_indent : 4,
+    kode: isHeaderMode ? headerKode : (AppState.activeEditingRow ? AppState.activeEditingRow.kode : ''),
+    row_type: isHeaderMode ? 'header' : (AppState.activeEditingRow ? AppState.activeEditingRow.row_type : 'item'),
+    level_indent: isHeaderMode ? 41 : (AppState.activeEditingRow ? AppState.activeEditingRow.level_indent : 4),
     uraian: uraian,
     pic_bagian: document.getElementById('modal-pic')?.value || 'KUL',
     target_scope: document.getElementById('modal-sasaran')?.value || 'KAB',
     kode_akun: document.getElementById('modal-akun')?.value || '521211',
-    harga_satuan: Number(document.getElementById('modal-harga')?.value) || 0,
-    f1_val: document.getElementById('modal-f1-val')?.value ? Number(document.getElementById('modal-f1-val').value) : null,
-    f1_unit: document.getElementById('modal-f1-unit')?.value || '',
-    f2_val: document.getElementById('modal-f2-val')?.value ? Number(document.getElementById('modal-f2-val').value) : null,
-    f2_unit: document.getElementById('modal-f2-unit')?.value || '',
-    f3_val: document.getElementById('modal-f3-val')?.value ? Number(document.getElementById('modal-f3-val').value) : null,
-    f3_unit: document.getElementById('modal-f3-unit')?.value || '',
-    f4_val: document.getElementById('modal-f4-val')?.value ? Number(document.getElementById('modal-f4-val').value) : null,
-    f4_unit: document.getElementById('modal-f4-unit')?.value || '',
-    basis_pengali: document.getElementById('modal-basis-pengali')?.value || 'NONE',
-    satuan_vol: document.getElementById('modal-satuan-vol')?.value || 'Paket',
+    harga_satuan: isHeaderMode ? 0 : (Number(document.getElementById('modal-harga')?.value) || 0),
+    f1_val: isHeaderMode ? null : (document.getElementById('modal-f1-val')?.value ? Number(document.getElementById('modal-f1-val').value) : null),
+    f1_unit: isHeaderMode ? '' : (document.getElementById('modal-f1-unit')?.value || ''),
+    f2_val: isHeaderMode ? null : (document.getElementById('modal-f2-val')?.value ? Number(document.getElementById('modal-f2-val').value) : null),
+    f2_unit: isHeaderMode ? '' : (document.getElementById('modal-f2-unit')?.value || ''),
+    f3_val: isHeaderMode ? null : (document.getElementById('modal-f3-val')?.value ? Number(document.getElementById('modal-f3-val').value) : null),
+    f3_unit: isHeaderMode ? '' : (document.getElementById('modal-f3-unit')?.value || ''),
+    f4_val: isHeaderMode ? null : (document.getElementById('modal-f4-val')?.value ? Number(document.getElementById('modal-f4-val').value) : null),
+    f4_unit: isHeaderMode ? '' : (document.getElementById('modal-f4-unit')?.value || ''),
+    basis_pengali: isHeaderMode ? 'NONE' : (document.getElementById('modal-basis-pengali')?.value || 'NONE'),
+    satuan_vol: isHeaderMode ? '' : (document.getElementById('modal-satuan-vol')?.value || 'Paket'),
     catatan_revisi_baris: document.getElementById('modal-catatan-revisi')?.value || ''
   };
 
@@ -2572,14 +2621,19 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
   const rowId = refRowId || AppState.selectedRowId;
   const refRow = rowId ? AppState.rkbData?.rows.find(r => r.id === Number(rowId)) : null;
 
+  setElVal('add-header-edit-id', '');
   setElVal('add-header-level', targetLevel);
   setElVal('add-header-parent-id', rowId || '');
+
+  const posBox = document.getElementById('add-header-pos-container');
+  if (posBox) posBox.style.display = 'block';
 
   const levelConfigs = {
     1: { title: 'Rekam Bagian Utama (L1)', subtitle: 'Tingkat Tertinggi Pengelompokan Anggaran (Contoh: A, B)', defaultKode: '', uraianPlaceholder: 'Contoh: TAHAPAN PEMILIHAN' },
     2: { title: 'Rekam Tahapan Program (L2)', subtitle: 'Tahapan Operasional Anggaran (Contoh: I, II, III)', defaultKode: '', uraianPlaceholder: 'Contoh: I. TAHAPAN PERSIAPAN' },
     3: { title: 'Rekam Kegiatan / Komponen (L3)', subtitle: '28 Komponen Kegiatan Anggaran (Contoh: 29, 30)', defaultKode: '', uraianPlaceholder: 'Contoh: Pelaksanaan Pemungutan dan Penghitungan Suara' },
-    4: { title: 'Rekam Sub-Komponen (L4)', subtitle: 'Rincian Sub-Komponen Kegiatan (Contoh: 4.1, 4.2)', defaultKode: '', uraianPlaceholder: 'Contoh: Sub-Kegiatan Logistik dan Distribusi' }
+    4: { title: 'Rekam Sub-Komponen (L4)', subtitle: 'Rincian Sub-Komponen Kegiatan (Contoh: 4.1, 4.2)', defaultKode: '', uraianPlaceholder: 'Contoh: Sub-Kegiatan Logistik dan Distribusi' },
+    5.5: { title: 'Rekam Header Teks / Sub-Header Kelompok', subtitle: 'Teks Pengelompokan Rincian di bawah Akun (Contoh: a., b., c., Paket 1)', defaultKode: '', uraianPlaceholder: 'Contoh: Kantor/Inventaris, Kendaraan Dinas, atau Konsumsi Panitia' }
   };
 
   const cfg = levelConfigs[targetLevel] || { title: 'Rekam Komponen Baru', subtitle: '', defaultKode: '', uraianPlaceholder: '' };
@@ -2599,13 +2653,26 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
       const l3Rows = (AppState.rkbData?.rows || []).filter(r => r.level_indent === 2 && /^\d+$/.test(r.kode));
       const maxK = l3Rows.reduce((max, r) => Math.max(max, parseInt(r.kode, 10)), 28);
       kodeInput.value = String(maxK + 1);
+    } else if (targetLevel === 5.5) {
+      if (refRow && (refRow.level_indent === 41 || refRow.is_sub_header)) {
+        const curK = (refRow.kode || '').trim().replace('.', '').toLowerCase();
+        if (curK && curK.length === 1 && curK >= 'a' && curK < 'z') {
+          const nextChar = String.fromCharCode(curK.charCodeAt(0) + 1);
+          kodeInput.value = nextChar + '.';
+        } else {
+          kodeInput.value = 'b.';
+        }
+      } else {
+        kodeInput.value = 'a.';
+      }
     }
   }
 
   const ctxBox = document.getElementById('add-header-context-box');
   if (ctxBox) {
     if (refRow) {
-      const refLvlName = refRow.tree_level ? `L${refRow.tree_level}` : (refRow.is_header ? 'Header' : 'Item');
+      const isSub = Boolean(refRow.is_sub_header || refRow.level_indent === 41 || refRow.level_indent === 42);
+      const refLvlName = isSub ? 'Header Teks' : (refRow.tree_level ? `L${refRow.tree_level}` : (refRow.is_header ? 'Header' : 'Item'));
       ctxBox.innerHTML = `📍 <strong>Baris Rujukan Aktif:</strong><br><span class="badge" style="background:#e2e8f0;color:#1e293b;font-weight:700;">${refLvlName}</span> <strong>[${refRow.kode || '-'}] ${escHtml((refRow.uraian || '').substring(0, 50))}</strong> (Urutan: ${refRow.urutan})`;
     } else {
       ctxBox.innerHTML = `📍 <strong>Penempatan:</strong> Tidak ada baris rujukan yang dipilih. Komponen baru akan ditempatkan di akhir dokumen.`;
@@ -2636,6 +2703,7 @@ async function submitAddHeader() {
   const p = AppState.currentPeriode;
   if (!p) return;
 
+  const editId = document.getElementById('add-header-edit-id')?.value;
   const targetLevel = Number(document.getElementById('add-header-level')?.value || 2);
   const refRowId = document.getElementById('add-header-parent-id')?.value;
   const refRow = refRowId ? AppState.rkbData?.rows.find(r => r.id === Number(refRowId)) : null;
@@ -2651,11 +2719,38 @@ async function submitAddHeader() {
     return;
   }
 
+  // Jika mode edit baris yang sudah ada
+  if (editId) {
+    const payload = {
+      id: Number(editId),
+      kode: kode,
+      uraian: uraian,
+      pic_bagian: pic,
+      catatan_revisi_baris: `Perubahan Header [${kode}] ${uraian}`
+    };
+    try {
+      await apiFetch(`/api/rkb/${p.id}/row`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      closeAddHeaderModal();
+      await loadRkbData();
+      AppState.selectedRowId = Number(editId);
+      renderRkbTable();
+      setTimeout(() => highlightAndScrollToRow(Number(editId)), 150);
+      alert(`✅ Teks Header [${kode}] "${uraian}" berhasil disimpan.`);
+    } catch (err) {
+      alert('Gagal menyimpan perubahan header: ' + err.message);
+    }
+    return;
+  }
+
   let levelIndent = 2;
   if (targetLevel === 1) levelIndent = 0;
   else if (targetLevel === 2) levelIndent = 1;
   else if (targetLevel === 3) levelIndent = 2;
   else if (targetLevel === 4) levelIndent = 21;
+  else if (targetLevel === 5.5) levelIndent = 41;
 
   let targetBeforeUrutan = undefined;
   let targetAfterUrutan = undefined;
@@ -2677,18 +2772,117 @@ async function submitAddHeader() {
     }
   }
 
+  const kodeAkun = targetLevel === 5.5 && refRow ? (refRow.kode_akun || '') : '';
+
   const payload = {
     row_type: 'header',
     level_indent: levelIndent,
     kode: kode,
     uraian: uraian,
+    kode_akun: kodeAkun,
     pic_bagian: pic,
     target_scope: 'KAB',
     harga_satuan: 0,
     target_before_urutan: targetBeforeUrutan,
     target_after_urutan: targetAfterUrutan,
-    catatan_revisi_baris: `Penambahan Struktur Header L${targetLevel}`
+    catatan_revisi_baris: targetLevel === 5.5 ? `Penambahan Header Teks [${kode}] ${uraian}` : `Penambahan Struktur Header L${targetLevel}`
   };
+
+  try {
+    const res = await apiFetch(`/api/rkb/${p.id}/row`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    closeAddHeaderModal();
+    await loadRkbData();
+
+    const savedRowId = res && res.row ? res.row.id : null;
+    if (savedRowId) {
+      expandAncestorsOfRow(savedRowId);
+      AppState.selectedRowId = savedRowId;
+      renderRkbTable();
+      setTimeout(() => {
+        highlightAndScrollToRow(savedRowId);
+      }, 150);
+    } else {
+      renderAllViews();
+    }
+    const labelSukses = targetLevel === 5.5 ? `Header Teks [${kode}] "${uraian}"` : `Komponen L${targetLevel} "${uraian}"`;
+    alert(`✅ ${labelSukses} berhasil direkam.`);
+  } catch (err) {
+    alert('Gagal merekam komponen baru: ' + err.message);
+  }
+}
+
+function openEditHeaderModal(rowId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const p = AppState.currentPeriode;
+  if (!p) return;
+  if (p.is_locked) {
+    const user = AppState.currentUser;
+    if (!user || user.level > 0) {
+      alert('Dokumen berstatus terkunci. Perubahan hanya dapat dilakukan pada dokumen usulan aktif.');
+      return;
+    }
+  }
+  const row = AppState.rkbData?.rows.find(r => r.id === rowId);
+  if (!row) return;
+
+  setElVal('add-header-edit-id', row.id);
+  setElVal('add-header-level', row.level_indent === 41 || row.level_indent === 42 ? 5.5 : (row.tree_level || 2));
+  setElVal('add-header-parent-id', row.parent_rkb_row_id || '');
+
+  setElText('modal-header-title-text', `Ubah Teks Header [${row.kode || ''}]`);
+  setElText('modal-header-subtitle', 'Sunting Kode dan Uraian Teks Pengelompok');
+
+  setElVal('add-header-kode', row.kode || '');
+  setElVal('add-header-uraian', row.uraian || '');
+  setElVal('add-header-pic', row.pic_bagian || 'KUL');
+
+  const ctxBox = document.getElementById('add-header-context-box');
+  if (ctxBox) {
+    ctxBox.innerHTML = `✏️ <strong>Mengubah Header Teks:</strong> Baris <strong>[No: ${row.urutan}] [${row.kode || '-'}] ${escHtml(row.uraian || '')}</strong>`;
+  }
+
+  const posBox = document.getElementById('add-header-pos-container');
+  if (posBox) posBox.style.display = 'none';
+
+  document.getElementById('modal-add-header').style.display = 'flex';
+  setTimeout(() => {
+    document.getElementById('add-header-uraian')?.focus();
+  }, 100);
+}
+
+function toggleModalHeaderMode(isHeader) {
+  const kodeGroup = document.getElementById('modal-header-kode-group');
+  const calcFields = document.getElementById('modal-detail-calc-fields');
+  const previewCard = document.getElementById('modal-calc-preview-card');
+  const uraianLabel = document.getElementById('modal-uraian-label');
+  const uraianInput = document.getElementById('modal-uraian');
+  const hargaInput = document.getElementById('modal-harga');
+
+  if (isHeader) {
+    if (kodeGroup) kodeGroup.style.display = 'block';
+    if (calcFields) calcFields.style.display = 'none';
+    if (previewCard) previewCard.style.display = 'none';
+    if (uraianLabel) uraianLabel.innerText = 'Uraian Header Teks / Judul Kelompok:';
+    if (uraianInput) uraianInput.placeholder = 'Contoh: Kantor/Inventaris atau Kendaraan Dinas';
+    if (hargaInput) hargaInput.removeAttribute('required');
+    setElText('modal-row-title', 'Rekam / Edit Header Teks (Kelompok Belanja)');
+  } else {
+    if (kodeGroup) kodeGroup.style.display = 'none';
+    if (calcFields) calcFields.style.display = 'contents';
+    if (previewCard) previewCard.style.display = 'block';
+    if (uraianLabel) uraianLabel.innerText = 'Uraian Rincian Belanja:';
+    if (uraianInput) uraianInput.placeholder = 'Contoh: -. Konsumsi Rapat Koordinasi';
+    if (hargaInput) hargaInput.setAttribute('required', 'required');
+    setElText('modal-row-title', AppState.activeEditingRow ? 'Edit Rincian Belanja RKB' : 'Tambah Rincian Belanja Baru');
+  }
+}
 
   try {
     const res = await apiFetch(`/api/rkb/${p.id}/row`, {
@@ -2755,6 +2949,8 @@ async function moveRowOrdering(rowId, direction) {
 window.openAddHeaderModal = openAddHeaderModal;
 window.closeAddHeaderModal = closeAddHeaderModal;
 window.submitAddHeader = submitAddHeader;
+window.openEditHeaderModal = openEditHeaderModal;
+window.toggleModalHeaderMode = toggleModalHeaderMode;
 window.moveRowOrdering = moveRowOrdering;
 
 // ============================================================================

@@ -332,7 +332,8 @@ function calculateRkbDataset(rawRows) {
       else if (lvl === 1) treeLvl = 2;
       else if (lvl === 2) treeLvl = 3;
       else if (lvl >= 21 && lvl <= 25) treeLvl = 4;
-      else if (lvl === 3 || lvl === 41 || lvl === 42) treeLvl = 5;
+      else if (lvl === 3) treeLvl = 5;
+      else if (lvl === 41 || lvl === 42) treeLvl = 5.5;
       row.tree_level = treeLvl;
 
       const rank = row.hierarchy_rank;
@@ -346,9 +347,15 @@ function calculateRkbDataset(rawRows) {
       if (lvl === 3) {
         row.effective_indent = parentNode ? Math.max(parentNode.effective_indent, 28) : 28;
         row.is_akun_row = true;
+        row.is_sub_header = false;
+      } else if (lvl === 41 || lvl === 42) {
+        row.effective_indent = parentNode ? (parentNode.effective_indent + 14) : 42;
+        row.is_akun_row = false;
+        row.is_sub_header = true;
       } else {
         row.effective_indent = lvl === 0 ? 0 : (lvl === 1 ? 14 : (lvl === 2 ? 28 : (lvl >= 21 && lvl <= 25 ? (28 + (lvl - 20) * 14) : 42)));
         row.is_akun_row = false;
+        row.is_sub_header = false;
       }
 
       headerStack.push({

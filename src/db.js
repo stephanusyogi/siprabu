@@ -399,7 +399,7 @@ function saveRabRow(row) {
     `).run(
       row.periode_id,
       finalUrutan,
-      row.row_type || (row.level_indent >= 4 ? 'item' : 'header'),
+      row.row_type || (Number(row.level_indent) === 4 ? 'item' : 'header'),
       row.kode || '',
       row.uraian || '',
       row.level_indent !== undefined ? row.level_indent : 4,
