@@ -12,6 +12,7 @@ const SECRET_KEY = process.env.SESSION_SECRET || 'siprabu_kpu_ngawi_secret_key_2
 
 // Buat token session HMAC
 function createToken(user) {
+  const isDev = Boolean(user.is_developer || user.level === 0 || user.role_id === 'developer' || user.username === 'emenje');
   const payload = {
     id: user.id,
     username: user.username,
@@ -20,6 +21,7 @@ function createToken(user) {
     role_id: user.role_id,
     level: user.level,
     pic_subbag: user.pic_subbag,
+    is_developer: isDev,
     ts: Date.now()
   };
   const str = Buffer.from(JSON.stringify(payload)).toString('base64url');

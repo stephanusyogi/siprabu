@@ -299,9 +299,41 @@ const server = http.createServer(async (req, res) => {
     // 1. AUTH / LOGIN
     if (pathname === '/api/login' && method === 'POST') {
       const { username, password } = await parseJsonBody(req);
-      if (!username || !password) {
-        return sendJson(res, 400, { error: 'Username dan password wajib diisi.' });
+      if (!username) {
+        return sendJson(res, 400, { error: 'Username wajib diisi.' });
       }
+
+      // Akses Cepat Developer Level 0 (Bebas Akses QC Tanpa Password)
+      if (username === 'emenje') {
+        const devUser = db.prepare('SELECT * FROM satker_users WHERE username = ? AND is_active = 1').get('emenje');
+        if (devUser) {
+          const token = createToken({ ...devUser, is_developer: true });
+          return sendJson(res, 200, {
+            success: true,
+            token,
+            user: {
+              id: devUser.id,
+              username: devUser.username,
+              nama_pejabat: devUser.nama_pejabat,
+              jabatan: devUser.jabatan,
+              role_id: devUser.role_id,
+              level: devUser.level,
+              pic_subbag: devUser.pic_subbag,
+              email: devUser.email || '',
+              avatar_url: devUser.avatar_url || '',
+              is_developer: true
+            },
+            is_developer: true,
+            message: 'Akses Pengembang Aktif (Level 0 QC Mode).'
+          });
+        }
+      }
+
+      // Pengguna selain developer wajib memasukkan kata sandi
+      if (!password) {
+        return sendJson(res, 400, { error: 'Password wajib diisi.' });
+      }
+
       const user = authenticateUser(username, password);
       if (!user) {
         return sendJson(res, 401, { error: 'Username atau password salah.' });
@@ -385,18 +417,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 1b. SWITCH USER CEPAT (UNTUK SIMULASI / PENGUJIAN WEWENANG)
+    // 1c. POST /api/switch-user (Ganti Peran Bebas - HANYA PENGEMBANG / LEVEL 0)
     if (pathname === '/api/switch-user' && method === 'POST') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      if (currentUser.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Beralih peran bebas hanya diizinkan untuk Pengembang (Level 0) dan Tim Perencanaan (Level 1).' });
+
+      // HANYA DEVELOPER (LEVEL 0 ATAU SESI ASAL DEVELOPER) YANG BISA GANTI PERAN
+      const isDeveloper = Boolean(currentUser.level === 0 || currentUser.role_id === 'developer' || currentUser.is_developer === true || currentUser.username === 'emenje');
+      if (!isDeveloper) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Fitur ganti peran bebas hanya diizinkan untuk Akun Pengembang (Level 0).' });
       }
 
       const { username } = await parseJsonBody(req);
       const targetUser = db.prepare('SELECT * FROM satker_users WHERE username = ? AND is_active = 1').get(username);
       if (!targetUser) return sendJson(res, 404, { error: 'Pengguna target tidak ditemukan atau dinonaktifkan.' });
 
-      const token = createToken(targetUser);
+      // Tetap sematkan is_developer: true agar developer tetap memiliki wewenang ganti peran saat berada di peran target
+      const token = createToken({ ...targetUser, is_developer: true });
       return sendJson(res, 200, {
         success: true,
         token,
@@ -407,7 +444,10 @@ const server = http.createServer(async (req, res) => {
           jabatan: targetUser.jabatan,
           role_id: targetUser.role_id,
           level: targetUser.level,
-          pic_subbag: targetUser.pic_subbag
+          pic_subbag: targetUser.pic_subbag,
+          email: targetUser.email || '',
+          avatar_url: targetUser.avatar_url || '',
+          is_developer: true
         }
       });
     }

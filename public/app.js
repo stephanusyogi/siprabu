@@ -143,17 +143,33 @@ async function initAuth() {
     } catch (e) {
       console.warn('Sesi tidak valid / kadaluarsa:', e.message);
       localStorage.removeItem('siprabu_token');
+      sessionStorage.removeItem('siprabu_is_developer_origin');
     }
   }
 
   if (loggedInUser) {
     AppState.currentUser = loggedInUser;
+    if (loggedInUser.is_developer || loggedInUser.level === 0 || loggedInUser.username === 'emenje') {
+      sessionStorage.setItem('siprabu_is_developer_origin', 'true');
+    }
     showMainApp();
     updateUserNavbar();
   } else {
     AppState.currentUser = null;
     showLoginScreen();
   }
+}
+
+function isDeveloperSession() {
+  const user = AppState.currentUser;
+  if (!user) return false;
+  return Boolean(
+    user.level === 0 || 
+    user.role_id === 'developer' || 
+    user.username === 'emenje' || 
+    user.is_developer === true ||
+    sessionStorage.getItem('siprabu_is_developer_origin') === 'true'
+  );
 }
 
 function showLoginScreen() {
@@ -203,15 +219,24 @@ function toggleScreenPasswordVisibility() {
 
 async function submitScreenLoginForm() {
   const username = document.getElementById('screen-login-username')?.value?.trim();
-  const password = document.getElementById('screen-login-password')?.value;
+  const password = document.getElementById('screen-login-password')?.value || '';
   const errorBox = document.getElementById('login-screen-error');
   const errorText = document.getElementById('login-screen-error-text');
   const btnSubmit = document.getElementById('btn-screen-login-submit');
   const btnText = document.getElementById('screen-login-btn-text');
 
-  if (!username || !password) {
+  if (!username) {
     if (errorBox && errorText) {
-      errorText.textContent = 'Nama pengguna dan kata sandi wajib diisi.';
+      errorText.textContent = 'Nama pengguna wajib diisi.';
+      errorBox.style.display = 'block';
+    }
+    return;
+  }
+
+  // Pengguna selain developer wajib memasukkan kata sandi
+  if (username !== 'emenje' && !password) {
+    if (errorBox && errorText) {
+      errorText.textContent = 'Kata sandi wajib diisi.';
       errorBox.style.display = 'block';
     }
     return;
@@ -240,6 +265,27 @@ async function submitScreenLoginForm() {
   }
 }
 
+async function quickDeveloperLogin() {
+  const errorBox = document.getElementById('login-screen-error');
+  const errorText = document.getElementById('login-screen-error-text');
+  if (errorBox) errorBox.style.display = 'none';
+
+  try {
+    const res = await performLogin('emenje', '');
+    showMainApp();
+    showToast('Mode Pengembang Aktif: Bebas Akses Semua Level Akun untuk QC!', 'success');
+    await loadMasters();
+    await loadPeriodes();
+    await loadRkbData();
+    renderAllViews();
+  } catch (err) {
+    if (errorBox && errorText) {
+      errorText.textContent = err.message || 'Gagal masuk akun pengembang.';
+      errorBox.style.display = 'block';
+    }
+  }
+}
+
 async function loadUsers() {
   try {
     const usersRes = await apiFetch('/api/users');
@@ -260,13 +306,18 @@ async function loadUsers() {
   }
 }
 
-async function performLogin(username, password) {
+async function performLogin(username, password = '') {
   const res = await apiFetch('/api/login', {
     method: 'POST',
     body: JSON.stringify({ username, password })
   });
   localStorage.setItem('siprabu_token', res.token);
   AppState.currentUser = res.user;
+  if (res.is_developer || res.user?.is_developer || username === 'emenje' || res.user?.level === 0) {
+    sessionStorage.setItem('siprabu_is_developer_origin', 'true');
+  } else {
+    sessionStorage.removeItem('siprabu_is_developer_origin');
+  }
   updateUserNavbar();
   return res;
 }
@@ -394,10 +445,10 @@ function applyRolePermissionsToUI() {
   const btnImportBas = document.getElementById('btn-import-bas');
   if (btnImportBas) btnImportBas.style.display = isLevel1 ? 'inline-flex' : 'none';
 
-  // 7. Pengendali Switcher Cepat: Hanya tampil untuk Developer dan Tim Rendatin (Level <= 1)
+  // 7. Pengendali Switcher Cepat: HANYA tampil untuk Pengembang (Level 0 / QC Mode)
   const switcherContainer = document.getElementById('user-switcher-container');
   if (switcherContainer) {
-    switcherContainer.style.display = (user.level <= 1) ? 'inline-flex' : 'none';
+    switcherContainer.style.display = isDeveloperSession() ? 'inline-flex' : 'none';
   }
 
   // 8. ATURAN HAK AKSES MENU SIKLUS REVISI (SESUAI ATURAN KPU):
@@ -434,44 +485,30 @@ async function switchUser(username) {
   const targetUser = AppState.usersList.find(u => u.username === username);
   if (!targetUser) return;
 
+  if (!isDeveloperSession()) {
+    showToast('Akses ditolak: Fitur ganti peran bebas hanya untuk Akun Pengembang (Level 0).', 'error');
+    return;
+  }
+
   try {
-    // Jika sedang login sebagai Developer (Level 0) atau Level 1, gunakan endpoint switch-user cepat
-    if (AppState.currentUser && AppState.currentUser.level <= 1) {
-      const res = await apiFetch('/api/switch-user', {
-        method: 'POST',
-        body: JSON.stringify({ username })
-      });
-      localStorage.setItem('siprabu_token', res.token);
-      AppState.currentUser = res.user;
-    } else {
-      const pwdMap = {
-        emenje: 'Dev@KpuNgw#9021!',
-        perencanaan: 'Rnd#Ngawi$2026!P',
-        staf_perencanaan: 'Staf#Rnd@2026*P',
-        op_perencanaan: 'Op#Rendatin&2026!',
-        teknis: 'Tek#Ngawi$2026!T',
-        hukum: 'Huk#Ngawi$2026!H',
-        parmas: 'Par#Ngawi$2026!M',
-        kul: 'Kul#Ngawi$2026!K',
-        sekretaris: 'Sek#KpaNgawi$2026!',
-        divisi_rendatin: 'Kom#RndNgw&2026*',
-        ketua: 'Ketua#KpuNgw$2026!',
-        divisi_teknis: 'Kom#TekNgw&2026*',
-        divisi_hukum: 'Kom#HukNgw&2026*',
-        divisi_parmas: 'Kom#ParNgw&2026*',
-        divisi_kul: 'Kom#KulNgw&2026*',
-        stephanusyogi: 'Op#TekNgw&2026*'
-      };
-      const pass = pwdMap[username] || 'Rnd#Ngawi$2026!P';
-      await performLogin(username, pass);
-    }
+    const res = await apiFetch('/api/switch-user', {
+      method: 'POST',
+      body: JSON.stringify({ username })
+    });
+    localStorage.setItem('siprabu_token', res.token);
+    AppState.currentUser = res.user;
+    sessionStorage.setItem('siprabu_is_developer_origin', 'true');
 
     updateUserNavbar();
-    renderUsersTable();
+    applyRolePermissionsToUI();
+    showToast(`Beralih peran ke: ${res.user.nama_pejabat} [Level ${res.user.level}]`, 'info');
+
+    // Reload active draft dan render ulang semua tampilan sesuai peran
+    await loadPeriodes();
     await loadRkbData();
     renderAllViews();
   } catch (err) {
-    alert('Gagal berganti user: ' + err.message);
+    showToast('Gagal beralih peran: ' + err.message, 'error');
   }
 }
 
@@ -480,6 +517,7 @@ function logout() {
   if (!konfirmasi) return;
 
   localStorage.removeItem('siprabu_token');
+  sessionStorage.removeItem('siprabu_is_developer_origin');
   AppState.currentUser = null;
   AppState.rkbData = null;
   AppState.currentPeriode = null;
@@ -639,10 +677,15 @@ function closeLoginModal() {
 
 async function submitLocalLoginForm() {
   const username = document.getElementById('login-modal-username')?.value?.trim();
-  const password = document.getElementById('login-modal-password')?.value;
+  const password = document.getElementById('login-modal-password')?.value || '';
 
-  if (!username || !password) {
-    showToast('Username dan kata sandi wajib diisi.', 'error');
+  if (!username) {
+    showToast('Username wajib diisi.', 'error');
+    return;
+  }
+  // Pengguna selain developer wajib memasukkan kata sandi
+  if (username !== 'emenje' && !password) {
+    showToast('Kata sandi wajib diisi.', 'error');
     return;
   }
 
@@ -651,6 +694,7 @@ async function submitLocalLoginForm() {
     closeLoginModal();
     showToast(`Berhasil login sebagai ${AppState.currentUser.nama_pejabat}!`, 'success');
     await loadMasters();
+    await loadPeriodes();
     await loadRkbData();
     renderAllViews();
   } catch (err) {
@@ -5638,8 +5682,9 @@ function renderUsersTable() {
     let aksiHtml = '';
     if (isCurrent) {
       aksiHtml = `<button class="btn btn-xs btn-success" style="font-weight:700; pointer-events:none;">✅ Aktif</button>`;
-    } else {
-      aksiHtml = `<button class="btn btn-xs btn-outline-primary" onclick="switchUser('${u.username}')" title="Beralih ke peran ini">⚡ Beralih</button>`;
+    } else if (isDeveloperSession()) {
+      // HANYA DEVELOPER LEVEL 0 YANG DAPAT BERGANTI PERAN BEBAS DARI TABEL INI
+      aksiHtml = `<button class="btn btn-xs btn-outline-primary" onclick="switchUser('${u.username}')" title="Beralih ke peran ini (QC Mode Bebas)">⚡ Beralih</button>`;
     }
 
     if (canManage) {
@@ -7607,5 +7652,7 @@ window.showLoginScreen = showLoginScreen;
 window.showMainApp = showMainApp;
 window.toggleScreenPasswordVisibility = toggleScreenPasswordVisibility;
 window.submitScreenLoginForm = submitScreenLoginForm;
+window.quickDeveloperLogin = quickDeveloperLogin;
+window.isDeveloperSession = isDeveloperSession;
 window.logout = logout;
 
