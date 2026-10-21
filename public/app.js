@@ -15,6 +15,7 @@ const AppState = {
   activeView: 'view-dashboard',
   treeExpandLevel: 2, // 1=L1, 2=L2 (default), 3=L3, 4=L4, 5=Akun, 6=Buka Semua
   treeNodeOverrides: {},
+  expandedNodes: new Set(),
   selectedRowId: null,
   revisionViewMode: 'STANDARD', // 'STANDARD' | 'SANDING'
   filters: {
@@ -549,6 +550,7 @@ async function selectPeriode(periodeId) {
   if (!p) return;
   AppState.currentPeriode = p;
   AppState.treeNodeOverrides = {};
+  AppState.expandedNodes = new Set();
   await loadRkbData();
   renderAllViews();
 }
@@ -588,34 +590,172 @@ async function toggleLockPeriode(periodeId, lockState) {
 }
 
 // ============================================================================
-// VIEW 3: RKB KABUPATEN (TREE HIERARKI SAKTI & SEMULA-MENJADI)
+// VIEW 3: RKB KABUPATEN (TREE HIERARKI SAKTI DINAMIS & SEMULA-MENJADI)
 // ============================================================================
 
+function buildTreeMaps(rows) {
+  const parentMap = {};
+  const childrenMap = {};
+  const nodeMap = {};
+  for (const r of rows) {
+    nodeMap[r.tree_id] = r;
+    parentMap[r.tree_id] = r.parent_tree_id;
+    if (r.parent_tree_id) {
+      if (!childrenMap[r.parent_tree_id]) childrenMap[r.parent_tree_id] = [];
+      childrenMap[r.parent_tree_id].push(r.tree_id);
+    }
+  }
+  return { parentMap, childrenMap, nodeMap };
+}
+
+function getDescendantIds(rootTreeId, childrenMap) {
+  const desc = [];
+  const stack = [rootTreeId];
+  while (stack.length > 0) {
+    const curr = stack.pop();
+    const children = childrenMap[curr] || [];
+    for (const ch of children) {
+      desc.push(ch);
+      stack.push(ch);
+    }
+  }
+  return desc;
+}
+
+function collapseBranch(rootTreeId) {
+  const rows = AppState.rkbData?.rows || [];
+  const { childrenMap } = buildTreeMaps(rows);
+  const descendants = getDescendantIds(rootTreeId, childrenMap);
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+  AppState.expandedNodes.delete(rootTreeId);
+  for (const id of descendants) {
+    AppState.expandedNodes.delete(id);
+  }
+}
+
+function expandBranchAll(rootTreeId) {
+  const rows = AppState.rkbData?.rows || [];
+  const { childrenMap, nodeMap } = buildTreeMaps(rows);
+  const rootNode = nodeMap[rootTreeId];
+  if (!rootNode) return;
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+
+  // Pastikan seluruh leluhur baris ini terbuka
+  let p = rootNode.parent_tree_id;
+  while (p) {
+    AppState.expandedNodes.add(p);
+    const pNode = nodeMap[p];
+    p = pNode ? pNode.parent_tree_id : null;
+  }
+  AppState.expandedNodes.add(rootTreeId);
+
+  const descendants = getDescendantIds(rootTreeId, childrenMap);
+  for (const dId of descendants) {
+    const dNode = nodeMap[dId];
+    if (dNode && dNode.has_children) {
+      AppState.expandedNodes.add(dId);
+    }
+  }
+}
+
+function applyLevelToBranch(rootTreeId, targetLevel) {
+  const rows = AppState.rkbData?.rows || [];
+  const { childrenMap, nodeMap } = buildTreeMaps(rows);
+  const rootNode = nodeMap[rootTreeId];
+  if (!rootNode) return;
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+
+  if (targetLevel <= rootNode.tree_level) {
+    // Lipat cabang baris ini
+    collapseBranch(rootTreeId);
+    return;
+  }
+
+  // Buka seluruh leluhur baris ini
+  let p = rootNode.parent_tree_id;
+  while (p) {
+    AppState.expandedNodes.add(p);
+    const pNode = nodeMap[p];
+    p = pNode ? pNode.parent_tree_id : null;
+  }
+  AppState.expandedNodes.add(rootTreeId);
+
+  // Buka anak cucu yang levelnya < targetLevel, lipat yang >= targetLevel
+  const descendants = getDescendantIds(rootTreeId, childrenMap);
+  for (const dId of descendants) {
+    const dNode = nodeMap[dId];
+    if (dNode && dNode.has_children) {
+      if (dNode.tree_level < targetLevel) {
+        AppState.expandedNodes.add(dId);
+      } else {
+        AppState.expandedNodes.delete(dId);
+      }
+    }
+  }
+}
+
+function applyLevelGlobally(targetLevel) {
+  const rows = AppState.rkbData?.rows || [];
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+  AppState.expandedNodes.clear();
+  if (targetLevel <= 1) return; // Lipat semua hingga hanya Level 1 terlihat
+
+  for (const r of rows) {
+    if (r.has_children && r.tree_level < targetLevel) {
+      AppState.expandedNodes.add(r.tree_id);
+    }
+  }
+}
+
 function collapseAllTree() {
-  AppState.treeExpandLevel = 1;
-  AppState.treeNodeOverrides = {};
-  AppState.selectedRowId = null;
-  ['btnTreeCollapseAll', 'btnTreeL1', 'btnTreeL2', 'btnTreeL3', 'btnTreeL4', 'btnTreeAkun', 'btnTreeAll'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.classList.toggle('active', id === 'btnTreeCollapseAll');
-  });
+  const rows = AppState.rkbData?.rows || [];
+  const selectedRow = rows.find(r => r.id === AppState.selectedRowId);
+
+  if (selectedRow && selectedRow.has_children) {
+    // Jika ada baris aktif yang disorot, lipat cabang baris aktif tersebut!
+    collapseBranch(selectedRow.tree_id);
+  } else {
+    // Jika tidak ada baris yang disorot, lipat seluruh tabel
+    if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+    AppState.expandedNodes.clear();
+    AppState.selectedRowId = null;
+    updateTreeToolbarActiveButtons('btnTreeCollapseAll');
+  }
+
   renderRkbTable();
 }
 
 function setTreeExpandLevel(lvl) {
-  AppState.treeExpandLevel = Number(lvl) || 2;
-  AppState.treeNodeOverrides = {};
-  ['btnTreeCollapseAll', 'btnTreeL1', 'btnTreeL2', 'btnTreeL3', 'btnTreeL4', 'btnTreeAkun', 'btnTreeAll'].forEach(id => {
+  const targetLvl = Number(lvl);
+  const rows = AppState.rkbData?.rows || [];
+  const selectedRow = rows.find(r => r.id === AppState.selectedRowId);
+
+  if (selectedRow && selectedRow.has_children) {
+    // FUNGSI LIPATAN DINAMIS:
+    // Berlaku HANYA untuk baris yang sedang aktif / disorot!
+    applyLevelToBranch(selectedRow.tree_id, targetLvl);
+  } else {
+    // Berlaku secara global jika tidak ada baris yang dipilih
+    applyLevelGlobally(targetLvl);
+  }
+
+  updateTreeToolbarActiveButtons(targetLvl);
+  renderRkbTable();
+}
+
+function updateTreeToolbarActiveButtons(target) {
+  const ids = ['btnTreeCollapseAll', 'btnTreeL1', 'btnTreeL2', 'btnTreeL3', 'btnTreeL4', 'btnTreeAkun', 'btnTreeAll'];
+  ids.forEach(id => {
     const btn = document.getElementById(id);
-    if (btn) {
-      if (id === 'btnTreeCollapseAll') {
-        btn.classList.toggle('active', lvl === 1);
-      } else {
-        btn.classList.toggle('active', (id === 'btnTreeL' + lvl) || (lvl === 5 && id === 'btnTreeAkun') || (lvl === 6 && id === 'btnTreeAll'));
-      }
+    if (!btn) return;
+    if (typeof target === 'string') {
+      btn.classList.toggle('active', id === target);
+    } else {
+      const lvl = Number(target);
+      const isLvlMatch = (id === 'btnTreeL' + lvl) || (lvl === 5 && id === 'btnTreeAkun') || (lvl === 6 && id === 'btnTreeAll');
+      btn.classList.toggle('active', isLvlMatch);
     }
   });
-  renderRkbTable();
 }
 
 function toggleTreeNode(treeId, event) {
@@ -623,19 +763,29 @@ function toggleTreeNode(treeId, event) {
     event.preventDefault();
     event.stopPropagation();
   }
-  const currentExpanded = isNodeExpanded(treeId);
-  AppState.treeNodeOverrides[treeId] = !currentExpanded;
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+
+  if (AppState.expandedNodes.has(treeId)) {
+    collapseBranch(treeId);
+  } else {
+    // Buka node ini beserta leluhurnya
+    const rows = AppState.rkbData?.rows || [];
+    const { nodeMap } = buildTreeMaps(rows);
+    let p = nodeMap[treeId]?.parent_tree_id;
+    while (p) {
+      AppState.expandedNodes.add(p);
+      p = nodeMap[p]?.parent_tree_id;
+    }
+    AppState.expandedNodes.add(treeId);
+  }
   renderRkbTable();
 }
 
-function isNodeExpanded(treeId, treeLevel) {
-  if (AppState.filters.search.trim()) {
+function isNodeExpanded(treeId) {
+  if (AppState.filters.search && AppState.filters.search.trim()) {
     return true;
   }
-  if (treeId in AppState.treeNodeOverrides) {
-    return Boolean(AppState.treeNodeOverrides[treeId]);
-  }
-  return (treeLevel || 3) < (AppState.treeExpandLevel || 2);
+  return Boolean(AppState.expandedNodes && AppState.expandedNodes.has(treeId));
 }
 
 function toggleRevisionSandingMode(checked) {
@@ -652,24 +802,71 @@ function selectRow(rowId, event) {
   const row = rows.find(r => Number(r.id) === Number(rowId));
   if (!row) return;
 
-  const wasSelected = (AppState.selectedRowId === Number(rowId));
+  const wasAlreadySelected = (AppState.selectedRowId === Number(rowId));
   AppState.selectedRowId = Number(rowId);
 
-  // FUNGSI LIPATAN DINAMIS:
-  // Hanya baris yang sorot (aktif) yang terlipat dan terbuka jika memiliki cabang turunan
+  // FUNGSI LIPATAN DINAMIS PER BARIS AKTIF:
+  // Hanya baris yang sorot (aktif) yang terlipat dan terbuka
   if (row.has_children) {
-    const isExp = isNodeExpanded(row.tree_id, row.tree_level);
-    if (!wasSelected) {
-      // Jika baris baru disorot dan posisinya terlipat, otomatis buka cabang ini
-      if (!isExp) {
-        AppState.treeNodeOverrides[row.tree_id] = true;
+    if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+    if (!wasAlreadySelected) {
+      // Jika baris baru disorot dan posisinya tertutup: buka cabang baris ini
+      if (!AppState.expandedNodes.has(row.tree_id)) {
+        const { nodeMap } = buildTreeMaps(rows);
+        let p = row.parent_tree_id;
+        while (p) {
+          AppState.expandedNodes.add(p);
+          p = nodeMap[p]?.parent_tree_id;
+        }
+        AppState.expandedNodes.add(row.tree_id);
       }
     } else {
-      // Jika baris yang SEDANG SOROT (aktif) diklik lagi, toggle lipat / buka
-      AppState.treeNodeOverrides[row.tree_id] = !isExp;
+      // Jika baris yang SEDANG AKTIF (sorot) diklik lagi: toggle lipat/buka secara cerdas
+      if (AppState.expandedNodes.has(row.tree_id)) {
+        collapseBranch(row.tree_id);
+      } else {
+        AppState.expandedNodes.add(row.tree_id);
+      }
     }
   }
 
+  renderRkbTable();
+}
+
+function expandActiveBranch(event) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const rows = AppState.rkbData?.rows || [];
+  const selectedRow = rows.find(r => r.id === AppState.selectedRowId);
+  if (!selectedRow) return;
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+  AppState.expandedNodes.add(selectedRow.tree_id);
+  renderRkbTable();
+}
+
+function collapseActiveBranch(event) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const rows = AppState.rkbData?.rows || [];
+  const selectedRow = rows.find(r => r.id === AppState.selectedRowId);
+  if (!selectedRow) return;
+  collapseBranch(selectedRow.tree_id);
+  renderRkbTable();
+}
+
+function expandActiveBranchAll(event) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const rows = AppState.rkbData?.rows || [];
+  const selectedRow = rows.find(r => r.id === AppState.selectedRowId);
+  if (!selectedRow) return;
+  expandBranchAll(selectedRow.tree_id);
+  renderRkbTable();
+}
+
+function clearSelectedRow(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  AppState.selectedRowId = null;
   renderRkbTable();
 }
 
@@ -695,20 +892,34 @@ function updateSelectedRowUI() {
 
   const cleanUraian = (row.uraian || '').substring(0, 45);
   const lvlLabel = row.is_header ? `Level ${row.level_indent}` : 'Detail Belanja';
-  const isExpanded = row.has_children ? isNodeExpanded(row.tree_id, row.tree_level) : false;
+  const isExpanded = row.has_children ? isNodeExpanded(row.tree_id) : false;
 
   if (pill) {
     pill.style.display = 'inline-flex';
-    pill.innerHTML = `<strong>[${row.kode || lvlLabel}]</strong>&nbsp;${cleanUraian}`;
+    pill.innerHTML = `<strong>[${row.kode || lvlLabel}]</strong>&nbsp;${cleanUraian}&nbsp;<span onclick="clearSelectedRow(event)" style="cursor:pointer;margin-left:4px;font-weight:700;color:#ef4444;padding:0 2px;" title="Lepas sorotan baris aktif (kembali ke kontrol global)">✕</span>`;
+    pill.title = `Baris Aktif: [${row.kode || lvlLabel}] ${row.uraian || ''}. Klik tombol lipatan untuk melipat/membuka khusus cabang ini.`;
   }
 
   let btns = '';
 
   // 1. Tombol Dinamis Lipat / Buka Khusus Baris Aktif Ini
   if (row.has_children) {
+    if (isExpanded) {
+      btns += `
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="collapseActiveBranch(event)" title="Lipat cabang baris aktif ini" style="font-weight:700;">
+          📁 Lipat Cabang Ini
+        </button>
+      `;
+    } else {
+      btns += `
+        <button type="button" class="btn btn-sm btn-primary" onclick="expandActiveBranch(event)" title="Buka cabang baris aktif ini" style="font-weight:700;">
+          📂 Buka Cabang Ini
+        </button>
+      `;
+    }
     btns += `
-      <button type="button" class="btn btn-sm ${isExpanded ? 'btn-outline-secondary' : 'btn-outline-primary'}" onclick="toggleTreeNode('${row.tree_id}', event)" title="${isExpanded ? 'Lipat cabang baris aktif ini' : 'Buka cabang baris aktif ini'}" style="font-weight:600;">
-        ${isExpanded ? '📁 Lipat Cabang Ini' : '📂 Buka Cabang Ini'}
+      <button type="button" class="btn btn-sm btn-outline-info" onclick="expandActiveBranchAll(event)" title="Buka seluruh rincian belanja mikro di dalam cabang ini" style="font-weight:600;">
+        📖 Buka Semua Detail
       </button>
     `;
   }
@@ -858,13 +1069,19 @@ function renderRkbTable() {
     }
   }
 
+  // Pastikan Set expandedNodes terinisialisasi
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+  if (AppState.expandedNodes.size === 0 && AppState.treeExpandLevel !== 1) {
+    for (const r of rows) {
+      if (r.tree_level === 1) AppState.expandedNodes.add(r.tree_id);
+    }
+  }
+
   const isRowVisible = (treeId, parentTreeId) => {
     if (searchQ) return true;
     let p = parentTreeId;
     while (p) {
-      const pLvl = nodeLevelMap[p] || 1;
-      const isExp = (p in AppState.treeNodeOverrides) ? Boolean(AppState.treeNodeOverrides[p]) : (pLvl < (AppState.treeExpandLevel || 2));
-      if (!isExp) return false;
+      if (!AppState.expandedNodes.has(p)) return false;
       p = parentMap[p];
     }
     return true;
@@ -879,7 +1096,7 @@ function renderRkbTable() {
 
     const lvl = Number(r.level_indent);
     const isItem = !r.is_header;
-    const isExpanded = isNodeExpanded(r.tree_id, r.tree_level);
+    const isExpanded = isNodeExpanded(r.tree_id);
     const isSelected = AppState.selectedRowId === r.id;
 
     const toggleChevron = r.has_children
