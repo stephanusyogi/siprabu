@@ -62,7 +62,13 @@ const {
   getDownloadRequests,
   getDownloadRequestById,
   updateDownloadRequest,
-  cleanupExpiredDownloads
+  cleanupExpiredDownloads,
+  getSubbagUsulanList,
+  getSubbagUsulan,
+  submitSubbagUsulan,
+  validateSubbagUsulan,
+  rejectSubbagUsulan,
+  saveCatatanPlenoSubbag
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary } = require('./src/calculation');
@@ -709,6 +715,191 @@ const server = http.createServer(async (req, res) => {
       const rawRows = getRabRows(periodeId);
       const { summary } = calculateRkbDataset(rawRows);
       return sendJson(res, 200, { ok: true, resume: summary });
+    }
+
+    // 10d. WORKFLOW PENGUSULAN REVISI SUBBAG & VALIDASI RENDATIN
+    // GET /api/rkb/:id/usulan-subbag
+    const usulanListMatch = pathname.match(/^\/api\/rkb\/(\d+)\/usulan-subbag$/);
+    if (usulanListMatch && method === 'GET') {
+      const periodeId = Number(usulanListMatch[1]);
+      const user = getUserFromReq(req);
+      const list = getSubbagUsulanList(periodeId);
+      
+      // Hitung perbandingan Semula vs Menjadi per subbag secara real-time
+      const comparison = getRevisionComparison(periodeId);
+      const subbagDeltas = {};
+      if (comparison && comparison.has_parent) {
+        for (const item of (comparison.log_detail || [])) {
+          const sub = (item.pic_bagian || '').toUpperCase();
+          if (!subbagDeltas[sub]) {
+            subbagDeltas[sub] = { delta: 0, items: 0 };
+          }
+          subbagDeltas[sub].delta += (item.diff || 0);
+          subbagDeltas[sub].items++;
+        }
+      }
+
+      // Hitung stats
+      const stats = {
+        total: list.length,
+        draft: list.filter(u => u.status === 'DRAFT').length,
+        diajukan: list.filter(u => u.status === 'DIAJUKAN').length,
+        valid: list.filter(u => u.status === 'VALID').length,
+        dikembalikan: list.filter(u => u.status === 'DIKEMBALIKAN' || u.status === 'DITOLAK_PLENO').length,
+        disetujui: list.filter(u => u.status === 'DISETUJUI_PLENO').length
+      };
+
+      // Gabungkan info delta ke list
+      const enrichedList = list.map(u => ({
+        ...u,
+        subbag_kode: u.subbag,
+        status_usulan: u.status,
+        catatan_koreksi: u.alasan_pengembalian || '',
+        delta: subbagDeltas[u.subbag]?.delta || 0,
+        changed_items_count: subbagDeltas[u.subbag]?.items || 0
+      }));
+
+      // Jika user operator atau komisioner dengan pic spesifik, hanya kirim usulan subbagnya
+      const resultList = (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA')
+        ? enrichedList.filter(u => u.subbag === user.pic_subbag)
+        : enrichedList;
+
+      return sendJson(res, 200, {
+        usulan: resultList,
+        usulan_list: resultList,
+        stats,
+        user_pic: user?.pic_subbag || 'SEMUA'
+      });
+    }
+
+    // POST /api/rkb/:id/usulan-subbag/ajukan
+    const usulanAjukanMatch = pathname.match(/^\/api\/rkb\/(\d+)\/usulan-subbag\/ajukan$/);
+    if (usulanAjukanMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(usulanAjukanMatch[1]);
+      const body = await parseJsonBody(req);
+      
+      let subbag = (body.subbag || body.subbag_kode || '').toUpperCase();
+      if (user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        subbag = user.pic_subbag; // Force subbag to user's assigned subbag
+      }
+      if (!subbag) return sendJson(res, 400, { error: 'Subbagian pengusul wajib ditentukan.' });
+
+      try {
+        const usulan = submitSubbagUsulan({
+          periodeId,
+          subbag,
+          gdrive_link: body.gdrive_link,
+          catatan_usulan: body.catatan_usulan,
+          user,
+          total_semula: body.total_semula,
+          total_menjadi: body.total_menjadi
+        });
+        return sendJson(res, 200, { success: true, message: `Usulan revisi Subbagian ${subbag} berhasil diajukan ke Tim Rendatin!`, usulan });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // POST /api/rkb/:id/usulan-subbag/validasi
+    const usulanValidasiMatch = pathname.match(/^\/api\/rkb\/(\d+)\/usulan-subbag\/validasi$/);
+    if (usulanValidasiMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Tim Rendatin (Level 1) yang berwenang menyatakan valid.' });
+      }
+      const periodeId = Number(usulanValidasiMatch[1]);
+      const body = await parseJsonBody(req);
+      const subbag = (body.subbag || body.subbag_kode || '').toUpperCase();
+      try {
+        const usulan = validateSubbagUsulan({ periodeId, subbag, user });
+        return sendJson(res, 200, { success: true, message: `Usulan Subbagian ${subbag} dinyatakan VALID dan siap dibahas di Sidang Pleno.`, usulan });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // POST /api/rkb/:id/usulan-subbag/kembalikan
+    const usulanKembalikanMatch = pathname.match(/^\/api\/rkb\/(\d+)\/usulan-subbag\/kembalikan$/);
+    if (usulanKembalikanMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Tim Rendatin (Level 1) yang berwenang mengembalikan usulan.' });
+      }
+      const periodeId = Number(usulanKembalikanMatch[1]);
+      const body = await parseJsonBody(req);
+      const subbag = (body.subbag || body.subbag_kode || '').toUpperCase();
+      const alasan = body.alasan_pengembalian || body.alasan || '';
+      try {
+        const usulan = rejectSubbagUsulan({ periodeId, subbag, alasan_pengembalian: alasan, user });
+        return sendJson(res, 200, { success: true, message: `Usulan Subbagian ${subbag} dikembalikan ke PIC untuk perbaikan berkas.`, usulan });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // POST /api/rkb/:id/usulan-subbag/catatan-pleno
+    const usulanCatatanPlenoMatch = pathname.match(/^\/api\/rkb\/(\d+)\/usulan-subbag\/catatan-pleno$/);
+    if (usulanCatatanPlenoMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Tim Rendatin (Level 1) yang dapat membubuhkan catatan pleno.' });
+      }
+      const periodeId = Number(usulanCatatanPlenoMatch[1]);
+      const body = await parseJsonBody(req);
+      const subbag = (body.subbag || body.subbag_kode || '').toUpperCase();
+      try {
+        const usulan = saveCatatanPlenoSubbag({ periodeId, subbag, catatan_pleno: body.catatan_pleno, user });
+        return sendJson(res, 200, { success: true, message: `Catatan hasil pleno untuk Subbag ${subbag} berhasil disimpan.`, usulan });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // GET /api/rkb/:id/matriks-semula-menjadi
+    const matriksMatch = pathname.match(/^\/api\/rkb\/(\d+)\/matriks-semula-menjadi$/);
+    if (matriksMatch && method === 'GET') {
+      const periodeId = Number(matriksMatch[1]);
+      const user = getUserFromReq(req);
+      const comparison = getRevisionComparison(periodeId);
+      let details = comparison.log_detail || [];
+
+      // Filter subbag jika user adalah operator dengan pic tertentu
+      let filterPic = query.subbag || '';
+      if (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        filterPic = user.pic_subbag;
+      }
+
+      if (filterPic && filterPic !== 'SEMUA') {
+        details = details.filter(d => (d.pic_bagian || '').toUpperCase() === filterPic.toUpperCase());
+      }
+
+      const mappedRows = details.map((d, index) => ({
+        id: d.row_id || `diff-${index}`,
+        kode_tahapan: d.kode || d.kode_akun || '-',
+        uraian: d.uraian || '-',
+        pic_bagian: d.pic_bagian || 'SEMUA',
+        total_semula: d.semula_jumlah || 0,
+        total_menjadi: d.menjadi_jumlah || 0,
+        selisih: d.diff || 0,
+        status_perubahan: d.status || 'BERUBAH',
+        vol_semula: d.semula_vol || 0,
+        satuan_semula: d.semula_satuan || '',
+        harga_semula: d.semula_harga || 0,
+        vol_menjadi: d.menjadi_vol || 0,
+        satuan_menjadi: d.menjadi_satuan || '',
+        harga_menjadi: d.menjadi_harga || 0
+      }));
+
+      return sendJson(res, 200, {
+        has_parent: comparison.has_parent,
+        parent_periode: comparison.parent_periode,
+        filter_subbag: filterPic || 'SEMUA',
+        summary: comparison.summary,
+        rows: mappedRows,
+        details: mappedRows
+      });
     }
 
     // 11. SIMPAN / UPDATE BARIS RKB

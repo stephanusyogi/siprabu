@@ -634,7 +634,8 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
           ...itemDiff,
           kode: cr.kode || '',
           uraian: cr.uraian,
-          kode_akun: cr.kode_akun || ''
+          kode_akun: cr.kode_akun || '',
+          pic_bagian: cr.pic_bagian || ''
         });
       }
     }
@@ -663,7 +664,8 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
         catatan: 'Baris rincian belanja dihapus dari dokumen semula',
         kode: pr.kode || '',
         uraian: pr.uraian,
-        kode_akun: pr.kode_akun || ''
+        kode_akun: pr.kode_akun || '',
+        pic_bagian: pr.pic_bagian || ''
       });
     }
   }

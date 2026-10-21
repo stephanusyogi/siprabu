@@ -11,6 +11,8 @@ const AppState = {
   currentPeriode: null,
   periodesList: [],
   rkbData: null,
+  rkbWorkflowData: null,
+  matriksData: null,
   masters: null,
   activeView: 'view-dashboard',
   treeExpandLevel: 2, // 1=L1, 2=L2 (default), 3=L3, 4=L4, 5=Akun, 6=Buka Semua
@@ -502,6 +504,12 @@ async function loadRkbData() {
 
   const url = `/api/rkb/${periodeId}?${queryParams.toString()}`;
   AppState.rkbData = await apiFetch(url);
+  try {
+    AppState.rkbWorkflowData = await apiFetch(`/api/rkb/${periodeId}/usulan-subbag`);
+  } catch (err) {
+    console.warn('Gagal memuat status alur revisi subbag:', err);
+    AppState.rkbWorkflowData = null;
+  }
 }
 
 function updateContextNavbar() {
@@ -1774,6 +1782,7 @@ function updateSelectedRowUI() {
 
 function renderRkbTable() {
   if (!AppState.rkbData) return;
+  renderRkbWorkflow();
   const { rows, summary, periode, revision_comparison } = AppState.rkbData;
   const user = AppState.currentUser;
   const isLocked = Boolean(periode.is_locked);
@@ -3613,7 +3622,8 @@ function openLockModal(periodeId) {
   
   setElVal('lock-nomor-ba', p.nomor_ba_tapd || '');
   setElVal('lock-tanggal-ba', p.tanggal_ba_tapd || new Date().toISOString().slice(0, 10));
-  setElVal('lock-catatan', p.catatan_revisi || '');
+  setElVal('lock-gdrive-link', p.gdrive_link_pleno || '');
+  setElVal('lock-catatan', p.catatan_revisi || p.catatan_pleno || '');
   
   document.getElementById('modal-kunci').style.display = 'flex';
 }
@@ -3638,9 +3648,11 @@ function onLockFaseChange() {
     dasarSelect.innerHTML = `
       <option value="NPHD">Naskah Perjanjian Hibah Daerah (NPHD)</option>
       <option value="BA Kesepakatan Final">BA Kesepakatan Final TAPD dan KPU</option>
+      <option value="BA Pleno KPU">Berita Acara (BA) Sidang Pleno KPU</option>
     `;
   } else {
     dasarSelect.innerHTML = `
+      <option value="BA Pleno KPU">Berita Acara (BA) Sidang Pleno KPU</option>
       <option value="BA TAPD">Berita Acara (BA) Persetujuan TAPD Pemda</option>
       <option value="SK KPU">Keputusan KPU (SK KPU Kabupaten Ngawi)</option>
       <option value="Surat Persetujuan KPA">Surat Persetujuan KPA (Pergeseran Internal)</option>
@@ -3657,7 +3669,9 @@ async function submitLockForm() {
     dasar_pengesahan: document.getElementById('lock-dasar')?.value || 'NPHD',
     nomor_ba_tapd: document.getElementById('lock-nomor-ba')?.value || '',
     tanggal_ba_tapd: document.getElementById('lock-tanggal-ba')?.value || '',
-    catatan_revisi: document.getElementById('lock-catatan')?.value || ''
+    catatan_revisi: document.getElementById('lock-catatan')?.value || '',
+    gdrive_link_pleno: document.getElementById('lock-gdrive-link')?.value || '',
+    catatan_pleno: document.getElementById('lock-catatan')?.value || ''
   };
 
   try {
@@ -5464,6 +5478,579 @@ async function toggleUserStatusAction(userId) {
   }
 }
 
+// ============================================================================
+// WORKFLOW REVISI & PLENO SUBBAGIAN
+// ============================================================================
+
+async function loadRkbWorkflowData(forceRender = false) {
+  if (!AppState.currentPeriode) return;
+  const periodeId = AppState.currentPeriode.id;
+  try {
+    AppState.rkbWorkflowData = await apiFetch(`/api/rkb/${periodeId}/usulan-subbag`);
+    if (forceRender) {
+      renderRkbWorkflow();
+    }
+  } catch (err) {
+    console.warn('Gagal memuat status alur revisi subbag:', err);
+  }
+}
+
+function renderRkbWorkflow() {
+  const container = document.getElementById('rkb-workflow-container');
+  if (!container) return;
+
+  if (!AppState.rkbData || !AppState.currentPeriode) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const periode = AppState.rkbData.periode;
+  const isLocked = Boolean(periode.is_locked);
+  const user = AppState.currentUser || {};
+  const isLevel1 = (user.role === 'admin' || user.level === 1);
+  const isLevel3 = (user.level === 3);
+  const wfData = AppState.rkbWorkflowData;
+  const usulanList = (wfData && wfData.usulan_list) ? wfData.usulan_list : [];
+  const stats = (wfData && wfData.stats) ? wfData.stats : { total: 5, draft: 5, diajukan: 0, valid: 0, dikembalikan: 0, disetujui: 0 };
+
+  // If locked, render an official Pleno/Lock banner
+  if (isLocked) {
+    const gdrivePlenoLink = periode.gdrive_link_pleno || (wfData && wfData.gdrive_link_pleno);
+    const catatanPleno = periode.catatan_pleno || periode.catatan_revisi || (wfData && wfData.catatan_pleno);
+    const dasarPengesahan = periode.dasar_pengesahan || 'BA Pleno KPU';
+    const nomorBa = periode.nomor_ba_tapd || '-';
+    const tanggalBa = periode.tanggal_ba_tapd || '-';
+
+    container.innerHTML = `
+      <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-size: 24px;">🔒</div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+              <span>DOKUMEN TERKUNCI (HASIL SIDANG PLENO KPU)</span>
+              <span class="badge badge-danger">LOCKED</span>
+            </div>
+            <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">
+              Dasar: <b>${escapeHtml(dasarPengesahan)}</b> &bull; No: <b>${escapeHtml(nomorBa)}</b> (${escapeHtml(tanggalBa)})
+              ${catatanPleno ? ` &bull; Catatan: <i>${escapeHtml(catatanPleno)}</i>` : ''}
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${gdrivePlenoLink ? `
+            <a href="${escapeHtml(gdrivePlenoLink)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+              📂 Berkas BA Pleno / SK (GDrive) ↗
+            </a>
+          ` : ''}
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openModalMatriks('SEMUA')" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+            📊 Matriks Semula-Menjadi
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Active Draft Workflow:
+  // CASE A: User is Operator Subbag (Level 2 with specific PIC, not Level 1 and not Level 3)
+  if (!isLevel1 && !isLevel3 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+    const mySubbag = user.pic_subbag;
+    const subbagMeta = SUBBAG_META[mySubbag] || { name: mySubbag, color: '#3b82f6' };
+    const myUsulan = usulanList.find(u => u.subbag_kode === mySubbag) || {
+      subbag_kode: mySubbag,
+      status_usulan: 'DRAFT',
+      gdrive_link: '',
+      catatan_usulan: '',
+      catatan_koreksi: '',
+      catatan_pleno: ''
+    };
+
+    let statusBadge = '<span class="badge badge-secondary">⚪ DRAFT PIC</span>';
+    let bgGradient = '#f0f9ff';
+    let borderColor = '#bae6fd';
+    let actionBtnHtml = '';
+
+    if (myUsulan.status_usulan === 'DIAJUKAN') {
+      statusBadge = '<span class="badge badge-warning" style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">🟡 DIAJUKAN KE RENDATIN</span>';
+      bgGradient = '#fffdf5';
+      borderColor = '#fef08a';
+      actionBtnHtml = `
+        <button type="button" class="btn btn-sm btn-outline-warning" onclick="openModalAjukanUsulan('${mySubbag}')" style="font-weight:600;">
+          ✏️ Perbarui Link / Catatan
+        </button>
+      `;
+    } else if (myUsulan.status_usulan === 'VALID') {
+      statusBadge = '<span class="badge badge-success" style="background:#dcfce7; color:#166534; border:1px solid #86efac;">🟢 VALID (BAHAN PLENO)</span>';
+      bgGradient = '#f0fdf4';
+      borderColor = '#bbf7d0';
+    } else if (myUsulan.status_usulan === 'DIKEMBALIKAN' || myUsulan.status_usulan === 'DITOLAK_PLENO') {
+      statusBadge = '<span class="badge badge-danger" style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5;">🔴 PERLU KOREKSI (DIKEMBALIKAN)</span>';
+      bgGradient = '#fff5f5';
+      borderColor = '#fecaca';
+      actionBtnHtml = `
+        <button type="button" class="btn btn-sm btn-danger" onclick="openModalAjukanUsulan('${mySubbag}')" style="font-weight:600;">
+          🔁 Ajukan Ulang Revisi
+        </button>
+      `;
+    } else {
+      // DRAFT
+      actionBtnHtml = `
+        <button type="button" class="btn btn-sm btn-primary" onclick="openModalAjukanUsulan('${mySubbag}')" style="font-weight:600; box-shadow: 0 1px 2px rgba(37,99,235,0.2);">
+          🚀 Ajukan Usulan Revisi (Link GDrive)
+        </button>
+      `;
+    }
+
+    container.innerHTML = `
+      <div style="background: ${bgGradient}; border: 1.5px solid ${borderColor}; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 24px;">📁</div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Alur Usulan Revisi: Subbag ${escapeHtml(subbagMeta.name)}</span>
+                ${statusBadge}
+              </div>
+              <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">
+                ${myUsulan.status_usulan === 'DIAJUKAN' ? 'Usulan dan bukti dukung telah terkirim ke Tim Rendatin. Sedang dalam proses verifikasi dan komparasi matriks.' :
+                  myUsulan.status_usulan === 'VALID' ? 'Usulan telah dinyatakan VALID oleh Tim Rendatin dan siap dibahas dalam Sidang Pleno Komisioner.' :
+                  (myUsulan.status_usulan === 'DIKEMBALIKAN' || myUsulan.status_usulan === 'DITOLAK_PLENO') ? '<span style="color:#b91c1c; font-weight:600;">Harap segera diperbaiki sesuai catatan pengembalian di bawah, lalu upload ulang berkas dan ajukan kembali.</span>' :
+                  'Silakan sesuaikan rincian RKB subbag Anda, unduh Excel revisi, cetak dan ttd, scan PDF, upload 2 berkas ke Google Drive, lalu ajukan.'}
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${myUsulan.gdrive_link ? `
+              <a href="${escapeHtml(myUsulan.gdrive_link)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+                📂 Folder GDrive Bukti Dukung ↗
+              </a>
+            ` : ''}
+            ${actionBtnHtml}
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openModalMatriks('${mySubbag}')" style="font-weight: 600;">
+              📊 Matriks Semula-Menjadi
+            </button>
+          </div>
+        </div>
+
+        ${(myUsulan.status_usulan === 'DIKEMBALIKAN' || myUsulan.status_usulan === 'DITOLAK_PLENO') && (myUsulan.catatan_koreksi || myUsulan.alasan_pengembalian) ? `
+          <div style="margin-top: 8px; padding: 7px 12px; background: #fee2e2; border-left: 3px solid #dc2626; border-radius: 4px; font-size: 12px; color: #7f1d1d;">
+            <strong>⚠️ Catatan Pengembalian dari Tim Rendatin / Pleno:</strong> ${escapeHtml(myUsulan.catatan_koreksi || myUsulan.alasan_pengembalian)}
+          </div>
+        ` : ''}
+
+        ${myUsulan.catatan_pleno ? `
+          <div style="margin-top: 8px; padding: 7px 12px; background: #e0f2fe; border-left: 3px solid #0284c7; border-radius: 4px; font-size: 12px; color: #0369a1;">
+            <strong>📝 Catatan Arahan Pleno Komisioner:</strong> ${escapeHtml(myUsulan.catatan_pleno)}
+          </div>
+        ` : ''}
+      </div>
+    `;
+    return;
+  }
+
+  // CASE B: User is Level 1 (Tim Rendatin / Perencanaan / Admin) OR Level 3 (Ketua, Sekretaris, Komisioner)
+  // Display 5 Subbag Workflow Control Panel & Plenary Session Hub
+  const subbagKeys = ['KUL', 'RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM'];
+
+  const rowsHtml = subbagKeys.map(code => {
+    const meta = SUBBAG_META[code] || { name: code, color: '#64748b' };
+    const usulan = usulanList.find(u => u.subbag_kode === code) || {
+      subbag_kode: code,
+      status_usulan: 'DRAFT',
+      gdrive_link: '',
+      catatan_usulan: '',
+      catatan_koreksi: '',
+      catatan_pleno: ''
+    };
+
+    let badge = '<span class="badge badge-secondary" style="font-size:10.5px;">⚪ DRAFT</span>';
+    if (usulan.status_usulan === 'DIAJUKAN') {
+      badge = '<span class="badge badge-warning" style="font-size:10.5px; background:#fef3c7; color:#92400e; border:1px solid #fcd34d;">🟡 DIAJUKAN</span>';
+    } else if (usulan.status_usulan === 'VALID') {
+      badge = '<span class="badge badge-success" style="font-size:10.5px; background:#dcfce7; color:#166534; border:1px solid #86efac;">🟢 VALID PLENO</span>';
+    } else if (usulan.status_usulan === 'DIKEMBALIKAN' || usulan.status_usulan === 'DITOLAK_PLENO') {
+      badge = '<span class="badge badge-danger" style="font-size:10.5px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5;">🔴 DIKEMBALIKAN</span>';
+    }
+
+    const gdriveBtn = usulan.gdrive_link ? `
+      <a href="${escapeHtml(usulan.gdrive_link)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary" style="font-weight:600; padding: 2px 7px; font-size:11px;" title="Buka Google Drive (Excel Revisi + Scan PDF ttd)">
+        📂 Bukti Dukung ↗
+      </a>
+    ` : '<span style="color:#94a3b8; font-size:11px; font-style:italic;">Belum ada link</span>';
+
+    // Notes summary
+    let noteText = '-';
+    if ((usulan.status_usulan === 'DIKEMBALIKAN' || usulan.status_usulan === 'DITOLAK_PLENO') && (usulan.catatan_koreksi || usulan.alasan_pengembalian)) {
+      const kor = usulan.catatan_koreksi || usulan.alasan_pengembalian;
+      noteText = `<span style="color:#dc2626; font-size:11px;" title="${escapeHtml(kor)}">⚠️ Koreksi: ${escapeHtml(kor.length > 35 ? kor.slice(0, 35) + '...' : kor)}</span>`;
+    } else if (usulan.catatan_pleno) {
+      noteText = `<span style="color:#0284c7; font-size:11px;" title="${escapeHtml(usulan.catatan_pleno)}">📝 Pleno: ${escapeHtml(usulan.catatan_pleno.length > 35 ? usulan.catatan_pleno.slice(0, 35) + '...' : usulan.catatan_pleno)}</span>`;
+    } else if (usulan.catatan_usulan) {
+      noteText = `<span style="color:#475569; font-size:11px;" title="${escapeHtml(usulan.catatan_usulan)}">${escapeHtml(usulan.catatan_usulan.length > 35 ? usulan.catatan_usulan.slice(0, 35) + '...' : usulan.catatan_usulan)}</span>`;
+    }
+
+    // Actions (Only for Level 1)
+    let actionButtons = '';
+    if (isLevel1) {
+      if (usulan.status_usulan === 'DIAJUKAN') {
+        actionButtons = `
+          <button type="button" class="btn btn-xs btn-success" onclick="validasiUsulanSubbag('${code}')" title="Nyatakan berkas valid untuk dibahas di Sidang Pleno" style="padding: 2px 7px; font-size: 11px; font-weight:600;">
+            ✅ Nyatakan Valid
+          </button>
+          <button type="button" class="btn btn-xs btn-outline-danger" onclick="openModalKembalikanUsulan('${code}', '${escapeHtml(meta.name)}')" title="Kembalikan ke Operator PIC jika ada catatan besar" style="padding: 2px 7px; font-size: 11px;">
+            ↩️ Kembalikan
+          </button>
+        `;
+      } else if (usulan.status_usulan === 'VALID') {
+        actionButtons = `
+          <button type="button" class="btn btn-xs btn-primary" onclick="openModalCatatanPleno('${code}', '${escapeHtml(meta.name)}')" title="Input catatan atau putusan sidang pleno" style="padding: 2px 7px; font-size: 11px; font-weight:600;">
+            📝 Catatan Pleno
+          </button>
+          <button type="button" class="btn btn-xs btn-outline-danger" onclick="openModalKembalikanUsulan('${code}', '${escapeHtml(meta.name)}')" title="Kembalikan jika ditolak Pleno" style="padding: 2px 7px; font-size: 11px;">
+            ↩️ Kembalikan
+          </button>
+        `;
+      } else if (usulan.status_usulan === 'DIKEMBALIKAN' || usulan.status_usulan === 'DITOLAK_PLENO') {
+        actionButtons = `<span style="color:#dc2626; font-size:11px; font-weight:600;">Menunggu Koreksi</span>`;
+      } else {
+        // DRAFT
+        actionButtons = `
+          <button type="button" class="btn btn-xs btn-outline-secondary" onclick="openModalAjukanUsulan('${code}')" title="Bantu input pengajuan usulan subbag" style="padding: 2px 6px; font-size: 11px;">
+            ➕ Input Link
+          </button>
+        `;
+      }
+    } else {
+      // Level 3 (Komisioner & Sekretaris)
+      actionButtons = `<span style="color:#64748b; font-size:11px;">Read-Only</span>`;
+    }
+
+    return `
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 6px 10px; font-weight: 700;">
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${meta.color}; margin-right:6px; vertical-align:middle;"></span>
+          ${code}
+          <span style="font-weight:400; font-size:11px; color:#64748b; margin-left:4px;">(${escapeHtml(meta.name.split('(')[0].trim())})</span>
+        </td>
+        <td style="padding: 6px 10px;">${badge}</td>
+        <td style="padding: 6px 10px;">${gdriveBtn}</td>
+        <td style="padding: 6px 10px;">${noteText}</td>
+        <td style="padding: 6px 10px; text-align: right;">${actionButtons}</td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <strong style="font-size: 13px; color: #1e293b;">📋 Alur Usulan Revisi &amp; Sidang Pleno (5 Subbagian)</strong>
+          <span class="badge" style="background:#dcfce7; color:#166534; font-size:11px;">🟢 ${stats.valid || 0} Valid</span>
+          <span class="badge" style="background:#fef3c7; color:#92400e; font-size:11px;">🟡 ${stats.diajukan || 0} Diajukan</span>
+          <span class="badge" style="background:#fee2e2; color:#991b1b; font-size:11px;">🔴 ${stats.dikembalikan || 0} Dikembalikan</span>
+          <span class="badge badge-secondary" style="font-size:11px;">⚪ ${stats.draft || 0} Draft</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="openModalMatriks('SEMUA')" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+            📊 Matriks Semula-Menjadi (By System)
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadRkbWorkflowData(true)" title="Segarkan status usulan" style="padding: 4px 8px;">
+            🔄
+          </button>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; text-align: left; color: #475569; font-size: 11.5px;">
+              <th style="padding: 6px 10px; width: 230px;">Subbagian Pengusul</th>
+              <th style="padding: 6px 10px; width: 130px;">Status</th>
+              <th style="padding: 6px 10px; width: 140px;">Bukti Dukung (GDrive)</th>
+              <th style="padding: 6px 10px;">Catatan / Uraian</th>
+              <th style="padding: 6px 10px; text-align: right; width: 190px;">Aksi Rendatin &amp; Pleno</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function openModalAjukanUsulan(subbagKode) {
+  const user = AppState.currentUser || {};
+  const targetKode = subbagKode || (user.pic_subbag !== 'SEMUA' ? user.pic_subbag : 'KUL');
+  const meta = SUBBAG_META[targetKode] || { name: targetKode };
+  
+  const wfData = AppState.rkbWorkflowData;
+  const usulan = (wfData && wfData.usulan_list) ? wfData.usulan_list.find(u => u.subbag_kode === targetKode) : null;
+
+  setElVal('ajukan-subbag-kode', targetKode);
+  setElVal('ajukan-subbag-label', `${targetKode} - ${meta.name}`);
+  setElVal('ajukan-gdrive-link', usulan ? usulan.gdrive_link || '' : '');
+  setElVal('ajukan-catatan', usulan ? usulan.catatan_usulan || '' : '');
+
+  const modal = document.getElementById('modal-ajukan-usulan');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeModalAjukanUsulan() {
+  const modal = document.getElementById('modal-ajukan-usulan');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitModalAjukanUsulan() {
+  const periodeId = AppState.currentPeriode ? AppState.currentPeriode.id : null;
+  if (!periodeId) return alert('Periode anggaran aktif tidak ditemukan.');
+
+  const subbag_kode = document.getElementById('ajukan-subbag-kode')?.value;
+  const gdrive_link = document.getElementById('ajukan-gdrive-link')?.value?.trim();
+  const catatan_usulan = document.getElementById('ajukan-catatan')?.value?.trim();
+
+  if (!subbag_kode) return alert('Subbagian pengusul tidak valid.');
+  if (!gdrive_link) return alert('Tautan/Link Google Drive bukti dukung wajib diisi.');
+  if (!gdrive_link.startsWith('http://') && !gdrive_link.startsWith('https://')) {
+    return alert('Format link Google Drive harus diawali dengan http:// atau https://');
+  }
+
+  try {
+    const res = await apiFetch(`/api/rkb/${periodeId}/usulan-subbag/ajukan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subbag_kode, gdrive_link, catatan_usulan })
+    });
+    alert(res.message || 'Usulan revisi subbag berhasil diajukan.');
+    closeModalAjukanUsulan();
+    await loadRkbWorkflowData(true);
+  } catch (err) {
+    alert('Gagal mengajukan usulan: ' + err.message);
+  }
+}
+
+async function validasiUsulanSubbag(subbagKode) {
+  const periodeId = AppState.currentPeriode ? AppState.currentPeriode.id : null;
+  if (!periodeId) return;
+
+  const konfirmasi = confirm(`Nyatakan VALID usulan revisi Subbag ${subbagKode}?\n\nSetelah dinyatakan valid, usulan ini resmi masuk sebagai bahan pertimbangan Sidang Pleno Komisioner.`);
+  if (!konfirmasi) return;
+
+  try {
+    const res = await apiFetch(`/api/rkb/${periodeId}/usulan-subbag/validasi`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subbag_kode: subbagKode })
+    });
+    alert(res.message || `Usulan Subbag ${subbagKode} dinyatakan valid.`);
+    await loadRkbWorkflowData(true);
+  } catch (err) {
+    alert('Gagal memvalidasi usulan: ' + err.message);
+  }
+}
+
+function openModalKembalikanUsulan(subbagKode, subbagNama) {
+  setElVal('kembalikan-subbag-kode', subbagKode);
+  setElText('kembalikan-subbag-label', subbagNama || subbagKode);
+  setElVal('kembalikan-alasan', '');
+
+  const modal = document.getElementById('modal-kembalikan-usulan');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeModalKembalikanUsulan() {
+  const modal = document.getElementById('modal-kembalikan-usulan');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitModalKembalikanUsulan() {
+  const periodeId = AppState.currentPeriode ? AppState.currentPeriode.id : null;
+  if (!periodeId) return;
+
+  const subbag_kode = document.getElementById('kembalikan-subbag-kode')?.value;
+  const alasan = document.getElementById('kembalikan-alasan')?.value?.trim();
+
+  if (!alasan) return alert('Alasan pengembalian usulan wajib diisi untuk panduan koreksi PIC.');
+
+  try {
+    const res = await apiFetch(`/api/rkb/${periodeId}/usulan-subbag/kembalikan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subbag_kode, alasan })
+    });
+    alert(res.message || `Usulan Subbag ${subbag_kode} berhasil dikembalikan ke PIC.`);
+    closeModalKembalikanUsulan();
+    await loadRkbWorkflowData(true);
+  } catch (err) {
+    alert('Gagal mengembalikan usulan: ' + err.message);
+  }
+}
+
+function openModalCatatanPleno(subbagKode, subbagNama) {
+  const wfData = AppState.rkbWorkflowData;
+  const usulan = (wfData && wfData.usulan_list) ? wfData.usulan_list.find(u => u.subbag_kode === subbagKode) : null;
+
+  setElVal('pleno-subbag-kode', subbagKode);
+  setElText('pleno-subbag-label', subbagNama || subbagKode);
+  setElVal('pleno-catatan-text', usulan ? usulan.catatan_pleno || '' : '');
+
+  const modal = document.getElementById('modal-catatan-pleno');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeModalCatatanPleno() {
+  const modal = document.getElementById('modal-catatan-pleno');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitModalCatatanPleno() {
+  const periodeId = AppState.currentPeriode ? AppState.currentPeriode.id : null;
+  if (!periodeId) return;
+
+  const subbag_kode = document.getElementById('pleno-subbag-kode')?.value;
+  const catatan_pleno = document.getElementById('pleno-catatan-text')?.value?.trim();
+
+  try {
+    const res = await apiFetch(`/api/rkb/${periodeId}/usulan-subbag/catatan-pleno`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subbag_kode, catatan_pleno })
+    });
+    alert(res.message || 'Catatan sidang pleno berhasil disimpan.');
+    closeModalCatatanPleno();
+    await loadRkbWorkflowData(true);
+  } catch (err) {
+    alert('Gagal menyimpan catatan pleno: ' + err.message);
+  }
+}
+
+async function openModalMatriks(defaultSubbag = 'SEMUA') {
+  const periodeId = AppState.currentPeriode ? AppState.currentPeriode.id : null;
+  if (!periodeId) return alert('Pilih periode anggaran terlebih dahulu.');
+
+  const modal = document.getElementById('modal-matriks-semula-menjadi');
+  if (modal) modal.style.display = 'flex';
+
+  const select = document.getElementById('matriks-filter-subbag');
+  if (select) select.value = defaultSubbag || 'SEMUA';
+
+  const tbody = document.getElementById('matriks-table-body');
+  if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding: 24px; color: #64748b;">⏳ Memuat komparasi matriks semula-menjadi dari server...</td></tr>`;
+
+  try {
+    const data = await apiFetch(`/api/rkb/${periodeId}/matriks-semula-menjadi`);
+    AppState.matriksData = data;
+    filterMatriksModalRows();
+  } catch (err) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding: 24px; color: #ef4444;">❌ Gagal memuat matriks: ${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+}
+
+function closeModalMatriks() {
+  const modal = document.getElementById('modal-matriks-semula-menjadi');
+  if (modal) modal.style.display = 'none';
+}
+
+function filterMatriksModalRows() {
+  if (!AppState.matriksData) return;
+  const data = AppState.matriksData;
+  const selectedSubbag = document.getElementById('matriks-filter-subbag')?.value || 'SEMUA';
+  const tbody = document.getElementById('matriks-table-body');
+  const summaryPills = document.getElementById('matriks-summary-pills');
+
+  let rows = data.rows || data.details || [];
+  if (selectedSubbag !== 'SEMUA') {
+    rows = rows.filter(r => r.pic_bagian === selectedSubbag);
+  }
+
+  // Calculate totals for filtered subset
+  let totalSemula = 0;
+  let totalMenjadi = 0;
+  let countBerubah = 0;
+  let countBaru = 0;
+  let countDihapus = 0;
+
+  rows.forEach(r => {
+    totalSemula += Number(r.total_semula) || 0;
+    totalMenjadi += Number(r.total_menjadi) || 0;
+    if (r.status_perubahan === 'BERUBAH') countBerubah++;
+    else if (r.status_perubahan === 'BARU') countBaru++;
+    else if (r.status_perubahan === 'DIHAPUS') countDihapus++;
+  });
+
+  const selisih = totalMenjadi - totalSemula;
+
+  if (summaryPills) {
+    summaryPills.innerHTML = `
+      <span class="badge" style="background:#f1f5f9; color:#334155;">Semula: <b>${formatRupiah(totalSemula)}</b></span>
+      <span class="badge" style="background:#eff6ff; color:#1d4ed8;">Menjadi: <b>${formatRupiah(totalMenjadi)}</b></span>
+      <span class="badge" style="background:${selisih > 0 ? '#fef3c7' : selisih < 0 ? '#dcfce7' : '#f8fafc'}; color:${selisih > 0 ? '#b45309' : selisih < 0 ? '#15803d' : '#475569'};">
+        Selisih: <b>${selisih > 0 ? '+' : ''}${formatRupiah(selisih)}</b>
+      </span>
+      <span class="badge badge-info">${countBerubah + countBaru + countDihapus} Berubah / Disorot</span>
+    `;
+  }
+
+  if (!tbody) return;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding: 24px; color: #94a3b8;">Tidak ada data rincian belanja yang cocok dengan filter subbagian ini.</td></tr>`;
+    return;
+  }
+
+  // Render rows
+  tbody.innerHTML = rows.map((r, idx) => {
+    const meta = SUBBAG_META[r.pic_bagian] || { name: r.pic_bagian || '-', color: '#64748b' };
+    const rowSelisih = Number(r.selisih) || 0;
+    let statusBadge = '<span class="badge badge-secondary" style="font-size:10px;">TETAP</span>';
+    let rowBg = 'transparent';
+
+    if (r.status_perubahan === 'BERUBAH') {
+      statusBadge = '<span class="badge badge-warning" style="font-size:10px; background:#fef3c7; color:#92400e;">BERUBAH</span>';
+      rowBg = '#fffdf7';
+    } else if (r.status_perubahan === 'BARU') {
+      statusBadge = '<span class="badge badge-success" style="font-size:10px; background:#dcfce7; color:#166534;">BARU (+)</span>';
+      rowBg = '#f0fdf4';
+    } else if (r.status_perubahan === 'DIHAPUS') {
+      statusBadge = '<span class="badge badge-danger" style="font-size:10px; background:#fee2e2; color:#991b1b;">DIHAPUS (-)</span>';
+      rowBg = '#fef2f2';
+    }
+
+    const selisihColor = rowSelisih > 0 ? '#b45309' : rowSelisih < 0 ? '#15803d' : '#64748b';
+    const selisihPrefix = rowSelisih > 0 ? '+' : '';
+
+    return `
+      <tr style="background: ${rowBg}; border-bottom: 1px solid #f1f5f9;">
+        <td class="text-center" style="color: #94a3b8; font-size: 11px;">${idx + 1}</td>
+        <td>
+          <span class="badge" style="background: ${meta.color}15; color: ${meta.color}; border: 1px solid ${meta.color}40; font-size: 10.5px; font-weight: 700;">
+            ${escapeHtml(r.pic_bagian || '-')}
+          </span>
+        </td>
+        <td style="font-family: var(--font-mono); font-size: 11px; color: #475569;">${escapeHtml(r.kode_tahapan || '-')}</td>
+        <td>
+          <div style="font-weight: 600; color: #1e293b;">${escapeHtml(r.uraian || '')}</div>
+          ${r.status_perubahan === 'BERUBAH' ? `
+            <div style="font-size: 10.5px; color: #64748b; margin-top: 1px;">
+              Semula: ${r.vol_semula || 0} ${r.satuan_semula || ''} @ ${formatRupiah(r.harga_semula || 0)} &rarr;
+              Menjadi: ${r.vol_menjadi || 0} ${r.satuan_menjadi || ''} @ ${formatRupiah(r.harga_menjadi || 0)}
+            </div>
+          ` : ''}
+        </td>
+        <td class="text-right" style="font-family: var(--font-mono);">${formatRupiah(r.total_semula)}</td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(r.total_menjadi)}</td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: ${selisihColor};">
+          ${selisihPrefix}${formatRupiah(rowSelisih)}
+        </td>
+        <td class="text-center">${statusBadge}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
 // Global Window Exports for Inline HTML Handlers
 window.toggleSidebarCollapse = toggleSidebarCollapse;
 window.filterSidebarMenu = filterSidebarMenu;
@@ -5513,4 +6100,19 @@ window.openModalKuantitas = openModalKuantitas;
 window.closeModalKuantitas = closeModalKuantitas;
 window.submitModalKuantitas = submitModalKuantitas;
 window.navigateToMaster = navigateToMaster;
+window.renderRkbWorkflow = renderRkbWorkflow;
+window.loadRkbWorkflowData = loadRkbWorkflowData;
+window.openModalAjukanUsulan = openModalAjukanUsulan;
+window.closeModalAjukanUsulan = closeModalAjukanUsulan;
+window.submitModalAjukanUsulan = submitModalAjukanUsulan;
+window.validasiUsulanSubbag = validasiUsulanSubbag;
+window.openModalKembalikanUsulan = openModalKembalikanUsulan;
+window.closeModalKembalikanUsulan = closeModalKembalikanUsulan;
+window.submitModalKembalikanUsulan = submitModalKembalikanUsulan;
+window.openModalCatatanPleno = openModalCatatanPleno;
+window.closeModalCatatanPleno = closeModalCatatanPleno;
+window.submitModalCatatanPleno = submitModalCatatanPleno;
+window.openModalMatriks = openModalMatriks;
+window.closeModalMatriks = closeModalMatriks;
+window.filterMatriksModalRows = filterMatriksModalRows;
 

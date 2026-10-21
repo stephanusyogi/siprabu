@@ -94,6 +94,31 @@ function initDb() {
   safeAddColumn('master_desa', 'pemilih INTEGER DEFAULT 0');
   safeAddColumn('master_kecamatan', 'kode TEXT DEFAULT ""');
 
+  // 3b. Tabel & Kolom Workflow Pengajuan Usulan Revisi Subbag & Pengesahan Pleno
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS subbag_usulan_revisi (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      periode_id INTEGER NOT NULL,
+      subbag TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'DRAFT',
+      gdrive_link TEXT DEFAULT '',
+      catatan_usulan TEXT DEFAULT '',
+      alasan_pengembalian TEXT DEFAULT '',
+      catatan_pleno TEXT DEFAULT '',
+      total_semula REAL DEFAULT 0,
+      total_menjadi REAL DEFAULT 0,
+      submitted_at TEXT DEFAULT '',
+      submitted_by TEXT DEFAULT '',
+      validated_at TEXT DEFAULT '',
+      validated_by TEXT DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(periode_id, subbag),
+      FOREIGN KEY (periode_id) REFERENCES periode_anggaran(id) ON DELETE CASCADE
+    );
+  `);
+  safeAddColumn('periode_anggaran', 'gdrive_link_pleno TEXT DEFAULT ""');
+  safeAddColumn('periode_anggaran', 'catatan_pleno TEXT DEFAULT ""');
+
   // Seed nilai pemilih di master_desa jika masih 0, proporsional berdasarkan TPS (total DPT: 701.425)
   try {
     const checkPem = db.prepare('SELECT SUM(pemilih) as sumPem FROM master_desa').get()?.sumPem || 0;
@@ -268,29 +293,33 @@ function getActivePeriode() {
 
 function lockPeriode(id, details = {}) {
   const now = new Date().toISOString();
-  if (details && (details.dasar_pengesahan || details.catatan_revisi || details.nomor_ba_tapd || details.tahap_revisi)) {
-    db.prepare(`
-      UPDATE periode_anggaran SET 
-        is_locked = 1, 
-        locked_at = ?,
-        dasar_pengesahan = COALESCE(?, dasar_pengesahan),
-        tahap_revisi = COALESCE(?, tahap_revisi),
-        nomor_ba_tapd = COALESCE(?, nomor_ba_tapd),
-        tanggal_ba_tapd = COALESCE(?, tanggal_ba_tapd),
-        catatan_revisi = COALESCE(?, catatan_revisi)
-      WHERE id = ?
-    `).run(
-      now, 
-      details.dasar_pengesahan || null, 
-      details.tahap_revisi || null, 
-      details.nomor_ba_tapd || null, 
-      details.tanggal_ba_tapd || null, 
-      details.catatan_revisi || null, 
-      id
-    );
-  } else {
-    db.prepare('UPDATE periode_anggaran SET is_locked = 1, locked_at = ? WHERE id = ?').run(now, id);
-  }
+  db.prepare(`
+    UPDATE periode_anggaran SET 
+      is_locked = 1, 
+      locked_at = ?,
+      dasar_pengesahan = COALESCE(?, dasar_pengesahan),
+      tahap_revisi = COALESCE(?, tahap_revisi),
+      nomor_ba_tapd = COALESCE(?, nomor_ba_tapd),
+      tanggal_ba_tapd = COALESCE(?, tanggal_ba_tapd),
+      catatan_revisi = COALESCE(?, catatan_revisi),
+      gdrive_link_pleno = COALESCE(?, gdrive_link_pleno),
+      catatan_pleno = COALESCE(?, catatan_pleno)
+    WHERE id = ?
+  `).run(
+    now, 
+    details.dasar_pengesahan || null, 
+    details.tahap_revisi || null, 
+    details.nomor_ba_tapd || null, 
+    details.tanggal_ba_tapd || null, 
+    details.catatan_revisi || null, 
+    details.gdrive_link_pleno || null,
+    details.catatan_pleno || null,
+    id
+  );
+
+  // Tandai seluruh usulan subbag sebagai DISETUJUI_PLENO saat dokumen dikunci resmi
+  approveAllSubbagPleno(id);
+
   return getPeriodeById(id);
 }
 
@@ -1638,6 +1667,148 @@ function cleanupExpiredDownloads() {
   return expired.length;
 }
 
+// ============================================================================
+// WORKFLOW REVISI SUBBAG & PLENO
+// ============================================================================
+
+const SUBBAG_LIST = ['RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM', 'KUL'];
+
+function getSubbagUsulanList(periodeId) {
+  const pId = Number(periodeId);
+  const rows = db.prepare('SELECT * FROM subbag_usulan_revisi WHERE periode_id = ?').all(pId);
+  const rowMap = {};
+  for (const r of rows) {
+    rowMap[r.subbag] = r;
+  }
+
+  return SUBBAG_LIST.map(subbag => {
+    if (rowMap[subbag]) {
+      return rowMap[subbag];
+    }
+    try {
+      db.prepare(`
+        INSERT OR IGNORE INTO subbag_usulan_revisi (periode_id, subbag, status)
+        VALUES (?, ?, 'DRAFT')
+      `).run(pId, subbag);
+      return db.prepare('SELECT * FROM subbag_usulan_revisi WHERE periode_id = ? AND subbag = ?').get(pId, subbag);
+    } catch (e) {
+      return {
+        periode_id: pId,
+        subbag,
+        status: 'DRAFT',
+        gdrive_link: '',
+        catatan_usulan: '',
+        alasan_pengembalian: '',
+        catatan_pleno: '',
+        total_semula: 0,
+        total_menjadi: 0
+      };
+    }
+  });
+}
+
+function getSubbagUsulan(periodeId, subbag) {
+  const pId = Number(periodeId);
+  const s = (subbag || '').toUpperCase();
+  let row = db.prepare('SELECT * FROM subbag_usulan_revisi WHERE periode_id = ? AND subbag = ?').get(pId, s);
+  if (!row) {
+    try {
+      db.prepare('INSERT OR IGNORE INTO subbag_usulan_revisi (periode_id, subbag, status) VALUES (?, ?, "DRAFT")').run(pId, s);
+      row = db.prepare('SELECT * FROM subbag_usulan_revisi WHERE periode_id = ? AND subbag = ?').get(pId, s);
+    } catch (e) {}
+  }
+  return row;
+}
+
+function submitSubbagUsulan({ periodeId, subbag, gdrive_link, catatan_usulan, user, total_semula = 0, total_menjadi = 0 }) {
+  const pId = Number(periodeId);
+  const s = (subbag || '').toUpperCase();
+  if (!gdrive_link || !gdrive_link.trim().startsWith('http')) {
+    throw new Error('Tautan Google Drive bukti dukung (folder/berkas scan ttd + excel) wajib diawali http:// atau https://');
+  }
+
+  // Ensure row exists
+  getSubbagUsulan(pId, s);
+
+  const now = new Date().toISOString();
+  const submitter = user ? `${user.nama_pejabat} (${user.username})` : 'Operator';
+
+  db.prepare(`
+    UPDATE subbag_usulan_revisi
+    SET status = 'DIAJUKAN',
+        gdrive_link = ?,
+        catatan_usulan = ?,
+        alasan_pengembalian = '',
+        total_semula = ?,
+        total_menjadi = ?,
+        submitted_at = ?,
+        submitted_by = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE periode_id = ? AND subbag = ?
+  `).run(gdrive_link.trim(), (catatan_usulan || '').trim(), Number(total_semula) || 0, Number(total_menjadi) || 0, now, submitter, pId, s);
+
+  return getSubbagUsulan(pId, s);
+}
+
+function validateSubbagUsulan({ periodeId, subbag, user }) {
+  const pId = Number(periodeId);
+  const s = (subbag || '').toUpperCase();
+  const now = new Date().toISOString();
+  const validator = user ? `${user.nama_pejabat} (${user.username})` : 'Tim Rendatin';
+
+  db.prepare(`
+    UPDATE subbag_usulan_revisi
+    SET status = 'VALID_RENDATIN',
+        validated_at = ?,
+        validated_by = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE periode_id = ? AND subbag = ?
+  `).run(now, validator, pId, s);
+
+  return getSubbagUsulan(pId, s);
+}
+
+function rejectSubbagUsulan({ periodeId, subbag, alasan_pengembalian, user }) {
+  const pId = Number(periodeId);
+  const s = (subbag || '').toUpperCase();
+  if (!alasan_pengembalian || !alasan_pengembalian.trim()) {
+    throw new Error('Alasan pengembalian/catatan perbaikan wajib diisi agar operator mengetahui bagian yang perlu direvisi.');
+  }
+
+  db.prepare(`
+    UPDATE subbag_usulan_revisi
+    SET status = 'DITOLAK_PLENO',
+        alasan_pengembalian = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE periode_id = ? AND subbag = ?
+  `).run(alasan_pengembalian.trim(), pId, s);
+
+  return getSubbagUsulan(pId, s);
+}
+
+function saveCatatanPlenoSubbag({ periodeId, subbag, catatan_pleno, user }) {
+  const pId = Number(periodeId);
+  const s = (subbag || '').toUpperCase();
+  db.prepare(`
+    UPDATE subbag_usulan_revisi
+    SET catatan_pleno = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE periode_id = ? AND subbag = ?
+  `).run((catatan_pleno || '').trim(), pId, s);
+
+  return getSubbagUsulan(pId, s);
+}
+
+function approveAllSubbagPleno(periodeId) {
+  const pId = Number(periodeId);
+  db.prepare(`
+    UPDATE subbag_usulan_revisi
+    SET status = 'DISETUJUI_PLENO',
+        updated_at = CURRENT_TIMESTAMP
+    WHERE periode_id = ?
+  `).run(pId);
+}
+
 module.exports = {
   db,
   initDb,
@@ -1694,5 +1865,12 @@ module.exports = {
   getDownloadRequests,
   getDownloadRequestById,
   updateDownloadRequest,
-  cleanupExpiredDownloads
+  cleanupExpiredDownloads,
+  getSubbagUsulanList,
+  getSubbagUsulan,
+  submitSubbagUsulan,
+  validateSubbagUsulan,
+  rejectSubbagUsulan,
+  saveCatatanPlenoSubbag,
+  approveAllSubbagPleno
 };

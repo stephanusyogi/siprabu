@@ -486,6 +486,11 @@
             </div>
           </div>
 
+          <!-- WORKFLOW REVISI & PLENO CONTAINER (Subbag Status / Rendatin Monitoring) -->
+          <div id="rkb-workflow-container" style="margin-bottom: 8px;">
+            <!-- Rendered dynamically by renderRkbWorkflow() -->
+          </div>
+
           <!-- UNIFIED WORKBENCH TOOLBAR -->
           <div class="ruh-toolbar" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
             <!-- Left Controls: Pencarian, Subbag PIC, Sasaran, Lipatan -->
@@ -1927,8 +1932,13 @@
               <input type="date" id="lock-tanggal-ba" class="input-text">
             </div>
             <div class="form-group">
-              <label>Catatan Pengesahan / Keterangan:</label>
-              <textarea id="lock-catatan" class="input-textarea" rows="2" placeholder="Catatan pengesahan dokumen ini..."></textarea>
+              <label>🔗 Tautan / Link Google Drive Berkas Pleno (BA Pleno / SK):</label>
+              <input type="url" id="lock-gdrive-link" class="input-text" placeholder="https://drive.google.com/drive/folders/..." style="font-family: var(--font-mono); font-size: 13px;">
+              <small style="font-size: 11px; color: #64748b; margin-top: 2px; display: block;">Cantumkan link folder GDrive bukti sah hasil pleno, Berita Acara, atau SK penetapan.</small>
+            </div>
+            <div class="form-group">
+              <label>Catatan Pengesahan / Putusan Pleno:</label>
+              <textarea id="lock-catatan" class="input-textarea" rows="2" placeholder="Catatan hasil putusan pleno dokumen ini..."></textarea>
             </div>
           </form>
         </div>
@@ -3089,6 +3099,167 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModalBas()">Batal</button>
           <button type="button" class="btn btn-primary" onclick="submitModalBas()">💾 Simpan Akun BAS</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: AJUKAN USULAN REVISI SUBBAG (INPUT LINK GDRIVE 2 BERKAS)        -->
+    <!-- ===================================================================== -->
+    <div id="modal-ajukan-usulan" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 580px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 16px;">📤 Pengajuan Usulan Revisi Subbag</h3>
+          <button type="button" class="btn-close" onclick="closeModalAjukanUsulan()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: #166534; line-height: 1.5;">
+            <strong>📌 Petunjuk Bukti Dukung (Google Drive):</strong>
+            <ol style="margin: 6px 0 0 18px; padding: 0;">
+              <li>Pastikan rincian belanja subbag Anda di lembar kerja RKB sudah disesuaikan.</li>
+              <li>Unduh berkas Excel, cetak (print), dan mintakan tanda tangan pejabat berwenang.</li>
+              <li>Scan berkas bertanda tangan tersebut (PDF), lalu upload <b>2 berkas</b> (Excel revisi + Scan PDF ttd) ke dalam satu folder Google Drive.</li>
+              <li>Pastikan akses link Google Drive diatur ke <i>"Anyone with the link can view"</i> (Siapa saja yang memiliki link dapat melihat).</li>
+            </ol>
+          </div>
+
+          <form id="form-ajukan-usulan">
+            <input type="hidden" id="ajukan-subbag-kode">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Subbagian Pengusul:</label>
+              <input type="text" id="ajukan-subbag-label" class="input-text" readonly style="font-weight: 700; background: #f8fafc;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">🔗 Tautan / Link Google Drive Bukti Dukung (Wajib):</label>
+              <input type="url" id="ajukan-gdrive-link" class="input-text" required placeholder="https://drive.google.com/drive/folders/..." style="font-family: var(--font-mono); font-size: 13px;">
+              <small style="color: #64748b; font-size: 11px; margin-top: 2px; display: block;">Berisi 2 berkas: File Excel revisi &amp; File Scan PDF bertanda tangan resmi.</small>
+            </div>
+
+            <div class="form-group">
+              <label style="font-weight: 700;">Catatan / Uraian Justifikasi Usulan:</label>
+              <textarea id="ajukan-catatan" class="input-text" rows="3" placeholder="Jelaskan secara ringkas latar belakang pergeseran atau usulan kebutuhan anggaran ini..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalAjukanUsulan()">Batal</button>
+          <button type="button" class="btn btn-primary" onclick="submitModalAjukanUsulan()">🚀 Kirim Usulan ke Rendatin</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: KEMBALIKAN USULAN KE PIC (CATATAN BESAR / PERBAIKAN)           -->
+    <!-- ===================================================================== -->
+    <div id="modal-kembalikan-usulan" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 520px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 16px; color: #dc2626;">↩️ Kembalikan Usulan ke PIC Subbag</h3>
+          <button type="button" class="btn-close" onclick="closeModalKembalikanUsulan()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <form id="form-kembalikan-usulan">
+            <input type="hidden" id="kembalikan-subbag-kode">
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 12.5px; color: #991b1b;">
+              Usulan dari Subbagian <strong id="kembalikan-subbag-label">SUBBAG</strong> akan dikembalikan ke meja operator untuk diperbaiki. Status usulan akan berubah menjadi <b>DIKEMBALIKAN (PERLU KOREKSI)</b>.
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 700;">Catatan / Alasan Pengembalian (Wajib):</label>
+              <textarea id="kembalikan-alasan" class="input-text" rows="4" required placeholder="Tuliskan poin-poin yang harus diperbaiki oleh Operator PIC (misal: SBM honor melebihi batas, kode akun tidak sesuai, kelengkapan berkas GDrive kurang lengkap)..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalKembalikanUsulan()">Batal</button>
+          <button type="button" class="btn btn-danger" onclick="submitModalKembalikanUsulan()">↩️ Kembalikan ke PIC Sekarang</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: CATATAN HASIL PLENO PER SUBBAG                                 -->
+    <!-- ===================================================================== -->
+    <div id="modal-catatan-pleno" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 520px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 16px;">📝 Catatan Hasil Sidang Pleno</h3>
+          <button type="button" class="btn-close" onclick="closeModalCatatanPleno()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <form id="form-catatan-pleno">
+            <input type="hidden" id="pleno-subbag-kode">
+            <div style="margin-bottom: 12px; font-size: 13px; font-weight: 600; color: #1e3a8a;">
+              Subbagian: <span id="pleno-subbag-label" class="badge badge-primary">SUBBAG</span>
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 700;">Arahan / Catatan Putusan Pleno Komisioner:</label>
+              <textarea id="pleno-catatan-text" class="input-text" rows="4" placeholder="Tuliskan arahan sidang pleno terkait subbag ini (misal: disetujui dengan penyesuaian volume konsumsi rapat, pagu final Rp X)..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalCatatanPleno()">Batal</button>
+          <button type="button" class="btn btn-primary" onclick="submitModalCatatanPleno()">💾 Simpan Catatan Pleno</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: MATRIKS KOMPARASI SEMULA - MENJADI (BY SYSTEM)                 -->
+    <!-- ===================================================================== -->
+    <div id="modal-matriks-semula-menjadi" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 980px; width: 95%;">
+        <div class="modal-header">
+          <div>
+            <h3 style="margin: 0; font-size: 16px;">📊 Matriks Perubahan: Semula &rarr; Menjadi</h3>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+              Dihitung otomatis oleh sistem berdasarkan Dokumen Baseline Terkunci vs Usulan Revisi Aktif
+            </div>
+          </div>
+          <button type="button" class="btn-close" onclick="closeModalMatriks()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px; max-height: 70vh; overflow-y: auto;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 12px; font-weight: 700;">Subbagian:</span>
+              <select id="matriks-filter-subbag" class="input-select input-sm" onchange="filterMatriksModalRows()" style="font-weight: 600; min-width: 180px;">
+                <option value="SEMUA">-- Semua 5 Subbagian --</option>
+                <option value="RENDATIN">RENDATIN</option>
+                <option value="TEKNIS">TEKNIS</option>
+                <option value="HUKUM">HUKUM</option>
+                <option value="PARSDM">PARSDM</option>
+                <option value="KUL">KUL</option>
+              </select>
+            </div>
+            <div id="matriks-summary-pills" style="display: flex; gap: 8px; font-size: 12px;">
+              <!-- Summary badges rendered via JS -->
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-striped table-hover" style="font-size: 12px;">
+              <thead>
+                <tr>
+                  <th style="width: 35px;" class="text-center">No</th>
+                  <th style="width: 80px;">Subbag</th>
+                  <th style="width: 100px;">Akun / Kode</th>
+                  <th>Uraian Komponen RKB</th>
+                  <th class="text-right" style="width: 125px;">Total Semula</th>
+                  <th class="text-right" style="width: 125px;">Total Menjadi</th>
+                  <th class="text-right" style="width: 125px;">Selisih (+/-)</th>
+                  <th class="text-center" style="width: 95px;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="matriks-table-body">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between;">
+          <span style="font-size: 11px; color: var(--text-muted);">* Komparasi dihitung berdasarkan selisih per baris rincian belanja secara otomatis oleh sistem.</span>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeModalMatriks()">Tutup</button>
         </div>
       </div>
     </div>
