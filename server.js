@@ -31,6 +31,7 @@ const {
   deleteUser,
   toggleUserStatus,
   authenticateUser,
+  authenticateGoogleUser,
   getMasters,
   updateSettings,
   syncPrimaryKuantitas,
@@ -262,6 +263,69 @@ const server = http.createServer(async (req, res) => {
         token,
         user
       });
+    }
+
+    // 1a. GOOGLE OAUTH: GET CONFIG
+    if (pathname === '/api/auth/google/config' && method === 'GET') {
+      const settings = getMasters().settings || {};
+      const clientId = (settings.google_client_id || process.env.GOOGLE_CLIENT_ID || '').trim();
+      const enabled = (settings.google_auth_enabled === '1' || Boolean(clientId));
+      return sendJson(res, 200, {
+        enabled,
+        client_id: clientId,
+        allowed_domains: settings.google_allowed_domains || 'kpu.go.id,gmail.com'
+      });
+    }
+
+    // 1b. GOOGLE OAUTH: VERIFIKASI TOKEN ID GOOGLE
+    if (pathname === '/api/auth/google' && method === 'POST') {
+      const { credential } = await parseJsonBody(req);
+      if (!credential) {
+        return sendJson(res, 400, { error: 'Kredensial token Google wajib dikirimkan.' });
+      }
+
+      try {
+        const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`;
+        const googleRes = await fetch(verifyUrl);
+        if (!googleRes.ok) {
+          return sendJson(res, 401, { error: 'Token Google tidak valid atau telah kedaluwarsa.' });
+        }
+
+        const googlePayload = await googleRes.json();
+        const email = (googlePayload.email || '').trim().toLowerCase();
+        if (!email) {
+          return sendJson(res, 400, { error: 'Gagal membaca email dari akun Google Anda.' });
+        }
+
+        const settings = getMasters().settings || {};
+        const allowedDomainsRaw = (settings.google_allowed_domains || '').trim();
+        if (allowedDomainsRaw) {
+          const allowed = allowedDomainsRaw.split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+          const emailDomain = email.split('@')[1] || '';
+          if (allowed.length > 0 && !allowed.includes(emailDomain)) {
+            return sendJson(res, 403, { 
+              error: `Domain email "@${emailDomain}" tidak diizinkan. Hanya email domain: ${allowed.join(', ')}.` 
+            });
+          }
+        }
+
+        const user = authenticateGoogleUser(googlePayload);
+        if (!user) {
+          return sendJson(res, 403, {
+            error: `Akun Google (${email}) belum terdaftar sebagai operator atau pejabat KPU. Silakan hubungi Administrator Satker.`
+          });
+        }
+
+        const token = createToken(user);
+        return sendJson(res, 200, {
+          success: true,
+          token,
+          user,
+          message: `Selamat datang, ${user.nama_pejabat}! Berhasil masuk via Google.`
+        });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Gagal memverifikasi akun Google: ' + err.message });
+      }
     }
 
     // 1b. SWITCH USER CEPAT (UNTUK SIMULASI / PENGUJIAN WEWENANG)

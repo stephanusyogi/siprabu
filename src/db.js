@@ -143,6 +143,43 @@ function initDb() {
     db.prepare("UPDATE satker_users SET pic_subbag = 'KUL' WHERE LOWER(pic_subbag) IN ('keuangan', 'kul')").run();
   } catch (e) {}
 
+  // 4. Integrasi Kolom Google Sign-In & Email Resmi pada satker_users
+  safeAddColumn('satker_users', 'email TEXT');
+  safeAddColumn('satker_users', 'google_id TEXT');
+  safeAddColumn('satker_users', 'avatar_url TEXT');
+
+  // Seed default email operator & pejabat satker jika kosong
+  try {
+    const defaultEmails = {
+      emenje: 'noorjihan1184@gmail.com',
+      perencanaan: 'rendatin@kpu-ngawi.go.id',
+      staf_perencanaan: 'staf_rendatin@kpu-ngawi.go.id',
+      op_perencanaan: 'op_rendatin@kpu-ngawi.go.id',
+      admin: 'admin@kpu-ngawi.go.id',
+      teknis: 'teknis@kpu-ngawi.go.id',
+      hukum: 'hukum@kpu-ngawi.go.id',
+      parmas: 'parsdm@kpu-ngawi.go.id',
+      kul: 'keuangan@kpu-ngawi.go.id',
+      kpa: 'kpa@kpu-ngawi.go.id',
+      ppkom: 'ppkom@kpu-ngawi.go.id',
+      bendahara: 'bendahara@kpu-ngawi.go.id',
+      sekretaris: 'sekretaris@kpu-ngawi.go.id',
+      komisioner: 'komisioner@kpu-ngawi.go.id'
+    };
+    const updEmail = db.prepare('UPDATE satker_users SET email = ? WHERE username = ? AND (email IS NULL OR email = "")');
+    for (const [uname, em] of Object.entries(defaultEmails)) {
+      updEmail.run(em, uname);
+    }
+  } catch (e) {}
+
+  // Default settings untuk integrasi Google Sign-In
+  try {
+    const sIns = db.prepare('INSERT OR IGNORE INTO settings_satker (key, value) VALUES (?, ?)');
+    sIns.run('google_client_id', process.env.GOOGLE_CLIENT_ID || '');
+    sIns.run('google_auth_enabled', process.env.GOOGLE_CLIENT_ID ? '1' : '0');
+    sIns.run('google_allowed_domains', 'kpu.go.id,gmail.com');
+  } catch (e) {}
+
   // Otomatis jalankan sinkronisasi SSOT (Master Wilayah, DPT, Paslon -> master_kuantitas) saat inisialisasi
   try {
     syncPrimaryKuantitas();
@@ -688,11 +725,11 @@ function reorderRow(periodeId, rowId, direction) {
 // ============================================================================
 
 function getUsers() {
-  return db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active FROM satker_users ORDER BY level ASC, id ASC').all();
+  return db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active FROM satker_users ORDER BY level ASC, id ASC').all();
 }
 
 function getUserById(id) {
-  return db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active FROM satker_users WHERE id = ?').get(id);
+  return db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active FROM satker_users WHERE id = ?').get(id);
 }
 
 function saveUser(userData) {
@@ -701,6 +738,7 @@ function saveUser(userData) {
   const password = (userData.password || '').trim();
   const nama_pejabat = (userData.nama_pejabat || '').trim();
   const jabatan = (userData.jabatan || '').trim();
+  const email = (userData.email || '').trim().toLowerCase();
   const role_id = (userData.role_id || 'op_teknis').trim();
   const level = Number(userData.level) !== undefined ? Number(userData.level) : 2;
   const pic_subbag = (userData.pic_subbag || 'SEMUA').trim();
@@ -727,9 +765,9 @@ function saveUser(userData) {
 
     db.prepare(`
       UPDATE satker_users
-      SET username = ?, password = ?, nama_pejabat = ?, jabatan = ?, role_id = ?, level = ?, pic_subbag = ?, is_active = ?
+      SET username = ?, password = ?, nama_pejabat = ?, jabatan = ?, email = ?, role_id = ?, level = ?, pic_subbag = ?, is_active = ?
       WHERE id = ?
-    `).run(username, finalPass, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active, id);
+    `).run(username, finalPass, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active, id);
 
     return getUserById(id);
   } else {
@@ -737,9 +775,9 @@ function saveUser(userData) {
     if (exist) throw new Error(`Username "${username}" sudah terdaftar.`);
 
     const res = db.prepare(`
-      INSERT INTO satker_users (username, password, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(username, password, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active);
+      INSERT INTO satker_users (username, password, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(username, password, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active);
 
     return getUserById(res.lastInsertRowid);
   }
@@ -784,7 +822,57 @@ function authenticateUser(username, password) {
     jabatan: u.jabatan,
     role_id: u.role_id,
     level: u.level,
-    pic_subbag: u.pic_subbag
+    pic_subbag: u.pic_subbag,
+    email: u.email || '',
+    avatar_url: u.avatar_url || ''
+  };
+}
+
+function authenticateGoogleUser(googleProfile) {
+  const email = (googleProfile.email || '').trim().toLowerCase();
+  const sub = String(googleProfile.sub || '');
+  if (!email && !sub) return null;
+
+  // 1. Cari berdasarkan google_id atau email
+  let u = null;
+  if (email && sub) {
+    u = db.prepare('SELECT * FROM satker_users WHERE (google_id = ? OR LOWER(email) = ?) AND is_active = 1').get(sub, email);
+  } else if (email) {
+    u = db.prepare('SELECT * FROM satker_users WHERE LOWER(email) = ? AND is_active = 1').get(email);
+  }
+
+  // 2. Fallback pencocokan khusus developer / lead architect emenje
+  if (!u && email) {
+    if (email === 'noorjihan1184@gmail.com' || email === 'emenje@kpu-ngawi.go.id') {
+      u = db.prepare("SELECT * FROM satker_users WHERE username = 'emenje' AND is_active = 1").get();
+    }
+  }
+
+  if (!u) return null;
+
+  // Tautkan data google_id, email, atau avatar jika belum ada
+  try {
+    if (!u.google_id && sub) {
+      db.prepare('UPDATE satker_users SET google_id = ? WHERE id = ?').run(sub, u.id);
+    }
+    if ((!u.email || u.email === '') && email) {
+      db.prepare('UPDATE satker_users SET email = ? WHERE id = ?').run(email, u.id);
+    }
+    if (googleProfile.picture) {
+      db.prepare('UPDATE satker_users SET avatar_url = ? WHERE id = ?').run(googleProfile.picture, u.id);
+    }
+  } catch (e) {}
+
+  return {
+    id: u.id,
+    username: u.username,
+    nama_pejabat: u.nama_pejabat,
+    jabatan: u.jabatan,
+    role_id: u.role_id,
+    level: u.level,
+    pic_subbag: u.pic_subbag,
+    email: u.email || email,
+    avatar_url: googleProfile.picture || u.avatar_url || ''
   };
 }
 
@@ -1349,6 +1437,7 @@ module.exports = {
   deleteUser,
   toggleUserStatus,
   authenticateUser,
+  authenticateGoogleUser,
   getMasters,
   updateSettings,
   syncPrimaryKuantitas,

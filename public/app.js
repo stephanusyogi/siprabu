@@ -111,6 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     startServerClockTicker();
     await initAuth();
+    await initGoogleAuth();
     await loadMasters();
     await loadPeriodes();
     await loadRkbData();
@@ -288,6 +289,126 @@ async function switchUser(username) {
 function logout() {
   localStorage.removeItem('siprabu_token');
   location.reload();
+}
+
+// ============================================================================
+// MODUL INTEGRASI GOOGLE SIGN-IN (OAUTH 2.0) & MODAL LOGIN
+// ============================================================================
+
+let googleAuthConfig = { enabled: false, client_id: '', allowed_domains: '' };
+
+async function initGoogleAuth() {
+  try {
+    const res = await apiFetch('/api/auth/google/config');
+    googleAuthConfig = res;
+    renderGoogleButton();
+  } catch (err) {
+    console.warn('Gagal memuat konfigurasi Google Auth:', err.message);
+  }
+}
+
+function renderGoogleButton() {
+  const container = document.getElementById('google-btn-wrapper');
+  const hint = document.getElementById('google-hint');
+  if (!container) return;
+
+  if (googleAuthConfig.client_id && window.google && window.google.accounts && window.google.accounts.id) {
+    container.innerHTML = '';
+    try {
+      google.accounts.id.initialize({
+        client_id: googleAuthConfig.client_id,
+        callback: handleGoogleSignInCallback,
+        auto_select: false
+      });
+      google.accounts.id.renderButton(container, {
+        theme: 'outline',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        width: 320
+      });
+      if (hint) {
+        hint.innerHTML = `Domain diizinkan: <strong>${escapeHtml(googleAuthConfig.allowed_domains || 'kpu.go.id, gmail.com')}</strong>`;
+      }
+    } catch (e) {
+      console.warn('GSI renderButton error:', e);
+    }
+  } else if (!googleAuthConfig.client_id) {
+    container.innerHTML = `
+      <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 10px 14px; border-radius: 8px; font-size: 11.5px; color: #64748b; width: 100%;">
+        ℹ️ Google Client ID belum diatur.<br>
+        Atur di menu <strong>Database ➔ Pengaturan Satker KPU</strong> untuk mengaktifkan Google Sign-In.
+      </div>
+    `;
+    if (hint) hint.innerHTML = '';
+  }
+}
+
+async function handleGoogleSignInCallback(response) {
+  if (!response || !response.credential) {
+    showToast('Gagal menerima token kredensial Google.', 'error');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential: response.credential })
+    });
+
+    if (res.success && res.token) {
+      localStorage.setItem('siprabu_token', res.token);
+      AppState.currentUser = res.user;
+      updateUserNavbar();
+      closeLoginModal();
+      showToast(res.message || `Selamat datang, ${res.user.nama_pejabat}!`, 'success');
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } else {
+      showToast(res.error || 'Login Google gagal.', 'error');
+      alert(res.error || 'Login Google gagal.');
+    }
+  } catch (err) {
+    showToast(err.message || 'Terjadi kesalahan saat verifikasi akun Google.', 'error');
+    alert(err.message);
+  }
+}
+
+function openLoginModal() {
+  const m = document.getElementById('modal-login');
+  if (m) {
+    m.style.display = 'flex';
+    renderGoogleButton();
+  }
+}
+
+function closeLoginModal() {
+  const m = document.getElementById('modal-login');
+  if (m) m.style.display = 'none';
+}
+
+async function submitLocalLoginForm() {
+  const username = document.getElementById('login-modal-username')?.value?.trim();
+  const password = document.getElementById('login-modal-password')?.value;
+
+  if (!username || !password) {
+    showToast('Username dan kata sandi wajib diisi.', 'error');
+    return;
+  }
+
+  try {
+    await performLogin(username, password);
+    closeLoginModal();
+    showToast(`Berhasil login sebagai ${AppState.currentUser.nama_pejabat}!`, 'success');
+    await loadMasters();
+    await loadRkbData();
+    renderAllViews();
+  } catch (err) {
+    showToast(err.message || 'Username atau kata sandi salah.', 'error');
+    alert(err.message || 'Username atau kata sandi salah.');
+  }
 }
 
 // ============================================================================
@@ -4783,6 +4904,11 @@ function renderSettings() {
   setElVal('set-bp-nama', s.bendahara_nama);
   setElVal('set-bp-nip', s.bendahara_nip);
   setElVal('set-kota-ttd', s.kota_penandatangan || 'NGAWI');
+
+  // Google OAuth Settings
+  setElVal('set-google-client-id', s.google_client_id || '');
+  setElVal('set-google-auth-enabled', s.google_auth_enabled || '0');
+  setElVal('set-google-allowed-domains', s.google_allowed_domains || 'kpu.go.id, gmail.com');
 }
 
 async function saveSatkerSettings() {
@@ -4799,7 +4925,10 @@ async function saveSatkerSettings() {
     ppkom_nip: document.getElementById('set-ppkom-nip')?.value || '',
     bendahara_nama: document.getElementById('set-bp-nama')?.value || '',
     bendahara_nip: document.getElementById('set-bp-nip')?.value || '',
-    kota_penandatangan: document.getElementById('set-kota-ttd')?.value || 'NGAWI'
+    kota_penandatangan: document.getElementById('set-kota-ttd')?.value || 'NGAWI',
+    google_client_id: document.getElementById('set-google-client-id')?.value || '',
+    google_auth_enabled: document.getElementById('set-google-auth-enabled')?.value || '0',
+    google_allowed_domains: document.getElementById('set-google-allowed-domains')?.value || 'kpu.go.id, gmail.com'
   };
 
   try {
@@ -4809,6 +4938,7 @@ async function saveSatkerSettings() {
     });
     alert(res.message);
     await loadMasters();
+    await initGoogleAuth();
     renderAllViews();
   } catch (err) {
     alert('Gagal menyimpan pengaturan: ' + err.message);
@@ -4894,6 +5024,7 @@ function renderUsersTable() {
         </td>
         <td>
           <strong style="color:#0f172a;">${escHtml(u.nama_pejabat)}</strong>
+          ${u.email ? `<div style="font-size:11px;color:#0284c7;font-family:var(--font-mono);margin-top:2px;">📧 ${escHtml(u.email)}</div>` : ''}
         </td>
         <td style="color:#475569;">${escHtml(u.jabatan || '-')}</td>
         <td>${lvlBadge}</td>
@@ -4926,6 +5057,7 @@ function openAddUserModal() {
   setElVal('modal-user-password', '');
   setElVal('modal-user-nama', '');
   setElVal('modal-user-jabatan', '');
+  setElVal('modal-user-email', '');
   setElVal('modal-user-role', 'op_teknis');
   setElVal('modal-user-level', '2');
   setElVal('modal-user-pic', 'TEKNIS');
@@ -4948,6 +5080,7 @@ function openEditUserModal(userId) {
   setElVal('modal-user-password', '');
   setElVal('modal-user-nama', user.nama_pejabat);
   setElVal('modal-user-jabatan', user.jabatan || '');
+  setElVal('modal-user-email', user.email || '');
   setElVal('modal-user-role', user.role_id || 'op_teknis');
   setElVal('modal-user-level', String(user.level));
   let userPic = (user.pic_subbag || 'SEMUA').toUpperCase();
@@ -5008,6 +5141,7 @@ async function submitUserForm() {
     password: document.getElementById('modal-user-password')?.value || undefined,
     nama_pejabat: document.getElementById('modal-user-nama')?.value,
     jabatan: document.getElementById('modal-user-jabatan')?.value,
+    email: document.getElementById('modal-user-email')?.value?.trim()?.toLowerCase() || '',
     role_id: document.getElementById('modal-user-role')?.value,
     level: Number(document.getElementById('modal-user-level')?.value),
     pic_subbag: document.getElementById('modal-user-pic')?.value,
