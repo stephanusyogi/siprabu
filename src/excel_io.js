@@ -1,7 +1,7 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
  * Modul Export Excel (XLSX) Multi-Sheet Resmi (SAKTI FA 16 Detail Architecture)
- * Pengembang: emenje (Telegram: 0852-2869-9640)
+ * Pengembang Resmi: emenje
  */
 
 const ExcelJS = require('exceljs');
