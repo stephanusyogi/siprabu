@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SI-PRABU v3.0 | KPU Kabupaten Ngawi</title>
-  <link rel="stylesheet" href="/style.css?v=3.2.0">
+  <link rel="stylesheet" href="/style.css?v=3.2.2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -96,11 +96,35 @@
             </div>
           </div>
 
-          <!-- 3. DATABASE REFERENSI (SSOT) -->
+          <!-- 3. REFERENSI (SSOT, SBM, BAS) -->
+          <div class="sakti-tree-group" id="folder-referensi">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-referensi', event)">
+              <span class="sakti-folder-label">
+                <span>📁 Referensi</span>
+              </span>
+              <span class="sakti-chevron">▾</span>
+            </button>
+            <div class="sakti-tree-children">
+              <button class="nav-item" data-view="view-db-kuantitas" onclick="switchView('view-db-kuantitas')">
+                <span class="icon">📐</span>
+                <span class="label">Parameter & Kuantitas SSOT</span>
+              </button>
+              <button class="nav-item" data-view="view-db-sbm" onclick="switchView('view-db-sbm')">
+                <span class="icon">💰</span>
+                <span class="label">Standar Biaya Masukan (SBM)</span>
+              </button>
+              <button class="nav-item" data-view="view-db-bas" onclick="switchView('view-db-bas')">
+                <span class="icon">💳</span>
+                <span class="label">Bagan Akun Standar (BAS)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 4. DATABASE (3 MASTER PRIMER + PENGATURAN SATKER) -->
           <div class="sakti-tree-group" id="folder-database">
             <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-database', event)">
               <span class="sakti-folder-label">
-                <span>📁 Database Referensi (SSOT)</span>
+                <span>📁 Database</span>
               </span>
               <span class="sakti-chevron">▾</span>
             </button>
@@ -117,22 +141,6 @@
                 <span class="icon">🗳️</span>
                 <span class="label">Master Pasangan Calon (Paslon)</span>
               </button>
-              <button class="nav-item" data-view="view-db-kuantitas" onclick="switchView('view-db-kuantitas')">
-                <span class="icon">📐</span>
-                <span class="label">Parameter & Kuantitas SSOT</span>
-              </button>
-              <button class="nav-item" data-view="view-db-sbm" onclick="switchView('view-db-sbm')">
-                <span class="icon">💰</span>
-                <span class="label">Standar Biaya Masukan (SBM)</span>
-              </button>
-              <button class="nav-item" data-view="view-db-bas" onclick="switchView('view-db-bas')">
-                <span class="icon">💳</span>
-                <span class="label">Bagan Akun Standar (BAS)</span>
-              </button>
-              <button class="nav-item" data-view="view-db-regulasi" onclick="switchView('view-db-regulasi')">
-                <span class="icon">📜</span>
-                <span class="label">Regulasi & Dasar Hukum</span>
-              </button>
               <button class="nav-item" data-view="view-db-settings" onclick="switchView('view-db-settings')">
                 <span class="icon">⚙️</span>
                 <span class="label">Pengaturan Satker KPU</span>
@@ -140,20 +148,34 @@
             </div>
           </div>
 
-          <!-- 4. PANDUAN -->
-          <button class="nav-item" data-view="view-panduan" onclick="switchView('view-panduan')">
-            <span class="icon">📖</span>
-            <span class="label">Panduan</span>
-          </button>
+          <!-- 5. PANDUAN -->
+          <div class="sakti-tree-group" id="folder-panduan">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-panduan', event)">
+              <span class="sakti-folder-label">
+                <span>📁 Panduan</span>
+              </span>
+              <span class="sakti-chevron">▾</span>
+            </button>
+            <div class="sakti-tree-children">
+              <button class="nav-item" data-view="view-db-regulasi" onclick="switchView('view-db-regulasi')">
+                <span class="icon">📜</span>
+                <span class="label">Regulasi & Dasar Hukum</span>
+              </button>
+              <button class="nav-item" data-view="view-panduan" onclick="switchView('view-panduan')">
+                <span class="icon">📖</span>
+                <span class="label">Panduan Penggunaan Sistem</span>
+              </button>
+            </div>
+          </div>
 
-          <!-- 5. MONITORING UNDUHAN -->
+          <!-- 6. MONITORING UNDUHAN -->
           <button class="nav-item" data-view="view-monitoring" onclick="switchView('view-monitoring')">
             <span class="icon">📥</span>
             <span class="label">Monitoring Unduhan</span>
             <span class="badge badge-success badge-sm" id="badge-monitoring-count">0</span>
           </button>
 
-          <!-- 6. MANAJEMEN USER -->
+          <!-- 7. MANAJEMEN USER -->
           <button class="nav-item" data-view="view-users" onclick="switchView('view-users')" id="nav-item-users">
             <span class="icon">👥</span>
             <span class="label">Manajemen User</span>
@@ -2754,6 +2776,6 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.2.0"></script>
+    <script src="/app.js?v=3.2.2"></script>
   </body>
 </html>

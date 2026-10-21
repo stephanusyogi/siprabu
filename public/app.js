@@ -469,7 +469,12 @@ function switchView(viewId) {
   AppState.activeView = viewId;
   document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-view') === viewId);
+    const isActive = btn.getAttribute('data-view') === viewId;
+    btn.classList.toggle('active', isActive);
+    if (isActive) {
+      const parentGroup = btn.closest('.sakti-tree-group');
+      if (parentGroup) parentGroup.classList.remove('collapsed');
+    }
   });
 
   const targetView = document.getElementById(viewId);
