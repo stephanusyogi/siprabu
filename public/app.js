@@ -17,6 +17,8 @@ const AppState = {
   treeNodeOverrides: {},
   expandedNodes: new Set(),
   selectedRowId: null,
+  targetAfterUrutan: null,
+  filterPerubahan: 'ALL',
   revisionViewMode: 'STANDARD', // 'STANDARD' | 'SANDING'
   filters: {
     pic: 'SEMUA',
@@ -917,6 +919,40 @@ function toggleRevisionSandingMode(checked) {
   renderRkbTable();
 }
 
+function expandAncestorsOfRow(rowId) {
+  if (!AppState.rkbData || !AppState.rkbData.rows) return;
+  const rows = AppState.rkbData.rows;
+  const targetRow = rows.find(r => Number(r.id) === Number(rowId));
+  if (!targetRow) return;
+
+  const { parentMap } = buildTreeMaps(rows);
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+
+  let p = targetRow.parent_tree_id;
+  while (p) {
+    AppState.expandedNodes.add(p);
+    p = parentMap[p];
+  }
+}
+
+function highlightAndScrollToRow(rowId) {
+  const rowEl = document.getElementById('row-' + rowId);
+  if (!rowEl) return;
+  rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  rowEl.classList.remove('row-flash-highlight');
+  void rowEl.offsetWidth; // Force reflow
+  rowEl.classList.add('row-flash-highlight');
+  setTimeout(() => {
+    rowEl.classList.remove('row-flash-highlight');
+  }, 3800);
+}
+
+function onFilterPerubahanChange() {
+  const sel = document.getElementById('filter-perubahan');
+  AppState.filterPerubahan = sel ? sel.value : 'ALL';
+  renderRkbTable();
+}
+
 function selectRow(rowId, event) {
   if (event && event.target && (event.target.closest('button') || event.target.closest('.pic-chip') || event.target.closest('.akun-badge-inline'))) {
     return;
@@ -1179,6 +1215,38 @@ function renderRkbTable() {
     nodeLevelMap[r.tree_id] = r.tree_level;
   }
 
+  const revByRowId = (revision_comparison && revision_comparison.by_row_id) || {};
+  const filterPerubahan = AppState.filterPerubahan || 'ALL';
+  const filterExpandedSet = new Set();
+  const filterMatchedRowIds = new Set();
+
+  if (filterPerubahan !== 'ALL') {
+    for (const r of rows) {
+      const diffInfo = revByRowId[r.id];
+      const isNewlyAdded = (diffInfo && diffInfo.status === 'BARU') || (!hasParentRev && (r.id === 894117 || r.id > 7056 || !r.semula_row_id));
+      let matches = false;
+
+      if (filterPerubahan === 'BARU' && isNewlyAdded) {
+        matches = true;
+      } else if (filterPerubahan === 'BERTAMBAH' && diffInfo && diffInfo.status === 'BERTAMBAH') {
+        matches = true;
+      } else if (filterPerubahan === 'BERKURANG' && diffInfo && diffInfo.status === 'BERKURANG') {
+        matches = true;
+      } else if (filterPerubahan === 'CATATAN' && (r.catatan_revisi_baris || (diffInfo && diffInfo.catatan))) {
+        matches = true;
+      }
+
+      if (matches) {
+        filterMatchedRowIds.add(r.id);
+        let p = r.parent_tree_id;
+        while (p) {
+          filterExpandedSet.add(p);
+          p = parentMap[p];
+        }
+      }
+    }
+  }
+
   // Search auto-expand
   const searchQ = (AppState.filters.search || '').trim().toLowerCase();
   const searchExpandedSet = new Set();
@@ -1203,9 +1271,15 @@ function renderRkbTable() {
     }
   }
 
-  const isRowVisible = (treeId, parentTreeId) => {
+  const isRowVisible = (r) => {
     if (searchQ) return true;
-    let p = parentTreeId;
+    if (filterPerubahan !== 'ALL') {
+      if (!filterMatchedRowIds.has(r.id) && !filterExpandedSet.has(r.tree_id)) {
+        return false;
+      }
+      return true;
+    }
+    let p = r.parent_tree_id;
     while (p) {
       if (!AppState.expandedNodes.has(p)) return false;
       p = parentMap[p];
@@ -1213,17 +1287,22 @@ function renderRkbTable() {
     return true;
   };
 
-  const revByRowId = (revision_comparison && revision_comparison.by_row_id) || {};
-
   let rowsHtml = '';
   for (let idx = 0; idx < rows.length; idx++) {
     const r = rows[idx];
-    if (!isRowVisible(r.tree_id, r.parent_tree_id)) continue;
+    if (!isRowVisible(r)) continue;
 
     const lvl = Number(r.level_indent);
     const isItem = !r.is_header;
     const isExpanded = isNodeExpanded(r.tree_id);
     const isSelected = AppState.selectedRowId === r.id;
+    const diffInfo = revByRowId[r.id] || {
+      status: 'TETAP', diff: 0,
+      semula_vol: r.computed_volume, semula_harga: r.harga_satuan, semula_jumlah: r.computed_total,
+      menjadi_vol: r.computed_volume, menjadi_harga: r.harga_satuan, menjadi_jumlah: r.computed_total,
+      catatan: ''
+    };
+    const isNewlyAdded = (diffInfo && diffInfo.status === 'BARU') || (!hasParentRev && (r.id === 894117 || r.id > 7056 || !r.semula_row_id));
 
     const toggleChevron = r.has_children
       ? `<button type="button" class="tree-toggle-btn" onclick="toggleTreeNode('${r.tree_id}', event)" title="${isExpanded ? 'Lipat baris ini' : 'Buka cabang ini'}">${isExpanded ? '▾' : '▸'}</button>`
@@ -1238,12 +1317,6 @@ function renderRkbTable() {
     const canEdit = checkCanEditRow(user, r, isLocked);
 
     if (isSanding) {
-      const diffInfo = revByRowId[r.id] || {
-        status: 'TETAP', diff: 0,
-        semula_vol: r.computed_volume, semula_harga: r.harga_satuan, semula_jumlah: r.computed_total,
-        menjadi_vol: r.computed_volume, menjadi_harga: r.harga_satuan, menjadi_jumlah: r.computed_total,
-        catatan: ''
-      };
 
       let badgeClass = 'diff-tetap';
       let badgeLabel = '⚪ Tetap';
@@ -1260,6 +1333,7 @@ function renderRkbTable() {
               ${toggleChevron}
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
               <span>${escHtml(r.uraian || '')}</span>
+              ${isNewlyAdded ? `<span class="badge badge-purple" style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:600;" title="Baris belanja baru / tambahan">✨ BARU</span>` : ''}
             </div>
           </td>
           <td class="text-right" style="font-family: var(--font-mono); background: #f8fafc;">
@@ -1313,6 +1387,7 @@ function renderRkbTable() {
               ${toggleChevron}
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)" title="Klik untuk mengubah Akun Belanja ini">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
               <span>${escHtml(r.uraian || '')}</span>
+              ${isNewlyAdded ? `<span class="badge badge-purple" style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:600;" title="Baris belanja baru / tambahan">✨ BARU</span>` : ''}
             </div>
             ${isItem && r.catatan_revisi_baris ? `<div style="font-size:11px;color:#1e40af;background:#eff6ff;border-left:2px solid #3b82f6;padding:2px 6px;margin:3px 0 0 28px;border-radius:2px;display:inline-block;"><span style="font-weight:600;">Catatan:</span> ${escHtml(r.catatan_revisi_baris)}</div>` : ''}
           </td>
@@ -1557,6 +1632,13 @@ function openRowModal(rowId, event) {
   if (!row) return;
 
   AppState.activeEditingRow = row;
+  AppState.targetAfterUrutan = null;
+
+  const ctxAlert = document.getElementById('modal-insertion-context');
+  if (ctxAlert) {
+    ctxAlert.style.display = 'block';
+    ctxAlert.innerHTML = `✏️ <strong>Mengubah Rincian Belanja:</strong> Baris <strong>[No: ${row.urutan}] ${escHtml(row.uraian || '')}</strong>.`;
+  }
 
   setElText('modal-row-title', 'Edit Rincian Belanja RKB');
   setElVal('modal-row-id', row.id);
@@ -1595,14 +1677,37 @@ function openAddRowModal() {
   setElVal('modal-row-id', '');
   setElVal('modal-row-level', '4');
   setElVal('modal-uraian', '');
-  setElVal('modal-pic', 'KUL');
-  setElVal('modal-sasaran', 'KAB');
+
+  const selectedRow = AppState.selectedRowId ? AppState.rkbData?.rows.find(r => r.id === AppState.selectedRowId) : null;
+  const ctxAlert = document.getElementById('modal-insertion-context');
+
+  if (selectedRow) {
+    AppState.targetAfterUrutan = selectedRow.urutan;
+    setElVal('modal-pic', selectedRow.pic_bagian || 'KUL');
+    setElVal('modal-sasaran', selectedRow.target_scope || 'KAB');
+    if (ctxAlert) {
+      ctxAlert.style.display = 'block';
+      const labelDesc = selectedRow.uraian ? selectedRow.uraian : (selectedRow.kode || 'Baris');
+      ctxAlert.innerHTML = `📍 <strong>Posisi Sisip Terarah:</strong> Rincian baru akan disisipkan <u>tepat di bawah</u> baris <strong>[No: ${selectedRow.urutan}] ${escHtml(labelDesc)}</strong>.`;
+    }
+  } else {
+    AppState.targetAfterUrutan = null;
+    setElVal('modal-pic', 'KUL');
+    setElVal('modal-sasaran', 'KAB');
+    if (ctxAlert) {
+      ctxAlert.style.display = 'block';
+      ctxAlert.innerHTML = `📍 <strong>Posisi Sisip:</strong> Di bagian akhir dokumen.<br><span style="font-size:11px;color:#64748b;">(Tips: Klik salah satu baris/komponen di tabel RKB sebelum klik Tambah agar posisi tersisip otomatis di bawahnya).</span>`;
+    }
+  }
 
   const akunSelect = document.getElementById('modal-akun');
   if (akunSelect && AppState.masters && AppState.masters.akuns) {
     akunSelect.innerHTML = AppState.masters.akuns.map(a => `
       <option value="${a.kode}">[${a.kode}] ${a.uraian}</option>
     `).join('');
+    if (selectedRow && selectedRow.kode_akun) {
+      akunSelect.value = selectedRow.kode_akun;
+    }
   }
 
   setElVal('modal-harga', 0);
@@ -1620,6 +1725,9 @@ function openAddRowModal() {
 
   calculateModalTotal();
   document.getElementById('modal-row').style.display = 'flex';
+  setTimeout(() => {
+    document.getElementById('modal-uraian')?.focus();
+  }, 100);
 }
 
 function closeRowModal() {
@@ -1666,13 +1774,21 @@ async function submitRowForm() {
   const rowId = document.getElementById('modal-row-id')?.value;
   const periodeId = AppState.currentPeriode.id;
 
+  const uraian = (document.getElementById('modal-uraian')?.value || '').trim();
+  if (!uraian) {
+    alert('Mohon masukkan Uraian Rincian Belanja terlebih dahulu.');
+    document.getElementById('modal-uraian')?.focus();
+    return;
+  }
+
   const payload = {
     id: rowId ? Number(rowId) : undefined,
+    target_after_urutan: !rowId ? AppState.targetAfterUrutan : undefined,
     urutan: AppState.activeEditingRow ? AppState.activeEditingRow.urutan : undefined,
     kode: AppState.activeEditingRow ? AppState.activeEditingRow.kode : '',
     row_type: AppState.activeEditingRow ? AppState.activeEditingRow.row_type : 'item',
     level_indent: AppState.activeEditingRow ? AppState.activeEditingRow.level_indent : 4,
-    uraian: document.getElementById('modal-uraian')?.value || '',
+    uraian: uraian,
     pic_bagian: document.getElementById('modal-pic')?.value || 'KUL',
     target_scope: document.getElementById('modal-sasaran')?.value || 'KAB',
     kode_akun: document.getElementById('modal-akun')?.value || '521211',
@@ -1691,13 +1807,24 @@ async function submitRowForm() {
   };
 
   try {
-    await apiFetch(`/api/rkb/${periodeId}/row`, {
+    const res = await apiFetch(`/api/rkb/${periodeId}/row`, {
       method: 'POST',
       body: JSON.stringify(payload)
     });
     closeRowModal();
     await loadRkbData();
-    renderAllViews();
+
+    const savedRowId = res && res.row ? res.row.id : (rowId ? Number(rowId) : null);
+    if (savedRowId) {
+      expandAncestorsOfRow(savedRowId);
+      AppState.selectedRowId = savedRowId;
+      renderRkbTable();
+      setTimeout(() => {
+        highlightAndScrollToRow(savedRowId);
+      }, 150);
+    } else {
+      renderAllViews();
+    }
   } catch (err) {
     alert('Gagal menyimpan baris: ' + err.message);
   }

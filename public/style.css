@@ -1302,3 +1302,43 @@ tr.rkb-row-lvl-4:hover {
   border-top: 1.5px solid #3b82f6 !important;
   border-bottom: 1.5px solid #3b82f6 !important;
 }
+
+/* FLASH PULSE HIGHLIGHT UNTUK BARIS BARU / HASIL SIMPAN */
+@keyframes rowPulseGlow {
+  0% {
+    background-color: #fef08a !important;
+    box-shadow: inset 0 0 0 2px #eab308;
+  }
+  35% {
+    background-color: #bbf7d0 !important;
+    box-shadow: inset 0 0 0 2px #16a34a;
+  }
+  70% {
+    background-color: #dbeafe !important;
+    box-shadow: inset 0 0 0 2px #3b82f6;
+  }
+  100% {
+    background-color: inherit;
+    box-shadow: none;
+  }
+}
+
+.row-flash-highlight {
+  animation: rowPulseGlow 3.5s ease-out forwards !important;
+}
+
+.badge-purple {
+  background: #f3e8ff !important;
+  color: #7e22ce !important;
+  border: 1px solid #d8b4fe !important;
+}
+
+.alert-info-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  padding: 8px 12px;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+

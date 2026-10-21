@@ -346,9 +346,19 @@ function saveRabRow(row) {
     );
     return getRabRowById(row.id);
   } else {
-    // Cari urutan terbesar di periode_id ini
-    const maxU = db.prepare('SELECT MAX(urutan) as maxU FROM rab_baris WHERE periode_id = ?').get(row.periode_id);
-    const nextUrutan = (maxU && maxU.maxU ? maxU.maxU : 0) + 1;
+    let finalUrutan;
+    if (row.target_after_urutan !== undefined && row.target_after_urutan !== null && row.target_after_urutan !== '') {
+      const targetU = Number(row.target_after_urutan);
+      // Geser semua baris di bawah target_after_urutan sebanyak +1 agar baris baru tersisip tepat di bawahnya
+      db.prepare('UPDATE rab_baris SET urutan = urutan + 1 WHERE periode_id = ? AND urutan > ?').run(row.periode_id, targetU);
+      finalUrutan = targetU + 1;
+    } else if (row.urutan !== undefined && row.urutan !== null && row.urutan !== '') {
+      finalUrutan = Number(row.urutan);
+    } else {
+      // Cari urutan terbesar di periode_id ini jika tidak ada baris rujukan
+      const maxU = db.prepare('SELECT MAX(urutan) as maxU FROM rab_baris WHERE periode_id = ?').get(row.periode_id);
+      finalUrutan = (maxU && maxU.maxU ? maxU.maxU : 0) + 1;
+    }
 
     const res = db.prepare(`
       INSERT INTO rab_baris (
@@ -364,7 +374,7 @@ function saveRabRow(row) {
       )
     `).run(
       row.periode_id,
-      row.urutan || nextUrutan,
+      finalUrutan,
       row.row_type || (row.level_indent >= 4 ? 'item' : 'header'),
       row.kode || '',
       row.uraian || '',
