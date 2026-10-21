@@ -238,9 +238,16 @@ function initDb() {
   // Default settings untuk integrasi Google Sign-In
   try {
     const sIns = db.prepare('INSERT OR IGNORE INTO settings_satker (key, value) VALUES (?, ?)');
-    sIns.run('google_client_id', process.env.GOOGLE_CLIENT_ID || '');
-    sIns.run('google_auth_enabled', process.env.GOOGLE_CLIENT_ID ? '1' : '0');
-    sIns.run('google_allowed_domains', 'kpu.go.id,gmail.com');
+    sIns.run('google_client_id', process.env.GOOGLE_CLIENT_ID || '824065065347-t7vi42nu00u298v3vljo5i0hmcgb67vg.apps.googleusercontent.com');
+    sIns.run('google_auth_enabled', '1');
+    sIns.run('google_allowed_domains', 'gmail.com,kpungawi.com,kpu.go.id');
+
+    // Pastikan domain kpungawi.com otomatis ditambahkan pada database yang sudah ada
+    const curDomain = db.prepare("SELECT value FROM settings_satker WHERE key = 'google_allowed_domains'").get()?.value || '';
+    if (curDomain && !curDomain.includes('kpungawi.com')) {
+      const merged = `kpungawi.com,${curDomain}`.split(',').map(s => s.trim()).filter(Boolean).join(',');
+      db.prepare("UPDATE settings_satker SET value = ? WHERE key = 'google_allowed_domains'").run(merged);
+    }
   } catch (e) {}
 
   // Otomatis jalankan sinkronisasi SSOT (Master Wilayah, DPT, Paslon -> master_kuantitas) saat inisialisasi

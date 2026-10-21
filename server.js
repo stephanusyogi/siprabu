@@ -9,6 +9,26 @@ const fs = require('node:fs');
 const path = require('node:path');
 const url = require('node:url');
 
+// Muat .env otomatis jika ada
+const envPath = path.resolve(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  try {
+    const envLines = fs.readFileSync(envPath, 'utf8').split('\n');
+    for (const line of envLines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const idx = trimmed.indexOf('=');
+      if (idx > 0) {
+        const k = trimmed.substring(0, idx).trim();
+        const v = trimmed.substring(idx + 1).trim();
+        if (process.env[k] === undefined) {
+          process.env[k] = v;
+        }
+      }
+    }
+  } catch (e) {}
+}
+
 const {
   db,
   getPeriodeList,
@@ -318,8 +338,15 @@ const server = http.createServer(async (req, res) => {
         }
 
         const settings = getMasters().settings || {};
+        const clientId = (settings.google_client_id || process.env.GOOGLE_CLIENT_ID || '').trim();
+
+        // Validasi Audience token Google jika Client ID telah disetel
+        if (clientId && googlePayload.aud && googlePayload.aud !== clientId) {
+          return sendJson(res, 401, { error: 'Kredensial token Google tidak cocok dengan Client ID aplikasi ini.' });
+        }
+
         const allowedDomainsRaw = (settings.google_allowed_domains || '').trim();
-        if (allowedDomainsRaw) {
+        if (allowedDomainsRaw && allowedDomainsRaw !== '*') {
           const allowed = allowedDomainsRaw.split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
           const emailDomain = email.split('@')[1] || '';
           if (allowed.length > 0 && !allowed.includes(emailDomain)) {
@@ -332,7 +359,7 @@ const server = http.createServer(async (req, res) => {
         const user = authenticateGoogleUser(googlePayload);
         if (!user) {
           return sendJson(res, 403, {
-            error: `Akun Google (${email}) belum terdaftar sebagai operator atau pejabat KPU. Silakan hubungi Administrator Satker.`
+            error: `Akun Google (${email}) belum terdaftar pada Manajemen Pengguna SIPRABU. Silakan hubungi Administrator Satker untuk mendaftarkan email Anda.`
           });
         }
 
@@ -1318,7 +1345,7 @@ const server = http.createServer(async (req, res) => {
       }
       const body = await parseJsonBody(req);
       const updated = updateSettings(body);
-      return sendJson(res, 200, { success: true, settings: updated });
+      return sendJson(res, 200, { success: true, message: 'Pengaturan Satker berhasil disimpan.', settings: updated });
     }
 
     // 15. DOWNLOAD / EXPORT EXCEL

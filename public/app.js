@@ -303,11 +303,19 @@ function updateUserNavbar() {
 
   const avatarEl = document.getElementById('user-avatar');
   if (avatarEl) {
-    if (user.username === 'emenje') avatarEl.textContent = '👨‍💻';
-    else if (user.level === 0) avatarEl.textContent = '⚡';
-    else if (user.level === 1) avatarEl.textContent = '👑';
-    else if (user.level === 2) avatarEl.textContent = '🛠️';
-    else avatarEl.textContent = '👔';
+    if (user.avatar_url) {
+      avatarEl.innerHTML = `<img src="${escHtml(user.avatar_url)}" alt="Avatar" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">`;
+    } else if (user.username === 'emenje') {
+      avatarEl.textContent = '👨‍💻';
+    } else if (user.level === 0) {
+      avatarEl.textContent = '⚡';
+    } else if (user.level === 1) {
+      avatarEl.textContent = '👑';
+    } else if (user.level === 2) {
+      avatarEl.textContent = '🛠️';
+    } else {
+      avatarEl.textContent = '👔';
+    }
   }
 
   const btnLogin = document.getElementById('btn-nav-login');
@@ -463,6 +471,7 @@ async function initGoogleAuth() {
   }
 }
 
+let gsiRetryCount = 0;
 function renderGoogleButton() {
   const targets = [
     {
@@ -475,32 +484,60 @@ function renderGoogleButton() {
     }
   ];
 
-  targets.forEach(({ container, hint }) => {
-    if (!container) return;
+  const activeTargets = targets.filter(t => Boolean(t.container));
+  if (activeTargets.length === 0) return;
 
-    if (googleAuthConfig.client_id && window.google && window.google.accounts && window.google.accounts.id) {
-      container.innerHTML = '';
-      try {
-        google.accounts.id.initialize({
-          client_id: googleAuthConfig.client_id,
-          callback: handleGoogleSignInCallback,
-          auto_select: false
-        });
-        google.accounts.id.renderButton(container, {
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          shape: 'rectangular',
-          logo_alignment: 'left',
-          width: 320
-        });
-        if (hint) {
-          hint.innerHTML = `Domain diizinkan: <strong>${escapeHtml(googleAuthConfig.allowed_domains || 'kpu.go.id, gmail.com')}</strong>`;
+  if (googleAuthConfig.client_id) {
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      gsiRetryCount = 0;
+      activeTargets.forEach(({ container, hint }) => {
+        container.innerHTML = '';
+        try {
+          google.accounts.id.initialize({
+            client_id: googleAuthConfig.client_id,
+            callback: handleGoogleSignInCallback,
+            auto_select: false
+          });
+          google.accounts.id.renderButton(container, {
+            theme: 'outline',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: 320
+          });
+          if (hint) {
+            hint.innerHTML = `Domain diizinkan: <strong>${escHtml(googleAuthConfig.allowed_domains || 'gmail.com, kpungawi.com, kpu.go.id')}</strong>`;
+          }
+        } catch (e) {
+          console.warn('GSI renderButton error:', e);
+          container.innerHTML = `<div class="text-danger" style="font-size:12px;">Gagal memuat tombol Google: ${escHtml(e.message)}</div>`;
         }
-      } catch (e) {
-        console.warn('GSI renderButton error:', e);
+      });
+    } else {
+      // SDK Google masih dalam proses loading
+      if (gsiRetryCount < 15) {
+        gsiRetryCount++;
+        activeTargets.forEach(({ container }) => {
+          container.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:#64748b;padding:8px;">
+              <span class="spinner-sm"></span> Menghubungkan Google Identity Services...
+            </div>
+          `;
+        });
+        setTimeout(renderGoogleButton, 350);
+      } else {
+        activeTargets.forEach(({ container }) => {
+          container.innerHTML = `
+            <div style="background:#fff1f2;border:1px solid #fecdd3;color:#e11d48;padding:8px 12px;border-radius:6px;font-size:11.5px;">
+              ⚠️ SDK Google Identity Services belum dapat dimuat dari Google. Periksa koneksi internet Anda.
+            </div>
+          `;
+        });
       }
-    } else if (!googleAuthConfig.client_id) {
+    }
+  } else {
+    activeTargets.forEach(({ container, hint }) => {
       container.innerHTML = `
         <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 8px 12px; border-radius: 8px; font-size: 11px; color: #64748b; width: 100%;">
           ℹ️ Single Sign-On Google belum diaktifkan.<br>
@@ -508,8 +545,8 @@ function renderGoogleButton() {
         </div>
       `;
       if (hint) hint.innerHTML = '';
-    }
-  });
+    });
+  }
 }
 
 async function handleGoogleSignInCallback(response) {
@@ -5335,12 +5372,12 @@ async function saveSatkerSettings() {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    alert(res.message);
+    showToast(res.message || 'Pengaturan Satker berhasil disimpan.', 'success');
     await loadMasters();
     await initGoogleAuth();
     renderAllViews();
   } catch (err) {
-    alert('Gagal menyimpan pengaturan: ' + err.message);
+    showToast('Gagal menyimpan pengaturan: ' + err.message, 'error');
   }
 }
 
