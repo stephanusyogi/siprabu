@@ -750,12 +750,6 @@ function renderRkbTable() {
   // Total footer
   setElText('rkb-tfoot-total', formatRupiah(summary.grandTotal));
 
-  // Banner Audit Pagu Induk
-  setElText('rkbBannerTotalPagu', formatRupiah(summary.grandTotal));
-  setElText('rkbBannerTahapan', formatRupiah(summary.banner?.tahapanTotal || 20112930269));
-  setElText('rkbBannerOperasional', formatRupiah(summary.banner?.operasionalTotal || 6496893731));
-  setElText('rkbBannerHonor', formatRupiah(summary.banner?.honorTotal || 23385300000));
-
   // Stepper Header
   setElText('rkb-stepper-title', periode.nama_periode);
   const stepperSub = document.getElementById('rkb-stepper-sub');
@@ -794,17 +788,6 @@ function renderRkbTable() {
     `;
     quickActions.innerHTML = actionsHtml;
   }
-
-  // Strip 6 Tingkat Penyelenggara
-  const sas = summary.bySasaran || {};
-  setElText('strip-pagu-kab', formatRupiah(sas.KAB || 0));
-  setElText('strip-pagu-ppk', formatRupiah(sas.PPK || 0));
-  setElText('strip-pagu-pps', formatRupiah(sas.PPS || 0));
-  setElText('strip-pagu-pantarlih', formatRupiah(sas.PANTARLIH || 0));
-  setElText('strip-pagu-tps', formatRupiah(sas.TPS || 0));
-  setElText('strip-pagu-peserta', formatRupiah(sas.PESERTA || 0));
-  const totalLevelPps = (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
-  setElText('strip-pagu-total-pps', formatRupiah(totalLevelPps));
 
   const btnTambah = document.getElementById('btn-tambah-baris');
   if (btnTambah) {
