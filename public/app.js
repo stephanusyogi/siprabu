@@ -3451,68 +3451,91 @@ async function submitRevisionForm() {
   }
 }
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let pendingExportPeriodeId = null;
 
 function downloadExcel(periodeId = null) {
-  const pId = periodeId || (AppState.currentPeriode ? AppState.currentPeriode.id : null);
-  if (!pId) {
-    alert('Silakan pilih dokumen RUH Belanja terlebih dahulu.');
-    return;
-  }
-  pendingExportPeriodeId = pId;
-
-  const periode = (AppState.periodes && AppState.periodes.find(p => p.id === pId)) || AppState.currentPeriode;
-  const docInfo = document.getElementById('export-modal-doc-info');
-  if (docInfo && periode) {
-    docInfo.textContent = `Dokumen: ${periode.nama_periode || 'RUH Belanja'} | Versi: ${periode.versi_revisi || 'Induk'}`;
-  }
-
-  // Cek apakah filter layar sedang aktif
-  const currentPic = (AppState.filters && AppState.filters.pic) || 'SEMUA';
-  const currentSasaran = (AppState.filters && AppState.filters.sasaran) || 'ALL';
-  const isFiltered = (currentPic !== 'SEMUA' || currentSasaran !== 'ALL');
-
-  const picSelect = document.getElementById('export-filter-pic');
-  const sasaranSelect = document.getElementById('export-filter-sasaran');
-  const scopeFullRadio = document.getElementById('export-scope-full');
-  const scopeFilteredRadio = document.getElementById('export-scope-filtered');
-
-  if (picSelect) picSelect.value = currentPic;
-  if (sasaranSelect) sasaranSelect.value = currentSasaran;
-
-  // Role checking (Level 0 Developer, Level 1 Perencanaan)
-  const user = AppState.currentUser;
-  const roleNotice = document.getElementById('export-role-notice');
-  if (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
-    // Wewenang Subbagian
-    if (scopeFilteredRadio) scopeFilteredRadio.checked = true;
-    if (scopeFullRadio) scopeFullRadio.disabled = true;
-    if (picSelect) {
-      picSelect.value = user.pic_subbag;
-      picSelect.disabled = true;
+  try {
+    const pId = periodeId || (AppState.currentPeriode ? AppState.currentPeriode.id : null) || (document.getElementById('dashboard-periode-select')?.value ? Number(document.getElementById('dashboard-periode-select').value) : null);
+    if (!pId) {
+      alert('Silakan pilih dokumen RUH Belanja terlebih dahulu.');
+      return;
     }
-    if (roleNotice) {
-      roleNotice.innerHTML = `<span>🔒 <strong>Wewenang Subbag:</strong> Ekspor dibatasi untuk Subbagian <u>${escapeHtml(user.pic_subbag)}</u>.</span>`;
+    pendingExportPeriodeId = pId;
+
+    const periode = (AppState.periodes && AppState.periodes.find(p => p.id === pId)) || AppState.currentPeriode;
+    const docInfo = document.getElementById('export-modal-doc-info');
+    if (docInfo && periode) {
+      docInfo.textContent = `Dokumen: ${periode.nama_periode || 'RUH Belanja'} | Versi: ${periode.versi_revisi || 'Induk'}`;
     }
-  } else {
-    // Level 0 & Level 1 (Full Access)
-    if (scopeFullRadio) scopeFullRadio.disabled = false;
-    if (picSelect) picSelect.disabled = false;
-    if (isFiltered) {
+
+    // Cek apakah filter layar sedang aktif
+    const currentPic = (AppState.filters && AppState.filters.pic) || 'SEMUA';
+    const currentSasaran = (AppState.filters && AppState.filters.sasaran) || 'ALL';
+    const isFiltered = (currentPic !== 'SEMUA' || currentSasaran !== 'ALL');
+
+    const picSelect = document.getElementById('export-filter-pic');
+    const sasaranSelect = document.getElementById('export-filter-sasaran');
+    const scopeFullRadio = document.getElementById('export-scope-full');
+    const scopeFilteredRadio = document.getElementById('export-scope-filtered');
+
+    if (picSelect) picSelect.value = currentPic;
+    if (sasaranSelect) sasaranSelect.value = currentSasaran;
+
+    // Role checking (Level 0 Developer, Level 1 Perencanaan)
+    const user = AppState.currentUser;
+    const roleNotice = document.getElementById('export-role-notice');
+    if (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+      // Wewenang Subbagian
       if (scopeFilteredRadio) scopeFilteredRadio.checked = true;
+      if (scopeFullRadio) scopeFullRadio.disabled = true;
+      if (picSelect) {
+        picSelect.value = user.pic_subbag;
+        picSelect.disabled = true;
+      }
+      if (roleNotice) {
+        roleNotice.innerHTML = `<span>🔒 <strong>Wewenang Subbag:</strong> Ekspor dibatasi untuk Subbagian <u>${escapeHtml(user.pic_subbag)}</u>.</span>`;
+      }
     } else {
-      if (scopeFullRadio) scopeFullRadio.checked = true;
+      // Level 0 & Level 1 (Full Access)
+      if (scopeFullRadio) scopeFullRadio.disabled = false;
+      if (picSelect) picSelect.disabled = false;
+      if (isFiltered) {
+        if (scopeFilteredRadio) scopeFilteredRadio.checked = true;
+      } else {
+        if (scopeFullRadio) scopeFullRadio.checked = true;
+      }
+      if (roleNotice) {
+        const roleName = user ? (user.level === 0 ? 'Developer' : 'Perencanaan') : 'Akses Penuh';
+        roleNotice.innerHTML = `<span>ℹ️ <strong>Akses Penuh (${escapeHtml(roleName)}):</strong> Anda berwenang mencetak seluruh maupun per-bagian dokumen.</span>`;
+      }
     }
-    if (roleNotice) {
-      const roleName = user ? (user.level === 0 ? 'Developer' : 'Perencanaan') : 'Akses Penuh';
-      roleNotice.innerHTML = `<span>ℹ️ <strong>Akses Penuh (${escapeHtml(roleName)}):</strong> Anda berwenang mencetak seluruh maupun per-bagian dokumen.</span>`;
+
+    toggleExportFilterScope();
+
+    const modal = document.getElementById('modal-export-excel');
+    if (modal) {
+      modal.style.display = 'flex';
+    } else {
+      // Fallback jika modal tidak ditemukan di DOM
+      window.location.href = `/api/export-excel/${pId}`;
+    }
+  } catch (err) {
+    console.error('Error saat membuka modal ekspor excel:', err);
+    // Fallback: unduh langsung
+    if (AppState.currentPeriode) {
+      window.location.href = `/api/export-excel/${AppState.currentPeriode.id}`;
     }
   }
-
-  toggleExportFilterScope();
-
-  const modal = document.getElementById('modal-export-excel');
-  if (modal) modal.style.display = 'flex';
 }
 
 function closeExportModal() {
@@ -3544,13 +3567,29 @@ function executeExportExcel() {
 
   const qs = queryParams.toString();
   const url = `/api/export-excel/${pendingExportPeriodeId}${qs ? '?' + qs : ''}`;
-  window.open(url, '_blank');
+  
+  // Trigger download via <a> element (tidak terblokir popup blocker browser)
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
   closeExportModal();
 }
 
 function exportExcelPeriode(periodeId) {
   downloadExcel(periodeId);
 }
+
+// Expose fungsi ke window untuk inline HTML onclick
+window.escapeHtml = escapeHtml;
+window.downloadExcel = downloadExcel;
+window.closeExportModal = closeExportModal;
+window.toggleExportFilterScope = toggleExportFilterScope;
+window.executeExportExcel = executeExportExcel;
+window.exportExcelPeriode = exportExcelPeriode;
 
 // ============================================================================
 // VIEW 4: MASTER DATA WILAYAH & AKUN (SSOT)
