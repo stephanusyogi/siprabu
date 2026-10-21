@@ -534,19 +534,21 @@ const server = http.createServer(async (req, res) => {
 
     // 15. DOWNLOAD / EXPORT EXCEL
     const exportMatch = pathname.match(/^\/api\/export-excel\/(\d+)$/);
-    if (exportMatch && method === 'GET') {
+    if (exportMatch && (method === 'GET' || method === 'HEAD')) {
       const periodeId = Number(exportMatch[1]);
       const periode = getPeriodeById(periodeId);
       if (!periode) return sendJson(res, 404, { error: 'Dokumen tidak ditemukan.' });
 
-      const buffer = exportRkbToExcelBuffer(periodeId);
-      const filename = `RKB_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.xlsx`;
+      const buffer = exportRkbToExcelBuffer(periodeId, query);
+      const filterSuffix = (query.pic && query.pic !== 'SEMUA' ? `_${query.pic}` : '') + (query.sasaran && query.sasaran !== 'ALL' ? `_${query.sasaran}` : '');
+      const filename = `RUH_Belanja_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}${filterSuffix}_${Date.now()}.xlsx`;
 
       res.writeHead(200, {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Content-Length': buffer.length
       });
+      if (method === 'HEAD') return res.end();
       return res.end(buffer);
     }
 

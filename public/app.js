@@ -3451,15 +3451,105 @@ async function submitRevisionForm() {
   }
 }
 
-function downloadExcel() {
-  if (!AppState.currentPeriode) return;
-  const url = `/api/export-excel/${AppState.currentPeriode.id}`;
+let pendingExportPeriodeId = null;
+
+function downloadExcel(periodeId = null) {
+  const pId = periodeId || (AppState.currentPeriode ? AppState.currentPeriode.id : null);
+  if (!pId) {
+    alert('Silakan pilih dokumen RUH Belanja terlebih dahulu.');
+    return;
+  }
+  pendingExportPeriodeId = pId;
+
+  const periode = (AppState.periodes && AppState.periodes.find(p => p.id === pId)) || AppState.currentPeriode;
+  const docInfo = document.getElementById('export-modal-doc-info');
+  if (docInfo && periode) {
+    docInfo.textContent = `Dokumen: ${periode.nama_periode || 'RUH Belanja'} | Versi: ${periode.versi_revisi || 'Induk'}`;
+  }
+
+  // Cek apakah filter layar sedang aktif
+  const currentPic = (AppState.filters && AppState.filters.pic) || 'SEMUA';
+  const currentSasaran = (AppState.filters && AppState.filters.sasaran) || 'ALL';
+  const isFiltered = (currentPic !== 'SEMUA' || currentSasaran !== 'ALL');
+
+  const picSelect = document.getElementById('export-filter-pic');
+  const sasaranSelect = document.getElementById('export-filter-sasaran');
+  const scopeFullRadio = document.getElementById('export-scope-full');
+  const scopeFilteredRadio = document.getElementById('export-scope-filtered');
+
+  if (picSelect) picSelect.value = currentPic;
+  if (sasaranSelect) sasaranSelect.value = currentSasaran;
+
+  // Role checking (Level 0 Developer, Level 1 Perencanaan)
+  const user = AppState.currentUser;
+  const roleNotice = document.getElementById('export-role-notice');
+  if (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+    // Wewenang Subbagian
+    if (scopeFilteredRadio) scopeFilteredRadio.checked = true;
+    if (scopeFullRadio) scopeFullRadio.disabled = true;
+    if (picSelect) {
+      picSelect.value = user.pic_subbag;
+      picSelect.disabled = true;
+    }
+    if (roleNotice) {
+      roleNotice.innerHTML = `<span>🔒 <strong>Wewenang Subbag:</strong> Ekspor dibatasi untuk Subbagian <u>${escapeHtml(user.pic_subbag)}</u>.</span>`;
+    }
+  } else {
+    // Level 0 & Level 1 (Full Access)
+    if (scopeFullRadio) scopeFullRadio.disabled = false;
+    if (picSelect) picSelect.disabled = false;
+    if (isFiltered) {
+      if (scopeFilteredRadio) scopeFilteredRadio.checked = true;
+    } else {
+      if (scopeFullRadio) scopeFullRadio.checked = true;
+    }
+    if (roleNotice) {
+      const roleName = user ? (user.level === 0 ? 'Developer' : 'Perencanaan') : 'Akses Penuh';
+      roleNotice.innerHTML = `<span>ℹ️ <strong>Akses Penuh (${escapeHtml(roleName)}):</strong> Anda berwenang mencetak seluruh maupun per-bagian dokumen.</span>`;
+    }
+  }
+
+  toggleExportFilterScope();
+
+  const modal = document.getElementById('modal-export-excel');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeExportModal() {
+  const modal = document.getElementById('modal-export-excel');
+  if (modal) modal.style.display = 'none';
+  pendingExportPeriodeId = null;
+}
+
+function toggleExportFilterScope() {
+  const isFiltered = document.getElementById('export-scope-filtered')?.checked;
+  const filterDetails = document.getElementById('export-filter-details');
+  if (filterDetails) {
+    filterDetails.style.display = isFiltered ? 'block' : 'none';
+  }
+}
+
+function executeExportExcel() {
+  if (!pendingExportPeriodeId) return;
+
+  const isFiltered = document.getElementById('export-scope-filtered')?.checked;
+  const queryParams = new URLSearchParams();
+
+  if (isFiltered) {
+    const pic = document.getElementById('export-filter-pic')?.value;
+    const sasaran = document.getElementById('export-filter-sasaran')?.value;
+    if (pic && pic !== 'SEMUA') queryParams.append('pic', pic);
+    if (sasaran && sasaran !== 'ALL') queryParams.append('sasaran', sasaran);
+  }
+
+  const qs = queryParams.toString();
+  const url = `/api/export-excel/${pendingExportPeriodeId}${qs ? '?' + qs : ''}`;
   window.open(url, '_blank');
+  closeExportModal();
 }
 
 function exportExcelPeriode(periodeId) {
-  const url = `/api/export-excel/${periodeId}`;
-  window.open(url, '_blank');
+  downloadExcel(periodeId);
 }
 
 // ============================================================================
