@@ -476,37 +476,33 @@ function renderSiklus() {
   const user = AppState.currentUser;
   const canManage = user && (user.level === 0 || user.level === 1);
 
+  const btnBuatRevisi = document.getElementById('btn-buat-revisi');
+  if (btnBuatRevisi) {
+    btnBuatRevisi.style.display = canManage ? 'inline-flex' : 'none';
+  }
+
   if (actionContainer) {
     let buttonsHtml = '';
-    if (p.is_locked) {
-      if (canManage) {
+    if (canManage) {
+      if (p.is_locked) {
         buttonsHtml += `
           <button class="btn btn-warning" onclick="toggleLockPeriode(${p.id}, false)">
             🔓 Buka Kunci Dokumen
           </button>
         `;
-      }
-      buttonsHtml += `
-        <button class="btn btn-primary" onclick="openRevisionModal()">
-          ➕ Buat Usulan Revisi Baru
-        </button>
-      `;
-    } else {
-      if (canManage) {
+      } else {
         buttonsHtml += `
           <button class="btn btn-danger" onclick="toggleLockPeriode(${p.id}, true)">
             🔒 Kunci Dokumen (Tetapkan Arsip Resmi)
           </button>
         `;
       }
-      buttonsHtml += `
-        <button class="btn btn-primary" onclick="openRevisionModal()">
-          ➕ Buat Usulan Revisi Baru
-        </button>
-      `;
     }
 
     buttonsHtml += `
+      <button class="btn btn-primary" onclick="selectPeriodeAndSwitch(${p.id})">
+        📘 Buka di Lembar Kerja RKB
+      </button>
       <button class="btn btn-outline-primary" onclick="downloadExcel()">
         📥 Unduh Excel Resmi
       </button>
@@ -535,10 +531,10 @@ function renderSiklus() {
             ${formatNumber(item.total_items || 953)}
           </td>
           <td class="text-center">
-            <button class="btn btn-sm ${isCurrent ? 'btn-secondary' : 'btn-outline-primary'}" onclick="selectPeriode(${item.id})">
-              ${isCurrent ? 'Sedang Dibuka' : 'Buka Dokumen'}
+            <button class="btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-outline-primary'}" onclick="selectPeriodeAndSwitch(${item.id})" title="Buka lembar kerja RKB untuk dokumen ini">
+              📘 ${isCurrent ? 'Buka di RKB' : 'Pilih & Buka di RKB'}
             </button>
-            <button class="btn btn-sm btn-success" onclick="exportExcelPeriode(${item.id})" title="Unduh Excel">
+            <button class="btn btn-sm btn-success" onclick="exportExcelPeriode(${item.id})" title="Unduh File Excel Dokumen Ini">
               📥 Excel
             </button>
           </td>
@@ -555,6 +551,11 @@ async function selectPeriode(periodeId) {
   AppState.treeNodeOverrides = {};
   await loadRkbData();
   renderAllViews();
+}
+
+async function selectPeriodeAndSwitch(periodeId) {
+  await selectPeriode(periodeId);
+  switchView('view-rkb');
 }
 
 async function toggleLockPeriode(periodeId, lockState) {
@@ -712,35 +713,20 @@ function renderRkbTable() {
       </button>
     `).join('');
 
-    if (user && (user.level === 0 || user.level === 1)) {
-      pillsHtml += `
-        <button class="btn btn-sm btn-outline-primary" onclick="openRevisionModal()" title="Buat Dokumen Revisi Baru">
-          ➕ Buat Revisi Baru
-        </button>
-      `;
-    }
     revisionPills.innerHTML = pillsHtml;
   }
 
-  // Quick Actions (Kunci / Buka Kunci)
+  // Quick Actions (Status Dokumen & Tautan Pengelolaan Siklus/Revisi di Pusat Siklus)
   const quickActions = document.getElementById('rkb-quick-actions');
   if (quickActions) {
-    let actionsHtml = '';
-    if (user && (user.level === 0 || user.level === 1)) {
-      if (isLocked) {
-        actionsHtml += `
-          <button class="btn btn-sm btn-warning" onclick="toggleLockPeriode(${periode.id}, false)">
-            🔓 Buka Kunci
-          </button>
-        `;
-      } else {
-        actionsHtml += `
-          <button class="btn btn-sm btn-danger" onclick="toggleLockPeriode(${periode.id}, true)">
-            🔒 Kunci NPHD
-          </button>
-        `;
-      }
-    }
+    let actionsHtml = `
+      <span class="badge ${isLocked ? 'badge-danger' : 'badge-success'}" style="font-size: 11px; padding: 5px 8px;">
+        ${isLocked ? '🔒 Terkunci (Read-Only)' : '🟢 Draft Aktif'}
+      </span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="switchView('view-siklus')" title="Kelola status kunci, legalitas NPHD, dan usulan revisi di Pusat Siklus">
+        🔄 Kelola di Pusat Siklus
+      </button>
+    `;
     quickActions.innerHTML = actionsHtml;
   }
 
