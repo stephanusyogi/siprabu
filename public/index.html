@@ -1030,6 +1030,15 @@
                 </div>
               </div>
 
+              <!-- CATATAN / ALASAN PERUBAHAN (JUSTIFIKASI REVISI) -->
+              <div class="form-group full-width mt-2">
+                <label style="display:flex; justify-content:space-between; align-items:center;">
+                  <span>📝 Catatan / Alasan Perubahan (Justifikasi Revisi):</span>
+                  <span style="font-size:11px; color:#64748b; font-weight:normal;">Alasan pergeseran / perubahan rincian belanja</span>
+                </label>
+                <textarea id="modal-catatan-revisi" class="input-textarea" rows="2" placeholder="Contoh: Pergeseran anggaran untuk menutupi kebutuhan operasional logistik berdasarkan BA TAPD..."></textarea>
+              </div>
+
               <!-- PREVIEW PERHITUNGAN MODAL -->
               <div class="calc-preview-card mt-3">
                 <div class="calc-line">
@@ -1278,6 +1287,30 @@
         <div class="modal-footer">
           <button class="btn btn-secondary btn-sm" onclick="closeQuickAkunModal()">Batal</button>
           <button class="btn btn-primary btn-sm" onclick="submitQuickAkun()">Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: QUICK EDIT CATATAN REVISI BARIS (MODE SANDING)                  -->
+    <!-- ===================================================================== -->
+    <div id="modal-quick-catatan" class="modal-backdrop" style="display: none;">
+      <div class="modal-box" style="max-width: 520px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 15px;">📝 Catatan Justifikasi Perubahan Baris</h3>
+          <button class="btn-close" onclick="closeQuickCatatanModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="quick-catatan-row-id">
+          <p id="quick-catatan-uraian" style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 12px; line-height: 1.4;"></p>
+          <div class="form-group">
+            <label style="font-weight: 600; color: #334155;">Alasan / Justifikasi Perubahan (Semula - Menjadi):</label>
+            <textarea id="quick-catatan-input" class="input-textarea" rows="4" placeholder="Tuliskan alasan pergeseran, dasar pertimbangan, atau pengalihan anggaran belanja ini..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" onclick="closeQuickCatatanModal()">Batal</button>
+          <button class="btn btn-primary btn-sm" onclick="submitQuickCatatan()">Simpan Catatan Revisi</button>
         </div>
       </div>
     </div>

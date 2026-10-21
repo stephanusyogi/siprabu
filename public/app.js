@@ -1151,7 +1151,19 @@ function renderRkbTable() {
           </td>
           <td>
             <span class="diff-badge ${badgeClass}">${badgeLabel}</span>
-            ${diffInfo.catatan ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${escHtml(diffInfo.catatan)}</div>` : ''}
+            ${isItem ? `
+              <div style="margin-top: 4px;">
+                ${diffInfo.catatan ? `
+                  <div class="catatan-revisi-chip" onclick="openQuickCatatanModal(${r.id}, event)" title="Klik untuk mengedit catatan justifikasi revisi" style="font-size:11px; color:#1e3a8a; background:#e0f2fe; border:1px solid #bae6fd; padding:3px 6px; border-radius:4px; cursor:pointer; line-height:1.3; display:inline-block; max-width:100%; word-break:break-word;">
+                    📝 ${escHtml(diffInfo.catatan)}
+                  </div>
+                ` : (canEdit && diffInfo.status !== 'TETAP' ? `
+                  <button type="button" class="btn-quick-catatan" onclick="openQuickCatatanModal(${r.id}, event)" title="Beri catatan alasan perubahan" style="font-size:10.5px; color:#475569; background:#f1f5f9; border:1px dashed #cbd5e1; padding:2px 6px; border-radius:4px; cursor:pointer;">
+                    ➕ Beri Catatan
+                  </button>
+                ` : '')}
+              </div>
+            ` : ''}
           </td>
         </tr>
       `;
@@ -1178,6 +1190,7 @@ function renderRkbTable() {
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)" title="Klik untuk mengubah Akun Belanja ini">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
               <span>${escHtml(r.uraian || '')}</span>
             </div>
+            ${isItem && r.catatan_revisi_baris ? `<div style="font-size:11px;color:#1e40af;background:#eff6ff;border-left:2px solid #3b82f6;padding:2px 6px;margin:3px 0 0 28px;border-radius:2px;display:inline-block;"><span style="font-weight:600;">Catatan:</span> ${escHtml(r.catatan_revisi_baris)}</div>` : ''}
           </td>
           <td class="col-pic">${isItem ? picChip : ''}</td>
           <td class="col-sasaran">${isItem ? sasChip : ''}</td>
@@ -1358,6 +1371,43 @@ async function submitQuickAkun() {
 }
 
 // ============================================================================
+// MODAL: CEPAT EDIT CATATAN JUSTIFIKASI REVISI BARIS (MODE SANDING)
+// ============================================================================
+
+function openQuickCatatanModal(rowId, event) {
+  if (event) event.stopPropagation();
+  const row = (AppState.rkbData?.rows || []).find(r => r.id === rowId);
+  if (!row) return;
+
+  setElVal('quick-catatan-row-id', row.id);
+  setElText('quick-catatan-uraian', `[${row.kode || '-'}] ${row.uraian}`);
+  setElVal('quick-catatan-input', row.catatan_revisi_baris || '');
+  document.getElementById('modal-quick-catatan').style.display = 'flex';
+}
+
+function closeQuickCatatanModal() {
+  document.getElementById('modal-quick-catatan').style.display = 'none';
+}
+
+async function submitQuickCatatan() {
+  const rowId = Number(document.getElementById('quick-catatan-row-id')?.value);
+  const catatan = document.getElementById('quick-catatan-input')?.value || '';
+  const periodeId = AppState.currentPeriode.id;
+
+  try {
+    await apiFetch(`/api/rkb/${periodeId}/quick-catatan`, {
+      method: 'POST',
+      body: JSON.stringify({ row_id: rowId, catatan_revisi_baris: catatan })
+    });
+    closeQuickCatatanModal();
+    await loadRkbData();
+    renderAllViews();
+  } catch (err) {
+    alert('Gagal menyimpan catatan revisi: ' + err.message);
+  }
+}
+
+// ============================================================================
 // MODAL: FORM TAMBAH / EDIT BARIS BELANJA
 // ============================================================================
 
@@ -1396,6 +1446,7 @@ function openRowModal(rowId, event) {
   setElVal('modal-f4-unit', row.f4_unit || '');
   setElVal('modal-basis-pengali', row.basis_pengali || 'NONE');
   setElVal('modal-satuan-vol', row.satuan_vol || 'Paket');
+  setElVal('modal-catatan-revisi', row.catatan_revisi_baris || '');
 
   calculateModalTotal();
   document.getElementById('modal-row').style.display = 'flex';
@@ -1428,6 +1479,7 @@ function openAddRowModal() {
   setElVal('modal-f4-unit', '');
   setElVal('modal-basis-pengali', 'NONE');
   setElVal('modal-satuan-vol', 'Paket');
+  setElVal('modal-catatan-revisi', '');
 
   calculateModalTotal();
   document.getElementById('modal-row').style.display = 'flex';
@@ -1497,7 +1549,8 @@ async function submitRowForm() {
     f4_val: document.getElementById('modal-f4-val')?.value ? Number(document.getElementById('modal-f4-val').value) : null,
     f4_unit: document.getElementById('modal-f4-unit')?.value || '',
     basis_pengali: document.getElementById('modal-basis-pengali')?.value || 'NONE',
-    satuan_vol: document.getElementById('modal-satuan-vol')?.value || 'Paket'
+    satuan_vol: document.getElementById('modal-satuan-vol')?.value || 'Paket',
+    catatan_revisi_baris: document.getElementById('modal-catatan-revisi')?.value || ''
   };
 
   try {

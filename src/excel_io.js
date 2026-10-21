@@ -6,7 +6,7 @@
 
 const XLSX = require('xlsx');
 const { getRabRows, saveRabRow, clearRabRows, getPeriodeById, getMasters } = require('./db');
-const { calculateRkbDataset } = require('./calculation');
+const { calculateRkbDataset, getRevisionComparison } = require('./calculation');
 
 /**
  * Menghasilkan buffer XLSX untuk download RKB
@@ -34,7 +34,7 @@ function exportRkbToExcelBuffer(periodeId) {
       'No', 'Leveling RKB', 'Kode', 'Uraian Komponen / Akun / Rincian Belanja',
       'Vol', 'Satuan', 'Rincian Perhitungan (Faktor x Pengali)',
       'Harga Satuan (Rp)', 'Jumlah Anggaran (Rp)',
-      'PIC Subbag', 'Sasaran', 'Akun'
+      'PIC Subbag', 'Sasaran', 'Akun', 'Catatan / Alasan Revisi'
     ]
   ];
 
@@ -63,7 +63,8 @@ function exportRkbToExcelBuffer(periodeId) {
       r.computed_total || 0,
       r.pic_bagian || '',
       r.target_scope || '',
-      r.kode_akun || ''
+      r.kode_akun || '',
+      isItem ? (r.catatan_revisi_baris || '') : ''
     ]);
   });
 
@@ -141,7 +142,8 @@ function exportRkbToExcelBuffer(periodeId) {
     { wch: 22 }, // Jumlah
     { wch: 12 }, // PIC
     { wch: 12 }, // Sasaran
-    { wch: 10 }  // Akun
+    { wch: 10 }, // Akun
+    { wch: 35 }  // Catatan / Alasan Revisi
   ];
 
   wsSum['!cols'] = [
@@ -152,6 +154,69 @@ function exportRkbToExcelBuffer(periodeId) {
 
   XLSX.utils.book_append_sheet(wb, wsRkb, 'RKB_KABUPATEN');
   XLSX.utils.book_append_sheet(wb, wsSum, 'RINGKASAN_PAGU');
+
+  // 3. Data Sheet MATRIKS_SEMULA_MENJADI (Jika dokumen merupakan revisi dari versi sebelumnya)
+  const revComp = getRevisionComparison(periodeId);
+  if (revComp && revComp.has_parent) {
+    const parent = revComp.parent_periode;
+    const matriksData = [
+      ['MATRIKS PERUBAHAN RENCANA KEBUTUHAN BIAYA (SEMULA - MENJADI)'],
+      ['KPU KABUPATEN NGAWI - PILKADA SERENTAK (PAGU Rp 49.999.999.000)'],
+      [`Dokumen Semula: ${parent.nama || parent.versi_revisi}  ==>  Dokumen Menjadi: ${periode.nama_periode} (${periode.versi_revisi})`],
+      [`Dasar Hukum: ${periode.dasar_pengesahan || '-'} | Nomor: ${periode.nomor_ba_tapd || '-'} | Tanggal: ${periode.tanggal_ba_tapd || '-'}`],
+      [`Catatan Dokumen: ${periode.catatan_revisi || '-'}`],
+      [],
+      [
+        'No', 'Kode', 'Uraian Kegiatan / Akun / Rincian Belanja',
+        'Semula (Vol)', 'Semula (Harga)', 'Semula (Jumlah Rp)',
+        'Menjadi (Vol)', 'Menjadi (Harga)', 'Menjadi (Jumlah Rp)',
+        'Selisih (+/- Rp)', 'Status Perubahan', 'Alasan / Catatan Justifikasi Perubahan'
+      ]
+    ];
+
+    const revByRowId = revComp.by_row_id || {};
+    rows.forEach((r, idx) => {
+      const isItem = Number(r.level_indent) === 4;
+      const diffInfo = revByRowId[r.id] || {
+        status: 'TETAP', diff: 0,
+        semula_vol: r.computed_volume, semula_harga: r.harga_satuan, semula_jumlah: r.computed_total,
+        menjadi_vol: r.computed_volume, menjadi_harga: r.harga_satuan, menjadi_jumlah: r.computed_total,
+        catatan: r.catatan_revisi_baris || ''
+      };
+
+      matriksData.push([
+        r.urutan || (idx + 1),
+        r.kode || '',
+        r.uraian || '',
+        isItem && diffInfo.semula_vol !== null ? diffInfo.semula_vol : '',
+        isItem && diffInfo.semula_harga ? diffInfo.semula_harga : '',
+        diffInfo.semula_jumlah || 0,
+        isItem && diffInfo.menjadi_vol !== null ? diffInfo.menjadi_vol : '',
+        isItem && diffInfo.menjadi_harga ? diffInfo.menjadi_harga : '',
+        diffInfo.menjadi_jumlah || 0,
+        diffInfo.diff || 0,
+        diffInfo.status,
+        diffInfo.catatan || ''
+      ]);
+    });
+
+    const wsMatriks = XLSX.utils.aoa_to_sheet(matriksData);
+    wsMatriks['!cols'] = [
+      { wch: 6 },  // No
+      { wch: 10 }, // Kode
+      { wch: 45 }, // Uraian
+      { wch: 12 }, // Semula Vol
+      { wch: 15 }, // Semula Harga
+      { wch: 20 }, // Semula Jumlah
+      { wch: 12 }, // Menjadi Vol
+      { wch: 15 }, // Menjadi Harga
+      { wch: 20 }, // Menjadi Jumlah
+      { wch: 20 }, // Selisih
+      { wch: 14 }, // Status
+      { wch: 40 }  // Alasan Catatan
+    ];
+    XLSX.utils.book_append_sheet(wb, wsMatriks, 'MATRIKS_SEMULA_MENJADI');
+  }
 
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 }

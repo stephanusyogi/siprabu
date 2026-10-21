@@ -296,6 +296,21 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, message: 'Kode Akun berhasil diperbarui.' });
     }
 
+    const quickCatatanMatch = pathname.match(/^\/api\/rkb\/(\d+)\/quick-catatan$/);
+    if (quickCatatanMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(quickCatatanMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+      if (Number(periode.is_locked) === 1) return sendJson(res, 403, { error: 'Dokumen berstatus terkunci.' });
+
+      const body = await parseJsonBody(req);
+      const { row_id, catatan_revisi_baris } = body;
+      db.prepare('UPDATE rab_baris SET catatan_revisi_baris = ? WHERE id = ? AND periode_id = ?').run(catatan_revisi_baris || '', row_id, periodeId);
+      return sendJson(res, 200, { ok: true, message: 'Catatan justifikasi revisi berhasil disimpan.' });
+    }
+
     // 10c. RESUME SASARAN CEPAT (PENYELENGGARA VS PESERTA)
     const resumeSasaranMatch = pathname.match(/^\/api\/rkb\/(\d+)\/resume-sasaran$/);
     if (resumeSasaranMatch && method === 'GET') {
