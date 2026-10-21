@@ -157,9 +157,11 @@ async function initAuth() {
 }
 
 function showLoginScreen() {
+  const splash = document.getElementById('app-loading-splash');
   const loginScreen = document.getElementById('login-screen');
   const appLayout = document.getElementById('app');
-  if (loginScreen) loginScreen.style.display = 'flex';
+  if (splash) splash.style.setProperty('display', 'none', 'important');
+  if (loginScreen) loginScreen.style.setProperty('display', 'flex', 'important');
   if (appLayout) appLayout.style.display = 'none';
 
   const uInput = document.getElementById('screen-login-username');
@@ -176,9 +178,11 @@ function showLoginScreen() {
 }
 
 function showMainApp() {
+  const splash = document.getElementById('app-loading-splash');
   const loginScreen = document.getElementById('login-screen');
   const appLayout = document.getElementById('app');
-  if (loginScreen) loginScreen.style.display = 'none';
+  if (splash) splash.style.setProperty('display', 'none', 'important');
+  if (loginScreen) loginScreen.style.setProperty('display', 'none', 'important');
   if (appLayout) appLayout.style.display = 'flex';
 
   applyRolePermissionsToUI();
