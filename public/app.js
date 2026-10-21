@@ -4323,6 +4323,42 @@ async function deleteDesa(id) {
   }
 }
 
+function exportDesaExcel() {
+  window.location.href = '/api/master/desa/export';
+}
+
+function triggerImportDesa() {
+  document.getElementById('input-file-desa')?.click();
+}
+
+async function handleExcelUploadDesa(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  event.target.value = '';
+
+  if (!confirm(`Mulai unggah berkas "${file.name}" untuk update masal data Desa, TPS, DPT & Pejabat PPS?\nData akan dicocokkan otomatis berdasarkan ID Database atau kombinasi (Nama Desa & Kecamatan).`)) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const base64Data = e.target.result.split(',')[1];
+      const res = await apiFetch('/api/master/desa/import', {
+        method: 'POST',
+        body: JSON.stringify({ file_base64: base64Data, filename: file.name })
+      });
+      alert(`✅ ${res.message || 'Update masal Desa/TPS berhasil!'}`);
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } catch (err) {
+      alert('❌ Gagal mengimpor data Desa/TPS: ' + err.message);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
 // ============================================================================
 // VIEW: MASTER PASANGAN CALON (PASLON)
 // ============================================================================
@@ -5226,5 +5262,8 @@ window.deleteAkun = deleteAkun;
 window.exportBasExcel = exportBasExcel;
 window.triggerImportBas = triggerImportBas;
 window.handleExcelUploadBas = handleExcelUploadBas;
+window.exportDesaExcel = exportDesaExcel;
+window.triggerImportDesa = triggerImportDesa;
+window.handleExcelUploadDesa = handleExcelUploadDesa;
 window.downloadAllSubbagZip = downloadAllSubbagZip;
 

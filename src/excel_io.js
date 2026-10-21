@@ -2236,10 +2236,239 @@ function parseBasExcelBuffer(buffer) {
   return parsedItems;
 }
 
+/**
+ * Ekspor Data Master Desa & TPS (217 PPS) ke Format Excel Resmi
+ */
+async function exportDesaToExcelBuffer() {
+  const { getDesas } = require('./db');
+  const desas = getDesas();
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'emenje';
+  workbook.created = new Date();
+
+  const ws = workbook.addWorksheet('Master_Desa_TPS', {
+    views: [{ showGridLines: true }]
+  });
+
+  // Title
+  ws.mergeCells('A1:N1');
+  ws.getCell('A1').value = 'KPU KABUPATEN NGAWI - MASTER DESA / KELURAHAN & TPS (217 PPS)';
+  ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1E3A8A' } };
+
+  ws.mergeCells('A2:N2');
+  const totalTps = desas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
+  const totalDpt = desas.reduce((a, b) => a + (Number(b.pemilih) || 0), 0);
+  ws.getCell('A2').value = `Basis Data Wilayah & Badan Adhoc PPS se-Kabupaten Ngawi (Total: ${desas.length} Desa/Kelurahan, ${totalTps} TPS, ${totalDpt} Pemilih DPT)`;
+  ws.getCell('A2').font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF475569' } };
+
+  // Header Row at Row 4
+  const headerRow = ws.getRow(4);
+  headerRow.values = [
+    'No',
+    'ID Database',
+    'No Urut',
+    'ID Kec',
+    'Nama Kecamatan',
+    'Nama Desa / Kelurahan',
+    'TPS',
+    'Pantarlih',
+    'Pemilih (DPT)',
+    'Kotak Suara',
+    'Rohaniwan',
+    'Ketua PPS',
+    'Sekretaris PPS',
+    'NIP Sekretaris'
+  ];
+  headerRow.height = 28;
+  headerRow.eachCell((cell) => {
+    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1E3A8A' }
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
+      left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+    };
+  });
+
+  // Data rows
+  let rowIdx = 5;
+  for (let i = 0; i < desas.length; i++) {
+    const d = desas[i];
+    const r = ws.getRow(rowIdx);
+    r.values = [
+      i + 1,
+      d.id,
+      d.no_urut || (i + 1),
+      d.kecamatan_id,
+      d.kecamatan_nama || '',
+      d.nama || '',
+      Number(d.tps) || 0,
+      Number(d.pantarlih) || 0,
+      Number(d.pemilih) || 0,
+      Number(d.kotak) || Number(d.tps) || 0,
+      Number(d.rohaniwan) || 1,
+      d.ketua_nama || '',
+      d.sekretaris_nama || '',
+      d.sekretaris_nip || ''
+    ];
+    r.height = 22;
+
+    r.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(5).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(6).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(7).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(7).numFmt = '#,##0';
+    r.getCell(8).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(8).numFmt = '#,##0';
+    r.getCell(9).alignment = { vertical: 'middle', horizontal: 'right' };
+    r.getCell(9).numFmt = '#,##0';
+    r.getCell(10).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(10).numFmt = '#,##0';
+    r.getCell(11).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(12).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(13).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(14).alignment = { vertical: 'middle', horizontal: 'left' };
+
+    const isEven = i % 2 === 1;
+    r.eachCell((cell) => {
+      cell.font = { name: 'Arial', size: 9.5 };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+      if (isEven) {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF8FAFC' }
+        };
+      }
+    });
+
+    rowIdx++;
+  }
+
+  ws.columns = [
+    { width: 6 },
+    { width: 12 },
+    { width: 10 },
+    { width: 10 },
+    { width: 22 },
+    { width: 26 },
+    { width: 10 },
+    { width: 12 },
+    { width: 16 },
+    { width: 12 },
+    { width: 12 },
+    { width: 24 },
+    { width: 24 },
+    { width: 22 }
+  ];
+
+  return await workbook.xlsx.writeBuffer();
+}
+
+/**
+ * Parsing Buffer Excel Desa & TPS untuk Update Masal
+ */
+function parseDesaExcelBuffer(buffer) {
+  const wb = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+  if (!rawRows || rawRows.length === 0) return [];
+
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+    const row = (rawRows[i] || []).map(c => String(c || '').toLowerCase().trim());
+    const hasDesa = row.some(c => c.includes('desa') || c.includes('kelurahan'));
+    const hasTps = row.some(c => c === 'tps' || c.includes('jumlah tps'));
+    if (hasDesa && (hasTps || row.some(c => c.includes('kecamatan')))) {
+      headerIdx = i;
+      break;
+    }
+  }
+
+  if (headerIdx === -1) headerIdx = 0;
+  const headers = (rawRows[headerIdx] || []).map(c => String(c || '').toLowerCase().trim());
+
+  const colMap = {
+    id: headers.findIndex(h => h.includes('id database') || h === 'id'),
+    no_urut: headers.findIndex(h => h.includes('no urut') || h === 'urut'),
+    kecamatan_id: headers.findIndex(h => h.includes('id kec')),
+    kecamatan_nama: headers.findIndex(h => h.includes('nama kecamatan') || h === 'kecamatan'),
+    nama: headers.findIndex(h => h.includes('nama desa') || h.includes('desa') || h.includes('kelurahan')),
+    tps: headers.findIndex(h => h === 'tps' || h.includes('jumlah tps')),
+    pantarlih: headers.findIndex(h => h.includes('pantarlih')),
+    pemilih: headers.findIndex(h => h.includes('pemilih') || h.includes('dpt')),
+    kotak: headers.findIndex(h => h.includes('kotak')),
+    rohaniwan: headers.findIndex(h => h.includes('rohaniwan')),
+    ketua_nama: headers.findIndex(h => h.includes('ketua pps') || h.includes('ketua')),
+    sekretaris_nama: headers.findIndex(h => h.includes('sekretaris pps') || h.includes('sekretaris')),
+    sekretaris_nip: headers.findIndex(h => h.includes('nip'))
+  };
+
+  const parsedItems = [];
+  for (let r = headerIdx + 1; r < rawRows.length; r++) {
+    const row = rawRows[r];
+    if (!row || row.length === 0) continue;
+
+    const namaVal = colMap.nama !== -1 ? String(row[colMap.nama] || '').trim() : '';
+    if (!namaVal) continue;
+
+    const idVal = colMap.id !== -1 && row[colMap.id] ? Number(row[colMap.id]) : undefined;
+    const noUrutVal = colMap.no_urut !== -1 && row[colMap.no_urut] ? Number(row[colMap.no_urut]) : undefined;
+    const kecIdVal = colMap.kecamatan_id !== -1 && row[colMap.kecamatan_id] ? Number(row[colMap.kecamatan_id]) : undefined;
+    const kecNamaVal = colMap.kecamatan_nama !== -1 ? String(row[colMap.kecamatan_nama] || '').trim() : '';
+
+    const tpsVal = colMap.tps !== -1 ? (Number(String(row[colMap.tps] || '0').replace(/[^0-9.-]+/g, '')) || 0) : 0;
+    const pantarlihVal = colMap.pantarlih !== -1 ? (Number(String(row[colMap.pantarlih] || '0').replace(/[^0-9.-]+/g, '')) || 0) : 0;
+    const pemilihVal = colMap.pemilih !== -1 ? (Number(String(row[colMap.pemilih] || '0').replace(/[^0-9.-]+/g, '')) || 0) : 0;
+    const kotakVal = colMap.kotak !== -1 ? (Number(String(row[colMap.kotak] || '0').replace(/[^0-9.-]+/g, '')) || 0) : tpsVal;
+    const rohaniwanVal = colMap.rohaniwan !== -1 ? (Number(String(row[colMap.rohaniwan] || '1').replace(/[^0-9.-]+/g, '')) || 1) : 1;
+
+    const ketuaVal = colMap.ketua_nama !== -1 ? String(row[colMap.ketua_nama] || '').trim() : '';
+    const sekVal = colMap.sekretaris_nama !== -1 ? String(row[colMap.sekretaris_nama] || '').trim() : '';
+    const nipVal = colMap.sekretaris_nip !== -1 ? String(row[colMap.sekretaris_nip] || '').trim() : '';
+
+    parsedItems.push({
+      id: idVal,
+      no_urut: noUrutVal,
+      kecamatan_id: kecIdVal,
+      kecamatan_nama: kecNamaVal,
+      nama: namaVal,
+      tps: tpsVal,
+      pantarlih: pantarlihVal,
+      pemilih: pemilihVal,
+      kotak: kotakVal,
+      rohaniwan: rohaniwanVal,
+      ketua_nama: ketuaVal,
+      sekretaris_nama: sekVal,
+      sekretaris_nip: nipVal
+    });
+  }
+
+  return parsedItems;
+}
+
 module.exports = {
   exportRkbToExcelBuffer,
   exportSbmToExcelBuffer,
   parseSbmExcelBuffer,
   exportBasToExcelBuffer,
-  parseBasExcelBuffer
+  parseBasExcelBuffer,
+  exportDesaToExcelBuffer,
+  parseDesaExcelBuffer
 };

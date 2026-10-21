@@ -1126,6 +1126,81 @@ function deleteDesa(id) {
   return { success: true };
 }
 
+function bulkUpsertDesa(items) {
+  let inserted = 0;
+  let updated = 0;
+
+  const checkByIdStmt = db.prepare('SELECT id, kecamatan_id FROM master_desa WHERE id = ?');
+  const checkByNameKecStmt = db.prepare('SELECT id FROM master_desa WHERE LOWER(TRIM(nama)) = LOWER(TRIM(?)) AND kecamatan_id = ?');
+  const checkKecByNameStmt = db.prepare('SELECT id FROM master_kecamatan WHERE LOWER(TRIM(nama)) = LOWER(TRIM(?))');
+
+  const updateStmt = db.prepare(`
+    UPDATE master_desa
+    SET no_urut = COALESCE(?, no_urut),
+        kecamatan_id = ?,
+        nama = ?,
+        tps = ?,
+        kotak = ?,
+        pantarlih = ?,
+        pemilih = ?,
+        rohaniwan = ?,
+        ketua_nama = ?,
+        sekretaris_nama = ?,
+        sekretaris_nip = ?
+    WHERE id = ?
+  `);
+
+  const insertStmt = db.prepare(`
+    INSERT INTO master_desa (no_urut, kecamatan_id, nama, tps, kotak, pantarlih, pemilih, rohaniwan, ketua_nama, sekretaris_nama, sekretaris_nip)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  db.exec('BEGIN');
+  try {
+    for (const item of items) {
+      const cleanNama = (item.nama || '').trim();
+      if (!cleanNama) continue;
+
+      let kecId = Number(item.kecamatan_id);
+      if (!kecId && item.kecamatan_nama) {
+        const foundKec = checkKecByNameStmt.get(item.kecamatan_nama.trim());
+        if (foundKec) kecId = foundKec.id;
+      }
+      if (!kecId) continue;
+
+      const noUrut = item.no_urut ? Number(item.no_urut) : null;
+      const tps = Number(item.tps) || 0;
+      const kotak = Number(item.kotak) || tps;
+      const pantarlih = Number(item.pantarlih) || (tps > 0 ? tps * 2 : 0);
+      const pemilih = Number(item.pemilih) || 0;
+      const rohaniwan = Number(item.rohaniwan) || 1;
+      const ketua = (item.ketua_nama || '').trim();
+      const sekretaris = (item.sekretaris_nama || '').trim();
+      const nip = (item.sekretaris_nip || '').trim();
+
+      let targetId = item.id ? checkByIdStmt.get(item.id)?.id : null;
+      if (!targetId) {
+        targetId = checkByNameKecStmt.get(cleanNama, kecId)?.id;
+      }
+
+      if (targetId) {
+        updateStmt.run(noUrut, kecId, cleanNama, tps, kotak, pantarlih, pemilih, rohaniwan, ketua, sekretaris, nip, targetId);
+        updated++;
+      } else {
+        insertStmt.run(noUrut || 1, kecId, cleanNama, tps, kotak, pantarlih, pemilih, rohaniwan, ketua, sekretaris, nip);
+        inserted++;
+      }
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
+  syncPrimaryKuantitas();
+  return { success: true, processed: inserted + updated, inserted, updated };
+}
+
 // ============================================================================
 // MASTER STANDAR BIAYA MASUKAN (SBM) CRUD & BULK UPSERT
 // ============================================================================
@@ -1450,6 +1525,7 @@ module.exports = {
   getDesas,
   saveDesa,
   deleteDesa,
+  bulkUpsertDesa,
   getSbmList,
   getSbmById,
   saveSbm,

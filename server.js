@@ -44,6 +44,7 @@ const {
   getDesas,
   saveDesa,
   deleteDesa,
+  bulkUpsertDesa,
   getSbmList,
   getSbmById,
   saveSbm,
@@ -63,7 +64,15 @@ const {
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary } = require('./src/calculation');
 const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle } = require('./src/auth');
-const { exportRkbToExcelBuffer, exportSbmToExcelBuffer, parseSbmExcelBuffer, exportBasToExcelBuffer, parseBasExcelBuffer } = require('./src/excel_io');
+const { 
+  exportRkbToExcelBuffer, 
+  exportSbmToExcelBuffer, 
+  parseSbmExcelBuffer, 
+  exportBasToExcelBuffer, 
+  parseBasExcelBuffer,
+  exportDesaToExcelBuffer,
+  parseDesaExcelBuffer
+} = require('./src/excel_io');
 
 const PORT = process.env.PORT || 3456;
 const PUBLIC_DIR = path.resolve(__dirname, 'public');
@@ -839,6 +848,41 @@ const server = http.createServer(async (req, res) => {
       }
       deleteDesa(Number(delDesaMatch[1]));
       return sendJson(res, 200, { success: true, list: getDesas() });
+    }
+    if (pathname === '/api/master/desa/export' && (method === 'GET' || method === 'HEAD')) {
+      const buffer = await exportDesaToExcelBuffer();
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="Master_Desa_TPS_KPU_Ngawi.xlsx"',
+        'Content-Length': buffer.length
+      });
+      if (method === 'HEAD') return res.end();
+      return res.end(buffer);
+    }
+    if (pathname === '/api/master/desa/import' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Desa.' });
+      }
+      const body = await parseJsonBody(req);
+      if (!body.file_base64) {
+        return sendJson(res, 400, { error: 'Berkas Excel wajib diunggah (base64).' });
+      }
+      const buf = Buffer.from(body.file_base64, 'base64');
+      const items = parseDesaExcelBuffer(buf);
+      if (!items || items.length === 0) {
+        return sendJson(res, 400, { error: 'Tidak ada baris data Desa/TPS yang valid ditemukan dalam berkas Excel.' });
+      }
+      const result = bulkUpsertDesa(items);
+      clearRkbDatasetCache();
+      return sendJson(res, 200, {
+        success: true,
+        processed: result.processed,
+        inserted: result.inserted,
+        updated: result.updated,
+        list: getDesas(),
+        message: `Berhasil mengupdate masal ${result.processed} data Desa/TPS (${result.inserted} baru, ${result.updated} diperbarui).`
+      });
     }
 
     // 13e. MASTER STANDAR BIAYA MASUKAN (SBM)

@@ -675,10 +675,17 @@
               <h2 class="view-title">Master Desa / Kelurahan & TPS (217 PPS)</h2>
               <p class="view-desc">Basis Data Primer TPS, Pemilih (DPT), Pantarlih, Kotak Suara, dan Pejabat PPS se-Kabupaten Ngawi.</p>
             </div>
-            <div class="header-actions">
-              <button class="btn btn-primary" onclick="openModalDesa()">
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="openModalDesa()">
                 ➕ Tambah Desa / Kelurahan
               </button>
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportDesaExcel()" title="Unduh seluruh data 217 Desa &amp; TPS ke format Excel resmi">
+                📥 Unduh Excel
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="triggerImportDesa()" title="Unggah berkas Excel untuk memperbarui data TPS, DPT, dan Pejabat PPS secara masal">
+                📤 Unggah Excel Masal
+              </button>
+              <input type="file" id="input-file-desa" accept=".xlsx,.xls" style="display: none;" onchange="handleExcelUploadDesa(event)">
             </div>
           </div>
 
@@ -698,7 +705,7 @@
             </div>
             <div class="penyelenggara-box">
               <div class="p-title">Total TPS Pilkada</div>
-              <div class="p-val" id="pps-stat-total-tps">1.371 TPS</div>
+              <div class="p-val" id="pps-stat-total-tps">1.374 TPS</div>
               <div class="p-note">Koefisien Utama RKB</div>
             </div>
             <div class="penyelenggara-box">
@@ -780,12 +787,12 @@
           <div class="penyelenggara-strip mb-3">
             <div class="penyelenggara-box">
               <div class="p-title">Paslon Terdaftar</div>
-              <div class="p-val" id="paslon-stat-total">3 Pasangan</div>
+              <div class="p-val" id="paslon-stat-total">5 Pasangan</div>
               <div class="p-note">Kontestan Pilkada</div>
             </div>
             <div class="penyelenggara-box">
               <div class="p-title">Koefisien Variabel RKB</div>
-              <div class="p-val" id="paslon-stat-koef">3 Paslon</div>
+              <div class="p-val" id="paslon-stat-koef">5 Paslon</div>
               <div class="p-note">Terkunci di Rumus RKB</div>
             </div>
           </div>
