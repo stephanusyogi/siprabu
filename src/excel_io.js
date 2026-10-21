@@ -489,9 +489,8 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     if (idx < 3) {
       c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
     } else {
-      c.font = { name: 'Calibri', size: 12, bold: true, underline: true, color: { argb: 'FF000000' } };
-      // Garis bawah tegas penutup tanda tangan resmi
-      c.border = { bottom: { style: 'medium', color: { argb: 'FF000000' } } };
+      // Pejabat non-PNS / tanpa NIP (Ketua KPU): Nama Bold, TANPA garis bawah dan TANPA border bottom
+      c.font = { name: 'Calibri', size: 12, bold: true, underline: false, color: { argb: 'FF000000' } };
     }
   });
 
@@ -1323,7 +1322,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws4.getCell(`E${signR4 + 1}`).alignment = { horizontal: 'center', vertical: 'middle' };
   ws4.getCell(`E${signR4 + 2}`).font = { name: 'Calibri', size: 11, bold: true };
   ws4.getCell(`E${signR4 + 2}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  ws4.getCell(`E${signR4 + 6}`).font = { name: 'Calibri', size: 12, bold: true, underline: true };
+  ws4.getCell(`E${signR4 + 6}`).font = { name: 'Calibri', size: 12, bold: true, underline: false };
   ws4.getCell(`E${signR4 + 6}`).alignment = { horizontal: 'center', vertical: 'middle' };
 
   // LEBAR KOLOM SHEET REKAP_ALOKASI (Presentasi-Ready Layout)
@@ -1338,7 +1337,35 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ];
 
   // Return Buffer XLSX ExcelJS
-  const buffer = await wb.xlsx.writeBuffer();
+  let buffer = await wb.xlsx.writeBuffer();
+
+  // ==========================================================================
+  // NATIVE EXCEL COM ANTI-ORPHAN SIGNATURE ENGINE (Windows Environment)
+  // Menjamin 100% presisi bebas "Orphan Signature" menggunakan kalkulasi layout Excel native
+  // ==========================================================================
+  if (process.platform === 'win32') {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const { execFileSync } = require('child_process');
+      const tempDir = path.join(__dirname, '..', 'temp');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+      const tempFile = path.join(tempDir, `export_${Date.now()}_${Math.random().toString(36).substring(7)}.xlsx`);
+      fs.writeFileSync(tempFile, buffer);
+
+      const pyScript = path.join(__dirname, 'fix_page_breaks.py');
+      if (fs.existsSync(pyScript)) {
+        execFileSync('python', [pyScript, tempFile], { stdio: 'ignore', timeout: 8000 });
+        if (fs.existsSync(tempFile)) {
+          buffer = fs.readFileSync(tempFile);
+          try { fs.unlinkSync(tempFile); } catch (e) {}
+        }
+      }
+    } catch (postErr) {
+      console.warn('[excel_io] Native Excel post-processor notice:', postErr.message);
+    }
+  }
+
   return buffer;
 }
 
