@@ -246,9 +246,30 @@ function initDb() {
       updEmail.run(em, uname);
     }
 
-    // Pastikan email emenje dan kasubbag teknis terkonfigurasi sesuai instruksi
-    db.prepare("UPDATE satker_users SET email = 'noorihan1184@gmail.com' WHERE username = 'emenje'").run();
-    db.prepare("UPDATE satker_users SET email = 'stephanusyogi12@gmail.com' WHERE username = 'teknis'").run();
+    // Konfigurasi email resmi sesuai arahan:
+    // 1. emenje -> noorjihan1184@gmail.com
+    db.prepare("UPDATE satker_users SET email = 'noorjihan1184@gmail.com' WHERE username = 'emenje'").run();
+
+    // 2. kasubag rendatin -> datinkpungawi@gmail.com
+    db.prepare("UPDATE satker_users SET email = 'datinkpungawi@gmail.com' WHERE username = 'perencanaan'").run();
+
+    // 3. subbag teknis -> dhiradeya@gmail.com
+    db.prepare("UPDATE satker_users SET email = 'dhiradeya@gmail.com' WHERE username = 'teknis'").run();
+
+    // 4. komisioner divisi rendatin (Putra Adi Wibowo) -> putrasiswoyo@kpu.go.id
+    db.prepare("UPDATE satker_users SET email = 'putrasiswoyo@kpu.go.id' WHERE username = 'divisi_rendatin'").run();
+
+    // 5. fatika.mahardika@gmail.com -> Staf Subbag Perencanaan
+    db.prepare("UPDATE satker_users SET email = 'fatika.mahardika@gmail.com', nama_pejabat = 'Fatika Mahardika' WHERE username = 'staf_perencanaan'").run();
+
+    // 6. Akun Operator Teknis Stephanus Yogi
+    const checkYogi = db.prepare("SELECT id FROM satker_users WHERE username = 'stephanusyogi' OR email = 'stephanusyogi12@gmail.com'").get();
+    if (!checkYogi) {
+      db.prepare(`
+        INSERT INTO satker_users (username, password, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active)
+        VALUES ('stephanusyogi', 'teknis123', 'Stephanus Yogi', 'Operator Subbag Teknis & IT', 'stephanusyogi12@gmail.com', 'op_teknis', 2, 'TEKNIS', 1)
+      `).run();
+    }
   } catch (e) {}
 
   // Default settings untuk integrasi Google Sign-In
@@ -931,12 +952,20 @@ function authenticateGoogleUser(googleProfile) {
     u = db.prepare('SELECT * FROM satker_users WHERE LOWER(email) = ? AND is_active = 1').get(email);
   }
 
-  // 2. Fallback pencocokan khusus developer emenje dan teknis
+  // 2. Fallback pencocokan khusus jika email belum sempat tersimpan
   if (!u && email) {
     if (email === 'noorjihan1184@gmail.com' || email === 'noorihan1184@gmail.com') {
       u = db.prepare("SELECT * FROM satker_users WHERE username = 'emenje' AND is_active = 1").get();
-    } else if (email === 'stephanusyogi12@gmail.com') {
+    } else if (email === 'datinkpungawi@gmail.com') {
+      u = db.prepare("SELECT * FROM satker_users WHERE username = 'perencanaan' AND is_active = 1").get();
+    } else if (email === 'dhiradeya@gmail.com') {
       u = db.prepare("SELECT * FROM satker_users WHERE username = 'teknis' AND is_active = 1").get();
+    } else if (email === 'putrasiswoyo@kpu.go.id') {
+      u = db.prepare("SELECT * FROM satker_users WHERE username = 'divisi_rendatin' AND is_active = 1").get();
+    } else if (email === 'fatika.mahardika@gmail.com') {
+      u = db.prepare("SELECT * FROM satker_users WHERE username = 'staf_perencanaan' AND is_active = 1").get();
+    } else if (email === 'stephanusyogi12@gmail.com') {
+      u = db.prepare("SELECT * FROM satker_users WHERE (username = 'stephanusyogi' OR username = 'teknis') AND is_active = 1").get();
     }
   }
 
