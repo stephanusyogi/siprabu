@@ -82,13 +82,13 @@ function getKuantitasMap() {
 
   const livePantarlih = Number(agg.sumPantarlih) || 2537;
   const liveDesa = Number(agg.jmlDesa) || 217;
-  const liveTps = Number(agg.sumTps) || 1371;
+  const liveTps = Number(agg.sumTps) || 1374;
   const livePemilih = Number(agg.sumPemilih) || 701425;
   const liveKec = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_kecamatan').get()?.cnt) || 19;
   
-  let livePaslon = 3;
+  let livePaslon = 5;
   try {
-    livePaslon = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt) || 3;
+    livePaslon = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt) || 5;
   } catch (e) {}
 
   const map = {};
@@ -101,7 +101,7 @@ function getKuantitasMap() {
       k.nilai = liveDesa;
     } else if (k.kode === 'kec_ppk') {
       k.nilai = liveKec;
-    } else if (k.kode === 'pemilih_dpt') {
+    } else if (k.kode === 'pemilih_dpt' || k.kode === 'dpt') {
       k.nilai = livePemilih;
     } else if (k.kode === 'paslon') {
       k.nilai = livePaslon;
@@ -113,6 +113,8 @@ function getKuantitasMap() {
       k.nilai = liveTps * 2;
     } else if (k.kode === 'petugas_tps') {
       k.nilai = liveTps * 9;
+    } else if (k.kode === 'kpps_all') {
+      k.nilai = liveTps * 7;
     } else if (k.kode === 'ppk_ketua') {
       k.nilai = liveKec * 1;
     } else if (k.kode === 'ppk_anggota') {
@@ -146,12 +148,12 @@ function resolveVarValue(varCode, fallbackVal, contextType, entityData, kabSumma
     return 1;
   }
   if (varCode === 'TPS_RKB' || varCode === 'tps_rkb') {
-    if (contextType === 'KAB') return (kuantitasMap && kuantitasMap.tps_rkb) ? Number(kuantitasMap.tps_rkb.nilai) || 1371 : 1371;
+    if (contextType === 'KAB') return (kuantitasMap && kuantitasMap.tps_rkb) ? Number(kuantitasMap.tps_rkb.nilai) || 1374 : 1374;
     if (entityData && entityData.vars) return Number(entityData.vars.tps) || 0;
     return 0;
   }
   if (varCode === 'KOTAK_RKB') {
-    if (contextType === 'KAB') return (kuantitasMap && kuantitasMap.tps_rkb) ? Number(kuantitasMap.tps_rkb.nilai) || 1371 : 1371;
+    if (contextType === 'KAB') return (kuantitasMap && kuantitasMap.tps_rkb) ? Number(kuantitasMap.tps_rkb.nilai) || 1374 : 1374;
     if (entityData && entityData.vars) return Number(entityData.vars.kotak) || 0;
     return 0;
   }

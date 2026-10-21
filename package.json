@@ -3,6 +3,9 @@
   "version": "3.0.0",
   "description": "Sistem Informasi Perencanaan Anggaran dan Biaya Terpadu Satker KPU Kabupaten/Kota",
   "main": "server.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"

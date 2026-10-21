@@ -71,17 +71,22 @@ function initDb() {
     );
   `);
 
-  // Seed default 3 paslon jika kosong (sesuai koefisien RKB paslon = 3)
+  // Seed default 5 paslon jika kurang dari 5 (4 Parpol + 1 Perseorangan sesuai angka RKB 5 Bakal Calon)
   try {
     const cPaslon = db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt || 0;
+    const insPaslon = db.prepare(`
+      INSERT INTO master_paslon (no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
     if (cPaslon === 0) {
-      const insPaslon = db.prepare(`
-        INSERT INTO master_paslon (no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-      insPaslon.run(1, 'H. ONY ANWAR HARSONO, S.T., M.H.', 'Dr. DWI RIANTO JATMIKO, M.H., M.Si.', 'PDI Perjuangan, Golkar, PKB, Gerindra, PKS, PAN, NasDem, Demokrat, Hanura, Perindo', 'Ngawi Bergerak Bersama Semesta Berkarya', 'Pasangan Calon Petahana');
-      insPaslon.run(2, 'PASANGAN CALON NOMOR URUT 2', 'WAKIL BUPATI NOMOR URUT 2', 'Koalisi Parpol Non-Parlemen / Independen', 'Maju Bersama Rakyat', 'Kandidat Pilkada Ngawi');
-      insPaslon.run(3, 'PASANGAN CALON NOMOR URUT 3', 'WAKIL BUPATI NOMOR URUT 3', 'Koalisi Bersatu Harapan Baru', 'Sejahtera & Bermartabat', 'Kandidat Pilkada Ngawi');
+      insPaslon.run(1, 'H. ONY ANWAR HARSONO, S.T., M.H.', 'Dr. DWI RIANTO JATMIKO, M.H., M.Si.', 'PDI Perjuangan, Golkar, PKB, Gerindra, PKS, PAN, NasDem, Demokrat, Hanura, Perindo', 'Ngawi Bergerak Bersama Semesta Berkarya', 'Pasangan Calon Petahana (Parpol)');
+      insPaslon.run(2, 'PASANGAN CALON NOMOR URUT 2', 'WAKIL BUPATI NOMOR URUT 2', 'Koalisi Parpol Non-Parlemen', 'Maju Bersama Rakyat', 'Kandidat Pilkada Ngawi (Parpol)');
+      insPaslon.run(3, 'PASANGAN CALON NOMOR URUT 3', 'WAKIL BUPATI NOMOR URUT 3', 'Koalisi Bersatu Harapan Baru', 'Sejahtera & Bermartabat', 'Kandidat Pilkada Ngawi (Parpol)');
+      insPaslon.run(4, 'PASANGAN CALON NOMOR URUT 4', 'WAKIL BUPATI NOMOR URUT 4', 'Koalisi Kerakyatan Mandiri', 'Ngawi Sejahtera Berkeadilan', 'Kandidat Pilkada Ngawi (Parpol)');
+      insPaslon.run(5, 'PASANGAN CALON JALUR PERSEORANGAN', 'WAKIL BUPATI JALUR PERSEORANGAN', 'Perseorangan (Independen)', 'Mandiri Mengabdi untuk Rakyat', 'Pasangan Calon Jalur Perseorangan');
+    } else if (cPaslon === 3) {
+      insPaslon.run(4, 'PASANGAN CALON NOMOR URUT 4', 'WAKIL BUPATI NOMOR URUT 4', 'Koalisi Kerakyatan Mandiri', 'Ngawi Sejahtera Berkeadilan', 'Kandidat Pilkada Ngawi (Parpol)');
+      insPaslon.run(5, 'PASANGAN CALON JALUR PERSEORANGAN', 'WAKIL BUPATI JALUR PERSEORANGAN', 'Perseorangan (Independen)', 'Mandiri Mengabdi untuk Rakyat', 'Pasangan Calon Jalur Perseorangan');
     }
   } catch (e) {}
 
@@ -136,6 +141,11 @@ function initDb() {
     db.prepare("UPDATE satker_users SET pic_subbag = 'HUKUM' WHERE LOWER(pic_subbag) IN ('hukum')").run();
     db.prepare("UPDATE satker_users SET pic_subbag = 'PARSDM' WHERE LOWER(pic_subbag) IN ('parmas', 'parsdm')").run();
     db.prepare("UPDATE satker_users SET pic_subbag = 'KUL' WHERE LOWER(pic_subbag) IN ('keuangan', 'kul')").run();
+  } catch (e) {}
+
+  // Otomatis jalankan sinkronisasi SSOT (Master Wilayah, DPT, Paslon -> master_kuantitas) saat inisialisasi
+  try {
+    syncPrimaryKuantitas();
   } catch (e) {}
 }
 
@@ -830,13 +840,13 @@ function syncPrimaryKuantitas() {
   } catch (e) {}
 
   const countKec = db.prepare('SELECT COUNT(*) as countKec FROM master_kecamatan').get()?.countKec || 19;
-  let countPaslon = 3;
+  let countPaslon = 5;
   try {
-    countPaslon = db.prepare('SELECT COUNT(*) as countPaslon FROM master_paslon').get()?.countPaslon || 3;
+    countPaslon = db.prepare('SELECT COUNT(*) as countPaslon FROM master_paslon').get()?.countPaslon || 5;
   } catch (e) {}
 
   const totalDesa = Number(aggDesa.countDesa) || 217;
-  const totalTps = Number(aggDesa.sumTps) || 1371;
+  const totalTps = Number(aggDesa.sumTps) || 1374;
   const totalPantarlih = Number(aggDesa.sumPantarlih) || 2537;
   const totalPemilih = Number(aggDesa.sumPemilih) || 701425;
 
@@ -846,7 +856,15 @@ function syncPrimaryKuantitas() {
   updateKuantitasStmt.run(totalTps, 'tps_rkb');
   updateKuantitasStmt.run(totalPantarlih, 'pantarlih');
   updateKuantitasStmt.run(totalPemilih, 'pemilih_dpt');
+  updateKuantitasStmt.run(totalPemilih, 'dpt');
   updateKuantitasStmt.run(countPaslon, 'paslon');
+
+  // Keterangan dinamis untuk paslon, TPS, dan DPT
+  try {
+    db.prepare("UPDATE master_kuantitas SET keterangan = ? WHERE kode = 'paslon'").run(`Total Pasangan Calon Tetap (Otomatis dari Database Master: ${countPaslon} Paslon)`);
+    db.prepare("UPDATE master_kuantitas SET keterangan = ? WHERE kode = 'tps_rkb'").run(`Kuantitas TPS RKB (Otomatis dari Akumulasi Database 217 Desa: ${totalTps.toLocaleString('id-ID')} TPS)`);
+    db.prepare("UPDATE master_kuantitas SET keterangan = ? WHERE kode = 'dpt'").run(`Jumlah DPT Pemilih (Otomatis dari Akumulasi Database 217 Desa: ${totalPemilih.toLocaleString('id-ID')} Pemilih)`);
+  } catch (e) {}
 
   // Turunan personil PPK & PPS & TPS
   updateKuantitasStmt.run(countKec * 1, 'ppk_ketua');
@@ -867,6 +885,7 @@ function syncPrimaryKuantitas() {
   updateKuantitasStmt.run(totalTps * 6, 'kpps_anggota');
   updateKuantitasStmt.run(totalTps * 2, 'linmas_tps');
   updateKuantitasStmt.run(totalTps * 9, 'petugas_tps');
+  updateKuantitasStmt.run(totalTps * 7, 'kpps_all');
 
   return {
     totalKec: countKec,

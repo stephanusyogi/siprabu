@@ -4366,7 +4366,7 @@ function renderDbKuantitas() {
 
   tbody.innerHTML = kuantitas.map(q => {
     let sourceBadge = '';
-    if (['tps_rkb', 'pemilih_dpt', 'pantarlih'].includes(q.kode)) {
+    if (['tps_rkb', 'pemilih_dpt', 'dpt', 'pantarlih'].includes(q.kode)) {
       sourceBadge = '<span class="badge badge-success" style="font-size:11px;">Reaktif: Detail Desa/TPS</span>';
     } else if (q.kode === 'kec_ppk') {
       sourceBadge = '<span class="badge badge-info" style="font-size:11px;">Reaktif: Master PPK</span>';
