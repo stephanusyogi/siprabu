@@ -533,7 +533,12 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
   let deltaBertambah = 0;
   let deltaBerkurang = 0;
 
+  const matchedParentIds = new Set();
+
   for (const cr of currCalc.rows) {
+    if (cr.semula_row_id) {
+      matchedParentIds.add(cr.semula_row_id);
+    }
     const semulaRow = cr.semula_row_id ? parentMap[cr.semula_row_id] : null;
     const sVol = semulaRow ? semulaRow.computed_volume : null;
     const sHarga = semulaRow ? Number(semulaRow.harga_satuan) || 0 : null;
@@ -586,6 +591,34 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
           kode_akun: cr.kode_akun || ''
         });
       }
+    }
+  }
+
+  // Akuntansi baris yang dihapus dari dokumen induk (Baseline)
+  for (const pr of parentCalc.rows) {
+    if (!matchedParentIds.has(pr.id) && !pr.is_header && (pr.computed_total || 0) > 0) {
+      const diff = -pr.computed_total;
+      deltaBerkurang += pr.computed_total;
+      logDetail.push({
+        row_id: null,
+        tree_id: pr.tree_id,
+        status: 'BERKURANG',
+        diff,
+        semula_vol: pr.computed_volume,
+        semula_satuan: pr.satuan_vol || '',
+        semula_formula: pr.computed_formula || '',
+        semula_harga: Number(pr.harga_satuan) || 0,
+        semula_jumlah: pr.computed_total,
+        menjadi_vol: 0,
+        menjadi_satuan: '',
+        menjadi_formula: '',
+        menjadi_harga: 0,
+        menjadi_jumlah: 0,
+        catatan: 'Baris rincian belanja dihapus dari dokumen semula',
+        kode: pr.kode || '',
+        uraian: pr.uraian,
+        kode_akun: pr.kode_akun || ''
+      });
     }
   }
 
