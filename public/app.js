@@ -4108,9 +4108,8 @@ async function executeExportExcel() {
   const filename = `RUH_Belanja_${versiStr}${filterSuffix}.xlsx`;
 
   try {
-    const res = await fetch('/api/download-requests', {
+    const result = await apiFetch('/api/download-requests', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nama_file: filename,
         tipe_unduhan: 'EXCEL_RUH',
@@ -4119,8 +4118,7 @@ async function executeExportExcel() {
         filter_sasaran: sasaran
       })
     });
-    const result = await res.json();
-    if (result.success) {
+    if (result && result.success) {
       showToast('Permintaan unduh berkas berhasil dikirim ke antrean. Mengalihkan ke Monitoring Report...', 'info');
       closeExportModal();
       switchView('view-monitoring');
@@ -4141,9 +4139,8 @@ async function downloadAllSubbagZip(periodeId = null) {
   const filename = `Paket_RUH_5_Subbagian_${versiStr}.zip`;
 
   try {
-    const res = await fetch('/api/download-requests', {
+    const result = await apiFetch('/api/download-requests', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nama_file: filename,
         tipe_unduhan: 'ZIP_SUBBAGIAN',
@@ -4180,9 +4177,7 @@ async function loadMonitoringReport() {
 
   const tbody = document.getElementById('monitoring-table-body');
   try {
-    const res = await fetch(`/api/download-requests?${params.toString()}`);
-    if (!res.ok) throw new Error('Gagal memuat antrean unduhan');
-    monitoringData = await res.json();
+    monitoringData = await apiFetch(`/api/download-requests?${params.toString()}`);
     renderMonitoringTable();
 
     // Cek jika ada yang masih berstatus DIPROSES, lakukan auto-poll
@@ -4211,7 +4206,17 @@ function renderMonitoringTable() {
   if (labelCount) labelCount.textContent = `Menampilkan ${totalItems} data`;
 
   if (totalItems === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center" style="padding: 30px; color: var(--text-muted);">Tidak ada riwayat permintaan unduhan.</td></tr>';
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="text-center" style="padding: 48px 20px; color: #64748b; background: #fafafa;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
+          <div style="font-weight: 700; font-size: 13.5px; color: #1e293b;">Belum Ada Riwayat Unduhan</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 4px; max-width: 420px; margin-left: auto; margin-right: auto; line-height: 1.5;">
+            Data Anda bersih. Anda belum pernah melakukan permintaan unduh berkas laporan. Setiap berkas yang Anda unduh nantinya hanya dapat dilihat oleh akun Anda sendiri.
+          </div>
+        </td>
+      </tr>
+    `;
     return;
   }
 

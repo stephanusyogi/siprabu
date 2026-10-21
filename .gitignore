@@ -18,3 +18,5 @@ data/downloads/*
 # Developer Local Tools (Hanya ada di laptop lokal, tidak di-push ke GitHub)
 public/dev-tools.js
 
+
+temp/

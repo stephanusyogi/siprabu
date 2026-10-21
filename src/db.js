@@ -47,6 +47,8 @@ function initDb() {
   safeAddColumn('periode_anggaran', 'pagu_nphd REAL DEFAULT 0');
   safeAddColumn('periode_anggaran', 'created_at TEXT DEFAULT CURRENT_TIMESTAMP');
   safeAddColumn('periode_anggaran', 'updated_at TEXT DEFAULT CURRENT_TIMESTAMP');
+  safeAddColumn('download_requests', 'user_id INTEGER');
+  safeAddColumn('download_requests', 'username TEXT');
 
   // 1. Tabel Download Requests (Sistem Antrean Unduh SAKTI Kemenkeu)
   db.exec(`
@@ -1631,7 +1633,7 @@ function bulkUpsertAkun(rows) {
 // SISTEM MONITORING REPORT & ASYNC DOWNLOAD (SAKTI KEMENKEU STYLE)
 // ============================================================================
 
-function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran }) {
+function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran, user_id, username }) {
   const reqId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   
   const dateObj = new Date();
@@ -1645,9 +1647,9 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
   const res = db.prepare(`
     INSERT INTO download_requests (
       request_id, nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran,
-      request_time, status, expires_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'DIPROSES', ?)
-  `).run(reqId, nama_file, tipe_unduhan, periode_id || null, filter_pic || null, filter_sasaran || null, request_time, expiresAt);
+      request_time, status, expires_at, user_id, username
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'DIPROSES', ?, ?, ?)
+  `).run(reqId, nama_file, tipe_unduhan, periode_id || null, filter_pic || null, filter_sasaran || null, request_time, expiresAt, user_id || null, username || null);
 
   return {
     id: res.lastInsertRowid,
@@ -1655,15 +1657,23 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
     nama_file,
     status: 'DIPROSES',
     request_time,
-    expires_at: expiresAt
+    expires_at: expiresAt,
+    user_id: user_id || null,
+    username: username || null
   };
 }
 
-function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai = '' } = {}) {
+function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai = '', username = '' } = {}) {
   cleanupExpiredDownloads();
 
   let query = 'SELECT * FROM download_requests WHERE 1=1';
   const params = [];
+
+  // Isolasi data per-user: hanya menampilkan riwayat unduhan milik pengguna yang sedang login
+  if (username) {
+    query += ' AND username = ?';
+    params.push(username);
+  }
 
   if (search && search.trim()) {
     query += ' AND nama_file LIKE ?';

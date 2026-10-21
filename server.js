@@ -1290,18 +1290,34 @@ const server = http.createServer(async (req, res) => {
 
     // 13e. SISTEM ANTREAN UNDUHAN / MONITORING REPORT (SAKTI KEMENKEU STYLE)
     if (pathname === '/api/download-requests' && method === 'GET') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) {
+        // Jika belum login / sesi tidak valid, kembalikan daftar bersih (kosong)
+        return sendJson(res, 200, []);
+      }
+
+      // Filter per-user: hanya user yang mendownload yang bisa melihat riwayatnya
       const requests = getDownloadRequests({
         search: query.search || '',
         tanggal_mulai: query.tanggal_mulai || '',
-        tanggal_selesai: query.tanggal_selesai || ''
+        tanggal_selesai: query.tanggal_selesai || '',
+        username: currentUser.username
       });
       return sendJson(res, 200, requests);
     }
     if (pathname === '/api/download-requests' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) {
+        return sendJson(res, 401, { error: 'Silakan login terlebih dahulu untuk mengajukan antrean unduh berkas.' });
+      }
+
       const body = await parseJsonBody(req);
       if (!body.nama_file) {
         return sendJson(res, 400, { error: 'Nama file unduhan wajib disertakan.' });
       }
+      body.user_id = currentUser.id;
+      body.username = currentUser.username;
+
       const job = createDownloadRequest(body);
       // Jalankan worker secara asinkron di latar belakang
       setImmediate(() => processDownloadJob(job.id));
@@ -1309,9 +1325,19 @@ const server = http.createServer(async (req, res) => {
     }
     const dlFileMatch = pathname.match(/^\/api\/download-requests\/(\d+)\/file$/);
     if (dlFileMatch && (method === 'GET' || method === 'HEAD')) {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) {
+        return sendJson(res, 401, { error: 'Silakan login terlebih dahulu untuk mengunduh berkas.' });
+      }
+
       const reqId = Number(dlFileMatch[1]);
       const job = getDownloadRequestById(reqId);
       if (!job) return sendJson(res, 404, { error: 'Antrean unduhan tidak ditemukan.' });
+
+      // Verifikasi hak unduh: pengguna hanya boleh mengunduh berkas buatannya sendiri
+      if (job.username && job.username !== currentUser.username && currentUser.level > 0) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Anda hanya berhak mengunduh berkas permintaan Anda sendiri.' });
+      }
 
       if (job.status === 'KADALUARSA') {
         return sendJson(res, 410, { error: 'Berkas unduhan telah kadaluarsa (> 1 jam) dan terhapus otomatis.' });
