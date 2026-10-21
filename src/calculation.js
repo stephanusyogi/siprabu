@@ -309,6 +309,14 @@ function calculateRkbDataset(rawRows) {
   const byAkun = {};
   const bySasaran = { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 };
 
+  const subbagSummaries = {
+    KUL: { pic: 'KUL', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { KUL: 0 } },
+    RENDATIN: { pic: 'RENDATIN', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { RENDATIN: 0 } },
+    TEKNIS: { pic: 'TEKNIS', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { TEKNIS: 0 } },
+    HUKUM: { pic: 'HUKUM', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { HUKUM: 0 } },
+    PARSDM: { pic: 'PARSDM', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { PARSDM: 0 } }
+  };
+
   // 1. Hitung seluruh baris item (level_indent === 4 dan row_type !== 'header')
   const processedRows = rawRows.map(r => {
     const isItem = r.row_type !== 'header' && (Number(r.level_indent) === 4);
@@ -344,6 +352,18 @@ function calculateRkbDataset(rawRows) {
     const sas = (r.target_scope || 'KAB').toUpperCase();
     if (!bySasaran[sas]) bySasaran[sas] = 0;
     bySasaran[sas] += calc.total_anggaran;
+
+    // Per-Subbag Summary Aggregation
+    if (!subbagSummaries[pic]) {
+      subbagSummaries[pic] = { pic, grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { [pic]: 0 } };
+    }
+    subbagSummaries[pic].grandTotal += calc.total_anggaran;
+    subbagSummaries[pic].totalItems++;
+    subbagSummaries[pic].bySubbag[pic] = (subbagSummaries[pic].bySubbag[pic] || 0) + calc.total_anggaran;
+    if (!subbagSummaries[pic].bySasaran[sas]) subbagSummaries[pic].bySasaran[sas] = 0;
+    subbagSummaries[pic].bySasaran[sas] += calc.total_anggaran;
+    if (!subbagSummaries[pic].byAkun[akun]) subbagSummaries[pic].byAkun[akun] = 0;
+    subbagSummaries[pic].byAkun[akun] += calc.total_anggaran;
 
     return {
       ...r,
@@ -469,6 +489,7 @@ function calculateRkbDataset(rawRows) {
       bySubbag,
       byAkun,
       bySasaran,
+      subbagSummaries,
       banner: {
         totalPagu: grandTotal,
         tahapanTotal,

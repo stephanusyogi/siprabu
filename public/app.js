@@ -275,6 +275,9 @@ function updateUserNavbar() {
   const user = AppState.currentUser;
   if (!user) return;
 
+  // Set default dashboard scope based on user's role/pic
+  AppState.dashboardSubbag = (user && user.pic_subbag && user.pic_subbag !== 'SEMUA') ? user.pic_subbag : 'SEMUA';
+
   setElText('user-nama-pejabat', user.nama_pejabat);
   const switcher = document.getElementById('user-switcher');
   if (switcher) switcher.value = user.username;
@@ -909,64 +912,172 @@ function renderAllViews() {
 // VIEW 1: DASHBOARD KPI EKSEKUTIF
 // ============================================================================
 
+function handleDashboardSubbagChange(val) {
+  AppState.dashboardSubbag = val;
+  renderDashboard();
+}
+
 function renderDashboard() {
   if (!AppState.rkbData || !AppState.rkbData.summary) return;
-  const { summary, periode } = AppState.rkbData;
+  const user = AppState.currentUser;
+  const { summary: docSummary, subbag_summaries, periode } = AppState.rkbData;
 
-  // ATURAN BARU: Dashboard selalu menampilkan label Draft RKB Aktif
-  const draftTitleEl = document.getElementById('dashboard-active-draft-title');
-  if (draftTitleEl) {
-    draftTitleEl.textContent = `${periode.nama_periode} (${periode.versi_revisi}) • Draft Aktif`;
+  // 1. Tentukan konteks scoping (Apakah scoped ke Subbag tertentu?)
+  const isUserLockedSubbag = Boolean(user && user.pic_subbag && user.pic_subbag !== 'SEMUA');
+  let selectedSubbag = isUserLockedSubbag ? user.pic_subbag : (AppState.dashboardSubbag || 'SEMUA');
+  
+  // Jika subbag_summaries tersedia dan dipilih subbag tertentu
+  const isScoped = selectedSubbag !== 'SEMUA';
+  const subbagMeta = isScoped ? (SUBBAG_META[selectedSubbag] || { name: selectedSubbag, color: '#6366f1' }) : null;
+  const summaries = subbag_summaries || (docSummary.subbagSummaries || {});
+  const activeSummary = (isScoped && summaries[selectedSubbag])
+    ? summaries[selectedSubbag]
+    : ((isScoped && AppState.rkbData.filtered_summary) ? AppState.rkbData.filtered_summary : docSummary);
+
+  // 2. Sinkronkan Filter Dropdown di Header Dashboard
+  const filterContainer = document.getElementById('dashboard-subbag-filter-container');
+  const filterSelect = document.getElementById('dashboard-subbag-select');
+  const lockedBadge = document.getElementById('dashboard-subbag-locked-badge');
+  const lockedText = document.getElementById('dashboard-subbag-locked-text');
+
+  if (isUserLockedSubbag) {
+    if (filterContainer) filterContainer.style.display = 'none';
+    if (lockedBadge) {
+      lockedBadge.style.display = 'inline-flex';
+      if (lockedText) lockedText.textContent = `Subbag: ${subbagMeta ? subbagMeta.name : user.pic_subbag}`;
+    }
+  } else {
+    if (lockedBadge) lockedBadge.style.display = 'none';
+    if (filterContainer) filterContainer.style.display = 'inline-flex';
+    if (filterSelect) filterSelect.value = selectedSubbag;
   }
 
-  setElText('kpi-total-pagu', formatRupiah(summary.grandTotal));
-  setElText('kpi-total-items', formatNumber(summary.totalItems) + ' Baris');
-  setElText('kpi-total-rows', formatNumber(summary.totalRows) + ' Total Komponen Hierarki');
-  setElText('badge-total-items', formatNumber(summary.totalItems));
-  setElText('kpi-status-dokumen', periode.is_locked ? 'Status: Terkunci (NPHD Sah)' : 'Status: Draft Aktif');
+  // 3. Update Title & Deskripsi Header Dashboard
+  const draftTitleEl = document.getElementById('dashboard-active-draft-title');
+  if (draftTitleEl) {
+    if (isScoped) {
+      draftTitleEl.textContent = `${periode.nama_periode} (${periode.versi_revisi}) • Subbag ${selectedSubbag}`;
+    } else {
+      draftTitleEl.textContent = `${periode.nama_periode} (${periode.versi_revisi}) • Konsolidasi Satker`;
+    }
+  }
 
-  const paguKab = (summary.bySasaran && summary.bySasaran.KAB) || 0;
-  const paguAdhoc = ((summary.bySasaran && summary.bySasaran.PPK) || 0) +
-                    ((summary.bySasaran && summary.bySasaran.PPS) || 0) +
-                    ((summary.bySasaran && summary.bySasaran.TPS) || 0) +
-                    ((summary.bySasaran && summary.bySasaran.PANTARLIH) || 0);
+  const descEl = document.getElementById('dashboard-desc');
+  if (descEl) {
+    if (isScoped) {
+      descEl.innerHTML = `Ringkasan alokasi belanja RKB Aktif <b>Subbag ${subbagMeta ? subbagMeta.name : selectedSubbag}</b>.`;
+    } else {
+      descEl.textContent = 'Ringkasan eksekutif konsolidasi Pagu NPHD Hibah Pilkada Satker KPU Kabupaten Ngawi.';
+    }
+  }
+
+  // 4. Update KPI Labels & Values
+  const labelPagu = document.getElementById('kpi-label-total-pagu');
+  if (labelPagu) {
+    labelPagu.textContent = isScoped ? `TOTAL PAGU SUBBAG ${selectedSubbag}` : 'TOTAL PAGU SATKER (NPHD)';
+  }
+  setElText('kpi-total-pagu', formatRupiah(activeSummary.grandTotal));
+
+  const pctOfTotal = docSummary.grandTotal > 0 ? ((activeSummary.grandTotal / docSummary.grandTotal) * 100).toFixed(2) : '0';
+  setElText('kpi-status-dokumen', isScoped 
+    ? `${pctOfTotal}% dari Total Satker (${formatRupiah(docSummary.grandTotal)})` 
+    : (periode.is_locked ? 'Status: Terkunci (NPHD Sah)' : 'Status: Draft Aktif (Konsolidasi)'));
+
+  const labelItems = document.getElementById('kpi-label-total-items');
+  if (labelItems) {
+    labelItems.textContent = isScoped ? 'RINCIAN ITEM BELANJA SUBBAG' : 'RINCIAN ITEM BELANJA SATKER';
+  }
+  setElText('kpi-total-items', formatNumber(activeSummary.totalItems) + ' Baris');
+  setElText('kpi-total-rows', isScoped
+    ? `Subbag ${selectedSubbag} (${formatNumber(activeSummary.totalItems)} dari ${formatNumber(docSummary.totalItems)} rincian satker)`
+    : formatNumber(docSummary.totalRows) + ' Total Komponen Hierarki Satker');
+  setElText('badge-total-items', formatNumber(activeSummary.totalItems));
+
+  // Pagu Lingkup Kab & Adhoc
+  const paguKab = (activeSummary.bySasaran && activeSummary.bySasaran.KAB) || 0;
+  const paguAdhoc = ((activeSummary.bySasaran && activeSummary.bySasaran.PPK) || 0) +
+                    ((activeSummary.bySasaran && activeSummary.bySasaran.PPS) || 0) +
+                    ((activeSummary.bySasaran && activeSummary.bySasaran.TPS) || 0) +
+                    ((activeSummary.bySasaran && activeSummary.bySasaran.PANTARLIH) || 0) +
+                    ((activeSummary.bySasaran && activeSummary.bySasaran.PESERTA) || 0);
+
+  const labelKab = document.getElementById('kpi-label-pagu-kab');
+  if (labelKab) {
+    labelKab.textContent = isScoped ? `KABUPATEN (${selectedSubbag})` : 'LINGKUP KABUPATEN';
+  }
+  const labelAdhoc = document.getElementById('kpi-label-pagu-adhoc');
+  if (labelAdhoc) {
+    labelAdhoc.textContent = isScoped ? `BADAN ADHOC (${selectedSubbag})` : 'ALOKASI BADAN ADHOC';
+  }
 
   setElText('kpi-pagu-kab', formatRupiah(paguKab));
   setElText('kpi-pagu-adhoc', formatRupiah(paguAdhoc));
 
-  const pctKab = summary.grandTotal > 0 ? ((paguKab / summary.grandTotal) * 100).toFixed(2) : '0';
-  const pctAdhoc = summary.grandTotal > 0 ? ((paguAdhoc / summary.grandTotal) * 100).toFixed(2) : '0';
+  const pctKab = activeSummary.grandTotal > 0 ? ((paguKab / activeSummary.grandTotal) * 100).toFixed(2) : '0';
+  const pctAdhoc = activeSummary.grandTotal > 0 ? ((paguAdhoc / activeSummary.grandTotal) * 100).toFixed(2) : '0';
 
-  setElText('kpi-pct-kab', `${pctKab}% dari Pagu Total`);
-  setElText('kpi-pct-adhoc', `${pctAdhoc}% (PPK, PPS, TPS, Pantarlih)`);
+  setElText('kpi-pct-kab', `${pctKab}% dari Pagu ${isScoped ? 'Subbag' : 'Satker'}`);
+  setElText('kpi-pct-adhoc', `${pctAdhoc}% (${isScoped ? 'PPK, PPS, TPS, Pantarlih, Peserta' : 'PPK, PPS, TPS, Pantarlih'})`);
 
-  // Subbag Distribution List
+  // 5. Card 1: Distribusi Subbag
+  const subbagCardTitle = document.getElementById('dashboard-subbag-card-title');
+  if (subbagCardTitle) {
+    subbagCardTitle.textContent = isScoped 
+      ? `Posisi Alokasi Anggaran Subbag ${selectedSubbag} Terhadap Satker` 
+      : 'Distribusi Pagu Per Subbagian Pelaksana';
+  }
+
   const subbagList = document.getElementById('subbag-distribution-list');
-  if (subbagList && summary.bySubbag) {
-    subbagList.innerHTML = Object.entries(summary.bySubbag).map(([pic, amt]) => {
-      const meta = SUBBAG_META[pic] || { name: pic, color: '#64748b' };
-      const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
-      return `
-        <div class="subbag-progress-item">
-          <div class="subbag-meta">
-            <span class="subbag-name">${meta.name}</span>
-            <span class="subbag-amount">${formatRupiah(amt)} (${pct}%)</span>
+  if (subbagList && docSummary.bySubbag) {
+    let subbagHtml = '';
+    if (isScoped) {
+      subbagHtml += `
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #1e1b4b; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <strong>🏢 Subbagian ${subbagMeta ? subbagMeta.name : selectedSubbag}</strong>
+            <div style="font-size: 11px; color: #4338ca; margin-top: 2px;">
+              Mengelola <b>${formatRupiah(activeSummary.grandTotal)}</b> atau <b>${pctOfTotal}%</b> dari total pagu Satker KPU Kabupaten Ngawi.
+            </div>
           </div>
-          <div class="progress-track">
+          <span class="badge" style="background:#6366f1; color:#fff; font-size: 11px;">Tanggung Jawab Subbag</span>
+        </div>
+      `;
+    }
+
+    subbagHtml += Object.entries(docSummary.bySubbag).map(([pic, amt]) => {
+      const meta = SUBBAG_META[pic] || { name: pic, color: '#64748b' };
+      const pct = docSummary.grandTotal > 0 ? ((amt / docSummary.grandTotal) * 100).toFixed(2) : '0';
+      const isCurrent = isScoped && (pic === selectedSubbag);
+      return `
+        <div class="subbag-progress-item ${isCurrent ? 'subbag-current-active' : ''}" style="${isCurrent ? 'background: #f8fafc; border: 1.5px solid ' + meta.color + '; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px;' : 'margin-bottom: 8px;'}">
+          <div class="subbag-meta">
+            <span class="subbag-name">${meta.name} ${isCurrent ? '⭐ (Subbag Anda)' : ''}</span>
+            <span class="subbag-amount" style="font-weight: 700; color: ${isCurrent ? meta.color : 'inherit'};">${formatRupiah(amt)} (${pct}%)</span>
+          </div>
+          <div class="progress-track" style="height: ${isCurrent ? '8px' : '6px'};">
             <div class="progress-bar" style="width: ${pct}%; background-color: ${meta.color};"></div>
           </div>
         </div>
       `;
     }).join('');
+
+    subbagList.innerHTML = subbagHtml;
   }
 
-  // Sasaran Table
+  // 6. Card 2: Distribusi Sasaran
+  const sasaranCardTitle = document.getElementById('dashboard-sasaran-card-title');
+  if (sasaranCardTitle) {
+    sasaranCardTitle.textContent = isScoped 
+      ? `Distribusi Sasaran Belanja Subbag ${selectedSubbag}` 
+      : 'Distribusi Alokasi Berdasarkan Sasaran';
+  }
+
   const sasaranBody = document.getElementById('table-sasaran-body');
-  if (sasaranBody && summary.bySasaran) {
+  if (sasaranBody && activeSummary.bySasaran) {
     const sasaranOrder = ['KAB', 'PPK', 'PPS', 'TPS', 'PANTARLIH', 'PESERTA'];
     sasaranBody.innerHTML = sasaranOrder.map(s => {
-      const amt = summary.bySasaran[s] || 0;
-      const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
+      const amt = activeSummary.bySasaran[s] || 0;
+      const pct = activeSummary.grandTotal > 0 ? ((amt / activeSummary.grandTotal) * 100).toFixed(2) : '0.00';
       return `
         <tr>
           <td><span class="badge badge-sasaran-${s.toLowerCase()}">${s}</span></td>
@@ -977,19 +1088,26 @@ function renderDashboard() {
     }).join('');
   }
 
-  // Akun BAS Table
+  // 7. Card 3: Distribusi Akun BAS
+  const basCardTitle = document.getElementById('dashboard-bas-card-title');
+  if (basCardTitle) {
+    basCardTitle.textContent = isScoped 
+      ? `Distribusi Bagan Akun Standar (BAS Subbag ${selectedSubbag})` 
+      : 'Distribusi Anggaran Berdasarkan Bagan Akun Standar (BAS)';
+  }
+
   const akunBody = document.getElementById('table-akun-body');
-  if (akunBody && summary.byAkun) {
+  if (akunBody && activeSummary.byAkun) {
     const akunsMap = {};
     if (AppState.masters && AppState.masters.akuns) {
       for (const a of AppState.masters.akuns) akunsMap[a.kode] = a.uraian;
     }
-    const sortedAkun = Object.entries(summary.byAkun).sort((a, b) => a[0].localeCompare(b[0]));
+    const sortedAkun = Object.entries(activeSummary.byAkun).filter(([_, amt]) => amt > 0).sort((a, b) => a[0].localeCompare(b[0]));
     let totAkun = 0;
     const rowsHtml = sortedAkun.map(([code, amt]) => {
       totAkun += amt;
       const desc = akunsMap[code] || 'Belanja Terkait';
-      const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
+      const pct = activeSummary.grandTotal > 0 ? ((amt / activeSummary.grandTotal) * 100).toFixed(2) : '0.00';
       return `
         <tr>
           <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${code}</code></td>
@@ -1002,7 +1120,7 @@ function renderDashboard() {
 
     const totalRowHtml = `
       <tr style="background: rgba(14, 165, 233, 0.12); font-weight: 700; border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);">
-        <td colspan="2" style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">TOTAL BAGAN AKUN STANDAR (BAS)</td>
+        <td colspan="2" style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">TOTAL BAGAN AKUN STANDAR (BAS ${isScoped ? selectedSubbag : 'SATKER'})</td>
         <td class="text-right" style="font-family: var(--font-mono); font-size: 1rem; color: var(--accent);">${formatRupiah(totAkun)}</td>
         <td class="text-right" style="font-family: var(--font-mono); font-size: 1rem; color: var(--accent);">100.00%</td>
       </tr>
@@ -4147,7 +4265,6 @@ async function downloadAllSubbagZip(periodeId = null) {
         periode_id: pId
       })
     });
-    const result = await res.json();
     if (result.success) {
       showToast('Permintaan paket 5 Subbagian (.zip) berhasil dikirim. Mengalihkan ke Monitoring Report...', 'info');
       closeExportModal();

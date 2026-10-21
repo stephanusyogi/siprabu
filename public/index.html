@@ -310,10 +310,29 @@
         <section id="view-dashboard" class="app-view active">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Dashboard Ringkasan Anggaran</h2>
-              <p class="view-desc">Ringkasan eksekutif alokasi Pagu NPHD Hibah Pilkada KPU Kabupaten Ngawi.</p>
+              <h2 class="view-title" id="dashboard-title">Dashboard Ringkasan Anggaran</h2>
+              <p class="view-desc" id="dashboard-desc">Ringkasan eksekutif alokasi Pagu NPHD Hibah Pilkada KPU Kabupaten Ngawi.</p>
             </div>
             <div class="header-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <!-- Selector Cakupan Subbagian untuk Level 0, Level 1, dan Pimpinan Satker -->
+              <div id="dashboard-subbag-filter-container" style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 8px;">
+                <label for="dashboard-subbag-select" style="font-size: 11.5px; font-weight: 700; color: #475569; margin: 0; white-space: nowrap;">Cakupan:</label>
+                <select id="dashboard-subbag-select" class="form-control" style="font-size: 12px; padding: 4px 8px; height: 32px; border-radius: 6px; font-weight: 600; border-color: #cbd5e1; cursor: pointer;" onchange="handleDashboardSubbagChange(this.value)">
+                  <option value="SEMUA">🏛️ Konsolidasi Seluruh Satker</option>
+                  <option value="TEKNIS">🗳️ Subbag Teknis Penyelenggaraan</option>
+                  <option value="HUKUM">⚖️ Subbag Hukum &amp; Pengawasan</option>
+                  <option value="PARSDM">📢 Subbag Sosdiklih, Parmas &amp; SDM</option>
+                  <option value="KUL">💼 Subbag Keuangan, Umum &amp; Logistik</option>
+                  <option value="RENDATIN">📊 Subbag Perencanaan, Data &amp; Informasi</option>
+                </select>
+              </div>
+
+              <!-- Badge Status Terkunci Subbagian untuk Level 2 dan Komisioner Divisi -->
+              <div id="dashboard-subbag-locked-badge" class="badge" style="display: none; background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; padding: 6px 12px; font-size: 12px; font-weight: 700; border-radius: 6px; align-items: center; gap: 6px;">
+                <span>🏢</span>
+                <span id="dashboard-subbag-locked-text">Subbag Teknis</span>
+              </div>
+
               <div class="badge" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 6px 12px; font-size: 12px; font-weight: 700; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
                 <span>🟢</span>
                 <span id="dashboard-active-draft-title">Draft RKB Aktif</span>
@@ -326,7 +345,7 @@
             <div class="kpi-card highlight">
               <div class="kpi-icon">💰</div>
               <div class="kpi-info">
-                <span class="kpi-label">TOTAL PAGU DOKUMEN</span>
+                <span class="kpi-label" id="kpi-label-total-pagu">TOTAL PAGU DOKUMEN</span>
                 <span class="kpi-value" id="kpi-total-pagu">Memuat...</span>
                 <span class="kpi-sub" id="kpi-status-dokumen">Status: Draft Aktif</span>
               </div>
@@ -335,7 +354,7 @@
             <div class="kpi-card">
               <div class="kpi-icon">📋</div>
               <div class="kpi-info">
-                <span class="kpi-label">RINCIAN ITEM BELANJA</span>
+                <span class="kpi-label" id="kpi-label-total-items">RINCIAN ITEM BELANJA</span>
                 <span class="kpi-value" id="kpi-total-items">Memuat...</span>
                 <span class="kpi-sub" id="kpi-total-rows">-</span>
               </div>
@@ -344,7 +363,7 @@
             <div class="kpi-card">
               <div class="kpi-icon">🏛️</div>
               <div class="kpi-info">
-                <span class="kpi-label">LINGKUP KABUPATEN</span>
+                <span class="kpi-label" id="kpi-label-pagu-kab">LINGKUP KABUPATEN</span>
                 <span class="kpi-value" id="kpi-pagu-kab">Memuat...</span>
                 <span class="kpi-sub" id="kpi-pct-kab">-</span>
               </div>
@@ -353,7 +372,7 @@
             <div class="kpi-card">
               <div class="kpi-icon">👥</div>
               <div class="kpi-info">
-                <span class="kpi-label">ALOKASI BADAN ADHOC</span>
+                <span class="kpi-label" id="kpi-label-pagu-adhoc">ALOKASI BADAN ADHOC</span>
                 <span class="kpi-value" id="kpi-pagu-adhoc">Memuat...</span>
                 <span class="kpi-sub" id="kpi-pct-adhoc">-</span>
               </div>
@@ -365,7 +384,7 @@
             <!-- DISTRIBUSI SUBBAG -->
             <div class="card">
               <div class="card-header">
-                <h3>Distribusi Pagu Per Subbagian Pelaksana</h3>
+                <h3 id="dashboard-subbag-card-title">Distribusi Pagu Per Subbagian Pelaksana</h3>
               </div>
               <div class="card-body">
                 <div class="subbag-progress-list" id="subbag-distribution-list">
@@ -377,7 +396,7 @@
             <!-- DISTRIBUSI SASARAN -->
             <div class="card">
               <div class="card-header">
-                <h3>Distribusi Alokasi Berdasarkan Sasaran</h3>
+                <h3 id="dashboard-sasaran-card-title">Distribusi Alokasi Berdasarkan Sasaran</h3>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
@@ -401,7 +420,7 @@
           <!-- DISTRIBUSI AKUN BAS -->
           <div class="card mt-4">
             <div class="card-header">
-              <h3>Distribusi Anggaran Berdasarkan Bagan Akun Standar (BAS)</h3>
+              <h3 id="dashboard-bas-card-title">Distribusi Anggaran Berdasarkan Bagan Akun Standar (BAS)</h3>
             </div>
             <div class="card-body">
               <div class="table-responsive">
@@ -3342,7 +3361,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.4.4"></script>
+    <script src="/app.js?v=3.5.0"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

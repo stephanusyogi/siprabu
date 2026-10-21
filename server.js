@@ -656,8 +656,15 @@ const server = http.createServer(async (req, res) => {
       // 1. Ambil dataset & summary INDUK dokumen via in-memory cache super cepat
       const fullResult = getCachedRkbDataset(periodeId);
       const docSummary = fullResult.summary;
+      const subbagSummaries = docSummary.subbagSummaries || {};
 
-      // 2. Jika ada filter (pic, target_scope, search), ambil baris terfilter khusus lembar kerja workbench
+      // 2. Active subbag & summary sesuai level dan wewenang pengguna
+      const activeSubbag = (pic && pic !== 'SEMUA') ? pic : null;
+      const activeSummary = (activeSubbag && subbagSummaries[activeSubbag])
+        ? subbagSummaries[activeSubbag]
+        : docSummary;
+
+      // 3. Jika ada filter (pic, target_scope, search), ambil baris terfilter khusus lembar kerja workbench
       const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (search && search.trim()));
       let rows, filteredSummary = null;
 
@@ -677,7 +684,12 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         periode,
         summary: docSummary,
+        active_summary: activeSummary,
+        subbag_summaries: subbagSummaries,
         filtered_summary: filteredSummary,
+        scoped_pic: activeSubbag,
+        is_user_scoped: Boolean(user && user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA'),
+        user_pic: (user && user.pic_subbag) || 'SEMUA',
         rows,
         revision_comparison
       });

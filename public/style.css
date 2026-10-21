@@ -491,6 +491,11 @@ html, body {
 /* SUBBAG PROGRESS LIST */
 .subbag-progress-item {
   margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.subbag-progress-item.subbag-current-active {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .subbag-meta {
