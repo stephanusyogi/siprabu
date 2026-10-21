@@ -228,12 +228,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     const rowNum = excelRow.number;
 
     // TINGGI BARIS BERBEDA UNTUK SETIAP LEVEL (Enak dibaca, proporsional dengan ukuran font)
-    if (treeLvl === 1) excelRow.height = 36;
-    else if (treeLvl === 2) excelRow.height = 32;
-    else if (treeLvl === 3) excelRow.height = 28;
-    else if (treeLvl === 4) excelRow.height = 26;
-    else if (treeLvl === 5 || treeLvl === 5.5) excelRow.height = 25;
-    else excelRow.height = 22; // Level 6 (Item): 22pt
+    if (treeLvl === 1) excelRow.height = 34;
+    else if (treeLvl === 2) excelRow.height = 30;
+    else if (treeLvl === 3) excelRow.height = 26;
+    else if (treeLvl === 4) excelRow.height = 24;
+    else if (treeLvl === 5 || treeLvl === 5.5) excelRow.height = 23;
+    else excelRow.height = 20; // Level 6 (Item): 20pt (Font 11pt aman, lega, dan hemat ruang)
 
     // MATRIKS BORDER DAN GARIS BERDASARKAN LEVEL:
     // Pembedaan bentuk garis horizontal dan vertikal agar rapi saat dicetak & dibaca
@@ -374,6 +374,50 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     }
   });
 
+  // ==========================================================================
+  // DYNAMIC KEEP-TOGETHER & ANTI-ORPHAN SIGNATURE ENGINE
+  // Menghitung sisa kapasitas vertikal halaman A4 Landscape secara real-time.
+  // Kapasitas cetak A4 Landscape:
+  // - Halaman 1: ~433pt (setelah dikurangi Judul Dokumen Baris 1..4 = 90pt)
+  // - Halaman 2+: ~485pt (setelah dikurangi Print Title Header Kolom Baris 4 = 28pt)
+  // Jika sisa ruang di halaman terakhir < 160pt (tidak cukup menampung Total Belanja + Blok TTD),
+  // sistem otomatis menyisipkan Manual Page Break (OpenXML rowBreaks) pada 2-3 baris
+  // sebelum akhir data belanja, sehingga beberapa baris kegiatan, Total Pagu,
+  // dan Blok TTD Ketua KPU menyeberang bersama-sama (Keep Together) ke halaman penutup.
+  // ==========================================================================
+  const page1Capacity = 433;
+  const pageNextCapacity = 485;
+  let currentAccumulatedHeight = 0;
+  let activePageLimit = page1Capacity;
+
+  exportRows.forEach((r) => {
+    const isItem = !r.is_header;
+    const treeLvl = r.tree_level || (isItem ? 6 : (r.level_indent === 0 ? 1 : (r.level_indent === 1 ? 2 : (r.level_indent === 2 ? 3 : (r.level_indent === 3 ? 5 : 4)))));
+    let rH = 20;
+    if (treeLvl === 1) rH = 34;
+    else if (treeLvl === 2) rH = 30;
+    else if (treeLvl === 3) rH = 26;
+    else if (treeLvl === 4) rH = 24;
+    else if (treeLvl === 5 || treeLvl === 5.5) rH = 23;
+
+    if (currentAccumulatedHeight + rH > activePageLimit) {
+      currentAccumulatedHeight = rH;
+      activePageLimit = pageNextCapacity;
+    } else {
+      currentAccumulatedHeight += rH;
+    }
+  });
+
+  const remainingSpaceOnLastPage = activePageLimit - currentAccumulatedHeight;
+  const neededEndingSpace = 160; // Total Row (28pt) + Spacer (12pt) + TTD & Nama (106pt) + buffer
+
+  const lastDataRowNumber = ws1.rowCount;
+  if (remainingSpaceOnLastPage < neededEndingSpace && lastDataRowNumber > 8) {
+    // Sisipkan manual page break 3 baris sebelum akhir data belanja
+    const breakRow = Math.max(5, lastDataRowNumber - 3);
+    ws1.rowBreaks = [{ id: breakRow, max: 11, man: 1 }];
+  }
+
   // BARIS TOTAL PAGU BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold, Tanpa 'RUH')
   const totalRowNumber = ws1.rowCount + 1;
   const totalRow = ws1.addRow([
@@ -414,18 +458,27 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   };
 
   // AREA TANDA TANGAN: HANYA KETUA KOMISI PEMILIHAN UMUM KABUPATEN NGAWI
-  ws1.addRow([]);
-  ws1.addRow([]);
+  // 1 baris kosong sebelum tanggal (dirapatkan setinggi 12pt)
+  const spacerRow1 = ws1.addRow([]);
+  spacerRow1.height = 12;
 
   const signR1 = ws1.rowCount + 1;
-  ws1.addRow(['', '', '', '', '', '', '', '', `NGAWI, ${tanggalUnduh}`]);
-  ws1.addRow(['', '', '', '', '', '', '', '', 'Ketua Komisi Pemilihan Umum']);
-  ws1.addRow(['', '', '', '', '', '', '', '', 'Kabupaten Ngawi,']);
-  ws1.addRow([]);
-  ws1.addRow([]);
-  ws1.addRow([]);
+  const rowDate = ws1.addRow(['', '', '', '', '', '', '', '', `NGAWI, ${tanggalUnduh}`]);
+  rowDate.height = 18;
+  const rowTitle1 = ws1.addRow(['', '', '', '', '', '', '', '', 'Ketua Komisi Pemilihan Umum']);
+  rowTitle1.height = 18;
+  const rowTitle2 = ws1.addRow(['', '', '', '', '', '', '', '', 'Kabupaten Ngawi,']);
+  rowTitle2.height = 18;
+
+  // 2 baris kosong ruang tanda tangan basah (dirapatkan setinggi 18pt)
+  const signSpace1 = ws1.addRow([]);
+  signSpace1.height = 18;
+  const signSpace2 = ws1.addRow([]);
+  signSpace2.height = 18;
+
   const namaKetua = settings.nama_ketua || 'SAMSU MUSTAKIM';
-  ws1.addRow(['', '', '', '', '', '', '', '', namaKetua]);
+  const rowNama = ws1.addRow(['', '', '', '', '', '', '', '', namaKetua]);
+  rowNama.height = 22;
   const signEndRow = ws1.rowCount;
 
   // Format Tanda Tangan: Merge I s.d. K agar posisi terpusat di kolom kanan
