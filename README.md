@@ -139,10 +139,11 @@ Hostinger menyediakan dua opsi utama: **Hostinger VPS** (paling direkomendasikan
 
 ---
 
-## 👤 Informasi Pengembang & Satker Pengguna
+## 👤 Informasi Pengembang & Kolaborator Sistem
 
-- **Satker Pengguna**: Komisi Pemilihan Umum (KPU) Kabupaten Ngawi
 - **Lead Developer & System Architect**: **emenje** ([Hubungi via Telegram: 085228699640](https://t.me/+6285228699640))
+- **Core Contributor & Technical Reviewer**: **[@stephanusyogi](https://github.com/stephanusyogi)**
+- **Satker Pengguna**: Komisi Pemilihan Umum (KPU) Kabupaten Ngawi
 - **Tahun Anggaran**: 2024 / 2029
 
 ---
