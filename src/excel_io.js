@@ -101,7 +101,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
     }
   });
 
@@ -458,23 +458,17 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   };
 
   // AREA TANDA TANGAN: HANYA KETUA KOMISI PEMILIHAN UMUM KABUPATEN NGAWI
-  // 1 baris kosong sebelum tanggal (dirapatkan setinggi 12pt)
-  const spacerRow1 = ws1.addRow([]);
-  spacerRow1.height = 12;
-
   const signR1 = ws1.rowCount + 1;
   const rowDate = ws1.addRow(['', '', '', '', '', '', '', '', `NGAWI, ${tanggalUnduh}`]);
-  rowDate.height = 18;
+  rowDate.height = 20;
   const rowTitle1 = ws1.addRow(['', '', '', '', '', '', '', '', 'Ketua Komisi Pemilihan Umum']);
   rowTitle1.height = 18;
   const rowTitle2 = ws1.addRow(['', '', '', '', '', '', '', '', 'Kabupaten Ngawi,']);
   rowTitle2.height = 18;
 
-  // 2 baris kosong ruang tanda tangan basah (dirapatkan setinggi 18pt)
+  // 1 baris ruang tanda tangan basah yang proporsional (tinggi 26pt)
   const signSpace1 = ws1.addRow([]);
-  signSpace1.height = 18;
-  const signSpace2 = ws1.addRow([]);
-  signSpace2.height = 18;
+  signSpace1.height = 26;
 
   const namaKetua = settings.nama_ketua || 'SAMSU MUSTAKIM';
   const rowNama = ws1.addRow(['', '', '', '', '', '', '', '', namaKetua]);
@@ -1355,7 +1349,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
       const pyScript = path.join(__dirname, 'fix_page_breaks.py');
       if (fs.existsSync(pyScript)) {
-        execFileSync('python', [pyScript, tempFile], { stdio: 'ignore', timeout: 8000 });
+        execFileSync('python', [pyScript, tempFile], { stdio: 'ignore', timeout: 15000 });
         if (fs.existsSync(tempFile)) {
           buffer = fs.readFileSync(tempFile);
           try { fs.unlinkSync(tempFile); } catch (e) {}

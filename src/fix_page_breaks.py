@@ -53,14 +53,34 @@ def fix_worksheet_breaks(file_path):
                 target_break = max(5, total_row - 2)
                 # Set manual break 2 rows before total row
                 ws.Rows(target_break).PageBreak = 1
-                excel.ActiveWindow.View = 1 # xlNormalView
-                wb.Save()
                 print(f"[AntiOrphan] Fixed: inserted manual page break at row {target_break} (Total row: {total_row})")
             else:
-                excel.ActiveWindow.View = 1 # xlNormalView
-                wb.Save()
                 print(f"[AntiOrphan] OK: last break at row {last_break_row} is before total row {total_row}")
+
+            # Tambahkan garis bawah tebal (thick bottom border) pada baris terakhir setiap halaman cetak
+            # Gunakan excel.Union untuk performa kilat (1 single batch call)
+            final_breaks = ws.HPageBreaks.Count
+            union_rng = None
+            for i in range(1, final_breaks + 1):
+                brk_row = ws.HPageBreaks(i).Location.Row
+                last_row_of_page = brk_row - 1
+                row_rng = ws.Range(f'A{last_row_of_page}:K{last_row_of_page}')
+                if union_rng is None:
+                    union_rng = row_rng
+                else:
+                    union_rng = excel.Union(union_rng, row_rng)
+
+            if union_rng is not None:
+                b = union_rng.Borders(9) # xlEdgeBottom = 9
+                b.LineStyle = 1 # xlContinuous = 1
+                b.Weight = 3 # xlMedium = 3 (garis tebal penutup tabel halaman)
+                b.Color = 0 # Hitam
+
+            excel.ActiveWindow.View = 1 # xlNormalView
+            wb.Save()
         else:
+            excel.ActiveWindow.View = 1
+            wb.Save()
             print("[AntiOrphan] Sheet fits within single page.")
 
         wb.Close(False)
