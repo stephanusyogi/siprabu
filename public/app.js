@@ -1337,18 +1337,42 @@ function updateSelectedRowUI() {
       pill.style.display = 'none';
       pill.textContent = '';
     }
-    actBox.innerHTML = '';
+    if (!isLocked) {
+      actBox.innerHTML = `
+        <span style="font-size:12px;color:#64748b;font-style:italic;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:#f8fafc;border-radius:5px;border:1px dashed #cbd5e1;">
+          👉 Pilih salah satu baris di tabel untuk memilih level aksi (L1–L6)
+        </span>
+      `;
+    } else {
+      actBox.innerHTML = '';
+    }
     return;
   }
 
   const cleanUraian = (row.uraian || '').substring(0, 48);
-  const isSubHeader = Boolean(row.is_sub_header || row.level_indent === 41 || row.level_indent === 42);
-  const treeLvl = isSubHeader ? 5.5 : (row.tree_level || (row.is_header ? (row.level_indent === 0 ? 1 : (row.level_indent === 1 ? 2 : (row.level_indent === 2 ? 3 : (row.level_indent === 3 ? 5 : 4)))) : 6));
+  let treeLvl = row.tree_level;
+  if (!treeLvl) {
+    if (row.is_header) {
+      const lvl = Number(row.level_indent);
+      if (lvl === 0) treeLvl = 1;
+      else if (lvl === 1) treeLvl = 2;
+      else if (lvl === 2) treeLvl = 3;
+      else if (lvl >= 21 && lvl <= 25) treeLvl = 4;
+      else if (lvl === 3) treeLvl = 5;
+      else if (lvl === 41 || lvl === 42) treeLvl = 5.5;
+      else treeLvl = 4;
+    } else {
+      treeLvl = 6;
+    }
+  }
+  if (row.is_sub_header || row.level_indent === 41 || row.level_indent === 42) {
+    treeLvl = 5.5;
+  }
 
   const lvlBadges = {
     1: '<span class="badge" style="background:#fef3c7;color:#92400e;font-weight:800;border:1px solid #fde68a;font-size:10.5px;">L1 (Bagian)</span>',
     2: '<span class="badge" style="background:#fed7aa;color:#9a3412;font-weight:800;border:1px solid #fdba74;font-size:10.5px;">L2 (Tahapan)</span>',
-    3: '<span class="badge" style="background:#fef08a;color:#854d0e;font-weight:800;border:1px solid #fde047;font-size:10.5px;">L3 (28 Komp)</span>',
+    3: '<span class="badge" style="background:#fef08a;color:#854d0e;font-weight:800;border:1px solid #fde047;font-size:10.5px;">L3 (Kegiatan)</span>',
     4: '<span class="badge" style="background:#e0e7ff;color:#3730a3;font-weight:800;border:1px solid #c7d2fe;font-size:10.5px;">L4 (Sub-Komp)</span>',
     5: '<span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:800;border:1px solid #bae6fd;font-size:10.5px;">L5 (Akun BAS)</span>',
     5.5: '<span class="badge" style="background:#ecfdf5;color:#047857;font-weight:800;border:1px solid #a7f3d0;font-size:10.5px;">📑 Header Teks</span>',
@@ -1362,7 +1386,7 @@ function updateSelectedRowUI() {
   if (pill) {
     pill.style.display = 'inline-flex';
     pill.innerHTML = `${badgeHtml}&nbsp;<strong>[${row.kode || ('L' + treeLvl)}]</strong>&nbsp;${cleanUraian}&nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:#0284c7;font-weight:700;">${totalStr}</span>&nbsp;<span onclick="clearSelectedRow(event)" style="cursor:pointer;margin-left:5px;font-weight:700;color:#ef4444;padding:0 2px;" title="Lepas sorotan baris aktif">✕</span>`;
-    pill.title = `Baris Aktif: [L${treeLvl}] ${row.kode || ''} ${row.uraian || ''}${totalStr}. Klik tombol lipatan untuk melipat/membuka khusus cabang ini.`;
+    pill.title = `Baris Aktif: [L${treeLvl}] ${row.kode || ''} ${row.uraian || ''}${totalStr}.`;
   }
 
   let btns = '';
@@ -1391,54 +1415,54 @@ function updateSelectedRowUI() {
       if (treeLvl === 1) {
         // L1: Tambah L1 (Setingkat) + Tambah L2 (Sub-Level)
         btns += `
-          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(2, ${row.id})" style="font-weight:700;">
-            📂 Tambah Tahapan (L2)
-          </button>
-          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(1, ${row.id})" style="font-weight:600;">
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(1, ${row.id})" style="font-weight:600;" title="Tambah Bagian baru sejajar dengan baris ini">
             ➕ Tambah Bagian (L1)
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(2, ${row.id})" style="font-weight:700;" title="Tambah Tahapan baru di bawah Bagian ini">
+            📂 Tambah Tahapan (L2)
           </button>
         `;
       } else if (treeLvl === 2) {
         // L2: Tambah L2 (Setingkat) + Tambah L3 (Sub-Level)
         btns += `
-          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:700;">
-            📂 Tambah Kegiatan (L3)
-          </button>
-          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(2, ${row.id})" style="font-weight:600;">
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(2, ${row.id})" style="font-weight:600;" title="Tambah Tahapan baru sejajar dengan baris ini">
             ➕ Tambah Tahapan (L2)
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:700;" title="Tambah Kegiatan baru di bawah Tahapan ini">
+            📂 Tambah Kegiatan (L3)
           </button>
         `;
       } else if (treeLvl === 3) {
         // L3: Tambah L3 (Setingkat) + Tambah L4 (Sub-Level)
         btns += `
-          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:700;">
-            📂 Tambah Sub-Komp (L4)
-          </button>
-          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:600;">
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:600;" title="Tambah Kegiatan baru sejajar dengan baris ini">
             ➕ Tambah Kegiatan (L3)
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:700;" title="Tambah Sub-Komponen baru di bawah Kegiatan ini">
+            📂 Tambah Sub-Komp (L4)
           </button>
         `;
       } else if (treeLvl === 4) {
         // L4: Tambah L4 (Setingkat) + Tambah L5 (Akun BAS)
         btns += `
-          <button class="btn btn-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:700;">
-            🏷️ Rekam Akun BAS (L5)
-          </button>
-          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:600;">
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:600;" title="Tambah Sub-Komponen baru sejajar dengan baris ini">
             ➕ Tambah Sub-Komp (L4)
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:700;" title="Rekam Akun Belanja (BAS 6-Digit) di bawah Sub-Komponen ini">
+            🏷️ Rekam Akun BAS (L5)
           </button>
         `;
       } else if (treeLvl === 5) {
-        // L5 (Akun BAS): Tambah Detail (L6) + Tambah Header Teks + Tambah Akun Sejajar (L5)
+        // L5 (Akun BAS): Tambah Akun Sejajar (L5) + Tambah Detail Belanja (L6) + Tambah Header Teks
         btns += `
-          <button class="btn btn-success btn-sm" onclick="openAddRowModalWithParent(${row.id})" style="font-weight:700;">
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;" title="Tambah Akun Belanja BAS baru sejajar dengan akun ini">
+            🏷️ Tambah Akun Sejajar (L5)
+          </button>
+          <button class="btn btn-success btn-sm" onclick="openAddRowModalWithParent(${row.id})" style="font-weight:700;" title="Tambah Rincian/Detail Belanja di bawah akun ini">
             ➕ Tambah Detail Belanja (L6)
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(5.5, ${row.id})" style="font-weight:700;" title="Tambah Baris Header Teks / Sub-Header Pengelompok (seperti a., b., Paket 1)">
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(5.5, ${row.id})" style="font-weight:700;" title="Tambah Header Teks / Sub-Header Pengelompok (seperti a., b., Paket 1) di bawah akun ini">
             📑 Tambah Header Teks
-          </button>
-          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;">
-            🏷️ Tambah Akun Sejajar (L5)
           </button>
         `;
       } else if (treeLvl === 5.5) {
@@ -1460,13 +1484,13 @@ function updateSelectedRowUI() {
       } else if (treeLvl === 6) {
         // L6: Tambah L6 (Detail Sejajar) + Ubah + Hapus
         btns += `
-          <button class="btn btn-success btn-sm" onclick="openAddRowModal()" style="font-weight:700;">
+          <button class="btn btn-success btn-sm" onclick="openAddRowModal()" style="font-weight:700;" title="Tambah Rincian Belanja baru sejajar dengan baris ini">
             ➕ Tambah Detail Sejajar (L6)
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id}, event)">
+          <button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id}, event)" style="font-weight:600;" title="Ubah Rincian Belanja ini">
             ✏️ Ubah Rincian
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)">
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Rincian Belanja ini">
             🗑️ Hapus
           </button>
         `;
@@ -1557,11 +1581,6 @@ function renderRkbTable() {
       </button>
     `;
     quickActions.innerHTML = actionsHtml;
-  }
-
-  const btnTambah = document.getElementById('btn-tambah-baris');
-  if (btnTambah) {
-    btnTambah.disabled = isLocked || (user && user.level === 3);
   }
 
   // Table Thead Switcher
@@ -1795,24 +1814,10 @@ function renderRkbTable() {
         }
       } else {
         if (canEdit && !isLocked) {
-          if (lvl === 2 || (lvl >= 21 && lvl <= 25)) {
+          if (lvl === 41 || lvl === 42) {
+            // Header Teks (Level 5.5, seperti a. Kantor/Inventaris): Aksi Ubah Teks & Hapus
             aksiHtml = `
-              <button class="btn btn-xs btn-outline-primary" onclick="openAddAkunModal(${r.id}, event)" title="Rekam Akun Belanja (BAS) di bawah komponen ini" style="font-size:10px;padding:2px 6px;font-weight:700;border-radius:4px;white-space:nowrap;">
-                🏷️ +Akun
-              </button>
-            `;
-          } else if (lvl === 3) {
-            aksiHtml = `
-              <button class="btn btn-xs btn-outline-success" onclick="openAddRowModalWithParent(${r.id}, event)" title="Tambah Detail Belanja di bawah akun ini" style="font-size:10px;padding:2px 6px;font-weight:700;border-radius:4px;white-space:nowrap;">
-                ➕ +Detail
-              </button>
-            `;
-          } else if (lvl === 41 || lvl === 42) {
-            aksiHtml = `
-              <button class="btn btn-xs btn-outline-success" onclick="openAddRowModalWithParent(${r.id}, event)" title="Tambah Detail Belanja di bawah kelompok teks ini" style="font-size:10px;padding:2px 6px;font-weight:700;border-radius:4px;white-space:nowrap;">
-                ➕ +Detail
-              </button>
-              <button class="btn btn-xs btn-outline-primary" onclick="openEditHeaderModal(${r.id}, event)" title="Ubah Teks Header ini" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;margin-left:2px;">
+              <button class="btn btn-xs btn-outline-primary" onclick="openEditHeaderModal(${r.id}, event)" title="Ubah Teks Header ini" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;">
                 ✏️
               </button>
               <button class="btn btn-xs btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus Header Teks ini" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;margin-left:2px;">
@@ -1820,6 +1825,7 @@ function renderRkbTable() {
               </button>
             `;
           }
+          // Catatan: Seluruh penambahan baris hirarki L1..L6 dikelola terpusat lewat baris aktif di toolbar (#saktiActionButtons)
         }
       }
 
@@ -2212,13 +2218,24 @@ function openAddRowModal() {
   }
 
   if (selectedRow) {
-    AppState.targetAfterUrutan = selectedRow.urutan;
+    let lastChildU = selectedRow.urutan;
+    if (selectedRow.is_header) {
+      const allRows = AppState.rkbData?.rows || [];
+      const targetIdx = allRows.findIndex(r => r.id === selectedRow.id);
+      const refRank = selectedRow.hierarchy_rank || (selectedRow.level_indent === 3 ? 50 : 55);
+      for (let i = targetIdx + 1; i < allRows.length; i++) {
+        const r = allRows[i];
+        if (r.is_header && (r.hierarchy_rank || 99) <= refRank) break;
+        lastChildU = r.urutan;
+      }
+    }
+    AppState.targetAfterUrutan = lastChildU;
     setElVal('modal-pic', selectedRow.pic_bagian || 'KUL');
     setElVal('modal-sasaran', selectedRow.target_scope || 'KAB');
     if (ctxAlert) {
       ctxAlert.style.display = 'block';
       const labelDesc = selectedRow.uraian ? selectedRow.uraian : (selectedRow.kode || 'Baris');
-      ctxAlert.innerHTML = `📍 <strong>Posisi Sisip Terarah:</strong> Baris rujukan <strong>[No: ${selectedRow.urutan}] ${escHtml(labelDesc)}</strong>. Gunakan pilihan posisi di bawah untuk menentukan sebelum/sesudah.`;
+      ctxAlert.innerHTML = `📍 <strong>Posisi Sisip Terarah:</strong> ${selectedRow.is_header ? 'Di bawah induk' : 'Sejajar baris rujukan'} <strong>[No: ${selectedRow.urutan}] ${escHtml(labelDesc)}</strong>.`;
     }
   } else {
     AppState.targetAfterUrutan = null;
@@ -2226,7 +2243,7 @@ function openAddRowModal() {
     setElVal('modal-sasaran', 'KAB');
     if (ctxAlert) {
       ctxAlert.style.display = 'block';
-      ctxAlert.innerHTML = `📍 <strong>Posisi Sisip:</strong> Di bagian akhir dokumen.<br><span style="font-size:11px;color:#64748b;">(Tips: Klik salah satu baris/komponen di tabel RKB sebelum klik Tambah agar posisi tersisip otomatis di bawahnya).</span>`;
+      ctxAlert.innerHTML = `📍 <strong>Posisi Sisip:</strong> Di bagian akhir dokumen.`;
     }
   }
 
@@ -2235,8 +2252,9 @@ function openAddRowModal() {
     akunSelect.innerHTML = AppState.masters.akuns.map(a => `
       <option value="${a.kode}">[${a.kode}] ${a.uraian}</option>
     `).join('');
-    if (selectedRow && selectedRow.kode_akun) {
-      akunSelect.value = selectedRow.kode_akun;
+    const targetAkun = selectedRow ? (selectedRow.kode_akun || (selectedRow.level_indent === 3 ? selectedRow.kode : '')) : '';
+    if (targetAkun) {
+      akunSelect.value = targetAkun;
     }
   }
 
@@ -2507,10 +2525,14 @@ function openAddRowModalWithParent(parentRowId, event) {
     event.stopPropagation();
   }
   AppState.selectedRowId = parentRowId;
-  const parentRow = AppState.rkbData?.rows.find(r => r.id === parentRowId);
-  if (parentRow) updateContextualActionBar(parentRow);
+  updateSelectedRowUI();
   openAddRowModal();
 }
+
+function updateContextualActionBar(row) {
+  updateSelectedRowUI();
+}
+window.updateContextualActionBar = updateContextualActionBar;
 
 async function submitAddAkun() {
   const p = AppState.currentPeriode;
@@ -2584,7 +2606,7 @@ async function submitAddAkun() {
       AppState.selectedRowId = res.row.id;
       const fullRow = AppState.rkbData?.rows.find(r => r.id === res.row.id);
       if (fullRow) {
-        updateContextualActionBar(fullRow);
+        updateSelectedRowUI();
         // Expand cabang induk
         let cur = fullRow.parent_tree_id;
         const parentMap = {};

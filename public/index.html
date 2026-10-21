@@ -565,21 +565,11 @@
               </div>
 
               <!-- Info Singkat Baris Aktif yang Disorot -->
-              <span id="treeSelectedPill" class="sakti-selected-pill" style="display:none;max-width:240px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;font-size:11.5px;padding:4px 9px;" title="Baris Aktif yang Disorot"></span>
+              <span id="treeSelectedPill" class="sakti-selected-pill" style="display:none;max-width:320px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;font-size:11.5px;padding:4px 9px;" title="Baris Aktif yang Disorot"></span>
 
-              <!-- Tombol Kontekstual Baris Aktif (+ Tambah Detail Belanja / Rekam Sub-Level / Edit / Hapus) -->
+              <!-- Tombol Kontekstual Baris Aktif Sesuai Level Hirarki (L1..L6) -->
               <div id="saktiActionButtons" style="display:inline-flex;align-items:center;gap:6px;">
-                <!-- Populated via JS based on selected row -->
-              </div>
-
-              <!-- Tombol Utama: + Tambah Baris Belanja & Rekam Akun Belanja (SAKTI) -->
-              <div class="btn-group" style="display:inline-flex;align-items:center;gap:5px;">
-                <button class="btn btn-primary btn-sm" onclick="openAddRowModal()" id="btn-tambah-baris" style="display:inline-flex;align-items:center;gap:5px;font-weight:700;">
-                  ➕ Tambah Detail Belanja
-                </button>
-                <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal()" id="btn-tambah-akun" title="Rekam Akun Belanja (BAS - Level 3) Baru sesuai standar SAKTI" style="display:inline-flex;align-items:center;gap:5px;font-weight:700;">
-                  🏷️ + Akun Belanja (BAS)
-                </button>
+                <!-- Populated via updateSelectedRowUI() based on selected row -->
               </div>
 
               <!-- Mode Sanding Semula - Menjadi (Khusus Dokumen Revisi) -->
