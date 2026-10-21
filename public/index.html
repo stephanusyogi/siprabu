@@ -572,10 +572,15 @@
                 <!-- Populated via JS based on selected row -->
               </div>
 
-              <!-- Tombol Utama: + Tambah Baris Belanja (Sejajar dengan Fungsi Lipatan) -->
-              <button class="btn btn-primary btn-sm" onclick="openAddRowModal()" id="btn-tambah-baris" style="display:inline-flex;align-items:center;gap:5px;font-weight:700;">
-                ➕ Tambah Baris Belanja
-              </button>
+              <!-- Tombol Utama: + Tambah Baris Belanja & Rekam Akun Belanja (SAKTI) -->
+              <div class="btn-group" style="display:inline-flex;align-items:center;gap:5px;">
+                <button class="btn btn-primary btn-sm" onclick="openAddRowModal()" id="btn-tambah-baris" style="display:inline-flex;align-items:center;gap:5px;font-weight:700;">
+                  ➕ Tambah Detail Belanja
+                </button>
+                <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal()" id="btn-tambah-akun" title="Rekam Akun Belanja (BAS - Level 3) Baru sesuai standar SAKTI" style="display:inline-flex;align-items:center;gap:5px;font-weight:700;">
+                  🏷️ + Akun Belanja (BAS)
+                </button>
+              </div>
 
               <!-- Mode Sanding Semula - Menjadi (Khusus Dokumen Revisi) -->
               <label id="lblToggleSanding" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer;background:#eff6ff;padding:4px 8px;border-radius:6px;border:1px solid #bfdbfe;">
@@ -1156,6 +1161,11 @@
         </div>
         <div class="modal-body">
           <div id="modal-insertion-context" class="alert-info-box" style="margin-bottom: 12px; font-size: 12px; display: none;"></div>
+          <!-- Banner ajakan rekam Akun BAS jika dibutuhkan -->
+          <div id="modal-suggest-akun-banner" style="background:#eff6ff;border:1px solid #bfdbfe;padding:8px 12px;border-radius:6px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;font-size:12px;">
+            <span style="color:#1e40af;">💡 <em>Perlu membuat <strong>Akun Belanja (BAS - Level 3)</strong> terlebih dahulu sesuai standar SAKTI?</em></span>
+            <button type="button" class="btn btn-xs btn-primary" onclick="switchToAkunModal()" style="font-size:11px;padding:3px 8px;font-weight:700;">🏷️ Rekam Akun BAS</button>
+          </div>
           <form id="form-row" onsubmit="event.preventDefault(); submitRowForm();">
             <input type="hidden" id="modal-row-id">
             <input type="hidden" id="modal-row-level" value="4">
@@ -1697,6 +1707,91 @@
         <div class="modal-footer">
           <button class="btn btn-secondary btn-sm" onclick="closeQuickAkunModal()">Batal</button>
           <button class="btn btn-primary btn-sm" onclick="submitQuickAkun()">Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: REKAM AKUN BELANJA (BAS - LEVEL 3) SESUAI STANDAR SAKTI        -->
+    <!-- ===================================================================== -->
+    <div id="modal-add-akun" class="modal-backdrop" style="display: none; z-index: 1090;">
+      <div class="modal-box" style="max-width: 540px;">
+        <div class="modal-header">
+          <div>
+            <h3 style="margin: 0; font-size: 15px; display:flex; align-items:center; gap:6px;">
+              <span>🏷️</span> Rekam Akun Belanja (BAS) Baru
+            </h3>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+              Standar Struktur Anggaran SAKTI (Level 3 Header Belanja)
+            </div>
+          </div>
+          <button class="btn-close" onclick="closeAddAkunModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="add-akun-target-row-id">
+          
+          <div id="add-akun-context-box" style="margin-bottom: 12px; padding: 10px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px; color: #166534;">
+            <!-- Populated via JS -->
+          </div>
+
+          <div class="form-group">
+            <label style="font-weight:700;">Pilih Bagan Akun Standar (BAS):</label>
+            <select id="add-akun-select" class="input-select" onchange="onAddAkunSelectChange()" style="font-weight: 600; font-size: 13px;">
+              <!-- Populated from AppState.masters.akuns -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label style="font-weight:700;">Uraian Akun Belanja:</label>
+            <input type="text" id="add-akun-uraian" class="input-text" required placeholder="Contoh: Belanja Honor Output Kegiatan" style="font-weight:600;">
+            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
+              Nama resmi akun belanja BAS (dapat disesuaikan jika diperlukan).
+            </div>
+          </div>
+
+          <div class="form-row-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;">
+            <div class="form-group">
+              <label style="font-weight:700;">Subbag Pelaksana (PIC):</label>
+              <select id="add-akun-pic" class="input-select" style="font-weight:600;">
+                <option value="RENDATIN">RENDATIN (Perencanaan)</option>
+                <option value="KUL">KUL (Keuangan, Umum & Logistik)</option>
+                <option value="TEKNIS">TEKNIS (Penyelenggaraan)</option>
+                <option value="HUKUM">HUKUM (Hukum)</option>
+                <option value="PARSDM" selected>PARSDM (Partisipasi Masyarakat & SDM)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label style="font-weight:700;">Sasaran Penyelenggara:</label>
+              <select id="add-akun-sasaran" class="input-select" style="font-weight:600;">
+                <option value="ALL" selected>ALL (Menaungi Seluruh Sasaran)</option>
+                <option value="KAB">KAB (Kabupaten)</option>
+                <option value="PPK">PPK (Kecamatan)</option>
+                <option value="PPS">PPS (Desa / Kelurahan)</option>
+                <option value="TPS">TPS (KPPS)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Opsi Posisi Penempatan jika baris rujukan adalah Kegiatan yang memiliki detail -->
+          <div id="add-akun-position-box" style="margin-top: 14px; padding: 10px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; display: none;">
+            <label style="font-size: 12px; font-weight: 700; color: #1e40af; margin-bottom: 6px; display: block;">
+              Posisi Penempatan Akun:
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; cursor:pointer; font-size:12px; color:#1e3a8a;">
+              <input type="radio" name="add-akun-pos-choice" value="wrap_children" checked>
+              <span><strong>Sisipkan tepat di bawah komponen induk</strong> (Mengelompokkan rincian di bawah Akun ini)</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12px; color:#1e3a8a;">
+              <input type="radio" name="add-akun-pos-choice" value="after_children">
+              <span><strong>Sisipkan di akhir</strong> (Setelah seluruh rincian belanja yang ada)</span>
+            </label>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeAddAkunModal()">Batal</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="submitAddAkun()">💾 Simpan Akun Belanja</button>
         </div>
       </div>
     </div>

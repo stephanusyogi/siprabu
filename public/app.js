@@ -1390,14 +1390,31 @@ function updateSelectedRowUI() {
       } else if (row.level_indent === 1) {
         btns += `<button class="btn btn-primary btn-sm" onclick="openAddRowModal()">➕ Rekam Kegiatan</button>`;
       } else if (row.level_indent === 2 || (row.level_indent >= 21 && row.level_indent <= 25)) {
-        btns += `<button class="btn btn-success btn-sm" onclick="openAddRowModal()">➕ Tambah Detail Belanja</button>`;
+        btns += `
+          <button class="btn btn-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:700;">
+            🏷️ Rekam Akun Belanja (BAS)
+          </button>
+          <button class="btn btn-success btn-sm" onclick="openAddRowModal()">
+            ➕ Tambah Detail Belanja
+          </button>
+        `;
       } else if (row.level_indent === 3) {
-        btns += `<button class="btn btn-success btn-sm" onclick="openAddRowModal()">➕ Tambah Detail Belanja (Multi-Faktor)</button>`;
+        btns += `
+          <button class="btn btn-success btn-sm" onclick="openAddRowModal()">
+            ➕ Tambah Detail Belanja di Akun Ini
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;" title="Tambah Akun BAS Lain Sejajar">
+            🏷️ Tambah Akun BAS Lain
+          </button>
+        `;
       }
     } else {
       if (canEdit) {
         btns += `
           <button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id}, event)">✏️ Ubah Rincian</button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;" title="Sisip Akun Belanja (BAS) baru untuk mengelompokkan rincian ini">
+            🏷️ Sisip Akun BAS
+          </button>
           <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)">🗑️ Hapus</button>
         `;
       }
@@ -1710,6 +1727,22 @@ function renderRkbTable() {
           `;
         } else {
           aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
+        }
+      } else {
+        if (canEdit && !isLocked) {
+          if (lvl === 2 || (lvl >= 21 && lvl <= 25)) {
+            aksiHtml = `
+              <button class="btn btn-xs btn-outline-primary" onclick="openAddAkunModal(${r.id}, event)" title="Rekam Akun Belanja (BAS) di bawah komponen ini" style="font-size:10px;padding:2px 6px;font-weight:700;border-radius:4px;white-space:nowrap;">
+                🏷️ +Akun
+              </button>
+            `;
+          } else if (lvl === 3) {
+            aksiHtml = `
+              <button class="btn btn-xs btn-outline-success" onclick="openAddRowModalWithParent(${r.id}, event)" title="Tambah Detail Belanja di bawah akun ini" style="font-size:10px;padding:2px 6px;font-weight:700;border-radius:4px;white-space:nowrap;">
+                ➕ +Detail
+              </button>
+            `;
+          }
         }
       }
 
@@ -2241,6 +2274,207 @@ async function deleteRow(rowId, event) {
     renderAllViews();
   } catch (err) {
     alert('Gagal menghapus baris: ' + err.message);
+  }
+}
+
+// ============================================================================
+// REKAM AKUN BELANJA (BAS - LEVEL 3) SESUAI STANDAR SAKTI
+// ============================================================================
+
+function openAddAkunModal(targetRowId = null, event = null) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  const p = AppState.currentPeriode;
+  if (!p) return;
+  if (p.is_locked) {
+    const user = AppState.currentUser;
+    if (!user || user.level > 0) {
+      alert('Dokumen berstatus terkunci. Akun Belanja baru hanya dapat direkam pada dokumen usulan revisi aktif.');
+      return;
+    }
+  }
+
+  const rowId = targetRowId || AppState.selectedRowId;
+  const targetRow = rowId ? AppState.rkbData?.rows.find(r => r.id === Number(rowId)) : null;
+  const ctxBox = document.getElementById('add-akun-context-box');
+  const posBox = document.getElementById('add-akun-position-box');
+
+  setElVal('add-akun-target-row-id', rowId || '');
+
+  // Populate dropdown BAS dari master_akun
+  const akunSelect = document.getElementById('add-akun-select');
+  if (akunSelect && AppState.masters && AppState.masters.akuns) {
+    akunSelect.innerHTML = AppState.masters.akuns.map(a => `
+      <option value="${a.kode}">[${a.kode}] ${a.uraian}</option>
+    `).join('');
+    // Default ke 521213 jika berada di rumpun Honor, atau 521211
+    if (targetRow && (targetRow.uraian || '').toLowerCase().includes('honor')) {
+      akunSelect.value = '521213';
+    } else {
+      akunSelect.value = '521211';
+    }
+  }
+
+  if (targetRow) {
+    if (ctxBox) {
+      const lvlTxt = targetRow.is_header ? `Komponen [${targetRow.kode || 'L' + targetRow.level_indent}]` : 'Rincian Belanja';
+      ctxBox.style.display = 'block';
+      ctxBox.innerHTML = `📍 <strong>Komponen Induk Rujukan:</strong><br><strong>${lvlTxt} ${escHtml(targetRow.uraian || '')}</strong> (No. Urut: ${targetRow.urutan})`;
+    }
+
+    // Default PIC mewarisi dari targetRow
+    setElVal('add-akun-pic', targetRow.pic_bagian || 'PARSDM');
+    
+    // Cek apakah targetRow memiliki rincian belanja langsung di bawahnya
+    const allRows = AppState.rkbData?.rows || [];
+    const targetIdx = allRows.findIndex(r => r.id === targetRow.id);
+    let hasDirectItems = false;
+    if (targetIdx !== -1 && targetIdx < allRows.length - 1) {
+      const nextRow = allRows[targetIdx + 1];
+      if (nextRow && !nextRow.is_header) {
+        hasDirectItems = true;
+      }
+    }
+
+    if (posBox) {
+      if (hasDirectItems) {
+        posBox.style.display = 'block';
+      } else {
+        posBox.style.display = 'none';
+      }
+    }
+  } else {
+    if (ctxBox) {
+      ctxBox.style.display = 'block';
+      ctxBox.innerHTML = `📍 <strong>Posisi Penempatan:</strong> Akun baru akan ditempatkan di bagian akhir dokumen atau pilih salah satu komponen/kegiatan terlebih dahulu.`;
+    }
+    setElVal('add-akun-pic', 'PARSDM');
+    if (posBox) posBox.style.display = 'none';
+  }
+
+  onAddAkunSelectChange();
+  document.getElementById('modal-add-akun').style.display = 'flex';
+}
+
+function closeAddAkunModal() {
+  const m = document.getElementById('modal-add-akun');
+  if (m) m.style.display = 'none';
+}
+
+function onAddAkunSelectChange() {
+  const code = document.getElementById('add-akun-select')?.value;
+  const uraianInput = document.getElementById('add-akun-uraian');
+  if (!code || !uraianInput) return;
+
+  const found = AppState.masters?.akuns?.find(a => a.kode === code);
+  if (found) {
+    uraianInput.value = found.uraian;
+  }
+}
+
+function switchToAkunModal() {
+  closeRowModal();
+  openAddAkunModal(AppState.selectedRowId);
+}
+
+function openAddRowModalWithParent(parentRowId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  AppState.selectedRowId = parentRowId;
+  const parentRow = AppState.rkbData?.rows.find(r => r.id === parentRowId);
+  if (parentRow) updateContextualActionBar(parentRow);
+  openAddRowModal();
+}
+
+async function submitAddAkun() {
+  const p = AppState.currentPeriode;
+  if (!p) return;
+
+  const targetRowId = document.getElementById('add-akun-target-row-id')?.value;
+  const targetRow = targetRowId ? AppState.rkbData?.rows.find(r => r.id === Number(targetRowId)) : null;
+
+  const kodeAkun = document.getElementById('add-akun-select')?.value;
+  const uraian = document.getElementById('add-akun-uraian')?.value?.trim();
+  const pic = document.getElementById('add-akun-pic')?.value || 'PARSDM';
+  const sasaran = document.getElementById('add-akun-sasaran')?.value || 'ALL';
+
+  if (!kodeAkun) {
+    alert('Silakan pilih Kode Akun BAS terlebih dahulu.');
+    return;
+  }
+  if (!uraian) {
+    alert('Silakan isi Uraian Akun Belanja.');
+    return;
+  }
+
+  let targetAfterUrutan = null;
+  if (targetRow) {
+    const posChoice = document.querySelector('input[name="add-akun-pos-choice"]:checked')?.value || 'wrap_children';
+    if (posChoice === 'after_children') {
+      const allRows = AppState.rkbData?.rows || [];
+      const targetIdx = allRows.findIndex(r => r.id === targetRow.id);
+      let lastChildU = targetRow.urutan;
+      const targetRank = targetRow.hierarchy_rank || (targetRow.level_indent === 2 ? 30 : 45);
+      for (let i = targetIdx + 1; i < allRows.length; i++) {
+        const r = allRows[i];
+        if (r.is_header && (r.hierarchy_rank || 99) <= targetRank) break;
+        lastChildU = r.urutan;
+      }
+      targetAfterUrutan = lastChildU;
+    } else {
+      // wrap_children: sisipkan tepat di bawah targetRow (urutan targetRow)
+      targetAfterUrutan = targetRow.urutan;
+    }
+  }
+
+  const payload = {
+    row_type: 'header',
+    level_indent: 3,
+    kode: kodeAkun,
+    uraian: uraian,
+    kode_akun: kodeAkun,
+    pic_bagian: pic,
+    target_scope: sasaran,
+    harga_satuan: 0,
+    target_after_urutan: targetAfterUrutan,
+    catatan_revisi_baris: 'Rekam Akun Belanja (BAS)'
+  };
+
+  try {
+    const res = await apiFetch(`/api/rkb/${p.id}/row`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    closeAddAkunModal();
+    await loadRkbData();
+    renderAllViews();
+
+    if (res && res.row) {
+      AppState.selectedRowId = res.row.id;
+      const fullRow = AppState.rkbData?.rows.find(r => r.id === res.row.id);
+      if (fullRow) {
+        updateContextualActionBar(fullRow);
+        // Expand cabang induk
+        let cur = fullRow.parent_tree_id;
+        const parentMap = {};
+        for (const r of (AppState.rkbData?.rows || [])) parentMap[r.tree_id] = r.parent_tree_id;
+        while (cur) {
+          AppState.expandedNodes.add(cur);
+          cur = parentMap[cur];
+        }
+        renderRkbTable();
+      }
+    }
+
+    alert(`✅ Akun Belanja [${kodeAkun}] "${uraian}" berhasil direkam sesuai struktur SAKTI!`);
+  } catch (err) {
+    alert('Gagal merekam Akun Belanja: ' + err.message);
   }
 }
 
