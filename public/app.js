@@ -233,8 +233,7 @@ async function submitScreenLoginForm() {
     return;
   }
 
-  // Pengguna selain developer wajib memasukkan kata sandi
-  if (username !== 'emenje' && !password) {
+  if (!password) {
     if (errorBox && errorText) {
       errorText.textContent = 'Kata sandi wajib diisi.';
       errorBox.style.display = 'block';
