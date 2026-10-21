@@ -2884,32 +2884,6 @@ function toggleModalHeaderMode(isHeader) {
   }
 }
 
-  try {
-    const res = await apiFetch(`/api/rkb/${p.id}/row`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-
-    closeAddHeaderModal();
-    await loadRkbData();
-
-    const savedRowId = res && res.row ? res.row.id : null;
-    if (savedRowId) {
-      expandAncestorsOfRow(savedRowId);
-      AppState.selectedRowId = savedRowId;
-      renderRkbTable();
-      setTimeout(() => {
-        highlightAndScrollToRow(savedRowId);
-      }, 150);
-    } else {
-      renderAllViews();
-    }
-    alert(`✅ Komponen L${targetLevel} "${uraian}" berhasil direkam.`);
-  } catch (err) {
-    alert('Gagal merekam komponen baru: ' + err.message);
-  }
-}
-
 // ============================================================================
 // GESER URUTAN BARIS (REORDERING: UP / DOWN)
 // ============================================================================
