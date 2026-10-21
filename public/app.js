@@ -638,17 +638,25 @@ async function loadMasters() {
 async function loadPeriodes() {
   const res = await apiFetch('/api/periodes');
   AppState.periodesList = res.periodes || [];
-  if (!AppState.currentPeriode) {
-    try {
-      const actRes = await apiFetch('/api/periodes/active');
-      if (actRes && actRes.periode) {
-        AppState.currentPeriode = actRes.periode;
-      }
-    } catch (e) {}
-    if (!AppState.currentPeriode && AppState.periodesList.length > 0) {
-      AppState.currentPeriode = AppState.periodesList[AppState.periodesList.length - 1];
+
+  // ATURAN BARU: Inisialisasi & Dashboard SELALU mengambil draft aktif (is_locked = 0)
+  try {
+    const actRes = await apiFetch('/api/periodes/active');
+    if (actRes && actRes.periode) {
+      AppState.activeDraftPeriode = actRes.periode;
+      // Selalu kunci pilihan default ke draft aktif
+      AppState.currentPeriode = actRes.periode;
     }
+  } catch (e) {
+    console.warn('Gagal memuat periode aktif:', e);
   }
+
+  // Fallback: cari dokumen yang belum terkunci (is_locked = 0) atau urutan usulan terakhir
+  if (!AppState.currentPeriode && AppState.periodesList.length > 0) {
+    const draft = AppState.periodesList.slice().reverse().find(p => !p.is_locked);
+    AppState.currentPeriode = draft || AppState.periodesList[AppState.periodesList.length - 1];
+  }
+
   if (AppState.currentPeriode) {
     const matched = AppState.periodesList.find(x => x.id === AppState.currentPeriode.id);
     if (matched) {
@@ -857,7 +865,15 @@ function switchView(viewId) {
   const targetView = document.getElementById(viewId);
   if (targetView) targetView.classList.add('active');
 
-  if (viewId === 'view-dashboard') renderDashboard();
+  if (viewId === 'view-dashboard') {
+    // ATURAN BARU: Masuk ke dashboard SELALU beralih dan mengambil data draft aktif
+    if (AppState.activeDraftPeriode && AppState.currentPeriode && AppState.currentPeriode.id !== AppState.activeDraftPeriode.id) {
+      AppState.currentPeriode = AppState.activeDraftPeriode;
+      loadRkbData().then(() => renderAllViews());
+      return;
+    }
+    renderDashboard();
+  }
   else if (viewId === 'view-siklus') renderSiklus();
   else if (viewId === 'view-rkb') renderRkbTable();
   else if (viewId === 'view-db-ppk') renderDbPpk();
@@ -897,14 +913,10 @@ function renderDashboard() {
   if (!AppState.rkbData || !AppState.rkbData.summary) return;
   const { summary, periode } = AppState.rkbData;
 
-  // Sinkronisasi pemilih versi dokumen di dashboard
-  const pSelect = document.getElementById('dashboard-periode-select');
-  if (pSelect && AppState.periodesList) {
-    pSelect.innerHTML = AppState.periodesList.map(item => `
-      <option value="${item.id}" ${item.id === periode.id ? 'selected' : ''}>
-        ${item.is_locked ? '🔒' : '✏️'} ${item.versi_revisi} (${item.nama_periode})
-      </option>
-    `).join('');
+  // ATURAN BARU: Dashboard selalu menampilkan label Draft RKB Aktif
+  const draftTitleEl = document.getElementById('dashboard-active-draft-title');
+  if (draftTitleEl) {
+    draftTitleEl.textContent = `${periode.nama_periode} (${periode.versi_revisi}) • Draft Aktif`;
   }
 
   setElText('kpi-total-pagu', formatRupiah(summary.grandTotal));

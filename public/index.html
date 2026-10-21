@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SI-PRABU v3.0 | KPU Kabupaten Ngawi</title>
-  <link rel="stylesheet" href="/style.css?v=3.4.2">
+  <link rel="stylesheet" href="/style.css?v=3.4.3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -314,15 +314,10 @@
               <p class="view-desc">Ringkasan eksekutif alokasi Pagu NPHD Hibah Pilkada KPU Kabupaten Ngawi.</p>
             </div>
             <div class="header-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <label for="dashboard-periode-select" style="font-size: 12px; font-weight: 600; color: #475569;">Versi Dokumen:</label>
-                <select id="dashboard-periode-select" class="input-select-sm" onchange="selectPeriode(Number(this.value))" style="font-weight: 600; min-width: 220px;">
-                  <!-- Populated via JS -->
-                </select>
+              <div class="badge" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 6px 12px; font-size: 12px; font-weight: 700; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                <span>🟢</span>
+                <span id="dashboard-active-draft-title">Draft RKB Aktif</span>
               </div>
-              <button class="btn btn-success" onclick="downloadExcel()">
-                📥 Unduh Berkas Excel (.xlsx)
-              </button>
             </div>
           </div>
 
@@ -332,7 +327,7 @@
               <div class="kpi-icon">💰</div>
               <div class="kpi-info">
                 <span class="kpi-label">TOTAL PAGU DOKUMEN</span>
-                <span class="kpi-value" id="kpi-total-pagu">Rp 49.999.999.000</span>
+                <span class="kpi-value" id="kpi-total-pagu">Memuat...</span>
                 <span class="kpi-sub" id="kpi-status-dokumen">Status: Draft Aktif</span>
               </div>
             </div>
@@ -341,8 +336,8 @@
               <div class="kpi-icon">📋</div>
               <div class="kpi-info">
                 <span class="kpi-label">RINCIAN ITEM BELANJA</span>
-                <span class="kpi-value" id="kpi-total-items">953 Baris</span>
-                <span class="kpi-sub" id="kpi-total-rows">1.764 Total Komponen Hierarki</span>
+                <span class="kpi-value" id="kpi-total-items">Memuat...</span>
+                <span class="kpi-sub" id="kpi-total-rows">-</span>
               </div>
             </div>
 
@@ -350,8 +345,8 @@
               <div class="kpi-icon">🏛️</div>
               <div class="kpi-info">
                 <span class="kpi-label">LINGKUP KABUPATEN</span>
-                <span class="kpi-value" id="kpi-pagu-kab">Rp 14.372.267.000</span>
-                <span class="kpi-sub" id="kpi-pct-kab">28,74% dari Pagu Total</span>
+                <span class="kpi-value" id="kpi-pagu-kab">Memuat...</span>
+                <span class="kpi-sub" id="kpi-pct-kab">-</span>
               </div>
             </div>
 
@@ -359,8 +354,8 @@
               <div class="kpi-icon">👥</div>
               <div class="kpi-info">
                 <span class="kpi-label">ALOKASI BADAN ADHOC</span>
-                <span class="kpi-value" id="kpi-pagu-adhoc">Rp 31.383.229.300</span>
-                <span class="kpi-sub" id="kpi-pct-adhoc">62,77% (PPK, PPS, TPS, Pantarlih)</span>
+                <span class="kpi-value" id="kpi-pagu-adhoc">Memuat...</span>
+                <span class="kpi-sub" id="kpi-pct-adhoc">-</span>
               </div>
             </div>
           </div>
@@ -3347,7 +3342,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.4.2"></script>
+    <script src="/app.js?v=3.4.3"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
