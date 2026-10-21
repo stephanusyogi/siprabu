@@ -180,11 +180,16 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       horizontal: 'center',
       wrapText: true
     };
+    let bLeft = { style: 'thin', color: { argb: 'FF00B4F0' } };
+    let bRight = { style: 'thin', color: { argb: 'FF00B4F0' } };
+    if (c === 1) bLeft = { style: 'medium', color: { argb: 'FF000000' } }; // Garis paling kiri MEDIUM BLACK
+    if (c === 11) bRight = { style: 'medium', color: { argb: 'FF000000' } }; // Garis paling kanan MEDIUM BLACK
+
     cell.border = {
-      top: { style: 'thin', color: { argb: 'FF006699' } },
+      top: { style: 'medium', color: { argb: 'FF000000' } },
       bottom: { style: 'medium', color: { argb: 'FF004C73' } },
-      left: { style: 'thin', color: { argb: 'FF00B4F0' } },
-      right: { style: 'thin', color: { argb: 'FF00B4F0' } }
+      left: bLeft,
+      right: bRight
     };
   }
 
@@ -261,7 +266,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     for (let c = 1; c <= 5; c++) {
       const cell = excelRow.getCell(c);
       let vLeft = { style: 'hair', color: { argb: 'FFE5E7EB' } };
-      if (c === 1) vLeft = { style: 'thin', color: { argb: 'FF888888' } };
+      if (c === 1) vLeft = { style: 'medium', color: { argb: 'FF000000' } }; // Garis paling kiri tebal MEDIUM sama persis dengan kanan & bawah
       else if (c === 5) vLeft = { style: 'thin', color: { argb: 'FF888888' } }; // Pemisah Nomor & Kode
 
       cell.border = { top: hTop, bottom: hBottom, left: vLeft };
@@ -290,7 +295,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
         top: hTop,
         bottom: hBottom,
         left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
-        right: { style: 'thin', color: { argb: 'FF888888' } }
+        right: { style: 'medium', color: { argb: 'FF000000' } } // Garis paling kanan tebal MEDIUM sama persis dengan kiri & bawah
       };
       kCell.numFmt = '#,##0';
       kCell.alignment = { vertical: 'middle', horizontal: 'right' };
@@ -306,7 +311,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
           top: hTop,
           bottom: hBottom,
           left: vLeft,
-          right: c === 11 ? { style: 'thin', color: { argb: 'FF888888' } } : undefined
+          right: c === 11 ? { style: 'medium', color: { argb: 'FF000000' } } : undefined // Garis paling kanan tebal MEDIUM
         };
       }
       excelRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
@@ -437,7 +442,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     cCell.border = {
       top: { style: 'thin', color: { argb: 'FF000000' } },
       bottom: { style: 'double', color: { argb: 'FF000000' } },
-      left: c === 1 ? { style: 'thin', color: { argb: 'FF888888' } } : undefined
+      left: c === 1 ? { style: 'medium', color: { argb: 'FF000000' } } : undefined
     };
   }
   const totalLabelCell = ws1.getCell(`A${totalRowNumber}`);
@@ -454,7 +459,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     top: { style: 'thin', color: { argb: 'FF000000' } },
     bottom: { style: 'double', color: { argb: 'FF000000' } },
     left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
-    right: { style: 'thin', color: { argb: 'FF888888' } }
+    right: { style: 'medium', color: { argb: 'FF000000' } }
   };
 
   // AREA TANDA TANGAN: HANYA KETUA KOMISI PEMILIHAN UMUM KABUPATEN NGAWI

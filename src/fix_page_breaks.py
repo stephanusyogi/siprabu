@@ -76,6 +76,20 @@ def fix_worksheet_breaks(file_path):
                 b.Weight = 3 # xlMedium = 3 (garis tebal penutup tabel halaman)
                 b.Color = 0 # Hitam
 
+            # Samakan ketebalan garis paling kiri (Kolom A) dan paling kanan (Kolom K) dengan garis bawah (Weight = xlMedium = 3)
+            # xlEdgeLeft = 7, xlEdgeRight = 10
+            left_rng = ws.Range(f'A4:A{total_row}')
+            b_left = left_rng.Borders(7)
+            b_left.LineStyle = 1
+            b_left.Weight = 3
+            b_left.Color = 0
+
+            right_rng = ws.Range(f'K4:K{total_row}')
+            b_right = right_rng.Borders(10)
+            b_right.LineStyle = 1
+            b_right.Weight = 3
+            b_right.Color = 0
+
             excel.ActiveWindow.View = 1 # xlNormalView
             wb.Save()
         else:
