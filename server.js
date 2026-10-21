@@ -23,6 +23,7 @@ const {
   getRabRowById,
   saveRabRow,
   deleteRabRow,
+  updateRabBarisPicWithCascade,
   getUsers,
   getUserById,
   saveUser,
@@ -385,9 +386,15 @@ const server = http.createServer(async (req, res) => {
       if (Number(periode.is_locked) === 1) return sendJson(res, 403, { error: 'Dokumen berstatus terkunci.' });
 
       const body = await parseJsonBody(req);
-      const { row_id, pic_bagian } = body;
-      db.prepare('UPDATE rab_baris SET pic_bagian = ? WHERE id = ? AND periode_id = ?').run(pic_bagian, row_id, periodeId);
-      return sendJson(res, 200, { ok: true, message: 'PIC baris berhasil diperbarui.' });
+      const { row_id, pic_bagian, cascade } = body;
+      const result = updateRabBarisPicWithCascade(periodeId, Number(row_id), pic_bagian, cascade !== false);
+      return sendJson(res, 200, {
+        ok: true,
+        message: `PIC baris berhasil diperbarui (${result.count} baris terupdate).`,
+        count: result.count,
+        updatedIds: result.updatedIds,
+        pic_bagian: result.pic_bagian
+      });
     }
 
     const quickAkunMatch = pathname.match(/^\/api\/rkb\/(\d+)\/quick-akun$/);

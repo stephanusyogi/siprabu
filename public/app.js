@@ -1626,7 +1626,8 @@ function renderRkbTable() {
       : `<span style="display:inline-block;width:24px;"></span>`;
 
     const pic = (r.pic_bagian || 'KUL').toUpperCase();
-    const picChip = `<span class="pic-chip pic-${pic}" onclick="openQuickPicModal(${r.id}, event)" title="Klik untuk mengubah Subbagian PIC">${pic}</span>`;
+    const picChip = `<span class="pic-chip pic-${pic}" onclick="openQuickPicModal(${r.id}, event)" title="Klik untuk mengubah Subbagian PIC baris ini">${pic}</span>`;
+    const showPic = lvl >= 2 || isItem;
 
     const targetSas = (r.target_scope || 'KAB').toUpperCase();
     const sasChip = `<span class="scope-chip scope-${targetSas}">${targetSas}</span>`;
@@ -1708,7 +1709,7 @@ function renderRkbTable() {
             </div>
             ${isItem && r.catatan_revisi_baris ? `<div style="font-size:11px;color:#1e40af;background:#eff6ff;border-left:2px solid #3b82f6;padding:2px 6px;margin:3px 0 0 28px;border-radius:2px;display:inline-block;"><span style="font-weight:600;">Catatan:</span> ${escHtml(r.catatan_revisi_baris)}</div>` : ''}
           </td>
-          <td class="col-pic">${isItem ? picChip : ''}</td>
+          <td class="col-pic">${showPic ? picChip : ''}</td>
           <td class="col-sasaran">${isItem ? sasChip : ''}</td>
           <td class="col-formula" style="font-family: var(--font-mono); font-size: 11px; color: ${isItem ? '#475569' : 'inherit'};">
             ${isItem ? (r.computed_formula || '-') : ''}
@@ -1839,8 +1840,56 @@ function openQuickPicModal(rowId, event) {
   if (!row) return;
 
   setElVal('quick-pic-row-id', row.id);
-  setElText('quick-pic-uraian', `[${row.kode || '-'}] ${row.uraian}`);
   setElVal('quick-pic-select', (row.pic_bagian || 'KUL').toUpperCase());
+
+  const isHeader = Boolean(row.is_header);
+  const lvl = Number(row.level_indent);
+  const uraianEl = document.getElementById('quick-pic-uraian');
+  const badgeEl = document.getElementById('quick-pic-level-badge');
+  const cascadeBox = document.getElementById('quick-pic-cascade-box');
+  const itemHint = document.getElementById('quick-pic-item-hint');
+  const cascadeDesc = document.getElementById('quick-pic-cascade-desc');
+  const cascadeCheck = document.getElementById('quick-pic-cascade');
+
+  let lvlName = 'Rincian Belanja (Item Level 4/6)';
+  if (lvl === 2) lvlName = 'Kegiatan (Level 2 / 3)';
+  else if (lvl >= 21 && lvl <= 25) lvlName = 'Sub-Kegiatan (Level 4)';
+  else if (lvl === 3) lvlName = 'Akun Belanja 6-Digit BAS (Level 3 / 5)';
+
+  if (badgeEl) {
+    badgeEl.innerHTML = `<span class="badge ${isHeader ? 'badge-primary' : 'badge-subtle'}" style="font-size:11px; padding:3px 8px;">${lvlName}</span>`;
+  }
+
+  if (uraianEl) {
+    uraianEl.innerHTML = `<strong>${escHtml(row.kode ? `[${row.kode}] ` : '')}${escHtml(row.uraian)}</strong>`;
+  }
+
+  if (isHeader) {
+    // Hitung jumlah baris anak di bawahnya secara dinamis
+    const allRows = AppState.rkbData?.rows || [];
+    const idx = allRows.findIndex(r => r.id === row.id);
+    let childCount = 0;
+    const targetRank = row.hierarchy_rank || (lvl === 2 ? 30 : (lvl === 3 ? 50 : 45));
+    if (idx !== -1) {
+      for (let i = idx + 1; i < allRows.length; i++) {
+        const rRank = allRows[i].hierarchy_rank || (allRows[i].is_header ? (allRows[i].level_indent === 2 ? 30 : (allRows[i].level_indent === 3 ? 50 : 45)) : 99);
+        if (rRank <= targetRank) break;
+        childCount++;
+      }
+    }
+
+    if (cascadeBox) cascadeBox.style.display = 'block';
+    if (itemHint) itemHint.style.display = 'none';
+    if (cascadeCheck) cascadeCheck.checked = true;
+    if (cascadeDesc) {
+      cascadeDesc.textContent = `Akan memperbarui ${childCount} baris anak (sub-kegiatan, akun belanja & rincian belanja) di bawah pohon ini secara serentak.`;
+    }
+  } else {
+    if (cascadeBox) cascadeBox.style.display = 'none';
+    if (itemHint) itemHint.style.display = 'block';
+    if (cascadeCheck) cascadeCheck.checked = false;
+  }
+
   document.getElementById('modal-quick-pic').style.display = 'flex';
 }
 
@@ -1851,16 +1900,20 @@ function closeQuickPicModal() {
 async function submitQuickPic() {
   const rowId = Number(document.getElementById('quick-pic-row-id')?.value);
   const pic = document.getElementById('quick-pic-select')?.value;
+  const cascade = Boolean(document.getElementById('quick-pic-cascade')?.checked);
   const periodeId = AppState.currentPeriode.id;
 
   try {
-    await apiFetch(`/api/rkb/${periodeId}/quick-pic`, {
+    const res = await apiFetch(`/api/rkb/${periodeId}/quick-pic`, {
       method: 'POST',
-      body: JSON.stringify({ row_id: rowId, pic_bagian: pic })
+      body: JSON.stringify({ row_id: rowId, pic_bagian: pic, cascade })
     });
     closeQuickPicModal();
     await loadRkbData();
     renderAllViews();
+    if (res && res.count > 1) {
+      alert(`Berhasil mengalihkan PIC menjadi ${pic} untuk ${res.count} baris belanja secara hierarkis (Top-Down Cascade).`);
+    }
   } catch (err) {
     alert('Gagal mengubah PIC: ' + err.message);
   }

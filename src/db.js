@@ -419,6 +419,59 @@ function deleteRabRow(id) {
   return { success: true };
 }
 
+/**
+ * Update Subbag PIC baris belanja dengan dukungan Top-Down Cascade
+ * - Jika target adalah level induk (Kegiatan/Akun) dan cascade=true:
+ *   seluruh anak baris di bawahnya (sub-kegiatan, akun, rincian belanja) otomatis ikut terupdate.
+ * - Jika target adalah rincian belanja (item level 4/6) atau cascade=false:
+ *   hanya baris target tersebut yang terupdate (Bottom-Up Isolated, tidak mempengaruhi level di atasnya).
+ */
+function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = true) {
+  const target = db.prepare('SELECT * FROM rab_baris WHERE id = ? AND periode_id = ?').get(rowId, periodeId);
+  if (!target) return { count: 0, updatedIds: [] };
+
+  const targetPic = (picBagian || 'KUL').toUpperCase();
+
+  // Jika tidak cascade atau baris bukan header (item leaf), update baris itu saja
+  if (!cascade || target.row_type !== 'header') {
+    db.prepare('UPDATE rab_baris SET pic_bagian = ? WHERE id = ? AND periode_id = ?').run(targetPic, rowId, periodeId);
+    return { count: 1, updatedIds: [Number(rowId)], pic_bagian: targetPic };
+  }
+
+  // Cari seluruh anak baris di bawah pohon hirarki target
+  const { getHierarchyRank } = require('./calculation');
+  const allRows = db.prepare('SELECT id, urutan, row_type, level_indent FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
+  const targetIdx = allRows.findIndex(r => r.id === Number(rowId));
+  if (targetIdx === -1) {
+    db.prepare('UPDATE rab_baris SET pic_bagian = ? WHERE id = ? AND periode_id = ?').run(targetPic, rowId, periodeId);
+    return { count: 1, updatedIds: [Number(rowId)], pic_bagian: targetPic };
+  }
+
+  const targetRank = getHierarchyRank(target);
+  const updatedIds = [target.id];
+
+  for (let i = targetIdx + 1; i < allRows.length; i++) {
+    const r = allRows[i];
+    const rRank = getHierarchyRank(r);
+    if (rRank <= targetRank) break; // Berhenti saat menemui saudara (sibling) atau level induk yang setara/lebih tinggi
+    updatedIds.push(r.id);
+  }
+
+  const stmt = db.prepare('UPDATE rab_baris SET pic_bagian = ? WHERE id = ? AND periode_id = ?');
+  db.exec('BEGIN TRANSACTION');
+  try {
+    for (const id of updatedIds) {
+      stmt.run(targetPic, id, periodeId);
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
+  return { count: updatedIds.length, updatedIds, pic_bagian: targetPic };
+}
+
 function clearRabRows(periodeId) {
   db.prepare('DELETE FROM rab_baris WHERE periode_id = ?').run(periodeId);
   return { success: true };
@@ -577,6 +630,7 @@ module.exports = {
   getRabRowById,
   saveRabRow,
   deleteRabRow,
+  updateRabBarisPicWithCascade,
   clearRabRows,
   getUsers,
   getUserById,

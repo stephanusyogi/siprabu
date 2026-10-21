@@ -1616,31 +1616,54 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- MODAL: CEPAT GANTI SUBBAG PIC                                          -->
+    <!-- MODAL: CEPAT GANTI SUBBAG PIC (DENGAN DUKUNGAN HIERARKI CASCADE)       -->
     <!-- ===================================================================== -->
-    <div id="modal-quick-pic" class="modal-backdrop" style="display: none;">
-      <div class="modal-box modal-sm">
+    <div id="modal-quick-pic" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 480px;">
         <div class="modal-header">
-          <h3 style="margin: 0; font-size: 15px;">Ubah Subbagian PIC</h3>
+          <div>
+            <h3 style="margin: 0; font-size: 15px;">Ubah Subbagian PIC Pelaksana</h3>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+              Penetapan unit subbagian penanggung jawab anggaran
+            </div>
+          </div>
           <button class="btn-close" onclick="closeQuickPicModal()">✕</button>
         </div>
         <div class="modal-body">
           <input type="hidden" id="quick-pic-row-id">
-          <p id="quick-pic-uraian" style="font-size: 12.5px; font-weight: 600; color: #1e293b; margin-bottom: 12px;"></p>
+          <div id="quick-pic-level-badge" style="margin-bottom: 6px;"></div>
+          <p id="quick-pic-uraian" style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 12px; line-height: 1.4;"></p>
+          
           <div class="form-group">
-            <label>Pilih Subbag Pelaksana:</label>
-            <select id="quick-pic-select" class="input-select" style="font-weight: 600;">
-              <option value="RENDATIN">🔵 Perencanaan, Data & Informasi (RENDATIN)</option>
-              <option value="KUL">🟠 Keuangan, Umum & Logistik (KUL)</option>
+            <label>Pilih Subbag Pelaksana Baru:</label>
+            <select id="quick-pic-select" class="input-select" style="font-weight: 600; font-size: 13.5px;">
+              <option value="RENDATIN">🔵 Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+              <option value="KUL">🟠 Keuangan, Umum &amp; Logistik (KUL)</option>
               <option value="TEKNIS">🟣 Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
-              <option value="HUKUM">🔷 Hukum & SDM (HUKUM)</option>
-              <option value="PARSDM">🟢 Partisipasi Masyarakat & SDM (PARSDM)</option>
+              <option value="HUKUM">🔷 Hukum &amp; SDM (HUKUM)</option>
+              <option value="PARSDM">🟢 Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
             </select>
+          </div>
+
+          <!-- OPSI TOP-DOWN CASCADE (UNTUK LEVEL KEGIATAN & AKUN) -->
+          <div id="quick-pic-cascade-box" style="margin-top: 12px; padding: 10px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; display: none;">
+            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin: 0; font-size: 12.5px; font-weight: 700; color: #1e40af;">
+              <input type="checkbox" id="quick-pic-cascade" checked style="margin-top: 2px;">
+              <span>Terapkan ke seluruh rincian belanja di bawahnya (Cascade)</span>
+            </label>
+            <div id="quick-pic-cascade-desc" style="font-size: 11px; color: #2563eb; margin-top: 4px; margin-left: 22px; line-height: 1.35;">
+              Seluruh anak baris (sub-kegiatan, akun belanja &amp; rincian belanja) di bawah pohon ini akan otomatis dialihkan ke PIC baru.
+            </div>
+          </div>
+
+          <!-- KETERANGAN BOTTOM-UP ISOLATED (UNTUK RINCIAN BELANJA ITEM) -->
+          <div id="quick-pic-item-hint" style="margin-top: 10px; font-size: 11.5px; color: #475569; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 8px 10px; border-radius: 6px; display: none;">
+            💡 <strong>Logika Bottom-Up:</strong> Mengubah PIC pada rincian belanja ini <u>hanya berlaku untuk baris ini saja</u> dan tidak akan mengubah level induk (Akun / Kegiatan) di atasnya.
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary btn-sm" onclick="closeQuickPicModal()">Batal</button>
-          <button class="btn btn-primary btn-sm" onclick="submitQuickPic()">Simpan Perubahan</button>
+          <button class="btn btn-primary btn-sm" onclick="submitQuickPic()">💾 Simpan Perubahan PIC</button>
         </div>
       </div>
     </div>
