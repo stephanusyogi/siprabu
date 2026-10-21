@@ -1,7 +1,7 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
  * Modul Export Excel (XLSX) Multi-Sheet Resmi (SAKTI FA 16 Detail Architecture)
- * Pengembang Resmi: emenje <emenje@kpu-ngawi.go.id>
+ * Pengembang: emenje (Telegram: 0852-2869-9640)
  */
 
 const ExcelJS = require('exceljs');
@@ -219,7 +219,7 @@ function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPi
   const hRow1 = ws.addRow(['[PENANDA RIWAYAT FILE & AUDIT LOG SISTEM - BUKAN MERUPAKAN BAGIAN DOKUMEN RESMI]']);
   const hRow2 = ws.addRow([`Program / Dokumen: ${periode ? periode.nama_periode : 'Pilkada Serentak'} | Versi: ${periode ? (periode.versi_revisi || 'Induk') : '-'} | Status: ${statusLabel}`]);
   const hRow3 = ws.addRow([`Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'} | Tanggal Unduh: ${tanggalUnduh}${hasFilter ? ` | Filter: PIC=${picDisplay}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
-  const hRow4 = ws.addRow(['Sistem Informasi: SI-PRABU Clean Web Edition v3.0 | Satker: KPU Kabupaten Ngawi | Pengembang: emenje <emenje@kpu-ngawi.go.id>']);
+  const hRow4 = ws.addRow(['Sistem Informasi: SI-PRABU Clean Web Edition v3.0 | Pengembang: emenje']);
 
   [hRow1, hRow2, hRow3, hRow4].forEach(hr => {
     const c = hr.getCell(1);
@@ -336,8 +336,8 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
   // Bangun Workbook ExcelJS
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'emenje <emenje@kpu-ngawi.go.id>';
-  wb.lastModifiedBy = 'SI-PRABU v3.0 (KPU Kabupaten Ngawi)';
+  wb.creator = 'emenje';
+  wb.lastModifiedBy = 'SI-PRABU v3.0';
   wb.created = new Date();
   wb.modified = new Date();
 

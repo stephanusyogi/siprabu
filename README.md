@@ -139,11 +139,11 @@ Hostinger menyediakan dua opsi utama: **Hostinger VPS** (paling direkomendasikan
 
 ---
 
-## 👤 Akun Pengembang & Satker
+## 👤 Informasi Pengembang & Satker Pengguna
 
 - **Satker Pengguna**: Komisi Pemilihan Umum (KPU) Kabupaten Ngawi
-- **Lead Developer & System Architect**: `emenje` (`emenje@kpu-ngawi.go.id`)
+- **Lead Developer & System Architect**: **emenje** ([Hubungi via Telegram: 085228699640](https://t.me/+6285228699640))
 - **Tahun Anggaran**: 2024 / 2029
 
 ---
-*© 2026 KPU Kabupaten Ngawi — Seluruh Hak Cipta Dilindungi Undang-Undang.*
+*© 2026 SIPRABU — Platform Tata Kelola Anggaran & RKB Hibah Pilkada.*

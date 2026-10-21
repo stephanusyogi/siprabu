@@ -843,7 +843,7 @@ function authenticateGoogleUser(googleProfile) {
 
   // 2. Fallback pencocokan khusus developer / lead architect emenje
   if (!u && email) {
-    if (email === 'noorjihan1184@gmail.com' || email === 'emenje@kpu-ngawi.go.id') {
+    if (email === 'noorjihan1184@gmail.com') {
       u = db.prepare("SELECT * FROM satker_users WHERE username = 'emenje' AND is_active = 1").get();
     }
   }

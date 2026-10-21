@@ -410,7 +410,7 @@ const server = http.createServer(async (req, res) => {
         const status = execSync('git status --porcelain', { cwd: __dirname, encoding: 'utf8' }).trim();
         let commitOutput = '';
         if (status) {
-          commitOutput = execSync(`git commit --author="emenje <emenje@kpu-ngawi.go.id>" -m ${JSON.stringify(msg)}`, { cwd: __dirname, encoding: 'utf8' });
+          commitOutput = execSync(`git commit --author="emenje <jihanandro@users.noreply.github.com>" -m ${JSON.stringify(msg)}`, { cwd: __dirname, encoding: 'utf8' });
         }
 
         const pushOutput = execSync('git push origin main', { cwd: __dirname, encoding: 'utf8' });
