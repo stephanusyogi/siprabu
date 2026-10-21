@@ -43,6 +43,52 @@ def fix_worksheet_breaks(file_path):
             wb.Close(False)
             return False
 
+        # Cari baris akhir tanda tangan (Nama Ketua KPU)
+        sign_end_row = total_row + 6
+        for r in range(total_row + 1, min(used_rows + 1, total_row + 15)):
+            txt = ws.Cells(r, 9).Text
+            if txt and ('MUSTAKIM' in txt.upper() or 'SAMSU' in txt.upper()):
+                sign_end_row = r
+                break
+
+        # Set Print Area Resmi Sheet RUH: hanya dari A1 sampai baris akhir tanda tangan
+        # Baris Signature / Riwayat File di bawah berada di luar area print
+        ws.PageSetup.PrintArea = f"$A$1:$K${sign_end_row}"
+
+        # Set Print Area pada sheet lainnya agar Signature / Riwayat File di luar area print
+        for s in wb.Worksheets:
+            if s.Name == 'Matriks_Revisi':
+                m_used = s.UsedRange.Rows.Count
+                m_end = m_used
+                for r in range(m_used, max(1, m_used - 15), -1):
+                    txt = s.Cells(r, 1).Text
+                    if txt and '[PENANDA RIWAYAT' in txt.upper():
+                        m_end = max(1, r - 3)
+                        break
+                s.PageSetup.PrintArea = f"$A$1:$M${m_end}"
+            elif s.Name == 'Data_Kertas_Kerja':
+                k_used = s.UsedRange.Rows.Count
+                k_end = k_used
+                for r in range(k_used, max(1, k_used - 15), -1):
+                    txt = s.Cells(r, 1).Text
+                    if txt and '[PENANDA RIWAYAT' in txt.upper():
+                        k_end = max(1, r - 3)
+                        break
+                s.PageSetup.PrintArea = f"$A$1:$P${k_end}"
+            elif s.Name == 'Rekap_Alokasi':
+                rk_used = s.UsedRange.Rows.Count
+                rk_end = rk_used
+                for r in range(rk_used, max(1, rk_used - 15), -1):
+                    txt = s.Cells(r, 1).Text
+                    if txt and '[PENANDA RIWAYAT' in txt.upper():
+                        rk_end = max(1, r - 3)
+                        break
+                s.PageSetup.PrintArea = f"$A$1:$G${rk_end}"
+
+        # Switch to Page Break Preview to force Excel COM to calculate all breaks based on PrintArea
+        excel.ActiveWindow.View = 2
+        total_breaks = ws.HPageBreaks.Count
+
         # If there are breaks, inspect the last break
         if total_breaks > 0:
             last_break_row = ws.HPageBreaks(total_breaks).Location.Row

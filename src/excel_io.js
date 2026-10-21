@@ -8,6 +8,36 @@ const ExcelJS = require('exceljs');
 const { getRabRows, getPeriodeById, getMasters } = require('./db');
 const { calculateRkbDataset, getRevisionComparison } = require('./calculation');
 
+const SUBBAG_LABEL_MAP = {
+  KUL: 'Keuangan, Umum & Logistik (KUL)',
+  RENDATIN: 'Perencanaan, Data & Informasi (RENDATIN)',
+  TEKNIS: 'Teknis Penyelenggaraan Pemilu (TEKNIS)',
+  HUKUM: 'Hukum (HUKUM)',
+  PARSDM: 'Partisipasi Masyarakat & SDM (PARSDM)'
+};
+
+/**
+ * Helper menyisipkan signature riwayat file / audit log sistem di bawah lembar kerja
+ * Selalu diletakkan di bagian bawah DILUAR area print resmi dokumen
+ */
+function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran }) {
+  ws.addRow([]);
+  ws.addRow([]); // 2 baris kosong pemisah setelah batas cetak resmi
+
+  const hasFilter = Boolean(filterPic || filterSasaran);
+  const picDisplay = filterPic ? (SUBBAG_LABEL_MAP[filterPic] || filterPic) : 'SEMUA';
+
+  const hRow1 = ws.addRow(['[PENANDA RIWAYAT FILE & AUDIT LOG SISTEM - BUKAN MERUPAKAN BAGIAN DOKUMEN RESMI]']);
+  const hRow2 = ws.addRow([`Program / Dokumen: ${periode ? periode.nama_periode : 'Pilkada Serentak'} | Versi: ${periode ? (periode.versi_revisi || 'Induk') : '-'} | Status: ${statusLabel}`]);
+  const hRow3 = ws.addRow([`Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'} | Tanggal Unduh: ${tanggalUnduh}${hasFilter ? ` | Filter: PIC=${picDisplay}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
+  const hRow4 = ws.addRow(['Sistem Informasi: SI-PRABU Clean Web Edition v3.0 | Satker: KPU Kabupaten Ngawi | Pengembang: emenje <emenje@kpu-ngawi.go.id>']);
+
+  [hRow1, hRow2, hRow3, hRow4].forEach(hr => {
+    const c = hr.getCell(1);
+    c.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF666666' } };
+  });
+}
+
 /**
  * Menghasilkan buffer XLSX untuk download RUH Belanja Multi-Sheet
  * Sesuai Standar FA Detail 16 Segmen SAKTI Kemenkeu
@@ -44,6 +74,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const hasFilter = Boolean(filterPic || filterSasaran);
 
   let exportRows = rows;
+  let exportTotal = 0;
   if (hasFilter) {
     const rowByTreeId = {};
     const rowById = {};
@@ -57,13 +88,20 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       let matchPic = true;
       let matchSasaran = true;
       if (filterPic) {
-        matchPic = r.pic_bagian && r.pic_bagian.toUpperCase() === filterPic;
+        let rPic = (r.pic_bagian || '').toUpperCase();
+        if (rPic === 'PERENCANAAN') rPic = 'RENDATIN';
+        if (rPic === 'KEUANGAN') rPic = 'KUL';
+        if (rPic === 'PARMAS') rPic = 'PARSDM';
+        matchPic = rPic === filterPic;
       }
       if (filterSasaran) {
         matchSasaran = r.target_scope && r.target_scope.toUpperCase() === filterSasaran;
       }
       if (matchPic && matchSasaran) {
         matchingRowIds.add(r.id);
+        if (!r.is_header) {
+          exportTotal += (r.computed_total || 0);
+        }
       }
     });
 
@@ -79,7 +117,30 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       }
     });
 
-    exportRows = rows.filter(r => includedTreeIds.has(r.tree_id));
+    // Rollup subtotal baris induk khusus item yang lolos filter agar penjumlahan vertikal presisi
+    const filteredItems = rows.filter(r => matchingRowIds.has(r.id) && !r.is_header);
+    const rollupMap = {};
+    filteredItems.forEach(item => {
+      let cur = item.parent_tree_id;
+      while (cur && rowByTreeId[cur]) {
+        rollupMap[cur] = (rollupMap[cur] || 0) + (item.computed_total || 0);
+        cur = rowByTreeId[cur].parent_tree_id;
+      }
+    });
+
+    exportRows = rows
+      .filter(r => includedTreeIds.has(r.tree_id))
+      .map(r => {
+        if (r.is_header) {
+          return {
+            ...r,
+            computed_total: rollupMap[r.tree_id] || 0
+          };
+        }
+        return r;
+      });
+  } else {
+    exportTotal = summary.grandTotal || 0;
   }
 
   // Bangun Workbook ExcelJS
@@ -131,9 +192,9 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   titleCell1.alignment = { vertical: 'middle', horizontal: 'center' };
 
   const titleRow2 = ws1.getRow(2);
-  titleRow2.height = 28;
+  titleRow2.height = 24;
   const titleCell2 = ws1.getCell('A2');
-  titleCell2.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } };
+  titleCell2.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
   titleCell2.alignment = { vertical: 'middle', horizontal: 'center' };
 
   ws1.getRow(3).height = 10;
@@ -417,7 +478,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   });
 
   const remainingSpaceOnLastPage = activePageLimit - currentAccumulatedHeight;
-  const neededEndingSpace = 160; // Total Row (28pt) + Spacer (12pt) + TTD & Nama (106pt) + buffer
+  const neededEndingSpace = 180; // Total Row (28pt) + Baris Kosong Pemisah (16pt) + TTD & Nama (106pt) + buffer
 
   const lastDataRowNumber = ws1.rowCount;
   if (remainingSpaceOnLastPage < neededEndingSpace && lastDataRowNumber > 8) {
@@ -428,9 +489,13 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
   // BARIS TOTAL PAGU BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold, Tanpa 'RUH')
   const totalRowNumber = ws1.rowCount + 1;
+  const totalLabel = filterPic
+    ? `TOTAL PAGU BELANJA (${(SUBBAG_LABEL_MAP[filterPic] || filterPic).toUpperCase()}):`
+    : 'TOTAL PAGU BELANJA:';
+
   const totalRow = ws1.addRow([
-    'TOTAL PAGU BELANJA:', '', '', '', '', '', '', '', '', '',
-    summary.grandTotal || 0,
+    totalLabel, '', '', '', '', '', '', '', '', '',
+    exportTotal,
     '', '', '', ''
   ]);
   ws1.mergeCells(`A${totalRowNumber}:J${totalRowNumber}`);
@@ -465,6 +530,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     right: { style: 'medium', color: { argb: 'FF000000' } }
   };
 
+  // 1 BARIS KOSONG SETELAH TABEL TERAKHIR SEBELUM TANDA TANGAN
+  const blankAfterTable = ws1.addRow([]);
+  blankAfterTable.height = 16;
+
   // AREA TANDA TANGAN: HANYA KETUA KOMISI PEMILIHAN UMUM KABUPATEN NGAWI
   const signR1 = ws1.rowCount + 1;
   const rowDate = ws1.addRow(['', '', '', '', '', '', '', '', `NGAWI, ${tanggalUnduh}`]);
@@ -497,34 +566,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   });
 
   // Set Print Area Resmi Dokumen: Hanya dari Baris 1 sampai Baris Akhir Tanda Tangan
-  // Pastikan tidak ada baris tanpa garis
   ws1.pageSetup.printArea = `A1:K${signEndRow}`;
 
-  // ==========================================================================
-  // FOOTER PENANDA HISTORY FILE & AUDIT SISTEM (3 Baris Setelah Tanda Tangan)
-  // Tidak termasuk dokumen cetak resmi, hanya penanda audit di file Excel
-  // ==========================================================================
-  ws1.addRow([]);
-  ws1.addRow([]);
-  ws1.addRow([]); // 3 baris kosong setelah tanda tangan ketua
-
-  const hRow1 = ws1.addRow(['[PENANDA RIWAYAT FILE & AUDIT LOG SISTEM - BUKAN MERUPAKAN BAGIAN DOKUMEN RESMI]']);
-  const hRow2 = ws1.addRow([`Program / Dokumen: ${periode ? periode.nama_periode : 'Pilkada Serentak'} | Versi: ${periode ? (periode.versi_revisi || 'Induk') : '-'} | Status: ${statusLabel}`]);
-  const subbagLabelMap = {
-    KUL: 'Keuangan, Umum & Logistik (KUL)',
-    RENDATIN: 'Perencanaan, Data & Informasi (RENDATIN)',
-    TEKNIS: 'Teknis Penyelenggaraan Pemilu (TEKNIS)',
-    HUKUM: 'Hukum (HUKUM)',
-    PARSDM: 'Partisipasi Masyarakat & SDM (PARSDM)'
-  };
-  const picDisplay = filterPic ? (subbagLabelMap[filterPic] || filterPic) : 'SEMUA';
-  const hRow3 = ws1.addRow([`Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'} | Tanggal Unduh: ${tanggalUnduh}${hasFilter ? ` | Filter: PIC=${picDisplay}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
-  const hRow4 = ws1.addRow(['Sistem Informasi: SI-PRABU Clean Web Edition v3.0 | Satker: KPU Kabupaten Ngawi | Pengembang: emenje <emenje@kpu-ngawi.go.id>']);
-
-  [hRow1, hRow2, hRow3, hRow4].forEach(hr => {
-    const c = hr.getCell(1);
-    c.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF666666' } };
-  });
+  // FOOTER PENANDA RIWAYAT FILE & AUDIT SISTEM (Diletakkan di bawah DILUAR area print)
+  appendAuditSignature(ws1, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
 
   // LEBAR KOLOM DIRAPATKAN SEPERTI FA 16 DETAIL SAKTI
   // Kolom A sampai D membentuk kesatuan header "Nomor" ramping (Total 12.5), Kolom E adalah "Kode" (9.5)
@@ -533,125 +578,141 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ws1.getColumn(i + 1).width = w;
   });
 
+  const isPicDownload = Boolean(filterPic);
+
   // ==========================================================================
   // SHEET 2: Data_Kertas_Kerja (Flat Table Lengkap dengan Kode Level Terpisah)
+  // Hanya dibuat untuk unduhan Dokumen Utuh (Non-PIC)
   // ==========================================================================
-  const ws2 = wb.addWorksheet('Data_Kertas_Kerja');
-  ws2.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
+  if (!isPicDownload) {
+    const ws2 = wb.addWorksheet('Data_Kertas_Kerja');
+    ws2.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
 
-  const rowByTreeId = {};
-  rows.forEach(r => { rowByTreeId[r.tree_id] = r; });
+    const rowByTreeId = {};
+    rows.forEach(r => { rowByTreeId[r.tree_id] = r; });
 
-  const headersSheet2 = [
-    'No',
-    'Level',
-    'Kd_Kelompok',
-    'Kd_Tahapan',
-    'Kd_Kegiatan',
-    'Kd_SubKeg',
-    'Kd_Akun_BAS',
-    'Uraian_Belanja',
-    'Volume',
-    'Satuan',
-    'Rincian_Perhitungan',
-    'Harga_Satuan',
-    'Jumlah_Anggaran',
-    'PIC_Subbag',
-    'Sasaran',
-    'Catatan_Revisi'
-  ];
-
-  const headerRow2 = ws2.addRow(headersSheet2);
-  headerRow2.height = 26;
-  headerRow2.eachCell(cell => {
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-  });
-
-  exportRows.forEach((r, idx) => {
-    const isItem = !r.is_header;
-    const treeLvl = r.tree_level || (isItem ? 6 : (r.level_indent === 0 ? 1 : (r.level_indent === 1 ? 2 : (r.level_indent === 2 ? 3 : (r.level_indent === 3 ? 5 : 4)))));
-
-    let kL1 = '';
-    let kL2 = '';
-    let kL3 = '';
-    let kL4 = '';
-    let kAkun = r.kode_akun || '';
-
-    if (treeLvl === 1) kL1 = r.kode || '';
-    else if (treeLvl === 2) kL2 = r.kode || '';
-    else if (treeLvl === 3) kL3 = r.kode || '';
-    else if (treeLvl === 4 || treeLvl === 5.5) kL4 = r.kode || '';
-
-    let curP = r.parent_tree_id;
-    while (curP && rowByTreeId[curP]) {
-      const p = rowByTreeId[curP];
-      const pLvl = p.tree_level;
-      if (pLvl === 1 && !kL1) kL1 = p.kode || '';
-      else if (pLvl === 2 && !kL2) kL2 = p.kode || '';
-      else if (pLvl === 3 && !kL3) kL3 = p.kode || '';
-      else if (pLvl === 4 && !kL4) kL4 = p.kode || '';
-      else if (pLvl === 5 && !kAkun) kAkun = p.kode_akun || p.kode || '';
-      curP = p.parent_tree_id;
-    }
-
-    const rValues = [
-      r.urutan || (idx + 1),
-      `L${treeLvl}`,
-      kL1,
-      kL2,
-      kL3,
-      kL4,
-      kAkun,
-      r.uraian || '',
-      isItem && r.computed_volume !== null ? r.computed_volume : '',
-      isItem ? (r.satuan_vol || '') : '',
-      isItem ? (r.computed_formula || '') : '',
-      isItem && r.harga_satuan ? r.harga_satuan : '',
-      r.computed_total || 0,
-      r.pic_bagian || '',
-      r.target_scope || '',
-      isItem ? (r.catatan_revisi_baris || '') : ''
+    const headersSheet2 = [
+      'No',
+      'Level',
+      'Kd_Kelompok',
+      'Kd_Tahapan',
+      'Kd_Kegiatan',
+      'Kd_SubKeg',
+      'Kd_Akun_BAS',
+      'Uraian_Belanja',
+      'Volume',
+      'Satuan',
+      'Rincian_Perhitungan',
+      'Harga_Satuan',
+      'Jumlah_Anggaran',
+      'PIC_Subbag',
+      'Sasaran',
+      'Catatan_Revisi'
     ];
 
-    const dRow = ws2.addRow(rValues);
-    dRow.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
+    const headerRow2 = ws2.addRow(headersSheet2);
+    headerRow2.height = 26;
+    headerRow2.eachCell(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
 
-    for (let c = 1; c <= 16; c++) {
-      const cell = dRow.getCell(c);
-      cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-      cell.border = {
-        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
-      };
-    }
+    exportRows.forEach((r, idx) => {
+      const isItem = !r.is_header;
+      const treeLvl = r.tree_level || (isItem ? 6 : (r.level_indent === 0 ? 1 : (r.level_indent === 1 ? 2 : (r.level_indent === 2 ? 3 : (r.level_indent === 3 ? 5 : 4)))));
 
-    dRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(8).alignment = { horizontal: 'left', vertical: 'middle' };
-    dRow.getCell(9).numFmt = '#,##0';
-    dRow.getCell(9).alignment = { horizontal: 'right', vertical: 'middle' };
-    dRow.getCell(10).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(12).numFmt = '#,##0';
-    dRow.getCell(12).alignment = { horizontal: 'right', vertical: 'middle' };
-    dRow.getCell(13).numFmt = '#,##0';
-    dRow.getCell(13).alignment = { horizontal: 'right', vertical: 'middle' };
-    dRow.getCell(14).alignment = { horizontal: 'center', vertical: 'middle' };
-    dRow.getCell(15).alignment = { horizontal: 'center', vertical: 'middle' };
-  });
+      let kL1 = '';
+      let kL2 = '';
+      let kL3 = '';
+      let kL4 = '';
+      let kAkun = r.kode_akun || '';
 
-  ws2.columns = [
-    { width: 6 },  { width: 8 },  { width: 8 },  { width: 8 },  { width: 8 },
-    { width: 10 }, { width: 12 }, { width: 45 }, { width: 10 }, { width: 10 },
-    { width: 25 }, { width: 15 }, { width: 18 }, { width: 12 }, { width: 12 }, { width: 30 }
-  ];
+      if (treeLvl === 1) kL1 = r.kode || '';
+      else if (treeLvl === 2) kL2 = r.kode || '';
+      else if (treeLvl === 3) kL3 = r.kode || '';
+      else if (treeLvl === 4 || treeLvl === 5.5) kL4 = r.kode || '';
+
+      let curP = r.parent_tree_id;
+      while (curP && rowByTreeId[curP]) {
+        const p = rowByTreeId[curP];
+        const pLvl = p.tree_level;
+        if (pLvl === 1 && !kL1) kL1 = p.kode || '';
+        else if (pLvl === 2 && !kL2) kL2 = p.kode || '';
+        else if (pLvl === 3 && !kL3) kL3 = p.kode || '';
+        else if (pLvl === 4 && !kL4) kL4 = p.kode || '';
+        else if (pLvl === 5 && !kAkun) kAkun = p.kode_akun || p.kode || '';
+        curP = p.parent_tree_id;
+      }
+
+      const rValues = [
+        r.urutan || (idx + 1),
+        `L${treeLvl}`,
+        kL1,
+        kL2,
+        kL3,
+        kL4,
+        kAkun,
+        r.uraian || '',
+        isItem && r.computed_volume !== null ? r.computed_volume : '',
+        isItem ? (r.satuan_vol || '') : '',
+        isItem ? (r.computed_formula || '') : '',
+        isItem && r.harga_satuan ? r.harga_satuan : '',
+        r.computed_total || 0,
+        r.pic_bagian || '',
+        r.target_scope || '',
+        isItem ? (r.catatan_revisi_baris || '') : ''
+      ];
+
+      const dRow = ws2.addRow(rValues);
+      dRow.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
+
+      for (let c = 1; c <= 16; c++) {
+        const cell = dRow.getCell(c);
+        cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+        };
+      }
+
+      dRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(8).alignment = { horizontal: 'left', vertical: 'middle' };
+      dRow.getCell(9).numFmt = '#,##0';
+      dRow.getCell(9).alignment = { horizontal: 'right', vertical: 'middle' };
+      dRow.getCell(10).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(12).numFmt = '#,##0';
+      dRow.getCell(12).alignment = { horizontal: 'right', vertical: 'middle' };
+      dRow.getCell(13).numFmt = '#,##0';
+      dRow.getCell(13).alignment = { horizontal: 'right', vertical: 'middle' };
+      dRow.getCell(14).alignment = { horizontal: 'center', vertical: 'middle' };
+      dRow.getCell(15).alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    ws2.columns = [
+      { width: 6 },  { width: 8 },  { width: 8 },  { width: 8 },  { width: 8 },
+      { width: 10 }, { width: 12 }, { width: 45 }, { width: 10 }, { width: 10 },
+      { width: 25 }, { width: 15 }, { width: 18 }, { width: 12 }, { width: 12 }, { width: 30 }
+    ];
+
+    const kertasKerjaEndRow = ws2.rowCount;
+    ws2.pageSetup = {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      printArea: `A1:P${kertasKerjaEndRow}`
+    };
+    appendAuditSignature(ws2, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
+  }
 
   // ==========================================================================
   // SHEET 3: Matriks_Revisi (Hanya Data Terevisi Beserta Rute Utamanya)
@@ -668,6 +729,14 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
     const revisedRowIds = new Set();
     rows.forEach(r => {
+      // Jika difilter PIC, hanya evaluasi baris belanja milik PIC tersebut
+      if (filterPic) {
+        let rPic = (r.pic_bagian || '').toUpperCase();
+        if (rPic === 'PERENCANAAN') rPic = 'RENDATIN';
+        if (rPic === 'KEUANGAN') rPic = 'KUL';
+        if (rPic === 'PARMAS') rPic = 'PARSDM';
+        if (!r.is_header && rPic !== filterPic) return;
+      }
       const diff = revByRowId[r.id];
       if (!r.is_header) {
         if (diff && (diff.status !== 'TETAP' || diff.diff !== 0 || diff.catatan)) {
@@ -704,7 +773,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ws3.addRow([]);
 
     ws3.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
-    ws3.getCell('A2').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } };
+    ws3.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
 
     const headersSheet3 = [
       'No', 'Level', 'Kode', 'Uraian Kegiatan / Akun / Rincian Belanja',
@@ -721,72 +790,85 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
 
-    sheet3Rows.forEach((r, idx) => {
-      const isItem = !r.is_header;
-      const treeLvl = r.tree_level || (isItem ? 6 : (r.level_indent === 0 ? 1 : (r.level_indent === 1 ? 2 : (r.level_indent === 2 ? 3 : (r.level_indent === 3 ? 5 : 4)))));
-      const indent = '  '.repeat(Math.max(0, treeLvl - 1));
-
-      const diffInfo = revByRowId[r.id] || {
-        status: isItem ? 'TETAP' : 'BAGIAN_RUTE',
-        diff: 0,
-        semula_vol: r.computed_volume, semula_harga: r.harga_satuan, semula_jumlah: r.computed_total,
-        menjadi_vol: r.computed_volume, menjadi_harga: r.harga_satuan, menjadi_jumlah: r.computed_total,
-        catatan: r.catatan_revisi_baris || ''
-      };
-
-      const rowValues = [
-        r.urutan || (idx + 1),
-        `L${treeLvl}`,
-        r.kode || '',
-        indent + (r.uraian || ''),
-        isItem && diffInfo.semula_vol !== null ? diffInfo.semula_vol : '',
-        isItem && diffInfo.semula_harga ? diffInfo.semula_harga : '',
-        diffInfo.semula_jumlah || 0,
-        isItem && diffInfo.menjadi_vol !== null ? diffInfo.menjadi_vol : '',
-        isItem && diffInfo.menjadi_harga ? diffInfo.menjadi_harga : '',
-        diffInfo.menjadi_jumlah || 0,
-        diffInfo.diff || 0,
-        diffInfo.status,
-        diffInfo.catatan || ''
-      ];
-
-      const mRow = ws3.addRow(rowValues);
-      mRow.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
-
+    if (sheet3Rows.length === 0) {
+      const subName = filterPic ? (SUBBAG_LABEL_MAP[filterPic] || filterPic) : 'dokumen ini';
+      const noChangeRow = ws3.addRow([
+        '-', '-', '-', `Tidak ada data perubahan belanja pada ${subName} (Seluruh belanja berstatus TETAP).`,
+        '', '', 0, '', '', 0, 0, 'TETAP', 'Alokasi Tetap'
+      ]);
+      noChangeRow.height = 24;
       for (let c = 1; c <= 13; c++) {
-        const cell = mRow.getCell(c);
-        cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-        cell.border = {
-          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-          left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-          right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+        noChangeRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF64748B' } };
+        noChangeRow.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      }
+    } else {
+      sheet3Rows.forEach((r, idx) => {
+        const isItem = !r.is_header;
+        const treeLvl = r.tree_level || (isItem ? 6 : (r.level_indent === 0 ? 1 : (r.level_indent === 1 ? 2 : (r.level_indent === 2 ? 3 : (r.level_indent === 3 ? 5 : 4)))));
+        const indent = '  '.repeat(Math.max(0, treeLvl - 1));
+
+        const diffInfo = revByRowId[r.id] || {
+          status: isItem ? 'TETAP' : 'BAGIAN_RUTE',
+          diff: 0,
+          semula_vol: r.computed_volume, semula_harga: r.harga_satuan, semula_jumlah: r.computed_total,
+          menjadi_vol: r.computed_volume, menjadi_harga: r.harga_satuan, menjadi_jumlah: r.computed_total,
+          catatan: r.catatan_revisi_baris || ''
         };
-      }
 
-      mRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-      mRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-      mRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
-      mRow.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
-      mRow.getCell(5).numFmt = '#,##0';
-      mRow.getCell(6).numFmt = '#,##0';
-      mRow.getCell(7).numFmt = '#,##0';
-      mRow.getCell(8).numFmt = '#,##0';
-      mRow.getCell(9).numFmt = '#,##0';
-      mRow.getCell(10).numFmt = '#,##0';
-      mRow.getCell(11).numFmt = '#,##0';
-      mRow.getCell(12).alignment = { horizontal: 'center', vertical: 'middle' };
+        const rowValues = [
+          r.urutan || (idx + 1),
+          `L${treeLvl}`,
+          r.kode || '',
+          indent + (r.uraian || ''),
+          isItem && diffInfo.semula_vol !== null ? diffInfo.semula_vol : '',
+          isItem && diffInfo.semula_harga ? diffInfo.semula_harga : '',
+          diffInfo.semula_jumlah || 0,
+          isItem && diffInfo.menjadi_vol !== null ? diffInfo.menjadi_vol : '',
+          isItem && diffInfo.menjadi_harga ? diffInfo.menjadi_harga : '',
+          diffInfo.menjadi_jumlah || 0,
+          diffInfo.diff || 0,
+          diffInfo.status,
+          diffInfo.catatan || ''
+        ];
 
-      if (diffInfo.status === 'BERTAMBAH') {
-        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
-        mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF166534' } };
-      } else if (diffInfo.status === 'BERKURANG') {
-        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-        mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF991B1B' } };
-      } else if (diffInfo.status === 'BARU') {
-        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
-        mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF6B21A8' } };
-      }
-    });
+        const mRow = ws3.addRow(rowValues);
+        mRow.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
+
+        for (let c = 1; c <= 13; c++) {
+          const cell = mRow.getCell(c);
+          cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+          cell.border = {
+            bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+            left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+            right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+          };
+        }
+
+        mRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+        mRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+        mRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+        mRow.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
+        mRow.getCell(5).numFmt = '#,##0';
+        mRow.getCell(6).numFmt = '#,##0';
+        mRow.getCell(7).numFmt = '#,##0';
+        mRow.getCell(8).numFmt = '#,##0';
+        mRow.getCell(9).numFmt = '#,##0';
+        mRow.getCell(10).numFmt = '#,##0';
+        mRow.getCell(11).numFmt = '#,##0';
+        mRow.getCell(12).alignment = { horizontal: 'center', vertical: 'middle' };
+
+        if (diffInfo.status === 'BERTAMBAH') {
+          mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+          mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF166534' } };
+        } else if (diffInfo.status === 'BERKURANG') {
+          mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+          mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF991B1B' } };
+        } else if (diffInfo.status === 'BARU') {
+          mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
+          mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF6B21A8' } };
+        }
+      });
+    }
 
     ws3.columns = [
       { width: 6 },  { width: 8 },  { width: 10 }, { width: 45 },
@@ -804,49 +886,66 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ws3.addRow(['No', 'Level', 'Kode', 'Uraian Kegiatan / Akun / Rincian Belanja', 'Semula (Jumlah Rp)', 'Menjadi (Jumlah Rp)', 'Selisih (+/- Rp)', 'Status Perubahan', 'Alasan / Catatan Justifikasi']);
     ws3.addRow(['-', '-', '-', 'Tidak ada data perubahan (Baseline Awal)', 0, summary.grandTotal || 0, 0, 'BASELINE_AWAL', 'Dokumen Penetapan Induk']);
 
+    ws3.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+    ws3.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+
     ws3.columns = [
       { width: 6 }, { width: 8 }, { width: 10 }, { width: 45 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 16 }, { width: 40 }
     ];
   }
 
+  const matrikEndRow = ws3.rowCount;
+  ws3.pageSetup = {
+    orientation: 'landscape',
+    paperSize: 9,
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+    printArea: `A1:M${matrikEndRow}`
+  };
+  appendAuditSignature(ws3, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
+
   // ==========================================================================
   // SHEET 4: Rekap_Alokasi (VERSI MANUSIA & PRESENTASI EKSEKUTIF RESMI)
   // Dilengkapi Ringkasan Makro, Distribusi Sasaran, Dua Pilar Utama,
   // Rekapitulasi Tematis 28 Kegiatan & Honorarium (Level 3), PIC, dan Akun BAS
+  // Hanya dibuat untuk unduhan Dokumen Utuh (Non-PIC)
   // ==========================================================================
-  const ws4 = wb.addWorksheet('Rekap_Alokasi', {
-    pageSetup: {
-      orientation: 'landscape',
-      paperSize: 9, // A4
-      fitToPage: true,
-      fitToWidth: 1,
-      fitToHeight: 0
-    }
-  });
+  if (!isPicDownload) {
+    const ws4 = wb.addWorksheet('Rekap_Alokasi', {
+      pageSetup: {
+        orientation: 'landscape',
+        paperSize: 9, // A4
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+      }
+    });
 
-  const sas = summary.bySasaran || {};
-  const grandTotal = summary.grandTotal || 1;
+    const sas = summary.bySasaran || {};
+    const grandTotal = summary.grandTotal || 1;
 
-  // 1. JUDUL & IDENTITAS DOKUMEN PRESENTASI
-  ws4.addRow(['KOMISI PEMILIHAN UMUM KABUPATEN NGAWI']);
-  ws4.addRow(['RESUME EKSEKUTIF ALOKASI ANGGARAN PILKADA TAHUN 2029']);
-  ws4.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI']);
-  ws4.addRow([`Dokumen: ${periode ? periode.nama_periode : 'Pilkada'} (${periode ? (periode.versi_revisi || 'Induk') : '-'}) | Status: ${statusLabel} | Tanggal Unduh: ${tanggalUnduh}`]);
-  ws4.addRow([]); // Baris 5 kosong
+    // 1. JUDUL & IDENTITAS DOKUMEN PRESENTASI
+    ws4.addRow(['KOMISI PEMILIHAN UMUM KABUPATEN NGAWI']);
+    ws4.addRow(['RESUME EKSEKUTIF ALOKASI ANGGARAN PILKADA TAHUN 2029']);
+    ws4.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI']);
+    ws4.addRow([`Dokumen: ${periode ? periode.nama_periode : 'Pilkada'} (${periode ? (periode.versi_revisi || 'Induk') : '-'}) | Status: ${statusLabel} | Tanggal Unduh: ${tanggalUnduh}`]);
+    ws4.addRow([]); // Baris 5 kosong
 
-  ws4.mergeCells('A1:G1');
-  ws4.mergeCells('A2:G2');
-  ws4.mergeCells('A3:G3');
-  ws4.mergeCells('A4:G4');
+    ws4.mergeCells('A1:G1');
+    ws4.mergeCells('A2:G2');
+    ws4.mergeCells('A3:G3');
+    ws4.mergeCells('A4:G4');
 
-  ws4.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
-  ws4.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('A2').font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF006699' } };
-  ws4.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
-  ws4.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('A4').font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF666666' } };
-  ws4.getCell('A4').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws4.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+    ws4.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws4.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF006699' } };
+    ws4.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws4.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
+    ws4.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws4.getCell('A4').font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF666666' } };
+    ws4.getCell('A4').alignment = { vertical: 'middle', horizontal: 'center' };
 
   ws4.getRow(1).height = 22;
   ws4.getRow(2).height = 26;
@@ -1345,6 +1444,19 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     { width: 14 },  // Col F: Porsi (%)
     { width: 36 }   // Col G: PIC / Keterangan
   ];
+
+    const rekapSignEndRow = ws4.rowCount;
+    ws4.pageSetup = {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      printArea: `A1:G${rekapSignEndRow}`
+    };
+    appendAuditSignature(ws4, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
+  }
 
   // Return Buffer XLSX ExcelJS
   let buffer = await wb.xlsx.writeBuffer();
