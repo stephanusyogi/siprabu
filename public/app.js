@@ -628,6 +628,12 @@ function renderSiklus() {
           </button>
         `;
       }
+
+      buttonsHtml += `
+        <button class="btn btn-outline-secondary" onclick="openEditLegalitasModal(${p.id})">
+          ✏️ Ubah Dasar &amp; Legalitas
+        </button>
+      `;
     }
 
     buttonsHtml += `
@@ -695,7 +701,7 @@ function renderSiklus() {
   // History Table
   const historyTbody = document.getElementById('table-periode-history');
   if (historyTbody) {
-    historyTbody.innerHTML = AppState.periodesList.map(item => {
+    historyTbody.innerHTML = AppState.periodesList.map((item, idx) => {
       const isCurrent = item.id === p.id;
       const isItemBaseline = item.revisi_ke === 0;
       const itemPagu = item.total_pagu || 0;
@@ -712,12 +718,40 @@ function renderSiklus() {
         }
       }
 
+      const noUrut = idx + 1;
+      const nomorBa = (item.nomor_ba_tapd && item.nomor_ba_tapd !== '-') ? item.nomor_ba_tapd : '';
+      const tanggalBa = item.tanggal_ba_tapd || '';
+
       return `
         <tr class="${isCurrent ? 'table-row-selected' : ''}" style="cursor: pointer;" onclick="selectPeriode(${item.id})">
-          <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${item.id}</td>
-          <td><strong>${item.nama_periode}</strong></td>
-          <td><span class="badge badge-primary">${item.versi_revisi}</span></td>
-          <td>${item.dasar_pengesahan || 'Kertas Kerja'}</td>
+          <td class="text-center" style="font-family: var(--font-mono);">
+            <span class="badge" style="background:#f1f5f9;color:#334155;font-weight:700;font-size:11.5px;padding:3px 7px;border:1px solid #cbd5e1;">
+              #${noUrut}
+            </span>
+          </td>
+          <td>
+            <strong>${escHtml(item.nama_periode)}</strong>
+            ${item.catatan_revisi ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">💬 ${escHtml(item.catatan_revisi)}</div>` : ''}
+          </td>
+          <td><span class="badge badge-primary">${escHtml(item.versi_revisi)}</span></td>
+          <td onclick="event.stopPropagation()">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
+              <div>
+                <span class="badge" style="background:#eff6ff;color:#1e40af;font-weight:700;border:1px solid #bfdbfe;font-size:11px;">
+                  📄 ${escHtml(item.dasar_pengesahan || 'Kertas Kerja')}
+                </span>
+                <div style="font-size:11px;color:#475569;margin-top:3px;font-family:var(--font-mono);">
+                  ${nomorBa ? `<strong>No:</strong> ${escHtml(nomorBa)}` : '<span style="color:#94a3b8;">No: -</span>'}
+                  ${tanggalBa ? `<span style="color:#64748b;margin-left:4px;">(${escHtml(tanggalBa)})</span>` : ''}
+                </div>
+              </div>
+              ${canManage ? `
+                <button type="button" class="btn btn-xs btn-outline-primary" onclick="openEditLegalitasModal(${item.id}, event)" title="Ubah Dasar & Legalitas Dokumen Ini" style="font-size:10px;padding:2px 6px;white-space:nowrap;margin-top:2px;">
+                  ✏️ Edit
+                </button>
+              ` : ''}
+            </div>
+          </td>
           <td>
             <span class="badge ${item.is_locked ? 'badge-danger' : 'badge-success'}">
               ${item.is_locked ? '🔒 Terkunci' : '🟢 Draft Aktif'}
@@ -743,6 +777,128 @@ function renderSiklus() {
         </tr>
       `;
     }).join('');
+  }
+}
+
+function openEditLegalitasModal(periodeId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  const p = (periodeId ? AppState.periodesList.find(x => x.id === Number(periodeId)) : null) || AppState.currentPeriode;
+  if (!p) return;
+
+  setElVal('edit-leg-periode-id', p.id);
+  setElVal('edit-leg-nama', p.nama_periode || '');
+  setElVal('edit-leg-versi', p.versi_revisi || '');
+  setElVal('edit-leg-nomor-ba', p.nomor_ba_tapd || '');
+  setElVal('edit-leg-tanggal-ba', p.tanggal_ba_tapd || '');
+  setElVal('edit-leg-catatan', p.catatan_revisi || '');
+
+  const sel = document.getElementById('edit-leg-dasar-select');
+  const customInp = document.getElementById('edit-leg-dasar-custom');
+  const dasarVal = p.dasar_pengesahan || 'Kertas Kerja Penyusunan';
+
+  let found = false;
+  if (sel) {
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === dasarVal) {
+        sel.selectedIndex = i;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      sel.value = 'CUSTOM';
+      if (customInp) {
+        customInp.style.display = 'block';
+        customInp.value = dasarVal;
+      }
+    } else {
+      if (customInp) {
+        customInp.style.display = 'none';
+        customInp.value = '';
+      }
+    }
+  }
+
+  const modal = document.getElementById('modal-edit-legalitas');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeEditLegalitasModal() {
+  const modal = document.getElementById('modal-edit-legalitas');
+  if (modal) modal.style.display = 'none';
+}
+
+function onEditLegDasarSelectChange() {
+  const sel = document.getElementById('edit-leg-dasar-select');
+  const customInp = document.getElementById('edit-leg-dasar-custom');
+  if (!sel || !customInp) return;
+  if (sel.value === 'CUSTOM') {
+    customInp.style.display = 'block';
+    customInp.focus();
+  } else {
+    customInp.style.display = 'none';
+  }
+}
+
+async function submitEditLegalitasForm() {
+  const id = Number(document.getElementById('edit-leg-periode-id')?.value);
+  if (!id) return;
+
+  const nama = document.getElementById('edit-leg-nama')?.value.trim();
+  const versi = document.getElementById('edit-leg-versi')?.value.trim();
+  const sel = document.getElementById('edit-leg-dasar-select');
+  const customInp = document.getElementById('edit-leg-dasar-custom');
+  let dasar = sel ? sel.value : 'Kertas Kerja Penyusunan';
+  if (dasar === 'CUSTOM') {
+    dasar = customInp ? customInp.value.trim() : '';
+  }
+  const nomorBa = document.getElementById('edit-leg-nomor-ba')?.value.trim();
+  const tanggalBa = document.getElementById('edit-leg-tanggal-ba')?.value;
+  const catatan = document.getElementById('edit-leg-catatan')?.value.trim();
+
+  try {
+    const res = await fetch(`/api/periodes/${id}/legalitas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+      },
+      body: JSON.stringify({
+        nama_periode: nama,
+        versi_revisi: versi,
+        dasar_pengesahan: dasar,
+        nomor_ba_tapd: nomorBa,
+        tanggal_ba_tapd: tanggalBa,
+        catatan_revisi: catatan
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Gagal menyimpan perubahan dasar legalitas.');
+      return;
+    }
+
+    closeEditLegalitasModal();
+
+    // Reload period list
+    const pRes = await fetch('/api/periodes');
+    const pData = await pRes.json();
+    AppState.periodesList = pData.periodes || [];
+
+    const updated = AppState.periodesList.find(x => x.id === id);
+    if (AppState.currentPeriode && AppState.currentPeriode.id === id && updated) {
+      AppState.currentPeriode = updated;
+    }
+
+    renderAllViews();
+    alert('✅ Dasar pengesahan & legalitas dokumen berhasil diperbarui!');
+  } catch (err) {
+    alert(`Terjadi kesalahan: ${err.message}`);
   }
 }
 

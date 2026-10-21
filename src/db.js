@@ -125,12 +125,18 @@ function unlockPeriode(id) {
 }
 
 function updatePeriodeLegalitas(id, {
+  nama_periode, versi_revisi,
   nomor_ba_tapd, tanggal_ba_tapd, dasar_pengesahan, catatan_revisi,
   nomor_surat_pengajuan_tapd, tanggal_surat_pengajuan_tapd,
   nomor_surat_balasan_pemda, nomor_surat_pernyataan_7hari, tanggal_surat_pernyataan_7hari
 }) {
+  const current = getPeriodeById(id);
+  if (!current) return null;
+
   db.prepare(`
     UPDATE periode_anggaran SET
+      nama_periode = ?,
+      versi_revisi = ?,
       nomor_ba_tapd = ?,
       tanggal_ba_tapd = ?,
       dasar_pengesahan = ?,
@@ -142,15 +148,17 @@ function updatePeriodeLegalitas(id, {
       tanggal_surat_pernyataan_7hari = ?
     WHERE id = ?
   `).run(
-    nomor_ba_tapd || '',
-    tanggal_ba_tapd || '',
-    dasar_pengesahan || 'NPHD',
-    catatan_revisi || '',
-    nomor_surat_pengajuan_tapd || '',
-    tanggal_surat_pengajuan_tapd || '',
-    nomor_surat_balasan_pemda || '',
-    nomor_surat_pernyataan_7hari || '',
-    tanggal_surat_pernyataan_7hari || '',
+    nama_periode || current.nama_periode,
+    versi_revisi || current.versi_revisi,
+    nomor_ba_tapd !== undefined ? nomor_ba_tapd : current.nomor_ba_tapd,
+    tanggal_ba_tapd !== undefined ? tanggal_ba_tapd : current.tanggal_ba_tapd,
+    dasar_pengesahan || current.dasar_pengesahan || 'Kertas Kerja Penyusunan',
+    catatan_revisi !== undefined ? catatan_revisi : current.catatan_revisi,
+    nomor_surat_pengajuan_tapd !== undefined ? nomor_surat_pengajuan_tapd : (current.nomor_surat_pengajuan_tapd || ''),
+    tanggal_surat_pengajuan_tapd !== undefined ? tanggal_surat_pengajuan_tapd : (current.tanggal_surat_pengajuan_tapd || ''),
+    nomor_surat_balasan_pemda !== undefined ? nomor_surat_balasan_pemda : (current.nomor_surat_balasan_pemda || ''),
+    nomor_surat_pernyataan_7hari !== undefined ? nomor_surat_pernyataan_7hari : (current.nomor_surat_pernyataan_7hari || ''),
+    tanggal_surat_pernyataan_7hari !== undefined ? tanggal_surat_pernyataan_7hari : (current.tanggal_surat_pernyataan_7hari || ''),
     id
   );
   return getPeriodeById(id);

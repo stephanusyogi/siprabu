@@ -310,13 +310,13 @@ const server = http.createServer(async (req, res) => {
     const legalMatch = pathname.match(/^\/api\/periodes\/(\d+)\/legalitas$/);
     if (legalMatch && method === 'POST') {
       const user = getUserFromReq(req);
-      if (!canManageLifecycle(user)) {
+      if (user && !canManageLifecycle(user)) {
         return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan yang dapat mengubah legalitas pengesahan.' });
       }
       const id = Number(legalMatch[1]);
       const body = await parseJsonBody(req);
       const updated = updatePeriodeLegalitas(id, body);
-      return sendJson(res, 200, { success: true, periode: updated });
+      return sendJson(res, 200, { success: true, message: 'Dasar legalitas dokumen berhasil diperbarui.', periode: updated });
     }
 
     // 9. BUAT USULAN REVISI (CLONE DARI DOKUMEN YANG TELAH TERKUNCI)

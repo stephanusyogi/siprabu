@@ -406,13 +406,13 @@
                 <table class="table table-hover">
                   <thead>
                     <tr>
-                      <th style="width: 45px;">ID</th>
+                      <th style="width: 50px;" class="text-center">No</th>
                       <th>Nama Dokumen RKB</th>
                       <th>Versi</th>
-                      <th>Dasar Pengesahan</th>
+                      <th>Dasar Dokumen &amp; Legalitas</th>
                       <th>Status Dokumen</th>
                       <th class="text-right">Total Pagu (Rp)</th>
-                      <th class="text-right">Selisih vs RKB Pilkada 2024</th>
+                      <th class="text-right">Selisih vs Baseline</th>
                       <th class="text-right">Item</th>
                       <th class="text-center" style="width: 200px;">Aksi</th>
                     </tr>
@@ -1396,6 +1396,71 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeRevisionModal()">Batal</button>
           <button class="btn btn-primary" onclick="submitRevisionForm()">🚀 Terbitkan Usulan Revisi Baru</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: UBAH DASAR & LEGALITAS DOKUMEN SIKLUS                         -->
+    <!-- ===================================================================== -->
+    <div id="modal-edit-legalitas" class="modal-backdrop" style="display: none;">
+      <div class="modal-box" style="max-width: 540px;">
+        <div class="modal-header">
+          <h3>✏️ Ubah Dasar Pengesahan &amp; Legalitas Dokumen</h3>
+          <button class="btn-close" onclick="closeEditLegalitasModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-note">
+            Sesuaikan nama dokumen, dasar acuan legalitas, nomor surat / berita acara, dan tanggal pengesahan untuk arsip resmi.
+          </p>
+          <form id="form-edit-legalitas" onsubmit="event.preventDefault(); submitEditLegalitasForm();">
+            <input type="hidden" id="edit-leg-periode-id">
+            
+            <div class="form-group">
+              <label>Nama Dokumen RKB:</label>
+              <input type="text" id="edit-leg-nama" class="input-text" required placeholder="Contoh: RKB Pilkada 2024 atau RKB KPU Kab. Ngawi (Usulan Penyesuaian 1)">
+            </div>
+
+            <div class="form-group">
+              <label>Label / Versi Dokumen:</label>
+              <input type="text" id="edit-leg-versi" class="input-text" required placeholder="Contoh: RKB Pilkada 2024 atau Revisi 1">
+            </div>
+
+            <div class="form-group">
+              <label>Dasar Pengesahan / Acuan Hukum:</label>
+              <select id="edit-leg-dasar-select" class="input-select" onchange="onEditLegDasarSelectChange()">
+                <option value="Kertas Kerja Penyusunan">Kertas Kerja Penyusunan Internal</option>
+                <option value="Berita Acara (BA) Pembahasan Bersama TAPD">Berita Acara (BA) Pembahasan Bersama TAPD</option>
+                <option value="Surat Usulan Resmi KPU ke TAPD / Pemda">Surat Usulan Resmi KPU ke TAPD / Pemda</option>
+                <option value="Keputusan KPU (SK KPU Kabupaten Ngawi)">Keputusan KPU (SK KPU Kabupaten Ngawi)</option>
+                <option value="Review KPU Provinsi Jawa Timur">Review KPU Provinsi Jawa Timur</option>
+                <option value="Naskah Perjanjian Hibah Daerah (NPHD)">Naskah Perjanjian Hibah Daerah (NPHD)</option>
+                <option value="Adendum NPHD">Adendum NPHD</option>
+                <option value="CUSTOM">-- Tulis Dasar Kustom Lainnya --</option>
+              </select>
+              <input type="text" id="edit-leg-dasar-custom" class="input-text mt-2" style="display:none;" placeholder="Ketik dasar pengesahan kustom...">
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Nomor Surat / BA / Dokumen:</label>
+                <input type="text" id="edit-leg-nomor-ba" class="input-text" placeholder="Contoh: BA-01/TAPD/2024 atau KK-01/2024">
+              </div>
+              <div class="form-group">
+                <label>Tanggal Dokumen Legalitas:</label>
+                <input type="date" id="edit-leg-tanggal-ba" class="input-text">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Catatan / Ringkasan Riwayat Dokumen:</label>
+              <textarea id="edit-leg-catatan" class="input-textarea" rows="2" placeholder="Tuliskan catatan justifikasi atau keterangan dokumen ini..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeEditLegalitasModal()">Batal</button>
+          <button class="btn btn-primary" onclick="submitEditLegalitasForm()">💾 Simpan Perubahan Legalitas</button>
         </div>
       </div>
     </div>
