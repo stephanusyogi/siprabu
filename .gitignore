@@ -8,3 +8,7 @@ data/*.sqlite-shm
 
 data/downloads/*
 !data/downloads/.gitkeep
+
+# Developer Local Tools (Hanya ada di laptop lokal, tidak di-push ke GitHub)
+public/dev-tools.js
+

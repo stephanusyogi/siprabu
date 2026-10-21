@@ -356,6 +356,77 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // 1c. DEV UTILITY: GIT STATUS (HANYA AKTIF DI LOCALHOST PENGEMBANG)
+    if (pathname === '/api/dev/git-status' && method === 'GET') {
+      const host = req.headers.host || '';
+      const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+      if (!isLocal) {
+        return sendJson(res, 200, { is_local: false });
+      }
+
+      try {
+        const { execSync } = require('node:child_process');
+        const branch = execSync('git branch --show-current', { cwd: __dirname, encoding: 'utf8' }).trim();
+        const statusRaw = execSync('git status --porcelain', { cwd: __dirname, encoding: 'utf8' }).trim();
+        const modifiedFiles = statusRaw ? statusRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+        let lastCommit = '';
+        try {
+          lastCommit = execSync('git log -1 --pretty=format:"%h - %s (%cr)"', { cwd: __dirname, encoding: 'utf8' }).trim();
+        } catch (e) {}
+
+        let unpushedCount = 0;
+        try {
+          const unpushed = execSync('git log @{u}..HEAD --oneline', { cwd: __dirname, encoding: 'utf8' }).trim();
+          if (unpushed) unpushedCount = unpushed.split('\n').filter(Boolean).length;
+        } catch (e) {}
+
+        return sendJson(res, 200, {
+          is_local: true,
+          branch,
+          last_commit: lastCommit,
+          modified_files: modifiedFiles,
+          unpushed_count: unpushedCount,
+          clean: modifiedFiles.length === 0 && unpushedCount === 0
+        });
+      } catch (err) {
+        return sendJson(res, 500, { is_local: true, error: err.message });
+      }
+    }
+
+    // 1d. DEV UTILITY: GIT COMMIT & PUSH TO GITHUB (HANYA AKTIF DI LOCALHOST PENGEMBANG)
+    if (pathname === '/api/dev/git-push' && method === 'POST') {
+      const host = req.headers.host || '';
+      const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+      if (!isLocal) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Fitur Git Push ke GitHub hanya dapat dijalankan di lingkungan lokal pengembang (Localhost).' });
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      const msg = (body.message || '').trim() || 'feat: update berkala RKB & sistem siprabu';
+
+      try {
+        const { execSync } = require('node:child_process');
+        execSync('git add -A', { cwd: __dirname });
+        const status = execSync('git status --porcelain', { cwd: __dirname, encoding: 'utf8' }).trim();
+        let commitOutput = '';
+        if (status) {
+          commitOutput = execSync(`git commit --author="emenje <emenje@kpu-ngawi.go.id>" -m ${JSON.stringify(msg)}`, { cwd: __dirname, encoding: 'utf8' });
+        }
+
+        const pushOutput = execSync('git push origin main', { cwd: __dirname, encoding: 'utf8' });
+        const lastCommit = execSync('git log -1 --pretty=format:"%h - %s (%cr)"', { cwd: __dirname, encoding: 'utf8' }).trim();
+
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Kode berhasil di-push ke GitHub (Branch main)!',
+          last_commit: lastCommit,
+          pushOutput: pushOutput.trim() || 'Up-to-date'
+        });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Gagal melakukan Git Push: ' + err.message });
+      }
+    }
+
     // 2. ME / PROFIL USER AKTIF
     if (pathname === '/api/me' && method === 'GET') {
       const user = getUserFromReq(req);
