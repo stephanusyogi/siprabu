@@ -79,7 +79,7 @@
               </button>
               <button class="nav-item" data-view="view-rkb" onclick="switchView('view-rkb')">
                 <span class="icon">📘</span>
-                <span class="label">RKB Kabupaten</span>
+                <span class="label">RUH Belanja</span>
                 <span class="badge badge-primary badge-sm" id="badge-total-items">953</span>
               </button>
             </div>
@@ -168,11 +168,6 @@
           <div class="alert-action" id="lock-banner-action">
             <button class="btn btn-sm btn-primary" onclick="switchView('view-siklus')">Buka Pusat Siklus</button>
           </div>
-        </div>
-
-        <!-- GLOBAL BANNER PERAN & HAK AKSES PENGGUNA (ROLE CONTEXT) -->
-        <div id="global-role-banner" style="display: none; margin-bottom: 16px; border-radius: 8px; padding: 12px 18px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-          <!-- Populated via JS -->
         </div>
 
         <!-- ================================================================= -->
@@ -427,160 +422,95 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 3: RKB KABUPATEN (ACTIVE WORKBENCH) -->
+        <!-- VIEW 3: RUH BELANJA (ACTIVE WORKBENCH) -->
         <!-- ================================================================= -->
         <section id="view-rkb" class="app-view">
-          <div class="view-header">
-            <div>
-              <h2 class="view-title">RKB Kabupaten (Lembar Kerja Perencanaan)</h2>
-              <p class="view-desc">Workbench aktif penyusunan & penyesuaian anggaran. Baris dapat disaring berdasarkan Subbag PIC dan Sasaran.</p>
+          <div class="view-header" style="margin-bottom: 8px; padding-bottom: 0;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <h2 class="view-title" style="margin: 0; font-size: 1.25rem;">RUH Belanja</h2>
+              <span id="rkb-header-status-badge" class="badge badge-success" style="font-size: 11px; padding: 3px 8px; font-weight: 700;">🟢 DRAFT AKTIF</span>
+              <span id="rkb-header-version-badge" style="font-size: 11.5px; color: #1e40af; background: #eff6ff; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe; font-weight: 600;">Dokumen Induk Baseline</span>
             </div>
-            <div class="header-actions">
-              <button class="btn btn-outline-primary" onclick="downloadExcel()">
+            <div class="header-actions" style="margin: 0;">
+              <button class="btn btn-outline-primary btn-sm" onclick="downloadExcel()" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
                 📥 Unduh Excel
               </button>
             </div>
           </div>
 
-          <!-- WORKFLOW HEADER CARD (STEPPER & SUB-MENU REVISI) -->
-          <div class="card" style="padding: 12px 18px; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">📘</span>
-                <div>
-                  <strong id="rkb-stepper-title" style="font-size: 14px;">RKB Pilkada 2024</strong>
-                  <div style="font-size: 11px; color: var(--text-muted);" id="rkb-stepper-sub">Dokumen Rujukan Induk Baseline Perencanaan</div>
-                </div>
+          <!-- UNIFIED WORKBENCH TOOLBAR -->
+          <div class="ruh-toolbar" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            <!-- Left Controls: Pencarian, Subbag PIC, Sasaran, Lipatan -->
+            <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <!-- Pencarian Cepat -->
+              <div style="position: relative; display: inline-flex; align-items: center;">
+                <span style="position: absolute; left: 8px; color: #94a3b8; font-size: 12px; pointer-events: none;">🔍</span>
+                <input type="text" id="filter-search" class="input-text" placeholder="Cari uraian / kode..." onkeyup="handleSearchDebounce()" style="padding-left: 26px; width: 175px; height: 32px; font-size: 12px; border-radius: 6px;">
               </div>
-              <div id="rkb-revision-pills" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <!-- Populated via JS: pills for RKB Pilkada 2024, Revisi 1, dst. -->
-              </div>
-              <div id="rkb-quick-actions" style="display: flex; align-items: center; gap: 8px;">
-                <!-- Populated via JS: Kunci/Buka, Unduh Excel -->
-              </div>
-            </div>
-          </div>
 
-          <!-- STRIP SOROT TAHAPAN RKB -->
-          <div class="tahapan-strip-container" id="tahapanStrip">
-            <div class="tahapan-strip-title">
-              <span>🎯 Sorot Tahapan:</span>
-            </div>
-            <div class="tahapan-strip-items" id="tahapanStripItems">
-              <button type="button" class="tahapan-pill-btn active" id="pillTahapAll" onclick="sorotTahapan('ALL')">
-                <span>🌟 Semua Tahapan</span>
-                <span class="pagu-sub" id="paguStripAll">-</span>
-              </button>
-              <button type="button" class="tahapan-pill-btn" id="pillTahap1" onclick="sorotTahapan('TAHAPAN_I')">
-                <span>📌 Tahapan I: Persiapan &amp; Pelaksanaan</span>
-                <span class="pagu-sub" id="paguStripTahap1">-</span>
-              </button>
-              <button type="button" class="tahapan-pill-btn" id="pillTahap2" onclick="sorotTahapan('TAHAPAN_II')">
-                <span>🏢 Tahapan II: Operasional Kantor</span>
-                <span class="pagu-sub" id="paguStripTahap2">-</span>
-              </button>
-              <button type="button" class="tahapan-pill-btn" id="pillTahapHonor" onclick="sorotTahapan('HONOR')">
-                <span>👥 Honorarium Pokja &amp; Adhoc</span>
-                <span class="pagu-sub" id="paguStripHonor">-</span>
-              </button>
-            </div>
-          </div>
-
-
-          <!-- WORKBENCH TOOLBAR -->
-          <div class="toolbar-card">
-            <div class="filter-group">
-              <label for="filter-pic">Subbag Pelaksana (PIC):</label>
-              <select id="filter-pic" class="input-select" onchange="applyRkbFilters()">
+              <!-- Filter PIC (Subbag Pelaksana) -->
+              <select id="filter-pic" class="input-select" onchange="applyRkbFilters()" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 140px; font-weight: 600;" title="Saring berdasarkan Subbag Pelaksana">
                 <option value="SEMUA">-- Semua Subbag --</option>
-                <option value="RENDATIN">Perencanaan, Data & Informasi (RENDATIN)</option>
-                <option value="KUL">Keuangan, Umum & Logistik (KUL)</option>
-                <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
-                <option value="HUKUM">Hukum (HUKUM)</option>
-                <option value="PARSDM">Partisipasi Masyarakat & SDM (PARSDM)</option>
+                <option value="RENDATIN">RENDATIN</option>
+                <option value="KUL">KUL</option>
+                <option value="TEKNIS">TEKNIS</option>
+                <option value="HUKUM">HUKUM</option>
+                <option value="PARSDM">PARSDM</option>
               </select>
-            </div>
 
-            <div class="filter-group">
-              <label for="filter-sasaran">Sasaran Penyelenggara:</label>
-              <select id="filter-sasaran" class="input-select" onchange="applyRkbFilters()">
+              <!-- Filter Sasaran Penyelenggara -->
+              <select id="filter-sasaran" class="input-select" onchange="applyRkbFilters()" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 130px; font-weight: 600;" title="Saring berdasarkan Sasaran Anggaran">
                 <option value="ALL">-- Semua Sasaran --</option>
                 <option value="KAB">KAB (Kabupaten)</option>
                 <option value="PPK">PPK (Kecamatan)</option>
-                <option value="PPS">PPS (Desa / Kelurahan)</option>
-                <option value="TPS">TPS (Kelompok KPPS & Linmas)</option>
+                <option value="PPS">PPS (Desa / Kel)</option>
+                <option value="TPS">TPS (KPPS / Linmas)</option>
                 <option value="PANTARLIH">Pantarlih</option>
-                <option value="PESERTA">Peserta Kegiatan</option>
+                <option value="PESERTA">Peserta</option>
+              </select>
+
+              <!-- Lipatan Hierarki Dropdown -->
+              <select id="selectTreeExpandLevel" class="input-select" onchange="setTreeExpandLevel(Number(this.value))" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 135px; font-weight: 600; background: #f8fafc;" title="Tingkat Lipatan Hierarki Belanja">
+                <option value="0">📁 Lipat Semua</option>
+                <option value="1">📁 Level 1 (Bagian)</option>
+                <option value="2" selected>📂 Level 2 (Tahapan)</option>
+                <option value="3">📂 Level 3 (Kegiatan)</option>
+                <option value="4">📂 Level 4 (Sub-Komp)</option>
+                <option value="5">💳 Level 5 (Akun BAS)</option>
+                <option value="6">📖 Buka Semua (Detail)</option>
               </select>
             </div>
 
-            <div class="filter-group flex-1">
-              <label for="filter-search">Pencarian Cepat:</label>
-              <input type="text" id="filter-search" class="input-text" placeholder="Ketik kata kunci uraian atau kode..." onkeyup="handleSearchDebounce()">
-            </div>
-          </div>
-
-          <!-- TOOLBAR LIPATAN HIERARKI RKB & BILAH AKSI SEJAJAR -->
-          <div class="tree-quick-bar" id="treeQuickBar">
-            <div class="tree-left-controls" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span style="font-size:11.5px;font-weight:700;color:#64748b;">
-                <span>📂 Lipatan:</span>
-              </span>
-              <div class="tree-segmented-group">
-                <button type="button" class="tree-level-btn" id="btnTreeCollapseAll" onclick="collapseAllTree()" title="Lipat Semua: Tutup seluruh cabang hingga hanya Bagian Utama yang tampil">
-                  📁 Lipat Semua
-                </button>
-                <button type="button" class="tree-level-btn" id="btnTreeL1" onclick="setTreeExpandLevel(1)" title="Level 1: Bagian Utama RKB (A. Kebutuhan Barang &amp; Jasa / B. Honorarium)">
-                  📁 L1 (A/B)
-                </button>
-                <button type="button" class="tree-level-btn active" id="btnTreeL2" onclick="setTreeExpandLevel(2)" title="Level 2: Tahapan RKB (I. Persiapan &amp; Pelaksanaan / II. Operasional)">
-                  📂 L2 (Tahapan)
-                </button>
-                <button type="button" class="tree-level-btn" id="btnTreeL3" onclick="setTreeExpandLevel(3)" title="Level 3: 28 Komponen Kegiatan Pemilihan (1 s/d 28)">
-                  📂 L3 (28 Komp)
-                </button>
-                <button type="button" class="tree-level-btn" id="btnTreeL4" onclick="setTreeExpandLevel(4)" title="Level 4: Sub-Komponen / Sub-Kegiatan (a., b. / 1), 2) / a), b))">
-                  📂 L4 (Sub-Komp)
-                </button>
-                <button type="button" class="tree-level-btn" id="btnTreeAkun" onclick="setTreeExpandLevel(5)" title="Level 5: Kode Akun Belanja BAS 6 Digit (521211, 521213, 524111, dll.)">
-                  💳 L5 (Akun)
-                </button>
-                <button type="button" class="tree-level-btn" id="btnTreeAll" onclick="setTreeExpandLevel(6)" title="Level 6: Buka Seluruh Rincian Belanja (Detail Item Mikro)">
-                  📖 L6 (Detail)
-                </button>
-              </div>
-            </div>
-
-            <div class="tree-right-controls" id="treeRightControls" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <!-- Right Controls: Status Revisi, Baris Aktif Pill, Action Buttons, Mode Sanding, Resume Sasaran -->
+            <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <!-- Filter Deteksi Perubahan & Baris Tambahan (Aktif pada Dokumen Revisi) -->
-              <div id="filter-perubahan-box" style="display:none;align-items:center;gap:5px;background:#f8fafc;padding:3px 6px;border-radius:6px;border:1px solid #cbd5e1;">
-                <span style="font-size:11px;font-weight:700;color:#475569;">🔍 Filter:</span>
-                <select id="filter-perubahan" class="input-select input-xs" onchange="onFilterPerubahanChange()" style="font-size:11px;padding:2px 6px;height:26px;border-radius:4px;font-weight:600;">
+              <div id="filter-perubahan-box" style="display: none; align-items: center; gap: 4px;">
+                <select id="filter-perubahan" class="input-select" onchange="onFilterPerubahanChange()" style="height: 32px; font-size: 11.5px; padding: 2px 6px; border-radius: 6px; font-weight: 600;">
                   <option value="ALL">Semua Baris</option>
-                  <option value="BARU">✨ Hanya Baris Baru / Tambahan</option>
+                  <option value="BARU">✨ Hanya Baru</option>
                   <option value="BERTAMBAH">🟢 Bertambah (+)</option>
                   <option value="BERKURANG">🔴 Berkurang (-)</option>
-                  <option value="CATATAN">📝 Ada Catatan Revisi</option>
+                  <option value="CATATAN">📝 Catatan Revisi</option>
                 </select>
               </div>
 
               <!-- Info Singkat Baris Aktif yang Disorot -->
-              <span id="treeSelectedPill" class="sakti-selected-pill" style="display:none;max-width:320px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;font-size:11.5px;padding:4px 9px;" title="Baris Aktif yang Disorot"></span>
+              <span id="treeSelectedPill" class="sakti-selected-pill" style="display: none; max-width: 280px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 11.5px; padding: 4px 9px;" title="Baris Aktif yang Disorot"></span>
 
               <!-- Tombol Kontekstual Baris Aktif Sesuai Level Hirarki (L1..L6) -->
-              <div id="saktiActionButtons" style="display:inline-flex;align-items:center;gap:6px;">
+              <div id="saktiActionButtons" style="display: inline-flex; align-items: center; gap: 6px;">
                 <!-- Populated via updateSelectedRowUI() based on selected row -->
               </div>
 
               <!-- Mode Sanding Semula - Menjadi (Khusus Dokumen Revisi) -->
-              <label id="lblToggleSanding" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer;background:#eff6ff;padding:4px 8px;border-radius:6px;border:1px solid #bfdbfe;">
+              <label id="lblToggleSanding" style="display: none; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: #1e40af; cursor: pointer; background: #eff6ff; padding: 4px 8px; border-radius: 6px; border: 1px solid #bfdbfe; height: 32px; margin: 0;">
                 <input type="checkbox" id="chkRevisionSanding" onchange="toggleRevisionSandingMode(this.checked)">
-                ⚖️ Mode Sanding
+                ⚖️ Sanding
               </label>
 
               <!-- Tombol Resume Cepat Sasaran -->
-              <button type="button" class="btn btn-sm btn-outline-primary" onclick="openResumeSasaranModal()" style="font-weight:600;display:inline-flex;align-items:center;gap:4px;" title="Buka Resume Cepat Perbandingan Anggaran Penyelenggara vs Peserta">
-                <span>📊 Resume Sasaran</span>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="openResumeSasaranModal()" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px; height: 32px; font-size: 11.5px; padding: 0 8px;" title="Buka Resume Cepat Perbandingan Anggaran Penyelenggara vs Peserta">
+                <span>📊 Resume</span>
               </button>
             </div>
           </div>
@@ -610,7 +540,7 @@
                   </tbody>
                   <tfoot>
                     <tr class="rkb-tfoot-row">
-                      <td colspan="9" class="text-right"><strong>TOTAL PAGU RKB KABUPATEN NGAWI:</strong></td>
+                      <td colspan="9" class="text-right"><strong>TOTAL PAGU RUH BELANJA:</strong></td>
                       <td class="text-right"><strong id="rkb-tfoot-total">Rp 49.999.999.000</strong></td>
                       <td></td>
                     </tr>

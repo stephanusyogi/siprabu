@@ -215,42 +215,7 @@ function applyRolePermissionsToUI() {
 
   const roleBanner = document.getElementById('global-role-banner');
   if (roleBanner) {
-    if (user.level === 0) {
-      roleBanner.style.display = 'block';
-      roleBanner.style.background = '#0f172a';
-      roleBanner.style.color = '#f8fafc';
-      roleBanner.style.border = '1px solid #334155';
-      roleBanner.innerHTML = `
-        <div style="font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:2px;color:#38bdf8;">
-          <span>⚡ MODE ARSITEK PENGEMBANG (LEVEL 0 — MASTER DEVELOPER)</span>
-        </div>
-        Anda aktif sebagai <strong>${escHtml(user.nama_pejabat)}</strong>. Hak istimewa arsitek sistem aktif: Anda dapat menambah, mengedit, dan menghapus akun pengguna secara dinamis, serta melakukan bypass penyesuaian darurat.
-      `;
-    } else if (user.level === 2) {
-      roleBanner.style.display = 'block';
-      roleBanner.style.background = '#ecfdf5';
-      roleBanner.style.color = '#065f46';
-      roleBanner.style.border = '1px solid #a7f3d0';
-      roleBanner.innerHTML = `
-        <div style="font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:2px;color:#047857;">
-          <span>🛠️ MODE OPERATOR SUBBAGIAN (LEVEL 2 — PIC: ${escHtml(user.pic_subbag)})</span>
-        </div>
-        Anda login sebagai <strong>${escHtml(user.nama_pejabat)}</strong> (${escHtml(user.jabatan)}). Hak akses dibatasi khusus untuk mengusulkan &amp; mengedit rincian belanja Subbagian <strong>${escHtml(user.pic_subbag)}</strong>. Baris subbag lain dan wewenang penguncian NPHD / pembukaan revisi terkunci otomatis.
-      `;
-    } else if (user.level === 3) {
-      roleBanner.style.display = 'block';
-      roleBanner.style.background = '#faf5ff';
-      roleBanner.style.color = '#581c87';
-      roleBanner.style.border = '1px solid #e9d5ff';
-      roleBanner.innerHTML = `
-        <div style="font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:2px;color:#7e22ce;">
-          <span>👁️ MODE PEMANTAUAN EKSEKUTIF (LEVEL 3 — READ ONLY)</span>
-        </div>
-        Anda sedang meninjau dokumen dalam kapasitas <strong>${escHtml(user.nama_pejabat)}</strong> (${escHtml(user.jabatan)}). Seluruh data disajikan dalam mode <strong>Read-Only</strong> untuk penelaahan pleno dan pemantauan pimpinan. Seluruh fitur pengeditan angka dinonaktifkan demi integritas data.
-      `;
-    } else {
-      roleBanner.style.display = 'none';
-    }
+    roleBanner.style.display = 'none';
   }
 
   // Wewenang Akses Menu Manajemen Pengguna di Sidebar
@@ -1089,24 +1054,24 @@ function collapseAllTree() {
 
 function setTreeExpandLevel(lvl) {
   const targetLvl = Number(lvl);
+  if (targetLvl === 0) {
+    collapseAllTree();
+    return;
+  }
   applyLevelGlobally(targetLvl);
   updateTreeToolbarActiveButtons(targetLvl);
   renderRkbTable();
 }
 
 function updateTreeToolbarActiveButtons(target) {
-  const ids = ['btnTreeCollapseAll', 'btnTreeL1', 'btnTreeL2', 'btnTreeL3', 'btnTreeL4', 'btnTreeAkun', 'btnTreeAll'];
-  ids.forEach(id => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    if (typeof target === 'string') {
-      btn.classList.toggle('active', id === target);
-    } else {
-      const lvl = Number(target);
-      const isLvlMatch = (id === 'btnTreeL' + lvl) || (lvl === 5 && id === 'btnTreeAkun') || (lvl === 6 && id === 'btnTreeAll');
-      btn.classList.toggle('active', isLvlMatch);
+  const sel = document.getElementById('selectTreeExpandLevel');
+  if (sel) {
+    if (typeof target === 'number') {
+      sel.value = String(target);
+    } else if (target === 'btnTreeCollapseAll') {
+      sel.value = '0';
     }
-  });
+  }
 }
 
 function getTahapTargetRow(tahapKey) {
@@ -1526,24 +1491,20 @@ function renderRkbTable() {
   const displayTotal = (hasFilter && AppState.rkbData.filtered_summary) ? AppState.rkbData.filtered_summary.grandTotal : summary.grandTotal;
   setElText('rkb-tfoot-total', formatRupiah(displayTotal));
 
-  // Stepper Header
-  setElText('rkb-stepper-title', periode.nama_periode);
-  const stepperSub = document.getElementById('rkb-stepper-sub');
-  if (stepperSub) {
+  // Update RUH Belanja Header Badges
+  const statusBadge = document.getElementById('rkb-header-status-badge');
+  if (statusBadge) {
+    statusBadge.className = `badge ${isLocked ? 'badge-danger' : 'badge-success'}`;
+    statusBadge.textContent = isLocked ? '🔒 Terkunci' : '🟢 Draft Aktif';
+  }
+  const versionBadge = document.getElementById('rkb-header-version-badge');
+  if (versionBadge) {
     if (hasParentRev) {
-      stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🔒 Terkunci</span>' : '<span class="badge badge-success">🟢 Draft Aktif</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'BA TAPD'}</strong> | Dokumen Pembanding: <span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;font-weight:700;">🏛️ ${revision_comparison.parent_periode.versi_revisi} (${formatRupiah(revision_comparison.parent_periode.total_pagu)})</span>`;
+      versionBadge.textContent = `Versi: ${periode.versi_revisi} (Pembanding: ${revision_comparison.parent_periode.versi_revisi})`;
     } else {
-      stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🏛️ Terkunci (RKB Pilkada 2024 - Baseline)</span>' : '<span class="badge badge-success">🟢 Draft RKB Pilkada 2024</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'Kertas Kerja Penyusunan'}</strong> | <span class="badge" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;">Dokumen Rujukan Induk Baseline</span>`;
+      versionBadge.textContent = `Versi: ${periode.versi_revisi || 'Dokumen Induk Baseline'}`;
     }
   }
-
-  // Update Strip Nilai Tahapan
-  const banner = summary.banner || {};
-  setElText('paguStripAll', formatRupiah(summary.grandTotal));
-  setElText('paguStripTahap1', formatRupiah(banner.tahapanTotal || 0));
-  setElText('paguStripTahap2', formatRupiah(banner.operasionalTotal || 0));
-  setElText('paguStripHonor', formatRupiah(banner.honorTotal || 0));
-  updateTahapanStripUI();
 
   // Revision Sanding Toggle Visibility
   const lblSanding = document.getElementById('lblToggleSanding');
@@ -1555,32 +1516,6 @@ function renderRkbTable() {
   const filterBox = document.getElementById('filter-perubahan-box');
   if (filterBox) {
     filterBox.style.display = hasParentRev ? 'inline-flex' : 'none';
-  }
-
-  // Revision Pills
-  const revisionPills = document.getElementById('rkb-revision-pills');
-  if (revisionPills) {
-    let pillsHtml = AppState.periodesList.map(item => `
-      <button class="btn btn-sm ${item.id === periode.id ? 'btn-primary' : 'btn-secondary'}" onclick="selectPeriode(${item.id})">
-        ${item.is_locked ? '🔒' : '📄'} ${item.versi_revisi}
-      </button>
-    `).join('');
-
-    revisionPills.innerHTML = pillsHtml;
-  }
-
-  // Quick Actions (Status Dokumen & Tautan Pengelolaan Siklus/Revisi di Pusat Siklus)
-  const quickActions = document.getElementById('rkb-quick-actions');
-  if (quickActions) {
-    let actionsHtml = `
-      <span class="badge ${isLocked ? 'badge-danger' : 'badge-success'}" style="font-size: 11px; padding: 5px 8px;">
-        ${isLocked ? '🔒 Terkunci (Read-Only)' : '🟢 Draft Aktif'}
-      </span>
-      <button class="btn btn-sm btn-outline-secondary" onclick="switchView('view-siklus')" title="Kelola status kunci, legalitas NPHD, dan usulan revisi di Pusat Siklus">
-        🔄 Kelola di Pusat Siklus
-      </button>
-    `;
-    quickActions.innerHTML = actionsHtml;
   }
 
   // Table Thead Switcher
