@@ -83,15 +83,18 @@ function canEditRow(user, row, isPeriodeLocked) {
 
   // Level 2 (PIC Subbag): Hanya baris PIC miliknya
   if (user.level === 2) {
-    const userPic = (user.pic_subbag || '').toUpperCase();
-    const rowPic = (row.pic_bagian || '').toUpperCase();
-
+    let userPic = (user.pic_subbag || '').toUpperCase();
+    if (userPic === 'PERENCANAAN') userPic = 'RENDATIN';
+    if (userPic === 'KEUANGAN') userPic = 'KUL';
+    if (userPic === 'PARMAS') userPic = 'PARSDM';
     if (userPic === 'SEMUA') return true;
-    if (userPic === 'PERENCANAAN' && (rowPic === 'RENDATIN' || rowPic === 'PERENCANAAN')) return true;
-    if (userPic === 'KEUANGAN' && (rowPic === 'KUL' || rowPic === 'KEUANGAN')) return true;
-    if (userPic === 'PARMAS' && (rowPic === 'PARSDM' || rowPic === 'PARMAS')) return true;
-    if (userPic === rowPic) return true;
-    return false;
+
+    let rowPic = (row.pic_bagian || '').toUpperCase();
+    if (rowPic === 'PERENCANAAN') rowPic = 'RENDATIN';
+    if (rowPic === 'KEUANGAN') rowPic = 'KUL';
+    if (rowPic === 'PARMAS') rowPic = 'PARSDM';
+
+    return userPic === rowPic;
   }
 
   // Level 3 (Sekretaris / Komisioner): Read-Only

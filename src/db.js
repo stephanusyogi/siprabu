@@ -414,6 +414,89 @@ function getUsers() {
   return db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active FROM satker_users ORDER BY level ASC, id ASC').all();
 }
 
+function getUserById(id) {
+  return db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active FROM satker_users WHERE id = ?').get(id);
+}
+
+function saveUser(userData) {
+  const id = userData.id ? Number(userData.id) : null;
+  const username = (userData.username || '').trim().toLowerCase();
+  const password = (userData.password || '').trim();
+  const nama_pejabat = (userData.nama_pejabat || '').trim();
+  const jabatan = (userData.jabatan || '').trim();
+  const role_id = (userData.role_id || 'op_teknis').trim();
+  const level = Number(userData.level) !== undefined ? Number(userData.level) : 2;
+  const pic_subbag = (userData.pic_subbag || 'SEMUA').trim();
+  const is_active = userData.is_active !== undefined ? (Number(userData.is_active) ? 1 : 0) : 1;
+
+  if (!username) throw new Error('Username tidak boleh kosong.');
+  if (!id && !password) throw new Error('Password tidak boleh kosong untuk pengguna baru.');
+  if (!nama_pejabat) throw new Error('Nama pejabat / pegawai tidak boleh kosong.');
+
+  if (id) {
+    const existing = db.prepare('SELECT * FROM satker_users WHERE id = ?').get(id);
+    if (!existing) throw new Error(`Pengguna dengan ID ${id} tidak ditemukan.`);
+
+    // Cek username bentrok
+    const clash = db.prepare('SELECT id FROM satker_users WHERE username = ? AND id != ?').get(username, id);
+    if (clash) throw new Error(`Username "${username}" sudah digunakan pengguna lain.`);
+
+    // Proteksi akun emenje: tidak boleh diubah levelnya menjadi non-0
+    if (existing.username === 'emenje' && level !== 0) {
+      throw new Error('Tingkat akses akun developer "emenje" tidak dapat diturunkan.');
+    }
+
+    const finalPass = password || existing.password;
+
+    db.prepare(`
+      UPDATE satker_users
+      SET username = ?, password = ?, nama_pejabat = ?, jabatan = ?, role_id = ?, level = ?, pic_subbag = ?, is_active = ?
+      WHERE id = ?
+    `).run(username, finalPass, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active, id);
+
+    return getUserById(id);
+  } else {
+    const exist = db.prepare('SELECT id FROM satker_users WHERE username = ?').get(username);
+    if (exist) throw new Error(`Username "${username}" sudah terdaftar.`);
+
+    const res = db.prepare(`
+      INSERT INTO satker_users (username, password, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(username, password, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active);
+
+    return getUserById(res.lastInsertRowid);
+  }
+}
+
+function deleteUser(userId, currentUserId) {
+  const target = db.prepare('SELECT * FROM satker_users WHERE id = ?').get(userId);
+  if (!target) throw new Error('Pengguna tidak ditemukan.');
+
+  if (target.username === 'emenje') {
+    throw new Error('Akun Developer Utama ("emenje") dilindungi dan tidak dapat dihapus.');
+  }
+
+  if (Number(userId) === Number(currentUserId)) {
+    throw new Error('Anda tidak dapat menghapus akun yang sedang Anda gunakan saat ini.');
+  }
+
+  db.prepare('DELETE FROM satker_users WHERE id = ?').run(userId);
+  return { success: true, message: `Akun "${target.username}" berhasil dihapus.` };
+}
+
+function toggleUserStatus(userId) {
+  const target = db.prepare('SELECT * FROM satker_users WHERE id = ?').get(userId);
+  if (!target) throw new Error('Pengguna tidak ditemukan.');
+
+  if (target.username === 'emenje') {
+    throw new Error('Status Akun Developer Utama ("emenje") tidak dapat dinonaktifkan.');
+  }
+
+  const newStatus = target.is_active ? 0 : 1;
+  db.prepare('UPDATE satker_users SET is_active = ? WHERE id = ?').run(newStatus, userId);
+  return { success: true, is_active: newStatus, message: `Status akun "${target.username}" diubah menjadi ${newStatus ? 'Aktif' : 'Nonaktif'}.` };
+}
+
 function authenticateUser(username, password) {
   const u = db.prepare('SELECT * FROM satker_users WHERE username = ? AND password = ? AND is_active = 1').get(username, password);
   if (!u) return null;
@@ -478,6 +561,10 @@ module.exports = {
   deleteRabRow,
   clearRabRows,
   getUsers,
+  getUserById,
+  saveUser,
+  deleteUser,
+  toggleUserStatus,
   authenticateUser,
   getMasters,
   updateSettings

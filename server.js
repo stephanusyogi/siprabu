@@ -24,6 +24,10 @@ const {
   saveRabRow,
   deleteRabRow,
   getUsers,
+  getUserById,
+  saveUser,
+  deleteUser,
+  toggleUserStatus,
   authenticateUser,
   getMasters,
   updateSettings
@@ -147,6 +151,34 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // 1b. SWITCH USER CEPAT (UNTUK SIMULASI / PENGUJIAN WEWENANG)
+    if (pathname === '/api/switch-user' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (currentUser.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Beralih peran bebas hanya diizinkan untuk Pengembang (Level 0) dan Tim Perencanaan (Level 1).' });
+      }
+
+      const { username } = await parseJsonBody(req);
+      const targetUser = db.prepare('SELECT * FROM satker_users WHERE username = ? AND is_active = 1').get(username);
+      if (!targetUser) return sendJson(res, 404, { error: 'Pengguna target tidak ditemukan atau dinonaktifkan.' });
+
+      const token = createToken(targetUser);
+      return sendJson(res, 200, {
+        success: true,
+        token,
+        user: {
+          id: targetUser.id,
+          username: targetUser.username,
+          nama_pejabat: targetUser.nama_pejabat,
+          jabatan: targetUser.jabatan,
+          role_id: targetUser.role_id,
+          level: targetUser.level,
+          pic_subbag: targetUser.pic_subbag
+        }
+      });
+    }
+
     // 2. ME / PROFIL USER AKTIF
     if (pathname === '/api/me' && method === 'GET') {
       const user = getUserFromReq(req);
@@ -156,9 +188,80 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { user });
     }
 
-    // 3. DAFTAR USERS (Untuk demo switch user / info peran)
+    // 3. DAFTAR & MANAJEMEN PENGGUNA SATKER & DEVELOPER
     if (pathname === '/api/users' && method === 'GET') {
       return sendJson(res, 200, { users: getUsers() });
+    }
+
+    if (pathname === '/api/users' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (currentUser.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan pengguna hanya diizinkan untuk Akun Developer dan Tim Perencanaan (Level 1).' });
+      }
+
+      const body = await parseJsonBody(req);
+
+      // Level 1 tidak boleh membuat akun level 0 (developer) atau mengedit akun developer
+      if (currentUser.level === 1) {
+        if (Number(body.level) === 0) {
+          return sendJson(res, 403, { error: 'Hanya Akun Developer yang berwenang menetapkan peran Developer.' });
+        }
+        if (body.id) {
+          const target = getUserById(body.id);
+          if (target && target.level === 0) {
+            return sendJson(res, 403, { error: 'Akun Developer dilindungi dan tidak dapat diubah oleh Level 1.' });
+          }
+        }
+      }
+
+      try {
+        const saved = saveUser(body);
+        return sendJson(res, 200, { success: true, user: saved, message: `Akun "${saved.username}" berhasil disimpan.` });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    const delUserMatch = pathname.match(/^\/api\/users\/(\d+)$/);
+    if (delUserMatch && method === 'DELETE') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (currentUser.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Penghapusan pengguna hanya diizinkan untuk Akun Developer dan Tim Perencanaan.' });
+      }
+
+      const targetId = Number(delUserMatch[1]);
+      const target = getUserById(targetId);
+      if (!target) return sendJson(res, 404, { error: 'Pengguna tidak ditemukan.' });
+
+      if (currentUser.level === 1 && target.level === 0) {
+        return sendJson(res, 403, { error: 'Akun Developer dilindungi dan tidak dapat dihapus.' });
+      }
+
+      try {
+        const result = deleteUser(targetId, currentUser.id);
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    const toggleUserMatch = pathname.match(/^\/api\/users\/(\d+)\/toggle$/);
+    if (toggleUserMatch && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (currentUser.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+
+      const targetId = Number(toggleUserMatch[1]);
+      try {
+        const result = toggleUserStatus(targetId);
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
     }
 
     // 4. DAFTAR PERIODE / SIKLUS
