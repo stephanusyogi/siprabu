@@ -267,6 +267,11 @@ const server = http.createServer(async (req, res) => {
     // 4. DAFTAR PERIODE / SIKLUS
     if (pathname === '/api/periodes' && method === 'GET') {
       const periodes = getPeriodeList();
+      for (const p of periodes) {
+        const rows = getRabRows(p.id);
+        const data = calculateRkbDataset(rows);
+        p.total_pagu = data.summary.grandTotal;
+      }
       return sendJson(res, 200, { periodes });
     }
 

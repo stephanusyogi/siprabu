@@ -18,6 +18,7 @@ const AppState = {
   expandedNodes: new Set(),
   selectedRowId: null,
   targetAfterUrutan: null,
+  filterTahapan: 'ALL', // 'ALL' | 'TAHAPAN_I' | 'TAHAPAN_II' | 'HONOR'
   filterPerubahan: 'ALL',
   revisionViewMode: 'STANDARD', // 'STANDARD' | 'SANDING'
   filters: {
@@ -562,39 +563,42 @@ function renderDashboard() {
 }
 
 // ============================================================================
-// VIEW 2: PUSAT SIKLUS & RIWAYAT REVISI
+// VIEW 2: PUSAT SIKLUS & RIWAYAT DOKUMEN
 // ============================================================================
 
 function renderSiklus() {
   const p = AppState.currentPeriode;
   if (!p) return;
 
+  const baselineItem = AppState.periodesList.find(x => x.revisi_ke === 0) || AppState.periodesList[0];
+  const baselinePagu = baselineItem ? (baselineItem.total_pagu || 49999999000) : 49999999000;
+
   setElText('siklus-nama-dokumen', p.nama_periode);
   setElText('siklus-versi-revisi', p.versi_revisi);
-  setElText('siklus-dasar-pengesahan', p.dasar_pengesahan || 'NPHD');
+  setElText('siklus-dasar-pengesahan', p.dasar_pengesahan || 'Kertas Kerja Penyusunan');
   setElText('siklus-nomor-ba', p.nomor_ba_tapd || '-');
   setElText('siklus-tanggal-ba', p.tanggal_ba_tapd || '-');
-  setElText('siklus-catatan', p.catatan_revisi || 'Baseline NPHD Awal Pilkada Ngawi');
+  setElText('siklus-catatan', p.catatan_revisi || 'Dokumen Rujukan Induk RKB Pilkada 2024 (Baseline)');
 
   const badgeBox = document.getElementById('lifecycle-badge');
   if (badgeBox) {
     const isPra = p.tahap_revisi === 'PRA_NPHD';
-    const isNphdInduk = p.dasar_pengesahan === 'NPHD' || p.tahap_revisi === 'RKB_AWAL';
+    const isBaseline = p.revisi_ke === 0 || p.tahap_revisi === 'RKB_AWAL';
     if (p.is_locked) {
       if (isPra) {
-        badgeBox.innerHTML = `<span class="badge" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size: 13px; font-weight:700;">🔒 ARSIP RESMI PRA-NPHD (${p.dasar_pengesahan || 'USULAN'})</span>`;
-      } else if (isNphdInduk) {
-        badgeBox.innerHTML = '<span class="badge badge-danger" style="font-size: 13px; font-weight:700;">🏛️ TERKUNCI (NPHD SAH - BASELINE)</span>';
+        badgeBox.innerHTML = `<span class="badge" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size: 13px; font-weight:700;">🔒 ARSIP PRA-PERENCANAAN (${p.dasar_pengesahan || 'USULAN'})</span>`;
+      } else if (isBaseline) {
+        badgeBox.innerHTML = '<span class="badge badge-danger" style="font-size: 13px; font-weight:700;">🏛️ TERKUNCI (RKB PILKADA 2024 - BASELINE RUJUKAN INDUK)</span>';
       } else {
-        badgeBox.innerHTML = `<span class="badge" style="background:#fdf4ff;color:#86198f;border:1px solid #f0abfc;font-size: 13px; font-weight:700;">🔒 ARSIP RESMI PASCA-NPHD (${p.dasar_pengesahan || 'REVISI'})</span>`;
+        badgeBox.innerHTML = `<span class="badge" style="background:#fdf4ff;color:#86198f;border:1px solid #f0abfc;font-size: 13px; font-weight:700;">🔒 ARSIP USULAN REVISI RESMI (${p.dasar_pengesahan || 'BA TAPD'})</span>`;
       }
     } else {
       if (isPra) {
-        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🌿 DRAFT PRA-NPHD (LEMBAR KERJA AKTIF)</span>';
-      } else if (isNphdInduk) {
-        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🟢 DRAFT NPHD INDUK (LEMBAR KERJA AKTIF)</span>';
+        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🌿 DRAFT PRA-PERENCANAAN (LEMBAR KERJA TERBUKA)</span>';
+      } else if (isBaseline) {
+        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🟢 DRAFT RKB PILKADA 2024 (LEMBAR KERJA AKTIF)</span>';
       } else {
-        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🔄 DRAFT REVISI AKTIF (LEMBAR KERJA TERBUKA)</span>';
+        badgeBox.innerHTML = '<span class="badge badge-success" style="font-size: 13px;">🔄 DRAFT USULAN REVISI AKTIF (LEMBAR KERJA TERBUKA)</span>';
       }
     }
   }
@@ -638,26 +642,97 @@ function renderSiklus() {
     actionContainer.innerHTML = buttonsHtml;
   }
 
+  // Matriks Komparasi Dokumen Revisi vs Baseline
+  const compCard = document.getElementById('siklus-comparison-card');
+  if (compCard) {
+    const isRevision = p.revisi_ke > 0;
+    if (isRevision) {
+      compCard.style.display = 'block';
+      const curPagu = p.total_pagu || 0;
+      const netDiff = curPagu - baselinePagu;
+
+      setElText('comp-val-baseline', formatRupiah(baselinePagu));
+      setElText('comp-val-current', formatRupiah(curPagu));
+      setElText('comp-sub-current', `Versi: ${p.versi_revisi} (${p.dasar_pengesahan || 'BA TAPD'})`);
+
+      const diffEl = document.getElementById('comp-val-diff');
+      const diffSubEl = document.getElementById('comp-sub-diff');
+      if (diffEl) {
+        if (netDiff > 0) {
+          diffEl.style.color = '#15803d';
+          diffEl.textContent = `+ ${formatRupiah(netDiff)}`;
+          if (diffSubEl) diffSubEl.textContent = 'Alokasi Bertambah (Peningkatan Belanja)';
+        } else if (netDiff < 0) {
+          diffEl.style.color = '#b91c1c';
+          diffEl.textContent = `- ${formatRupiah(Math.abs(netDiff))}`;
+          if (diffSubEl) diffSubEl.textContent = 'Alokasi Berkurang (Penghematan / Efisiensi)';
+        } else {
+          diffEl.style.color = '#475569';
+          diffEl.textContent = 'Rp 0 (Tetap Seimbang)';
+          if (diffSubEl) diffSubEl.textContent = 'Pagu Total Sama (Pergeseran Antar Akun)';
+        }
+      }
+
+      const revComp = AppState.rkbData?.revision_comparison;
+      const breakdownEl = document.getElementById('comp-val-breakdown');
+      if (breakdownEl) {
+        if (revComp && revComp.summary) {
+          const totalBaru = (revComp.log_detail || []).filter(x => x.status === 'BARU').length;
+          breakdownEl.innerHTML = `
+            <div style="color:#166534;">🟢 Bertambah: <strong>+${formatRupiah(revComp.summary.deltaBertambah || 0)}</strong></div>
+            <div style="color:#991b1b;">🔴 Berkurang: <strong>-${formatRupiah(revComp.summary.deltaBerkurang || 0)}</strong></div>
+            <div style="color:#1e40af;">✨ Baris Baru: <strong>${totalBaru} Rincian</strong></div>
+          `;
+        } else {
+          breakdownEl.textContent = 'Memuat perbandingan rincian...';
+        }
+      }
+    } else {
+      compCard.style.display = 'none';
+    }
+  }
+
   // History Table
   const historyTbody = document.getElementById('table-periode-history');
   if (historyTbody) {
     historyTbody.innerHTML = AppState.periodesList.map(item => {
       const isCurrent = item.id === p.id;
+      const isItemBaseline = item.revisi_ke === 0;
+      const itemPagu = item.total_pagu || 0;
+      const itemDiff = isItemBaseline ? 0 : (itemPagu - baselinePagu);
+
+      let selisihHtml = '<span class="badge" style="background:#f1f5f9;color:#475569;">🏛️ Baseline</span>';
+      if (!isItemBaseline) {
+        if (itemDiff > 0) {
+          selisihHtml = `<span style="color:#15803d;font-weight:700;font-family:var(--font-mono);">+${formatRupiah(itemDiff)}</span>`;
+        } else if (itemDiff < 0) {
+          selisihHtml = `<span style="color:#b91c1c;font-weight:700;font-family:var(--font-mono);">${formatRupiah(itemDiff)}</span>`;
+        } else {
+          selisihHtml = `<span style="color:#64748b;font-weight:600;font-family:var(--font-mono);">Rp 0 (Seimbang)</span>`;
+        }
+      }
+
       return `
-        <tr class="${isCurrent ? 'table-row-selected' : ''}">
+        <tr class="${isCurrent ? 'table-row-selected' : ''}" style="cursor: pointer;" onclick="selectPeriode(${item.id})">
           <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${item.id}</td>
           <td><strong>${item.nama_periode}</strong></td>
           <td><span class="badge badge-primary">${item.versi_revisi}</span></td>
-          <td>${item.dasar_pengesahan || 'NPHD'}</td>
+          <td>${item.dasar_pengesahan || 'Kertas Kerja'}</td>
           <td>
             <span class="badge ${item.is_locked ? 'badge-danger' : 'badge-success'}">
               ${item.is_locked ? '🔒 Terkunci' : '🟢 Draft Aktif'}
             </span>
           </td>
+          <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e3a8a;">
+            ${formatRupiah(itemPagu)}
+          </td>
+          <td class="text-right">
+            ${selisihHtml}
+          </td>
           <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">
             ${formatNumber(item.total_items || 953)}
           </td>
-          <td class="text-center">
+          <td class="text-center" onclick="event.stopPropagation()">
             <button class="btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-outline-primary'}" onclick="selectPeriodeAndSwitch(${item.id})" title="Buka lembar kerja RKB untuk dokumen ini">
               📘 ${isCurrent ? 'Buka di RKB' : 'Pilih & Buka di RKB'}
             </button>
@@ -834,37 +909,16 @@ function applyLevelGlobally(targetLevel) {
 }
 
 function collapseAllTree() {
-  const rows = AppState.rkbData?.rows || [];
-  const selectedRow = rows.find(r => r.id === AppState.selectedRowId);
-
-  if (selectedRow && selectedRow.has_children) {
-    // Jika ada baris aktif yang disorot, lipat cabang baris aktif tersebut!
-    collapseBranch(selectedRow.tree_id);
-  } else {
-    // Jika tidak ada baris yang disorot, lipat seluruh tabel
-    if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
-    AppState.expandedNodes.clear();
-    AppState.selectedRowId = null;
-    updateTreeToolbarActiveButtons('btnTreeCollapseAll');
-  }
-
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+  AppState.expandedNodes.clear();
+  AppState.selectedRowId = null;
+  updateTreeToolbarActiveButtons('btnTreeCollapseAll');
   renderRkbTable();
 }
 
 function setTreeExpandLevel(lvl) {
   const targetLvl = Number(lvl);
-  const rows = AppState.rkbData?.rows || [];
-  const selectedRow = rows.find(r => r.id === AppState.selectedRowId);
-
-  if (selectedRow && selectedRow.has_children) {
-    // FUNGSI LIPATAN DINAMIS:
-    // Berlaku HANYA untuk baris yang sedang aktif / disorot!
-    applyLevelToBranch(selectedRow.tree_id, targetLvl);
-  } else {
-    // Berlaku secara global jika tidak ada baris yang dipilih
-    applyLevelGlobally(targetLvl);
-  }
-
+  applyLevelGlobally(targetLvl);
   updateTreeToolbarActiveButtons(targetLvl);
   renderRkbTable();
 }
@@ -881,6 +935,72 @@ function updateTreeToolbarActiveButtons(target) {
       const isLvlMatch = (id === 'btnTreeL' + lvl) || (lvl === 5 && id === 'btnTreeAkun') || (lvl === 6 && id === 'btnTreeAll');
       btn.classList.toggle('active', isLvlMatch);
     }
+  });
+}
+
+function getTahapTargetRow(tahapKey) {
+  const rows = AppState.rkbData?.rows || [];
+  if (tahapKey === 'TAHAPAN_I') {
+    return rows.find(r => r.level_indent === 1 && r.kode === 'I.' && (r.uraian || '').includes('TAHAPAN'));
+  } else if (tahapKey === 'TAHAPAN_II') {
+    return rows.find(r => r.level_indent === 1 && r.kode === 'II.' && (r.uraian || '').includes('OPERASIONAL'));
+  } else if (tahapKey === 'HONOR') {
+    return rows.find(r => r.level_indent === 0 && r.kode === 'B' && (r.uraian || '').includes('HONORARIUM'));
+  }
+  return null;
+}
+
+function sorotTahapan(tahapKey) {
+  AppState.filterTahapan = tahapKey;
+  updateTahapanStripUI();
+
+  if (tahapKey === 'ALL') {
+    AppState.selectedRowId = null;
+    renderRkbTable();
+    return;
+  }
+
+  const targetRow = getTahapTargetRow(tahapKey);
+  if (!targetRow) {
+    renderRkbTable();
+    return;
+  }
+
+  AppState.selectedRowId = targetRow.id;
+
+  // Pastikan targetRow dan seluruh leluhurnya terbuka
+  const rows = AppState.rkbData?.rows || [];
+  const { nodeMap, childrenMap } = buildTreeMaps(rows);
+  if (!AppState.expandedNodes) AppState.expandedNodes = new Set();
+
+  let p = targetRow.parent_tree_id;
+  while (p) {
+    AppState.expandedNodes.add(p);
+    p = nodeMap[p]?.parent_tree_id;
+  }
+  AppState.expandedNodes.add(targetRow.tree_id);
+
+  // Buka anak-anak langsung di bawah tahapan ini (misal 28 Komponen Kegiatan)
+  const children = childrenMap[targetRow.tree_id] || [];
+  for (const chId of children) {
+    AppState.expandedNodes.add(chId);
+  }
+
+  renderRkbTable();
+  highlightAndScrollToRow(targetRow.id);
+}
+
+function updateTahapanStripUI() {
+  const current = AppState.filterTahapan || 'ALL';
+  const pills = [
+    { key: 'ALL', id: 'pillTahapAll' },
+    { key: 'TAHAPAN_I', id: 'pillTahap1' },
+    { key: 'TAHAPAN_II', id: 'pillTahap2' },
+    { key: 'HONOR', id: 'pillTahapHonor' }
+  ];
+  pills.forEach(p => {
+    const el = document.getElementById(p.id);
+    if (el) el.classList.toggle('active', p.key === current);
   });
 }
 
@@ -1050,14 +1170,20 @@ function updateSelectedRowUI() {
     return;
   }
 
-  const cleanUraian = (row.uraian || '').substring(0, 45);
-  const lvlLabel = row.is_header ? `Level ${row.level_indent}` : 'Detail Belanja';
+  const cleanUraian = (row.uraian || '').substring(0, 48);
+  let lvlLabel = row.is_header ? `Level ${row.level_indent}` : 'Detail Belanja';
+  if (row.level_indent === 0) lvlLabel = 'Bagian';
+  else if (row.level_indent === 1) lvlLabel = 'Tahapan';
+  else if (row.level_indent === 2) lvlLabel = 'Kegiatan';
+  else if (row.level_indent === 3) lvlLabel = 'Akun';
+
+  const totalStr = row.computed_total ? ` • ${formatRupiah(row.computed_total)}` : '';
   const isExpanded = row.has_children ? isNodeExpanded(row.tree_id) : false;
 
   if (pill) {
     pill.style.display = 'inline-flex';
-    pill.innerHTML = `<strong>[${row.kode || lvlLabel}]</strong>&nbsp;${cleanUraian}&nbsp;<span onclick="clearSelectedRow(event)" style="cursor:pointer;margin-left:4px;font-weight:700;color:#ef4444;padding:0 2px;" title="Lepas sorotan baris aktif (kembali ke kontrol global)">✕</span>`;
-    pill.title = `Baris Aktif: [${row.kode || lvlLabel}] ${row.uraian || ''}. Klik tombol lipatan untuk melipat/membuka khusus cabang ini.`;
+    pill.innerHTML = `<strong>[${row.kode || lvlLabel}]</strong>&nbsp;${cleanUraian}&nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:#0284c7;font-weight:700;">${totalStr}</span>&nbsp;<span onclick="clearSelectedRow(event)" style="cursor:pointer;margin-left:5px;font-weight:700;color:#ef4444;padding:0 2px;" title="Lepas sorotan baris aktif">✕</span>`;
+    pill.title = `Baris Aktif: [${row.kode || lvlLabel}] ${row.uraian || ''}${totalStr}. Klik tombol lipatan untuk melipat/membuka khusus cabang ini.`;
   }
 
   let btns = '';
@@ -1130,9 +1256,17 @@ function renderRkbTable() {
     if (hasParentRev) {
       stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🔒 Terkunci</span>' : '<span class="badge badge-success">🟢 Draft Aktif</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'BA TAPD'}</strong> | Dokumen Pembanding: <span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;font-weight:700;">🏛️ ${revision_comparison.parent_periode.versi_revisi} (${formatRupiah(revision_comparison.parent_periode.total_pagu)})</span>`;
     } else {
-      stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🏛️ Terkunci (NPHD Sah - Baseline)</span>' : '<span class="badge badge-success">🟢 Draft NPHD Induk</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'NPHD'}</strong> | <span class="badge" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;">Dokumen Induk Baseline (Peta Siklus)</span>`;
+      stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🏛️ Terkunci (RKB Pilkada 2024 - Baseline)</span>' : '<span class="badge badge-success">🟢 Draft RKB Pilkada 2024</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'Kertas Kerja Penyusunan'}</strong> | <span class="badge" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;">Dokumen Rujukan Induk Baseline</span>`;
     }
   }
+
+  // Update Strip Nilai Tahapan
+  const banner = summary.banner || {};
+  setElText('paguStripAll', formatRupiah(summary.grandTotal));
+  setElText('paguStripTahap1', formatRupiah(banner.tahapanTotal || 0));
+  setElText('paguStripTahap2', formatRupiah(banner.operasionalTotal || 0));
+  setElText('paguStripHonor', formatRupiah(banner.honorTotal || 0));
+  updateTahapanStripUI();
 
   // Revision Sanding Toggle Visibility
   const lblSanding = document.getElementById('lblToggleSanding');
@@ -1280,8 +1414,28 @@ function renderRkbTable() {
     }
   }
 
+  // Filter Isolasi / Sorot Tahapan
+  const filterTahap = AppState.filterTahapan || 'ALL';
+  let allowedTahapTreeSet = null;
+  if (filterTahap !== 'ALL') {
+    const targetTahapRow = getTahapTargetRow(filterTahap);
+    if (targetTahapRow) {
+      const { childrenMap } = buildTreeMaps(rows);
+      const desc = getDescendantIds(targetTahapRow.tree_id, childrenMap);
+      allowedTahapTreeSet = new Set([targetTahapRow.tree_id, ...desc]);
+      let p = targetTahapRow.parent_tree_id;
+      while (p) {
+        allowedTahapTreeSet.add(p);
+        p = parentMap[p];
+      }
+    }
+  }
+
   const isRowVisible = (r) => {
     if (searchQ) return true;
+    if (allowedTahapTreeSet && !allowedTahapTreeSet.has(r.tree_id)) {
+      return false;
+    }
     if (filterPerubahan !== 'ALL') {
       if (!filterMatchedRowIds.has(r.id) && !filterExpandedSet.has(r.tree_id)) {
         return false;

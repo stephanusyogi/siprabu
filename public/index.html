@@ -300,13 +300,13 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 2: PUSAT SIKLUS & RIWAYAT REVISI -->
+        <!-- VIEW 2: PUSAT SIKLUS & RIWAYAT DOKUMEN -->
         <!-- ================================================================= -->
         <section id="view-siklus" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Pusat Siklus & Riwayat Revisi</h2>
-              <p class="view-desc">Kelola siklus hidup dokumen RKB, penetapan status NPHD sah, penguncian, serta pembuatan usulan revisi pergeseran anggaran.</p>
+              <h2 class="view-title">Pusat Siklus &amp; Riwayat Dokumen</h2>
+              <p class="view-desc">Kelola siklus hidup dokumen RKB, penetapan status dokumen rujukan induk RKB Pilkada 2024, penguncian baseline, serta penerbitan usulan revisi pergeseran anggaran.</p>
             </div>
             <div class="header-actions">
               <button class="btn btn-primary" onclick="openRevisionModal()" id="btn-buat-revisi">
@@ -328,7 +328,7 @@
                   <strong id="siklus-nama-dokumen">-</strong>
                 </div>
                 <div class="info-group">
-                  <label>Versi / Tahap:</label>
+                  <label>Versi / Dokumen:</label>
                   <span id="siklus-versi-revisi">-</span>
                 </div>
                 <div class="info-group">
@@ -336,7 +336,7 @@
                   <span id="siklus-dasar-pengesahan">-</span>
                 </div>
                 <div class="info-group">
-                  <label>Nomor BA TAPD / SK:</label>
+                  <label>Nomor BA TAPD / Surat:</label>
                   <span id="siklus-nomor-ba">-</span>
                 </div>
                 <div class="info-group">
@@ -353,8 +353,8 @@
 
               <div class="lifecycle-actions">
                 <div class="action-desc">
-                  <strong>Otoritas Penguncian & Legalitas (Level 0 & 1):</strong>
-                  <p>Jika RKB Awal telah disahkan melalui NPHD resmi bersama Bupati Ngawi, kunci dokumen ini untuk menjadikannya baseline yang tidak dapat diubah (Read-Only).</p>
+                  <strong>Otoritas Penguncian &amp; Legalitas (Level 0 &amp; 1):</strong>
+                  <p>Kunci dokumen ini untuk menjadikannya dokumen referensi induk (RKB Pilkada 2024) yang tidak dapat diubah (Read-Only) sebagai rujukan pembanding usulan revisi.</p>
                 </div>
                 <div class="action-buttons" id="lifecycle-action-buttons">
                   <!-- Populated via JS (Lock, Unlock, Edit Legalitas) -->
@@ -363,23 +363,58 @@
             </div>
           </div>
 
-          <!-- RIWAYAT DOKUMEN & VERSI -->
+          <!-- MATRIKS KOMPARASI PERGESERAN ANGGARAN (VS DOKUMEN RUJUKAN INDUK RKB PILKADA 2024) -->
+          <div class="card mt-4" id="siklus-comparison-card" style="display: none;">
+            <div class="card-header">
+              <h3>📊 Komparasi Pergeseran Anggaran vs Dokumen Rujukan Induk (RKB Pilkada 2024)</h3>
+              <span class="badge badge-info" id="siklus-comp-badge">Usulan Revisi</span>
+            </div>
+            <div class="card-body">
+              <div class="siklus-matrix-grid">
+                <div class="siklus-matrix-card">
+                  <span class="siklus-matrix-label">Dokumen Rujukan Induk</span>
+                  <span class="siklus-matrix-val" id="comp-val-baseline" style="color: #475569;">Rp 49.999.999.000</span>
+                  <span style="font-size: 11px; color: var(--text-muted);">Baseline RKB Pilkada 2024</span>
+                </div>
+                <div class="siklus-matrix-card highlight">
+                  <span class="siklus-matrix-label">Pagu Dokumen Usulan Ini</span>
+                  <span class="siklus-matrix-val" id="comp-val-current" style="color: #1e40af;">-</span>
+                  <span style="font-size: 11px; color: #1e40af;" id="comp-sub-current">-</span>
+                </div>
+                <div class="siklus-matrix-card">
+                  <span class="siklus-matrix-label">Selisih Netto (+ / -)</span>
+                  <span class="siklus-matrix-val" id="comp-val-diff" style="color: #16a34a;">-</span>
+                  <span style="font-size: 11px; color: var(--text-muted);" id="comp-sub-diff">-</span>
+                </div>
+                <div class="siklus-matrix-card">
+                  <span class="siklus-matrix-label">Rincian Perubahan Belanja</span>
+                  <div style="font-size: 11.5px; margin-top: 4px; line-height: 1.45;" id="comp-val-breakdown">
+                    -
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DAFTAR DOKUMEN SIKLUS -->
           <div class="card mt-4">
             <div class="card-header">
-              <h3>Daftar Dokumen Siklus Anggaran (SSOT)</h3>
+              <h3>Daftar Dokumen Siklus Perencanaan &amp; Revisi</h3>
             </div>
             <div class="card-body">
               <div class="table-responsive">
                 <table class="table table-hover">
                   <thead>
                     <tr>
-                      <th style="width: 50px;">ID</th>
+                      <th style="width: 45px;">ID</th>
                       <th>Nama Dokumen RKB</th>
-                      <th>Versi Revisi</th>
+                      <th>Versi</th>
                       <th>Dasar Pengesahan</th>
                       <th>Status Dokumen</th>
-                      <th class="text-right">Total Item</th>
-                      <th class="text-center" style="width: 220px;">Aksi</th>
+                      <th class="text-right">Total Pagu (Rp)</th>
+                      <th class="text-right">Selisih vs RKB Pilkada 2024</th>
+                      <th class="text-right">Item</th>
+                      <th class="text-center" style="width: 200px;">Aksi</th>
                     </tr>
                   </thead>
                   <tbody id="table-periode-history">
@@ -408,21 +443,46 @@
           </div>
 
           <!-- WORKFLOW HEADER CARD (STEPPER & SUB-MENU REVISI) -->
-          <div class="card" style="padding: 12px 18px; margin-bottom: 14px;">
+          <div class="card" style="padding: 12px 18px; margin-bottom: 12px;">
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 20px;">📘</span>
                 <div>
-                  <strong id="rkb-stepper-title" style="font-size: 14px;">RKB KPU Kabupaten Ngawi</strong>
-                  <div style="font-size: 11px; color: var(--text-muted);" id="rkb-stepper-sub">Dokumen Induk Pagu NPHD Pilkada 2029</div>
+                  <strong id="rkb-stepper-title" style="font-size: 14px;">RKB Pilkada 2024</strong>
+                  <div style="font-size: 11px; color: var(--text-muted);" id="rkb-stepper-sub">Dokumen Rujukan Induk Baseline Perencanaan</div>
                 </div>
               </div>
               <div id="rkb-revision-pills" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <!-- Populated via JS: pills for RKB Awal, Revisi 1, dst. -->
+                <!-- Populated via JS: pills for RKB Pilkada 2024, Revisi 1, dst. -->
               </div>
               <div id="rkb-quick-actions" style="display: flex; align-items: center; gap: 8px;">
                 <!-- Populated via JS: Kunci/Buka, Unduh Excel -->
               </div>
+            </div>
+          </div>
+
+          <!-- STRIP SOROT TAHAPAN RKB -->
+          <div class="tahapan-strip-container" id="tahapanStrip">
+            <div class="tahapan-strip-title">
+              <span>🎯 Sorot Tahapan:</span>
+            </div>
+            <div class="tahapan-strip-items" id="tahapanStripItems">
+              <button type="button" class="tahapan-pill-btn active" id="pillTahapAll" onclick="sorotTahapan('ALL')">
+                <span>🌟 Semua Tahapan</span>
+                <span class="pagu-sub" id="paguStripAll">-</span>
+              </button>
+              <button type="button" class="tahapan-pill-btn" id="pillTahap1" onclick="sorotTahapan('TAHAPAN_I')">
+                <span>📌 Tahapan I: Persiapan &amp; Pelaksanaan</span>
+                <span class="pagu-sub" id="paguStripTahap1">-</span>
+              </button>
+              <button type="button" class="tahapan-pill-btn" id="pillTahap2" onclick="sorotTahapan('TAHAPAN_II')">
+                <span>🏢 Tahapan II: Operasional Kantor</span>
+                <span class="pagu-sub" id="paguStripTahap2">-</span>
+              </button>
+              <button type="button" class="tahapan-pill-btn" id="pillTahapHonor" onclick="sorotTahapan('HONOR')">
+                <span>👥 Honorarium Pokja &amp; Adhoc</span>
+                <span class="pagu-sub" id="paguStripHonor">-</span>
+              </button>
             </div>
           </div>
 
@@ -1241,25 +1301,26 @@
             <div class="form-group">
               <label>Fase Siklus Dokumen:</label>
               <select id="lock-fase" class="input-select" onchange="onLockFaseChange()">
-                <option value="NPHD_SAH">🏛️ NPHD Sah (Baseline Induk Hibah Bersama Bupati)</option>
-                <option value="PASCA_NPHD">🔄 Pasca-NPHD (Revisi / Pergeseran Anggaran Berjalan)</option>
-                <option value="PRA_NPHD">🌿 Pra-NPHD (Arsip Tonggak Pembahasan Bersama TAPD)</option>
+                <option value="RKB_AWAL">🏛️ Dokumen Rujukan Induk (RKB Pilkada 2024 - Baseline)</option>
+                <option value="PASCA_NPHD">🔄 Pasca-Perencanaan (Arsip Usulan Revisi Resmi BA TAPD / SK KPU)</option>
+                <option value="PRA_NPHD">🌿 Pra-Perencanaan (Arsip Tonggak Pembahasan Bersama TAPD)</option>
               </select>
             </div>
             <div class="form-group">
               <label>Dasar Pengesahan Legalitas:</label>
               <select id="lock-dasar" class="input-select">
-                <option value="NPHD">Naskah Perjanjian Hibah Daerah (NPHD)</option>
+                <option value="Kertas Kerja Penyusunan">Kertas Kerja Penyusunan Internal</option>
                 <option value="BA TAPD">Berita Acara (BA) Kesepakatan TAPD Pemda</option>
                 <option value="SK KPU">Keputusan KPU (SK KPU Kabupaten Ngawi)</option>
                 <option value="Surat Usulan KPU">Surat Usulan Resmi KPU ke Pemda</option>
                 <option value="Review Provinsi">Hasil Review KPU Provinsi Jawa Timur</option>
-                <option value="Adendum NPHD">Adendum Naskah Perjanjian Hibah</option>
+                <option value="NPHD">Naskah Perjanjian Hibah Daerah (NPHD)</option>
+                <option value="Adendum NPHD">Adendum NPHD</option>
               </select>
             </div>
             <div class="form-group">
-              <label>Nomor Surat / NPHD / BA TAPD:</label>
-              <input type="text" id="lock-nomor-ba" class="input-text" placeholder="Contoh: 000.1.2/BA-TAPD/2026 atau NPHD.01/KPU-Ngw/2024">
+              <label>Nomor Surat / BA TAPD / SK:</label>
+              <input type="text" id="lock-nomor-ba" class="input-text" placeholder="Contoh: 000.1.2/BA-TAPD/2026 atau KK.01/KPU-Ngw/2024">
             </div>
             <div class="form-group">
               <label>Tanggal Dokumen Legalitas:</label>
@@ -1295,13 +1356,13 @@
             <div class="form-group">
               <label>Fase Siklus Anggaran:</label>
               <select id="rev-fase" class="input-select" onchange="onRevFaseChange()">
-                <option value="PASCA_NPHD">🔄 Pasca-NPHD (Revisi Anggaran Berjalan / Pergeseran Belanja)</option>
-                <option value="PRA_NPHD">🌿 Pra-NPHD (Usulan / Simulasi Baru / Rasionalisasi Pembahasan TAPD)</option>
+                <option value="PASCA_NPHD">🔄 Usulan Revisi / Penyesuaian Anggaran Berjalan</option>
+                <option value="PRA_NPHD">🌿 Usulan Pra-Perencanaan / Pembahasan TAPD</option>
               </select>
             </div>
             <div class="form-group">
               <label>Nama Dokumen Revisi:</label>
-              <input type="text" id="rev-nama-periode" class="input-text" required value="RKB KPU Kabupaten Ngawi (Revisi 1 - Pasca NPHD)">
+              <input type="text" id="rev-nama-periode" class="input-text" required value="RKB KPU Kabupaten Ngawi (Usulan Penyesuaian 1)">
             </div>
             <div class="form-group">
               <label>Versi / Label Revisi:</label>

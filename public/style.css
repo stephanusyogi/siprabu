@@ -1294,13 +1294,212 @@ tr.rkb-row-lvl-4:hover {
 .diff-baru      { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
 .diff-tetap     { background: #f1f5f9; color: #64748b; }
 
+/* TABLE ROW SELECTION & ACCENT HIGHLIGHTS */
+#rkb-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
 .table-row-selected {
-  background: #eff6ff !important;
+  background-color: #dbeafe !important;
+  outline: 2px solid #2563eb !important;
+  outline-offset: -2px;
 }
 
 .table-row-selected td {
-  border-top: 1.5px solid #3b82f6 !important;
-  border-bottom: 1.5px solid #3b82f6 !important;
+  border-top: 2px solid #2563eb !important;
+  border-bottom: 2px solid #2563eb !important;
+}
+
+/* High-Specificity Overrides for Selected Header Rows */
+tr.rkb-row-lvl-0.table-row-selected {
+  background-color: #1e3a8a !important;
+  color: #ffffff !important;
+  box-shadow: inset 8px 0 0 #60a5fa !important;
+}
+tr.rkb-row-lvl-0.table-row-selected td {
+  border-top: 2px solid #60a5fa !important;
+  border-bottom: 2px solid #60a5fa !important;
+  color: #ffffff !important;
+}
+
+/* Level 1: Tahapan (I. Persiapan & Pelaksanaan / II. Operasional) */
+tr.rkb-row-lvl-1.table-row-selected {
+  background-color: #0284c7 !important; /* Sky Blue 600 vibrant */
+  color: #ffffff !important;
+  box-shadow: inset 8px 0 0 #38bdf8 !important;
+}
+tr.rkb-row-lvl-1.table-row-selected td {
+  border-top: 2px solid #38bdf8 !important;
+  border-bottom: 2px solid #38bdf8 !important;
+  color: #ffffff !important;
+}
+
+/* Level 2: 28 Komponen Kegiatan */
+tr.rkb-row-lvl-2.table-row-selected {
+  background-color: #0369a1 !important; /* Ocean Blue 700 */
+  color: #ffffff !important;
+  box-shadow: inset 8px 0 0 #7dd3fc !important;
+}
+tr.rkb-row-lvl-2.table-row-selected td {
+  border-top: 2px solid #7dd3fc !important;
+  border-bottom: 2px solid #7dd3fc !important;
+  color: #ffffff !important;
+}
+
+/* Level 21-25: Sub-Komponen */
+tr.rkb-row-lvl-21.table-row-selected,
+tr.rkb-row-lvl-22.table-row-selected,
+tr.rkb-row-lvl-23.table-row-selected,
+tr.rkb-row-lvl-24.table-row-selected,
+tr.rkb-row-lvl-25.table-row-selected {
+  background-color: #0ea5e9 !important;
+  color: #ffffff !important;
+  box-shadow: inset 8px 0 0 #bae6fd !important;
+}
+tr.rkb-row-lvl-21.table-row-selected td,
+tr.rkb-row-lvl-22.table-row-selected td,
+tr.rkb-row-lvl-23.table-row-selected td,
+tr.rkb-row-lvl-24.table-row-selected td,
+tr.rkb-row-lvl-25.table-row-selected td {
+  border-top: 2px solid #bae6fd !important;
+  border-bottom: 2px solid #bae6fd !important;
+  color: #ffffff !important;
+}
+
+/* Level 3: Akun Belanja (521211, dll) */
+tr.rkb-row-lvl-3.table-row-selected {
+  background-color: #bae6fd !important;
+  color: #0c4a6e !important;
+  font-weight: 800 !important;
+  box-shadow: inset 8px 0 0 #0284c7 !important;
+}
+tr.rkb-row-lvl-3.table-row-selected td {
+  border-top: 2px solid #0284c7 !important;
+  border-bottom: 2px solid #0284c7 !important;
+  color: #0c4a6e !important;
+}
+
+/* Level 41: Header Sub-rincian */
+tr.rkb-row-lvl-41.table-row-selected {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  box-shadow: inset 8px 0 0 #0284c7 !important;
+}
+tr.rkb-row-lvl-41.table-row-selected td {
+  border-top: 2px solid #0284c7 !important;
+  border-bottom: 2px solid #0284c7 !important;
+  color: #0369a1 !important;
+}
+
+/* STRIP SOROT TAHAPAN RKB */
+.tahapan-strip-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+}
+
+.tahapan-strip-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.tahapan-strip-items {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.tahapan-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.tahapan-pill-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.tahapan-pill-btn.active {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+}
+
+.tahapan-pill-btn .pagu-sub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  opacity: 0.88;
+}
+
+.tahapan-pill-btn.active .pagu-sub {
+  opacity: 1;
+  font-weight: 700;
+}
+
+/* SIKLUS COMPARISON MATRIX STYLES */
+.siklus-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.siklus-matrix-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.siklus-matrix-card.highlight {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.siklus-matrix-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.siklus-matrix-val {
+  font-size: 16px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #0f172a;
 }
 
 /* FLASH PULSE HIGHLIGHT UNTUK BARIS BARU / HASIL SIMPAN */
