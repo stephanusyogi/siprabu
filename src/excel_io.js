@@ -725,7 +725,11 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     const revByRowId = revComp.by_row_id || {};
 
     const rowById = {};
-    rows.forEach(r => { rowById[r.id] = r; });
+    const rowByTreeId = {};
+    rows.forEach(r => {
+      rowById[r.id] = r;
+      if (r.tree_id) rowByTreeId[r.tree_id] = r;
+    });
 
     const revisedRowIds = new Set();
     rows.forEach(r => {

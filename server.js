@@ -564,6 +564,21 @@ const server = http.createServer(async (req, res) => {
       const periode = getPeriodeById(periodeId);
       if (!periode) return sendJson(res, 404, { error: 'Dokumen tidak ditemukan.' });
 
+      const subbags = [
+        { code: 'KUL', filename: `1_RUH_KUL_Keuangan_Umum_Logistik_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'RENDATIN', filename: `2_RUH_RENDATIN_Perencanaan_Data_Informasi_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'TEKNIS', filename: `3_RUH_TEKNIS_Teknis_Penyelenggaraan_Pemilu_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'HUKUM', filename: `4_RUH_HUKUM_Hukum_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'PARSDM', filename: `5_RUH_PARSDM_Partisipasi_Masyarakat_SDM_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` }
+      ];
+
+      // Generate buffers terlebih dahulu agar jika terjadi error tidak merusak response stream
+      const buffers = [];
+      for (const s of subbags) {
+        const buf = await exportRkbToExcelBuffer(periodeId, { pic: s.code });
+        buffers.push({ name: s.filename, data: buf });
+      }
+
       const archiver = require('archiver');
       const filename = `Paket_RUH_5_Subbagian_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.zip`;
 
@@ -580,17 +595,8 @@ const server = http.createServer(async (req, res) => {
       });
       archive.pipe(res);
 
-      const subbags = [
-        { code: 'KUL', filename: `1_RUH_KUL_Keuangan_Umum_Logistik_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
-        { code: 'RENDATIN', filename: `2_RUH_RENDATIN_Perencanaan_Data_Informasi_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
-        { code: 'TEKNIS', filename: `3_RUH_TEKNIS_Teknis_Penyelenggaraan_Pemilu_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
-        { code: 'HUKUM', filename: `4_RUH_HUKUM_Hukum_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
-        { code: 'PARSDM', filename: `5_RUH_PARSDM_Partisipasi_Masyarakat_SDM_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` }
-      ];
-
-      for (const s of subbags) {
-        const buf = await exportRkbToExcelBuffer(periodeId, { pic: s.code });
-        archive.append(buf, { name: s.filename });
+      for (const b of buffers) {
+        archive.append(b.data, { name: b.name });
       }
 
       await archive.finalize();
@@ -604,7 +610,11 @@ const server = http.createServer(async (req, res) => {
 
   } catch (err) {
     console.error('Server error:', err);
-    return sendJson(res, 500, { error: err.message || 'Internal Server Error' });
+    if (!res.headersSent) {
+      return sendJson(res, 500, { error: err.message || 'Internal Server Error' });
+    } else {
+      res.end();
+    }
   }
 });
 
