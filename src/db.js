@@ -158,7 +158,7 @@ function initDb() {
       db.prepare(`
         INSERT INTO satker_users 
           (username, password, nama_pejabat, jabatan, role_id, level, pic_subbag, is_active)
-        VALUES ('emenje', 'emenje123', 'emenje (Pengembang Resmi)', 'Lead Developer & System Architect', 'developer', 0, 'SEMUA', 1)
+        VALUES ('emenje', 'Dev@KpuNgw#9021!', 'emenje (Pengembang Resmi)', 'Lead Developer & System Architect', 'developer', 0, 'SEMUA', 1)
       `).run();
     }
   } catch (e) {}
@@ -192,17 +192,17 @@ function initDb() {
           role_id = 'komisioner_rendatin', 
           level = 3, 
           pic_subbag = 'SEMUA',
-          password = 'rendatin123'
+          password = 'Kom#RndNgw&2026*'
       WHERE username = 'komisioner' OR id = 9
     `).run();
 
     // 2. Tambahkan akun Ketua dan Divisi Komisioner lainnya jika belum ada
     const commissioners = [
-      { username: 'ketua', nama: 'Ketua KPU', jabatan: 'Ketua KPU Kabupaten', role: 'ketua_kpu', pic: 'SEMUA', pass: 'ketua123', email: 'ketua@kpu.go.id' },
-      { username: 'divisi_teknis', nama: 'Divisi Teknis', jabatan: 'Anggota KPU Divisi Teknis Penyelenggaraan', role: 'komisioner_teknis', pic: 'TEKNIS', pass: 'teknis123', email: 'divisi_teknis@kpu.go.id' },
-      { username: 'divisi_hukum', nama: 'Divisi Hukum', jabatan: 'Anggota KPU Divisi Hukum & Pengawasan', role: 'komisioner_hukum', pic: 'HUKUM', pass: 'hukum123', email: 'divisi_hukum@kpu.go.id' },
-      { username: 'divisi_parmas', nama: 'Divisi ParSDM', jabatan: 'Anggota KPU Divisi Sosdiklih, Parmas & SDM', role: 'komisioner_parmas', pic: 'PARSDM', pass: 'parmas123', email: 'divisi_parmas@kpu.go.id' },
-      { username: 'divisi_kul', nama: 'Divisi KUL', jabatan: 'Anggota KPU Divisi Keuangan, Umum & Logistik', role: 'komisioner_kul', pic: 'KUL', pass: 'kul123', email: 'divisi_kul@kpu.go.id' }
+      { username: 'ketua', nama: 'Ketua KPU', jabatan: 'Ketua KPU Kabupaten', role: 'ketua_kpu', pic: 'SEMUA', pass: 'Ketua#KpuNgw$2026!', email: 'ketua@kpu.go.id' },
+      { username: 'divisi_teknis', nama: 'Divisi Teknis', jabatan: 'Anggota KPU Divisi Teknis Penyelenggaraan', role: 'komisioner_teknis', pic: 'TEKNIS', pass: 'Kom#TekNgw&2026*', email: 'divisi_teknis@kpu.go.id' },
+      { username: 'divisi_hukum', nama: 'Divisi Hukum', jabatan: 'Anggota KPU Divisi Hukum & Pengawasan', role: 'komisioner_hukum', pic: 'HUKUM', pass: 'Kom#HukNgw&2026*', email: 'divisi_hukum@kpu.go.id' },
+      { username: 'divisi_parmas', nama: 'Divisi ParSDM', jabatan: 'Anggota KPU Divisi Sosdiklih, Parmas & SDM', role: 'komisioner_parmas', pic: 'PARSDM', pass: 'Kom#ParNgw&2026*', email: 'divisi_parmas@kpu.go.id' },
+      { username: 'divisi_kul', nama: 'Divisi KUL', jabatan: 'Anggota KPU Divisi Keuangan, Umum & Logistik', role: 'komisioner_kul', pic: 'KUL', pass: 'Kom#KulNgw&2026*', email: 'divisi_kul@kpu.go.id' }
     ];
 
     const checkStmt = db.prepare('SELECT id FROM satker_users WHERE username = ?');

@@ -413,24 +413,23 @@ async function switchUser(username) {
       AppState.currentUser = res.user;
     } else {
       const pwdMap = {
-        emenje: 'emenje123',
-        perencanaan: 'perencanaan123',
-        staf_perencanaan: 'perencanaan123',
-        op_perencanaan: 'perencanaan123',
-        teknis: 'teknis123',
-        hukum: 'hukum123',
-        parmas: 'parmas123',
-        kul: 'kul123',
-        sekretaris: 'sekretaris123',
-        divisi_rendatin: 'rendatin123',
-        ketua: 'ketua123',
-        divisi_teknis: 'teknis123',
-        divisi_hukum: 'hukum123',
-        divisi_parmas: 'parmas123',
-        divisi_kul: 'kul123',
-        komisioner: 'komisioner123'
+        emenje: 'Dev@KpuNgw#9021!',
+        perencanaan: 'Rnd#Ngawi$2026!P',
+        staf_perencanaan: 'Staf#Rnd@2026*P',
+        op_perencanaan: 'Op#Rendatin&2026!',
+        teknis: 'Tek#Ngawi$2026!T',
+        hukum: 'Huk#Ngawi$2026!H',
+        parmas: 'Par#Ngawi$2026!M',
+        kul: 'Kul#Ngawi$2026!K',
+        sekretaris: 'Sek#KpaNgawi$2026!',
+        divisi_rendatin: 'Kom#RndNgw&2026*',
+        ketua: 'Ketua#KpuNgw$2026!',
+        divisi_teknis: 'Kom#TekNgw&2026*',
+        divisi_hukum: 'Kom#HukNgw&2026*',
+        divisi_parmas: 'Kom#ParNgw&2026*',
+        divisi_kul: 'Kom#KulNgw&2026*'
       };
-      const pass = pwdMap[username] || `${username}123`;
+      const pass = pwdMap[username] || 'Rnd#Ngawi$2026!P';
       await performLogin(username, pass);
     }
 
