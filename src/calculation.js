@@ -294,6 +294,7 @@ function calculateRkbDataset(rawRows) {
     // Normalisasi PIC
     let pic = (r.pic_bagian || 'KUL').toUpperCase();
     if (pic === 'PERENCANAAN') pic = 'RENDATIN';
+    if (pic === 'KEUANGAN') pic = 'KUL';
     if (pic === 'PARMAS') pic = 'PARSDM';
     if (!bySubbag[pic]) bySubbag[pic] = 0;
     bySubbag[pic] += calc.total_anggaran;

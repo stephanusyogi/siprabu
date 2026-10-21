@@ -29,6 +29,15 @@ const AppState = {
   searchDebounceTimer: null
 };
 
+// META DATA RESMI 5 SUBBAGIAN PELAKSANA KPU KABUPATEN NGAWI (SESUAI DASHBOARD)
+const SUBBAG_META = {
+  KUL: { code: 'KUL', name: 'Keuangan, Umum & Logistik (KUL)', color: '#3b82f6' },
+  RENDATIN: { code: 'RENDATIN', name: 'Perencanaan, Data & Informasi (RENDATIN)', color: '#10b981' },
+  TEKNIS: { code: 'TEKNIS', name: 'Teknis Penyelenggaraan Pemilu (TEKNIS)', color: '#8b5cf6' },
+  HUKUM: { code: 'HUKUM', name: 'Hukum (HUKUM)', color: '#f59e0b' },
+  PARSDM: { code: 'PARSDM', name: 'Partisipasi Masyarakat & SDM (PARSDM)', color: '#ec4899' }
+};
+
 // ============================================================================
 // UTILITIES & DEFENSIVE DOM HELPERS
 // ============================================================================
@@ -463,16 +472,8 @@ function renderDashboard() {
   // Subbag Distribution List
   const subbagList = document.getElementById('subbag-distribution-list');
   if (subbagList && summary.bySubbag) {
-    const subbagNames = {
-      KUL: { name: 'Keuangan, Umum & Logistik (KUL)', color: '#3b82f6' },
-      RENDATIN: { name: 'Perencanaan, Data & Informasi (RENDATIN)', color: '#10b981' },
-      TEKNIS: { name: 'Teknis Penyelenggaraan Pemilu (TEKNIS)', color: '#8b5cf6' },
-      HUKUM: { name: 'Hukum (HUKUM)', color: '#f59e0b' },
-      PARSDM: { name: 'Partisipasi Masyarakat & SDM (PARSDM)', color: '#ec4899' }
-    };
-
     subbagList.innerHTML = Object.entries(summary.bySubbag).map(([pic, amt]) => {
-      const meta = subbagNames[pic] || { name: pic, color: '#64748b' };
+      const meta = SUBBAG_META[pic] || { name: pic, color: '#64748b' };
       const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
       return `
         <div class="subbag-progress-item">
@@ -3498,12 +3499,18 @@ function downloadExcel(periodeId = null) {
       // Wewenang Subbagian
       if (scopeFilteredRadio) scopeFilteredRadio.checked = true;
       if (scopeFullRadio) scopeFullRadio.disabled = true;
+      let userPic = (user.pic_subbag || '').toUpperCase();
+      if (userPic === 'PERENCANAAN') userPic = 'RENDATIN';
+      if (userPic === 'KEUANGAN') userPic = 'KUL';
+      if (userPic === 'PARMAS') userPic = 'PARSDM';
       if (picSelect) {
-        picSelect.value = user.pic_subbag;
+        picSelect.value = userPic;
         picSelect.disabled = true;
       }
       if (roleNotice) {
-        roleNotice.innerHTML = `<span>🔒 <strong>Wewenang Subbag:</strong> Ekspor dibatasi untuk Subbagian <u>${escapeHtml(user.pic_subbag)}</u>.</span>`;
+        const subMeta = SUBBAG_META[userPic];
+        const subName = subMeta ? subMeta.name : userPic;
+        roleNotice.innerHTML = `<span>🔒 <strong>Wewenang Subbag:</strong> Ekspor dibatasi untuk <u>${escapeHtml(subName)}</u>.</span>`;
       }
     } else {
       // Level 0 & Level 1 (Full Access)
@@ -3829,8 +3836,12 @@ function renderUsersTable() {
     else lvlBadge = `<span class="badge badge-secondary" style="font-weight:700;">Level 3 (Viewer Eksekutif)</span>`;
 
     // PIC Subbag
-    const pic = (u.pic_subbag || 'SEMUA').toUpperCase();
-    let picBadge = `<span class="pic-chip pic-${pic}">${pic}</span>`;
+    let pic = (u.pic_subbag || 'SEMUA').toUpperCase();
+    if (pic === 'PERENCANAAN') pic = 'RENDATIN';
+    if (pic === 'KEUANGAN') pic = 'KUL';
+    if (pic === 'PARMAS') pic = 'PARSDM';
+    const subMeta = SUBBAG_META[pic];
+    let picBadge = `<span class="pic-chip pic-${pic}" title="${subMeta ? subMeta.name : pic}">${pic}</span>`;
     if (pic === 'SEMUA') {
       picBadge = `<span class="badge badge-info" style="font-size:11px;">Semua Subbag</span>`;
     }
@@ -3929,7 +3940,11 @@ function openEditUserModal(userId) {
   setElVal('modal-user-jabatan', user.jabatan || '');
   setElVal('modal-user-role', user.role_id || 'op_teknis');
   setElVal('modal-user-level', String(user.level));
-  setElVal('modal-user-pic', (user.pic_subbag || 'SEMUA').toUpperCase());
+  let userPic = (user.pic_subbag || 'SEMUA').toUpperCase();
+  if (userPic === 'PERENCANAAN') userPic = 'RENDATIN';
+  if (userPic === 'KEUANGAN') userPic = 'KUL';
+  if (userPic === 'PARMAS') userPic = 'PARSDM';
+  setElVal('modal-user-pic', userPic);
   setElVal('modal-user-status', String(user.is_active));
 
   document.getElementById('modal-user-username').readOnly = (user.username === 'emenje');

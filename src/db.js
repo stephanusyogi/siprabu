@@ -56,6 +56,15 @@ function initDb() {
       WHERE username = 'hukum'
     `).run();
   } catch (e) {}
+
+  // Sinkronisasi seluruh user operator satker ke 5 kode PIC resmi Dashboard
+  try {
+    db.prepare("UPDATE satker_users SET pic_subbag = 'RENDATIN' WHERE LOWER(pic_subbag) IN ('perencanaan', 'rendatin')").run();
+    db.prepare("UPDATE satker_users SET pic_subbag = 'TEKNIS' WHERE LOWER(pic_subbag) IN ('teknis')").run();
+    db.prepare("UPDATE satker_users SET pic_subbag = 'HUKUM' WHERE LOWER(pic_subbag) IN ('hukum')").run();
+    db.prepare("UPDATE satker_users SET pic_subbag = 'PARSDM' WHERE LOWER(pic_subbag) IN ('parmas', 'parsdm')").run();
+    db.prepare("UPDATE satker_users SET pic_subbag = 'KUL' WHERE LOWER(pic_subbag) IN ('keuangan', 'kul')").run();
+  } catch (e) {}
 }
 
 initDb();

@@ -36,7 +36,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   }
 
   // Filter Baris jika parameter pic atau sasaran aktif
-  const filterPic = options.pic && options.pic !== 'SEMUA' ? options.pic.toUpperCase() : null;
+  let filterPic = options.pic && options.pic !== 'SEMUA' ? options.pic.toUpperCase() : null;
+  if (filterPic === 'PERENCANAAN') filterPic = 'RENDATIN';
+  if (filterPic === 'KEUANGAN') filterPic = 'KUL';
+  if (filterPic === 'PARMAS') filterPic = 'PARSDM';
   const filterSasaran = options.sasaran && options.sasaran !== 'ALL' ? options.sasaran.toUpperCase() : null;
   const hasFilter = Boolean(filterPic || filterSasaran);
 
@@ -507,7 +510,15 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
   const hRow1 = ws1.addRow(['[PENANDA RIWAYAT FILE & AUDIT LOG SISTEM - BUKAN MERUPAKAN BAGIAN DOKUMEN RESMI]']);
   const hRow2 = ws1.addRow([`Program / Dokumen: ${periode ? periode.nama_periode : 'Pilkada Serentak'} | Versi: ${periode ? (periode.versi_revisi || 'Induk') : '-'} | Status: ${statusLabel}`]);
-  const hRow3 = ws1.addRow([`Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'} | Tanggal Unduh: ${tanggalUnduh}${hasFilter ? ` | Filter: PIC=${filterPic || 'SEMUA'}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
+  const subbagLabelMap = {
+    KUL: 'Keuangan, Umum & Logistik (KUL)',
+    RENDATIN: 'Perencanaan, Data & Informasi (RENDATIN)',
+    TEKNIS: 'Teknis Penyelenggaraan Pemilu (TEKNIS)',
+    HUKUM: 'Hukum (HUKUM)',
+    PARSDM: 'Partisipasi Masyarakat & SDM (PARSDM)'
+  };
+  const picDisplay = filterPic ? (subbagLabelMap[filterPic] || filterPic) : 'SEMUA';
+  const hRow3 = ws1.addRow([`Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'} | Tanggal Unduh: ${tanggalUnduh}${hasFilter ? ` | Filter: PIC=${picDisplay}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
   const hRow4 = ws1.addRow(['Sistem Informasi: SI-PRABU Clean Web Edition v3.0 | Satker: KPU Kabupaten Ngawi | Pengembang: emenje <emenje@kpu-ngawi.go.id>']);
 
   [hRow1, hRow2, hRow3, hRow4].forEach(hr => {
@@ -1219,10 +1230,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const bySubbag = summary.bySubbag || {};
   const picInfo = [
     { code: 'KUL', name: 'Keuangan, Umum & Logistik (KUL)', desc: 'Pengadaan logistik pemilu (kotak, surat suara, bilik, formulir), sewa gedung/gudang, operasional kantor satker, langganan daya dan jasa, pemeliharaan sarpras, perjalanan dinas, dan perbendaharaan hibah' },
-    { code: 'PARSDM', name: 'Partisipasi Masyarakat, Pendidikan Pemilih & SDM (PARSDM)', desc: 'Sosialisasi pemilih, pendidikan pemilih pemula, pembentukan dan rekrutmen badan ad hoc (PPK, PPS, KPPS, Pantarlih), bimbingan teknis ad hoc, dan alokasi honorarium ad hoc se-Kabupaten' },
-    { code: 'RENDATIN', name: 'Perencanaan, Data & Informasi (Rendatin)', desc: 'Penyusunan anggaran dan RKB, pemutakhiran data pemilih berkelanjutan (Sidalih), pencetakan DPS/DPT, serta penyusunan evaluasi dan pelaporan program' },
-    { code: 'TEKNIS', name: 'Teknis Penyelenggaraan Pemilu', desc: 'Pendaftaran dan verifikasi pasangan calon, rapat koordinasi teknis, fasilitasi debat publik terbuka paslon, pemungutan dan penghitungan suara, serta rapat pleno rekapitulasi perolehan suara' },
-    { code: 'HUKUM', name: 'Hukum & SDM', desc: 'Penyusunan keputusan KPU, telaah regulasi pilkada, advokasi sengketa pencalonan dan sengketa perselisihan hasil pemilihan di Mahkamah Konstitusi, bantuan hukum, dan dokumentasi JDIH' }
+    { code: 'RENDATIN', name: 'Perencanaan, Data & Informasi (RENDATIN)', desc: 'Penyusunan anggaran dan RKB, pemutakhiran data pemilih berkelanjutan (Sidalih), pencetakan DPS/DPT, serta penyusunan evaluasi dan pelaporan program' },
+    { code: 'TEKNIS', name: 'Teknis Penyelenggaraan Pemilu (TEKNIS)', desc: 'Pendaftaran dan verifikasi pasangan calon, rapat koordinasi teknis, fasilitasi debat publik terbuka paslon, pemungutan dan penghitungan suara, serta rapat pleno rekapitulasi perolehan suara' },
+    { code: 'HUKUM', name: 'Hukum (HUKUM)', desc: 'Penyusunan keputusan KPU, telaah regulasi pilkada, advokasi sengketa pencalonan dan sengketa perselisihan hasil pemilihan di Mahkamah Konstitusi, bantuan hukum, dan dokumentasi JDIH' },
+    { code: 'PARSDM', name: 'Partisipasi Masyarakat & SDM (PARSDM)', desc: 'Sosialisasi pemilih, pendidikan pemilih pemula, pembentukan dan rekrutmen badan ad hoc (PPK, PPS, KPPS, Pantarlih), bimbingan teknis ad hoc, dan alokasi honorarium ad hoc se-Kabupaten' }
   ];
 
   let totPicSum = 0;

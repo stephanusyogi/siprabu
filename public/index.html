@@ -449,13 +449,13 @@
               </div>
 
               <!-- Filter PIC (Subbag Pelaksana) -->
-              <select id="filter-pic" class="input-select" onchange="applyRkbFilters()" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 140px; font-weight: 600;" title="Saring berdasarkan Subbag Pelaksana">
-                <option value="SEMUA">-- Semua Subbag --</option>
-                <option value="RENDATIN">RENDATIN</option>
-                <option value="KUL">KUL</option>
-                <option value="TEKNIS">TEKNIS</option>
-                <option value="HUKUM">HUKUM</option>
-                <option value="PARSDM">PARSDM</option>
+              <select id="filter-pic" class="input-select" onchange="applyRkbFilters()" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 180px; font-weight: 600;" title="Saring berdasarkan Subbagian Pelaksana">
+                <option value="SEMUA">-- Semua Subbagian --</option>
+                <option value="KUL">Keuangan, Umum &amp; Logistik (KUL)</option>
+                <option value="RENDATIN">Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+                <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                <option value="HUKUM">Hukum (HUKUM)</option>
+                <option value="PARSDM">Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
               </select>
 
               <!-- Filter Sasaran Penyelenggara -->
@@ -1114,11 +1114,11 @@
               <div class="form-group">
                 <label>Subbag Pelaksana (PIC):</label>
                 <select id="modal-pic" class="input-select" required>
-                  <option value="RENDATIN">RENDATIN (Perencanaan)</option>
-                  <option value="KUL">KUL (Keuangan, Umum & Logistik)</option>
-                  <option value="TEKNIS">TEKNIS (Teknis Penyelenggaraan)</option>
-                  <option value="HUKUM">HUKUM (Hukum)</option>
-                  <option value="PARSDM">PARSDM (Partisipasi Masyarakat & SDM)</option>
+                  <option value="KUL">Keuangan, Umum &amp; Logistik (KUL)</option>
+                  <option value="RENDATIN">Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+                  <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                  <option value="HUKUM">Hukum (HUKUM)</option>
+                  <option value="PARSDM">Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
                 </select>
               </div>
 
@@ -1600,8 +1600,8 @@
           <div class="form-group">
             <label>Pilih Subbag Pelaksana Baru:</label>
             <select id="quick-pic-select" class="input-select" style="font-weight: 600; font-size: 13.5px;">
-              <option value="RENDATIN">🔵 Perencanaan, Data &amp; Informasi (RENDATIN)</option>
               <option value="KUL">🟠 Keuangan, Umum &amp; Logistik (KUL)</option>
+              <option value="RENDATIN">🔵 Perencanaan, Data &amp; Informasi (RENDATIN)</option>
               <option value="TEKNIS">🟣 Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
               <option value="HUKUM">🔷 Hukum (HUKUM)</option>
               <option value="PARSDM">🟢 Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
@@ -1706,11 +1706,11 @@
             <div class="form-group">
               <label style="font-weight:700;">Subbag Pelaksana (PIC):</label>
               <select id="add-akun-pic" class="input-select" style="font-weight:600;">
-                <option value="RENDATIN">RENDATIN (Perencanaan)</option>
-                <option value="KUL">KUL (Keuangan, Umum & Logistik)</option>
-                <option value="TEKNIS">TEKNIS (Penyelenggaraan)</option>
-                <option value="HUKUM">HUKUM (Hukum)</option>
-                <option value="PARSDM" selected>PARSDM (Partisipasi Masyarakat & SDM)</option>
+                <option value="KUL">Keuangan, Umum &amp; Logistik (KUL)</option>
+                <option value="RENDATIN">Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+                <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                <option value="HUKUM">Hukum (HUKUM)</option>
+                <option value="PARSDM" selected>Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
               </select>
             </div>
 
@@ -1793,11 +1793,11 @@
           <div class="form-group" style="margin-top: 12px;">
             <label style="font-weight:700;">Subbag Pelaksana (PIC):</label>
             <select id="add-header-pic" class="input-select" style="font-weight:600;">
-              <option value="RENDATIN">RENDATIN (Perencanaan)</option>
-              <option value="KUL">KUL (Keuangan, Umum & Logistik)</option>
-              <option value="TEKNIS">TEKNIS (Penyelenggaraan)</option>
-              <option value="HUKUM">HUKUM (Hukum)</option>
-              <option value="PARSDM" selected>PARSDM (Partisipasi Masyarakat & SDM)</option>
+              <option value="KUL">Keuangan, Umum &amp; Logistik (KUL)</option>
+              <option value="RENDATIN">Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+              <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+              <option value="HUKUM">Hukum (HUKUM)</option>
+              <option value="PARSDM" selected>Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
             </select>
           </div>
 
@@ -1913,12 +1913,12 @@
               <div class="form-group">
                 <label>Fokus Subbag (PIC Penugasan):</label>
                 <select id="modal-user-pic" class="input-select">
-                  <option value="SEMUA">SEMUA Subbagian</option>
-                  <option value="RENDATIN">RENDATIN (Perencanaan)</option>
-                  <option value="KUL">KUL (Keuangan, Umum & Logistik)</option>
-                  <option value="TEKNIS" selected>TEKNIS (Penyelenggaraan)</option>
-                  <option value="HUKUM">HUKUM (Hukum)</option>
-                  <option value="PARSDM">PARSDM (Partisipasi Masyarakat & SDM)</option>
+                  <option value="SEMUA">-- SEMUA Subbagian --</option>
+                  <option value="KUL">Keuangan, Umum &amp; Logistik (KUL)</option>
+                  <option value="RENDATIN">Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+                  <option value="TEKNIS" selected>Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                  <option value="HUKUM">Hukum (HUKUM)</option>
+                  <option value="PARSDM">Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
                 </select>
               </div>
 
@@ -2119,11 +2119,12 @@
                 <div>
                   <label for="export-filter-pic" style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Fokus Subbag (PIC):</label>
                   <select id="export-filter-pic" class="input-select" style="font-size: 12px; height: 32px; width: 100%;">
-                    <option value="SEMUA">SEMUA PIC Subbag</option>
-                    <option value="KEUANGAN">KEUANGAN / KUL</option>
-                    <option value="TEKNIS">TEKNIS PENYELENGGARAAN</option>
-                    <option value="RENDATIN">RENDATIN &amp; DATA</option>
-                    <option value="HUKUM">HUKUM &amp; SDM</option>
+                    <option value="SEMUA">-- SEMUA Subbagian Pelaksana --</option>
+                    <option value="KUL">Keuangan, Umum &amp; Logistik (KUL)</option>
+                    <option value="RENDATIN">Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+                    <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                    <option value="HUKUM">Hukum (HUKUM)</option>
+                    <option value="PARSDM">Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
                   </select>
                 </div>
                 <div>
