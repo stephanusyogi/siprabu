@@ -105,6 +105,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     }
   });
 
+  // Freeze Header agar saat scroll ke bawah tidak kehilangan header tabel
+  ws1.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
+
+  // Jadikan Baris 4 (Header Kolom) sebagai Print Title (berulang di setiap halaman cetak)
+  ws1.pageSetup.printTitlesRow = '4:4';
+
   // Judul Dokumen (Merge Kolom A sampai K)
   // Baris 1: KOMISI PEMILIHAN UMUM KABUPATEN NGAWI
   // Baris 2: BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI TAHUN 2029
@@ -116,15 +122,15 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws1.mergeCells('A2:K2');
 
   const titleRow1 = ws1.getRow(1);
-  titleRow1.height = 22;
+  titleRow1.height = 24;
   const titleCell1 = ws1.getCell('A1');
-  titleCell1.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
+  titleCell1.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
   titleCell1.alignment = { vertical: 'middle', horizontal: 'center' };
 
   const titleRow2 = ws1.getRow(2);
-  titleRow2.height = 24;
+  titleRow2.height = 28;
   const titleCell2 = ws1.getCell('A2');
-  titleCell2.font = { name: 'Calibri', size: 12.5, bold: true, color: { argb: 'FF000000' } };
+  titleCell2.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } };
   titleCell2.alignment = { vertical: 'middle', horizontal: 'center' };
 
   ws1.getRow(3).height = 10;
@@ -151,9 +157,9 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws1.getCell('O4').value = 'Sasaran';
 
   const headerRow1 = ws1.getRow(4);
-  headerRow1.height = 26;
+  headerRow1.height = 28;
 
-  // Latar Header SAKTI FA Detail 16 Segmen (#0099CC), font putih tebal
+  // Latar Header SAKTI FA Detail 16 Segmen (#0099CC), font putih tebal 11pt
   const sHeaderColor = 'FF0099CC';
   for (let c = 1; c <= 15; c++) {
     if (c === 12) continue; // Kolom kosong spacer tidak di-fill
@@ -165,7 +171,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     };
     cell.font = {
       name: 'Calibri',
-      size: 9.5,
+      size: 11,
       bold: true,
       color: { argb: 'FFFFFFFF' }
     };
@@ -219,10 +225,18 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ];
 
     const excelRow = ws1.addRow(rowValues);
-    excelRow.height = isItem ? 19 : 21;
+
+    // TINGGI BARIS BERBEDA UNTUK SETIAP LEVEL (Enak dibaca, proporsional dengan ukuran font)
+    if (treeLvl === 1) excelRow.height = 36;
+    else if (treeLvl === 2) excelRow.height = 32;
+    else if (treeLvl === 3) excelRow.height = 28;
+    else if (treeLvl === 4) excelRow.height = 26;
+    else if (treeLvl === 5 || treeLvl === 5.5) excelRow.height = 25;
+    else excelRow.height = 22; // Level 6 (Item): 22pt
 
     // MATRIKS BORDER DAN GARIS BERDASARKAN LEVEL:
     // Pembedaan bentuk garis horizontal dan vertikal agar rapi saat dicetak & dibaca
+    // Memastikan tidak ada baris tanpa garis
     for (let c = 1; c <= 11; c++) {
       const cell = excelRow.getCell(c);
 
@@ -250,9 +264,9 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
         vRight = { style: 'thin', color: { argb: 'FF888888' } };
       }
 
-      // Garis horizontal sesuai leveling
+      // Garis horizontal berjenjang sesuai leveling (selalu bergaris jelas saat dicetak)
       let hTop = undefined;
-      let hBottom = { style: 'hair', color: { argb: 'FFE5E5E5' } };
+      let hBottom = { style: 'thin', color: { argb: 'FFE5E7EB' } };
 
       if (treeLvl === 1) {
         hTop = { style: 'medium', color: { argb: 'FF333333' } };
@@ -264,9 +278,9 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
         hTop = { style: 'hair', color: { argb: 'FFCCCCCC' } };
         hBottom = { style: 'thin', color: { argb: 'FFAAAAAA' } };
       } else if (treeLvl === 4) {
-        hBottom = { style: 'hair', color: { argb: 'FFCCCCCC' } };
+        hBottom = { style: 'thin', color: { argb: 'FFD4D4D8' } };
       } else if (treeLvl === 5.5) {
-        hBottom = { style: 'hair', color: { argb: 'FFCCCCCC' } };
+        hBottom = { style: 'thin', color: { argb: 'FFD4D4D8' } };
       } else if (treeLvl === 5) {
         hTop = { style: 'hair', color: { argb: 'FFCCCCCC' } };
         hBottom = { style: 'thin', color: { argb: 'FFBBBBBB' } };
@@ -286,64 +300,63 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       cell.border = {
         left: { style: c === 13 ? 'thin' : 'hair', color: { argb: 'FFCCCCCC' } },
         right: { style: c === 15 ? 'thin' : 'hair', color: { argb: 'FFCCCCCC' } },
-        bottom: { style: 'hair', color: { argb: 'FFE5E5E5' } }
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }
       };
     }
 
-    // SKEMA WARNA ASLI FA 16 DETAIL SAKTI KEMENKEU:
-    // Bersih tanpa blok kuning web, menggunakan font color pembeda antar level
+    // SKEMA WARNA & UKURAN FONT BERJENJANG (Ukuran Terendah 11pt, Semakin Naik Level Semakin Besar):
     if (treeLvl === 1) {
-      // Level 1: Kelompok Belanja (A / B) - Font Hitam Bold 10.5pt
+      // Level 1: Kelompok Belanja (A / B) - Font Hitam Bold 15pt
       for (let c = 1; c <= 11; c++) {
-        excelRow.getCell(c).font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF000000' } };
+        excelRow.getCell(c).font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF000000' } };
       }
       excelRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 2) {
-      // Level 2: Tahapan (I / II) - Font Hitam Bold 10pt
+      // Level 2: Tahapan (I / II) - Font Hitam Bold 14pt
       for (let c = 1; c <= 11; c++) {
-        excelRow.getCell(c).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF000000' } };
+        excelRow.getCell(c).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } };
       }
       excelRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 3) {
-      // Level 3: Kegiatan (1..28) - SAKTI Output: FONT MERAH TEGAS (#FF0000) Bold!
+      // Level 3: Kegiatan (1..28) - SAKTI Output: FONT MERAH TEGAS (#FF0000) Bold 13pt!
       for (let c = 1; c <= 11; c++) {
-        excelRow.getCell(c).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFFF0000' } };
+        excelRow.getCell(c).font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FFFF0000' } };
       }
       excelRow.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 4) {
-      // Level 4: Sub-Kegiatan - SAKTI SubOutput: FONT UNGU / MAGENTA (#CC00CC) Bold!
+      // Level 4: Sub-Kegiatan - SAKTI SubOutput: FONT UNGU / MAGENTA (#CC00CC) Bold 12.5pt!
       for (let c = 1; c <= 11; c++) {
-        excelRow.getCell(c).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFCC00CC' } };
+        excelRow.getCell(c).font = { name: 'Calibri', size: 12.5, bold: true, color: { argb: 'FFCC00CC' } };
       }
       excelRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 5) {
-      // Level 5: Akun BAS 6-Digit (521211, dll) - SAKTI Akun: Font Hitam Bold 9.5pt
+      // Level 5: Akun BAS 6-Digit (521211, dll) - SAKTI Akun: Font Hitam Bold 12pt
       for (let c = 1; c <= 11; c++) {
-        excelRow.getCell(c).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF000000' } };
+        excelRow.getCell(c).font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
       }
       excelRow.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 5.5) {
-      // Level 5.5: Sub-Header Item / Komponen - SAKTI Komponen: FONT COKLAT KEEMASAN / GOLD (#CC9900) Bold!
+      // Level 5.5: Sub-Header Item / Komponen - SAKTI Komponen: FONT COKLAT KEEMASAN / GOLD (#CC9900) Bold 12pt!
       for (let c = 1; c <= 11; c++) {
-        excelRow.getCell(c).font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFCC9900' } };
+        excelRow.getCell(c).font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFCC9900' } };
       }
       excelRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else {
-      // Level 6: Item Belanja Riil - Font Hitam Regular Standar 9.5pt
+      // Level 6: Item Belanja Riil - Font Hitam Regular Standar 11pt (Ukuran Terendah 11pt)
       for (let c = 1; c <= 15; c++) {
-        excelRow.getCell(c).font = { name: 'Calibri', size: 9.5, color: { argb: 'FF000000' } };
+        excelRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
       }
       excelRow.getCell(8).numFmt = '#,##0'; // Vol
       excelRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
@@ -360,15 +373,15 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     }
   });
 
-  // BARIS TOTAL PAGU RUH BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold)
+  // BARIS TOTAL PAGU BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold, Tanpa 'RUH')
   const totalRowNumber = ws1.rowCount + 1;
   const totalRow = ws1.addRow([
-    'TOTAL PAGU RUH BELANJA:', '', '', '', '', '', '', '', '', '',
+    'TOTAL PAGU BELANJA:', '', '', '', '', '', '', '', '', '',
     summary.grandTotal || 0,
     '', '', '', ''
   ]);
   ws1.mergeCells(`A${totalRowNumber}:J${totalRowNumber}`);
-  totalRow.height = 25;
+  totalRow.height = 28;
 
   const cyanSaktiFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } }; // CYAN SAKTI
 
@@ -383,13 +396,13 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     };
   }
   const totalLabelCell = ws1.getCell(`A${totalRowNumber}`);
-  totalLabelCell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF000000' } };
+  totalLabelCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
   totalLabelCell.alignment = { vertical: 'middle', horizontal: 'right' };
 
   // Total nilai cell (K)
   const totalValCell = ws1.getCell(`K${totalRowNumber}`);
   totalValCell.fill = cyanSaktiFill;
-  totalValCell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF000000' } };
+  totalValCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
   totalValCell.alignment = { vertical: 'middle', horizontal: 'right' };
   totalValCell.numFmt = '#,##0';
   totalValCell.border = {
@@ -404,22 +417,32 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws1.addRow([]);
 
   const signR1 = ws1.rowCount + 1;
-  ws1.addRow(['', '', '', '', '', '', '', '', '', `NGAWI, ${tanggalUnduh}`]);
-  ws1.addRow(['', '', '', '', '', '', '', '', '', 'Ketua Komisi Pemilihan Umum']);
-  ws1.addRow(['', '', '', '', '', '', '', '', '', 'Kabupaten Ngawi,']);
+  ws1.addRow(['', '', '', '', '', '', '', '', `NGAWI, ${tanggalUnduh}`]);
+  ws1.addRow(['', '', '', '', '', '', '', '', 'Ketua Komisi Pemilihan Umum']);
+  ws1.addRow(['', '', '', '', '', '', '', '', 'Kabupaten Ngawi,']);
   ws1.addRow([]);
   ws1.addRow([]);
   ws1.addRow([]);
   const namaKetua = settings.nama_ketua || 'SAMSU MUSTAKIM';
-  ws1.addRow(['', '', '', '', '', '', '', '', '', namaKetua]);
+  ws1.addRow(['', '', '', '', '', '', '', '', namaKetua]);
   const signEndRow = ws1.rowCount;
 
-  ws1.getCell(`J${signR1}`).font = { name: 'Calibri', size: 10, bold: true };
-  ws1.getCell(`J${signR1 + 1}`).font = { name: 'Calibri', size: 10, bold: true };
-  ws1.getCell(`J${signR1 + 2}`).font = { name: 'Calibri', size: 10, bold: true };
-  ws1.getCell(`J${signEndRow}`).font = { name: 'Calibri', size: 11, bold: true, underline: true };
+  // Format Tanda Tangan: Merge I s.d. K agar posisi terpusat di kolom kanan
+  [signR1, signR1 + 1, signR1 + 2, signEndRow].forEach((rNum, idx) => {
+    ws1.mergeCells(`I${rNum}:K${rNum}`);
+    const c = ws1.getCell(`I${rNum}`);
+    c.alignment = { vertical: 'middle', horizontal: 'center' };
+    if (idx < 3) {
+      c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
+    } else {
+      c.font = { name: 'Calibri', size: 12, bold: true, underline: true, color: { argb: 'FF000000' } };
+      // Garis bawah tegas penutup tanda tangan resmi
+      c.border = { bottom: { style: 'medium', color: { argb: 'FF000000' } } };
+    }
+  });
 
   // Set Print Area Resmi Dokumen: Hanya dari Baris 1 sampai Baris Akhir Tanda Tangan
+  // Pastikan tidak ada baris tanpa garis
   ws1.pageSetup.printArea = `A1:K${signEndRow}`;
 
   // ==========================================================================
@@ -437,12 +460,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
   [hRow1, hRow2, hRow3, hRow4].forEach(hr => {
     const c = hr.getCell(1);
-    c.font = { name: 'Calibri', size: 8.5, italic: true, color: { argb: 'FF666666' } };
+    c.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF666666' } };
   });
 
   // LEBAR KOLOM DIRAPATKAN SEPERTI FA 16 DETAIL SAKTI
   // Kolom A sampai D membentuk kesatuan header "Nomor", Kolom E adalah "Kode"
-  const colWidths1 = [3.5, 3.5, 3.5, 4.0, 8.5, 52.0, 22.0, 10.0, 10.0, 16.0, 18.0, 3.5, 6.0, 11.0, 11.0];
+  const colWidths1 = [4.0, 4.0, 4.0, 4.5, 9.5, 52.0, 22.0, 10.5, 10.5, 17.0, 19.0, 3.5, 6.5, 12.0, 12.0];
   colWidths1.forEach((w, i) => {
     ws1.getColumn(i + 1).width = w;
   });
@@ -451,6 +474,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   // SHEET 2: Data_Kertas_Kerja (Flat Table Lengkap dengan Kode Level Terpisah)
   // ==========================================================================
   const ws2 = wb.addWorksheet('Data_Kertas_Kerja');
+  ws2.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
 
   const rowByTreeId = {};
   rows.forEach(r => { rowByTreeId[r.tree_id] = r; });
@@ -475,10 +499,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ];
 
   const headerRow2 = ws2.addRow(headersSheet2);
-  headerRow2.height = 22;
+  headerRow2.height = 26;
   headerRow2.eachCell(cell => {
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-    cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
     cell.alignment = { vertical: 'middle', horizontal: 'center' };
   });
 
@@ -529,20 +553,35 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ];
 
     const dRow = ws2.addRow(rValues);
-    dRow.height = 18;
-    dRow.getCell(1).alignment = { horizontal: 'center' };
-    dRow.getCell(2).alignment = { horizontal: 'center' };
-    dRow.getCell(3).alignment = { horizontal: 'center' };
-    dRow.getCell(4).alignment = { horizontal: 'center' };
-    dRow.getCell(5).alignment = { horizontal: 'center' };
-    dRow.getCell(6).alignment = { horizontal: 'center' };
-    dRow.getCell(7).alignment = { horizontal: 'center' };
+    dRow.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
+
+    for (let c = 1; c <= 16; c++) {
+      const cell = dRow.getCell(c);
+      cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+      cell.border = {
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+      };
+    }
+
+    dRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    dRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+    dRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+    dRow.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+    dRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+    dRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
+    dRow.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
+    dRow.getCell(8).alignment = { horizontal: 'left', vertical: 'middle' };
     dRow.getCell(9).numFmt = '#,##0';
-    dRow.getCell(10).alignment = { horizontal: 'center' };
+    dRow.getCell(9).alignment = { horizontal: 'right', vertical: 'middle' };
+    dRow.getCell(10).alignment = { horizontal: 'center', vertical: 'middle' };
     dRow.getCell(12).numFmt = '#,##0';
+    dRow.getCell(12).alignment = { horizontal: 'right', vertical: 'middle' };
     dRow.getCell(13).numFmt = '#,##0';
-    dRow.getCell(14).alignment = { horizontal: 'center' };
-    dRow.getCell(15).alignment = { horizontal: 'center' };
+    dRow.getCell(13).alignment = { horizontal: 'right', vertical: 'middle' };
+    dRow.getCell(14).alignment = { horizontal: 'center', vertical: 'middle' };
+    dRow.getCell(15).alignment = { horizontal: 'center', vertical: 'middle' };
   });
 
   ws2.columns = [
@@ -592,6 +631,8 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
     const sheet3Rows = rows.filter(r => includedTreeIds.has(r.tree_id));
 
+    ws3.views = [{ state: 'frozen', xSplit: 0, ySplit: 7 }];
+
     ws3.addRow(['MATRIKS PERUBAHAN RENCANA USULAN HALAMAN BELANJA (SEMULA - MENJADI)']);
     ws3.addRow(['KPU KABUPATEN NGAWI - PILKADA SERENTAK']);
     ws3.addRow([`Dokumen Semula: ${parent.nama || parent.versi_revisi}  ==>  Dokumen Menjadi: ${periode.nama_periode} (${periode.versi_revisi})`]);
@@ -600,7 +641,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ws3.addRow([]);
 
     ws3.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
-    ws3.getCell('A2').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF000000' } };
+    ws3.getCell('A2').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } };
 
     const headersSheet3 = [
       'No', 'Level', 'Kode', 'Uraian Kegiatan / Akun / Rincian Belanja',
@@ -610,10 +651,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ];
 
     const hRow3 = ws3.addRow(headersSheet3);
-    hRow3.height = 24;
+    hRow3.height = 26;
     hRow3.eachCell(cell => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
-      cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
 
@@ -647,11 +688,22 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       ];
 
       const mRow = ws3.addRow(rowValues);
-      mRow.height = 20;
+      mRow.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
 
-      mRow.getCell(1).alignment = { horizontal: 'center' };
-      mRow.getCell(2).alignment = { horizontal: 'center' };
-      mRow.getCell(3).alignment = { horizontal: 'center' };
+      for (let c = 1; c <= 13; c++) {
+        const cell = mRow.getCell(c);
+        cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+        };
+      }
+
+      mRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      mRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+      mRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+      mRow.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
       mRow.getCell(5).numFmt = '#,##0';
       mRow.getCell(6).numFmt = '#,##0';
       mRow.getCell(7).numFmt = '#,##0';
@@ -659,17 +711,17 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       mRow.getCell(9).numFmt = '#,##0';
       mRow.getCell(10).numFmt = '#,##0';
       mRow.getCell(11).numFmt = '#,##0';
-      mRow.getCell(12).alignment = { horizontal: 'center' };
+      mRow.getCell(12).alignment = { horizontal: 'center', vertical: 'middle' };
 
       if (diffInfo.status === 'BERTAMBAH') {
         mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
-        mRow.getCell(12).font = { name: 'Calibri', bold: true, color: { argb: 'FF166534' } };
+        mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF166534' } };
       } else if (diffInfo.status === 'BERKURANG') {
         mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-        mRow.getCell(12).font = { name: 'Calibri', bold: true, color: { argb: 'FF991B1B' } };
+        mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF991B1B' } };
       } else if (diffInfo.status === 'BARU') {
         mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
-        mRow.getCell(12).font = { name: 'Calibri', bold: true, color: { argb: 'FF6B21A8' } };
+        mRow.getCell(12).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF6B21A8' } };
       }
     });
 
@@ -724,19 +776,19 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws4.mergeCells('A3:G3');
   ws4.mergeCells('A4:G4');
 
-  ws4.getCell('A1').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
+  ws4.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
   ws4.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('A2').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF006699' } };
+  ws4.getCell('A2').font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF006699' } };
   ws4.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('A3').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF333333' } };
+  ws4.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
   ws4.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('A4').font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF666666' } };
+  ws4.getCell('A4').font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF666666' } };
   ws4.getCell('A4').alignment = { vertical: 'middle', horizontal: 'center' };
 
-  ws4.getRow(1).height = 20;
-  ws4.getRow(2).height = 24;
-  ws4.getRow(3).height = 20;
-  ws4.getRow(4).height = 18;
+  ws4.getRow(1).height = 22;
+  ws4.getRow(2).height = 26;
+  ws4.getRow(3).height = 22;
+  ws4.getRow(4).height = 20;
   ws4.getRow(5).height = 10;
 
   // 2. KARTU INDIKATOR MAKRO EKSEKUTIF (BARIS 6 - 8)
@@ -745,7 +797,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const valPeserta = sas.PESERTA || 0;
 
   const cardHeaderRow = ws4.addRow([
-    'TOTAL PAGU HIBAH NPHD', '',
+    'TOTAL PAGU BELANJA', '',
     'OPERASIONAL & LOGISTIK KAB.',
     'ALOKASI BADAN AD HOC',
     'FASILITASI PESERTA PEMILIHAN', '', ''
@@ -763,9 +815,9 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     `${((valPeserta / grandTotal) * 100).toFixed(2)}% Paslon & Parpol (Debat, APK, dll)`, '', ''
   ]);
 
-  cardHeaderRow.height = 18;
-  cardValRow.height = 26;
-  cardSubRow.height = 18;
+  cardHeaderRow.height = 20;
+  cardValRow.height = 28;
+  cardSubRow.height = 20;
 
   ws4.mergeCells('A6:B6'); ws4.mergeCells('A7:B7'); ws4.mergeCells('A8:B8');
   ws4.mergeCells('E6:F6'); ws4.mergeCells('E7:F7'); ws4.mergeCells('E8:F8');
@@ -776,10 +828,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       ws4.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
     });
   });
-  ws4.getCell('A6').font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF0369A1' } };
-  ws4.getCell('A7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF0284C7' } };
+  ws4.getCell('A6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+  ws4.getCell('A7').font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF0284C7' } };
   ws4.getCell('A7').numFmt = '#,##0';
-  ws4.getCell('A8').font = { name: 'Calibri', size: 8.5, italic: true, color: { argb: 'FF075985' } };
+  ws4.getCell('A8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF075985' } };
   ws4.getCell('A6').alignment = { vertical: 'middle', horizontal: 'center' };
   ws4.getCell('A7').alignment = { vertical: 'middle', horizontal: 'center' };
   ws4.getCell('A8').alignment = { vertical: 'middle', horizontal: 'center' };
@@ -788,10 +840,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   [6, 7, 8].forEach(r => {
     ws4.getCell(`C${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
   });
-  ws4.getCell('C6').font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF6B21A8' } };
-  ws4.getCell('C7').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF7E22CE' } };
+  ws4.getCell('C6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF6B21A8' } };
+  ws4.getCell('C7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF7E22CE' } };
   ws4.getCell('C7').numFmt = '#,##0';
-  ws4.getCell('C8').font = { name: 'Calibri', size: 8.5, italic: true, color: { argb: 'FF581C87' } };
+  ws4.getCell('C8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF581C87' } };
   ws4.getCell('C6').alignment = { vertical: 'middle', horizontal: 'center' };
   ws4.getCell('C7').alignment = { vertical: 'middle', horizontal: 'center' };
   ws4.getCell('C8').alignment = { vertical: 'middle', horizontal: 'center' };
@@ -800,10 +852,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   [6, 7, 8].forEach(r => {
     ws4.getCell(`D${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
   });
-  ws4.getCell('D6').font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF15803D' } };
-  ws4.getCell('D7').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF16A34A' } };
+  ws4.getCell('D6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF15803D' } };
+  ws4.getCell('D7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF16A34A' } };
   ws4.getCell('D7').numFmt = '#,##0';
-  ws4.getCell('D8').font = { name: 'Calibri', size: 8.5, italic: true, color: { argb: 'FF14532D' } };
+  ws4.getCell('D8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF14532D' } };
   ws4.getCell('D6').alignment = { vertical: 'middle', horizontal: 'center' };
   ws4.getCell('D7').alignment = { vertical: 'middle', horizontal: 'center' };
   ws4.getCell('D8').alignment = { vertical: 'middle', horizontal: 'center' };
@@ -814,23 +866,23 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       ws4.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
     });
   });
-  ws4.getCell('E6').font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFB45309' } };
-  ws4.getCell('E7').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FFD97706' } };
+  ws4.getCell('E6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFB45309' } };
+  ws4.getCell('E7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFD97706' } };
   ws4.getCell('E7').numFmt = '#,##0';
-  ws4.getCell('E8').font = { name: 'Calibri', size: 8.5, italic: true, color: { argb: 'FF78350F' } };
+  ws4.getCell('E8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF78350F' } };
   ws4.getCell('E6').alignment = { vertical: 'middle', horizontal: 'center' };
   ws4.getCell('E7').alignment = { vertical: 'middle', horizontal: 'center' };
   ws4.getCell('E8').alignment = { vertical: 'middle', horizontal: 'center' };
 
   ws4.addRow([]); // Baris 9 kosong
 
-  // Helper Styling Header Tabel Presentasi
+  // Helper Styling Header Tabel Presentasi (Minimal 11pt)
   function applyPresentationHeader(row, colsCount = 6) {
-    row.height = 24;
+    row.height = 26;
     for (let c = 1; c <= colsCount; c++) {
       const cell = row.getCell(c);
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
-      cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
       cell.border = {
         top: { style: 'thin', color: { argb: 'FF006699' } },
@@ -843,11 +895,11 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
   function applySectionBanner(text, colsCount = 6) {
     const r = ws4.addRow([text]);
-    r.height = 22;
+    r.height = 24;
     ws4.mergeCells(`A${r.number}:${String.fromCharCode(64 + colsCount)}${r.number}`);
     const cell = r.getCell(1);
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-    cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
     cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     return r;
   }
@@ -870,20 +922,21 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   dataSasaran.forEach((d, idx) => {
     const pct = ((d.val / grandTotal) * 100).toFixed(2) + '%';
     const r = ws4.addRow([idx + 1, d.title, d.entitas, d.val, pct, d.desc]);
-    r.height = 20;
+    r.height = 22;
+    for (let c = 1; c <= 6; c++) {
+      r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+      r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+    }
     r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     r.getCell(4).numFmt = '#,##0';
     r.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
     r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-    for (let c = 1; c <= 6; c++) {
-      r.getCell(c).border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
   });
 
   const pctPenyelenggara = ((totalPenyelenggara / grandTotal) * 100).toFixed(2) + '%';
   const totPenyRow = ws4.addRow(['', 'SUBTOTAL PENYELENGGARA PEMILIHAN (1 s.d 5):', 'Seluruh Wilayah Kabupaten Ngawi', totalPenyelenggara, pctPenyelenggara, 'Akumulasi anggaran seluruh tingkatan penyelenggara (KPU, PPK, PPS, KPPS, Pantarlih)']);
-  totPenyRow.height = 22;
-  totPenyRow.font = { name: 'Calibri', size: 9.5, bold: true };
+  totPenyRow.height = 24;
+  totPenyRow.font = { name: 'Calibri', size: 11, bold: true };
   totPenyRow.getCell(4).numFmt = '#,##0';
   totPenyRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
   totPenyRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -894,18 +947,19 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
   const pctPeserta = ((valPeserta / grandTotal) * 100).toFixed(2) + '%';
   const pesertaRow = ws4.addRow(['6', 'Fasilitasi Peserta Pemilihan', 'Paslon & Partai Politik', valPeserta, pctPeserta, 'Pencetakan & pemasangan APK, bahan kampanye paslon, debat publik terbuka, fasilitasi iklan media massa, dan audit KAP']);
-  pesertaRow.height = 20;
+  pesertaRow.height = 22;
+  for (let c = 1; c <= 6; c++) {
+    pesertaRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+    pesertaRow.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+  }
   pesertaRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
   pesertaRow.getCell(4).numFmt = '#,##0';
   pesertaRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
   pesertaRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-  for (let c = 1; c <= 6; c++) {
-    pesertaRow.getCell(c).border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-  }
 
-  const grandTotRow = ws4.addRow(['', 'TOTAL PAGU RUH BELANJA:', 'Hibah NPHD Pilkada 2029', grandTotal, '100.00%', 'Anggaran berimbang (100% balance) siap dilaksanakan dan dipertanggungjawabkan']);
-  grandTotRow.height = 24;
-  grandTotRow.font = { name: 'Calibri', size: 10, bold: true };
+  const grandTotRow = ws4.addRow(['', 'TOTAL PAGU BELANJA:', 'Hibah NPHD Pilkada 2029', grandTotal, '100.00%', 'Anggaran berimbang (100% balance) siap dilaksanakan dan dipertanggungjawabkan']);
+  grandTotRow.height = 26;
+  grandTotRow.font = { name: 'Calibri', size: 11.5, bold: true };
   grandTotRow.getCell(4).numFmt = '#,##0';
   grandTotRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
   grandTotRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -934,19 +988,20 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   dataPilar.forEach(d => {
     const pct = ((d.val / grandTotal) * 100).toFixed(2) + '%';
     const r = ws4.addRow([d.no, d.title, d.rincian, d.val, pct, d.desc]);
-    r.height = 21;
+    r.height = 22;
+    for (let c = 1; c <= 6; c++) {
+      r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+      r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+    }
     r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     r.getCell(4).numFmt = '#,##0';
     r.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
     r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-    for (let c = 1; c <= 6; c++) {
-      r.getCell(c).border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
   });
 
   const totPilarRow = ws4.addRow(['', 'TOTAL KESELURUHAN DUA PILAR (1 + 2):', '100% Seluruh Komponen Pelaksanaan', (totPilarTahapan + totPilarHonor), '100.00%', 'Komposisi seimbang antara pelaksanaan kegiatan teknis dan kesejahteraan penyelenggara lapangan']);
-  totPilarRow.height = 24;
-  totPilarRow.font = { name: 'Calibri', size: 10, bold: true };
+  totPilarRow.height = 26;
+  totPilarRow.font = { name: 'Calibri', size: 11.5, bold: true };
   totPilarRow.getCell(4).numFmt = '#,##0';
   totPilarRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
   totPilarRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -999,8 +1054,8 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     if (currentCluster && currentCluster !== cluster) {
       const pctSub = ((clusterSubtotal / grandTotal) * 100).toFixed(2) + '%';
       const subRow = ws4.addRow(['', '', `SUBTOTAL ${currentCluster.toUpperCase()}`, currentCluster, clusterSubtotal, pctSub, 'Akumulasi Kluster']);
-      subRow.height = 20;
-      subRow.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF1E293B' } };
+      subRow.height = 23;
+      subRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1E293B' } };
       subRow.getCell(5).numFmt = '#,##0';
       subRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
       subRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1028,7 +1083,11 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       r.pic_bagian || '-'
     ]);
 
-    rRow.height = 19;
+    rRow.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
+    for (let c = 1; c <= 7; c++) {
+      rRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+      rRow.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+    }
     rRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     rRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
     rRow.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
@@ -1036,18 +1095,14 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     rRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
     rRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
     rRow.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
-
-    for (let c = 1; c <= 7; c++) {
-      rRow.getCell(c).border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
   });
 
   // Cetak subtotal kluster terakhir (Kluster IV)
   if (currentCluster) {
     const pctSub = ((clusterSubtotal / grandTotal) * 100).toFixed(2) + '%';
     const subRow = ws4.addRow(['', '', `SUBTOTAL ${currentCluster.toUpperCase()}`, currentCluster, clusterSubtotal, pctSub, 'Akumulasi Kluster']);
-    subRow.height = 20;
-    subRow.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF1E293B' } };
+    subRow.height = 23;
+    subRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1E293B' } };
     subRow.getCell(5).numFmt = '#,##0';
     subRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
     subRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1071,16 +1126,17 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       pctPokja,
       'KUL / Lintas Subbag'
     ]);
-    pokjaRow.height = 19;
+    pokjaRow.height = 22;
+    for (let c = 1; c <= 7; c++) {
+      pokjaRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+      pokjaRow.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+    }
     pokjaRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     pokjaRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
     pokjaRow.getCell(5).numFmt = '#,##0';
     pokjaRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
     pokjaRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
     pokjaRow.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
-    for (let c = 1; c <= 7; c++) {
-      pokjaRow.getCell(c).border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
   }
 
   // Grand Total Level 3 (100% Balance!)
@@ -1089,8 +1145,8 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   totAllL3 += valPokja;
 
   const grandTotL3 = ws4.addRow(['', '', 'TOTAL REKAPITULASI KEGIATAN & HONORARIUM:', 'Seluruh Program Pilkada', totAllL3, '100.00%', '100% Balance']);
-  grandTotL3.height = 24;
-  grandTotL3.font = { name: 'Calibri', size: 10, bold: true };
+  grandTotL3.height = 26;
+  grandTotL3.font = { name: 'Calibri', size: 11.5, bold: true };
   grandTotL3.getCell(5).numFmt = '#,##0';
   grandTotL3.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
   grandTotL3.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1123,19 +1179,20 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     totPicSum += val;
     const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
     const r = ws4.addRow([idx + 1, p.name, val, pct, p.desc, '']);
-    r.height = 22;
+    r.height = 24;
+    for (let c = 1; c <= 5; c++) {
+      r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+      r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+    }
     r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     r.getCell(3).numFmt = '#,##0';
     r.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
     r.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
-    for (let c = 1; c <= 5; c++) {
-      r.getCell(c).border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
   });
 
   const totPicRow = ws4.addRow(['', 'TOTAL SELURUH SUBBAGIAN (1 s.d 5):', totPicSum, '100.00%', 'Alokasi terbagi proporsional sesuai tugas pokok dan fungsi 5 subbagian KPU Kabupaten Ngawi', '']);
-  totPicRow.height = 24;
-  totPicRow.font = { name: 'Calibri', size: 10, bold: true };
+  totPicRow.height = 26;
+  totPicRow.font = { name: 'Calibri', size: 11.5, bold: true };
   totPicRow.getCell(3).numFmt = '#,##0';
   totPicRow.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
   totPicRow.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1170,20 +1227,21 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     totAkunSum += val;
     const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
     const r = ws4.addRow([counterAkun++, kd, akunMap[kd] || 'Belanja', getAkunCategory(kd), val, pct]);
-    r.height = 20;
+    r.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
+    for (let c = 1; c <= 6; c++) {
+      r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+      r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+    }
     r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     r.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
     r.getCell(5).numFmt = '#,##0';
     r.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
     r.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-    for (let c = 1; c <= 6; c++) {
-      r.getCell(c).border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
   });
 
   const totAkunRow = ws4.addRow(['', '', 'TOTAL REKAPITULASI BAGAN AKUN STANDAR:', 'Seluruh Akun BAS', totAkunSum, '100.00%']);
-  totAkunRow.height = 24;
-  totAkunRow.font = { name: 'Calibri', size: 10, bold: true };
+  totAkunRow.height = 26;
+  totAkunRow.font = { name: 'Calibri', size: 11.5, bold: true };
   totAkunRow.getCell(5).numFmt = '#,##0';
   totAkunRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
   totAkunRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1205,13 +1263,13 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws4.addRow([]);
   ws4.addRow(['', '', '', '', namaKetua, '']);
 
-  ws4.getCell(`E${signR4}`).font = { name: 'Calibri', size: 10, bold: true };
+  ws4.getCell(`E${signR4}`).font = { name: 'Calibri', size: 11, bold: true };
   ws4.getCell(`E${signR4}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  ws4.getCell(`E${signR4 + 1}`).font = { name: 'Calibri', size: 10, bold: true };
+  ws4.getCell(`E${signR4 + 1}`).font = { name: 'Calibri', size: 11, bold: true };
   ws4.getCell(`E${signR4 + 1}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  ws4.getCell(`E${signR4 + 2}`).font = { name: 'Calibri', size: 10, bold: true };
+  ws4.getCell(`E${signR4 + 2}`).font = { name: 'Calibri', size: 11, bold: true };
   ws4.getCell(`E${signR4 + 2}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  ws4.getCell(`E${signR4 + 6}`).font = { name: 'Calibri', size: 11, bold: true, underline: true };
+  ws4.getCell(`E${signR4 + 6}`).font = { name: 'Calibri', size: 12, bold: true, underline: true };
   ws4.getCell(`E${signR4 + 6}`).alignment = { horizontal: 'center', vertical: 'middle' };
 
   // LEBAR KOLOM SHEET REKAP_ALOKASI (Presentasi-Ready Layout)
