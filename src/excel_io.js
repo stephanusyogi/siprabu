@@ -1,6 +1,6 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
- * Modul Export Excel (XLSX) Multi-Sheet Resmi (SAKTI Leveling & Color Architecture)
+ * Modul Export Excel (XLSX) Multi-Sheet Resmi (SAKTI FA 16 Detail Architecture)
  * Pengembang Resmi: emenje <emenje@kpu-ngawi.go.id>
  */
 
@@ -10,6 +10,7 @@ const { calculateRkbDataset, getRevisionComparison } = require('./calculation');
 
 /**
  * Menghasilkan buffer XLSX untuk download RUH Belanja Multi-Sheet
+ * Sesuai Standar FA Detail 16 Segmen SAKTI Kemenkeu
  * @param {number} periodeId
  * @param {object} options { pic, sasaran, scope }
  * @returns {Promise<Buffer>}
@@ -91,7 +92,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const tanggalUnduh = `${now.getDate()} ${bulanIndo[now.getMonth()]} ${now.getFullYear()}`;
 
   // ==========================================================================
-  // SHEET 1: RUH_Belanja_Resmi (Kolom Terpisah per-Level & Tema SAKTI)
+  // SHEET 1: RUH_Belanja_Resmi (FA 16 Detail Architecture: Kolom Kode Dirapatkan)
   // ==========================================================================
   const ws1 = wb.addWorksheet('RUH_Belanja_Resmi', {
     pageSetup: {
@@ -100,7 +101,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }
+      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
     }
   });
 
@@ -111,60 +112,59 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws1.addRow([`Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'} | Tanggal Unduh: ${tanggalUnduh}${hasFilter ? ` | Filter: PIC=${filterPic || 'SEMUA'}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
   ws1.addRow([]); // Baris 5 kosong
 
-  ws1.getCell('A1').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F172A' } };
-  ws1.getCell('A2').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF1E3A8A' } };
-  ws1.getCell('A3').font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF475569' } };
-  ws1.getCell('A4').font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF475569' } };
+  ws1.getCell('A1').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
+  ws1.getCell('A2').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF000000' } };
+  ws1.getCell('A3').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF333333' } };
+  ws1.getCell('A4').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF333333' } };
 
-  // Definisi Kolom Sheet 1 (Opsi A: Kolom Kode Terpisah per-Level)
-  const headersSheet1 = [
-    'Kelompok', // Col 1 (A) - Level 1 (A, B)
-    'Tahapan',  // Col 2 (B) - Level 2 (I, II)
-    'Kegiatan', // Col 3 (C) - Level 3 (1..28)
-    'Sub-Keg',  // Col 4 (D) - Level 4 (a..d, -)
-    'Akun BAS', // Col 5 (E) - Level 5 (52xxxx)
-    'Uraian Komponen / Akun / Rincian Belanja', // Col 6 (F)
-    'Rincian Perhitungan', // Col 7 (G)
-    'Volume',              // Col 8 (H)
-    'Satuan',              // Col 9 (I)
-    'Harga Satuan (Rp)',   // Col 10 (J)
-    'Jumlah (Rp)',         // Col 11 (K)
-    '',                    // Col 12 (L) - Kolom Kosong Spacer
-    'No',                  // Col 13 (M)
-    'PIC',                 // Col 14 (N)
-    'Sasaran'              // Col 15 (O)
-  ];
+  // BARIS HEADER (Baris 6)
+  // Kolom A sampai E dimerge menjadi satu judul: "KODE"
+  ws1.mergeCells('A6:E6');
+  ws1.getCell('A6').value = 'KODE';
+  ws1.getCell('F6').value = 'Uraian Komponen / Akun / Rincian Belanja';
+  ws1.getCell('G6').value = 'Rincian Perhitungan';
+  ws1.getCell('H6').value = 'Volume';
+  ws1.getCell('I6').value = 'Satuan';
+  ws1.getCell('J6').value = 'Harga Satuan (Rp)';
+  ws1.getCell('K6').value = 'Jumlah (Rp)';
+  ws1.getCell('L6').value = ''; // Spacer
+  ws1.getCell('M6').value = 'No';
+  ws1.getCell('N6').value = 'PIC';
+  ws1.getCell('O6').value = 'Sasaran';
 
-  const headerRow1 = ws1.addRow(headersSheet1);
-  headerRow1.height = 25;
+  const headerRow1 = ws1.getRow(6);
+  headerRow1.height = 24;
 
-  headerRow1.eachCell((cell, colNumber) => {
-    if (colNumber === 12) return; // Kolom kosong spacer tidak di-fill
+  // Latar Header SAKTI FA Detail 16 Segmen (#0099CC), font putih tebal
+  const sHeaderColor = 'FF0099CC';
+  for (let c = 1; c <= 15; c++) {
+    if (c === 12) continue; // Kolom kosong spacer tidak di-fill
+    const cell = headerRow1.getCell(c);
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FF2563EB' } // SAKTI Vivid Blue
+      fgColor: { argb: sHeaderColor }
     };
     cell.font = {
       name: 'Calibri',
-      size: 10,
+      size: 9.5,
       bold: true,
       color: { argb: 'FFFFFFFF' }
     };
     cell.alignment = {
       vertical: 'middle',
-      horizontal: colNumber === 6 ? 'left' : 'center',
+      horizontal: c === 6 ? 'left' : 'center',
       wrapText: true
     };
     cell.border = {
-      top: { style: 'thin', color: { argb: 'FF1D4ED8' } },
-      bottom: { style: 'medium', color: { argb: 'FF1E40AF' } },
-      left: { style: 'thin', color: { argb: 'FF3B82F6' } },
-      right: { style: 'thin', color: { argb: 'FF3B82F6' } }
+      top: { style: 'thin', color: { argb: 'FF006699' } },
+      bottom: { style: 'medium', color: { argb: 'FF004C73' } },
+      left: { style: 'thin', color: { argb: 'FF00B4F0' } },
+      right: { style: 'thin', color: { argb: 'FF00B4F0' } }
     };
-  });
+  }
 
-  // Isi Data Baris Sheet 1
+  // ISI DATA BARIS SHEET 1
   exportRows.forEach((r, idx) => {
     const isItem = !r.is_header;
     const treeLvl = r.tree_level || (isItem ? 6 : (r.level_indent === 0 ? 1 : (r.level_indent === 1 ? 2 : (r.level_indent === 2 ? 3 : (r.level_indent === 3 ? 5 : 4)))));
@@ -201,88 +201,79 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ];
 
     const excelRow = ws1.addRow(rowValues);
-    excelRow.height = isItem ? 20 : (treeLvl <= 2 ? 24 : 21);
+    excelRow.height = isItem ? 19 : 21;
 
-    // Format & Styling per Level (Karakter SAKTI)
+    // SKEMA WARNA ASLI FA 16 DETAIL SAKTI KEMENKEU:
+    // Bersih tanpa blok kuning web, menggunakan font color pembeda antar level
     if (treeLvl === 1) {
-      // Level 1: Kelompok Belanja Utama (A / B) - SAKTI Yellow Highlight
+      // Level 1: Kelompok Belanja (A / B) - Font Hitam Bold, border pemisah
       for (let c = 1; c <= 11; c++) {
         const cell = excelRow.getCell(c);
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } }; // Soft Pastel Yellow
-        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F172A' } };
+        cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF000000' } };
         cell.border = {
-          top: { style: 'thin', color: { argb: 'FFCA8A04' } },
-          bottom: { style: 'medium', color: { argb: 'FFCA8A04' } }
+          top: { style: 'thin', color: { argb: 'FF999999' } },
+          bottom: { style: 'thin', color: { argb: 'FF999999' } }
         };
       }
-      excelRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
       excelRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 2) {
-      // Level 2: Tahapan (I / II) - SAKTI Underlined Bold
+      // Level 2: Tahapan (I / II) - Font Hitam Bold
       for (let c = 1; c <= 11; c++) {
         const cell = excelRow.getCell(c);
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-        cell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
-        cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF000000' } };
+        cell.border = { bottom: { style: 'hair', color: { argb: 'FFCCCCCC' } } };
       }
-      excelRow.getCell(2).font = { name: 'Calibri', size: 10.5, bold: true, underline: true, color: { argb: 'FF0F172A' } };
       excelRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(6).font = { name: 'Calibri', size: 10.5, bold: true, underline: true, color: { argb: 'FF0F172A' } };
-      excelRow.getCell(11).font = { name: 'Calibri', size: 10.5, bold: true, underline: true, color: { argb: 'FF0F172A' } };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 3) {
-      // Level 3: Kegiatan (1..28) - SAKTI Output Bold
+      // Level 3: Kegiatan (1..28) - SAKTI Output: FONT MERAH TEGAS (#FF0000) Bold!
       for (let c = 1; c <= 11; c++) {
         const cell = excelRow.getCell(c);
-        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } };
-        cell.border = { bottom: { style: 'thin', color: { argb: 'FFF1F5F9' } } };
+        cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFFF0000' } }; // MERAH SAKTI
+        cell.border = { bottom: { style: 'hair', color: { argb: 'FFEEEEEE' } } };
       }
       excelRow.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(3).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF1E3A8A' } };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 4) {
-      // Level 4: Sub-Kegiatan / Header - SAKTI SubOutput
+      // Level 4: Sub-Kegiatan - SAKTI SubOutput: FONT UNGU / MAGENTA (#CC00CC) Bold!
       for (let c = 1; c <= 11; c++) {
         const cell = excelRow.getCell(c);
-        cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF334155' } };
-        cell.border = { bottom: { style: 'thin', color: { argb: 'FFF8FAFC' } } };
+        cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFCC00CC' } }; // UNGU SAKTI
+        cell.border = { bottom: { style: 'hair', color: { argb: 'FFEEEEEE' } } };
       }
       excelRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 5) {
-      // Level 5: Akun BAS 6-Digit (521211, dll) - SAKTI Akun Underlined
+      // Level 5: Akun BAS 6-Digit (521211, dll) - SAKTI Akun: Font Hitam Bold
       for (let c = 1; c <= 11; c++) {
         const cell = excelRow.getCell(c);
-        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF1E3A8A' } };
-        cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+        cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF000000' } };
+        cell.border = { bottom: { style: 'hair', color: { argb: 'FFCCCCCC' } } };
       }
-      excelRow.getCell(5).font = { name: 'Calibri', size: 10, bold: true, underline: true, color: { argb: 'FF1E3A8A' } };
       excelRow.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(6).font = { name: 'Calibri', size: 10, bold: true, underline: true, color: { argb: 'FF1E3A8A' } };
-      excelRow.getCell(11).font = { name: 'Calibri', size: 10, bold: true, underline: true, color: { argb: 'FF1E3A8A' } };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 5.5) {
-      // Level 5.5: Sub-Header Item Teks (seperti a. Kantor/Inventaris)
+      // Level 5.5: Sub-Header Item / Komponen - SAKTI Komponen: FONT COKLAT KEEMASAN / GOLD (#CC9900) Bold!
       for (let c = 1; c <= 11; c++) {
         const cell = excelRow.getCell(c);
-        cell.font = { name: 'Calibri', size: 9.5, italic: true, bold: true, color: { argb: 'FF475569' } };
-        cell.border = { bottom: { style: 'thin', color: { argb: 'FFF8FAFC' } } };
+        cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFCC9900' } }; // GOLD SAKTI
+        cell.border = { bottom: { style: 'hair', color: { argb: 'FFEEEEEE' } } };
       }
       excelRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
       excelRow.getCell(11).numFmt = '#,##0';
       excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else {
-      // Level 6: Item Belanja Riil
+      // Level 6: Item Belanja Riil - Font Hitam Regular Standar
       for (let c = 1; c <= 15; c++) {
         const cell = excelRow.getCell(c);
-        cell.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF0F172A' } };
-        cell.border = { bottom: { style: 'hair', color: { argb: 'FFE2E8F0' } } };
+        cell.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF000000' } };
+        cell.border = { bottom: { style: 'hair', color: { argb: 'FFF0F0F0' } } };
       }
       excelRow.getCell(8).numFmt = '#,##0'; // Vol
       excelRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
@@ -299,7 +290,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     }
   });
 
-  // Baris Total Grand Total
+  // BARIS TOTAL PAGU RUH BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold)
   const totalRowNumber = ws1.rowCount + 1;
   const totalRow = ws1.addRow([
     'TOTAL PAGU RUH BELANJA:', '', '', '', '', '', '', '', '', '',
@@ -309,16 +300,26 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws1.mergeCells(`A${totalRowNumber}:J${totalRowNumber}`);
   totalRow.height = 24;
 
+  const cyanSaktiFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } }; // CYAN SAKTI
+
   const totalLabelCell = ws1.getCell(`A${totalRowNumber}`);
-  totalLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
-  totalLabelCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  totalLabelCell.fill = cyanSaktiFill;
+  totalLabelCell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF000000' } };
   totalLabelCell.alignment = { vertical: 'middle', horizontal: 'right' };
+  totalLabelCell.border = {
+    top: { style: 'thin', color: { argb: 'FF000000' } },
+    bottom: { style: 'double', color: { argb: 'FF000000' } }
+  };
 
   const totalValCell = ws1.getCell(`K${totalRowNumber}`);
-  totalValCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
-  totalValCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  totalValCell.fill = cyanSaktiFill;
+  totalValCell.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF000000' } };
   totalValCell.alignment = { vertical: 'middle', horizontal: 'right' };
   totalValCell.numFmt = '#,##0';
+  totalValCell.border = {
+    top: { style: 'thin', color: { argb: 'FF000000' } },
+    bottom: { style: 'double', color: { argb: 'FF000000' } }
+  };
 
   // Area Tanda Tangan: HANYA KETUA KPU KABUPATEN NGAWI
   ws1.addRow([]);
@@ -336,31 +337,18 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   signTitle2.getCell(10).font = { name: 'Calibri', size: 10, bold: true };
   signName.getCell(10).font = { name: 'Calibri', size: 11, bold: true, underline: true };
 
-  // Set Column Widths Sheet 1
-  ws1.columns = [
-    { width: 8 },  // Col A: Kelompok (A, B)
-    { width: 8 },  // Col B: Tahapan (I., II.)
-    { width: 8 },  // Col C: Kegiatan (1..28)
-    { width: 10 }, // Col D: Sub-Kegiatan (a..d, -)
-    { width: 11 }, // Col E: Akun BAS (521211, dll)
-    { width: 48 }, // Col F: Uraian Komponen / Akun / Rincian Belanja
-    { width: 22 }, // Col G: Rincian Perhitungan
-    { width: 9 },  // Col H: Volume
-    { width: 9 },  // Col I: Satuan
-    { width: 16 }, // Col J: Harga Satuan
-    { width: 18 }, // Col K: Jumlah (Rp)
-    { width: 4 },  // Col L: Kolom Kosong Spacer
-    { width: 6 },  // Col M: No
-    { width: 11 }, // Col N: PIC
-    { width: 11 }  // Col O: Sasaran
-  ];
+  // LEBAR KOLOM DIRAPATKAN SEPERTI FA 16 DETAIL SAKTI
+  // Kolom A sampai E sangat rapat untuk membentuk tangga kode SAKTI
+  const colWidths1 = [3.5, 3.5, 3.5, 4.0, 8.5, 52.0, 22.0, 10.0, 10.0, 16.0, 18.0, 4.0, 6.0, 11.0, 11.0];
+  colWidths1.forEach((w, i) => {
+    ws1.getColumn(i + 1).width = w;
+  });
 
   // ==========================================================================
   // SHEET 2: Data_Kertas_Kerja (Flat Table Lengkap dengan Kode Level Terpisah)
   // ==========================================================================
   const ws2 = wb.addWorksheet('Data_Kertas_Kerja');
 
-  // Siapkan peta leluhur (ancestor) untuk melengkapi kode level pada setiap item baris
   const rowByTreeId = {};
   rows.forEach(r => { rowByTreeId[r.tree_id] = r; });
 
@@ -395,7 +383,6 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     const isItem = !r.is_header;
     const treeLvl = r.tree_level || (isItem ? 6 : (r.level_indent === 0 ? 1 : (r.level_indent === 1 ? 2 : (r.level_indent === 2 ? 3 : (r.level_indent === 3 ? 5 : 4)))));
 
-    // Telusuri kode hierarki ke atas
     let kL1 = '';
     let kL2 = '';
     let kL3 = '';
@@ -474,7 +461,6 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     const rowById = {};
     rows.forEach(r => { rowById[r.id] = r; });
 
-    // 1. Identifikasi baris item yang berstatus REVISI
     const revisedRowIds = new Set();
     rows.forEach(r => {
       const diff = revByRowId[r.id];
@@ -489,7 +475,6 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       }
     });
 
-    // 2. Kumpulkan seluruh rute utama (ancestor / parent-parent leveling)
     const includedTreeIds = new Set();
     revisedRowIds.forEach(id => {
       const r = rowById[id];
@@ -504,7 +489,6 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
     const sheet3Rows = rows.filter(r => includedTreeIds.has(r.tree_id));
 
-    // Header Dokumen Sheet 3
     ws3.addRow(['MATRIKS PERUBAHAN RENCANA USULAN HALAMAN BELANJA (SEMULA - MENJADI)']);
     ws3.addRow(['KPU KABUPATEN NGAWI - PILKADA SERENTAK']);
     ws3.addRow([`Dokumen Semula: ${parent.nama || parent.versi_revisi}  ==>  Dokumen Menjadi: ${periode.nama_periode} (${periode.versi_revisi})`]);
@@ -512,8 +496,8 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ws3.addRow([`Catatan Dokumen: ${periode.catatan_revisi || '-'}`]);
     ws3.addRow([]);
 
-    ws3.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF0F172A' } };
-    ws3.getCell('A2').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF1E3A8A' } };
+    ws3.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+    ws3.getCell('A2').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF000000' } };
 
     const headersSheet3 = [
       'No', 'Level', 'Kode', 'Uraian Kegiatan / Akun / Rincian Belanja',
@@ -525,7 +509,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     const hRow3 = ws3.addRow(headersSheet3);
     hRow3.height = 24;
     hRow3.eachCell(cell => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
       cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
@@ -562,7 +546,6 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       const mRow = ws3.addRow(rowValues);
       mRow.height = 20;
 
-      // Format Angka
       mRow.getCell(1).alignment = { horizontal: 'center' };
       mRow.getCell(2).alignment = { horizontal: 'center' };
       mRow.getCell(3).alignment = { horizontal: 'center' };
@@ -575,15 +558,14 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       mRow.getCell(11).numFmt = '#,##0';
       mRow.getCell(12).alignment = { horizontal: 'center' };
 
-      // Highlight Status Perubahan SAKTI
       if (diffInfo.status === 'BERTAMBAH') {
-        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }; // Soft green
+        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
         mRow.getCell(12).font = { name: 'Calibri', bold: true, color: { argb: 'FF166534' } };
       } else if (diffInfo.status === 'BERKURANG') {
-        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Soft red
+        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
         mRow.getCell(12).font = { name: 'Calibri', bold: true, color: { argb: 'FF991B1B' } };
       } else if (diffInfo.status === 'BARU') {
-        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } }; // Soft purple
+        mRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
         mRow.getCell(12).font = { name: 'Calibri', bold: true, color: { argb: 'FF6B21A8' } };
       }
     });
@@ -595,7 +577,6 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       { width: 18 }, { width: 16 }, { width: 40 }
     ];
   } else {
-    // Dokumen Baseline Awal
     ws3.addRow(['MATRIKS PERUBAHAN RENCANA USULAN HALAMAN BELANJA (SEMULA - MENJADI)']);
     ws3.addRow(['KPU KABUPATEN NGAWI - PILKADA SERENTAK']);
     ws3.addRow([`Dokumen: ${periode ? (periode.nama_periode || periode.versi_revisi) : 'Baseline Awal'}`]);
@@ -611,11 +592,30 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   }
 
   // ==========================================================================
-  // SHEET 4: Rekap_Alokasi (Resume Sesuai Bentuk Resume RKB Awal)
+  // SHEET 4: Rekap_Alokasi (LENGKAP DENGAN REKAPITULASI SAMPAI LEVEL 3)
   // ==========================================================================
   const ws4 = wb.addWorksheet('Rekap_Alokasi');
   const sas = summary.bySasaran || {};
   const grandTotal = summary.grandTotal || 1;
+
+  ws4.addRow(['RESUME ALOKASI ANGGARAN RUH BELANJA']);
+  ws4.addRow([`Dokumen: ${periode ? periode.nama_periode : 'Pilkada'} | Versi: ${periode ? periode.versi_revisi : '-'}`]);
+  ws4.addRow([`Total Pagu Dokumen: Rp ${grandTotal.toLocaleString('id-ID')}`]);
+  ws4.addRow([]);
+
+  ws4.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+  ws4.getCell('A2').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF0099CC' } };
+
+  // --------------------------------------------------------------------------
+  // TABEL 1: Resume Sasaran Anggaran (Format RKB Awal)
+  // --------------------------------------------------------------------------
+  ws4.addRow(['=== 1. RESUME SASARAN ANGGARAN (FORMAT RKB AWAL) ===']);
+  const hRow4_1 = ws4.addRow(['No', 'Kelompok Sasaran', 'Entitas / Satuan Alokasi', 'Pagu Anggaran (Rp)', 'Persentase (%)', 'Keterangan Ruang Lingkup']);
+  hRow4_1.eachCell(c => {
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
+    c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } };
+    c.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
 
   const dataSasaran = [
     { title: '1. KPU Kabupaten', scope: 'KAB', entitas: 'Satker KPU Kab. Ngawi', val: sas.KAB || 0, desc: 'Operasional satker, logistik sentral, bimtek, sosialisasi, advokasi hukum' },
@@ -629,23 +629,6 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const pctPenyelenggara = ((totalPenyelenggara / grandTotal) * 100).toFixed(2) + '%';
   const valPeserta = sas.PESERTA || 0;
   const pctPeserta = ((valPeserta / grandTotal) * 100).toFixed(2) + '%';
-
-  ws4.addRow(['RESUME ALOKASI ANGGARAN RUH BELANJA']);
-  ws4.addRow([`Dokumen: ${periode ? periode.nama_periode : 'Pilkada'} | Versi: ${periode ? periode.versi_revisi : '-'}`]);
-  ws4.addRow([`Total Pagu Dokumen: Rp ${grandTotal.toLocaleString('id-ID')}`]);
-  ws4.addRow([]);
-
-  ws4.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF0F172A' } };
-  ws4.getCell('A2').font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF1E3A8A' } };
-
-  // Tabel 1: Resume Sasaran Anggaran
-  ws4.addRow(['=== 1. RESUME SASARAN ANGGARAN (FORMAT RKB AWAL) ===']);
-  const hRow4_1 = ws4.addRow(['No', 'Kelompok Sasaran', 'Entitas / Satuan Alokasi', 'Pagu Anggaran (Rp)', 'Persentase (%)', 'Keterangan Ruang Lingkup']);
-  hRow4_1.eachCell(c => {
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
-    c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } };
-    c.alignment = { vertical: 'middle', horizontal: 'center' };
-  });
 
   dataSasaran.forEach((d, idx) => {
     const pct = ((d.val / grandTotal) * 100).toFixed(2) + '%';
@@ -670,37 +653,86 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   grandTotRow.getCell(4).numFmt = '#,##0';
   grandTotRow.getCell(5).alignment = { horizontal: 'center' };
 
-  // Tabel 2: Rekapitulasi Tahapan Program
+  // --------------------------------------------------------------------------
+  // TABEL 2: REKAPITULASI PROGRAM / KEGIATAN LEVEL 3 (LENGKAP 32 KEGIATAN)
+  // --------------------------------------------------------------------------
   ws4.addRow([]);
-  ws4.addRow(['=== 2. REKAPITULASI TAHAPAN PROGRAM ===']);
-  const hRow4_2 = ws4.addRow(['Tahapan Program', 'Pagu Anggaran (Rp)', 'Persentase (%)', '', '', '']);
-  hRow4_2.eachCell((c, idx) => {
-    if (idx <= 3) {
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-      c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } };
-      c.alignment = { vertical: 'middle', horizontal: 'center' };
+  ws4.addRow(['=== 2. REKAPITULASI ALOKASI SAMPAI LEVEL 3 (PROGRAM / 28 KEGIATAN & HONORARIUM) ===']);
+  const hRow4_2 = ws4.addRow(['No', 'Kode L3', 'Uraian Komponen / Kegiatan Level 3', 'Kelompok Tahapan (Level 2)', 'Pagu Anggaran (Rp)', 'Persentase (%)']);
+  hRow4_2.eachCell(c => {
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
+    c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } };
+    c.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+
+  // Ekstrak baris-baris Level 3 dari dataset
+  const l3Rows = rows.filter(r => r.tree_level === 3 || (r.is_header && r.level_indent === 2));
+
+  let totL3Tahap1 = 0;
+  let totL3Honor = 0;
+
+  l3Rows.forEach((r, idx) => {
+    // Tentukan apakah baris ini masuk Tahapan I atau Tahapan II (Honorarium)
+    let parentTahapan = 'I. Tahapan Persiapan dan Pelaksanaan';
+    let cur = r.parent_tree_id;
+    while (cur && rowByTreeId[cur]) {
+      const p = rowByTreeId[cur];
+      if (p.tree_level === 2 && (p.kode === 'II.' || (p.uraian || '').includes('Honorarium'))) {
+        parentTahapan = 'II. Honorarium Penyelenggara Pemilihan';
+        break;
+      }
+      cur = p.parent_tree_id;
     }
+
+    const val = r.computed_total || 0;
+    if (parentTahapan.startsWith('II.')) {
+      totL3Honor += val;
+    } else {
+      totL3Tahap1 += val;
+    }
+
+    const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
+    const rRow = ws4.addRow([
+      idx + 1,
+      r.kode || '',
+      r.uraian || '',
+      parentTahapan,
+      val,
+      pct
+    ]);
+
+    rRow.getCell(1).alignment = { horizontal: 'center' };
+    rRow.getCell(2).alignment = { horizontal: 'center' };
+    rRow.getCell(4).alignment = { horizontal: 'center' };
+    rRow.getCell(5).numFmt = '#,##0';
+    rRow.getCell(6).alignment = { horizontal: 'center' };
   });
 
-  const banner = summary.banner || {};
-  const tahapItems = [
-    { name: 'I. Tahapan Persiapan dan Pelaksanaan', val: banner.tahapan1 || 0 },
-    { name: 'II. Honorarium Penyelenggara Pemilihan', val: banner.honor || 0 }
-  ];
-  tahapItems.forEach(t => {
-    const pct = ((t.val / grandTotal) * 100).toFixed(2) + '%';
-    const r = ws4.addRow([t.name, t.val, pct, '', '', '']);
-    r.getCell(2).numFmt = '#,##0';
-    r.getCell(3).alignment = { horizontal: 'center' };
-  });
+  // Subtotal Level 3
+  const subTot1 = ws4.addRow(['', 'SUBTOTAL I', 'Tahapan Persiapan dan Pelaksanaan (28 Kegiatan)', 'Tahapan I', totL3Tahap1, ((totL3Tahap1 / grandTotal) * 100).toFixed(2) + '%']);
+  subTot1.font = { bold: true };
+  subTot1.getCell(5).numFmt = '#,##0';
+  subTot1.getCell(6).alignment = { horizontal: 'center' };
 
-  // Tabel 3: Rekapitulasi Subbagian PIC
+  const subTot2 = ws4.addRow(['', 'SUBTOTAL II', 'Honorarium Penyelenggara Pemilihan (4 Badan Ad Hoc)', 'Tahapan II', totL3Honor, ((totL3Honor / grandTotal) * 100).toFixed(2) + '%']);
+  subTot2.font = { bold: true };
+  subTot2.getCell(5).numFmt = '#,##0';
+  subTot2.getCell(6).alignment = { horizontal: 'center' };
+
+  const grandTotL3 = ws4.addRow(['', 'TOTAL LEVEL 3', 'Akumulasi Seluruh Kegiatan & Honorarium', 'Seluruh Tahapan', (totL3Tahap1 + totL3Honor), '100.00%']);
+  grandTotL3.font = { bold: true };
+  grandTotL3.getCell(5).numFmt = '#,##0';
+  grandTotL3.getCell(6).alignment = { horizontal: 'center' };
+
+  // --------------------------------------------------------------------------
+  // TABEL 3: Rekapitulasi Subbagian PIC
+  // --------------------------------------------------------------------------
   ws4.addRow([]);
   ws4.addRow(['=== 3. REKAPITULASI ALOKASI SUBBAGIAN (PIC) ===']);
   const hRow4_3 = ws4.addRow(['Subbagian / PIC', 'Pagu Anggaran (Rp)', 'Persentase (%)', '', '', '']);
   hRow4_3.eachCell((c, idx) => {
     if (idx <= 3) {
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
       c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } };
       c.alignment = { vertical: 'middle', horizontal: 'center' };
     }
@@ -721,13 +753,15 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     r.getCell(3).alignment = { horizontal: 'center' };
   });
 
-  // Tabel 4: Rekapitulasi Akun Belanja (BAS 6-Digit)
+  // --------------------------------------------------------------------------
+  // TABEL 4: Rekapitulasi Akun Belanja (BAS 6-Digit)
+  // --------------------------------------------------------------------------
   ws4.addRow([]);
   ws4.addRow(['=== 4. REKAPITULASI AKUN BELANJA (BAGAN AKUN STANDAR) ===']);
   const hRow4_4 = ws4.addRow(['Kode Akun', 'Uraian Akun Belanja (BAS)', 'Pagu Anggaran (Rp)', 'Persentase (%)', '', '']);
   hRow4_4.eachCell((c, idx) => {
     if (idx <= 4) {
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
       c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } };
       c.alignment = { vertical: 'middle', horizontal: 'center' };
     }
@@ -744,7 +778,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   });
 
   ws4.columns = [
-    { width: 35 }, { width: 35 }, { width: 25 }, { width: 18 }, { width: 18 }, { width: 50 }
+    { width: 35 }, { width: 35 }, { width: 45 }, { width: 28 }, { width: 20 }, { width: 45 }
   ];
 
   // Return Buffer XLSX ExcelJS
