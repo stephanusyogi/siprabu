@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SI-PRABU v3.0 | KPU Kabupaten Ngawi</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=3.2.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -20,11 +20,12 @@
             <span class="app-title">SI-PRABU <span class="app-version">v3.0</span></span>
             <span class="app-subtitle" id="satker-name-header">KPU KABUPATEN NGAWI</span>
           </div>
-          <!-- Tombol Lipat Menu SAKTI Style (<) -->
-          <button type="button" class="sakti-sidebar-toggle-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Lipat / Buka Menu (SAKTI Style)">
-            <span class="toggle-icon">❮</span>
-          </button>
         </div>
+
+        <!-- Tombol Lipat Menu SAKTI Style (<) -->
+        <button type="button" class="sakti-sidebar-toggle-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Lipat / Buka Menu (SAKTI Style)">
+          <span class="toggle-icon">❮</span>
+        </button>
 
         <!-- Waktu Server SAKTI Style -->
         <div class="server-clock-pill" id="server-clock-pill" title="Sinkronisasi Jam Server Otomatis">
@@ -67,11 +68,6 @@
     <div class="main-wrapper" id="main-wrapper">
       <!-- SIDEBAR -->
       <aside class="sidebar" id="main-sidebar">
-        <!-- Pencarian Menu ala SAKTI -->
-        <div class="sidebar-search-box">
-          <input type="text" id="menu-search-input" class="menu-search-input" placeholder="Pencarian Menu" onkeyup="filterSidebarMenu()">
-        </div>
-
         <nav class="nav-menu" id="sidebar-nav-menu">
           <!-- 1. BERANDA -->
           <button class="nav-item active" data-view="view-dashboard" onclick="switchView('view-dashboard')">
@@ -2758,6 +2754,6 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.1.2"></script>
+    <script src="/app.js?v=3.2.0"></script>
   </body>
 </html>
