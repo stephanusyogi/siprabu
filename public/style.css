@@ -2292,5 +2292,260 @@ tr.rkb-row-lvl-41.table-row-selected td {
   line-height: 1.5;
 }
 
+/* ========================================================================= */
+/* SAKTI REVISI 4-TAHAP WORKFLOW & STEPPER FORM STYLING                      */
+/* ========================================================================= */
+
+.sakti-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.sakti-step-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  flex: 1;
+  cursor: pointer;
+}
+
+.sakti-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 2px solid #cbd5e1;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sakti-step-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.sakti-step-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.sakti-step-desc {
+  font-size: 10.5px;
+  color: #94a3b8;
+}
+
+.sakti-step-item.active .sakti-step-circle {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.sakti-step-item.active .sakti-step-title {
+  color: #1e40af;
+}
+
+.sakti-step-item.completed .sakti-step-circle {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #15803d;
+}
+
+.sakti-step-line {
+  flex: 1;
+  height: 2px;
+  background: #e2e8f0;
+  margin: 0 12px;
+}
+
+.sakti-step-line.completed {
+  background: #16a34a;
+}
+
+/* SAKTI Stage Status Badge (Angka Lingkaran 1-4 SAKTI Style) */
+.sakti-tahap-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.sakti-tahap-badge.tahap-green {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+}
+
+.sakti-tahap-badge.tahap-red {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.sakti-tahap-badge.tahap-blue {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.sakti-tahap-badge.tahap-orange {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+}
+
+.sakti-tahap-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.sakti-tahap-time {
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.sakti-tahap-user {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.sakti-form-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.sakti-form-header {
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sakti-form-header h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sakti-form-body {
+  padding: 20px;
+}
+
+.sakti-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .sakti-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sakti-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.sakti-form-group label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  margin: 0;
+}
+
+.sakti-form-group .form-control {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 12.5px;
+  background-color: #ffffff;
+  color: #1e293b;
+  transition: border-color 0.15s ease;
+}
+
+.sakti-form-group .form-control:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.sakti-form-group .form-control[readonly],
+.sakti-form-group .form-control:disabled {
+  background-color: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.sakti-form-footer {
+  background: #f8fafc;
+  border-top: 1px solid var(--border-color);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sakti-semula-menjadi-banner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.sakti-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sakti-summary-item label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.sakti-summary-item .amount {
+  font-size: 16px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+
 
 

@@ -88,7 +88,15 @@ const {
   submitSubbagUsulan,
   validateSubbagUsulan,
   rejectSubbagUsulan,
-  saveCatatanPlenoSubbag
+  saveCatatanPlenoSubbag,
+  formatWaktuSakti,
+  generateNextKodeRevisi,
+  createRevisiPengajuan,
+  getRevisiPengajuanList,
+  getRevisiPengajuanById,
+  updateRevisiTahap,
+  deleteRevisiPengajuan,
+  getArsipRevisiList
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset } = require('./src/calculation');
@@ -893,6 +901,151 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
       }
+    }
+
+    // ========================================================================
+    // SIKLUS PROSES REVISI MANDIRI (STANDAR SAKTI KEMENKEU 4-TAHAP WORKFLOW)
+    // ========================================================================
+
+    // 1. GET /api/revisi/monitoring & /api/revisi/pengajuan
+    if ((pathname === '/api/revisi/monitoring' || pathname === '/api/revisi/pengajuan') && method === 'GET') {
+      const user = getUserFromReq(req);
+      let subbagFilter = query.subbag || '';
+      // PIC Level 2 hanya dapat memantau usulan subbagnya sendiri
+      if (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        subbagFilter = user.pic_subbag;
+      }
+      const list = getRevisiPengajuanList({
+        subbag: subbagFilter,
+        status: query.status || '',
+        search: query.search || '',
+        periode_id: query.periode_id || null
+      });
+      return sendJson(res, 200, { success: true, data: list, user_subbag: user ? user.pic_subbag : 'SEMUA' });
+    }
+
+    // 2. POST /api/revisi/pengajuan (Submit Usulan Revisi Subbag Baru)
+    if (pathname === '/api/revisi/pengajuan' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu untuk mengajukan usulan revisi.' });
+
+      const body = await parseJsonBody(req);
+      // Jika user adalah PIC Level 2, paksa subbag sesuai dengan wewenangnya
+      if (user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        body.subbag = user.pic_subbag;
+      }
+
+      try {
+        const item = createRevisiPengajuan(body, user);
+        return sendJson(res, 201, {
+          success: true,
+          message: `Usulan Revisi [${item.kode_revisi}] berhasil diajukan dan diteruskan ke Tim Rendatin untuk Tahap 2 (Penelitian).`,
+          data: item
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // 3. GET /api/revisi/pengajuan/:id (Detail Usulan Revisi)
+    const revisiDetailMatch = pathname.match(/^\/api\/revisi\/pengajuan\/(\d+)$/);
+    if (revisiDetailMatch && method === 'GET') {
+      const id = Number(revisiDetailMatch[1]);
+      const item = getRevisiPengajuanById(id);
+      if (!item) return sendJson(res, 404, { error: 'Data usulan revisi tidak ditemukan.' });
+      return sendJson(res, 200, { success: true, data: item });
+    }
+
+    // 4. POST /api/revisi/pengajuan/:id/tahap (Proses Tahap 2, 3, atau 4)
+    const revisiTahapMatch = pathname.match(/^\/api\/revisi\/pengajuan\/(\d+)\/tahap$/);
+    if (revisiTahapMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const id = Number(revisiTahapMatch[1]);
+      const body = await parseJsonBody(req);
+      const targetTahap = Number(body.tahap);
+
+      // Verifikasi otorisasi per tahap
+      if (targetTahap === 2 && user.level > 1 && user.role_id !== 'developer') {
+        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 2 (Penelitian Teknis) hanya berhak diproses oleh Tim Rendatin / Perencanaan.' });
+      }
+      if (targetTahap === 3 && user.level === 2) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 3 (Penelaahan Pleno & KPA) hanya berhak diproses oleh Komisioner, KPA, atau Tim Rendatin.' });
+      }
+      if (targetTahap === 4 && user.level === 2) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 4 (Penetapan & Pengesahan) hanya berhak diproses oleh KPA, Sekretaris KPU, atau Rendatin.' });
+      }
+
+      try {
+        const updated = updateRevisiTahap(id, {
+          tahap: targetTahap,
+          aksi: body.aksi || 'SETUJU',
+          catatan: body.catatan || '',
+          nomor_penetapan: body.nomor_penetapan || '',
+          tanggal_penetapan: body.tanggal_penetapan || '',
+          user
+        });
+        clearRkbDatasetCache();
+        return sendJson(res, 200, {
+          success: true,
+          message: targetTahap === 4 ? `Revisi [${updated.kode_revisi}] resmi disahkan dan versi RKB berhasil dikunci (Locked History).` : `Tahap ${targetTahap} berhasil diproses.`,
+          data: updated
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // 5. DELETE /api/revisi/pengajuan/:id (Batalkan Usulan)
+    if (revisiDetailMatch && method === 'DELETE') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const id = Number(revisiDetailMatch[1]);
+      try {
+        deleteRevisiPengajuan(id);
+        return sendJson(res, 200, { success: true, message: 'Usulan revisi berhasil dibatalkan.' });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // 6. GET /api/revisi/arsip (Monitoring Migrasi Data / Arsip Versi RKB Terkunci)
+    if (pathname === '/api/revisi/arsip' && method === 'GET') {
+      const arsipList = getArsipRevisiList();
+      return sendJson(res, 200, { success: true, data: arsipList });
+    }
+
+    // 7. GET /api/revisi/preview-subbag (Estimasi Semula - Menjadi untuk Form Pengajuan)
+    if (pathname === '/api/revisi/preview-subbag' && method === 'GET') {
+      const user = getUserFromReq(req);
+      let subbag = (query.subbag || (user ? user.pic_subbag : 'TEKNIS') || 'TEKNIS').toUpperCase();
+      if (subbag === 'SEMUA') subbag = 'TEKNIS';
+
+      const activePeriode = getActivePeriode();
+      const dataset = getCachedRkbDataset(activePeriode ? activePeriode.id : 1);
+      const filtered = filterAndPruneRkbDataset(dataset, { pic: subbag });
+
+      const totalAnggaran = (filtered.items || []).reduce((acc, it) => acc + (Number(it.jumlah) || 0), 0);
+      const countKegiatan = (filtered.rows || []).filter(r => r.level_indent === 1).length;
+      const countItem = (filtered.items || []).length;
+
+      return sendJson(res, 200, {
+        subbag,
+        periode_id: activePeriode ? activePeriode.id : 1,
+        nama_periode: activePeriode ? activePeriode.nama_periode : 'RKB Aktif',
+        total_anggaran: totalAnggaran,
+        total_kegiatan: countKegiatan,
+        total_item: countItem,
+        items_sample: (filtered.items || []).slice(0, 15).map(it => ({
+          kode: it.kode,
+          uraian: it.uraian,
+          volume: it.vol_total,
+          satuan: it.satuan_vol,
+          harga: it.harga_satuan,
+          total: it.jumlah
+        }))
+      });
     }
 
     // GET /api/rkb/:id/matriks-semula-menjadi

@@ -133,6 +133,92 @@ function initDb() {
   safeAddColumn('periode_anggaran', 'gdrive_link_pleno TEXT DEFAULT ""');
   safeAddColumn('periode_anggaran', 'catatan_pleno TEXT DEFAULT ""');
 
+  // 3c. Tabel Siklus Pengajuan & Monitoring Revisi Mandiri Standar SAKTI Kemenkeu (4 Tahap)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS revisi_pengajuan (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kode_revisi TEXT UNIQUE,
+      periode_id INTEGER NOT NULL,
+      subbag TEXT NOT NULL,
+      tahun_anggaran INTEGER DEFAULT 2026,
+      kode_satker TEXT DEFAULT '657811',
+      nama_satker TEXT DEFAULT 'KPU KABUPATEN NGAWI',
+      nomor_surat TEXT NOT NULL,
+      tanggal_surat TEXT NOT NULL,
+      perihal TEXT NOT NULL,
+      pejabat_pengusul TEXT NOT NULL,
+      jabatan_pengusul TEXT DEFAULT '',
+      nama_kpa TEXT DEFAULT 'Sekretaris KPU Kabupaten Ngawi',
+      kewenangan TEXT DEFAULT 'KPU Kabupaten Ngawi',
+      jenis_revisi TEXT DEFAULT 'Pergeseran Antar Rincian Output',
+      keterangan_revisi TEXT DEFAULT '',
+      dokumen_surat_link TEXT DEFAULT '',
+      dokumen_matriks_link TEXT DEFAULT '',
+      dokumen_dukung_lain TEXT DEFAULT '',
+      validasi_sbm TEXT DEFAULT 'OK',
+      total_semula REAL DEFAULT 0,
+      total_menjadi REAL DEFAULT 0,
+      selisih REAL DEFAULT 0,
+      tahap_terkini INTEGER DEFAULT 1,
+      status_tahap TEXT DEFAULT 'PROSES',
+      tahap1_waktu TEXT DEFAULT '',
+      tahap1_oleh TEXT DEFAULT '',
+      tahap1_catatan TEXT DEFAULT '',
+      tahap2_waktu TEXT DEFAULT '',
+      tahap2_oleh TEXT DEFAULT '',
+      tahap2_hasil TEXT DEFAULT '',
+      tahap2_catatan TEXT DEFAULT '',
+      tahap3_waktu TEXT DEFAULT '',
+      tahap3_oleh TEXT DEFAULT '',
+      tahap3_hasil TEXT DEFAULT '',
+      tahap3_catatan TEXT DEFAULT '',
+      tahap4_waktu TEXT DEFAULT '',
+      tahap4_oleh TEXT DEFAULT '',
+      nomor_penetapan TEXT DEFAULT '',
+      tanggal_penetapan TEXT DEFAULT '',
+      tahap4_catatan TEXT DEFAULT '',
+      is_locked INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Seed data riwayat revisi awal jika masih kosong
+  try {
+    const revCount = db.prepare('SELECT COUNT(*) as cnt FROM revisi_pengajuan').get()?.cnt || 0;
+    if (revCount === 0) {
+      db.prepare(`
+        INSERT INTO revisi_pengajuan (
+          kode_revisi, periode_id, subbag, tahun_anggaran, kode_satker, nama_satker,
+          nomor_surat, tanggal_surat, perihal, pejabat_pengusul, jabatan_pengusul,
+          nama_kpa, kewenangan, jenis_revisi, keterangan_revisi,
+          dokumen_surat_link, dokumen_matriks_link, validasi_sbm,
+          total_semula, total_menjadi, selisih,
+          tahap_terkini, status_tahap,
+          tahap1_waktu, tahap1_oleh, tahap1_catatan,
+          tahap2_waktu, tahap2_oleh, tahap2_hasil, tahap2_catatan,
+          tahap3_waktu, tahap3_oleh, tahap3_hasil, tahap3_catatan,
+          tahap4_waktu, tahap4_oleh, nomor_penetapan, tanggal_penetapan, tahap4_catatan,
+          is_locked
+        ) VALUES (
+          '2026.657811.001', 1, 'KUL', 2026, '657811', 'KPU KABUPATEN NGAWI',
+          '01/KU.01.1-SD/3521/2024', '10-08-2024', 'Usulan Penyesuaian Anggaran Operasional Subbag Keuangan, Umum dan Logistik',
+          'Kasubbag KUL', 'Kasubbag Keuangan, Umum dan Logistik',
+          'Sekretaris KPU Kabupaten Ngawi', 'KPU Kabupaten Ngawi', 'Pergeseran Antar Rincian Output',
+          'Penyesuaian kebutuhan operasional dan sarana prasarana pendukung tahapan Pilkada.',
+          'https://drive.google.com/file/d/sample-surat-usulan-kul', 'https://drive.google.com/file/d/sample-matriks-kul', 'OK',
+          49999999000, 49999999000, 0,
+          4, 'SELESAI',
+          '10-08-2024 09:30', 'Kasubbag KUL (kul)', 'Pengajuan usulan revisi pergeseran akun operasional',
+          '14-08-2024 11:15', 'Kasubbag Perencanaan (perencanaan)', 'SETUJU', 'Penelitian kesesuaian SBM dan pagu NPHD telah diverifikasi dan valid.',
+          '18-08-2024 14:00', 'Ketua KPU & Sekretaris KPU', 'SETUJU', 'Disetujui dalam Rapat Pleno Komisioner KPU Kabupaten Ngawi.',
+          '20-08-2024 10:00', 'Sekretaris KPU Kabupaten Ngawi', 'BA TAPD No. 05/BA-TAPD/2024', '20-08-2024', 'Penetapan Pengesahan Revisi 1 RKB Sah.',
+          1
+        )
+      `).run();
+    }
+  } catch (e) {}
+
   // Seed nilai pemilih di master_desa jika masih 0, proporsional berdasarkan TPS (total DPT: 701.425)
   try {
     const checkPem = db.prepare('SELECT SUM(pemilih) as sumPem FROM master_desa').get()?.sumPem || 0;
@@ -1873,6 +1959,255 @@ function approveAllSubbagPleno(periodeId) {
   `).run(pId);
 }
 
+// ============================================================================
+// SIKLUS PROSES REVISI MANDIRI (SAKTI KEMENKEU 4-TAHAP WORKFLOW)
+// ============================================================================
+
+function formatWaktuSakti(d = new Date()) {
+  const tgl = String(d.getDate()).padStart(2, '0');
+  const bln = String(d.getMonth() + 1).padStart(2, '0');
+  const thn = d.getFullYear();
+  const jam = String(d.getHours()).padStart(2, '0');
+  const mnt = String(d.getMinutes()).padStart(2, '0');
+  return `${tgl}-${bln}-${thn} ${jam}:${mnt}`;
+}
+
+function generateNextKodeRevisi(tahun = 2026, kodeSatker = '657811') {
+  const c = db.prepare('SELECT COUNT(*) as cnt FROM revisi_pengajuan WHERE tahun_anggaran = ?').get(tahun)?.cnt || 0;
+  const noUrut = String(c + 1).padStart(3, '0');
+  return `${tahun}.${kodeSatker}.${noUrut}`;
+}
+
+function createRevisiPengajuan(data, user) {
+  const activePeriode = getActivePeriode();
+  const periodeId = data.periode_id ? Number(data.periode_id) : (activePeriode ? activePeriode.id : 1);
+  const tahun = data.tahun_anggaran ? Number(data.tahun_anggaran) : 2026;
+  const kodeSatker = data.kode_satker || '657811';
+  const namaSatker = data.nama_satker || 'KPU KABUPATEN NGAWI';
+  const subbag = (data.subbag || (user ? user.pic_subbag : 'RENDATIN') || 'RENDATIN').toUpperCase();
+
+  const nomorSurat = (data.nomor_surat || '').trim();
+  const tanggalSurat = (data.tanggal_surat || '').trim();
+  const perihal = (data.perihal || '').trim();
+
+  if (!nomorSurat) throw new Error('Nomor surat usulan dinas wajib diisi.');
+  if (!tanggalSurat) throw new Error('Tanggal surat usulan wajib diisi.');
+  if (!perihal) throw new Error('Perihal usulan revisi wajib diisi.');
+
+  const kodeRevisi = generateNextKodeRevisi(tahun, kodeSatker);
+  const waktuNow = formatWaktuSakti();
+  const pengusulNama = data.pejabat_pengusul || (user ? user.nama_pejabat : 'Pejabat Pengusul');
+  const pengusulJabatan = data.jabatan_pengusul || (user ? user.jabatan : `Kasubbag ${subbag}`);
+  const submitter = user ? `${user.nama_pejabat} (${user.username})` : pengusulNama;
+
+  const totalSemula = Number(data.total_semula) || 0;
+  const totalMenjadi = Number(data.total_menjadi) || totalSemula;
+  const selisih = totalMenjadi - totalSemula;
+
+  const res = db.prepare(`
+    INSERT INTO revisi_pengajuan (
+      kode_revisi, periode_id, subbag, tahun_anggaran, kode_satker, nama_satker,
+      nomor_surat, tanggal_surat, perihal, pejabat_pengusul, jabatan_pengusul,
+      nama_kpa, kewenangan, jenis_revisi, keterangan_revisi,
+      dokumen_surat_link, dokumen_matriks_link, dokumen_dukung_lain, validasi_sbm,
+      total_semula, total_menjadi, selisih,
+      tahap_terkini, status_tahap,
+      tahap1_waktu, tahap1_oleh, tahap1_catatan,
+      is_locked
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?,
+      ?, ?, ?, ?,
+      ?, ?, ?,
+      1, 'PROSES',
+      ?, ?, ?,
+      0
+    )
+  `).run(
+    kodeRevisi, periodeId, subbag, tahun, kodeSatker, namaSatker,
+    nomorSurat, tanggalSurat, perihal, pengusulNama, pengusulJabatan,
+    data.nama_kpa || 'Sekretaris KPU Kabupaten Ngawi',
+    data.kewenangan || 'KPU Kabupaten Ngawi',
+    data.jenis_revisi || 'Pergeseran Antar Rincian Output',
+    data.keterangan_revisi || '',
+    data.dokumen_surat_link || '',
+    data.dokumen_matriks_link || '',
+    data.dokumen_dukung_lain || '',
+    data.validasi_sbm || 'OK',
+    totalSemula, totalMenjadi, selisih,
+    waktuNow, submitter, data.keterangan_revisi || 'Pengajuan usulan revisi anggaran belanja subbag.'
+  );
+
+  return getRevisiPengajuanById(res.lastInsertRowid);
+}
+
+function getRevisiPengajuanList({ subbag = '', status = '', search = '', periode_id = null } = {}) {
+  let query = 'SELECT * FROM revisi_pengajuan WHERE 1=1';
+  const params = [];
+
+  if (subbag && subbag !== 'SEMUA') {
+    query += ' AND UPPER(subbag) = ?';
+    params.push(subbag.toUpperCase());
+  }
+
+  if (status && status !== 'ALL') {
+    query += ' AND status_tahap = ?';
+    params.push(status);
+  }
+
+  if (periode_id) {
+    query += ' AND periode_id = ?';
+    params.push(Number(periode_id));
+  }
+
+  if (search && search.trim()) {
+    query += ' AND (kode_revisi LIKE ? OR nomor_surat LIKE ? OR perihal LIKE ? OR subbag LIKE ?)';
+    const s = `%${search.trim()}%`;
+    params.push(s, s, s, s);
+  }
+
+  query += ' ORDER BY id DESC';
+  return db.prepare(query).all(...params);
+}
+
+function getRevisiPengajuanById(id) {
+  return db.prepare('SELECT * FROM revisi_pengajuan WHERE id = ?').get(Number(id));
+}
+
+function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = '', tanggal_penetapan = '', user = null }) {
+  const rev = getRevisiPengajuanById(id);
+  if (!rev) throw new Error('Data pengajuan revisi tidak ditemukan.');
+
+  const targetTahap = Number(tahap);
+  const waktuNow = formatWaktuSakti();
+  const userName = user ? `${user.nama_pejabat} (${user.username})` : 'Petugas';
+
+  if (targetTahap === 2) {
+    // Tahap 2: Penelitian Teknis Rendatin
+    const isApproved = aksi === 'SETUJU';
+    const nextTahap = isApproved ? 3 : 2;
+    const statusTahap = isApproved ? 'PROSES' : 'PERBAIKAN';
+    const hasil = isApproved ? 'SETUJU' : 'CATATAN';
+
+    db.prepare(`
+      UPDATE revisi_pengajuan SET
+        tahap_terkini = ?,
+        status_tahap = ?,
+        tahap2_waktu = ?,
+        tahap2_oleh = ?,
+        tahap2_hasil = ?,
+        tahap2_catatan = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(nextTahap, statusTahap, waktuNow, userName, hasil, catatan, id);
+
+  } else if (targetTahap === 3) {
+    // Tahap 3: Penelaahan Pleno Komisioner & Persetujuan KPA
+    const isApproved = aksi === 'SETUJU';
+    const nextTahap = isApproved ? 4 : 3;
+    const statusTahap = isApproved ? 'PROSES' : 'DITOLAK';
+    const hasil = isApproved ? 'SETUJU' : 'DITOLAK';
+
+    db.prepare(`
+      UPDATE revisi_pengajuan SET
+        tahap_terkini = ?,
+        status_tahap = ?,
+        tahap3_waktu = ?,
+        tahap3_oleh = ?,
+        tahap3_hasil = ?,
+        tahap3_catatan = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(nextTahap, statusTahap, waktuNow, userName, hasil, catatan, id);
+
+  } else if (targetTahap === 4) {
+    // Tahap 4: Penetapan / Pengesahan Revisi Resmi & Penguncian Dokumen RKB (Locked History)
+    const noPenetapan = nomor_penetapan || `BA/TAPD/${rev.kode_revisi}/${new Date().getFullYear()}`;
+    const tglPenetapan = tanggal_penetapan || formatWaktuSakti().split(' ')[0];
+
+    db.prepare(`
+      UPDATE revisi_pengajuan SET
+        tahap_terkini = 4,
+        status_tahap = 'SELESAI',
+        tahap4_waktu = ?,
+        tahap4_oleh = ?,
+        nomor_penetapan = ?,
+        tanggal_penetapan = ?,
+        tahap4_catatan = ?,
+        is_locked = 1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(waktuNow, userName, noPenetapan, tglPenetapan, catatan, id);
+
+    // KUNCI RKB AKTIF & REKAM KE ARSIP RESMI
+    try {
+      const activePeriode = getActivePeriode();
+      if (activePeriode && !activePeriode.is_locked) {
+        lockPeriode(activePeriode.id, {
+          dasar_pengesahan: 'BA TAPD & SK Penetapan Revisi',
+          nomor_ba_tapd: noPenetapan,
+          tanggal_ba_tapd: tglPenetapan,
+          catatan_revisi: `Pengesahan Revisi SAKTI [${rev.kode_revisi}]: ${rev.perihal}`
+        });
+
+        const nextRevNum = (activePeriode.revisi_ke || 0) + 1;
+        clonePeriodeToRevision(activePeriode.id, {
+          nama_periode: `RKB KPU Kabupaten Ngawi (Revisi ${nextRevNum})`,
+          versi_revisi: `Revisi ${nextRevNum}`,
+          tahap_revisi: 'PASCA_NPHD',
+          dasar_pengesahan: 'Kertas Kerja Penyusunan',
+          catatan_revisi: `Kertas kerja operasional lanjutan pasca pengesahan ${rev.kode_revisi}`
+        });
+      }
+    } catch (e) {
+      console.error('Error auto locking & cloning revision:', e);
+    }
+  }
+
+  return getRevisiPengajuanById(id);
+}
+
+function deleteRevisiPengajuan(id) {
+  const rev = getRevisiPengajuanById(id);
+  if (!rev) throw new Error('Data revisi tidak ditemukan.');
+  if (rev.is_locked || rev.status_tahap === 'SELESAI') {
+    throw new Error('Usulan revisi yang telah disahkan dan dikunci tidak dapat dihapus.');
+  }
+  db.prepare('DELETE FROM revisi_pengajuan WHERE id = ?').run(id);
+  return { success: true };
+}
+
+function getArsipRevisiList() {
+  const periodes = db.prepare(`
+    SELECT p.*,
+      COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id AND row_type != 'header'), 0) as total_items,
+      COALESCE((SELECT SUM(COALESCE(harga_satuan,0) * COALESCE(f1_val,1) * COALESCE(f2_val,1) * COALESCE(f3_val,1) * COALESCE(f4_val,1)) 
+                FROM rab_baris WHERE periode_id = p.id AND row_type != 'header'), 0) as total_anggaran
+    FROM periode_anggaran p
+    WHERE p.is_locked = 1
+    ORDER BY p.revisi_ke ASC, p.id ASC
+  `).all();
+
+  return periodes.map(p => ({
+    id: p.id,
+    thang: 2026,
+    kode_satker: '657811',
+    nama_satker: 'KPU KABUPATEN NGAWI',
+    deskripsi: p.nama_periode,
+    versi_revisi: p.versi_revisi,
+    revisi_ke: p.revisi_ke || 0,
+    status: 'SUCCESS',
+    status_label: 'TERKUNCI (LOCKED)',
+    total_anggaran: p.total_anggaran || 49999999000,
+    tanggal_revisi: p.tanggal_ba_tapd || '2024-08-20',
+    tanggal_penetapan: p.locked_at ? p.locked_at.split('T')[0] : (p.tanggal_ba_tapd || '2024-08-20'),
+    dasar_pengesahan: p.dasar_pengesahan || 'BA TAPD',
+    nomor_ba_tapd: p.nomor_ba_tapd || '-',
+    catatan_revisi: p.catatan_revisi || ''
+  }));
+}
+
 module.exports = {
   db,
   initDb,
@@ -1936,5 +2271,13 @@ module.exports = {
   validateSubbagUsulan,
   rejectSubbagUsulan,
   saveCatatanPlenoSubbag,
-  approveAllSubbagPleno
+  approveAllSubbagPleno,
+  formatWaktuSakti,
+  generateNextKodeRevisi,
+  createRevisiPengajuan,
+  getRevisiPengajuanList,
+  getRevisiPengajuanById,
+  updateRevisiTahap,
+  deleteRevisiPengajuan,
+  getArsipRevisiList
 };

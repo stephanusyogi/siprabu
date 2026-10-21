@@ -182,14 +182,32 @@
               <span class="sakti-chevron">▾</span>
             </button>
             <div class="sakti-tree-children">
-              <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" id="nav-item-siklus" style="margin-bottom: 2px;">
-                <span class="icon">🔄</span>
-                <span class="label">Pusat Siklus & Revisi</span>
-              </button>
+              <!-- RUH Belanja RKB -->
               <button class="nav-item" data-view="view-rkb" onclick="switchView('view-rkb')">
                 <span class="icon">📘</span>
                 <span class="label">RUH Belanja RKB</span>
                 <span class="badge badge-primary badge-sm" id="badge-total-items">953</span>
+              </button>
+              <!-- Pengajuan Revisi Subbag -->
+              <button class="nav-item" data-view="view-revisi-pengajuan" onclick="switchView('view-revisi-pengajuan')" id="nav-item-revisi-pengajuan">
+                <span class="icon">📝</span>
+                <span class="label">Pengajuan Usulan Revisi</span>
+              </button>
+              <!-- Monitoring Revisi (4 Tahap SAKTI) -->
+              <button class="nav-item" data-view="view-revisi-monitoring" onclick="switchView('view-revisi-monitoring')" id="nav-item-revisi-monitoring">
+                <span class="icon">📊</span>
+                <span class="label">Monitoring Revisi (4 Tahap)</span>
+                <span class="badge badge-warning badge-sm" id="badge-revisi-aktif">1</span>
+              </button>
+              <!-- Riwayat Arsip Dokumen Revisi (Locked History) -->
+              <button class="nav-item" data-view="view-revisi-arsip" onclick="switchView('view-revisi-arsip')" id="nav-item-revisi-arsip">
+                <span class="icon">🗄️</span>
+                <span class="label">Riwayat Arsip Revisi (Locked)</span>
+              </button>
+              <!-- Pusat Siklus & Induk Baseline -->
+              <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" id="nav-item-siklus" style="margin-bottom: 2px;">
+                <span class="icon">🔄</span>
+                <span class="label">Pusat Siklus Dokumen</span>
               </button>
             </div>
           </div>
@@ -570,6 +588,385 @@
         </section>
 
         <!-- ================================================================= -->
+        <!-- VIEW: PENGAJUAN USULAN REVISI (SAKTI KEMENKEU STYLE STEPPER)       -->
+        <!-- ================================================================= -->
+        <section id="view-revisi-pengajuan" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Pengajuan Usulan Revisi RKB</h2>
+              <p class="view-desc">Lembar kerja mandiri penyusunan surat dinas dan dokumen usulan revisi pergeseran rincian belanja subbagian (Standar Alur Kerja SAKTI Kemenkeu).</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-outline-primary" onclick="switchView('view-revisi-monitoring')">
+                📊 Buka Monitoring Revisi &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- STEPPER NAVIGATOR (1 - 2 - 3) -->
+          <div class="sakti-stepper">
+            <div class="sakti-step-item active" id="step-nav-1" onclick="goToRevisiStep(1)">
+              <div class="sakti-step-circle">1</div>
+              <div class="sakti-step-label">
+                <span class="sakti-step-title">Langkah 1: Informasi Usulan</span>
+                <span class="sakti-step-desc">Surat Usulan Dinas &amp; Alasan</span>
+              </div>
+            </div>
+            <div class="sakti-step-line" id="step-line-1"></div>
+            <div class="sakti-step-item" id="step-nav-2" onclick="goToRevisiStep(2)">
+              <div class="sakti-step-circle">2</div>
+              <div class="sakti-step-label">
+                <span class="sakti-step-title">Langkah 2: Matriks Perubahan</span>
+                <span class="sakti-step-desc">Semula - Menjadi Anggaran</span>
+              </div>
+            </div>
+            <div class="sakti-step-line" id="step-line-2"></div>
+            <div class="sakti-step-item" id="step-nav-3" onclick="goToRevisiStep(3)">
+              <div class="sakti-step-circle">3</div>
+              <div class="sakti-step-label">
+                <span class="sakti-step-title">Langkah 3: Dokumen &amp; Kirim</span>
+                <span class="sakti-step-desc">Bukti Dukung &amp; Finalisasi</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 1 CONTENT: FORMULIR SURAT USULAN DINAS -->
+          <div class="sakti-form-card" id="revisi-step-1-content">
+            <div class="sakti-form-header">
+              <h4>📄 Informasi Surat Usulan Revisi Subbagian</h4>
+              <span class="badge badge-primary">Tahap 1 / Formulir Pengusulan</span>
+            </div>
+            <div class="sakti-form-body">
+              <form id="form-revisi-step-1" onsubmit="event.preventDefault(); goToRevisiStep(2);">
+                <div class="sakti-grid-2col">
+                  <!-- Satker (Read-Only) -->
+                  <div class="sakti-form-group">
+                    <label>Satuan Kerja (Satker):</label>
+                    <input type="text" class="form-control" value="[657811] KPU KABUPATEN NGAWI" readonly>
+                  </div>
+
+                  <!-- Subbagian Pengusul -->
+                  <div class="sakti-form-group">
+                    <label for="revisi-input-subbag">Subbagian Pengusul:</label>
+                    <select id="revisi-input-subbag" class="form-control" onchange="loadSubbagPreviewData(this.value)">
+                      <option value="TEKNIS">Subbag Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                      <option value="HUKUM">Subbag Hukum (HUKUM)</option>
+                      <option value="PARSDM">Subbag Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
+                      <option value="KUL">Subbag Keuangan, Umum &amp; Logistik (KUL)</option>
+                      <option value="RENDATIN">Subbag Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="sakti-grid-2col">
+                  <!-- Nomor Surat Usulan -->
+                  <div class="sakti-form-group">
+                    <label for="revisi-input-nomor-surat">Nomor Surat Usulan Dinas: <span style="color: red;">*</span></label>
+                    <input type="text" id="revisi-input-nomor-surat" class="form-control" required placeholder="Contoh: 05/PP.01.2-SD/3521/2026">
+                  </div>
+
+                  <!-- Tanggal Surat Usulan -->
+                  <div class="sakti-form-group">
+                    <label for="revisi-input-tanggal-surat">Tanggal Surat Usulan: <span style="color: red;">*</span></label>
+                    <input type="date" id="revisi-input-tanggal-surat" class="form-control" required>
+                  </div>
+                </div>
+
+                <!-- Perihal Usulan -->
+                <div class="sakti-form-group">
+                  <label for="revisi-input-perihal">Perihal Surat Usulan: <span style="color: red;">*</span></label>
+                  <input type="text" id="revisi-input-perihal" class="form-control" required placeholder="Contoh: Usulan Revisi Pergeseran Rincian Output Tahapan Pilkada TA 2026">
+                </div>
+
+                <div class="sakti-grid-2col">
+                  <!-- Pejabat Pengusul -->
+                  <div class="sakti-form-group">
+                    <label for="revisi-input-pejabat-pengusul">Pejabat Pengusul (Kasubbag / PPK):</label>
+                    <input type="text" id="revisi-input-pejabat-pengusul" class="form-control" required placeholder="Nama Pejabat Pengusul">
+                  </div>
+
+                  <!-- Jabatan Pengusul -->
+                  <div class="sakti-form-group">
+                    <label for="revisi-input-jabatan-pengusul">Jabatan Pejabat Pengusul:</label>
+                    <input type="text" id="revisi-input-jabatan-pengusul" class="form-control" placeholder="Kasubbag Teknis Penyelenggaraan Pemilu">
+                  </div>
+                </div>
+
+                <div class="sakti-grid-2col">
+                  <!-- Pejabat Penelaah / KPA -->
+                  <div class="sakti-form-group">
+                    <label>Pejabat Penelaah &amp; KPA:</label>
+                    <input type="text" id="revisi-input-nama-kpa" class="form-control" value="Sekretaris KPU Kabupaten Ngawi" readonly>
+                  </div>
+
+                  <!-- Kewenangan Revisi -->
+                  <div class="sakti-form-group">
+                    <label for="revisi-input-kewenangan">Kewenangan Revisi:</label>
+                    <select id="revisi-input-kewenangan" class="form-control">
+                      <option value="KPU Kabupaten Ngawi">KPU Kabupaten Ngawi (Satker)</option>
+                      <option value="KPU Provinsi Jawa Timur">KPU Provinsi Jawa Timur (Kanwil)</option>
+                      <option value="KPU RI / Ditjen Anggaran">KPU RI / Ditjen Anggaran Kemenkeu</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="sakti-grid-2col">
+                  <!-- Jenis Revisi -->
+                  <div class="sakti-form-group">
+                    <label for="revisi-input-jenis">Jenis Usulan Revisi:</label>
+                    <select id="revisi-input-jenis" class="form-control">
+                      <option value="Pergeseran Antar Rincian Output">Pergeseran Antar Rincian Output (RO)</option>
+                      <option value="Pergeseran Antar Akun Belanja">Pergeseran Antar Akun Belanja (Dalam 1 Kegiatan)</option>
+                      <option value="Revisi Administrasi &amp; Nomenklatur">Revisi Administrasi &amp; Nomenklatur RKB</option>
+                      <option value="Penyesuaian Pagu Hibah (Addendum NPHD)">Penyesuaian Pagu Hibah (Addendum NPHD)</option>
+                    </select>
+                  </div>
+
+                  <!-- Validasi PMK SBM -->
+                  <div class="sakti-form-group">
+                    <label>Validasi PMK / SBM:</label>
+                    <input type="text" class="form-control" value="Lolos Uji SBM (Bagan Akun &amp; Standar Tarif Sesuai)" readonly style="font-weight: 600; color: #15803d; background: #f0fdf4;">
+                  </div>
+                </div>
+
+                <!-- Keterangan / Latar Belakang -->
+                <div class="sakti-form-group">
+                  <label for="revisi-input-keterangan">Keterangan / Latar Belakang &amp; Urgensi Usulan Revisi: <span style="color: red;">*</span></label>
+                  <textarea id="revisi-input-keterangan" class="form-control" rows="3" required placeholder="Jelaskan secara rinci alasan pergeseran anggaran, kendala lapangan, atau kebutuhan kegiatan baru yang mendesak..."></textarea>
+                </div>
+
+                <div class="sakti-form-footer">
+                  <button type="button" class="btn btn-outline" onclick="resetRevisiForm()">Batal / Reset</button>
+                  <button type="submit" class="btn btn-primary">Langkah Selanjutnya: Matriks Perubahan &rarr;</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- STEP 2 CONTENT: MATRIKS PERUBAHAN SEMULA - MENJADI -->
+          <div class="sakti-form-card" id="revisi-step-2-content" style="display: none;">
+            <div class="sakti-form-header">
+              <h4>📊 Matriks Perubahan Anggaran (Semula - Menjadi) Subbagian</h4>
+              <span class="badge badge-info">Tahap 2 / Rekapitulasi Fiskal</span>
+            </div>
+            <div class="sakti-form-body">
+              <div class="sakti-semula-menjadi-banner">
+                <div class="sakti-summary-item">
+                  <label>Pagu Semula Subbagian:</label>
+                  <span class="amount" id="preview-semula-val" style="color: #475569;">Rp 0</span>
+                </div>
+                <div class="sakti-summary-item">
+                  <label>Pagu Menjadi (Usulan):</label>
+                  <span class="amount" id="preview-menjadi-val" style="color: #1e40af;">Rp 0</span>
+                </div>
+                <div class="sakti-summary-item">
+                  <label>Selisih Netto (+ / -):</label>
+                  <span class="amount" id="preview-selisih-val" style="color: #16a34a;">Rp 0</span>
+                </div>
+              </div>
+
+              <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: #1e40af; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 18px;">💡</span>
+                <div>
+                  <strong>Informasi Kertas Kerja:</strong>
+                  Data di bawah ini mencerminkan rincian anggaran aktif subbagian Anda pada lembar kerja RUH Belanja. Perubahan nilai satuan atau volume yang disimpan di RUH Belanja otomatis tersinkronisasi sebagai matriks usulan revisi.
+                </div>
+              </div>
+
+              <!-- Tabel Sampel Rincian Item Subbag -->
+              <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                <table class="table table-bordered table-sm">
+                  <thead style="background: #f1f5f9; position: sticky; top: 0; z-index: 2;">
+                    <tr>
+                      <th style="width: 140px;">Kode Akun / Item</th>
+                      <th>Uraian Belanja Kegiatan</th>
+                      <th class="text-center" style="width: 80px;">Volume</th>
+                      <th class="text-center" style="width: 80px;">Satuan</th>
+                      <th class="text-right" style="width: 130px;">Harga Satuan</th>
+                      <th class="text-right" style="width: 150px;">Total Pagu</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-revisi-matriks-preview">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="sakti-form-footer" style="margin-top: 16px;">
+                <button type="button" class="btn btn-outline" onclick="goToRevisiStep(1)">&larr; Kembali ke Informasi Surat</button>
+                <button type="button" class="btn btn-primary" onclick="goToRevisiStep(3)">Langkah Selanjutnya: Dokumen Pendukung &rarr;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3 CONTENT: DOKUMEN PENDUKUNG & FINAL SUBMIT -->
+          <div class="sakti-form-card" id="revisi-step-3-content" style="display: none;">
+            <div class="sakti-form-header">
+              <h4>📎 Dokumen Pendukung &amp; Konfirmasi Pengajuan Usulan</h4>
+              <span class="badge badge-success">Tahap 3 / Finalisasi &amp; Kirim</span>
+            </div>
+            <div class="sakti-form-body">
+              <div class="sakti-form-group">
+                <label for="revisi-input-dok-surat">Tautan Google Drive / Berkas Surat Usulan Dinas Bermaterai &amp; Tanda Tangan: <span style="color: red;">*</span></label>
+                <input type="url" id="revisi-input-dok-surat" class="form-control" required placeholder="https://drive.google.com/file/d/...">
+                <small style="color: #64748b;">Unggah surat pengajuan resmi yang telah ditandatangani Kasubbag / PPK dan tempelkan link publiknya di sini.</small>
+              </div>
+
+              <div class="sakti-form-group">
+                <label for="revisi-input-dok-matriks">Tautan Matriks Semula - Menjadi (Format Excel):</label>
+                <input type="url" id="revisi-input-dok-matriks" class="form-control" placeholder="https://drive.google.com/file/d/...">
+                <small style="color: #64748b;">Tautan berkas lembar kerja Excel matriks komparasi pergeseran anggaran.</small>
+              </div>
+
+              <div class="sakti-form-group">
+                <label for="revisi-input-dok-lain">Tautan Dokumen Teknis Pendukung Lainnya (TOR / KAK / RAB Pendukung):</label>
+                <input type="url" id="revisi-input-dok-lain" class="form-control" placeholder="https://drive.google.com/file/d/...">
+              </div>
+
+              <!-- Konfirmasi Pakta Keabsahan -->
+              <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-top: 16px;">
+                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 12.5px; font-weight: 600; color: #1e293b; margin: 0;">
+                  <input type="checkbox" id="revisi-check-keabsahan" required style="margin-top: 3px; transform: scale(1.15);">
+                  <span>
+                    Saya menyatakan bahwa seluruh data usulan perubahan anggaran dan dokumen pendukung yang diajukan telah sesuai dengan ketentuan peraturan perundang-undangan, Standar Biaya Masukan (SBM), dan kebutuhan riil tahapan Pilkada KPU Kabupaten Ngawi.
+                  </span>
+                </label>
+              </div>
+
+              <div class="sakti-form-footer" style="margin-top: 20px;">
+                <button type="button" class="btn btn-outline" onclick="goToRevisiStep(2)">&larr; Kembali ke Matriks</button>
+                <button type="button" class="btn btn-success" id="btn-submit-revisi-final" onclick="submitRevisiUsulanFinal()">
+                  🚀 Kirim Usulan Revisi (Submit ke Tahap 1)
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW: MONITORING REVISI 4 TAHAP (STANDAR SAKTI KEMENKEU)           -->
+        <!-- ================================================================= -->
+        <section id="view-revisi-monitoring" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Monitoring Siklus Proses Revisi</h2>
+              <p class="view-desc">Pelacakan berjenjang 4-Tahap Standar SAKTI: <b>Tahap 1 (Pengajuan)</b> &rarr; <b>Tahap 2 (Penelitian Rendatin)</b> &rarr; <b>Tahap 3 (Penelaahan Pleno &amp; KPA)</b> &rarr; <b>Tahap 4 (Penetapan &amp; Pengesahan)</b>.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" onclick="switchView('view-revisi-pengajuan')">
+                ➕ Buat Usulan Revisi Baru
+              </button>
+            </div>
+          </div>
+
+          <!-- TOOLBAR FILTER MONITORING REVISI -->
+          <div class="ruh-toolbar" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <!-- Cari Nomor Surat / Kode -->
+              <div style="position: relative; display: inline-flex; align-items: center;">
+                <span style="position: absolute; left: 8px; color: #94a3b8; font-size: 12px; pointer-events: none;">🔍</span>
+                <input type="text" id="monitoring-revisi-search" class="input-text" placeholder="Cari ID / Nomor Surat..." onkeyup="handleMonitoringRevisiSearch()" style="padding-left: 26px; width: 200px; height: 32px; font-size: 12px; border-radius: 6px;">
+              </div>
+
+              <!-- Filter Subbag -->
+              <select id="monitoring-revisi-subbag" class="input-select" onchange="loadRevisiMonitoringTable()" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 170px; font-weight: 600;">
+                <option value="SEMUA">-- Semua Subbagian --</option>
+                <option value="TEKNIS">Subbag Teknis</option>
+                <option value="HUKUM">Subbag Hukum</option>
+                <option value="PARSDM">Subbag Parmas &amp; SDM</option>
+                <option value="KUL">Subbag Keuangan &amp; Logistik</option>
+                <option value="RENDATIN">Subbag Rendatin</option>
+              </select>
+
+              <!-- Filter Status -->
+              <select id="monitoring-revisi-status" class="input-select" onchange="loadRevisiMonitoringTable()" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 140px; font-weight: 600;">
+                <option value="ALL">-- Semua Status --</option>
+                <option value="PROSES">Sedang Proses</option>
+                <option value="PERBAIKAN">Perlu Perbaikan</option>
+                <option value="SELESAI">Selesai / Sah</option>
+                <option value="DITOLAK">Ditolak Pleno</option>
+              </select>
+            </div>
+
+            <div>
+              <button class="btn btn-outline btn-sm" onclick="loadRevisiMonitoringTable()" title="Muat Ulang Data Monitoring">
+                🔄 Segarkan
+              </button>
+            </div>
+          </div>
+
+          <!-- TABEL GRID MONITORING 4 TAHAP SAKTI -->
+          <div class="card">
+            <div class="card-body" style="padding: 0;">
+              <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0">
+                  <thead style="background: #0f172a; color: #ffffff;">
+                    <tr>
+                      <th style="width: 40px;" class="text-center">No</th>
+                      <th style="width: 140px;">ID Revisi</th>
+                      <th>Subbag / Surat Usulan</th>
+                      <th style="width: 110px;" class="text-center">Validasi PMK</th>
+                      <th style="width: 135px;" class="text-center">Tahap 1<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Pengajuan</span></th>
+                      <th style="width: 145px;" class="text-center">Tahap 2<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Penelitian Rendatin</span></th>
+                      <th style="width: 145px;" class="text-center">Tahap 3<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Penelaahan Pleno</span></th>
+                      <th style="width: 145px;" class="text-center">Tahap 4<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Penetapan Sah</span></th>
+                      <th style="width: 90px;" class="text-center">Tahap Status</th>
+                      <th style="width: 130px;" class="text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-revisi-monitoring-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW: RIWAYAT ARSIP REVISI (LOCKED HISTORY / MONITORING MIGRASI)  -->
+        <!-- ================================================================= -->
+        <section id="view-revisi-arsip" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Riwayat Arsip Dokumen Revisi (Locked History)</h2>
+              <p class="view-desc">Daftar arsip dokumen RKB yang telah disahkan dan dikunci resmi per revisi. Menjadi rujukan permanen yang transparan baik bagi PIC Subbag maupun Tim Rendatin.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-outline-primary" onclick="switchView('view-revisi-monitoring')">
+                📊 Buka Monitoring Proses &rarr;
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body" style="padding: 0;">
+              <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0">
+                  <thead style="background: #1e293b; color: #ffffff;">
+                    <tr>
+                      <th style="width: 70px;" class="text-center">Thang</th>
+                      <th style="width: 100px;">Kode Satker</th>
+                      <th>Deskripsi Revisi Dokumen</th>
+                      <th style="width: 80px;" class="text-center">Rev ke</th>
+                      <th style="width: 140px;" class="text-center">Status</th>
+                      <th class="text-right" style="width: 160px;">Total Anggaran (Rp)</th>
+                      <th style="width: 120px;" class="text-center">Tanggal Revisi</th>
+                      <th style="width: 130px;" class="text-center">Tanggal Penetapan</th>
+                      <th style="width: 180px;">Dasar Pengesahan</th>
+                      <th style="width: 120px;" class="text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-revisi-arsip-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
         <!-- VIEW 3: RUH BELANJA (ACTIVE WORKBENCH) -->
         <!-- ================================================================= -->
         <section id="view-rkb" class="app-view">
@@ -584,11 +981,6 @@
                 📥 Unduh Excel
               </button>
             </div>
-          </div>
-
-          <!-- WORKFLOW REVISI & PLENO CONTAINER (Subbag Status / Rendatin Monitoring) -->
-          <div id="rkb-workflow-container" style="margin-bottom: 8px;">
-            <!-- Rendered dynamically by renderRkbWorkflow() -->
           </div>
 
           <!-- UNIFIED WORKBENCH TOOLBAR -->
@@ -3357,6 +3749,92 @@
         <div class="modal-footer" style="display: flex; justify-content: space-between;">
           <span style="font-size: 11px; color: var(--text-muted);">* Komparasi dihitung berdasarkan selisih per baris rincian belanja secara otomatis oleh sistem.</span>
           <button type="button" class="btn btn-secondary btn-sm" onclick="closeModalMatriks()">Tutup</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: DETAIL USULAN REVISI (SAKTI 4-TAHAP TIMELINE & DOKUMEN)        -->
+    <!-- ===================================================================== -->
+    <div id="modal-revisi-detail" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 820px; width: 95%;">
+        <div class="modal-header">
+          <div>
+            <h3 style="margin: 0; font-size: 16px;" id="modal-revisi-detail-title">Detail Usulan Revisi RKB</h3>
+            <span id="modal-revisi-detail-kode" style="font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: #1e40af;">ID Revisi: -</span>
+          </div>
+          <button type="button" class="btn-close" onclick="closeModalRevisiDetail()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px; max-height: 75vh; overflow-y: auto;" id="modal-revisi-detail-body">
+          <!-- Populated via JS -->
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between;">
+          <div id="modal-revisi-detail-actions">
+            <!-- Aksi tombol sesuai status & role populated via JS -->
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeModalRevisiDetail()">Tutup</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: PROSES AKSI TAHAPAN REVISI (TAHAP 2, 3, ATAU 4)                -->
+    <!-- ===================================================================== -->
+    <div id="modal-revisi-tahap-action" class="modal-backdrop" style="display: none; z-index: 1090;">
+      <div class="modal-box" style="max-width: 600px; width: 95%;">
+        <div class="modal-header">
+          <div>
+            <h3 style="margin: 0; font-size: 16px;" id="modal-tahap-action-title">Proses Tahap Revisi</h3>
+            <span id="modal-tahap-action-subtitle" style="font-size: 12px; color: var(--text-muted);">ID Revisi: -</span>
+          </div>
+          <button type="button" class="btn-close" onclick="closeModalTahapAction()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <form id="form-revisi-tahap-action" onsubmit="event.preventDefault(); submitRevisiTahapAction();">
+            <input type="hidden" id="action-revisi-id">
+            <input type="hidden" id="action-revisi-tahap">
+
+            <!-- Banner Info Tahap -->
+            <div id="action-revisi-banner" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 12.5px; color: #166534;">
+              <!-- Populated via JS -->
+            </div>
+
+            <!-- Pilihan Keputusan / Aksi -->
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;" id="action-revisi-keputusan-label">Keputusan Hasil Verifikasi:</label>
+              <select id="action-revisi-keputusan" class="input-select" onchange="handleTahapDecisionChange(this.value)">
+                <option value="SETUJU">🟢 Setuju / Loloskan ke Tahap Berikutnya</option>
+                <option value="TOLAK">🔴 Dikembalikan / Perlu Perbaikan</option>
+              </select>
+            </div>
+
+            <!-- Field Tambahan Khusus Tahap 4 (Penetapan BA TAPD / SK) -->
+            <div id="action-revisi-tahap4-fields" style="display: none; margin-bottom: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+              <div class="form-group" style="margin-bottom: 10px;">
+                <label style="font-weight: 700; font-size: 12px;">Nomor BA Pengesahan TAPD / SK KPU: <span style="color: red;">*</span></label>
+                <input type="text" id="action-revisi-nomor-ba" class="input-text" placeholder="Contoh: 05/BA-TAPD/2026 atau SK No. 12 Tahun 2026">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700; font-size: 12px;">Tanggal Penetapan / Pengesahan: <span style="color: red;">*</span></label>
+                <input type="date" id="action-revisi-tanggal-ba" class="input-text">
+              </div>
+              <div style="font-size: 11px; color: #b45309; margin-top: 8px; background: #fffbeb; padding: 8px; border-radius: 6px; border: 1px solid #fde68a;">
+                ⚠️ <b>Perhatian Penguncian Dokumen (Locked History):</b><br>
+                Memproses Tahap 4 akan secara otomatis <b>mengunci (LOCK)</b> dokumen RKB revisi ini menjadi arsip resmi permanen, dan mengkloning kertas kerja RKB ke versi berikutnya untuk operasional lanjutan.
+              </div>
+            </div>
+
+            <!-- Catatan / Telaah / Alasan -->
+            <div class="form-group">
+              <label style="font-weight: 700;" id="action-revisi-catatan-label">Catatan Hasil Verifikasi / Telaah / Putusan:</label>
+              <textarea id="action-revisi-catatan" class="input-text" rows="4" placeholder="Tuliskan catatan hasil penelitian, telaah pleno, atau arahan perbaikan..."></textarea>
+            </div>
+
+            <div class="modal-footer" style="padding: 12px 0 0 0; display: flex; justify-content: flex-end; gap: 8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeModalTahapAction()">Batal</button>
+              <button type="submit" class="btn btn-primary" id="btn-submit-tahap-action">💾 Simpan &amp; Proses Tahap</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
