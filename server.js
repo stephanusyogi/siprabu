@@ -357,7 +357,8 @@ const server = http.createServer(async (req, res) => {
         filteredSummary = docSummary;
       }
 
-      const revision_comparison = getRevisionComparison(periodeId);
+      const compareWith = query.compare_with ? Number(query.compare_with) : null;
+      const revision_comparison = getRevisionComparison(periodeId, compareWith);
 
       return sendJson(res, 200, {
         periode,

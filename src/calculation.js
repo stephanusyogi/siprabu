@@ -448,11 +448,12 @@ function calculateRkbDataset(rawRows) {
 /**
  * Menghitung perbandingan Semula - Menjadi untuk Dokumen Revisi RKB
  */
-function getRevisionComparison(periodeId) {
+function getRevisionComparison(periodeId, targetComparisonPeriodeId = null) {
   const periode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periodeId));
-  if (!periode || !periode.parent_periode_id) {
+  if (!periode) {
     return {
       has_parent: false,
+      is_rkb_awal: false,
       parent_periode: null,
       summary: null,
       by_row_id: {},
@@ -460,10 +461,32 @@ function getRevisionComparison(periodeId) {
     };
   }
 
-  const parentPeriode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periode.parent_periode_id));
-  if (!parentPeriode) {
+  // Tentukan Dokumen Pembanding (Baseline SSOT):
+  // Aturan Tata Kelola Anggaran: Dokumen pembanding default adalah "RKB Awal" di Peta Siklus (revisi_ke = 0).
+  let compPeriode = null;
+  if (targetComparisonPeriodeId) {
+    compPeriode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(targetComparisonPeriodeId));
+  } else {
+    // Cari RKB Awal di Peta Siklus yang bukan dokumen saat ini
+    compPeriode = db.prepare(`
+      SELECT * FROM periode_anggaran 
+      WHERE (revisi_ke = 0 OR versi_revisi = 'RKB Awal' OR parent_periode_id IS NULL)
+        AND id != ?
+      ORDER BY id ASC LIMIT 1
+    `).get(periode.id);
+
+    // Fallback: jika dokumen saat ini turunan bertingkat dan tidak ada RKB Awal lain yang terdaftar selain parent
+    if (!compPeriode && periode.parent_periode_id) {
+      compPeriode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periode.parent_periode_id));
+    }
+  }
+
+  const isRkbAwal = Boolean(periode.revisi_ke === 0 || periode.versi_revisi === 'RKB Awal' || !periode.parent_periode_id);
+
+  if (!compPeriode || compPeriode.id === periode.id) {
     return {
       has_parent: false,
+      is_rkb_awal: isRkbAwal,
       parent_periode: null,
       summary: null,
       by_row_id: {},
@@ -471,7 +494,7 @@ function getRevisionComparison(periodeId) {
     };
   }
 
-  const parentRawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(parentPeriode.id);
+  const parentRawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(compPeriode.id);
   const currRawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(periode.id);
 
   const parentCalc = calculateRkbDataset(parentRawRows);
@@ -500,13 +523,13 @@ function getRevisionComparison(periodeId) {
     let status = 'TETAP';
     if (!semulaRow) {
       status = 'BARU';
-      deltaBertambah += diff;
+      if (!cr.is_header) deltaBertambah += diff;
     } else if (diff > 0) {
       status = 'BERTAMBAH';
-      deltaBertambah += diff;
+      if (!cr.is_header) deltaBertambah += diff;
     } else if (diff < 0) {
       status = 'BERKURANG';
-      deltaBerkurang += Math.abs(diff);
+      if (!cr.is_header) deltaBerkurang += Math.abs(diff);
     }
 
     const itemDiff = {
@@ -541,10 +564,13 @@ function getRevisionComparison(periodeId) {
 
   return {
     has_parent: true,
+    is_rkb_awal: false,
     parent_periode: {
-      id: parentPeriode.id,
-      nama: parentPeriode.nama_periode,
-      versi_revisi: parentPeriode.versi_revisi
+      id: compPeriode.id,
+      nama: compPeriode.nama_periode,
+      versi_revisi: compPeriode.versi_revisi,
+      dasar_pengesahan: compPeriode.dasar_pengesahan,
+      total_pagu: totalSemula
     },
     summary: {
       totalSemula,

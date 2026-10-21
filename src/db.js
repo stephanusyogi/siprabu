@@ -240,7 +240,7 @@ function clonePeriodeToRevision(sourcePeriodeId, {
         r.f1_val, r.f1_unit, r.f1_var, r.f2_val, r.f2_unit, r.f2_var, r.f3_val, r.f3_unit, r.f3_var, r.f4_val, r.f4_unit, r.f4_var,
         r.basis_pengali, r.label_pengali_kab, r.label_pengali_adhoc, r.satuan_vol, r.harga_satuan,
         r.pic_bagian, r.sifat_biaya, r.jenis_biaya, r.blokir_rm, r.selalu_tampil_print, parentNewId,
-        r.catatan_realisasi, r.id, null, null, null, null, null,
+        r.catatan_realisasi, r.semula_row_id || r.id, null, null, null, null, null,
         r.catatan_revisi_baris, r.cost_sharing
       );
       idMap[r.id] = res.lastInsertRowid;

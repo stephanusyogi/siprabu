@@ -1127,13 +1127,23 @@ function renderRkbTable() {
   setElText('rkb-stepper-title', periode.nama_periode);
   const stepperSub = document.getElementById('rkb-stepper-sub');
   if (stepperSub) {
-    stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🔒 Terkunci (NPHD Sah)</span>' : '<span class="badge badge-success">🟢 Draft Aktif</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'NPHD'}</strong>`;
+    if (hasParentRev) {
+      stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🔒 Terkunci</span>' : '<span class="badge badge-success">🟢 Draft Aktif</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'BA TAPD'}</strong> | Dokumen Pembanding: <span class="badge" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;font-weight:700;">🏛️ ${revision_comparison.parent_periode.versi_revisi} (${formatRupiah(revision_comparison.parent_periode.total_pagu)})</span>`;
+    } else {
+      stepperSub.innerHTML = `Versi: <strong>${periode.versi_revisi}</strong> | Status: ${isLocked ? '<span class="badge badge-danger">🏛️ Terkunci (NPHD Sah - Baseline)</span>' : '<span class="badge badge-success">🟢 Draft NPHD Induk</span>'} | Dasar: <strong>${periode.dasar_pengesahan || 'NPHD'}</strong> | <span class="badge" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;">Dokumen Induk Baseline (Peta Siklus)</span>`;
+    }
   }
 
   // Revision Sanding Toggle Visibility
   const lblSanding = document.getElementById('lblToggleSanding');
   if (lblSanding) {
     lblSanding.style.display = hasParentRev ? 'inline-flex' : 'none';
+  }
+
+  // Filter Perubahan Box Visibility (Hanya muncul jika ada dokumen pembanding)
+  const filterBox = document.getElementById('filter-perubahan-box');
+  if (filterBox) {
+    filterBox.style.display = hasParentRev ? 'inline-flex' : 'none';
   }
 
   // Revision Pills
@@ -1216,17 +1226,16 @@ function renderRkbTable() {
   }
 
   const revByRowId = (revision_comparison && revision_comparison.by_row_id) || {};
-  const filterPerubahan = AppState.filterPerubahan || 'ALL';
+  const filterPerubahan = hasParentRev ? (AppState.filterPerubahan || 'ALL') : 'ALL';
   const filterExpandedSet = new Set();
   const filterMatchedRowIds = new Set();
 
-  if (filterPerubahan !== 'ALL') {
+  if (hasParentRev && filterPerubahan !== 'ALL') {
     for (const r of rows) {
       const diffInfo = revByRowId[r.id];
-      const isNewlyAdded = (diffInfo && diffInfo.status === 'BARU') || (!hasParentRev && (r.id === 894117 || r.id > 7056 || !r.semula_row_id));
       let matches = false;
 
-      if (filterPerubahan === 'BARU' && isNewlyAdded) {
+      if (filterPerubahan === 'BARU' && diffInfo && diffInfo.status === 'BARU') {
         matches = true;
       } else if (filterPerubahan === 'BERTAMBAH' && diffInfo && diffInfo.status === 'BERTAMBAH') {
         matches = true;
@@ -1302,7 +1311,7 @@ function renderRkbTable() {
       menjadi_vol: r.computed_volume, menjadi_harga: r.harga_satuan, menjadi_jumlah: r.computed_total,
       catatan: ''
     };
-    const isNewlyAdded = (diffInfo && diffInfo.status === 'BARU') || (!hasParentRev && (r.id === 894117 || r.id > 7056 || !r.semula_row_id));
+    const isNewlyAdded = Boolean(hasParentRev && diffInfo && diffInfo.status === 'BARU');
 
     const toggleChevron = r.has_children
       ? `<button type="button" class="tree-toggle-btn" onclick="toggleTreeNode('${r.tree_id}', event)" title="${isExpanded ? 'Lipat baris ini' : 'Buka cabang ini'}">${isExpanded ? '▾' : '▸'}</button>`
