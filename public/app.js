@@ -502,7 +502,7 @@ function renderDashboard() {
       KUL: { name: 'Keuangan, Umum & Logistik (KUL)', color: '#3b82f6' },
       RENDATIN: { name: 'Perencanaan, Data & Informasi (RENDATIN)', color: '#10b981' },
       TEKNIS: { name: 'Teknis Penyelenggaraan Pemilu (TEKNIS)', color: '#8b5cf6' },
-      HUKUM: { name: 'Hukum & SDM (HUKUM)', color: '#f59e0b' },
+      HUKUM: { name: 'Hukum (HUKUM)', color: '#f59e0b' },
       PARSDM: { name: 'Partisipasi Masyarakat & SDM (PARSDM)', color: '#ec4899' }
     };
 

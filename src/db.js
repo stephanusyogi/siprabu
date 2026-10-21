@@ -47,6 +47,15 @@ function initDb() {
       `).run();
     }
   } catch (e) {}
+
+  // Sinkronisasi nomenklatur jabatan Kasubbag Hukum (menghilangkan duplikasi SDM dengan PARSDM)
+  try {
+    db.prepare(`
+      UPDATE satker_users 
+      SET jabatan = 'Kasubbag Hukum', pic_subbag = 'HUKUM' 
+      WHERE username = 'hukum'
+    `).run();
+  } catch (e) {}
 }
 
 initDb();

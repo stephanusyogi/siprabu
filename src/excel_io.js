@@ -93,6 +93,14 @@ function exportRkbToExcelBuffer(periodeId) {
   rkbData.push(['', '', `NIP. ${settings.ppkom_nip || '19840101 200912 1 001'}`, '', '', '', '', '', `NIP. ${settings.bp_nip || '19850615 200902 2 013'}`]);
 
   // 2. Data Sheet RINGKASAN_PAGU
+  const subbagFullNames = {
+    KUL: 'Keuangan, Umum & Logistik (KUL)',
+    RENDATIN: 'Perencanaan, Data & Informasi (RENDATIN)',
+    TEKNIS: 'Teknis Penyelenggaraan Pemilu (TEKNIS)',
+    HUKUM: 'Hukum (HUKUM)',
+    PARSDM: 'Partisipasi Masyarakat & SDM (PARSDM)'
+  };
+
   const summaryData = [
     ['RINGKASAN PAGU DOKUMEN RKB'],
     [`Dokumen: ${periode ? periode.nama_periode : '-'}`],
@@ -104,7 +112,8 @@ function exportRkbToExcelBuffer(periodeId) {
 
   for (const [pic, amt] of Object.entries(summary.bySubbag)) {
     const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) + '%' : '0%';
-    summaryData.push([pic, amt, pct]);
+    const label = subbagFullNames[pic] || pic;
+    summaryData.push([label, amt, pct]);
   }
 
   summaryData.push([]);
