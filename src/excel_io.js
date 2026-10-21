@@ -1185,555 +1185,661 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   }
 
   // ==========================================================================
-  // SHEET 4: Rekap_Alokasi (VERSI MANUSIA & PRESENTASI EKSEKUTIF RESMI)
-  // Dilengkapi Ringkasan Makro, Distribusi Sasaran, Dua Pilar Utama,
-  // Rekapitulasi Tematis 28 Kegiatan & Honorarium (Level 3), PIC, dan Akun BAS
+  // SHEET REKAPITULASI RESMI (VERSI PRESENTASI EKSEKUTIF MULTI-SHEET)
+  // Dipisahkan ke masing-masing sheet tematis agar mudah dibaca, dianalisa,
+  // dan dipresentasikan dengan lebar kolom presisi dan tanpa tumpang tindih layout.
   // Hanya dibuat untuk unduhan Dokumen Utuh (Non-PIC)
+  // 1. Rekap_Eksekutif: Kartu Indikator Makro, Tabel 1 Sasaran & Tabel 2 Pilar
+  // 2. Rekap_Kegiatan_RKB: Tabel 3 Murni Hierarki Level RKB (Tanpa No & Kluster)
+  // 3. Rekap_Subbagian: Tabel 4 Distribusi 5 Portofolio Subbagian (PIC)
+  // 4. Rekap_Akun_BAS: Tabel 5 Bagan Akun Standar (Rujukan Dashboard & Keuangan)
   // ==========================================================================
   if (!isPicDownload) {
-    const ws4 = wb.addWorksheet('Rekap_Alokasi', {
+    const sas = summary.bySasaran || {};
+    const grandTotal = summary.grandTotal || 1;
+
+    // Helper Styling Header Tabel Presentasi (Minimal 11pt)
+    function applyPresentationHeader(row, colsCount = 6) {
+      row.height = 26;
+      for (let c = 1; c <= colsCount; c++) {
+        const cell = row.getCell(c);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
+        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF006699' } },
+          bottom: { style: 'medium', color: { argb: 'FF004C73' } },
+          left: { style: 'thin', color: { argb: 'FF00B4F0' } },
+          right: { style: 'thin', color: { argb: 'FF00B4F0' } }
+        };
+      }
+    }
+
+    function applySectionBanner(ws, text, colsCount = 6) {
+      const r = ws.addRow([text]);
+      r.height = 24;
+      ws.mergeCells(`A${r.number}:${String.fromCharCode(64 + colsCount)}${r.number}`);
+      const cell = r.getCell(1);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      return r;
+    }
+
+    function applyDocumentHeader(ws, subTitle, colsCount = 6) {
+      ws.addRow(['KOMISI PEMILIHAN UMUM KABUPATEN NGAWI']);
+      ws.addRow([subTitle.toUpperCase()]);
+      ws.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI']);
+      ws.addRow([`Dokumen: ${periode ? periode.nama_periode : 'Pilkada'} (${periode ? (periode.versi_revisi || 'Induk') : '-'}) | Status: ${statusLabel} | Tanggal Unduh: ${tanggalUnduh}`]);
+      ws.addRow([]);
+
+      const lastColLetter = String.fromCharCode(64 + colsCount);
+      ws.mergeCells(`A1:${lastColLetter}1`);
+      ws.mergeCells(`A2:${lastColLetter}2`);
+      ws.mergeCells(`A3:${lastColLetter}3`);
+      ws.mergeCells(`A4:${lastColLetter}4`);
+
+      ws.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+      ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF006699' } };
+      ws.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
+      ws.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getCell('A4').font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF666666' } };
+      ws.getCell('A4').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      ws.getRow(1).height = 22;
+      ws.getRow(2).height = 26;
+      ws.getRow(3).height = 22;
+      ws.getRow(4).height = 20;
+      ws.getRow(5).height = 10;
+    }
+
+    function appendKetuaSignatureBlock(ws, targetCol, tgl, ketua) {
+      ws.addRow([]);
+      ws.addRow([]);
+      const colNum = typeof targetCol === 'number' ? targetCol : (targetCol.charCodeAt(0) - 64);
+      
+      const r1 = ws.addRow([]);
+      r1.getCell(colNum).value = `NGAWI, ${tgl}`;
+      r1.getCell(colNum).font = { name: 'Calibri', size: 11, bold: true };
+      r1.getCell(colNum).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const r2 = ws.addRow([]);
+      r2.getCell(colNum).value = 'Ketua Komisi Pemilihan Umum';
+      r2.getCell(colNum).font = { name: 'Calibri', size: 11, bold: true };
+      r2.getCell(colNum).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const r3 = ws.addRow([]);
+      r3.getCell(colNum).value = 'Kabupaten Ngawi,';
+      r3.getCell(colNum).font = { name: 'Calibri', size: 11, bold: true };
+      r3.getCell(colNum).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      ws.addRow([]);
+      ws.addRow([]);
+      ws.addRow([]);
+
+      const r7 = ws.addRow([]);
+      r7.getCell(colNum).value = ketua;
+      r7.getCell(colNum).font = { name: 'Calibri', size: 12, bold: true, underline: false };
+      r7.getCell(colNum).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      return ws.rowCount;
+    }
+
+    // ========================================================================
+    // SHEET REKAP 1: Rekap_Eksekutif (Tabel 1 Sasaran & Tabel 2 Dua Pilar)
+    // ========================================================================
+    const wsRekapEksekutif = wb.addWorksheet('Rekap_Eksekutif', {
       pageSetup: {
         orientation: 'landscape',
-        paperSize: 9, // A4
+        paperSize: 9,
         fitToPage: true,
         fitToWidth: 1,
         fitToHeight: 0
       }
     });
 
-    const sas = summary.bySasaran || {};
-    const grandTotal = summary.grandTotal || 1;
+    applyDocumentHeader(wsRekapEksekutif, 'RESUME EKSEKUTIF ALOKASI ANGGARAN PILKADA TAHUN 2029', 6);
 
-    // 1. JUDUL & IDENTITAS DOKUMEN PRESENTASI
-    ws4.addRow(['KOMISI PEMILIHAN UMUM KABUPATEN NGAWI']);
-    ws4.addRow(['RESUME EKSEKUTIF ALOKASI ANGGARAN PILKADA TAHUN 2029']);
-    ws4.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI']);
-    ws4.addRow([`Dokumen: ${periode ? periode.nama_periode : 'Pilkada'} (${periode ? (periode.versi_revisi || 'Induk') : '-'}) | Status: ${statusLabel} | Tanggal Unduh: ${tanggalUnduh}`]);
-    ws4.addRow([]); // Baris 5 kosong
+    // KARTU INDIKATOR MAKRO EKSEKUTIF (BARIS 6 - 8)
+    const totalPenyelenggara = (sas.KAB || 0) + (sas.PPK || 0) + (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
+    const totalBadanAdHoc = (sas.PPK || 0) + (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
+    const valPeserta = sas.PESERTA || 0;
 
-    ws4.mergeCells('A1:G1');
-    ws4.mergeCells('A2:G2');
-    ws4.mergeCells('A3:G3');
-    ws4.mergeCells('A4:G4');
+    const cardHeaderRow = wsRekapEksekutif.addRow([
+      'TOTAL PAGU BELANJA', '',
+      'OPERASIONAL & LOGISTIK KAB.',
+      'ALOKASI BADAN AD HOC',
+      'FASILITASI PESERTA PEMILIHAN', '', ''
+    ]);
+    const cardValRow = wsRekapEksekutif.addRow([
+      grandTotal, '',
+      sas.KAB || 0,
+      totalBadanAdHoc,
+      valPeserta, '', ''
+    ]);
+    const cardSubRow = wsRekapEksekutif.addRow([
+      '100.00% Alokasi Terdistribusi Penuh', '',
+      `${(((sas.KAB || 0) / grandTotal) * 100).toFixed(2)}% Satker KPU Kab. Ngawi`,
+      `${(((totalBadanAdHoc) / grandTotal) * 100).toFixed(2)}% PPK, PPS, KPPS & Pantarlih`,
+      `${(((valPeserta) / grandTotal) * 100).toFixed(2)}% Paslon & Parpol (Debat, APK, dll)`, '', ''
+    ]);
 
-    ws4.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
-    ws4.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
-    ws4.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF006699' } };
-    ws4.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-    ws4.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
-    ws4.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
-    ws4.getCell('A4').font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF666666' } };
-    ws4.getCell('A4').alignment = { vertical: 'middle', horizontal: 'center' };
+    cardHeaderRow.height = 20;
+    cardValRow.height = 28;
+    cardSubRow.height = 20;
 
-  ws4.getRow(1).height = 22;
-  ws4.getRow(2).height = 26;
-  ws4.getRow(3).height = 22;
-  ws4.getRow(4).height = 20;
-  ws4.getRow(5).height = 10;
+    wsRekapEksekutif.mergeCells('A6:B6'); wsRekapEksekutif.mergeCells('A7:B7'); wsRekapEksekutif.mergeCells('A8:B8');
+    wsRekapEksekutif.mergeCells('E6:F6'); wsRekapEksekutif.mergeCells('E7:F7'); wsRekapEksekutif.mergeCells('E8:F8');
 
-  // 2. KARTU INDIKATOR MAKRO EKSEKUTIF (BARIS 6 - 8)
-  const totalPenyelenggara = (sas.KAB || 0) + (sas.PPK || 0) + (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
-  const totalBadanAdHoc = (sas.PPK || 0) + (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
-  const valPeserta = sas.PESERTA || 0;
-
-  const cardHeaderRow = ws4.addRow([
-    'TOTAL PAGU BELANJA', '',
-    'OPERASIONAL & LOGISTIK KAB.',
-    'ALOKASI BADAN AD HOC',
-    'FASILITASI PESERTA PEMILIHAN', '', ''
-  ]);
-  const cardValRow = ws4.addRow([
-    grandTotal, '',
-    sas.KAB || 0,
-    totalBadanAdHoc,
-    valPeserta, '', ''
-  ]);
-  const cardSubRow = ws4.addRow([
-    '100.00% Alokasi Terdistribusi Penuh', '',
-    `${(( (sas.KAB || 0) / grandTotal) * 100).toFixed(2)}% Satker KPU Kab. Ngawi`,
-    `${((totalBadanAdHoc / grandTotal) * 100).toFixed(2)}% PPK, PPS, KPPS & Pantarlih`,
-    `${((valPeserta / grandTotal) * 100).toFixed(2)}% Paslon & Parpol (Debat, APK, dll)`, '', ''
-  ]);
-
-  cardHeaderRow.height = 20;
-  cardValRow.height = 28;
-  cardSubRow.height = 20;
-
-  ws4.mergeCells('A6:B6'); ws4.mergeCells('A7:B7'); ws4.mergeCells('A8:B8');
-  ws4.mergeCells('E6:F6'); ws4.mergeCells('E7:F7'); ws4.mergeCells('E8:F8');
-
-  // Styling Kartu 1: Total Hibah (Blue/Cyan)
-  ['A', 'B'].forEach(col => {
-    [6, 7, 8].forEach(r => {
-      ws4.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+    ['A', 'B'].forEach(col => {
+      [6, 7, 8].forEach(r => {
+        wsRekapEksekutif.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+      });
     });
-  });
-  ws4.getCell('A6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0369A1' } };
-  ws4.getCell('A7').font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF0284C7' } };
-  ws4.getCell('A7').numFmt = '#,##0';
-  ws4.getCell('A8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF075985' } };
-  ws4.getCell('A6').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('A7').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('A8').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('A6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+    wsRekapEksekutif.getCell('A7').font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF0284C7' } };
+    wsRekapEksekutif.getCell('A7').numFmt = '#,##0';
+    wsRekapEksekutif.getCell('A8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF075985' } };
+    wsRekapEksekutif.getCell('A6').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('A7').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('A8').alignment = { vertical: 'middle', horizontal: 'center' };
 
-  // Styling Kartu 2: Kabupaten (Purple)
-  [6, 7, 8].forEach(r => {
-    ws4.getCell(`C${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
-  });
-  ws4.getCell('C6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF6B21A8' } };
-  ws4.getCell('C7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF7E22CE' } };
-  ws4.getCell('C7').numFmt = '#,##0';
-  ws4.getCell('C8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF581C87' } };
-  ws4.getCell('C6').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('C7').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('C8').alignment = { vertical: 'middle', horizontal: 'center' };
-
-  // Styling Kartu 3: Badan Ad Hoc (Green/Emerald)
-  [6, 7, 8].forEach(r => {
-    ws4.getCell(`D${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
-  });
-  ws4.getCell('D6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF15803D' } };
-  ws4.getCell('D7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF16A34A' } };
-  ws4.getCell('D7').numFmt = '#,##0';
-  ws4.getCell('D8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF14532D' } };
-  ws4.getCell('D6').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('D7').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('D8').alignment = { vertical: 'middle', horizontal: 'center' };
-
-  // Styling Kartu 4: Fasilitasi Peserta (Amber)
-  ['E', 'F'].forEach(col => {
     [6, 7, 8].forEach(r => {
-      ws4.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+      wsRekapEksekutif.getCell(`C${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
     });
-  });
-  ws4.getCell('E6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFB45309' } };
-  ws4.getCell('E7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFD97706' } };
-  ws4.getCell('E7').numFmt = '#,##0';
-  ws4.getCell('E8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF78350F' } };
-  ws4.getCell('E6').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('E7').alignment = { vertical: 'middle', horizontal: 'center' };
-  ws4.getCell('E8').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('C6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF6B21A8' } };
+    wsRekapEksekutif.getCell('C7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF7E22CE' } };
+    wsRekapEksekutif.getCell('C7').numFmt = '#,##0';
+    wsRekapEksekutif.getCell('C8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF581C87' } };
+    wsRekapEksekutif.getCell('C6').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('C7').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('C8').alignment = { vertical: 'middle', horizontal: 'center' };
 
-  ws4.addRow([]); // Baris 9 kosong
+    [6, 7, 8].forEach(r => {
+      wsRekapEksekutif.getCell(`D${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+    });
+    wsRekapEksekutif.getCell('D6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF15803D' } };
+    wsRekapEksekutif.getCell('D7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF16A34A' } };
+    wsRekapEksekutif.getCell('D7').numFmt = '#,##0';
+    wsRekapEksekutif.getCell('D8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF14532D' } };
+    wsRekapEksekutif.getCell('D6').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('D7').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('D8').alignment = { vertical: 'middle', horizontal: 'center' };
 
-  // Helper Styling Header Tabel Presentasi (Minimal 11pt)
-  function applyPresentationHeader(row, colsCount = 6) {
-    row.height = 26;
-    for (let c = 1; c <= colsCount; c++) {
-      const cell = row.getCell(c);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0099CC' } };
-      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FF006699' } },
-        bottom: { style: 'medium', color: { argb: 'FF004C73' } },
-        left: { style: 'thin', color: { argb: 'FF00B4F0' } },
-        right: { style: 'thin', color: { argb: 'FF00B4F0' } }
-      };
-    }
-  }
+    ['E', 'F'].forEach(col => {
+      [6, 7, 8].forEach(r => {
+        wsRekapEksekutif.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+      });
+    });
+    wsRekapEksekutif.getCell('E6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFB45309' } };
+    wsRekapEksekutif.getCell('E7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFD97706' } };
+    wsRekapEksekutif.getCell('E7').numFmt = '#,##0';
+    wsRekapEksekutif.getCell('E8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF78350F' } };
+    wsRekapEksekutif.getCell('E6').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('E7').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell('E8').alignment = { vertical: 'middle', horizontal: 'center' };
 
-  function applySectionBanner(text, colsCount = 6) {
-    const r = ws4.addRow([text]);
-    r.height = 24;
-    ws4.mergeCells(`A${r.number}:${String.fromCharCode(64 + colsCount)}${r.number}`);
-    const cell = r.getCell(1);
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-    return r;
-  }
+    wsRekapEksekutif.addRow([]);
 
-  // --------------------------------------------------------------------------
-  // TABEL 1: DISTRIBUSI ANGGARAN BERDASARKAN TINGKATAN SASARAN & PENERIMA
-  // --------------------------------------------------------------------------
-  applySectionBanner('I. DISTRIBUSI ANGGARAN BERDASARKAN TINGKATAN SASARAN DAN PENERIMA LAPANGAN', 6);
-  const hRow4_1 = ws4.addRow(['No', 'Tingkatan Sasaran Anggaran', 'Entitas Unit / Wilayah Sasaran', 'Pagu Anggaran (Rp)', 'Porsi (%)', 'Ruang Lingkup Kegiatan & Keterangan Belanja']);
-  applyPresentationHeader(hRow4_1, 6);
+    // TABEL 1: DISTRIBUSI SASARAN & PENERIMA LAPANGAN
+    applySectionBanner(wsRekapEksekutif, 'I. DISTRIBUSI ANGGARAN BERDASARKAN TINGKATAN SASARAN DAN PENERIMA LAPANGAN', 6);
+    const hRow1 = wsRekapEksekutif.addRow(['No', 'Tingkatan Sasaran Anggaran', 'Entitas Unit / Wilayah Sasaran', 'Pagu Anggaran (Rp)', 'Porsi (%)', 'Ruang Lingkup Kegiatan & Keterangan Belanja']);
+    applyPresentationHeader(hRow1, 6);
 
-  const dataSasaran = [
-    { title: 'Tingkat Satker Kabupaten (KPU Kab. Ngawi)', entitas: '1 Satker KPU Kab. Ngawi', val: sas.KAB || 0, desc: 'Pengadaan logistik utama (surat suara, kotak, bilik), bimtek komprehensif, sosialisasi sentral, advokasi sengketa hukum, dan operasional satker' },
-    { title: 'Tingkat Kecamatan (PPK)', entitas: '19 Kantor PPK se-Kabupaten', val: sas.PPK || 0, desc: 'Operasional kesekretariatan 19 PPK, belanja ATK, konsumsi rapat kerja/pleno, dan dukungan administrasi rekapitulasi tingkat kecamatan' },
-    { title: 'Tingkat Desa / Kelurahan (PPS)', entitas: '217 Kantor PPS se-Kabupaten', val: sas.PPS || 0, desc: 'Operasional sekretariat 217 PPS, pengumuman DPS/DPT, distribusi logistik desa, dan honorarium 5 bulan PPS se-Kabupaten Ngawi' },
-    { title: 'Petugas Pemutakhiran Data Pemilih (Pantarlih)', entitas: '2.537 Petugas Lapangan', val: sas.PANTARLIH || 0, desc: 'Perlengkapan coklit door-to-door, dokumen kerja sensus pemilih, dan supervisi pemutakhiran data pemilih berkelanjutan' },
-    { title: 'Tingkat Tempat Pemungutan Suara (TPS)', entitas: '1.371 TPS (12.339 Petugas)', val: sas.TPS || 0, desc: 'Honorarium KPPS (7 org) dan Petugas Ketertiban Linmas (2 org) per TPS, operasional KPPS, serta pembuatan tenda TPS' }
-  ];
+    const dataSasaran = [
+      { title: 'Tingkat Satker Kabupaten (KPU Kab. Ngawi)', entitas: '1 Satker KPU Kab. Ngawi', val: sas.KAB || 0, desc: 'Pengadaan logistik utama (surat suara, kotak, bilik), bimtek komprehensif, sosialisasi sentral, advokasi sengketa hukum, dan operasional satker' },
+      { title: 'Tingkat Kecamatan (PPK)', entitas: '19 Kantor PPK se-Kabupaten', val: sas.PPK || 0, desc: 'Operasional kesekretariatan 19 PPK, belanja ATK, konsumsi rapat kerja/pleno, dan dukungan administrasi rekapitulasi tingkat kecamatan' },
+      { title: 'Tingkat Desa / Kelurahan (PPS)', entitas: '217 Kantor PPS se-Kabupaten', val: sas.PPS || 0, desc: 'Operasional sekretariat 217 PPS, pengumuman DPS/DPT, distribusi logistik desa, dan honorarium 5 bulan PPS se-Kabupaten Ngawi' },
+      { title: 'Petugas Pemutakhiran Data Pemilih (Pantarlih)', entitas: '2.537 Petugas Lapangan', val: sas.PANTARLIH || 0, desc: 'Perlengkapan coklit door-to-door, dokumen kerja sensus pemilih, dan supervisi pemutakhiran data pemilih berkelanjutan' },
+      { title: 'Tingkat Tempat Pemungutan Suara (TPS)', entitas: '1.371 TPS (12.339 Petugas)', val: sas.TPS || 0, desc: 'Honorarium KPPS (7 org) dan Petugas Ketertiban Linmas (2 org) per TPS, operasional KPPS, serta pembuatan tenda TPS' }
+    ];
 
-  dataSasaran.forEach((d, idx) => {
-    const pct = ((d.val / grandTotal) * 100).toFixed(2) + '%';
-    const r = ws4.addRow([idx + 1, d.title, d.entitas, d.val, pct, d.desc]);
-    r.height = 22;
-    for (let c = 1; c <= 6; c++) {
-      r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-      r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
-    r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    r.getCell(4).numFmt = '#,##0';
-    r.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
-    r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-  });
-
-  const pctPenyelenggara = ((totalPenyelenggara / grandTotal) * 100).toFixed(2) + '%';
-  const totPenyRow = ws4.addRow(['', 'SUBTOTAL PENYELENGGARA PEMILIHAN (1 s.d 5):', 'Seluruh Wilayah Kabupaten Ngawi', totalPenyelenggara, pctPenyelenggara, 'Akumulasi anggaran seluruh tingkatan penyelenggara (KPU, PPK, PPS, KPPS, Pantarlih)']);
-  totPenyRow.height = 24;
-  totPenyRow.font = { name: 'Calibri', size: 11, bold: true };
-  totPenyRow.getCell(4).numFmt = '#,##0';
-  totPenyRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
-  totPenyRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-  for (let c = 1; c <= 6; c++) {
-    totPenyRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-    totPenyRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF94A3B8' } }, bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } };
-  }
-
-  const pctPeserta = ((valPeserta / grandTotal) * 100).toFixed(2) + '%';
-  const pesertaRow = ws4.addRow(['6', 'Fasilitasi Peserta Pemilihan', 'Paslon & Partai Politik', valPeserta, pctPeserta, 'Pencetakan & pemasangan APK, bahan kampanye paslon, debat publik terbuka, fasilitasi iklan media massa, dan audit KAP']);
-  pesertaRow.height = 22;
-  for (let c = 1; c <= 6; c++) {
-    pesertaRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-    pesertaRow.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-  }
-  pesertaRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-  pesertaRow.getCell(4).numFmt = '#,##0';
-  pesertaRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
-  pesertaRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-
-  const grandTotRow = ws4.addRow(['', 'TOTAL PAGU BELANJA:', 'Hibah NPHD Pilkada 2029', grandTotal, '100.00%', 'Anggaran berimbang (100% balance) siap dilaksanakan dan dipertanggungjawabkan']);
-  grandTotRow.height = 26;
-  grandTotRow.font = { name: 'Calibri', size: 11.5, bold: true };
-  grandTotRow.getCell(4).numFmt = '#,##0';
-  grandTotRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
-  grandTotRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-  for (let c = 1; c <= 6; c++) {
-    grandTotRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
-    grandTotRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
-  }
-
-  // --------------------------------------------------------------------------
-  // TABEL 2: KOMPOSISI DUA PILAR UTAMA ANGGARAN PILKADA
-  // --------------------------------------------------------------------------
-  ws4.addRow([]);
-  applySectionBanner('II. KOMPOSISI DUA PILAR UTAMA ANGGARAN PILKADA', 6);
-  const hRow4_2 = ws4.addRow(['No', 'Pilar Komponen Anggaran', 'Rincian Komponen Pelaksanaan', 'Pagu Anggaran (Rp)', 'Porsi (%)', 'Arah Kebijakan Anggaran']);
-  applyPresentationHeader(hRow4_2, 6);
-
-  const banner = summary.banner || {};
-  const totPilarTahapan = (banner.tahapanTotal || 0) + (banner.operasionalTotal || 0) || 26614699000;
-  const totPilarHonor = banner.honorTotal || 23385300000;
-
-  const dataPilar = [
-    { no: '1', title: 'Tahapan Persiapan & Pelaksanaan', rincian: '28 Komponen Kegiatan Teknis & Non-Tahapan', val: totPilarTahapan, desc: 'Membiayai seluruh belanja barang, pengadaan logistik utama, sewa gedung/gudang, sosialisasi, bimbingan teknis, dan administrasi perkantoran' },
-    { no: '2', title: 'Honorarium Badan Penyelenggara Ad Hoc & Pokja', rincian: 'PPK, PPS, KPPS, Pantarlih, dan Kelompok Kerja Pemilihan', val: totPilarHonor, desc: 'Alokasi khusus imbalan jasa dan keringat ribuan petugas pemilu di tingkat kecamatan, desa, hingga garda terdepan TPS se-Kabupaten Ngawi' }
-  ];
-
-  dataPilar.forEach(d => {
-    const pct = ((d.val / grandTotal) * 100).toFixed(2) + '%';
-    const r = ws4.addRow([d.no, d.title, d.rincian, d.val, pct, d.desc]);
-    r.height = 22;
-    for (let c = 1; c <= 6; c++) {
-      r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-      r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
-    r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    r.getCell(4).numFmt = '#,##0';
-    r.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
-    r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-  });
-
-  const totPilarRow = ws4.addRow(['', 'TOTAL KESELURUHAN DUA PILAR (1 + 2):', '100% Seluruh Komponen Pelaksanaan', (totPilarTahapan + totPilarHonor), '100.00%', 'Komposisi seimbang antara pelaksanaan kegiatan teknis dan kesejahteraan penyelenggara lapangan']);
-  totPilarRow.height = 26;
-  totPilarRow.font = { name: 'Calibri', size: 11.5, bold: true };
-  totPilarRow.getCell(4).numFmt = '#,##0';
-  totPilarRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
-  totPilarRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-  for (let c = 1; c <= 6; c++) {
-    totPilarRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
-    totPilarRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
-  }
-
-  // --------------------------------------------------------------------------
-  // TABEL 3: REKAPITULASI TEMATIS 28 KEGIATAN & HONORARIUM PENYELENGGARA (LEVEL 3)
-  // --------------------------------------------------------------------------
-  ws4.addRow([]);
-  applySectionBanner('III. REKAPITULASI ALOKASI SAMPAI LEVEL 3 (28 KEGIATAN TAHAPAN & HONORARIUM PENYELENGGARA)', 7);
-  const hRow4_3 = ws4.addRow(['No', 'Kode', 'Uraian Program / Kegiatan Level 3', 'Kluster Tematis', 'Pagu Anggaran (Rp)', 'Porsi (%)', 'PIC Subbag Utama']);
-  applyPresentationHeader(hRow4_3, 7);
-
-  // Ambil seluruh header Level 3 dari dataset
-  const l3Rows = rows.filter(r => r.tree_level === 3 || (r.is_header && r.level_indent === 2));
-
-  // Pemetaan Kluster Tematis Manusiawi untuk Presentasi
-  function getL3Cluster(r) {
-    if (r.parent_tree_id === 'h_7043' || (r.uraian || '').includes('PPK (188)') || r.uraian === 'PPS' || r.uraian === 'KPPS' || (r.uraian || '').includes('PPDP (188)')) {
-      return 'Kluster IV: Honorarium Badan Penyelenggara Ad Hoc';
-    }
-    const num = parseInt(r.kode, 10);
-    if (!isNaN(num)) {
-      if (num >= 1 && num <= 5) return 'Kluster I: Tahap Persiapan & Penguatan Kelembagaan';
-      if (num >= 6 && num <= 17) return 'Kluster II: Tahap Pelaksanaan Inti Pemilihan';
-      if (num >= 18 && num <= 28) return 'Kluster III: Dukungan Manajemen & Operasional Administrasi Perkantoran';
-    }
-    return 'Kluster Tematis Pemilihan';
-  }
-
-  let clusterTotals = {
-    'Kluster I: Tahap Persiapan & Penguatan Kelembagaan': 0,
-    'Kluster II: Tahap Pelaksanaan Inti Pemilihan': 0,
-    'Kluster III: Dukungan Manajemen & Operasional Administrasi Perkantoran': 0,
-    'Kluster IV: Honorarium Badan Penyelenggara Ad Hoc': 0
-  };
-
-  let currentCluster = '';
-  let clusterSubtotal = 0;
-  let counterL3 = 1;
-
-  l3Rows.forEach((r) => {
-    const cluster = getL3Cluster(r);
-    const val = r.computed_total || 0;
-
-    // Jika masuk kluster baru dan kluster sebelumnya punya subtotal, cetak subtotal kluster sebelumnya
-    if (currentCluster && currentCluster !== cluster) {
-      const pctSub = ((clusterSubtotal / grandTotal) * 100).toFixed(2) + '%';
-      const subRow = ws4.addRow(['', '', `SUBTOTAL ${currentCluster.toUpperCase()}`, currentCluster, clusterSubtotal, pctSub, 'Akumulasi Kluster']);
-      subRow.height = 23;
-      subRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1E293B' } };
-      subRow.getCell(5).numFmt = '#,##0';
-      subRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
-      subRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-      for (let c = 1; c <= 7; c++) {
-        subRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-        subRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+    dataSasaran.forEach((d, idx) => {
+      const pct = ((d.val / grandTotal) * 100).toFixed(2) + '%';
+      const r = wsRekapEksekutif.addRow([idx + 1, d.title, d.entitas, d.val, pct, d.desc]);
+      r.height = 22;
+      for (let c = 1; c <= 6; c++) {
+        r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+        r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
       }
-      clusterSubtotal = 0;
-    }
+      r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(4).numFmt = '#,##0';
+      r.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
+      r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+    });
 
-    currentCluster = cluster;
-    clusterSubtotal += val;
-    if (clusterTotals[cluster] !== undefined) {
-      clusterTotals[cluster] += val;
-    }
-
-    const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
-    const rRow = ws4.addRow([
-      counterL3++,
-      r.kode || '',
-      r.uraian || '',
-      cluster,
-      val,
-      pct,
-      r.pic_bagian || '-'
-    ]);
-
-    rRow.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
-    for (let c = 1; c <= 7; c++) {
-      rRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-      rRow.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
-    rRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    rRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-    rRow.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
-    rRow.getCell(5).numFmt = '#,##0';
-    rRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
-    rRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-    rRow.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
-  });
-
-  // Cetak subtotal kluster terakhir (Kluster IV)
-  if (currentCluster) {
-    const pctSub = ((clusterSubtotal / grandTotal) * 100).toFixed(2) + '%';
-    const subRow = ws4.addRow(['', '', `SUBTOTAL ${currentCluster.toUpperCase()}`, currentCluster, clusterSubtotal, pctSub, 'Akumulasi Kluster']);
-    subRow.height = 23;
-    subRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1E293B' } };
-    subRow.getCell(5).numFmt = '#,##0';
-    subRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
-    subRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-    for (let c = 1; c <= 7; c++) {
-      subRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-      subRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
-    }
-  }
-
-  // Tambahkan baris khusus Honorarium Kelompok Kerja (Pokja) jika ada agar total L3 100% balance
-  const rPokja = rows.find(r => r.kode === 'I.' && (r.uraian || '').includes('Kelompok Kerja'));
-  const valPokja = rPokja ? (rPokja.computed_total || 0) : 0;
-  if (valPokja > 0) {
-    const pctPokja = ((valPokja / grandTotal) * 100).toFixed(2) + '%';
-    const pokjaRow = ws4.addRow([
-      counterL3++,
-      'Pokja',
-      'Honorarium Kelompok Kerja (Pokja) Pemilihan (11 Bidang Pokja)',
-      'Kluster Khusus: Honorarium Pokja Pemilihan',
-      valPokja,
-      pctPokja,
-      'KUL / Lintas Subbag'
-    ]);
-    pokjaRow.height = 22;
-    for (let c = 1; c <= 7; c++) {
-      pokjaRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-      pokjaRow.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
-    pokjaRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    pokjaRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-    pokjaRow.getCell(5).numFmt = '#,##0';
-    pokjaRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
-    pokjaRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-    pokjaRow.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
-  }
-
-  // Grand Total Level 3 (100% Balance!)
-  let totAllL3 = 0;
-  l3Rows.forEach(r => totAllL3 += (r.computed_total || 0));
-  totAllL3 += valPokja;
-
-  const grandTotL3 = ws4.addRow(['', '', 'TOTAL REKAPITULASI KEGIATAN & HONORARIUM:', 'Seluruh Program Pilkada', totAllL3, '100.00%', '100% Balance']);
-  grandTotL3.height = 26;
-  grandTotL3.font = { name: 'Calibri', size: 11.5, bold: true };
-  grandTotL3.getCell(5).numFmt = '#,##0';
-  grandTotL3.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
-  grandTotL3.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-  grandTotL3.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
-  for (let c = 1; c <= 7; c++) {
-    grandTotL3.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
-    grandTotL3.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
-  }
-
-  // --------------------------------------------------------------------------
-  // TABEL 4: DISTRIBUSI PORTOFOLIO SUBBAGIAN (PIC PENANGGUNG JAWAB)
-  // --------------------------------------------------------------------------
-  ws4.addRow([]);
-  applySectionBanner('IV. DISTRIBUSI PORTOFOLIO DAN TANGGUNG JAWAB SUBBAGIAN (PIC)', 6);
-  const hRow4_4 = ws4.addRow(['No', 'Subbagian Penanggung Jawab', 'Pagu Kelolaan (Rp)', 'Porsi (%)', 'Fokus Utama Tanggung Jawab & Portofolio Belanja', '']);
-  applyPresentationHeader(hRow4_4, 5);
-
-  const bySubbag = summary.bySubbag || {};
-  const picInfo = [
-    { code: 'KUL', name: 'Keuangan, Umum & Logistik (KUL)', desc: 'Pengadaan logistik pemilu (kotak, surat suara, bilik, formulir), sewa gedung/gudang, operasional kantor satker, langganan daya dan jasa, pemeliharaan sarpras, perjalanan dinas, dan perbendaharaan hibah' },
-    { code: 'RENDATIN', name: 'Perencanaan, Data & Informasi (RENDATIN)', desc: 'Penyusunan anggaran dan RKB, pemutakhiran data pemilih berkelanjutan (Sidalih), pencetakan DPS/DPT, serta penyusunan evaluasi dan pelaporan program' },
-    { code: 'TEKNIS', name: 'Teknis Penyelenggaraan Pemilu (TEKNIS)', desc: 'Pendaftaran dan verifikasi pasangan calon, rapat koordinasi teknis, fasilitasi debat publik terbuka paslon, pemungutan dan penghitungan suara, serta rapat pleno rekapitulasi perolehan suara' },
-    { code: 'HUKUM', name: 'Hukum (HUKUM)', desc: 'Penyusunan keputusan KPU, telaah regulasi pilkada, advokasi sengketa pencalonan dan sengketa perselisihan hasil pemilihan di Mahkamah Konstitusi, bantuan hukum, dan dokumentasi JDIH' },
-    { code: 'PARSDM', name: 'Partisipasi Masyarakat & SDM (PARSDM)', desc: 'Sosialisasi pemilih, pendidikan pemilih pemula, pembentukan dan rekrutmen badan ad hoc (PPK, PPS, KPPS, Pantarlih), bimbingan teknis ad hoc, dan alokasi honorarium ad hoc se-Kabupaten' }
-  ];
-
-  let totPicSum = 0;
-  picInfo.forEach((p, idx) => {
-    const val = bySubbag[p.code] || 0;
-    totPicSum += val;
-    const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
-    const r = ws4.addRow([idx + 1, p.name, val, pct, p.desc, '']);
-    r.height = 24;
-    for (let c = 1; c <= 5; c++) {
-      r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-      r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-    }
-    r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    r.getCell(3).numFmt = '#,##0';
-    r.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
-    r.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
-  });
-
-  const totPicRow = ws4.addRow(['', 'TOTAL SELURUH SUBBAGIAN (1 s.d 5):', totPicSum, '100.00%', 'Alokasi terbagi proporsional sesuai tugas pokok dan fungsi 5 subbagian KPU Kabupaten Ngawi', '']);
-  totPicRow.height = 26;
-  totPicRow.font = { name: 'Calibri', size: 11.5, bold: true };
-  totPicRow.getCell(3).numFmt = '#,##0';
-  totPicRow.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
-  totPicRow.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
-  for (let c = 1; c <= 5; c++) {
-    totPicRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
-    totPicRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
-  }
-
-  // --------------------------------------------------------------------------
-  // TABEL 5: REKAPITULASI JENIS BELANJA MAKRO (BAGAN AKUN STANDAR - BAS)
-  // --------------------------------------------------------------------------
-  ws4.addRow([]);
-  applySectionBanner('V. REKAPITULASI JENIS BELANJA MAKRO (BAGAN AKUN STANDAR - BAS)', 6);
-  const hRow4_5 = ws4.addRow(['No', 'Kode Akun', 'Uraian Akun Belanja (BAS)', 'Kelompok Kategori Belanja', 'Pagu Anggaran (Rp)', 'Porsi (%)']);
-  applyPresentationHeader(hRow4_5, 6);
-
-  const byAkun = summary.byAkun || {};
-  function getAkunCategory(kd) {
-    if (kd === '521213') return 'Belanja Honorarium Output (Ad Hoc & Pokja)';
-    if (kd === '521211') return 'Belanja Bahan & ATK';
-    if (kd === '522151') return 'Belanja Jasa Profesi / Narasumber';
-    if (kd === '522141') return 'Belanja Sewa Gedung & Perlengkapan';
-    if (kd.startsWith('524')) return 'Belanja Perjalanan Dinas & Supervisi';
-    if (kd.startsWith('53')) return 'Belanja Modal / Aset Peralatan';
-    return 'Belanja Barang Non Operasional / Penunjang';
-  }
-
-  let counterAkun = 1;
-  let totAkunSum = 0;
-  Object.keys(byAkun).sort().forEach(kd => {
-    const val = byAkun[kd] || 0;
-    totAkunSum += val;
-    const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
-    const r = ws4.addRow([counterAkun++, kd, akunMap[kd] || 'Belanja', getAkunCategory(kd), val, pct]);
-    r.height = 22; // Minimal 11pt font dengan tinggi nyaman 22pt
+    const pctPenyelenggara = ((totalPenyelenggara / grandTotal) * 100).toFixed(2) + '%';
+    const totPenyRow = wsRekapEksekutif.addRow(['', 'SUBTOTAL PENYELENGGARA PEMILIHAN (1 s.d 5):', 'Seluruh Wilayah Kabupaten Ngawi', totalPenyelenggara, pctPenyelenggara, 'Akumulasi anggaran seluruh tingkatan penyelenggara (KPU, PPK, PPS, KPPS, Pantarlih)']);
+    totPenyRow.height = 24;
+    totPenyRow.font = { name: 'Calibri', size: 11, bold: true };
+    totPenyRow.getCell(4).numFmt = '#,##0';
+    totPenyRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
+    totPenyRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
     for (let c = 1; c <= 6; c++) {
-      r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-      r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      totPenyRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      totPenyRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF94A3B8' } }, bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } };
     }
-    r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    r.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-    r.getCell(5).numFmt = '#,##0';
-    r.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
-    r.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-  });
 
-  const totAkunRow = ws4.addRow(['', '', 'TOTAL REKAPITULASI BAGAN AKUN STANDAR:', 'Seluruh Akun BAS', totAkunSum, '100.00%']);
-  totAkunRow.height = 26;
-  totAkunRow.font = { name: 'Calibri', size: 11.5, bold: true };
-  totAkunRow.getCell(5).numFmt = '#,##0';
-  totAkunRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
-  totAkunRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-  for (let c = 1; c <= 6; c++) {
-    totAkunRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
-    totAkunRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
-  }
+    const pctPeserta = ((valPeserta / grandTotal) * 100).toFixed(2) + '%';
+    const pesertaRow = wsRekapEksekutif.addRow(['6', 'Fasilitasi Peserta Pemilihan', 'Paslon & Partai Politik', valPeserta, pctPeserta, 'Pencetakan & pemasangan APK, bahan kampanye paslon, debat publik terbuka, fasilitasi iklan media massa, dan audit KAP']);
+    pesertaRow.height = 22;
+    for (let c = 1; c <= 6; c++) {
+      pesertaRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+      pesertaRow.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+    }
+    pesertaRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    pesertaRow.getCell(4).numFmt = '#,##0';
+    pesertaRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
+    pesertaRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
 
-  // TANDA TANGAN KETUA KPU PADA SHEET REKAP ALOKASI
-  ws4.addRow([]);
-  ws4.addRow([]);
+    const grandTotRow = wsRekapEksekutif.addRow(['', 'TOTAL PAGU BELANJA:', 'Hibah NPHD Pilkada 2029', grandTotal, '100.00%', 'Anggaran berimbang (100% balance) siap dilaksanakan dan dipertanggungjawabkan']);
+    grandTotRow.height = 26;
+    grandTotRow.font = { name: 'Calibri', size: 11.5, bold: true };
+    grandTotRow.getCell(4).numFmt = '#,##0';
+    grandTotRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
+    grandTotRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+    for (let c = 1; c <= 6; c++) {
+      grandTotRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
+      grandTotRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
+    }
 
-  const signR4 = ws4.rowCount + 1;
-  ws4.addRow(['', '', '', '', `NGAWI, ${tanggalUnduh}`, '']);
-  ws4.addRow(['', '', '', '', 'Ketua Komisi Pemilihan Umum', '']);
-  ws4.addRow(['', '', '', '', 'Kabupaten Ngawi,', '']);
-  ws4.addRow([]);
-  ws4.addRow([]);
-  ws4.addRow([]);
-  ws4.addRow(['', '', '', '', namaKetua, '']);
+    // TABEL 2: DUA PILAR UTAMA
+    wsRekapEksekutif.addRow([]);
+    applySectionBanner(wsRekapEksekutif, 'II. KOMPOSISI DUA PILAR UTAMA ANGGARAN PILKADA', 6);
+    const hRow2 = wsRekapEksekutif.addRow(['No', 'Pilar Komponen Anggaran', 'Rincian Komponen Pelaksanaan', 'Pagu Anggaran (Rp)', 'Porsi (%)', 'Arah Kebijakan Anggaran']);
+    applyPresentationHeader(hRow2, 6);
 
-  ws4.getCell(`E${signR4}`).font = { name: 'Calibri', size: 11, bold: true };
-  ws4.getCell(`E${signR4}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  ws4.getCell(`E${signR4 + 1}`).font = { name: 'Calibri', size: 11, bold: true };
-  ws4.getCell(`E${signR4 + 1}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  ws4.getCell(`E${signR4 + 2}`).font = { name: 'Calibri', size: 11, bold: true };
-  ws4.getCell(`E${signR4 + 2}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  ws4.getCell(`E${signR4 + 6}`).font = { name: 'Calibri', size: 12, bold: true, underline: false };
-  ws4.getCell(`E${signR4 + 6}`).alignment = { horizontal: 'center', vertical: 'middle' };
+    const banner = summary.banner || {};
+    const totPilarTahapan = (banner.tahapanTotal || 0) + (banner.operasionalTotal || 0) || 26614699000;
+    const totPilarHonor = banner.honorTotal || 23385300000;
 
-  // LEBAR KOLOM SHEET REKAP_ALOKASI (Presentasi-Ready Layout)
-  ws4.columns = [
-    { width: 6 },   // Col A: No
-    { width: 14 },  // Col B: Kode / Subbagian
-    { width: 48 },  // Col C: Uraian Komponen / Kegiatan
-    { width: 34 },  // Col D: Kluster Tematis / Kategori
-    { width: 22 },  // Col E: Pagu Anggaran (Rp)
-    { width: 14 },  // Col F: Porsi (%)
-    { width: 36 }   // Col G: PIC / Keterangan
-  ];
+    const dataPilar = [
+      { no: '1', title: 'Tahapan Persiapan & Pelaksanaan', rincian: '28 Komponen Kegiatan Teknis & Non-Tahapan', val: totPilarTahapan, desc: 'Membiayai seluruh belanja barang, pengadaan logistik utama, sewa gedung/gudang, sosialisasi, bimbingan teknis, dan administrasi perkantoran' },
+      { no: '2', title: 'Honorarium Badan Penyelenggara Ad Hoc & Pokja', rincian: 'PPK, PPS, KPPS, Pantarlih, dan Kelompok Kerja Pemilihan', val: totPilarHonor, desc: 'Alokasi khusus imbalan jasa dan keringat ribuan petugas pemilu di tingkat kecamatan, desa, hingga garda terdepan TPS se-Kabupaten Ngawi' }
+    ];
 
-    const rekapSignEndRow = ws4.rowCount;
-    ws4.pageSetup = {
+    dataPilar.forEach(d => {
+      const pct = ((d.val / grandTotal) * 100).toFixed(2) + '%';
+      const r = wsRekapEksekutif.addRow([d.no, d.title, d.rincian, d.val, pct, d.desc]);
+      r.height = 22;
+      for (let c = 1; c <= 6; c++) {
+        r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+        r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      }
+      r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(4).numFmt = '#,##0';
+      r.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
+      r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    const totPilarRow = wsRekapEksekutif.addRow(['', 'TOTAL KESELURUHAN DUA PILAR (1 + 2):', '100% Seluruh Komponen Pelaksanaan', (totPilarTahapan + totPilarHonor), '100.00%', 'Komposisi seimbang antara pelaksanaan kegiatan teknis dan kesejahteraan penyelenggara lapangan']);
+    totPilarRow.height = 26;
+    totPilarRow.font = { name: 'Calibri', size: 11.5, bold: true };
+    totPilarRow.getCell(4).numFmt = '#,##0';
+    totPilarRow.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
+    totPilarRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+    for (let c = 1; c <= 6; c++) {
+      totPilarRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
+      totPilarRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
+    }
+
+    const signEndEksekutif = appendKetuaSignatureBlock(wsRekapEksekutif, 5, tanggalUnduh, namaKetua);
+    wsRekapEksekutif.columns = [
+      { width: 6 },   // Col A: No
+      { width: 38 },  // Col B: Tingkatan Sasaran
+      { width: 32 },  // Col C: Entitas Sasaran
+      { width: 24 },  // Col D: Pagu Anggaran (Rp)
+      { width: 14 },  // Col E: Porsi (%)
+      { width: 52 }   // Col F: Ruang Lingkup & Keterangan
+    ];
+    wsRekapEksekutif.pageSetup = {
       orientation: 'landscape',
       paperSize: 9,
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
       margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
-      printArea: `A1:G${rekapSignEndRow}`
+      printArea: `A1:F${signEndEksekutif}`
     };
-    appendAuditSignature(ws4, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
+    appendAuditSignature(wsRekapEksekutif, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
+
+    // ========================================================================
+    // SHEET REKAP 2: Rekap_Kegiatan_RKB (Tabel 3 Hierarki Murni Level RKB)
+    // Sesuai Instruksi: Susunan menyesuaikan level RKB, buang Kolom Kluster Tematis & Nomor
+    // ========================================================================
+    const wsRekapKegiatan = wb.addWorksheet('Rekap_Kegiatan_RKB', {
+      pageSetup: {
+        orientation: 'landscape',
+        paperSize: 9,
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+      }
+    });
+
+    applyDocumentHeader(wsRekapKegiatan, 'REKAPITULASI PROGRAM DAN KEGIATAN SESUAI TINGKATAN (LEVEL RKB)', 5);
+
+    const hRowKegiatan = wsRekapKegiatan.addRow(['Kode', 'Uraian Program / Kegiatan (Level RKB)', 'Pagu Anggaran (Rp)', 'Porsi (%)', 'PIC Subbag Utama']);
+    applyPresentationHeader(hRowKegiatan, 5);
+
+    // Ambil Level 1 dan Level 2 dari dataset
+    const secA = rows.find(r => r.tree_level === 1 && r.kode === 'A');
+    const secA_I = rows.find(r => r.tree_level === 2 && r.parent_tree_id === 'h_' + (secA ? secA.id : '') && r.kode === 'I.');
+    const secA_II = rows.find(r => r.tree_level === 2 && r.parent_tree_id === 'h_' + (secA ? secA.id : '') && r.kode === 'II.');
+    const itemsA_I = rows.filter(r => r.parent_tree_id === 'h_' + (secA_I ? secA_I.id : '') && (r.tree_level === 3 || (r.is_header && r.level_indent === 2)));
+    const itemsA_II = rows.filter(r => r.parent_tree_id === 'h_' + (secA_II ? secA_II.id : '') && (r.tree_level === 3 || (r.is_header && r.level_indent === 2)));
+
+    const secB = rows.find(r => r.tree_level === 1 && r.kode === 'B');
+    const secB_I = rows.find(r => r.tree_level === 2 && r.parent_tree_id === 'h_' + (secB ? secB.id : '') && r.kode === 'I.');
+    const secB_II = rows.find(r => r.tree_level === 2 && r.parent_tree_id === 'h_' + (secB ? secB.id : '') && r.kode === 'II.');
+    const itemsB_II = rows.filter(r => r.parent_tree_id === 'h_' + (secB_II ? secB_II.id : '') && (r.tree_level === 3 || (r.is_header && r.level_indent === 2)));
+
+    function addLevelHeader(ws, kode, uraian, totalVal, isLevel1 = false) {
+      const pct = ((totalVal / grandTotal) * 100).toFixed(2) + '%';
+      const r = ws.addRow([kode, uraian, totalVal, pct, isLevel1 ? 'Kelompok Makro' : 'Kelompok Tahapan']);
+      r.height = isLevel1 ? 25 : 23;
+      const bgColor = isLevel1 ? 'FF1E293B' : 'FF334155';
+      for (let c = 1; c <= 5; c++) {
+        r.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        r.getCell(c).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        r.getCell(c).border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+      }
+      r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(3).numFmt = '#,##0';
+      r.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+      r.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+      return r;
+    }
+
+    function addSubtotalRow(ws, label, totalVal, note = '') {
+      const pct = ((totalVal / grandTotal) * 100).toFixed(2) + '%';
+      const r = ws.addRow(['', label, totalVal, pct, note]);
+      r.height = 23;
+      for (let c = 1; c <= 5; c++) {
+        r.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        r.getCell(c).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1E293B' } };
+        r.getCell(c).border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+      }
+      r.getCell(3).numFmt = '#,##0';
+      r.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+      r.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+      return r;
+    }
+
+    function addItemRow(ws, it) {
+      const val = it.computed_total || 0;
+      const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
+      const r = ws.addRow([it.kode || '', it.uraian || '', val, pct, it.pic_bagian || '-']);
+      r.height = 22;
+      for (let c = 1; c <= 5; c++) {
+        r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+        r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      }
+      r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(3).numFmt = '#,##0';
+      r.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+      r.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+      return r;
+    }
+
+    // --- BAGIAN A: KEBUTUHAN BARANG DAN JASA ---
+    if (secA) addLevelHeader(wsRekapKegiatan, secA.kode, secA.uraian, secA.computed_total, true);
+    
+    // I. Tahapan Persiapan & Pelaksanaan
+    if (secA_I) {
+      addLevelHeader(wsRekapKegiatan, secA_I.kode, secA_I.uraian, secA_I.computed_total, false);
+      itemsA_I.forEach(it => addItemRow(wsRekapKegiatan, it));
+      addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL TAHAPAN PERSIAPAN DAN PELAKSANAAN (I)', secA_I.computed_total, `${itemsA_I.length} Kegiatan`);
+    }
+
+    // II. Operasional & Administrasi Kantor
+    if (secA_II) {
+      addLevelHeader(wsRekapKegiatan, secA_II.kode, secA_II.uraian, secA_II.computed_total, false);
+      itemsA_II.forEach(it => addItemRow(wsRekapKegiatan, it));
+      addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL OPERASIONAL DAN ADMINISTRASI KANTOR (II)', secA_II.computed_total, `${itemsA_II.length} Komponen`);
+    }
+
+    if (secA) {
+      const subTotA = addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL KEBUTUHAN BARANG DAN JASA (A):', secA.computed_total, '28 Kegiatan & Operasional');
+      for (let c = 1; c <= 5; c++) {
+        subTotA.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+      }
+    }
+
+    // --- BAGIAN B: HONORARIUM KELOMPOK KERJA DAN PENYELENGGARA PEMILIHAN ---
+    if (secB) addLevelHeader(wsRekapKegiatan, secB.kode, secB.uraian, secB.computed_total, true);
+
+    // I. Honorarium Kelompok Kerja Pemilihan (Pokja)
+    if (secB_I) {
+      const valPokja = secB_I.computed_total || 0;
+      const pctPokja = ((valPokja / grandTotal) * 100).toFixed(2) + '%';
+      const rPokja = wsRekapKegiatan.addRow([
+        'Pokja',
+        'Honorarium Kelompok Kerja (Pokja) Pemilihan (11 Bidang Pokja)',
+        valPokja,
+        pctPokja,
+        'KUL / Lintas Subbag'
+      ]);
+      rPokja.height = 22;
+      for (let c = 1; c <= 5; c++) {
+        rPokja.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+        rPokja.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      }
+      rPokja.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      rPokja.getCell(3).numFmt = '#,##0';
+      rPokja.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+      rPokja.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+      rPokja.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL HONORARIUM KELOMPOK KERJA (I)', valPokja, '11 Bidang Pokja');
+    }
+
+    // II. Honorarium Penyelenggara Pemilihan (Badan Ad Hoc)
+    if (secB_II) {
+      addLevelHeader(wsRekapKegiatan, secB_II.kode, secB_II.uraian, secB_II.computed_total, false);
+      itemsB_II.forEach(it => addItemRow(wsRekapKegiatan, it));
+      addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL HONORARIUM PENYELENGGARA PEMILIHAN (II)', secB_II.computed_total, 'PPK, PPS, KPPS & Pantarlih');
+    }
+
+    if (secB) {
+      const subTotB = addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL HONORARIUM KELOMPOK KERJA & PENYELENGGARA (B):', secB.computed_total, 'Pokja & Badan Ad Hoc');
+      for (let c = 1; c <= 5; c++) {
+        subTotB.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+      }
+    }
+
+    // GRAND TOTAL LEVEL RKB (100% BALANCE)
+    const grandTotL3 = wsRekapKegiatan.addRow(['', 'TOTAL REKAPITULASI PROGRAM & KEGIATAN (LEVEL RKB):', grandTotal, '100.00%', '100% Balance']);
+    grandTotL3.height = 26;
+    grandTotL3.font = { name: 'Calibri', size: 11.5, bold: true };
+    grandTotL3.getCell(3).numFmt = '#,##0';
+    grandTotL3.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+    grandTotL3.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+    grandTotL3.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+    for (let c = 1; c <= 5; c++) {
+      grandTotL3.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
+      grandTotL3.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
+    }
+
+    const signEndKegiatan = appendKetuaSignatureBlock(wsRekapKegiatan, 4, tanggalUnduh, namaKetua);
+    wsRekapKegiatan.columns = [
+      { width: 10 },  // Col A: Kode
+      { width: 64 },  // Col B: Uraian Kegiatan (Lega & Nyaman)
+      { width: 24 },  // Col C: Pagu Anggaran
+      { width: 14 },  // Col D: Porsi (%)
+      { width: 24 }   // Col E: PIC Subbag Utama
+    ];
+    wsRekapKegiatan.pageSetup = {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      printArea: `A1:E${signEndKegiatan}`
+    };
+    appendAuditSignature(wsRekapKegiatan, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
+
+    // ========================================================================
+    // SHEET REKAP 3: Rekap_Subbagian (Tabel 4 Distribusi 5 Portofolio PIC)
+    // ========================================================================
+    const wsRekapSubbag = wb.addWorksheet('Rekap_Subbagian', {
+      pageSetup: {
+        orientation: 'landscape',
+        paperSize: 9,
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+      }
+    });
+
+    applyDocumentHeader(wsRekapSubbag, 'DISTRIBUSI PORTOFOLIO DAN TANGGUNG JAWAB SUBBAGIAN (PIC)', 5);
+
+    const hRowSubbag = wsRekapSubbag.addRow(['No', 'Subbagian Penanggung Jawab (PIC)', 'Pagu Kelolaan (Rp)', 'Porsi (%)', 'Fokus Utama Tanggung Jawab & Portofolio Belanja']);
+    applyPresentationHeader(hRowSubbag, 5);
+
+    const bySubbag = summary.bySubbag || {};
+    const picInfo = [
+      { code: 'KUL', name: 'Keuangan, Umum & Logistik (KUL)', desc: 'Pengadaan logistik pemilu (kotak, surat suara, bilik, formulir), sewa gedung/gudang, operasional kantor satker, langganan daya dan jasa, pemeliharaan sarpras, perjalanan dinas, dan perbendaharaan hibah' },
+      { code: 'RENDATIN', name: 'Perencanaan, Data & Informasi (RENDATIN)', desc: 'Penyusunan anggaran dan RKB, pemutakhiran data pemilih berkelanjutan (Sidalih), pencetakan DPS/DPT, serta penyusunan evaluasi dan pelaporan program' },
+      { code: 'TEKNIS', name: 'Teknis Penyelenggaraan Pemilu (TEKNIS)', desc: 'Pendaftaran dan verifikasi pasangan calon, rapat koordinasi teknis, fasilitasi debat publik terbuka paslon, pemungutan dan penghitungan suara, serta rapat pleno rekapitulasi perolehan suara' },
+      { code: 'HUKUM', name: 'Hukum (HUKUM)', desc: 'Penyusunan keputusan KPU, telaah regulasi pilkada, advokasi sengketa pencalonan dan sengketa perselisihan hasil pemilihan di Mahkamah Konstitusi, bantuan hukum, dan dokumentasi JDIH' },
+      { code: 'PARSDM', name: 'Partisipasi Masyarakat & SDM (PARSDM)', desc: 'Sosialisasi pemilih, pendidikan pemilih pemula, pembentukan dan rekrutmen badan ad hoc (PPK, PPS, KPPS, Pantarlih), bimbingan teknis ad hoc, dan alokasi honorarium ad hoc se-Kabupaten' }
+    ];
+
+    let totPicSum = 0;
+    picInfo.forEach((p, idx) => {
+      const val = bySubbag[p.code] || 0;
+      totPicSum += val;
+      const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
+      const r = wsRekapSubbag.addRow([idx + 1, p.name, val, pct, p.desc]);
+      r.height = 24;
+      for (let c = 1; c <= 5; c++) {
+        r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+        r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      }
+      r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(3).numFmt = '#,##0';
+      r.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+      r.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    const totPicRow = wsRekapSubbag.addRow(['', 'TOTAL SELURUH SUBBAGIAN (1 s.d 5):', totPicSum, '100.00%', 'Alokasi terbagi proporsional sesuai tugas pokok dan fungsi 5 subbagian KPU Kabupaten Ngawi']);
+    totPicRow.height = 26;
+    totPicRow.font = { name: 'Calibri', size: 11.5, bold: true };
+    totPicRow.getCell(3).numFmt = '#,##0';
+    totPicRow.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+    totPicRow.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+    for (let c = 1; c <= 5; c++) {
+      totPicRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
+      totPicRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
+    }
+
+    const signEndSubbag = appendKetuaSignatureBlock(wsRekapSubbag, 4, tanggalUnduh, namaKetua);
+    wsRekapSubbag.columns = [
+      { width: 6 },   // Col A: No
+      { width: 36 },  // Col B: Subbagian PIC
+      { width: 24 },  // Col C: Pagu Kelolaan
+      { width: 14 },  // Col D: Porsi (%)
+      { width: 68 }   // Col E: Fokus Utama Portofolio
+    ];
+    wsRekapSubbag.pageSetup = {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      printArea: `A1:E${signEndSubbag}`
+    };
+    appendAuditSignature(wsRekapSubbag, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
+
+    // ========================================================================
+    // SHEET REKAP 4: Rekap_Akun_BAS (Tabel 5 Bagan Akun Standar - Rujukan Dashboard)
+    // Sesuai Instruksi: Susun berurutan berdasarkan akun dan tambahkan Nilai Total
+    // ========================================================================
+    const wsRekapBas = wb.addWorksheet('Rekap_Akun_BAS', {
+      pageSetup: {
+        orientation: 'landscape',
+        paperSize: 9,
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0
+      }
+    });
+
+    applyDocumentHeader(wsRekapBas, 'REKAPITULASI JENIS BELANJA MAKRO (BAGAN AKUN STANDAR - BAS)', 6);
+
+    const hRowBas = wsRekapBas.addRow(['No', 'Kode Akun', 'Uraian Akun Belanja (BAS)', 'Kelompok Kategori Belanja', 'Pagu Anggaran (Rp)', 'Porsi (%)']);
+    applyPresentationHeader(hRowBas, 6);
+
+    const byAkun = summary.byAkun || {};
+    function getAkunCategory(kd) {
+      if (kd === '521213') return 'Belanja Honorarium Output (Ad Hoc & Pokja)';
+      if (kd === '521211') return 'Belanja Bahan & ATK';
+      if (kd === '522151') return 'Belanja Jasa Profesi / Narasumber';
+      if (kd === '522141') return 'Belanja Sewa Gedung & Perlengkapan';
+      if (kd.startsWith('524')) return 'Belanja Perjalanan Dinas & Supervisi';
+      if (kd.startsWith('53')) return 'Belanja Modal / Aset Peralatan';
+      return 'Belanja Barang Non Operasional / Penunjang';
+    }
+
+    let counterAkun = 1;
+    let totAkunSum = 0;
+    // Disusun berurutan berdasarkan akun (ascending)
+    Object.keys(byAkun).sort().forEach(kd => {
+      const val = byAkun[kd] || 0;
+      totAkunSum += val;
+      const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
+      const r = wsRekapBas.addRow([counterAkun++, kd, akunMap[kd] || 'Belanja', getAkunCategory(kd), val, pct]);
+      r.height = 22;
+      for (let c = 1; c <= 6; c++) {
+        r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+        r.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      }
+      r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+      r.getCell(5).numFmt = '#,##0';
+      r.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
+      r.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // Baris Nilai Total Akun BAS
+    const totAkunRow = wsRekapBas.addRow(['', '', 'TOTAL REKAPITULASI BAGAN AKUN STANDAR (BAS):', 'Seluruh Akun Belanja', totAkunSum, '100.00%']);
+    totAkunRow.height = 26;
+    totAkunRow.font = { name: 'Calibri', size: 11.5, bold: true };
+    totAkunRow.getCell(5).numFmt = '#,##0';
+    totAkunRow.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
+    totAkunRow.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
+    for (let c = 1; c <= 6; c++) {
+      totAkunRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } };
+      totAkunRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } };
+    }
+
+    const signEndBas = appendKetuaSignatureBlock(wsRekapBas, 5, tanggalUnduh, namaKetua);
+    wsRekapBas.columns = [
+      { width: 6 },   // Col A: No
+      { width: 14 },  // Col B: Kode Akun
+      { width: 44 },  // Col C: Uraian Akun Belanja
+      { width: 38 },  // Col D: Kelompok Kategori
+      { width: 24 },  // Col E: Pagu Anggaran (Rp)
+      { width: 14 }   // Col F: Porsi (%)
+    ];
+    wsRekapBas.pageSetup = {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      printArea: `A1:F${signEndBas}`
+    };
+    appendAuditSignature(wsRekapBas, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
   }
 
   // Return Buffer XLSX ExcelJS
@@ -1755,7 +1861,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
       const pyScript = path.join(__dirname, 'fix_page_breaks.py');
       if (fs.existsSync(pyScript)) {
-        execFileSync('python', [pyScript, tempFile], { stdio: 'ignore', timeout: 15000 });
+        execFileSync('python', [pyScript, tempFile], { stdio: 'ignore', timeout: 35000 });
         if (fs.existsSync(tempFile)) {
           buffer = fs.readFileSync(tempFile);
           try { fs.unlinkSync(tempFile); } catch (e) {}

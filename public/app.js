@@ -513,8 +513,10 @@ function renderDashboard() {
     if (AppState.masters && AppState.masters.akuns) {
       for (const a of AppState.masters.akuns) akunsMap[a.kode] = a.uraian;
     }
-    const sortedAkun = Object.entries(summary.byAkun).sort((a, b) => b[1] - a[1]);
-    akunBody.innerHTML = sortedAkun.map(([code, amt]) => {
+    const sortedAkun = Object.entries(summary.byAkun).sort((a, b) => a[0].localeCompare(b[0]));
+    let totAkun = 0;
+    const rowsHtml = sortedAkun.map(([code, amt]) => {
+      totAkun += amt;
       const desc = akunsMap[code] || 'Belanja Terkait';
       const pct = summary.grandTotal > 0 ? ((amt / summary.grandTotal) * 100).toFixed(2) : '0';
       return `
@@ -526,6 +528,15 @@ function renderDashboard() {
         </tr>
       `;
     }).join('');
+
+    const totalRowHtml = `
+      <tr style="background: rgba(14, 165, 233, 0.12); font-weight: 700; border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);">
+        <td colspan="2" style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">TOTAL BAGAN AKUN STANDAR (BAS)</td>
+        <td class="text-right" style="font-family: var(--font-mono); font-size: 1rem; color: var(--accent);">${formatRupiah(totAkun)}</td>
+        <td class="text-right" style="font-family: var(--font-mono); font-size: 1rem; color: var(--accent);">100.00%</td>
+      </tr>
+    `;
+    akunBody.innerHTML = rowsHtml + totalRowHtml;
   }
 
   if (AppState.masters && AppState.masters.settings) {

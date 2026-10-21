@@ -76,7 +76,7 @@ def fix_worksheet_breaks(file_path):
                         k_end = max(1, r - 3)
                         break
                 s.PageSetup.PrintArea = f"$A$1:$P${k_end}"
-            elif s.Name == 'Rekap_Alokasi':
+            elif s.Name == 'Rekap_Alokasi' or s.Name.startswith('Rekap_'):
                 rk_used = s.UsedRange.Rows.Count
                 rk_end = rk_used
                 for r in range(rk_used, max(1, rk_used - 15), -1):
@@ -84,7 +84,18 @@ def fix_worksheet_breaks(file_path):
                     if txt and '[PENANDA RIWAYAT' in txt.upper():
                         rk_end = max(1, r - 3)
                         break
-                s.PageSetup.PrintArea = f"$A$1:$G${rk_end}"
+                # Ambil batas kolom dari printArea yang sudah diset oleh ExcelJS atau UsedRange
+                existing_pa = s.PageSetup.PrintArea
+                col_letter = 'G'
+                if existing_pa and ':' in existing_pa:
+                    col_part = existing_pa.split(':')[1]
+                    letters = ''.join([c for c in col_part if c.isalpha()])
+                    if letters:
+                        col_letter = letters
+                else:
+                    last_col = min(s.UsedRange.Columns.Count, 26)
+                    col_letter = chr(64 + last_col) if last_col > 0 else 'G'
+                s.PageSetup.PrintArea = f"$A$1:${col_letter}${rk_end}"
 
         # Switch to Page Break Preview to force Excel COM to calculate all breaks based on PrintArea
         excel.ActiveWindow.View = 2
