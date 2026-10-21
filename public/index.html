@@ -388,9 +388,6 @@
               <button class="btn btn-outline-primary" onclick="downloadExcel()">
                 📥 Unduh Excel
               </button>
-              <button class="btn btn-primary" onclick="openAddRowModal()" id="btn-tambah-baris">
-                ➕ Tambah Baris Belanja
-              </button>
             </div>
           </div>
 
@@ -444,18 +441,6 @@
             </div>
           </div>
 
-          <!-- BILAH AKSI KONTEKSTUAL ALA SAKTI (BERUBAH SESUAI BARIS YANG DIKLIK) -->
-          <div class="sakti-context-bar" id="saktiContextBar">
-            <div class="sakti-selected-info" id="saktiSelectedInfo">
-              <span class="sakti-selected-pill">Belum Ada Baris Dipilih</span>
-              <span style="font-size:12px;color:var(--text-muted);">Klik salah satu baris pada tabel di bawah untuk memunculkan tombol Rekam Sub-Level / Akun / Detail.</span>
-            </div>
-            <div class="sakti-action-buttons" id="saktiActionButtons">
-              <button class="btn btn-primary btn-sm" onclick="openAddHierarchyModal(null, 'L1')">
-                ➕ Rekam Bagian Utama (Level 1)
-              </button>
-            </div>
-          </div>
 
           <!-- STRIP 6 TINGKAT PENYELENGGARA (KPU KAB, PPK, PPS, PANTARLIH, TPS, PESERTA) -->
           <div class="penyelenggara-strip">
@@ -556,13 +541,16 @@
             </div>
           </div>
 
-          <!-- TOOLBAR LIPATAN HIERARKI RKB (TREE LEVEL QUICK BAR) & RESUME SASARAN -->
+          <!-- TOOLBAR LIPATAN HIERARKI RKB & BILAH AKSI SEJAJAR -->
           <div class="tree-quick-bar" id="treeQuickBar">
-            <div style="display:inline-flex;align-items:center;gap:8px;">
+            <div class="tree-left-controls" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span style="font-size:11.5px;font-weight:700;color:#64748b;">
                 <span>📂 Lipatan:</span>
               </span>
               <div class="tree-segmented-group">
+                <button type="button" class="tree-level-btn" id="btnTreeCollapseAll" onclick="collapseAllTree()" title="Lipat Semua: Tutup seluruh cabang hingga hanya Bagian Utama yang tampil">
+                  📁 Lipat Semua
+                </button>
                 <button type="button" class="tree-level-btn" id="btnTreeL1" onclick="setTreeExpandLevel(1)" title="Level 1: Bagian Utama RKB (A. Kebutuhan Barang &amp; Jasa / B. Honorarium)">
                   📁 L1 (A/B)
                 </button>
@@ -583,13 +571,30 @@
                 </button>
               </div>
             </div>
-            <div style="display:inline-flex;align-items:center;gap:10px;">
-              <label id="lblToggleSanding" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer;background:#eff6ff;padding:4px 10px;border-radius:6px;border:1px solid #bfdbfe;">
+
+            <div class="tree-right-controls" id="treeRightControls" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <!-- Info Singkat Baris Aktif yang Disorot -->
+              <span id="treeSelectedPill" class="sakti-selected-pill" style="display:none;max-width:240px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;font-size:11.5px;padding:4px 9px;" title="Baris Aktif yang Disorot"></span>
+
+              <!-- Tombol Kontekstual Baris Aktif (+ Tambah Detail Belanja / Rekam Sub-Level / Edit / Hapus) -->
+              <div id="saktiActionButtons" style="display:inline-flex;align-items:center;gap:6px;">
+                <!-- Populated via JS based on selected row -->
+              </div>
+
+              <!-- Tombol Utama: + Tambah Baris Belanja (Sejajar dengan Fungsi Lipatan) -->
+              <button class="btn btn-primary btn-sm" onclick="openAddRowModal()" id="btn-tambah-baris" style="display:inline-flex;align-items:center;gap:5px;font-weight:700;">
+                ➕ Tambah Baris Belanja
+              </button>
+
+              <!-- Mode Sanding Semula - Menjadi (Khusus Dokumen Revisi) -->
+              <label id="lblToggleSanding" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer;background:#eff6ff;padding:4px 8px;border-radius:6px;border:1px solid #bfdbfe;">
                 <input type="checkbox" id="chkRevisionSanding" onchange="toggleRevisionSandingMode(this.checked)">
-                ⚖️ Mode Sanding Semula - Menjadi
+                ⚖️ Mode Sanding
               </label>
-              <button type="button" class="btn btn-sm btn-outline-primary" onclick="openResumeSasaranModal()" style="font-weight:600;display:inline-flex;align-items:center;gap:5px;" title="Buka Resume Cepat Perbandingan Anggaran Penyelenggara vs Peserta">
-                <span>📊 Resume Cepat Sasaran</span>
+
+              <!-- Tombol Resume Cepat Sasaran -->
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="openResumeSasaranModal()" style="font-weight:600;display:inline-flex;align-items:center;gap:4px;" title="Buka Resume Cepat Perbandingan Anggaran Penyelenggara vs Peserta">
+                <span>📊 Resume Sasaran</span>
               </button>
             </div>
           </div>

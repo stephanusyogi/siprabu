@@ -1106,13 +1106,21 @@ tr.rkb-row-lvl-4:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
-  padding: 8px 16px;
+  padding: 8px 14px;
   background: #f8fafc;
   border: 1px solid var(--border);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   border-bottom: 1px solid var(--border);
+}
+
+.tree-left-controls,
+.tree-right-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .tree-segmented-group {

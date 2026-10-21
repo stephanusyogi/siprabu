@@ -591,12 +591,29 @@ async function toggleLockPeriode(periodeId, lockState) {
 // VIEW 3: RKB KABUPATEN (TREE HIERARKI SAKTI & SEMULA-MENJADI)
 // ============================================================================
 
+function collapseAllTree() {
+  AppState.treeExpandLevel = 1;
+  AppState.treeNodeOverrides = {};
+  AppState.selectedRowId = null;
+  ['btnTreeCollapseAll', 'btnTreeL1', 'btnTreeL2', 'btnTreeL3', 'btnTreeL4', 'btnTreeAkun', 'btnTreeAll'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle('active', id === 'btnTreeCollapseAll');
+  });
+  renderRkbTable();
+}
+
 function setTreeExpandLevel(lvl) {
   AppState.treeExpandLevel = Number(lvl) || 2;
   AppState.treeNodeOverrides = {};
-  ['btnTreeL1', 'btnTreeL2', 'btnTreeL3', 'btnTreeL4', 'btnTreeAkun', 'btnTreeAll'].forEach((id, idx) => {
+  ['btnTreeCollapseAll', 'btnTreeL1', 'btnTreeL2', 'btnTreeL3', 'btnTreeL4', 'btnTreeAkun', 'btnTreeAll'].forEach(id => {
     const btn = document.getElementById(id);
-    if (btn) btn.classList.toggle('active', (idx + 1) === AppState.treeExpandLevel);
+    if (btn) {
+      if (id === 'btnTreeCollapseAll') {
+        btn.classList.toggle('active', lvl === 1);
+      } else {
+        btn.classList.toggle('active', (id === 'btnTreeL' + lvl) || (lvl === 5 && id === 'btnTreeAkun') || (lvl === 6 && id === 'btnTreeAll'));
+      }
+    }
   });
   renderRkbTable();
 }
@@ -626,30 +643,79 @@ function toggleRevisionSandingMode(checked) {
   renderRkbTable();
 }
 
-function selectRow(rowId) {
-  AppState.selectedRowId = Number(rowId);
-  const rows = AppState.rkbData?.rows || [];
-  const row = rows.find(r => Number(r.id) === Number(rowId));
-  const pill = document.querySelector('.sakti-selected-pill');
-  const actBox = document.getElementById('saktiActionButtons');
-  const user = AppState.currentUser;
-  const isLocked = Boolean(AppState.currentPeriode?.is_locked);
-  const canEdit = checkCanEditRow(user, row, isLocked);
-
-  if (!row) {
-    if (pill) pill.textContent = 'Belum Ada Baris Dipilih';
-    if (actBox) {
-      actBox.innerHTML = !isLocked ? `<button class="btn btn-primary btn-sm" onclick="openAddRowModal()">➕ Rekam Baris Belanja</button>` : '';
-    }
+function selectRow(rowId, event) {
+  if (event && event.target && (event.target.closest('button') || event.target.closest('.pic-chip') || event.target.closest('.akun-badge-inline'))) {
     return;
   }
 
-  const cleanUraian = (row.uraian || '').substring(0, 50);
-  const lvlLabel = row.is_header ? `Level ${row.level_indent}` : 'Detail Belanja';
-  if (pill) pill.innerHTML = `<strong>[${row.kode || lvlLabel}]</strong> ${cleanUraian}`;
+  const rows = AppState.rkbData?.rows || [];
+  const row = rows.find(r => Number(r.id) === Number(rowId));
+  if (!row) return;
 
-  if (actBox) {
-    let btns = '';
+  const wasSelected = (AppState.selectedRowId === Number(rowId));
+  AppState.selectedRowId = Number(rowId);
+
+  // FUNGSI LIPATAN DINAMIS:
+  // Hanya baris yang sorot (aktif) yang terlipat dan terbuka jika memiliki cabang turunan
+  if (row.has_children) {
+    const isExp = isNodeExpanded(row.tree_id, row.tree_level);
+    if (!wasSelected) {
+      // Jika baris baru disorot dan posisinya terlipat, otomatis buka cabang ini
+      if (!isExp) {
+        AppState.treeNodeOverrides[row.tree_id] = true;
+      }
+    } else {
+      // Jika baris yang SEDANG SOROT (aktif) diklik lagi, toggle lipat / buka
+      AppState.treeNodeOverrides[row.tree_id] = !isExp;
+    }
+  }
+
+  renderRkbTable();
+}
+
+function updateSelectedRowUI() {
+  const rowId = AppState.selectedRowId;
+  const pill = document.querySelector('.sakti-selected-pill');
+  const actBox = document.getElementById('saktiActionButtons');
+  if (!actBox) return;
+
+  const user = AppState.currentUser;
+  const isLocked = Boolean(AppState.currentPeriode?.is_locked);
+  const rows = AppState.rkbData?.rows || [];
+  const row = rows.find(r => Number(r.id) === Number(rowId));
+
+  if (!row) {
+    if (pill) {
+      pill.style.display = 'none';
+      pill.textContent = '';
+    }
+    actBox.innerHTML = '';
+    return;
+  }
+
+  const cleanUraian = (row.uraian || '').substring(0, 45);
+  const lvlLabel = row.is_header ? `Level ${row.level_indent}` : 'Detail Belanja';
+  const isExpanded = row.has_children ? isNodeExpanded(row.tree_id, row.tree_level) : false;
+
+  if (pill) {
+    pill.style.display = 'inline-flex';
+    pill.innerHTML = `<strong>[${row.kode || lvlLabel}]</strong>&nbsp;${cleanUraian}`;
+  }
+
+  let btns = '';
+
+  // 1. Tombol Dinamis Lipat / Buka Khusus Baris Aktif Ini
+  if (row.has_children) {
+    btns += `
+      <button type="button" class="btn btn-sm ${isExpanded ? 'btn-outline-secondary' : 'btn-outline-primary'}" onclick="toggleTreeNode('${row.tree_id}', event)" title="${isExpanded ? 'Lipat cabang baris aktif ini' : 'Buka cabang baris aktif ini'}" style="font-weight:600;">
+        ${isExpanded ? '📁 Lipat Cabang Ini' : '📂 Buka Cabang Ini'}
+      </button>
+    `;
+  }
+
+  // 2. Tombol Kontekstual Rekam / Tambah / Ubah
+  if (!isLocked) {
+    const canEdit = checkCanEditRow(user, row, isLocked);
     if (row.is_header) {
       if (row.level_indent === 0) {
         btns += `<button class="btn btn-primary btn-sm" onclick="openAddRowModal()">➕ Rekam Sub-Level</button>`;
@@ -662,16 +728,15 @@ function selectRow(rowId) {
       }
     } else {
       if (canEdit) {
-        btns += `<button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id})">✏️ Ubah Rincian</button>`;
-        btns += `<button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id})">🗑️ Hapus</button>`;
+        btns += `
+          <button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id}, event)">✏️ Ubah Rincian</button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)">🗑️ Hapus</button>
+        `;
       }
     }
-    actBox.innerHTML = btns;
   }
 
-  document.querySelectorAll('#rkb-table-body tr').forEach(tr => tr.classList.remove('table-row-selected'));
-  const activeTr = document.getElementById(`row-${rowId}`);
-  if (activeTr) activeTr.classList.add('table-row-selected');
+  actBox.innerHTML = btns;
 }
 
 function renderRkbTable() {
@@ -861,7 +926,7 @@ function renderRkbTable() {
       else if (diffInfo.status === 'BARU') { badgeClass = 'diff-baru'; badgeLabel = '✨ Baru'; }
 
       rowsHtml += `
-        <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id})">
+        <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id}, event)">
           <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
           <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.kode || ''}</td>
           <td class="col-uraian" style="padding-left: ${r.effective_indent || 0}px;">
@@ -893,8 +958,8 @@ function renderRkbTable() {
       if (isItem) {
         if (canEdit) {
           aksiHtml = `
-            <button class="btn btn-sm btn-primary" onclick="openRowModal(${r.id})" title="Edit Rincian">✏️</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(${r.id})" title="Hapus">🗑️</button>
+            <button class="btn btn-sm btn-primary" onclick="openRowModal(${r.id}, event)" title="Edit Rincian">✏️</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus">🗑️</button>
           `;
         } else {
           aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
@@ -902,7 +967,7 @@ function renderRkbTable() {
       }
 
       rowsHtml += `
-        <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id})">
+        <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id}, event)">
           <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
           <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.kode || ''}</td>
           <td class="col-uraian" style="padding-left: ${r.effective_indent || 0}px;">
@@ -934,6 +999,7 @@ function renderRkbTable() {
   }
 
   tbody.innerHTML = rowsHtml;
+  updateSelectedRowUI();
 }
 
 function checkCanEditRow(user, row, isLocked) {
@@ -1093,7 +1159,11 @@ async function submitQuickAkun() {
 // MODAL: FORM TAMBAH / EDIT BARIS BELANJA
 // ============================================================================
 
-function openRowModal(rowId) {
+function openRowModal(rowId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   const row = AppState.rkbData.rows.find(r => r.id === rowId);
   if (!row) return;
 
@@ -1241,7 +1311,11 @@ async function submitRowForm() {
   }
 }
 
-async function deleteRow(rowId) {
+async function deleteRow(rowId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   if (!confirm('Apakah Anda yakin ingin menghapus baris belanja ini?')) return;
   try {
     await apiFetch(`/api/rkb/row/${rowId}`, { method: 'DELETE' });
