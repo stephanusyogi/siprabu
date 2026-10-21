@@ -337,6 +337,12 @@ async function loadPeriodes() {
       AppState.currentPeriode = AppState.periodesList[AppState.periodesList.length - 1];
     }
   }
+  if (AppState.currentPeriode) {
+    const matched = AppState.periodesList.find(x => x.id === AppState.currentPeriode.id);
+    if (matched) {
+      AppState.currentPeriode = matched;
+    }
+  }
 }
 
 async function loadRkbData() {
@@ -679,14 +685,18 @@ function renderSiklus() {
         }
       }
 
-      const revComp = AppState.rkbData?.revision_comparison;
+      // Prioritaskan ringkasan instan dari metadata periode (p.comparison_summary)
+      // agar angka langsung tampil dalam 0ms tanpa menunggu download payload RKB
+      const compSummary = p.comparison_summary || 
+        ((AppState.rkbData?.periode?.id === p.id) ? AppState.rkbData?.revision_comparison : null);
+
       const breakdownEl = document.getElementById('comp-val-breakdown');
       if (breakdownEl) {
-        if (revComp && revComp.summary) {
-          const totalBaru = (revComp.log_detail || []).filter(x => x.status === 'BARU').length;
+        if (compSummary && compSummary.summary) {
+          const totalBaru = compSummary.total_baru ?? ((compSummary.log_detail || []).filter(x => x.status === 'BARU').length);
           breakdownEl.innerHTML = `
-            <div style="color:#166534;">🟢 Bertambah: <strong>+${formatRupiah(revComp.summary.deltaBertambah || 0)}</strong></div>
-            <div style="color:#991b1b;">🔴 Berkurang: <strong>-${formatRupiah(revComp.summary.deltaBerkurang || 0)}</strong></div>
+            <div style="color:#166534;">🟢 Bertambah: <strong>+${formatRupiah(compSummary.summary.deltaBertambah || 0)}</strong></div>
+            <div style="color:#991b1b;">🔴 Berkurang: <strong>-${formatRupiah(compSummary.summary.deltaBerkurang || 0)}</strong></div>
             <div style="color:#1e40af;">✨ Baris Baru: <strong>${totalBaru} Rincian</strong></div>
           `;
         } else {
@@ -906,6 +916,13 @@ async function selectPeriode(periodeId) {
   AppState.currentPeriode = p;
   AppState.treeNodeOverrides = {};
   AppState.expandedNodes = new Set();
+
+  // Optimistic UI render: instant feedback in 0 ms!
+  updateContextNavbar();
+  if (AppState.activeView === 'view-siklus') {
+    renderSiklus();
+  }
+
   await loadRkbData();
   renderAllViews();
 }

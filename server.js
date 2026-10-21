@@ -34,7 +34,7 @@ const {
   updateSettings
 } = require('./src/db');
 
-const { calculateRkbDataset, getRevisionComparison } = require('./src/calculation');
+const { calculateRkbDataset, getCachedRkbDataset, getRevisionComparison, getRevisionSummary } = require('./src/calculation');
 const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle } = require('./src/auth');
 const { exportRkbToExcelBuffer } = require('./src/excel_io');
 
@@ -269,9 +269,11 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/periodes' && method === 'GET') {
       const periodes = getPeriodeList();
       for (const p of periodes) {
-        const rows = getRabRows(p.id);
-        const data = calculateRkbDataset(rows);
+        const data = getCachedRkbDataset(p.id);
         p.total_pagu = data.summary.grandTotal;
+        if (p.revisi_ke > 0) {
+          p.comparison_summary = getRevisionSummary(p.id);
+        }
       }
       return sendJson(res, 200, { periodes });
     }
@@ -279,6 +281,13 @@ const server = http.createServer(async (req, res) => {
     // 5. PERIODE AKTIF
     if (pathname === '/api/periodes/active' && method === 'GET') {
       const active = getActivePeriode();
+      if (active) {
+        const data = getCachedRkbDataset(active.id);
+        active.total_pagu = data.summary.grandTotal;
+        if (active.revisi_ke > 0) {
+          active.comparison_summary = getRevisionSummary(active.id);
+        }
+      }
       return sendJson(res, 200, { periode: active });
     }
 
@@ -344,9 +353,9 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
       }
 
-      // 1. Ambil summary INDUK dokumen (UNFILTERED SSOT) agar Pagu 50 Miliar & rekap seluruh subbag tidak terdistorsi filter
-      const allRawRows = getRabRows(periodeId);
-      const { summary: docSummary } = calculateRkbDataset(allRawRows);
+      // 1. Ambil dataset & summary INDUK dokumen via in-memory cache super cepat
+      const fullResult = getCachedRkbDataset(periodeId);
+      const docSummary = fullResult.summary;
 
       // 2. Jika ada filter (pic, target_scope, search), ambil baris terfilter khusus lembar kerja workbench
       const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (search && search.trim()));
@@ -358,13 +367,12 @@ const server = http.createServer(async (req, res) => {
         rows = filteredResult.rows;
         filteredSummary = filteredResult.summary;
       } else {
-        const fullResult = calculateRkbDataset(allRawRows);
         rows = fullResult.rows;
         filteredSummary = docSummary;
       }
 
       const compareWith = query.compare_with ? Number(query.compare_with) : null;
-      const revision_comparison = getRevisionComparison(periodeId, compareWith);
+      const revision_comparison = getRevisionComparison(periodeId, compareWith, fullResult);
 
       return sendJson(res, 200, {
         periode,

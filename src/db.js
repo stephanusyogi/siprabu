@@ -352,6 +352,8 @@ function saveRabRow(row) {
       finalPic, finalCatatan, finalParentId,
       row.id
     );
+    const { clearRkbDatasetCache } = require('./calculation');
+    clearRkbDatasetCache(existing.periode_id);
     return getRabRowById(row.id);
   } else {
     let finalUrutan;
@@ -409,13 +411,18 @@ function saveRabRow(row) {
       row.pic_bagian || 'KUL',
       row.catatan_revisi_baris || ''
     );
+    const { clearRkbDatasetCache } = require('./calculation');
+    clearRkbDatasetCache(row.periode_id);
     return getRabRowById(res.lastInsertRowid);
   }
 }
 
 function deleteRabRow(id) {
+  const row = db.prepare('SELECT periode_id FROM rab_baris WHERE id = ?').get(id);
   db.prepare('DELETE FROM rab_baris WHERE parent_rkb_row_id = ?').run(id);
   db.prepare('DELETE FROM rab_baris WHERE id = ?').run(id);
+  const { clearRkbDatasetCache } = require('./calculation');
+  clearRkbDatasetCache(row ? row.periode_id : null);
   return { success: true };
 }
 
@@ -469,11 +476,16 @@ function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = tru
     throw err;
   }
 
+  const { clearRkbDatasetCache } = require('./calculation');
+  clearRkbDatasetCache(periodeId);
+
   return { count: updatedIds.length, updatedIds, pic_bagian: targetPic };
 }
 
 function clearRabRows(periodeId) {
   db.prepare('DELETE FROM rab_baris WHERE periode_id = ?').run(periodeId);
+  const { clearRkbDatasetCache } = require('./calculation');
+  clearRkbDatasetCache(periodeId);
   return { success: true };
 }
 

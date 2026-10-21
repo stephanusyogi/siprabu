@@ -445,10 +445,33 @@ function calculateRkbDataset(rawRows) {
   };
 }
 
+// Cache in-memory untuk kalkulasi dataset RKB per periode agar super cepat (response < 10ms)
+const datasetCache = new Map();
+
+function getCachedRkbDataset(periodeId) {
+  const key = Number(periodeId);
+  if (datasetCache.has(key)) {
+    return datasetCache.get(key);
+  }
+  const rawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(key);
+  const result = calculateRkbDataset(rawRows);
+  datasetCache.set(key, result);
+  return result;
+}
+
+function clearRkbDatasetCache(periodeId = null) {
+  if (periodeId !== null && periodeId !== undefined) {
+    datasetCache.delete(Number(periodeId));
+  } else {
+    datasetCache.clear();
+  }
+}
+
 /**
  * Menghitung perbandingan Semula - Menjadi untuk Dokumen Revisi RKB
+ * Dioptimalkan dengan caching memori dan pemadatan payload (compact diff)
  */
-function getRevisionComparison(periodeId, targetComparisonPeriodeId = null) {
+function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, precomputedCurrCalc = null) {
   const periode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periodeId));
   if (!periode) {
     return {
@@ -494,11 +517,9 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null) {
     };
   }
 
-  const parentRawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(compPeriode.id);
-  const currRawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(periode.id);
-
-  const parentCalc = calculateRkbDataset(parentRawRows);
-  const currCalc = calculateRkbDataset(currRawRows);
+  // Gunakan cached dataset untuk parent dan current (tanpa double-fetching dan double-calculation)
+  const parentCalc = getCachedRkbDataset(compPeriode.id);
+  const currCalc = precomputedCurrCalc || getCachedRkbDataset(periode.id);
 
   const parentMap = {};
   for (const pr of parentCalc.rows) {
@@ -532,33 +553,39 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null) {
       if (!cr.is_header) deltaBerkurang += Math.abs(diff);
     }
 
-    const itemDiff = {
-      row_id: cr.id,
-      tree_id: cr.tree_id,
-      status,
-      diff,
-      semula_vol: sVol,
-      semula_satuan: semulaRow ? (semulaRow.satuan_vol || '') : '',
-      semula_formula: semulaRow ? (semulaRow.computed_formula || '') : '',
-      semula_harga: sHarga,
-      semula_jumlah: sJml,
-      menjadi_vol: cr.computed_volume,
-      menjadi_satuan: cr.satuan_vol || '',
-      menjadi_formula: cr.computed_formula || '',
-      menjadi_harga: Number(cr.harga_satuan) || 0,
-      menjadi_jumlah: mJml,
-      catatan: cr.catatan_revisi_baris || ''
-    };
+    const hasCatatan = Boolean(cr.catatan_revisi_baris && cr.catatan_revisi_baris.trim());
 
-    byRowId[cr.id] = itemDiff;
+    // Pemadatan payload: hanya kirim rincian baris jika status !== TETAP atau ada catatan!
+    // Untuk baris TETAP tanpa catatan, client sudah memiliki fallback otomatis.
+    if (status !== 'TETAP' || hasCatatan) {
+      const itemDiff = {
+        row_id: cr.id,
+        tree_id: cr.tree_id,
+        status,
+        diff,
+        semula_vol: sVol,
+        semula_satuan: semulaRow ? (semulaRow.satuan_vol || '') : '',
+        semula_formula: semulaRow ? (semulaRow.computed_formula || '') : '',
+        semula_harga: sHarga,
+        semula_jumlah: sJml,
+        menjadi_vol: cr.computed_volume,
+        menjadi_satuan: cr.satuan_vol || '',
+        menjadi_formula: cr.computed_formula || '',
+        menjadi_harga: Number(cr.harga_satuan) || 0,
+        menjadi_jumlah: mJml,
+        catatan: cr.catatan_revisi_baris || ''
+      };
 
-    if (status !== 'TETAP' && !cr.is_header) {
-      logDetail.push({
-        ...itemDiff,
-        kode: cr.kode || '',
-        uraian: cr.uraian,
-        kode_akun: cr.kode_akun || ''
-      });
+      byRowId[cr.id] = itemDiff;
+
+      if (status !== 'TETAP' && !cr.is_header) {
+        logDetail.push({
+          ...itemDiff,
+          kode: cr.kode || '',
+          uraian: cr.uraian,
+          kode_akun: cr.kode_akun || ''
+        });
+      }
     }
   }
 
@@ -585,6 +612,21 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null) {
   };
 }
 
+/**
+ * Ringkasan cepat perbandingan revisi (khusus Pusat Siklus & Matriks Dashboard)
+ * Hanya memuat angka rekapitulasi tanpa baris individual (payload < 1 KB)
+ */
+function getRevisionSummary(periodeId, targetComparisonPeriodeId = null) {
+  const comp = getRevisionComparison(periodeId, targetComparisonPeriodeId);
+  return {
+    has_parent: comp.has_parent,
+    parent_periode: comp.parent_periode,
+    summary: comp.summary,
+    total_baru: (comp.log_detail || []).filter(x => x.status === 'BARU').length,
+    total_perubahan: (comp.log_detail || []).length
+  };
+}
+
 module.exports = {
   getWilayahData,
   getKuantitasMap,
@@ -592,5 +634,8 @@ module.exports = {
   computeRowFactors,
   getHierarchyRank,
   calculateRkbDataset,
-  getRevisionComparison
+  getCachedRkbDataset,
+  clearRkbDatasetCache,
+  getRevisionComparison,
+  getRevisionSummary
 };
