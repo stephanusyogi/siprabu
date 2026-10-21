@@ -229,22 +229,61 @@ function applyRolePermissionsToUI() {
     roleBanner.style.display = 'none';
   }
 
-  // Wewenang Akses Menu Manajemen Pengguna di Sidebar
-  const navUserMgmt = document.getElementById('nav-item-users');
-  if (navUserMgmt) {
-    if (user.level <= 1) {
-      navUserMgmt.style.display = 'flex';
-      navUserMgmt.removeAttribute('title');
-    } else {
-      navUserMgmt.style.display = 'none';
-    }
+  // 1. Akses Menu Pusat Siklus & Revisi:
+  // Hanya Level <= 1, Sekretaris KPU, dan Divisi Rendatin
+  const navSiklus = document.getElementById('nav-item-siklus') || document.querySelector('button[data-view="view-siklus"]');
+  const canAccessSiklus = (user.level <= 1) || 
+    user.role_id === 'sekretaris' || user.username === 'sekretaris' || user.role_id === 'viewer_sekretaris' ||
+    user.role_id === 'komisioner_rendatin' || user.username === 'divisi_rendatin' || user.username === 'komisioner';
+
+  if (navSiklus) {
+    navSiklus.style.display = canAccessSiklus ? 'flex' : 'none';
   }
 
-  // Wewenang Tambah Pengguna Button
+  // 2. Akses Folder Database Master: Hanya Level <= 1
+  const folderDb = document.getElementById('folder-database');
+  if (folderDb) {
+    folderDb.style.display = (user.level <= 1) ? 'block' : 'none';
+  }
+
+  // 3. Akses Menu Manajemen Pengguna: Hanya Level <= 1
+  const navUserMgmt = document.getElementById('nav-item-users');
+  if (navUserMgmt) {
+    navUserMgmt.style.display = (user.level <= 1) ? 'flex' : 'none';
+  }
+
+  // 4. Tombol Tambah Pengguna di view-users
   const btnTambahUser = document.getElementById('btn-tambah-user');
   if (btnTambahUser) {
     btnTambahUser.style.display = (user.level <= 1) ? 'inline-flex' : 'none';
   }
+
+  // 5. Pembatasan Subbag RKB:
+  // Jika user memiliki pic_subbag spesifik (bukan 'SEMUA'), kunci filter RKB ke subbagnya
+  const filterPicEl = document.getElementById('filter-pic');
+  if (filterPicEl) {
+    if (user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+      filterPicEl.value = user.pic_subbag;
+      filterPicEl.disabled = true;
+      filterPicEl.title = `Terkunci: Anda bertugas pada Subbagian/Divisi ${user.pic_subbag}`;
+      AppState.filters.pic = user.pic_subbag;
+    } else {
+      filterPicEl.disabled = false;
+      filterPicEl.removeAttribute('title');
+    }
+  }
+
+  // 6. Read-Only Protection di Referensi (SBM, BAS, SSOT) untuk Level 2 & Level 3
+  const isLevel1 = (user.level <= 1);
+  const btnTambahSbm = document.getElementById('btn-tambah-sbm');
+  if (btnTambahSbm) btnTambahSbm.style.display = isLevel1 ? 'inline-flex' : 'none';
+  const btnImportSbm = document.getElementById('btn-import-sbm');
+  if (btnImportSbm) btnImportSbm.style.display = isLevel1 ? 'inline-flex' : 'none';
+
+  const btnTambahBas = document.getElementById('btn-tambah-bas');
+  if (btnTambahBas) btnTambahBas.style.display = isLevel1 ? 'inline-flex' : 'none';
+  const btnImportBas = document.getElementById('btn-import-bas');
+  if (btnImportBas) btnImportBas.style.display = isLevel1 ? 'inline-flex' : 'none';
 }
 
 async function switchUser(username) {
@@ -271,6 +310,12 @@ async function switchUser(username) {
         parmas: 'parmas123',
         kul: 'kul123',
         sekretaris: 'sekretaris123',
+        divisi_rendatin: 'rendatin123',
+        ketua: 'ketua123',
+        divisi_teknis: 'teknis123',
+        divisi_hukum: 'hukum123',
+        divisi_parmas: 'parmas123',
+        divisi_kul: 'kul123',
         komisioner: 'komisioner123'
       };
       const pass = pwdMap[username] || `${username}123`;
@@ -445,6 +490,11 @@ async function loadRkbData() {
   if (!AppState.currentPeriode) return;
   const periodeId = AppState.currentPeriode.id;
 
+  const user = AppState.currentUser;
+  if (user && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+    AppState.filters.pic = user.pic_subbag;
+  }
+
   const queryParams = new URLSearchParams();
   if (AppState.filters.pic !== 'SEMUA') queryParams.append('pic', AppState.filters.pic);
   if (AppState.filters.sasaran !== 'ALL') queryParams.append('target_scope', AppState.filters.sasaran);
@@ -587,6 +637,35 @@ function startServerClockTicker() {
 }
 
 function switchView(viewId) {
+  const user = AppState.currentUser;
+  if (user) {
+    // 1. Guard Pusat Siklus: Hanya Level <= 1, Sekretaris KPU, dan Divisi Rendatin
+    const canAccessSiklus = (user.level <= 1) || 
+      user.role_id === 'sekretaris' || user.username === 'sekretaris' || user.role_id === 'viewer_sekretaris' ||
+      user.role_id === 'komisioner_rendatin' || user.username === 'divisi_rendatin' || user.username === 'komisioner';
+
+    if (viewId === 'view-siklus' && !canAccessSiklus) {
+      showToast('Akses ditolak: Menu Pusat Siklus & Revisi hanya dapat diakses oleh Tim Perencanaan, Sekretaris KPU, dan Divisi Rendatin.', 'warning');
+      switchView('view-dashboard');
+      return;
+    }
+
+    // 2. Guard Database Master: Hanya Level <= 1
+    const isMasterDbView = ['view-db-ppk', 'view-db-pps', 'view-db-paslon', 'view-db-settings', 'view-settings'].includes(viewId);
+    if (isMasterDbView && user.level > 1) {
+      showToast('Akses ditolak: Menu Master Database hanya untuk Tim Perencanaan & Pengembang.', 'warning');
+      switchView('view-dashboard');
+      return;
+    }
+
+    // 3. Guard Manajemen User: Hanya Level <= 1
+    if (viewId === 'view-users' && user.level > 1) {
+      showToast('Akses ditolak: Menu Manajemen Pengguna hanya untuk Tim Perencanaan & Pengembang.', 'warning');
+      switchView('view-dashboard');
+      return;
+    }
+  }
+
   AppState.activeView = viewId;
   document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(btn => {
@@ -2043,8 +2122,13 @@ function checkCanEditRow(user, row, isLocked) {
 }
 
 function applyRkbFilters() {
-  AppState.filters.pic = document.getElementById('filter-pic').value;
-  AppState.filters.sasaran = document.getElementById('filter-sasaran').value;
+  const user = AppState.currentUser;
+  if (user && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+    AppState.filters.pic = user.pic_subbag;
+  } else {
+    AppState.filters.pic = document.getElementById('filter-pic')?.value || 'SEMUA';
+  }
+  AppState.filters.sasaran = document.getElementById('filter-sasaran')?.value || 'ALL';
   loadRkbData().then(() => renderRkbTable());
 }
 
@@ -4568,21 +4652,31 @@ function renderDbKuantitas() {
     let sourceBadge = '';
     let actionBtn = '';
 
+    const isLevel1 = (AppState.currentUser?.level <= 1);
+
     if (reactiveDesa.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-success" style="font-size:11px;">Reaktif: Detail Desa/TPS</span>';
-      actionBtn = `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-pps')" title="Ubah data di Master Desa & TPS"><i class="fas fa-external-link-alt"></i> Buka Master</button>`;
+      actionBtn = isLevel1 
+        ? `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-pps')" title="Ubah data di Master Desa & TPS"><i class="fas fa-external-link-alt"></i> Buka Master</button>`
+        : `<span class="badge badge-secondary" style="font-size:11px;">Master Primer</span>`;
     } else if (reactivePpk.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-info" style="font-size:11px;">Reaktif: Master PPK</span>';
-      actionBtn = `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-ppk')" title="Ubah data di Master Kecamatan (PPK)"><i class="fas fa-external-link-alt"></i> Buka Master</button>`;
+      actionBtn = isLevel1 
+        ? `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-ppk')" title="Ubah data di Master Kecamatan (PPK)"><i class="fas fa-external-link-alt"></i> Buka Master</button>`
+        : `<span class="badge badge-secondary" style="font-size:11px;">Master Primer</span>`;
     } else if (reactivePaslon.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-primary" style="font-size:11px;">Reaktif: Master Paslon</span>';
-      actionBtn = `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-paslon')" title="Ubah data di Master Pasangan Calon"><i class="fas fa-external-link-alt"></i> Buka Master</button>`;
+      actionBtn = isLevel1 
+        ? `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-paslon')" title="Ubah data di Master Pasangan Calon"><i class="fas fa-external-link-alt"></i> Buka Master</button>`
+        : `<span class="badge badge-secondary" style="font-size:11px;">Master Primer</span>`;
     } else if (formulaKeys.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-secondary" style="font-size:11px;">Formula Agregat Otomatis</span>';
       actionBtn = `<span class="badge badge-secondary" style="font-size:11px; font-weight: 600;" title="Dihitung otomatis oleh formula"><i class="fas fa-calculator"></i> ∑ Rumus</span>`;
     } else {
       sourceBadge = '<span class="badge badge-warning" style="font-size:11px;">Konfigurasi Koefisien Mandiri</span>';
-      actionBtn = `<button type="button" class="btn btn-xs btn-primary" onclick="openModalKuantitas(${q.id})" title="Edit Parameter Kuantitas"><i class="fas fa-pencil-alt"></i> Edit</button>`;
+      actionBtn = isLevel1 
+        ? `<button type="button" class="btn btn-xs btn-primary" onclick="openModalKuantitas(${q.id})" title="Edit Parameter Kuantitas"><i class="fas fa-pencil-alt"></i> Edit</button>`
+        : `<span class="badge badge-secondary" style="font-size:11px;">Read-Only</span>`;
     }
 
     return `
@@ -4732,8 +4826,10 @@ function filterDbSbm() {
       <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e40af;">${formatRupiah(s.harga_satuan || s.pagu_sbm)}</td>
       <td><small style="color: #64748b;">${escapeHtml(s.jenis_regulasi || 'SBM')} ${escapeHtml(s.dasar_hukum || '')}</small></td>
       <td class="text-center" style="white-space: nowrap;">
+        ${(AppState.currentUser?.level <= 1) ? `
         <button type="button" class="btn btn-xs btn-outline-primary" onclick="openModalSbm(${s.id})" title="Edit Standar Biaya">✏️ Edit</button>
         <button type="button" class="btn btn-xs btn-outline-danger" onclick="deleteSbm(${s.id})" title="Hapus Standar Biaya">🗑️</button>
+        ` : `<span class="badge badge-secondary" style="font-size:11px;">Read-Only</span>`}
       </td>
     </tr>
   `).join('');
@@ -4914,8 +5010,10 @@ function filterDbBas() {
       <td>${escapeHtml(a.kelompok || '-')}</td>
       <td><span class="badge badge-secondary">${escapeHtml(a.kategori_dn || 'Belanja')}</span></td>
       <td class="text-center" style="white-space: nowrap;">
+        ${(AppState.currentUser?.level <= 1) ? `
         <button type="button" class="btn btn-xs btn-outline-primary" onclick="openModalBas(${a.id})" title="Edit Akun BAS">✏️ Edit</button>
         <button type="button" class="btn btn-xs btn-outline-danger" onclick="deleteAkun(${a.id})" title="Hapus Akun BAS">🗑️</button>
+        ` : `<span class="badge badge-secondary" style="font-size:11px;">Read-Only</span>`}
       </td>
     </tr>
   `).join('');
@@ -5126,9 +5224,11 @@ function renderUsersTable() {
     // Level Badge
     let lvlBadge = '';
     if (u.level === 0) lvlBadge = `<span class="badge" style="background:#0f172a;color:#fff;font-weight:700;">Level 0 (Developer)</span>`;
-    else if (u.level === 1) lvlBadge = `<span class="badge badge-primary" style="font-weight:700;">Level 1 (Super Admin)</span>`;
+    else if (u.level === 1) lvlBadge = `<span class="badge badge-primary" style="font-weight:700;">Level 1 (Tim Perencanaan)</span>`;
     else if (u.level === 2) lvlBadge = `<span class="badge badge-success" style="font-weight:700;">Level 2 (Operator Subbag)</span>`;
-    else lvlBadge = `<span class="badge badge-secondary" style="font-weight:700;">Level 3 (Viewer Eksekutif)</span>`;
+    else if (u.role_id === 'sekretaris' || u.role_id === 'viewer_sekretaris') lvlBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;font-weight:700;">Level 3 (Sekretaris / KPA)</span>`;
+    else if (u.role_id === 'komisioner_rendatin') lvlBadge = `<span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:700;">Level 3 (Divisi Rendatin)</span>`;
+    else lvlBadge = `<span class="badge badge-secondary" style="font-weight:700;">Level 3 (Pimpinan / Komisioner)</span>`;
 
     // PIC Subbag
     let pic = (u.pic_subbag || 'SEMUA').toUpperCase();
@@ -5282,7 +5382,28 @@ function onUserRoleTemplateChange() {
   } else if (role === 'op_kul') {
     if (levelSelect) levelSelect.value = '2';
     if (picSelect) picSelect.value = 'KUL';
-  } else if (role === 'viewer_sekretaris' || role === 'viewer_komisioner') {
+  } else if (role === 'sekretaris' || role === 'viewer_sekretaris') {
+    if (levelSelect) levelSelect.value = '3';
+    if (picSelect) picSelect.value = 'SEMUA';
+  } else if (role === 'ketua_kpu') {
+    if (levelSelect) levelSelect.value = '3';
+    if (picSelect) picSelect.value = 'SEMUA';
+  } else if (role === 'komisioner_rendatin') {
+    if (levelSelect) levelSelect.value = '3';
+    if (picSelect) picSelect.value = 'SEMUA';
+  } else if (role === 'komisioner_teknis') {
+    if (levelSelect) levelSelect.value = '3';
+    if (picSelect) picSelect.value = 'TEKNIS';
+  } else if (role === 'komisioner_hukum') {
+    if (levelSelect) levelSelect.value = '3';
+    if (picSelect) picSelect.value = 'HUKUM';
+  } else if (role === 'komisioner_parmas') {
+    if (levelSelect) levelSelect.value = '3';
+    if (picSelect) picSelect.value = 'PARSDM';
+  } else if (role === 'komisioner_kul') {
+    if (levelSelect) levelSelect.value = '3';
+    if (picSelect) picSelect.value = 'KUL';
+  } else if (role === 'komisioner_all' || role === 'viewer_komisioner') {
     if (levelSelect) levelSelect.value = '3';
     if (picSelect) picSelect.value = 'SEMUA';
   }

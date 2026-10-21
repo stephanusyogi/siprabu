@@ -90,7 +90,7 @@
               <span class="sakti-chevron">▾</span>
             </button>
             <div class="sakti-tree-children">
-              <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" style="margin-bottom: 2px;">
+              <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" id="nav-item-siklus" style="margin-bottom: 2px;">
                 <span class="icon">🔄</span>
                 <span class="label">Pusat Siklus & Revisi</span>
               </button>
@@ -2478,17 +2478,33 @@
               <div class="form-group">
                 <label>Template Peran (Role):</label>
                 <select id="modal-user-role" class="input-select" onchange="onUserRoleTemplateChange()">
-                  <option value="developer">Developer (Arsitek Sistem)</option>
-                  <option value="super_admin">Kasubbag Perencanaan (Super Admin)</option>
-                  <option value="admin_perencanaan">Staf Perencanaan (Admin Kompilator)</option>
-                  <option value="op_perencanaan">Operator Subbag Perencanaan</option>
-                  <option value="op_teknis" selected>Operator Subbag Teknis</option>
-                  <option value="op_hukum">Operator Subbag Hukum</option>
-                  <option value="op_parmas">Operator Subbag Parmas</option>
-                  <option value="op_kul">Operator Subbag KUL</option>
-                  <option value="viewer_sekretaris">Sekretaris KPU (Viewer)</option>
-                  <option value="viewer_komisioner">Komisioner KPU (Viewer)</option>
-                  <option value="custom">Peran Kustom</option>
+                  <optgroup label="Tingkat 0 - Developer">
+                    <option value="developer">Developer (Arsitek Sistem)</option>
+                  </optgroup>
+                  <optgroup label="Tingkat 1 - Tim Perencanaan (Admin Anggaran)">
+                    <option value="super_admin">Kasubbag Perencanaan (Super Admin)</option>
+                    <option value="admin_perencanaan">Staf Perencanaan (Admin Kompilator)</option>
+                  </optgroup>
+                  <optgroup label="Tingkat 2 - Operator 5 Subbagian (Pengusul)">
+                    <option value="op_perencanaan">Operator Subbag Perencanaan (RENDATIN)</option>
+                    <option value="op_teknis" selected>Operator Subbag Teknis (TEKNIS)</option>
+                    <option value="op_hukum">Operator Subbag Hukum (HUKUM)</option>
+                    <option value="op_parmas">Operator Subbag Parmas (PARSDM)</option>
+                    <option value="op_kul">Operator Subbag Keuangan &amp; Logistik (KUL)</option>
+                  </optgroup>
+                  <optgroup label="Tingkat 3 - Pimpinan &amp; Komisioner KPU">
+                    <option value="sekretaris">Sekretaris KPU / KPA (Akses Siklus: YA)</option>
+                    <option value="ketua_kpu">Ketua KPU Kabupaten</option>
+                    <option value="komisioner_rendatin">Anggota KPU Divisi Rendatin (Akses Siklus: YA)</option>
+                    <option value="komisioner_teknis">Anggota KPU Divisi Teknis</option>
+                    <option value="komisioner_hukum">Anggota KPU Divisi Hukum</option>
+                    <option value="komisioner_parmas">Anggota KPU Divisi ParSDM</option>
+                    <option value="komisioner_kul">Anggota KPU Divisi Keuangan &amp; Logistik</option>
+                    <option value="komisioner_all">Komisioner (Akses Semua Subbag)</option>
+                  </optgroup>
+                  <optgroup label="Kustom">
+                    <option value="custom">Peran Kustom</option>
+                  </optgroup>
                 </select>
               </div>
 

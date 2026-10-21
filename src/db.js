@@ -144,6 +144,43 @@ function initDb() {
     db.prepare("UPDATE satker_users SET pic_subbag = 'KUL' WHERE LOWER(pic_subbag) IN ('keuangan', 'kul')").run();
   } catch (e) {}
 
+  // Sinkronisasi dan pembaruan akun Komisioner KPU (5 Divisi + Ketua KPU)
+  try {
+    // 1. Update komisioner lama ke divisi_rendatin
+    db.prepare(`
+      UPDATE satker_users 
+      SET username = 'divisi_rendatin', 
+          nama_pejabat = 'Divisi Rendatin', 
+          jabatan = 'Anggota KPU Divisi Perencanaan, Data & Informasi', 
+          role_id = 'komisioner_rendatin', 
+          level = 3, 
+          pic_subbag = 'SEMUA',
+          password = 'rendatin123'
+      WHERE username = 'komisioner' OR id = 9
+    `).run();
+
+    // 2. Tambahkan akun Ketua dan Divisi Komisioner lainnya jika belum ada
+    const commissioners = [
+      { username: 'ketua', nama: 'Ketua KPU', jabatan: 'Ketua KPU Kabupaten', role: 'ketua_kpu', pic: 'SEMUA', pass: 'ketua123', email: 'ketua@kpu.go.id' },
+      { username: 'divisi_teknis', nama: 'Divisi Teknis', jabatan: 'Anggota KPU Divisi Teknis Penyelenggaraan', role: 'komisioner_teknis', pic: 'TEKNIS', pass: 'teknis123', email: 'divisi_teknis@kpu.go.id' },
+      { username: 'divisi_hukum', nama: 'Divisi Hukum', jabatan: 'Anggota KPU Divisi Hukum & Pengawasan', role: 'komisioner_hukum', pic: 'HUKUM', pass: 'hukum123', email: 'divisi_hukum@kpu.go.id' },
+      { username: 'divisi_parmas', nama: 'Divisi ParSDM', jabatan: 'Anggota KPU Divisi Sosdiklih, Parmas & SDM', role: 'komisioner_parmas', pic: 'PARSDM', pass: 'parmas123', email: 'divisi_parmas@kpu.go.id' },
+      { username: 'divisi_kul', nama: 'Divisi KUL', jabatan: 'Anggota KPU Divisi Keuangan, Umum & Logistik', role: 'komisioner_kul', pic: 'KUL', pass: 'kul123', email: 'divisi_kul@kpu.go.id' }
+    ];
+
+    const checkStmt = db.prepare('SELECT id FROM satker_users WHERE username = ?');
+    const insStmt = db.prepare(`
+      INSERT INTO satker_users (username, password, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, 3, ?, 1)
+    `);
+
+    for (const c of commissioners) {
+      if (!checkStmt.get(c.username)) {
+        insStmt.run(c.username, c.pass, c.nama, c.jabatan, c.email, c.role, c.pic);
+      }
+    }
+  } catch (e) {}
+
   // 4. Integrasi Kolom Google Sign-In & Email Resmi pada satker_users
   safeAddColumn('satker_users', 'email TEXT');
   safeAddColumn('satker_users', 'google_id TEXT');

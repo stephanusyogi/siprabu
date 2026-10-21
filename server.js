@@ -607,7 +607,13 @@ const server = http.createServer(async (req, res) => {
     const rkbMatch = pathname.match(/^\/api\/rkb\/(\d+)$/);
     if (rkbMatch && method === 'GET') {
       const periodeId = Number(rkbMatch[1]);
-      const { pic, target_scope, search } = query;
+      let { pic, target_scope, search } = query;
+      
+      const user = getUserFromReq(req);
+      if (user && user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        // Enforce subbag scoping: User hanya melihat subbag yang ditugaskan
+        pic = user.pic_subbag;
+      }
       
       const periode = getPeriodeById(periodeId);
       if (!periode) {
