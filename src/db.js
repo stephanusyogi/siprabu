@@ -1020,6 +1020,199 @@ function deleteDesa(id) {
 }
 
 // ============================================================================
+// MASTER STANDAR BIAYA MASUKAN (SBM) CRUD & BULK UPSERT
+// ============================================================================
+
+function getSbmList() {
+  return db.prepare('SELECT * FROM master_sbm ORDER BY id ASC').all();
+}
+
+function getSbmById(id) {
+  return db.prepare('SELECT * FROM master_sbm WHERE id = ?').get(id);
+}
+
+function saveSbm(data) {
+  const id = data.id ? Number(data.id) : null;
+  const cleanKode = (data.kode_akun || '521211').trim();
+  const cleanKat = (data.kategori || 'Umum').trim();
+  const cleanUraian = (data.uraian || '').trim();
+  const cleanSatuan = (data.satuan || 'OK').trim();
+  const cleanHarga = Number(data.harga_satuan) || 0;
+  const cleanKet = (data.keterangan || '').trim();
+  const cleanPagu = Number(data.pagu_sbm) || cleanHarga;
+  const cleanJenis = (data.jenis_regulasi || 'SBM').trim();
+  const cleanDasar = (data.dasar_hukum || 'PMK Standar Biaya Masukan').trim();
+
+  if (!cleanUraian) throw new Error('Uraian Standar Biaya Masukan tidak boleh kosong.');
+
+  if (id) {
+    db.prepare(`
+      UPDATE master_sbm 
+      SET kode_akun = ?, kategori = ?, uraian = ?, satuan = ?, harga_satuan = ?, keterangan = ?, pagu_sbm = ?, jenis_regulasi = ?, dasar_hukum = ?
+      WHERE id = ?
+    `).run(cleanKode, cleanKat, cleanUraian, cleanSatuan, cleanHarga, cleanKet, cleanPagu, cleanJenis, cleanDasar, id);
+    return getSbmById(id);
+  } else {
+    const info = db.prepare(`
+      INSERT INTO master_sbm (kode_akun, kategori, uraian, satuan, harga_satuan, keterangan, pagu_sbm, jenis_regulasi, dasar_hukum)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(cleanKode, cleanKat, cleanUraian, cleanSatuan, cleanHarga, cleanKet, cleanPagu, cleanJenis, cleanDasar);
+    return getSbmById(info.lastInsertRowid);
+  }
+}
+
+function deleteSbm(id) {
+  return db.prepare('DELETE FROM master_sbm WHERE id = ?').run(id);
+}
+
+function bulkUpsertSbm(rows) {
+  let inserted = 0;
+  let updated = 0;
+  const checkByIdStmt = db.prepare('SELECT id FROM master_sbm WHERE id = ?');
+  const checkByMatchStmt = db.prepare('SELECT id FROM master_sbm WHERE LOWER(TRIM(kategori)) = LOWER(TRIM(?)) AND LOWER(TRIM(uraian)) = LOWER(TRIM(?))');
+
+  const updateStmt = db.prepare(`
+    UPDATE master_sbm 
+    SET kode_akun = ?, kategori = ?, uraian = ?, satuan = ?, harga_satuan = ?, keterangan = ?, pagu_sbm = ?, jenis_regulasi = ?, dasar_hukum = ?
+    WHERE id = ?
+  `);
+  const insertStmt = db.prepare(`
+    INSERT INTO master_sbm (kode_akun, kategori, uraian, satuan, harga_satuan, keterangan, pagu_sbm, jenis_regulasi, dasar_hukum)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  db.exec('BEGIN');
+  try {
+    for (const item of rows) {
+      const cleanKode = (item.kode_akun || '521211').trim();
+      const cleanKat = (item.kategori || 'Umum').trim();
+      const cleanUraian = (item.uraian || '').trim();
+      if (!cleanUraian) continue;
+      const cleanSatuan = (item.satuan || 'OK').trim();
+      const cleanHarga = Number(item.harga_satuan) || 0;
+      const cleanKet = (item.keterangan || '').trim();
+      const cleanPagu = Number(item.pagu_sbm) || cleanHarga;
+      const cleanJenis = (item.jenis_regulasi || 'SBM').trim();
+      const cleanDasar = (item.dasar_hukum || 'PMK Standar Biaya Masukan').trim();
+
+      let targetId = item.id ? checkByIdStmt.get(item.id)?.id : null;
+      if (!targetId) {
+        targetId = checkByMatchStmt.get(cleanKat, cleanUraian)?.id;
+      }
+
+      if (targetId) {
+        updateStmt.run(cleanKode, cleanKat, cleanUraian, cleanSatuan, cleanHarga, cleanKet, cleanPagu, cleanJenis, cleanDasar, targetId);
+        updated++;
+      } else {
+        insertStmt.run(cleanKode, cleanKat, cleanUraian, cleanSatuan, cleanHarga, cleanKet, cleanPagu, cleanJenis, cleanDasar);
+        inserted++;
+      }
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
+  return { success: true, processed: inserted + updated, inserted, updated };
+}
+
+// ============================================================================
+// MASTER BAGAN AKUN STANDAR (BAS) CRUD & BULK UPSERT
+// ============================================================================
+
+function getAkunList() {
+  return db.prepare('SELECT * FROM master_akun ORDER BY kode ASC').all();
+}
+
+function getAkunById(id) {
+  return db.prepare('SELECT * FROM master_akun WHERE id = ?').get(id);
+}
+
+function saveAkun(data) {
+  const id = data.id ? Number(data.id) : null;
+  const cleanKode = (data.kode || '').trim();
+  const cleanUraian = (data.uraian || '').trim();
+  const cleanKelompok = (data.kelompok || '521 - Belanja Barang').trim();
+  const cleanKategori = (data.kategori_dn || cleanKode).trim();
+  const cleanKet = (data.keterangan || '').trim();
+
+  if (!cleanKode) throw new Error('Kode akun tidak boleh kosong.');
+  if (!cleanUraian) throw new Error('Uraian akun tidak boleh kosong.');
+
+  if (id) {
+    db.prepare(`
+      UPDATE master_akun
+      SET kode = ?, uraian = ?, kelompok = ?, kategori_dn = ?, keterangan = ?
+      WHERE id = ?
+    `).run(cleanKode, cleanUraian, cleanKelompok, cleanKategori, cleanKet, id);
+    return getAkunById(id);
+  } else {
+    const existing = db.prepare('SELECT id FROM master_akun WHERE kode = ?').get(cleanKode);
+    if (existing) {
+      db.prepare(`
+        UPDATE master_akun
+        SET uraian = ?, kelompok = ?, kategori_dn = ?, keterangan = ?
+        WHERE id = ?
+      `).run(cleanUraian, cleanKelompok, cleanKategori, cleanKet, existing.id);
+      return getAkunById(existing.id);
+    } else {
+      const info = db.prepare(`
+        INSERT INTO master_akun (kode, uraian, kelompok, kategori_dn, keterangan)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(cleanKode, cleanUraian, cleanKelompok, cleanKategori, cleanKet);
+      return getAkunById(info.lastInsertRowid);
+    }
+  }
+}
+
+function deleteAkun(id) {
+  return db.prepare('DELETE FROM master_akun WHERE id = ?').run(id);
+}
+
+function bulkUpsertAkun(rows) {
+  let inserted = 0;
+  let updated = 0;
+  const checkByKode = db.prepare('SELECT id FROM master_akun WHERE kode = ?');
+  const updateStmt = db.prepare(`
+    UPDATE master_akun
+    SET uraian = ?, kelompok = ?, kategori_dn = ?, keterangan = ?
+    WHERE id = ?
+  `);
+  const insertStmt = db.prepare(`
+    INSERT INTO master_akun (kode, uraian, kelompok, kategori_dn, keterangan)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  db.exec('BEGIN');
+  try {
+    for (const item of rows) {
+      const cleanKode = (item.kode || '').trim();
+      const cleanUraian = (item.uraian || '').trim();
+      if (!cleanKode || !cleanUraian) continue;
+      const cleanKelompok = (item.kelompok || '521 - Belanja Barang').trim();
+      const cleanKategori = (item.kategori_dn || cleanKode).trim();
+      const cleanKet = (item.keterangan || '').trim();
+
+      const existing = checkByKode.get(cleanKode);
+      if (existing) {
+        updateStmt.run(cleanUraian, cleanKelompok, cleanKategori, cleanKet, existing.id);
+        updated++;
+      } else {
+        insertStmt.run(cleanKode, cleanUraian, cleanKelompok, cleanKategori, cleanKet);
+        inserted++;
+      }
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
+  return { success: true, processed: inserted + updated, inserted, updated };
+}
+
+// ============================================================================
 // SISTEM MONITORING REPORT & ASYNC DOWNLOAD (SAKTI KEMENKEU STYLE)
 // ============================================================================
 
@@ -1149,6 +1342,16 @@ module.exports = {
   getDesas,
   saveDesa,
   deleteDesa,
+  getSbmList,
+  getSbmById,
+  saveSbm,
+  deleteSbm,
+  bulkUpsertSbm,
+  getAkunList,
+  getAkunById,
+  saveAkun,
+  deleteAkun,
+  bulkUpsertAkun,
   createDownloadRequest,
   getDownloadRequests,
   getDownloadRequestById,

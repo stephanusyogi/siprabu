@@ -5,6 +5,7 @@
  */
 
 const ExcelJS = require('exceljs');
+const XLSX = require('xlsx');
 const { db, getRabRows, getPeriodeById, getMasters } = require('./db');
 const { calculateRkbDataset, getRevisionComparison } = require('./calculation');
 
@@ -1875,6 +1876,370 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   return buffer;
 }
 
+/**
+ * Ekspor Data Master SBM ke Format Excel Resmi SAKTI
+ */
+async function exportSbmToExcelBuffer() {
+  const { getSbmList } = require('./db');
+  const sbms = getSbmList();
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'emenje';
+  workbook.created = new Date();
+
+  const ws = workbook.addWorksheet('Master_SBM', {
+    views: [{ showGridLines: true }]
+  });
+
+  // Title
+  ws.mergeCells('A1:I1');
+  ws.getCell('A1').value = 'KPU KABUPATEN NGAWI - STANDAR BIAYA MASUKAN (SBM)';
+  ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1E3A8A' } };
+
+  ws.mergeCells('A2:I2');
+  ws.getCell('A2').value = `Katalog Resmi Tarif Satuan Biaya, Honorarium & Pagu Batas Tertinggi (Total: ${sbms.length} Komponen Biaya)`;
+  ws.getCell('A2').font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF475569' } };
+
+  // Header Row at Row 4
+  const headerRow = ws.getRow(4);
+  headerRow.values = [
+    'No',
+    'ID Database',
+    'Kode Akun',
+    'Kategori',
+    'Uraian Standar Biaya Masukan',
+    'Satuan',
+    'Batas Pagu Tarif (Rp)',
+    'Dasar Hukum / Regulasi',
+    'Keterangan'
+  ];
+  headerRow.height = 28;
+  headerRow.eachCell((cell) => {
+    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1E3A8A' }
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
+      left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+    };
+  });
+
+  // Data rows
+  let rowIdx = 5;
+  for (let i = 0; i < sbms.length; i++) {
+    const s = sbms[i];
+    const r = ws.getRow(rowIdx);
+    r.values = [
+      i + 1,
+      s.id,
+      s.kode_akun || '521211',
+      s.kategori || 'Umum',
+      s.uraian || '',
+      s.satuan || '',
+      Number(s.harga_satuan || s.pagu_sbm) || 0,
+      `${s.jenis_regulasi || 'SBM'} ${s.dasar_hukum || ''}`.trim(),
+      s.keterangan || ''
+    ];
+    r.height = 22;
+
+    r.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(4).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(5).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(6).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
+    r.getCell(7).numFmt = '#,##0';
+    r.getCell(8).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(9).alignment = { vertical: 'middle', horizontal: 'left' };
+
+    const isEven = i % 2 === 1;
+    r.eachCell((cell) => {
+      cell.font = { name: 'Arial', size: 9.5 };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+      if (isEven) {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF8FAFC' }
+        };
+      }
+    });
+
+    rowIdx++;
+  }
+
+  ws.columns = [
+    { width: 6 },
+    { width: 12 },
+    { width: 14 },
+    { width: 18 },
+    { width: 45 },
+    { width: 12 },
+    { width: 22 },
+    { width: 35 },
+    { width: 25 }
+  ];
+
+  return await workbook.xlsx.writeBuffer();
+}
+
+/**
+ * Parsing Buffer Excel SBM untuk Update Masal
+ */
+function parseSbmExcelBuffer(buffer) {
+  const wb = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+  if (!rawRows || rawRows.length === 0) return [];
+
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+    const row = (rawRows[i] || []).map(c => String(c || '').toLowerCase().trim());
+    const hasUraian = row.some(c => c.includes('uraian'));
+    const hasSatuan = row.some(c => c.includes('satuan'));
+    const hasKategori = row.some(c => c.includes('kategori'));
+    if (hasUraian && (hasSatuan || hasKategori)) {
+      headerIdx = i;
+      break;
+    }
+  }
+
+  if (headerIdx === -1) headerIdx = 0;
+  const headers = (rawRows[headerIdx] || []).map(c => String(c || '').toLowerCase().trim());
+
+  const colMap = {
+    id: headers.findIndex(h => h.includes('id') || h === 'id database'),
+    kode_akun: headers.findIndex(h => h.includes('kode akun') || h.includes('akun')),
+    kategori: headers.findIndex(h => h.includes('kategori')),
+    uraian: headers.findIndex(h => h.includes('uraian') || h.includes('nama biaya') || h.includes('standar biaya')),
+    satuan: headers.findIndex(h => h.includes('satuan')),
+    harga_satuan: headers.findIndex(h => h.includes('harga') || h.includes('tarif') || h.includes('pagu') || h.includes('besaran')),
+    jenis_regulasi: headers.findIndex(h => h.includes('jenis regulasi') || h.includes('regulasi')),
+    dasar_hukum: headers.findIndex(h => h.includes('dasar hukum') || h.includes('dasar')),
+    keterangan: headers.findIndex(h => h.includes('keterangan') || h.includes('catatan'))
+  };
+
+  const parsedItems = [];
+  for (let r = headerIdx + 1; r < rawRows.length; r++) {
+    const row = rawRows[r];
+    if (!row || row.length === 0) continue;
+
+    const uraianVal = colMap.uraian !== -1 ? String(row[colMap.uraian] || '').trim() : '';
+    if (!uraianVal) continue;
+
+    const idVal = colMap.id !== -1 && row[colMap.id] ? Number(row[colMap.id]) : undefined;
+    const kodeAkunVal = colMap.kode_akun !== -1 ? String(row[colMap.kode_akun] || '521211').trim() : '521211';
+    const kategoriVal = colMap.kategori !== -1 ? String(row[colMap.kategori] || 'Umum').trim() : 'Umum';
+    const satuanVal = colMap.satuan !== -1 ? String(row[colMap.satuan] || 'OK').trim() : 'OK';
+    const hargaVal = colMap.harga_satuan !== -1 ? (Number(String(row[colMap.harga_satuan] || '0').replace(/[^0-9.-]+/g, '')) || 0) : 0;
+    const jenisReg = colMap.jenis_regulasi !== -1 ? String(row[colMap.jenis_regulasi] || 'SBM').trim() : 'SBM';
+    const dasarHukumVal = colMap.dasar_hukum !== -1 ? String(row[colMap.dasar_hukum] || '').trim() : '';
+    const ketVal = colMap.keterangan !== -1 ? String(row[colMap.keterangan] || '').trim() : '';
+
+    parsedItems.push({
+      id: idVal,
+      kode_akun: kodeAkunVal,
+      kategori: kategoriVal,
+      uraian: uraianVal,
+      satuan: satuanVal,
+      harga_satuan: hargaVal,
+      pagu_sbm: hargaVal,
+      jenis_regulasi: jenisReg,
+      dasar_hukum: dasarHukumVal,
+      keterangan: ketVal
+    });
+  }
+
+  return parsedItems;
+}
+
+/**
+ * Ekspor Data Master BAS ke Format Excel Resmi SAKTI
+ */
+async function exportBasToExcelBuffer() {
+  const { getAkunList } = require('./db');
+  const akuns = getAkunList();
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'emenje';
+  workbook.created = new Date();
+
+  const ws = workbook.addWorksheet('Master_BAS', {
+    views: [{ showGridLines: true }]
+  });
+
+  // Title
+  ws.mergeCells('A1:F1');
+  ws.getCell('A1').value = 'KPU KABUPATEN NGAWI - BAGAN AKUN STANDAR (BAS)';
+  ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF0369A1' } };
+
+  ws.mergeCells('A2:F2');
+  ws.getCell('A2').value = `Kodifikasi Akun 6 Digit Standar Akuntansi Pemerintah (SAP) Belanja Hibah Pilkada (Total: ${akuns.length} Akun)`;
+  ws.getCell('A2').font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF475569' } };
+
+  // Header Row at Row 4
+  const headerRow = ws.getRow(4);
+  headerRow.values = [
+    'No',
+    'ID Database',
+    'Kode Akun (6 Digit)',
+    'Uraian Akun BAS',
+    'Kelompok Belanja',
+    'Kategori Belanja',
+    'Keterangan'
+  ];
+  headerRow.height = 28;
+  headerRow.eachCell((cell) => {
+    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF0369A1' }
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
+      left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+    };
+  });
+
+  // Data rows
+  let rowIdx = 5;
+  for (let i = 0; i < akuns.length; i++) {
+    const a = akuns[i];
+    const r = ws.getRow(rowIdx);
+    r.values = [
+      i + 1,
+      a.id,
+      a.kode || '',
+      a.uraian || '',
+      a.kelompok || '',
+      a.kategori_dn || a.kode || '',
+      a.keterangan || ''
+    ];
+    r.height = 22;
+
+    r.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(4).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(5).alignment = { vertical: 'middle', horizontal: 'left' };
+    r.getCell(6).alignment = { vertical: 'middle', horizontal: 'center' };
+    r.getCell(7).alignment = { vertical: 'middle', horizontal: 'left' };
+
+    const isEven = i % 2 === 1;
+    r.eachCell((cell) => {
+      cell.font = { name: 'Arial', size: 9.5 };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+      if (isEven) {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF8FAFC' }
+        };
+      }
+    });
+
+    rowIdx++;
+  }
+
+  ws.columns = [
+    { width: 6 },
+    { width: 12 },
+    { width: 18 },
+    { width: 45 },
+    { width: 28 },
+    { width: 16 },
+    { width: 28 }
+  ];
+
+  return await workbook.xlsx.writeBuffer();
+}
+
+/**
+ * Parsing Buffer Excel BAS untuk Update Masal
+ */
+function parseBasExcelBuffer(buffer) {
+  const wb = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+  if (!rawRows || rawRows.length === 0) return [];
+
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+    const row = (rawRows[i] || []).map(c => String(c || '').toLowerCase().trim());
+    const hasKode = row.some(c => c.includes('kode'));
+    const hasUraian = row.some(c => c.includes('uraian'));
+    if (hasKode && hasUraian) {
+      headerIdx = i;
+      break;
+    }
+  }
+
+  if (headerIdx === -1) headerIdx = 0;
+  const headers = (rawRows[headerIdx] || []).map(c => String(c || '').toLowerCase().trim());
+
+  const colMap = {
+    id: headers.findIndex(h => h.includes('id') || h === 'id database'),
+    kode: headers.findIndex(h => h.includes('kode akun') || h.includes('kode bas') || h === 'kode'),
+    uraian: headers.findIndex(h => h.includes('uraian') || h.includes('nama akun')),
+    kelompok: headers.findIndex(h => h.includes('kelompok')),
+    kategori_dn: headers.findIndex(h => h.includes('kategori')),
+    keterangan: headers.findIndex(h => h.includes('keterangan') || h.includes('catatan'))
+  };
+
+  const parsedItems = [];
+  for (let r = headerIdx + 1; r < rawRows.length; r++) {
+    const row = rawRows[r];
+    if (!row || row.length === 0) continue;
+
+    const kodeVal = colMap.kode !== -1 ? String(row[colMap.kode] || '').replace(/[^0-9]/g, '').trim() : '';
+    const uraianVal = colMap.uraian !== -1 ? String(row[colMap.uraian] || '').trim() : '';
+    if (!kodeVal || !uraianVal) continue;
+
+    const idVal = colMap.id !== -1 && row[colMap.id] ? Number(row[colMap.id]) : undefined;
+    const kelompokVal = colMap.kelompok !== -1 ? String(row[colMap.kelompok] || '521 - Belanja Barang').trim() : '521 - Belanja Barang';
+    const kategoriVal = colMap.kategori_dn !== -1 ? String(row[colMap.kategori_dn] || kodeVal).trim() : kodeVal;
+    const ketVal = colMap.keterangan !== -1 ? String(row[colMap.keterangan] || '').trim() : '';
+
+    parsedItems.push({
+      id: idVal,
+      kode: kodeVal,
+      uraian: uraianVal,
+      kelompok: kelompokVal,
+      kategori_dn: kategoriVal,
+      keterangan: ketVal
+    });
+  }
+
+  return parsedItems;
+}
+
 module.exports = {
-  exportRkbToExcelBuffer
+  exportRkbToExcelBuffer,
+  exportSbmToExcelBuffer,
+  parseSbmExcelBuffer,
+  exportBasToExcelBuffer,
+  parseBasExcelBuffer
 };

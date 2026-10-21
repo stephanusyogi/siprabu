@@ -4431,6 +4431,7 @@ function filterDbSbm() {
     if (keyword) {
       const match = (s.uraian || '').toLowerCase().includes(keyword) ||
                     (s.kategori || '').toLowerCase().includes(keyword) ||
+                    (s.kode_akun || '').toLowerCase().includes(keyword) ||
                     (s.dasar_hukum || '').toLowerCase().includes(keyword);
       if (!match) return false;
     }
@@ -4441,19 +4442,149 @@ function filterDbSbm() {
   if (!tbody) return;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 24px; color: var(--text-muted);">Tidak ada standar biaya masukan yang cocok.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 24px; color: var(--text-muted);">Tidak ada standar biaya masukan yang cocok.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = filtered.map(s => `
+  tbody.innerHTML = filtered.map((s, idx) => `
     <tr>
+      <td class="text-center" style="font-weight: 600; color: #64748b;">${idx + 1}</td>
+      <td><code style="font-family: var(--font-mono); font-weight: 700; color: #0284c7;">${escapeHtml(s.kode_akun || '521211')}</code></td>
       <td><span class="badge badge-secondary">${escapeHtml(s.kategori || 'SBM')}</span></td>
       <td><strong>${escapeHtml(s.uraian)}</strong></td>
-      <td>${escapeHtml(s.satuan || '')}</td>
+      <td class="text-center">${escapeHtml(s.satuan || '')}</td>
       <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e40af;">${formatRupiah(s.harga_satuan || s.pagu_sbm)}</td>
       <td><small style="color: #64748b;">${escapeHtml(s.jenis_regulasi || 'SBM')} ${escapeHtml(s.dasar_hukum || '')}</small></td>
+      <td class="text-center" style="white-space: nowrap;">
+        <button type="button" class="btn btn-xs btn-outline-primary" onclick="openModalSbm(${s.id})" title="Edit Standar Biaya">✏️ Edit</button>
+        <button type="button" class="btn btn-xs btn-outline-danger" onclick="deleteSbm(${s.id})" title="Hapus Standar Biaya">🗑️</button>
+      </td>
     </tr>
   `).join('');
+}
+
+function openModalSbm(id = null) {
+  const selKode = document.getElementById('sbm-kode-akun');
+  if (selKode && AppState.masters && AppState.masters.akuns) {
+    selKode.innerHTML = AppState.masters.akuns.map(a => `<option value="${a.kode}">[${a.kode}] ${escapeHtml(a.uraian)}</option>`).join('');
+  }
+
+  if (id) {
+    const s = (AppState.masters.sbms || []).find(item => item.id === Number(id));
+    if (!s) return;
+    setElText('modal-sbm-title', `✏️ Edit Standar Biaya: ${s.uraian}`);
+    setElVal('sbm-id', s.id);
+    setElVal('sbm-kode-akun', s.kode_akun || '521211');
+    setElVal('sbm-kategori', s.kategori || 'Umum');
+    setElVal('sbm-uraian', s.uraian || '');
+    setElVal('sbm-satuan', s.satuan || 'OK');
+    setElVal('sbm-harga-satuan', s.harga_satuan || s.pagu_sbm || 0);
+    setElVal('sbm-jenis-regulasi', s.jenis_regulasi || 'SBM');
+    setElVal('sbm-dasar-hukum', s.dasar_hukum || '');
+    setElVal('sbm-keterangan', s.keterangan || '');
+  } else {
+    setElText('modal-sbm-title', '➕ Tambah Standar Biaya Masukan (SBM) Baru');
+    setElVal('sbm-id', '');
+    setElVal('sbm-kode-akun', '521211');
+    setElVal('sbm-kategori', 'Honorarium');
+    setElVal('sbm-uraian', '');
+    setElVal('sbm-satuan', 'OK');
+    setElVal('sbm-harga-satuan', 0);
+    setElVal('sbm-jenis-regulasi', 'SBM');
+    setElVal('sbm-dasar-hukum', 'PMK Standar Biaya Masukan');
+    setElVal('sbm-keterangan', '');
+  }
+
+  document.getElementById('modal-sbm').style.display = 'flex';
+}
+
+function closeModalSbm() {
+  document.getElementById('modal-sbm').style.display = 'none';
+}
+
+async function submitModalSbm() {
+  const uraian = (document.getElementById('sbm-uraian')?.value || '').trim();
+  if (!uraian) {
+    alert('Uraian Standar Biaya Masukan wajib diisi.');
+    document.getElementById('sbm-uraian')?.focus();
+    return;
+  }
+
+  const payload = {
+    id: document.getElementById('sbm-id')?.value || undefined,
+    kode_akun: document.getElementById('sbm-kode-akun')?.value || '521211',
+    kategori: document.getElementById('sbm-kategori')?.value || 'Umum',
+    uraian: uraian,
+    satuan: document.getElementById('sbm-satuan')?.value || 'OK',
+    harga_satuan: Number(document.getElementById('sbm-harga-satuan')?.value) || 0,
+    pagu_sbm: Number(document.getElementById('sbm-harga-satuan')?.value) || 0,
+    jenis_regulasi: document.getElementById('sbm-jenis-regulasi')?.value || 'SBM',
+    dasar_hukum: document.getElementById('sbm-dasar-hukum')?.value || '',
+    keterangan: document.getElementById('sbm-keterangan')?.value || ''
+  };
+
+  try {
+    const res = await apiFetch('/api/master/sbm', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    alert(payload.id ? 'Data SBM berhasil diperbarui.' : 'Standar biaya masukan baru berhasil ditambahkan.');
+    closeModalSbm();
+    await loadMasters();
+    renderDbSbm();
+  } catch (err) {
+    alert('Gagal menyimpan SBM: ' + err.message);
+  }
+}
+
+async function deleteSbm(id) {
+  const s = (AppState.masters.sbms || []).find(item => item.id === Number(id));
+  const uraian = s ? s.uraian : `ID #${id}`;
+  if (!confirm(`Apakah Anda yakin ingin menghapus Standar Biaya "${uraian}"?`)) return;
+
+  try {
+    await apiFetch(`/api/master/sbm/${id}`, { method: 'DELETE' });
+    alert('Standar biaya berhasil dihapus.');
+    await loadMasters();
+    renderDbSbm();
+  } catch (err) {
+    alert('Gagal menghapus SBM: ' + err.message);
+  }
+}
+
+function exportSbmExcel() {
+  window.location.href = '/api/master/sbm/export';
+}
+
+function triggerImportSbm() {
+  document.getElementById('input-file-sbm')?.click();
+}
+
+async function handleExcelUploadSbm(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  event.target.value = '';
+
+  if (!confirm(`Mulai unggah berkas "${file.name}" untuk update masal Standar Biaya Masukan (SBM)?\nData akan dicocokkan berdasarkan ID atau (Kategori & Uraian).`)) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const base64Data = e.target.result.split(',')[1];
+      const res = await apiFetch('/api/master/sbm/import', {
+        method: 'POST',
+        body: JSON.stringify({ file_base64: base64Data, filename: file.name })
+      });
+      alert(`✅ ${res.message || 'Update masal SBM berhasil!'}`);
+      await loadMasters();
+      renderDbSbm();
+    } catch (err) {
+      alert('❌ Gagal mengimpor data SBM: ' + err.message);
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ============================================================================
@@ -4495,18 +4626,140 @@ function filterDbBas() {
   if (!tbody) return;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center" style="padding: 24px; color: var(--text-muted);">Tidak ada akun BAS yang cocok.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding: 24px; color: var(--text-muted);">Tidak ada akun BAS yang cocok.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = filtered.map(a => `
+  tbody.innerHTML = filtered.map((a, idx) => `
     <tr>
+      <td class="text-center" style="font-weight: 600; color: #64748b;">${idx + 1}</td>
       <td><code style="font-family: var(--font-mono); font-weight: 700; color: #0284c7; font-size: 13px;">${escapeHtml(a.kode)}</code></td>
       <td><strong>${escapeHtml(a.uraian)}</strong></td>
       <td>${escapeHtml(a.kelompok || '-')}</td>
       <td><span class="badge badge-secondary">${escapeHtml(a.kategori_dn || 'Belanja')}</span></td>
+      <td class="text-center" style="white-space: nowrap;">
+        <button type="button" class="btn btn-xs btn-outline-primary" onclick="openModalBas(${a.id})" title="Edit Akun BAS">✏️ Edit</button>
+        <button type="button" class="btn btn-xs btn-outline-danger" onclick="deleteAkun(${a.id})" title="Hapus Akun BAS">🗑️</button>
+      </td>
     </tr>
   `).join('');
+}
+
+function openModalBas(id = null) {
+  if (id) {
+    const a = (AppState.masters.akuns || []).find(item => item.id === Number(id));
+    if (!a) return;
+    setElText('modal-bas-title', `✏️ Edit Akun BAS: [${a.kode}] ${a.uraian}`);
+    setElVal('bas-id', a.id);
+    setElVal('bas-kode', a.kode || '');
+    setElVal('bas-uraian', a.uraian || '');
+    setElVal('bas-kelompok', a.kelompok || '521 - Belanja Barang');
+    setElVal('bas-kategori-dn', a.kategori_dn || a.kode || '');
+    setElVal('bas-keterangan', a.keterangan || '');
+    document.getElementById('bas-kode').readOnly = false;
+  } else {
+    setElText('modal-bas-title', '➕ Tambah Akun BAS (6 Digit) Baru');
+    setElVal('bas-id', '');
+    setElVal('bas-kode', '');
+    setElVal('bas-uraian', '');
+    setElVal('bas-kelompok', '521 - Belanja Barang');
+    setElVal('bas-kategori-dn', '');
+    setElVal('bas-keterangan', '');
+    document.getElementById('bas-kode').readOnly = false;
+  }
+
+  document.getElementById('modal-bas').style.display = 'flex';
+}
+
+function closeModalBas() {
+  document.getElementById('modal-bas').style.display = 'none';
+}
+
+async function submitModalBas() {
+  const kode = (document.getElementById('bas-kode')?.value || '').trim();
+  const uraian = (document.getElementById('bas-uraian')?.value || '').trim();
+  if (!kode) {
+    alert('Kode akun (6 digit) wajib diisi.');
+    document.getElementById('bas-kode')?.focus();
+    return;
+  }
+  if (!uraian) {
+    alert('Uraian akun wajib diisi.');
+    document.getElementById('bas-uraian')?.focus();
+    return;
+  }
+
+  const payload = {
+    id: document.getElementById('bas-id')?.value || undefined,
+    kode: kode,
+    uraian: uraian,
+    kelompok: document.getElementById('bas-kelompok')?.value || '521 - Belanja Barang',
+    kategori_dn: document.getElementById('bas-kategori-dn')?.value || kode,
+    keterangan: document.getElementById('bas-keterangan')?.value || ''
+  };
+
+  try {
+    const res = await apiFetch('/api/master/akun', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    alert(payload.id ? 'Akun BAS berhasil diperbarui.' : 'Akun BAS baru berhasil ditambahkan.');
+    closeModalBas();
+    await loadMasters();
+    renderDbBas();
+  } catch (err) {
+    alert('Gagal menyimpan Akun BAS: ' + err.message);
+  }
+}
+
+async function deleteAkun(id) {
+  const a = (AppState.masters.akuns || []).find(item => item.id === Number(id));
+  const uraian = a ? `[${a.kode}] ${a.uraian}` : `ID #${id}`;
+  if (!confirm(`Apakah Anda yakin ingin menghapus Akun BAS "${uraian}"?`)) return;
+
+  try {
+    await apiFetch(`/api/master/akun/${id}`, { method: 'DELETE' });
+    alert('Akun BAS berhasil dihapus.');
+    await loadMasters();
+    renderDbBas();
+  } catch (err) {
+    alert('Gagal menghapus Akun BAS: ' + err.message);
+  }
+}
+
+function exportBasExcel() {
+  window.location.href = '/api/master/akun/export';
+}
+
+function triggerImportBas() {
+  document.getElementById('input-file-bas')?.click();
+}
+
+async function handleExcelUploadBas(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  event.target.value = '';
+
+  if (!confirm(`Mulai unggah berkas "${file.name}" untuk update masal Bagan Akun Standar (BAS)?\nData akan dicocokkan berdasarkan Kode Akun (6 digit).`)) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const base64Data = e.target.result.split(',')[1];
+      const res = await apiFetch('/api/master/akun/import', {
+        method: 'POST',
+        body: JSON.stringify({ file_base64: base64Data, filename: file.name })
+      });
+      alert(`✅ ${res.message || 'Update masal BAS berhasil!'}`);
+      await loadMasters();
+      renderDbBas();
+    } catch (err) {
+      alert('❌ Gagal mengimpor data BAS: ' + err.message);
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ============================================================================
@@ -4824,6 +5077,20 @@ window.deleteKecamatan = deleteKecamatan;
 window.filterDbPpk = filterDbPpk;
 window.filterDbKuantitas = filterDbKuantitas;
 window.filterDbSbm = filterDbSbm;
+window.openModalSbm = openModalSbm;
+window.closeModalSbm = closeModalSbm;
+window.submitModalSbm = submitModalSbm;
+window.deleteSbm = deleteSbm;
+window.exportSbmExcel = exportSbmExcel;
+window.triggerImportSbm = triggerImportSbm;
+window.handleExcelUploadSbm = handleExcelUploadSbm;
 window.filterDbBas = filterDbBas;
+window.openModalBas = openModalBas;
+window.closeModalBas = closeModalBas;
+window.submitModalBas = submitModalBas;
+window.deleteAkun = deleteAkun;
+window.exportBasExcel = exportBasExcel;
+window.triggerImportBas = triggerImportBas;
+window.handleExcelUploadBas = handleExcelUploadBas;
 window.downloadAllSubbagZip = downloadAllSubbagZip;
 

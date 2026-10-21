@@ -43,6 +43,16 @@ const {
   getDesas,
   saveDesa,
   deleteDesa,
+  getSbmList,
+  getSbmById,
+  saveSbm,
+  deleteSbm,
+  bulkUpsertSbm,
+  getAkunList,
+  getAkunById,
+  saveAkun,
+  deleteAkun,
+  bulkUpsertAkun,
   createDownloadRequest,
   getDownloadRequests,
   getDownloadRequestById,
@@ -50,9 +60,9 @@ const {
   cleanupExpiredDownloads
 } = require('./src/db');
 
-const { calculateRkbDataset, getCachedRkbDataset, getRevisionComparison, getRevisionSummary } = require('./src/calculation');
+const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary } = require('./src/calculation');
 const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle } = require('./src/auth');
-const { exportRkbToExcelBuffer } = require('./src/excel_io');
+const { exportRkbToExcelBuffer, exportSbmToExcelBuffer, parseSbmExcelBuffer, exportBasToExcelBuffer, parseBasExcelBuffer } = require('./src/excel_io');
 
 const PORT = process.env.PORT || 3456;
 const PUBLIC_DIR = path.resolve(__dirname, 'public');
@@ -694,6 +704,126 @@ const server = http.createServer(async (req, res) => {
       }
       deleteDesa(Number(delDesaMatch[1]));
       return sendJson(res, 200, { success: true, list: getDesas() });
+    }
+
+    // 13e. MASTER STANDAR BIAYA MASUKAN (SBM)
+    if (pathname === '/api/master/sbm' && method === 'GET') {
+      return sendJson(res, 200, getSbmList());
+    }
+    if (pathname === '/api/master/sbm' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data SBM.' });
+      }
+      const body = await parseJsonBody(req);
+      const saved = saveSbm(body);
+      clearRkbDatasetCache();
+      return sendJson(res, 200, { success: true, item: saved, list: getSbmList() });
+    }
+    const delSbmMatch = pathname.match(/^\/api\/master\/sbm\/(\d+)$/);
+    if (delSbmMatch && method === 'DELETE') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+      deleteSbm(Number(delSbmMatch[1]));
+      clearRkbDatasetCache();
+      return sendJson(res, 200, { success: true, list: getSbmList() });
+    }
+    if (pathname === '/api/master/sbm/export' && (method === 'GET' || method === 'HEAD')) {
+      const buffer = await exportSbmToExcelBuffer();
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="Master_SBM_KPU_Ngawi.xlsx"',
+        'Content-Length': buffer.length
+      });
+      if (method === 'HEAD') return res.end();
+      return res.end(buffer);
+    }
+    if (pathname === '/api/master/sbm/import' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+      const body = await parseJsonBody(req);
+      if (!body.file_base64) {
+        return sendJson(res, 400, { error: 'Berkas Excel wajib diunggah (base64).' });
+      }
+      const buf = Buffer.from(body.file_base64, 'base64');
+      const items = parseSbmExcelBuffer(buf);
+      if (!items || items.length === 0) {
+        return sendJson(res, 400, { error: 'Tidak ada baris data SBM yang valid ditemukan dalam berkas Excel.' });
+      }
+      const result = bulkUpsertSbm(items);
+      clearRkbDatasetCache();
+      return sendJson(res, 200, {
+        success: true,
+        processed: result.processed,
+        inserted: result.inserted,
+        updated: result.updated,
+        list: getSbmList(),
+        message: `Berhasil mengupdate masal ${result.processed} data SBM (${result.inserted} baru, ${result.updated} diperbarui).`
+      });
+    }
+
+    // 13f. MASTER BAGAN AKUN STANDAR (BAS)
+    if (pathname === '/api/master/akun' && method === 'GET') {
+      return sendJson(res, 200, getAkunList());
+    }
+    if (pathname === '/api/master/akun' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data BAS.' });
+      }
+      const body = await parseJsonBody(req);
+      const saved = saveAkun(body);
+      clearRkbDatasetCache();
+      return sendJson(res, 200, { success: true, item: saved, list: getAkunList() });
+    }
+    const delAkunMatch = pathname.match(/^\/api\/master\/akun\/(\d+)$/);
+    if (delAkunMatch && method === 'DELETE') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+      deleteAkun(Number(delAkunMatch[1]));
+      clearRkbDatasetCache();
+      return sendJson(res, 200, { success: true, list: getAkunList() });
+    }
+    if (pathname === '/api/master/akun/export' && (method === 'GET' || method === 'HEAD')) {
+      const buffer = await exportBasToExcelBuffer();
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="Master_BAS_KPU_Ngawi.xlsx"',
+        'Content-Length': buffer.length
+      });
+      if (method === 'HEAD') return res.end();
+      return res.end(buffer);
+    }
+    if (pathname === '/api/master/akun/import' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+      const body = await parseJsonBody(req);
+      if (!body.file_base64) {
+        return sendJson(res, 400, { error: 'Berkas Excel wajib diunggah (base64).' });
+      }
+      const buf = Buffer.from(body.file_base64, 'base64');
+      const items = parseBasExcelBuffer(buf);
+      if (!items || items.length === 0) {
+        return sendJson(res, 400, { error: 'Tidak ada baris data akun BAS yang valid ditemukan dalam berkas Excel.' });
+      }
+      const result = bulkUpsertAkun(items);
+      clearRkbDatasetCache();
+      return sendJson(res, 200, {
+        success: true,
+        processed: result.processed,
+        inserted: result.inserted,
+        updated: result.updated,
+        list: getAkunList(),
+        message: `Berhasil mengupdate masal ${result.processed} akun BAS (${result.inserted} baru, ${result.updated} diperbarui).`
+      });
     }
 
     // 13e. SISTEM ANTREAN UNDUHAN / MONITORING REPORT (SAKTI KEMENKEU STYLE)
