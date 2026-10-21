@@ -366,7 +366,12 @@ function saveRabRow(row) {
     return getRabRowById(row.id);
   } else {
     let finalUrutan;
-    if (row.target_after_urutan !== undefined && row.target_after_urutan !== null && row.target_after_urutan !== '') {
+    if (row.target_before_urutan !== undefined && row.target_before_urutan !== null && row.target_before_urutan !== '') {
+      const targetU = Number(row.target_before_urutan);
+      // Geser semua baris di target_before_urutan ke atas (+1) agar tersisip tepat di posisi targetU (sebelum baris target)
+      db.prepare('UPDATE rab_baris SET urutan = urutan + 1 WHERE periode_id = ? AND urutan >= ?').run(row.periode_id, targetU);
+      finalUrutan = targetU;
+    } else if (row.target_after_urutan !== undefined && row.target_after_urutan !== null && row.target_after_urutan !== '') {
       const targetU = Number(row.target_after_urutan);
       // Geser semua baris di bawah target_after_urutan sebanyak +1 agar baris baru tersisip tepat di bawahnya
       db.prepare('UPDATE rab_baris SET urutan = urutan + 1 WHERE periode_id = ? AND urutan > ?').run(row.periode_id, targetU);
@@ -496,6 +501,95 @@ function clearRabRows(periodeId) {
   const { clearRkbDatasetCache } = require('./calculation');
   clearRkbDatasetCache(periodeId);
   return { success: true };
+}
+
+/**
+ * Mengatur urutan baris RKB (Reordering: UP / DOWN)
+ * Boundary-Safe: Baris hanya digeser di dalam lingkup induk (same parent_tree_id)
+ * Mendukung pergeseran item mandiri maupun pohon komponen beserta anak-anaknya
+ */
+function reorderRow(periodeId, rowId, direction) {
+  const pId = Number(periodeId);
+  const targetId = Number(rowId);
+  const dir = String(direction).toUpperCase(); // 'UP' or 'DOWN'
+
+  const { calculateRkbDataset, clearRkbDatasetCache } = require('./calculation');
+  const rawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(pId);
+  if (rawRows.length === 0) throw new Error('Data tidak ditemukan.');
+
+  const dataset = calculateRkbDataset(rawRows);
+  const targetIdx = dataset.rows.findIndex(r => r.id === targetId);
+  if (targetIdx === -1) throw new Error('Baris tidak ditemukan.');
+
+  const targetRow = dataset.rows[targetIdx];
+  const targetParent = targetRow.parent_tree_id;
+
+  // Temukan semua saudara setingkat (siblings) yang berbagi parent_tree_id yang sama
+  const siblings = dataset.rows.filter(r => r.parent_tree_id === targetParent);
+  const siblingIdx = siblings.findIndex(r => r.id === targetId);
+
+  if (siblingIdx === -1) throw new Error('Gagal memetakan hierarki baris.');
+
+  if (dir === 'UP') {
+    if (siblingIdx === 0) {
+      throw new Error('Baris sudah berada di urutan teratas dalam kelompok komponen ini.');
+    }
+  } else if (dir === 'DOWN') {
+    if (siblingIdx === siblings.length - 1) {
+      throw new Error('Baris sudah berada di urutan terbawah dalam kelompok komponen ini.');
+    }
+  } else {
+    throw new Error('Arah pergeseran tidak valid (gunakan UP atau DOWN).');
+  }
+
+  const partnerSibling = dir === 'UP' ? siblings[siblingIdx - 1] : siblings[siblingIdx + 1];
+
+  // Identifikasi seluruh baris milik cabang target (target + seluruh keturunannya)
+  // dan seluruh baris milik cabang partner (partner + seluruh keturunannya)
+  function getBranchRowIds(startRow) {
+    const ids = [startRow.id];
+    const startIdx = dataset.rows.findIndex(r => r.id === startRow.id);
+    const startRank = startRow.hierarchy_rank;
+    for (let i = startIdx + 1; i < dataset.rows.length; i++) {
+      const r = dataset.rows[i];
+      if (r.is_header && r.hierarchy_rank <= startRank) break;
+      if (r.parent_tree_id === startRow.parent_tree_id) break;
+      ids.push(r.id);
+    }
+    return ids;
+  }
+
+  const targetBranchIds = getBranchRowIds(targetRow);
+  const partnerBranchIds = getBranchRowIds(partnerSibling);
+
+  let firstGroupIds, secondGroupIds;
+  if (dir === 'UP') {
+    firstGroupIds = partnerBranchIds; // partner awalnya di atas
+    secondGroupIds = targetBranchIds;  // target awalnya di bawah
+  } else {
+    firstGroupIds = targetBranchIds;   // target awalnya di atas
+    secondGroupIds = partnerBranchIds; // partner awalnya di bawah
+  }
+
+  const combinedIds = [...firstGroupIds, ...secondGroupIds];
+  const combinedRows = combinedIds.map(id => rawRows.find(r => r.id === id));
+  const allocatedUrutans = combinedRows.map(r => r.urutan).sort((a, b) => a - b);
+  const swappedIds = [...secondGroupIds, ...firstGroupIds];
+
+  db.exec('BEGIN TRANSACTION');
+  try {
+    const updateStmt = db.prepare('UPDATE rab_baris SET urutan = ? WHERE id = ?');
+    for (let i = 0; i < swappedIds.length; i++) {
+      updateStmt.run(allocatedUrutans[i], swappedIds[i]);
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
+  clearRkbDatasetCache(pId);
+  return { success: true, moved_row_id: targetId, direction: dir };
 }
 
 // ============================================================================
@@ -653,6 +747,7 @@ module.exports = {
   deleteRabRow,
   updateRabBarisPicWithCascade,
   clearRabRows,
+  reorderRow,
   getUsers,
   getUserById,
   saveUser,

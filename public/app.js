@@ -1342,19 +1342,25 @@ function updateSelectedRowUI() {
   }
 
   const cleanUraian = (row.uraian || '').substring(0, 48);
-  let lvlLabel = row.is_header ? `Level ${row.level_indent}` : 'Detail Belanja';
-  if (row.level_indent === 0) lvlLabel = 'Bagian';
-  else if (row.level_indent === 1) lvlLabel = 'Tahapan';
-  else if (row.level_indent === 2) lvlLabel = 'Kegiatan';
-  else if (row.level_indent === 3) lvlLabel = 'Akun';
+  const treeLvl = row.tree_level || (row.is_header ? (row.level_indent === 0 ? 1 : (row.level_indent === 1 ? 2 : (row.level_indent === 2 ? 3 : (row.level_indent === 3 ? 5 : 4)))) : 6);
+
+  const lvlBadges = {
+    1: '<span class="badge" style="background:#fef3c7;color:#92400e;font-weight:800;border:1px solid #fde68a;font-size:10.5px;">L1 (Bagian)</span>',
+    2: '<span class="badge" style="background:#fed7aa;color:#9a3412;font-weight:800;border:1px solid #fdba74;font-size:10.5px;">L2 (Tahapan)</span>',
+    3: '<span class="badge" style="background:#fef08a;color:#854d0e;font-weight:800;border:1px solid #fde047;font-size:10.5px;">L3 (28 Komp)</span>',
+    4: '<span class="badge" style="background:#e0e7ff;color:#3730a3;font-weight:800;border:1px solid #c7d2fe;font-size:10.5px;">L4 (Sub-Komp)</span>',
+    5: '<span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:800;border:1px solid #bae6fd;font-size:10.5px;">L5 (Akun BAS)</span>',
+    6: '<span class="badge" style="background:#f1f5f9;color:#334155;font-weight:800;border:1px solid #cbd5e1;font-size:10.5px;">L6 (Detail)</span>'
+  };
+  const badgeHtml = lvlBadges[treeLvl] || `<span class="badge">Level ${treeLvl}</span>`;
 
   const totalStr = row.computed_total ? ` • ${formatRupiah(row.computed_total)}` : '';
   const isExpanded = row.has_children ? isNodeExpanded(row.tree_id) : false;
 
   if (pill) {
     pill.style.display = 'inline-flex';
-    pill.innerHTML = `<strong>[${row.kode || lvlLabel}]</strong>&nbsp;${cleanUraian}&nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:#0284c7;font-weight:700;">${totalStr}</span>&nbsp;<span onclick="clearSelectedRow(event)" style="cursor:pointer;margin-left:5px;font-weight:700;color:#ef4444;padding:0 2px;" title="Lepas sorotan baris aktif">✕</span>`;
-    pill.title = `Baris Aktif: [${row.kode || lvlLabel}] ${row.uraian || ''}${totalStr}. Klik tombol lipatan untuk melipat/membuka khusus cabang ini.`;
+    pill.innerHTML = `${badgeHtml}&nbsp;<strong>[${row.kode || ('L' + treeLvl)}]</strong>&nbsp;${cleanUraian}&nbsp;<span style="font-family:var(--font-mono);font-size:11px;color:#0284c7;font-weight:700;">${totalStr}</span>&nbsp;<span onclick="clearSelectedRow(event)" style="cursor:pointer;margin-left:5px;font-weight:700;color:#ef4444;padding:0 2px;" title="Lepas sorotan baris aktif">✕</span>`;
+    pill.title = `Baris Aktif: [L${treeLvl}] ${row.kode || ''} ${row.uraian || ''}${totalStr}. Klik tombol lipatan untuk melipat/membuka khusus cabang ini.`;
   }
 
   let btns = '';
@@ -1364,60 +1370,98 @@ function updateSelectedRowUI() {
     if (isExpanded) {
       btns += `
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="collapseActiveBranch(event)" title="Lipat cabang baris aktif ini" style="font-weight:700;">
-          📁 Lipat Cabang Ini
+          📁 Lipat
         </button>
       `;
     } else {
       btns += `
         <button type="button" class="btn btn-sm btn-primary" onclick="expandActiveBranch(event)" title="Buka cabang baris aktif ini" style="font-weight:700;">
-          📂 Buka Cabang Ini
+          📂 Buka
         </button>
       `;
     }
-    btns += `
-      <button type="button" class="btn btn-sm btn-outline-info" onclick="expandActiveBranchAll(event)" title="Buka seluruh rincian belanja mikro di dalam cabang ini" style="font-weight:600;">
-        📖 Buka Semua Detail
-      </button>
-    `;
   }
 
-  // 2. Tombol Kontekstual Rekam / Tambah / Ubah
+  // 2. Tombol Kontekstual Rekam Berdasarkan Level (L1..L6)
   if (!isLocked) {
     const canEdit = checkCanEditRow(user, row, isLocked);
-    if (row.is_header) {
-      if (row.level_indent === 0) {
-        btns += `<button class="btn btn-primary btn-sm" onclick="openAddRowModal()">➕ Rekam Sub-Level</button>`;
-      } else if (row.level_indent === 1) {
-        btns += `<button class="btn btn-primary btn-sm" onclick="openAddRowModal()">➕ Rekam Kegiatan</button>`;
-      } else if (row.level_indent === 2 || (row.level_indent >= 21 && row.level_indent <= 25)) {
+    if (canEdit) {
+      if (treeLvl === 1) {
+        // L1: Tambah L1 (Setingkat) + Tambah L2 (Sub-Level)
+        btns += `
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(2, ${row.id})" style="font-weight:700;">
+            📂 Tambah Tahapan (L2)
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(1, ${row.id})" style="font-weight:600;">
+            ➕ Tambah Bagian (L1)
+          </button>
+        `;
+      } else if (treeLvl === 2) {
+        // L2: Tambah L2 (Setingkat) + Tambah L3 (Sub-Level)
+        btns += `
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:700;">
+            📂 Tambah Kegiatan (L3)
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(2, ${row.id})" style="font-weight:600;">
+            ➕ Tambah Tahapan (L2)
+          </button>
+        `;
+      } else if (treeLvl === 3) {
+        // L3: Tambah L3 (Setingkat) + Tambah L4 (Sub-Level)
+        btns += `
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:700;">
+            📂 Tambah Sub-Komp (L4)
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:600;">
+            ➕ Tambah Kegiatan (L3)
+          </button>
+        `;
+      } else if (treeLvl === 4) {
+        // L4: Tambah L4 (Setingkat) + Tambah L5 (Akun BAS)
         btns += `
           <button class="btn btn-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:700;">
-            🏷️ Rekam Akun Belanja (BAS)
+            🏷️ Rekam Akun BAS (L5)
           </button>
-          <button class="btn btn-success btn-sm" onclick="openAddRowModal()">
-            ➕ Tambah Detail Belanja
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:600;">
+            ➕ Tambah Sub-Komp (L4)
           </button>
         `;
-      } else if (row.level_indent === 3) {
+      } else if (treeLvl === 5) {
+        // L5: Tambah L5 (Akun Sejajar) + Tambah L6 (Detail Belanja)
         btns += `
-          <button class="btn btn-success btn-sm" onclick="openAddRowModal()">
-            ➕ Tambah Detail Belanja di Akun Ini
+          <button class="btn btn-success btn-sm" onclick="openAddRowModalWithParent(${row.id})" style="font-weight:700;">
+            ➕ Tambah Detail Belanja (L6)
           </button>
-          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;" title="Tambah Akun BAS Lain Sejajar">
-            🏷️ Tambah Akun BAS Lain
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;">
+            🏷️ Tambah Akun Sejajar (L5)
+          </button>
+        `;
+      } else if (treeLvl === 6) {
+        // L6: Tambah L6 (Detail Sejajar) + Ubah + Hapus
+        btns += `
+          <button class="btn btn-success btn-sm" onclick="openAddRowModal()" style="font-weight:700;">
+            ➕ Tambah Detail Sejajar (L6)
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id}, event)">
+            ✏️ Ubah Rincian
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)">
+            🗑️ Hapus
           </button>
         `;
       }
-    } else {
-      if (canEdit) {
-        btns += `
-          <button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id}, event)">✏️ Ubah Rincian</button>
-          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;" title="Sisip Akun Belanja (BAS) baru untuk mengelompokkan rincian ini">
-            🏷️ Sisip Akun BAS
+
+      // 3. Tombol Ordering Bounded: Geser Naik / Geser Turun
+      btns += `
+        <div class="btn-group" style="display:inline-flex;gap:2px;margin-left:4px;">
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveRowOrdering(${row.id}, 'UP')" title="Geser baris ini naik 1 posisi di dalam induknya" style="font-weight:700;padding:4px 8px;">
+            🔼 Naik
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)">🗑️ Hapus</button>
-        `;
-      }
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveRowOrdering(${row.id}, 'DOWN')" title="Geser baris ini turun 1 posisi di dalam induknya" style="font-weight:700;padding:4px 8px;">
+            🔽 Turun
+          </button>
+        </div>
+      `;
     }
   }
 
@@ -2054,6 +2098,9 @@ function openRowModal(rowId, event) {
   AppState.activeEditingRow = row;
   AppState.targetAfterUrutan = null;
 
+  const posBox = document.getElementById('modal-row-pos-container');
+  if (posBox) posBox.style.display = 'none';
+
   const ctxAlert = document.getElementById('modal-insertion-context');
   if (ctxAlert) {
     ctxAlert.style.display = 'block';
@@ -2106,6 +2153,17 @@ function openAddRowModal() {
 
   const selectedRow = AppState.selectedRowId ? AppState.rkbData?.rows.find(r => r.id === AppState.selectedRowId) : null;
   const ctxAlert = document.getElementById('modal-insertion-context');
+  const posBox = document.getElementById('modal-row-pos-container');
+
+  if (posBox) {
+    if (selectedRow) {
+      posBox.style.display = 'block';
+      const rAfter = document.querySelector('input[name="modal-row-pos-choice"][value="after"]');
+      if (rAfter) rAfter.checked = true;
+    } else {
+      posBox.style.display = 'none';
+    }
+  }
 
   if (selectedRow) {
     AppState.targetAfterUrutan = selectedRow.urutan;
@@ -2114,7 +2172,7 @@ function openAddRowModal() {
     if (ctxAlert) {
       ctxAlert.style.display = 'block';
       const labelDesc = selectedRow.uraian ? selectedRow.uraian : (selectedRow.kode || 'Baris');
-      ctxAlert.innerHTML = `📍 <strong>Posisi Sisip Terarah:</strong> Rincian baru akan disisipkan <u>tepat di bawah</u> baris <strong>[No: ${selectedRow.urutan}] ${escHtml(labelDesc)}</strong>.`;
+      ctxAlert.innerHTML = `📍 <strong>Posisi Sisip Terarah:</strong> Baris rujukan <strong>[No: ${selectedRow.urutan}] ${escHtml(labelDesc)}</strong>. Gunakan pilihan posisi di bawah untuk menentukan sebelum/sesudah.`;
     }
   } else {
     AppState.targetAfterUrutan = null;
@@ -2213,9 +2271,24 @@ async function submitRowForm() {
     return;
   }
 
+  let targetBeforeUrutan = undefined;
+  let targetAfterUrutan = undefined;
+  if (!rowId && AppState.selectedRowId) {
+    const selectedRow = AppState.rkbData?.rows.find(r => r.id === AppState.selectedRowId);
+    if (selectedRow) {
+      const posChoice = document.querySelector('input[name="modal-row-pos-choice"]:checked')?.value || 'after';
+      if (posChoice === 'before') {
+        targetBeforeUrutan = selectedRow.urutan;
+      } else {
+        targetAfterUrutan = selectedRow.urutan;
+      }
+    }
+  }
+
   const payload = {
     id: rowId ? Number(rowId) : undefined,
-    target_after_urutan: !rowId ? AppState.targetAfterUrutan : undefined,
+    target_before_urutan: targetBeforeUrutan,
+    target_after_urutan: targetAfterUrutan,
     urutan: AppState.activeEditingRow ? AppState.activeEditingRow.urutan : undefined,
     kode: AppState.activeEditingRow ? AppState.activeEditingRow.kode : '',
     row_type: AppState.activeEditingRow ? AppState.activeEditingRow.row_type : 'item',
@@ -2340,11 +2413,10 @@ function openAddAkunModal(targetRowId = null, event = null) {
     }
 
     if (posBox) {
-      if (hasDirectItems) {
-        posBox.style.display = 'block';
-      } else {
-        posBox.style.display = 'none';
-      }
+      posBox.style.display = 'block';
+      const defVal = (targetRow.level_indent === 3) ? 'after_children' : (hasDirectItems ? 'wrap_children' : 'after_children');
+      const rBtn = document.querySelector(`input[name="add-akun-pos-choice"][value="${defVal}"]`);
+      if (rBtn) rBtn.checked = true;
     }
   } else {
     if (ctxBox) {
@@ -2412,10 +2484,13 @@ async function submitAddAkun() {
     return;
   }
 
-  let targetAfterUrutan = null;
+  let targetBeforeUrutan = undefined;
+  let targetAfterUrutan = undefined;
   if (targetRow) {
-    const posChoice = document.querySelector('input[name="add-akun-pos-choice"]:checked')?.value || 'wrap_children';
-    if (posChoice === 'after_children') {
+    const posChoice = document.querySelector('input[name="add-akun-pos-choice"]:checked')?.value || 'after_children';
+    if (posChoice === 'before') {
+      targetBeforeUrutan = targetRow.urutan;
+    } else if (posChoice === 'after_children' || targetRow.level_indent === 3) {
       const allRows = AppState.rkbData?.rows || [];
       const targetIdx = allRows.findIndex(r => r.id === targetRow.id);
       let lastChildU = targetRow.urutan;
@@ -2441,6 +2516,7 @@ async function submitAddAkun() {
     pic_bagian: pic,
     target_scope: sasaran,
     harga_satuan: 0,
+    target_before_urutan: targetBeforeUrutan,
     target_after_urutan: targetAfterUrutan,
     catatan_revisi_baris: 'Rekam Akun Belanja (BAS)'
   };
@@ -2477,6 +2553,209 @@ async function submitAddAkun() {
     alert('Gagal merekam Akun Belanja: ' + err.message);
   }
 }
+
+// ============================================================================
+// MODAL: REKAM STRUKTUR HIERARKI KOMPONEN (L1 - L4)
+// ============================================================================
+
+function openAddHeaderModal(targetLevel, refRowId = null) {
+  const p = AppState.currentPeriode;
+  if (!p) return;
+  if (p.is_locked) {
+    const user = AppState.currentUser;
+    if (!user || user.level > 0) {
+      alert('Dokumen berstatus terkunci. Penambahan komponen/struktur hanya dapat dilakukan pada dokumen usulan aktif.');
+      return;
+    }
+  }
+
+  const rowId = refRowId || AppState.selectedRowId;
+  const refRow = rowId ? AppState.rkbData?.rows.find(r => r.id === Number(rowId)) : null;
+
+  setElVal('add-header-level', targetLevel);
+  setElVal('add-header-parent-id', rowId || '');
+
+  const levelConfigs = {
+    1: { title: 'Rekam Bagian Utama (L1)', subtitle: 'Tingkat Tertinggi Pengelompokan Anggaran (Contoh: A, B)', defaultKode: '', uraianPlaceholder: 'Contoh: TAHAPAN PEMILIHAN' },
+    2: { title: 'Rekam Tahapan Program (L2)', subtitle: 'Tahapan Operasional Anggaran (Contoh: I, II, III)', defaultKode: '', uraianPlaceholder: 'Contoh: I. TAHAPAN PERSIAPAN' },
+    3: { title: 'Rekam Kegiatan / Komponen (L3)', subtitle: '28 Komponen Kegiatan Anggaran (Contoh: 29, 30)', defaultKode: '', uraianPlaceholder: 'Contoh: Pelaksanaan Pemungutan dan Penghitungan Suara' },
+    4: { title: 'Rekam Sub-Komponen (L4)', subtitle: 'Rincian Sub-Komponen Kegiatan (Contoh: 4.1, 4.2)', defaultKode: '', uraianPlaceholder: 'Contoh: Sub-Kegiatan Logistik dan Distribusi' }
+  };
+
+  const cfg = levelConfigs[targetLevel] || { title: 'Rekam Komponen Baru', subtitle: '', defaultKode: '', uraianPlaceholder: '' };
+  setElText('modal-header-title-text', cfg.title);
+  setElText('modal-header-subtitle', cfg.subtitle);
+
+  const uraianInput = document.getElementById('add-header-uraian');
+  if (uraianInput) {
+    uraianInput.value = '';
+    uraianInput.placeholder = cfg.uraianPlaceholder;
+  }
+
+  const kodeInput = document.getElementById('add-header-kode');
+  if (kodeInput) {
+    kodeInput.value = '';
+    if (targetLevel === 3) {
+      const l3Rows = (AppState.rkbData?.rows || []).filter(r => r.level_indent === 2 && /^\d+$/.test(r.kode));
+      const maxK = l3Rows.reduce((max, r) => Math.max(max, parseInt(r.kode, 10)), 28);
+      kodeInput.value = String(maxK + 1);
+    }
+  }
+
+  const ctxBox = document.getElementById('add-header-context-box');
+  if (ctxBox) {
+    if (refRow) {
+      const refLvlName = refRow.tree_level ? `L${refRow.tree_level}` : (refRow.is_header ? 'Header' : 'Item');
+      ctxBox.innerHTML = `📍 <strong>Baris Rujukan Aktif:</strong><br><span class="badge" style="background:#e2e8f0;color:#1e293b;font-weight:700;">${refLvlName}</span> <strong>[${refRow.kode || '-'}] ${escHtml((refRow.uraian || '').substring(0, 50))}</strong> (Urutan: ${refRow.urutan})`;
+    } else {
+      ctxBox.innerHTML = `📍 <strong>Penempatan:</strong> Tidak ada baris rujukan yang dipilih. Komponen baru akan ditempatkan di akhir dokumen.`;
+    }
+  }
+
+  if (refRow && refRow.pic_bagian) {
+    setElVal('add-header-pic', refRow.pic_bagian);
+  } else {
+    setElVal('add-header-pic', 'PARSDM');
+  }
+
+  const radioAfter = document.querySelector('input[name="add-header-pos-choice"][value="after"]');
+  if (radioAfter) radioAfter.checked = true;
+
+  document.getElementById('modal-add-header').style.display = 'flex';
+  setTimeout(() => {
+    document.getElementById('add-header-uraian')?.focus();
+  }, 100);
+}
+
+function closeAddHeaderModal() {
+  const m = document.getElementById('modal-add-header');
+  if (m) m.style.display = 'none';
+}
+
+async function submitAddHeader() {
+  const p = AppState.currentPeriode;
+  if (!p) return;
+
+  const targetLevel = Number(document.getElementById('add-header-level')?.value || 2);
+  const refRowId = document.getElementById('add-header-parent-id')?.value;
+  const refRow = refRowId ? AppState.rkbData?.rows.find(r => r.id === Number(refRowId)) : null;
+
+  const kode = (document.getElementById('add-header-kode')?.value || '').trim();
+  const uraian = (document.getElementById('add-header-uraian')?.value || '').trim();
+  const pic = document.getElementById('add-header-pic')?.value || 'PARSDM';
+  const posChoice = document.querySelector('input[name="add-header-pos-choice"]:checked')?.value || 'after';
+
+  if (!uraian) {
+    alert('Mohon masukkan Uraian Komponen / Kegiatan.');
+    document.getElementById('add-header-uraian')?.focus();
+    return;
+  }
+
+  let levelIndent = 2;
+  if (targetLevel === 1) levelIndent = 0;
+  else if (targetLevel === 2) levelIndent = 1;
+  else if (targetLevel === 3) levelIndent = 2;
+  else if (targetLevel === 4) levelIndent = 21;
+
+  let targetBeforeUrutan = undefined;
+  let targetAfterUrutan = undefined;
+
+  if (refRow) {
+    if (posChoice === 'before') {
+      targetBeforeUrutan = refRow.urutan;
+    } else {
+      const allRows = AppState.rkbData?.rows || [];
+      const targetIdx = allRows.findIndex(r => r.id === refRow.id);
+      let lastChildU = refRow.urutan;
+      const refRank = refRow.hierarchy_rank || (refRow.level_indent === 0 ? 10 : (refRow.level_indent === 1 ? 20 : (refRow.level_indent === 2 ? 30 : 41)));
+      for (let i = targetIdx + 1; i < allRows.length; i++) {
+        const r = allRows[i];
+        if (r.is_header && (r.hierarchy_rank || 99) <= refRank) break;
+        lastChildU = r.urutan;
+      }
+      targetAfterUrutan = lastChildU;
+    }
+  }
+
+  const payload = {
+    row_type: 'header',
+    level_indent: levelIndent,
+    kode: kode,
+    uraian: uraian,
+    pic_bagian: pic,
+    target_scope: 'KAB',
+    harga_satuan: 0,
+    target_before_urutan: targetBeforeUrutan,
+    target_after_urutan: targetAfterUrutan,
+    catatan_revisi_baris: `Penambahan Struktur Header L${targetLevel}`
+  };
+
+  try {
+    const res = await apiFetch(`/api/rkb/${p.id}/row`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    closeAddHeaderModal();
+    await loadRkbData();
+
+    const savedRowId = res && res.row ? res.row.id : null;
+    if (savedRowId) {
+      expandAncestorsOfRow(savedRowId);
+      AppState.selectedRowId = savedRowId;
+      renderRkbTable();
+      setTimeout(() => {
+        highlightAndScrollToRow(savedRowId);
+      }, 150);
+    } else {
+      renderAllViews();
+    }
+    alert(`✅ Komponen L${targetLevel} "${uraian}" berhasil direkam.`);
+  } catch (err) {
+    alert('Gagal merekam komponen baru: ' + err.message);
+  }
+}
+
+// ============================================================================
+// GESER URUTAN BARIS (REORDERING: UP / DOWN)
+// ============================================================================
+
+async function moveRowOrdering(rowId, direction) {
+  const p = AppState.currentPeriode;
+  if (!p) return;
+  if (p.is_locked) {
+    const user = AppState.currentUser;
+    if (!user || user.level > 0) {
+      alert('Dokumen berstatus terkunci. Perubahan urutan hanya dapat dilakukan pada dokumen usulan revisi aktif.');
+      return;
+    }
+  }
+
+  try {
+    const res = await apiFetch(`/api/rkb/${p.id}/reorder`, {
+      method: 'POST',
+      body: JSON.stringify({
+        row_id: Number(rowId),
+        direction: direction
+      })
+    });
+
+    await loadRkbData();
+    AppState.selectedRowId = Number(rowId);
+    renderRkbTable();
+    setTimeout(() => {
+      highlightAndScrollToRow(Number(rowId));
+    }, 100);
+  } catch (err) {
+    alert('Pergeseran urutan tidak dapat dilakukan: ' + err.message);
+  }
+}
+
+// Expose to window for inline HTML onclick handlers
+window.openAddHeaderModal = openAddHeaderModal;
+window.closeAddHeaderModal = closeAddHeaderModal;
+window.submitAddHeader = submitAddHeader;
+window.moveRowOrdering = moveRowOrdering;
 
 // ============================================================================
 // BAS ACCOUNT PICKER DATATABLE LOGIC

@@ -24,6 +24,7 @@ const {
   saveRabRow,
   deleteRabRow,
   updateRabBarisPicWithCascade,
+  reorderRow,
   getUsers,
   getUserById,
   saveUser,
@@ -467,6 +468,29 @@ const server = http.createServer(async (req, res) => {
 
       const saved = saveRabRow(row);
       return sendJson(res, 200, { success: true, row: saved });
+    }
+
+    // 11b. GESER URUTAN BARIS (REORDERING: UP / DOWN)
+    const reorderMatch = pathname.match(/^\/api\/rkb\/(\d+)\/reorder$/);
+    if (reorderMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const periodeId = Number(reorderMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+      if (periode.is_locked && user.level > 0) {
+        return sendJson(res, 403, { error: 'Dokumen RKB berstatus TERKUNCI.' });
+      }
+
+      const body = await parseJsonBody(req);
+      const { row_id, direction } = body;
+      try {
+        const result = reorderRow(periodeId, row_id, direction);
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
     }
 
     // 12. HAPUS BARIS RKB
