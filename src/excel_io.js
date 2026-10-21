@@ -225,6 +225,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     ];
 
     const excelRow = ws1.addRow(rowValues);
+    const rowNum = excelRow.number;
 
     // TINGGI BARIS BERBEDA UNTUK SETIAP LEVEL (Enak dibaca, proporsional dengan ukuran font)
     if (treeLvl === 1) excelRow.height = 36;
@@ -237,61 +238,86 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     // MATRIKS BORDER DAN GARIS BERDASARKAN LEVEL:
     // Pembedaan bentuk garis horizontal dan vertikal agar rapi saat dicetak & dibaca
     // Memastikan tidak ada baris tanpa garis
-    for (let c = 1; c <= 11; c++) {
+    let hTop = undefined;
+    let hBottom = { style: 'thin', color: { argb: 'FFE5E7EB' } };
+
+    if (treeLvl === 1) {
+      hTop = { style: 'medium', color: { argb: 'FF333333' } };
+      hBottom = { style: 'thin', color: { argb: 'FF333333' } };
+    } else if (treeLvl === 2) {
+      hTop = { style: 'thin', color: { argb: 'FF666666' } };
+      hBottom = { style: 'thin', color: { argb: 'FF666666' } };
+    } else if (treeLvl === 3) {
+      hTop = { style: 'hair', color: { argb: 'FFCCCCCC' } };
+      hBottom = { style: 'thin', color: { argb: 'FFAAAAAA' } };
+    } else if (treeLvl === 4 || treeLvl === 5.5) {
+      hBottom = { style: 'thin', color: { argb: 'FFD4D4D8' } };
+    } else if (treeLvl === 5) {
+      hTop = { style: 'hair', color: { argb: 'FFCCCCCC' } };
+      hBottom = { style: 'thin', color: { argb: 'FFBBBBBB' } };
+    }
+
+    // Format Kolom A s.d. D (Nomor Ramping Terpusat) dan Kolom E (Kode)
+    for (let c = 1; c <= 5; c++) {
       const cell = excelRow.getCell(c);
+      let vLeft = { style: 'hair', color: { argb: 'FFE5E7EB' } };
+      if (c === 1) vLeft = { style: 'thin', color: { argb: 'FF888888' } };
+      else if (c === 5) vLeft = { style: 'thin', color: { argb: 'FF888888' } }; // Pemisah Nomor & Kode
 
-      // Garis vertikal:
-      // c=1 (kiri kolom A outer border)
-      // c=2,3,4 (garis halus pemandu tangga Nomor)
-      // c=5 (garis pemisah Nomor dan Kode)
-      // c=6 (garis pemisah Kode dan Uraian)
-      // c=7..11 (garis pemisah kolom rincian, vol, satuan, harga, jumlah)
-      // c=11 right (garis tepi kanan dokumen resmi)
-      let vLeft = { style: 'thin', color: { argb: 'FFCCCCCC' } };
-      let vRight = undefined;
+      cell.border = { top: hTop, bottom: hBottom, left: vLeft };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    }
 
-      if (c === 1) {
-        vLeft = { style: 'thin', color: { argb: 'FF888888' } };
-      } else if (c >= 2 && c <= 4) {
-        vLeft = { style: 'hair', color: { argb: 'FFE5E7EB' } };
-      } else if (c === 5) {
-        vLeft = { style: 'thin', color: { argb: 'FF888888' } }; // Pemisah Nomor & Kode
-      } else if (c === 6) {
-        vLeft = { style: 'thin', color: { argb: 'FF888888' } }; // Pemisah Kode & Uraian
+    // JIKA BARIS BUKAN RINCIAN PERHITUNGAN (Header Level 1 s.d. 5.5):
+    // Merge Kolom F s.d. J (Rata Kiri) agar teks judul panjang membentang luas tanpa terpotong!
+    if (!isItem) {
+      for (let c = 6; c <= 10; c++) {
+        const cell = excelRow.getCell(c);
+        cell.border = {
+          top: hTop,
+          bottom: hBottom,
+          left: c === 6 ? { style: 'thin', color: { argb: 'FF888888' } } : undefined,
+          right: c === 10 ? { style: 'thin', color: { argb: 'FFCCCCCC' } } : undefined
+        };
       }
+      ws1.mergeCells(`F${rowNum}:J${rowNum}`);
+      const fCell = excelRow.getCell(6);
+      fCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
 
-      if (c === 11) {
-        vRight = { style: 'thin', color: { argb: 'FF888888' } };
-      }
-
-      // Garis horizontal berjenjang sesuai leveling (selalu bergaris jelas saat dicetak)
-      let hTop = undefined;
-      let hBottom = { style: 'thin', color: { argb: 'FFE5E7EB' } };
-
-      if (treeLvl === 1) {
-        hTop = { style: 'medium', color: { argb: 'FF333333' } };
-        hBottom = { style: 'thin', color: { argb: 'FF333333' } };
-      } else if (treeLvl === 2) {
-        hTop = { style: 'thin', color: { argb: 'FF666666' } };
-        hBottom = { style: 'thin', color: { argb: 'FF666666' } };
-      } else if (treeLvl === 3) {
-        hTop = { style: 'hair', color: { argb: 'FFCCCCCC' } };
-        hBottom = { style: 'thin', color: { argb: 'FFAAAAAA' } };
-      } else if (treeLvl === 4) {
-        hBottom = { style: 'thin', color: { argb: 'FFD4D4D8' } };
-      } else if (treeLvl === 5.5) {
-        hBottom = { style: 'thin', color: { argb: 'FFD4D4D8' } };
-      } else if (treeLvl === 5) {
-        hTop = { style: 'hair', color: { argb: 'FFCCCCCC' } };
-        hBottom = { style: 'thin', color: { argb: 'FFBBBBBB' } };
-      }
-
-      cell.border = {
+      // Kolom K (Jumlah Anggaran Header)
+      const kCell = excelRow.getCell(11);
+      kCell.border = {
         top: hTop,
         bottom: hBottom,
-        left: vLeft,
-        right: vRight
+        left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+        right: { style: 'thin', color: { argb: 'FF888888' } }
       };
+      kCell.numFmt = '#,##0';
+      kCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    } else {
+      // Baris Rincian Belanja Riil (Level 6 - ada Rincian Perhitungan):
+      // Kolom F, G, H, I, J, K berdiri sendiri terpisah
+      for (let c = 6; c <= 11; c++) {
+        const cell = excelRow.getCell(c);
+        let vLeft = { style: 'thin', color: { argb: 'FFCCCCCC' } };
+        if (c === 6) vLeft = { style: 'thin', color: { argb: 'FF888888' } };
+
+        cell.border = {
+          top: hTop,
+          bottom: hBottom,
+          left: vLeft,
+          right: c === 11 ? { style: 'thin', color: { argb: 'FF888888' } } : undefined
+        };
+      }
+      excelRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      excelRow.getCell(7).alignment = { vertical: 'middle', horizontal: 'left' }; // Rincian formula
+      excelRow.getCell(8).numFmt = '#,##0';
+      excelRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' }; // Vol
+      excelRow.getCell(9).alignment = { vertical: 'middle', horizontal: 'center' }; // Satuan
+      excelRow.getCell(10).numFmt = '#,##0';
+      excelRow.getCell(10).alignment = { vertical: 'middle', horizontal: 'right' }; // Harga
+      excelRow.getCell(11).numFmt = '#,##0';
+      excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' }; // Jumlah
     }
 
     // Border untuk kolom metadata pendukung (M, N, O)
@@ -310,61 +336,36 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF000000' } };
       }
-      excelRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(11).numFmt = '#,##0';
-      excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 2) {
       // Level 2: Tahapan (I / II) - Font Hitam Bold 14pt
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } };
       }
-      excelRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(11).numFmt = '#,##0';
-      excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 3) {
       // Level 3: Kegiatan (1..28) - SAKTI Output: FONT MERAH TEGAS (#FF0000) Bold 13pt!
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FFFF0000' } };
       }
-      excelRow.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(11).numFmt = '#,##0';
-      excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 4) {
       // Level 4: Sub-Kegiatan - SAKTI SubOutput: FONT UNGU / MAGENTA (#CC00CC) Bold 12.5pt!
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 12.5, bold: true, color: { argb: 'FFCC00CC' } };
       }
-      excelRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(11).numFmt = '#,##0';
-      excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 5) {
       // Level 5: Akun BAS 6-Digit (521211, dll) - SAKTI Akun: Font Hitam Bold 12pt
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
       }
-      excelRow.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(11).numFmt = '#,##0';
-      excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else if (treeLvl === 5.5) {
       // Level 5.5: Sub-Header Item / Komponen - SAKTI Komponen: FONT COKLAT KEEMASAN / GOLD (#CC9900) Bold 12pt!
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFCC9900' } };
       }
-      excelRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
-      excelRow.getCell(11).numFmt = '#,##0';
-      excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
     } else {
       // Level 6: Item Belanja Riil - Font Hitam Regular Standar 11pt (Ukuran Terendah 11pt)
       for (let c = 1; c <= 15; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
       }
-      excelRow.getCell(8).numFmt = '#,##0'; // Vol
-      excelRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
-      excelRow.getCell(9).alignment = { vertical: 'middle', horizontal: 'center' }; // Satuan
-      excelRow.getCell(10).numFmt = '#,##0'; // Harga
-      excelRow.getCell(10).alignment = { vertical: 'middle', horizontal: 'right' };
-      excelRow.getCell(11).numFmt = '#,##0'; // Jumlah
-      excelRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'right' };
 
       // Kolom Metadata
       excelRow.getCell(13).alignment = { vertical: 'middle', horizontal: 'center' }; // No
@@ -464,8 +465,8 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   });
 
   // LEBAR KOLOM DIRAPATKAN SEPERTI FA 16 DETAIL SAKTI
-  // Kolom A sampai D membentuk kesatuan header "Nomor", Kolom E adalah "Kode"
-  const colWidths1 = [4.0, 4.0, 4.0, 4.5, 9.5, 52.0, 22.0, 10.5, 10.5, 17.0, 19.0, 3.5, 6.5, 12.0, 12.0];
+  // Kolom A sampai D membentuk kesatuan header "Nomor" ramping (Total 12.5), Kolom E adalah "Kode" (9.5)
+  const colWidths1 = [2.8, 3.0, 3.2, 3.5, 9.5, 52.0, 22.0, 10.5, 10.5, 17.0, 19.0, 3.5, 6.5, 12.0, 12.0];
   colWidths1.forEach((w, i) => {
     ws1.getColumn(i + 1).width = w;
   });
