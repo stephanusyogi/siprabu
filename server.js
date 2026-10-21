@@ -91,7 +91,7 @@ const {
   saveCatatanPlenoSubbag
 } = require('./src/db');
 
-const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary } = require('./src/calculation');
+const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset } = require('./src/calculation');
 const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle } = require('./src/auth');
 const { 
   exportRkbToExcelBuffer, 
@@ -664,15 +664,14 @@ const server = http.createServer(async (req, res) => {
         ? subbagSummaries[activeSubbag]
         : docSummary;
 
-      // 3. Jika ada filter (pic, target_scope, search), ambil baris terfilter khusus lembar kerja workbench
+      // 3. Filter & Prune baris untuk lembar kerja workbench secara presisi (buang header kosong / bukan PIC)
       const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (search && search.trim()));
-      let rows, filteredSummary = null;
+      let rows, filteredSummary;
 
       if (hasFilter) {
-        const filteredRawRows = getRabRows(periodeId, { pic, target_scope, search });
-        const filteredResult = calculateRkbDataset(filteredRawRows);
-        rows = filteredResult.rows;
-        filteredSummary = filteredResult.summary;
+        const pruned = filterAndPruneRkbDataset(fullResult, { pic, target_scope, search });
+        rows = pruned.rows;
+        filteredSummary = pruned.summary;
       } else {
         rows = fullResult.rows;
         filteredSummary = docSummary;

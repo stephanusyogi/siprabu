@@ -524,6 +524,142 @@ function getCachedRkbDataset(periodeId) {
   return result;
 }
 
+/**
+ * Memfilter dataset RKB secara presisi berdasarkan PIC, Sasaran, dan Pencarian.
+ * Hanya menyertakan item yang cocok dan header yang memiliki anak item yang cocok (ancestor inclusion).
+ * Header yang kosong (0 rupiah / tidak memiliki item untuk PIC terkait) otomatis dipangkas (pruned).
+ */
+function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = 'ALL', search = '' } = {}) {
+  let filterPic = (pic && pic !== 'SEMUA') ? pic.toUpperCase() : null;
+  if (filterPic === 'PERENCANAAN') filterPic = 'RENDATIN';
+  if (filterPic === 'KEUANGAN') filterPic = 'KUL';
+  if (filterPic === 'PARMAS') filterPic = 'PARSDM';
+
+  const filterSasaran = (target_scope && target_scope !== 'ALL') ? target_scope.toUpperCase() : null;
+  const searchQ = (search && search.trim()) ? search.trim().toLowerCase() : null;
+
+  const { rows, summary: docSummary } = fullDataset;
+
+  // Jika tidak ada filter apa pun, kembalikan dataset penuh asli
+  if (!filterPic && !filterSasaran && !searchQ) {
+    return {
+      rows,
+      summary: docSummary
+    };
+  }
+
+  const rowByTreeId = {};
+  const rowById = {};
+  rows.forEach(r => {
+    rowByTreeId[r.tree_id] = r;
+    rowById[r.id] = r;
+  });
+
+  // Helper cek kecocokan pencarian pada baris atau leluhurnya
+  function rowOrAncestorMatchesSearch(r, query) {
+    if (!query) return true;
+    let cur = r;
+    while (cur) {
+      const hay = `${cur.kode || ''} ${cur.uraian || ''} ${cur.kode_akun || ''}`.toLowerCase();
+      if (hay.includes(query)) return true;
+      cur = cur.parent_tree_id ? rowByTreeId[cur.parent_tree_id] : null;
+    }
+    return false;
+  }
+
+  const matchingRowIds = new Set();
+  const summaryBySubbag = { KUL: 0, RENDATIN: 0, TEKNIS: 0, HUKUM: 0, PARSDM: 0 };
+  const summaryByAkun = {};
+  const summaryBySasaran = { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 };
+  let grandTotal = 0;
+  let totalItems = 0;
+
+  rows.forEach(r => {
+    if (r.is_header) return; // Hanya cocokkan item detail secara langsung!
+
+    let rPic = (r.pic_bagian || 'KUL').toUpperCase();
+    if (rPic === 'PERENCANAAN') rPic = 'RENDATIN';
+    if (rPic === 'KEUANGAN') rPic = 'KUL';
+    if (rPic === 'PARMAS') rPic = 'PARSDM';
+
+    if (filterPic && rPic !== filterPic) return;
+    if (filterSasaran && (r.target_scope || '').toUpperCase() !== filterSasaran) return;
+    if (searchQ && !rowOrAncestorMatchesSearch(r, searchQ)) return;
+
+    matchingRowIds.add(r.id);
+    totalItems++;
+    const tot = Number(r.computed_total) || 0;
+    grandTotal += tot;
+
+    summaryBySubbag[rPic] = (summaryBySubbag[rPic] || 0) + tot;
+
+    const akun = r.kode_akun || '521211';
+    summaryByAkun[akun] = (summaryByAkun[akun] || 0) + tot;
+
+    const sas = (r.target_scope || 'KAB').toUpperCase();
+    summaryBySasaran[sas] = (summaryBySasaran[sas] || 0) + tot;
+  });
+
+  // Himpun tree_id dari seluruh item yang cocok dan seluruh leluhur (ancestor)-nya
+  const includedTreeIds = new Set();
+  matchingRowIds.forEach(id => {
+    const r = rowById[id];
+    if (!r) return;
+    includedTreeIds.add(r.tree_id);
+    let cur = r.parent_tree_id;
+    while (cur && rowByTreeId[cur]) {
+      includedTreeIds.add(cur);
+      cur = rowByTreeId[cur].parent_tree_id;
+    }
+  });
+
+  // Hitung ulang subtotal vertikal (rollup) untuk header yang lolos filter
+  const rollupMap = {};
+  rows.filter(r => matchingRowIds.has(r.id)).forEach(item => {
+    let cur = item.parent_tree_id;
+    while (cur && rowByTreeId[cur]) {
+      rollupMap[cur] = (rollupMap[cur] || 0) + (item.computed_total || 0);
+      cur = rowByTreeId[cur].parent_tree_id;
+    }
+  });
+
+  // Pruning baris: Hanya ambil baris yang ada di includedTreeIds
+  const prunedRows = rows
+    .filter(r => includedTreeIds.has(r.tree_id))
+    .map(r => {
+      if (r.is_header) {
+        return {
+          ...r,
+          computed_total: rollupMap[r.tree_id] || 0
+        };
+      }
+      return r;
+    });
+
+  // Perbarui child_count dan has_children pada baris yang telah dipangkas
+  const childCountMap = {};
+  for (const r of prunedRows) {
+    if (r.parent_tree_id) {
+      childCountMap[r.parent_tree_id] = (childCountMap[r.parent_tree_id] || 0) + 1;
+    }
+  }
+  for (const r of prunedRows) {
+    r.child_count = childCountMap[r.tree_id] || 0;
+    r.has_children = r.child_count > 0;
+  }
+
+  const filteredSummary = {
+    grandTotal,
+    totalItems,
+    totalRows: prunedRows.length,
+    bySubbag: summaryBySubbag,
+    byAkun: summaryByAkun,
+    bySasaran: summaryBySasaran
+  };
+
+  return { rows: prunedRows, summary: filteredSummary };
+}
+
 function clearRkbDatasetCache(periodeId = null) {
   cachedWilayah = null;
   cachedKuantitas = null;
@@ -738,6 +874,7 @@ module.exports = {
   calculateRkbDataset,
   getCachedRkbDataset,
   clearRkbDatasetCache,
+  filterAndPruneRkbDataset,
   getRevisionComparison,
   getRevisionSummary
 };

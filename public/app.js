@@ -2700,7 +2700,13 @@ function openRowModal(rowId, event) {
   setElVal('modal-row-id', row.id);
   setElVal('modal-row-level', row.level_indent || 4);
   setElVal('modal-uraian', row.uraian);
-  setElVal('modal-pic', row.pic_bagian || 'KUL');
+  
+  const user = AppState.currentUser;
+  const isUserScoped = Boolean(user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA');
+  setElVal('modal-pic', isUserScoped ? user.pic_subbag : (row.pic_bagian || 'KUL'));
+  const picSelect = document.getElementById('modal-pic');
+  if (picSelect) picSelect.disabled = isUserScoped;
+
   setElVal('modal-sasaran', row.target_scope || 'KAB');
 
   const akunSelect = document.getElementById('modal-akun');
@@ -2772,7 +2778,12 @@ function openAddRowModal() {
       }
     }
     AppState.targetAfterUrutan = lastChildU;
-    setElVal('modal-pic', selectedRow.pic_bagian || 'KUL');
+    const user = AppState.currentUser;
+    const isUserScoped = Boolean(user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA');
+    setElVal('modal-pic', isUserScoped ? user.pic_subbag : (selectedRow.pic_bagian || 'KUL'));
+    const picSelect = document.getElementById('modal-pic');
+    if (picSelect) picSelect.disabled = isUserScoped;
+
     setElVal('modal-sasaran', selectedRow.target_scope || 'KAB');
     if (ctxAlert) {
       ctxAlert.style.display = 'block';
@@ -2781,7 +2792,12 @@ function openAddRowModal() {
     }
   } else {
     AppState.targetAfterUrutan = null;
-    setElVal('modal-pic', 'KUL');
+    const user = AppState.currentUser;
+    const isUserScoped = Boolean(user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA');
+    setElVal('modal-pic', isUserScoped ? user.pic_subbag : 'KUL');
+    const picSelect = document.getElementById('modal-pic');
+    if (picSelect) picSelect.disabled = isUserScoped;
+
     setElVal('modal-sasaran', 'KAB');
     if (ctxAlert) {
       ctxAlert.style.display = 'block';
@@ -3243,11 +3259,12 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
     }
   }
 
-  if (refRow && refRow.pic_bagian) {
-    setElVal('add-header-pic', refRow.pic_bagian);
-  } else {
-    setElVal('add-header-pic', 'PARSDM');
-  }
+  const user = AppState.currentUser;
+  const isUserScoped = Boolean(user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA');
+  const headerPic = isUserScoped ? user.pic_subbag : (refRow && refRow.pic_bagian ? refRow.pic_bagian : 'RENDATIN');
+  setElVal('add-header-pic', headerPic);
+  const addHeaderPicSelect = document.getElementById('add-header-pic');
+  if (addHeaderPicSelect) addHeaderPicSelect.disabled = isUserScoped;
 
   const radioAfter = document.querySelector('input[name="add-header-pos-choice"][value="after"]');
   if (radioAfter) radioAfter.checked = true;
