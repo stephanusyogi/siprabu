@@ -109,6 +109,7 @@ async function apiFetch(endpoint, options = {}) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
+    startServerClockTicker();
     await initAuth();
     await loadMasters();
     await loadPeriodes();
@@ -381,13 +382,87 @@ function updateContextNavbar() {
 }
 
 // ============================================================================
-// SIDEBAR & VIEW SWITCHER
+// SIDEBAR & VIEW SWITCHER (SAKTI KEMENKEU STYLE)
 // ============================================================================
 
 function toggleSidebarFolder(folderId, event) {
   if (event) event.stopPropagation();
   const el = document.getElementById(folderId);
   if (el) el.classList.toggle('collapsed');
+}
+
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('main-sidebar');
+  const btn = document.getElementById('sidebar-collapse-btn');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
+  const isCollapsed = sidebar.classList.contains('collapsed');
+  if (btn) {
+    btn.innerHTML = isCollapsed ? '<span class="toggle-icon">❯</span>' : '<span class="toggle-icon">❮</span>';
+    btn.title = isCollapsed ? 'Buka Menu (SAKTI Style)' : 'Lipat Menu (SAKTI Style)';
+  }
+}
+
+function filterSidebarMenu() {
+  const query = (document.getElementById('menu-search-input')?.value || '').toLowerCase().trim();
+  const navItems = document.querySelectorAll('#sidebar-nav-menu .nav-item');
+  const groups = document.querySelectorAll('#sidebar-nav-menu .sakti-tree-group');
+
+  if (!query) {
+    navItems.forEach(item => item.style.display = '');
+    groups.forEach(g => {
+      g.style.display = '';
+    });
+    return;
+  }
+
+  groups.forEach(g => {
+    let hasMatch = false;
+    const children = g.querySelectorAll('.nav-item');
+    children.forEach(item => {
+      const text = item.textContent.toLowerCase();
+      if (text.includes(query)) {
+        item.style.display = '';
+        hasMatch = true;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+    if (hasMatch) {
+      g.style.display = '';
+      g.classList.remove('collapsed');
+    } else {
+      g.style.display = 'none';
+    }
+  });
+
+  // Top level direct items
+  document.querySelectorAll('#sidebar-nav-menu > .nav-item').forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(query) ? '' : 'none';
+  });
+}
+
+function startServerClockTicker() {
+  function updateClock() {
+    const now = new Date();
+    const hariIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    
+    const hari = hariIndo[now.getDay()];
+    const tanggal = now.getDate();
+    const bulan = bulanIndo[now.getMonth()];
+    const tahun = now.getFullYear();
+    const jam = String(now.getHours()).padStart(2, '0');
+    const menit = String(now.getMinutes()).padStart(2, '0');
+    const detik = String(now.getSeconds()).padStart(2, '0');
+    
+    const clockText = `${hari}, ${tanggal} ${bulan} ${tahun} ${jam}:${menit}:${detik} (Waktu Server)`;
+    const el = document.getElementById('server-clock-text');
+    if (el) el.textContent = clockText;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
 }
 
 function switchView(viewId) {
@@ -403,20 +478,17 @@ function switchView(viewId) {
   if (viewId === 'view-dashboard') renderDashboard();
   else if (viewId === 'view-siklus') renderSiklus();
   else if (viewId === 'view-rkb') renderRkbTable();
-  else if (viewId === 'view-master') renderMasterTabs();
-  else if (viewId === 'view-settings') renderSettings();
-  else if (viewId === 'view-referensi') switchRefTab('ref-sbm');
+  else if (viewId === 'view-db-ppk') renderDbPpk();
+  else if (viewId === 'view-db-pps') renderDbPps();
+  else if (viewId === 'view-db-paslon') renderDbPaslon();
+  else if (viewId === 'view-db-kuantitas') renderDbKuantitas();
+  else if (viewId === 'view-db-sbm') renderDbSbm();
+  else if (viewId === 'view-db-bas') renderDbBas();
+  else if (viewId === 'view-db-regulasi') { /* static info */ }
+  else if (viewId === 'view-db-settings' || viewId === 'view-settings') renderSettings();
+  else if (viewId === 'view-panduan') { /* static info */ }
+  else if (viewId === 'view-monitoring') loadMonitoringReport();
   else if (viewId === 'view-users') renderUsersTable();
-}
-
-function switchRefTab(tabId) {
-  document.querySelectorAll('.ref-tab-pane').forEach(el => el.style.display = 'none');
-  const target = document.getElementById(tabId);
-  if (target) target.style.display = 'block';
-
-  document.querySelectorAll('#view-referensi .tab-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.id === `btn-tab-${tabId}`);
-  });
 }
 
 function renderAllViews() {
@@ -424,7 +496,12 @@ function renderAllViews() {
   renderDashboard();
   renderSiklus();
   renderRkbTable();
-  renderMasterTabs();
+  renderDbPpk();
+  renderDbPps();
+  renderDbPaslon();
+  renderDbKuantitas();
+  renderDbSbm();
+  renderDbBas();
   renderSettings();
   renderUsersTable();
   applyRolePermissionsToUI();
@@ -3592,86 +3669,209 @@ function toggleExportFilterScope() {
   }
 }
 
-function executeExportExcel() {
+// ============================================================================
+// SISTEM MONITORING REPORT & ASYNC DOWNLOAD (SAKTI KEMENKEU STYLE)
+// ============================================================================
+
+let monitoringPollTimer = null;
+let monitoringData = [];
+let monitoringCurrentPage = 1;
+const MONITORING_PER_PAGE = 10;
+
+async function executeExportExcel() {
   if (!pendingExportPeriodeId) return;
 
   const isZip = document.getElementById('export-scope-zip')?.checked;
   if (isZip) {
-    downloadAllSubbagZip(pendingExportPeriodeId);
+    await downloadAllSubbagZip(pendingExportPeriodeId);
     closeExportModal();
     return;
   }
 
   const isFiltered = document.getElementById('export-scope-filtered')?.checked;
-  const queryParams = new URLSearchParams();
+  let pic = 'SEMUA';
+  let sasaran = 'ALL';
 
   if (isFiltered) {
-    const pic = document.getElementById('export-filter-pic')?.value;
-    const sasaran = document.getElementById('export-filter-sasaran')?.value;
-    if (pic && pic !== 'SEMUA') queryParams.append('pic', pic);
-    if (sasaran && sasaran !== 'ALL') queryParams.append('sasaran', sasaran);
+    pic = document.getElementById('export-filter-pic')?.value || 'SEMUA';
+    sasaran = document.getElementById('export-filter-sasaran')?.value || 'ALL';
   }
 
-  const qs = queryParams.toString();
-  const url = `/api/export-excel/${pendingExportPeriodeId}${qs ? '?' + qs : ''}`;
-  
-  // Trigger download via <a> element (tidak terblokir popup blocker browser)
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', '');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const periode = AppState.periodesList?.find(p => p.id === pendingExportPeriodeId) || AppState.currentPeriode;
+  const versiStr = (periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filterSuffix = (pic !== 'SEMUA' ? `_${pic}` : '') + (sasaran !== 'ALL' ? `_${sasaran}` : '');
+  const filename = `RUH_Belanja_${versiStr}${filterSuffix}.xlsx`;
 
-  closeExportModal();
+  try {
+    const res = await fetch('/api/download-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nama_file: filename,
+        tipe_unduhan: 'EXCEL_RUH',
+        periode_id: pendingExportPeriodeId,
+        filter_pic: pic,
+        filter_sasaran: sasaran
+      })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('Permintaan unduh berkas berhasil dikirim ke antrean. Mengalihkan ke Monitoring Report...', 'info');
+      closeExportModal();
+      switchView('view-monitoring');
+    } else {
+      showToast(result.error || 'Gagal membuat permintaan unduhan.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan.', 'error');
+  }
 }
 
-function downloadAllSubbagZip(periodeId = null) {
+async function downloadAllSubbagZip(periodeId = null) {
   const pId = periodeId || pendingExportPeriodeId || (AppState.currentPeriode ? AppState.currentPeriode.id : 1);
   if (!pId) return;
 
-  const url = `/api/export-excel-zip/${pId}`;
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', '');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const periode = AppState.periodesList?.find(p => p.id === pId) || AppState.currentPeriode;
+  const versiStr = (periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `Paket_RUH_5_Subbagian_${versiStr}.zip`;
 
-  closeExportModal();
+  try {
+    const res = await fetch('/api/download-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nama_file: filename,
+        tipe_unduhan: 'ZIP_SUBBAGIAN',
+        periode_id: pId
+      })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('Permintaan paket 5 Subbagian (.zip) berhasil dikirim. Mengalihkan ke Monitoring Report...', 'info');
+      closeExportModal();
+      switchView('view-monitoring');
+    } else {
+      showToast(result.error || 'Gagal membuat permintaan unduhan zip.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan.', 'error');
+  }
 }
 
-function exportExcelPeriode(periodeId) {
-  downloadExcel(periodeId);
+async function loadMonitoringReport() {
+  if (monitoringPollTimer) {
+    clearTimeout(monitoringPollTimer);
+    monitoringPollTimer = null;
+  }
+
+  const search = document.getElementById('monitoring-search-file')?.value || '';
+  const dateStart = document.getElementById('monitoring-date-start')?.value || '';
+  const dateEnd = document.getElementById('monitoring-date-end')?.value || '';
+
+  const params = new URLSearchParams();
+  if (search.trim()) params.append('search', search.trim());
+  if (dateStart) params.append('tanggal_mulai', dateStart);
+  if (dateEnd) params.append('tanggal_selesai', dateEnd);
+
+  const tbody = document.getElementById('monitoring-table-body');
+  try {
+    const res = await fetch(`/api/download-requests?${params.toString()}`);
+    if (!res.ok) throw new Error('Gagal memuat antrean unduhan');
+    monitoringData = await res.json();
+    renderMonitoringTable();
+
+    // Cek jika ada yang masih berstatus DIPROSES, lakukan auto-poll
+    const hasProcessing = monitoringData.some(d => d.status === 'DIPROSES');
+    if (hasProcessing && AppState.activeView === 'view-monitoring') {
+      monitoringPollTimer = setTimeout(() => {
+        loadMonitoringReport();
+      }, 2500);
+    }
+  } catch (err) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat data: ${err.message}</td></tr>`;
+    }
+  }
 }
 
-// Expose fungsi ke window untuk inline HTML onclick
-window.escapeHtml = escapeHtml;
-window.downloadExcel = downloadExcel;
-window.downloadAllSubbagZip = downloadAllSubbagZip;
-window.closeExportModal = closeExportModal;
-window.toggleExportFilterScope = toggleExportFilterScope;
-window.executeExportExcel = executeExportExcel;
-window.exportExcelPeriode = exportExcelPeriode;
+function renderMonitoringTable() {
+  const tbody = document.getElementById('monitoring-table-body');
+  if (!tbody) return;
+
+  const countBadge = document.getElementById('badge-monitoring-count');
+  if (countBadge) countBadge.textContent = monitoringData.filter(d => d.status === 'SELESAI').length;
+
+  const totalItems = monitoringData.length;
+  const labelCount = document.getElementById('monitoring-count-label');
+  if (labelCount) labelCount.textContent = `Menampilkan ${totalItems} data`;
+
+  if (totalItems === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center" style="padding: 30px; color: var(--text-muted);">Tidak ada riwayat permintaan unduhan.</td></tr>';
+    return;
+  }
+
+  const startIdx = (monitoringCurrentPage - 1) * MONITORING_PER_PAGE;
+  const pageData = monitoringData.slice(startIdx, startIdx + MONITORING_PER_PAGE);
+
+  const pageBadge = document.getElementById('monitoring-page-badge');
+  if (pageBadge) pageBadge.textContent = monitoringCurrentPage;
+
+  tbody.innerHTML = pageData.map(item => {
+    let statusBadge = '';
+    let dlBtn = '';
+
+    if (item.status === 'DIPROSES') {
+      statusBadge = '<span class="badge-diproses"><span class="spinner-sm" style="display:inline-block;width:12px;height:12px;border:2px solid #856404;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></span> Diproses</span>';
+      dlBtn = '<button class="btn-sakti-download disabled" disabled title="Berkas sedang dibuat...">📄 Download</button>';
+    } else if (item.status === 'SELESAI') {
+      statusBadge = '<span class="badge-selesai">✓ Selesai</span>';
+      dlBtn = `<a href="/api/download-requests/${item.id}/file" class="btn-sakti-download" target="_blank" download="${escapeHtml(item.nama_file)}">📄 Download</a>`;
+    } else if (item.status === 'KADALUARSA') {
+      statusBadge = '<span class="badge-kadaluarsa">⚠️ Kadaluarsa</span>';
+      dlBtn = '<button class="btn-sakti-download disabled" disabled title="Berkas telah kadaluarsa (> 1 jam) dan terhapus otomatis">Kadaluarsa</button>';
+    } else {
+      statusBadge = '<span class="badge-gagal">✕ Gagal</span>';
+      dlBtn = `<button class="btn-sakti-download disabled" disabled title="${escapeHtml(item.error_message || 'Gagal')}">Gagal</button>`;
+    }
+
+    return `
+      <tr>
+        <td style="padding: 10px 14px; font-weight: 600; color: #1e293b;">
+          ${escapeHtml(item.nama_file)}
+          ${item.file_size ? `<small style="display:block; color:#64748b; font-weight:normal;">${(item.file_size / 1024).toFixed(1)} KB</small>` : ''}
+        </td>
+        <td style="padding: 10px 14px; text-align: center; color: #475569; font-size: 12.5px;">${escapeHtml(item.request_time || '-')}</td>
+        <td style="padding: 10px 14px; text-align: center;">${statusBadge}</td>
+        <td style="padding: 10px 14px; text-align: center;">${dlBtn}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function resetMonitoringFilter() {
+  setElVal('monitoring-search-file', '');
+  setElVal('monitoring-date-start', '');
+  setElVal('monitoring-date-end', '');
+  monitoringCurrentPage = 1;
+  loadMonitoringReport();
+}
+
+function changeMonitoringPage(dir) {
+  const maxPage = Math.max(1, Math.ceil(monitoringData.length / MONITORING_PER_PAGE));
+  if (dir === 'first') monitoringCurrentPage = 1;
+  else if (dir === 'prev') monitoringCurrentPage = Math.max(1, monitoringCurrentPage - 1);
+  else if (dir === 'next') monitoringCurrentPage = Math.min(maxPage, monitoringCurrentPage + 1);
+  else if (dir === 'last') monitoringCurrentPage = maxPage;
+  renderMonitoringTable();
+}
 
 // ============================================================================
-// VIEW 4: MASTER DATA WILAYAH & AKUN (SSOT)
+// VIEW: MASTER PPK (19 KECAMATAN)
 // ============================================================================
 
-function switchMasterTab(tabId) {
-  document.querySelectorAll('#view-master .tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('#view-master .tab-btn').forEach(el => el.classList.remove('active'));
-
-  const content = document.getElementById(tabId);
-  if (content) content.classList.add('active');
-
-  const btn = document.querySelector(`#view-master .tab-btn[onclick*="${tabId}"]`);
-  if (btn) btn.classList.add('active');
-}
-
-function renderMasterTabs() {
+function renderDbPpk() {
   if (!AppState.masters) return;
-  const { kecamatans, desas, akuns, sbms, kuantitas } = AppState.masters;
+  const { kecamatans, desas } = AppState.masters;
 
   const desaByKec = {};
   for (const d of desas) {
@@ -3679,91 +3879,178 @@ function renderMasterTabs() {
     desaByKec[d.kecamatan_id].push(d);
   }
 
-  // 1. TAB MASTER PPK (19 KECAMATAN)
-  const tbodyPpk = document.getElementById('table-master-ppk');
-  if (tbodyPpk) {
-    tbodyPpk.innerHTML = kecamatans.map((k, idx) => {
-      const kecDesas = desaByKec[k.id] || [];
-      const totalTps = kecDesas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
-      return `
-        <tr>
-          <td class="text-center">${idx + 1}</td>
-          <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${k.no_urut || (idx + 1)}</td>
-          <td><strong>${k.nama}</strong></td>
-          <td>${k.ketua_nama || '-'}</td>
-          <td>${k.sekretaris_nama || '-'}</td>
-          <td style="font-family: var(--font-mono);">${k.sekretaris_nip || '-'}</td>
-          <td class="text-center"><span class="badge badge-secondary">${kecDesas.length} Desa</span></td>
-          <td class="text-center"><span class="badge badge-primary">${formatNumber(totalTps)} TPS</span></td>
-        </tr>
-      `;
-    }).join('');
-  }
+  // Summary strip
+  const elTotalKec = document.getElementById('ppk-stat-total-kec');
+  const elTotalKom = document.getElementById('ppk-stat-total-kom');
+  const elTotalSek = document.getElementById('ppk-stat-total-sek');
+  if (elTotalKec) elTotalKec.textContent = `${kecamatans.length} Kecamatan`;
+  if (elTotalKom) elTotalKom.textContent = `${kecamatans.length * 5} Orang`;
+  if (elTotalSek) elTotalSek.textContent = `${kecamatans.length * 3} Orang`;
 
-  // 2. TAB MASTER PPS (217 DESA / KELURAHAN)
-  const selectPpsKec = document.getElementById('filter-pps-kec');
-  if (selectPpsKec && selectPpsKec.options.length <= 1) {
-    selectPpsKec.innerHTML = '<option value="ALL">-- Semua Kecamatan (217 Desa) --</option>' +
-      kecamatans.map(k => `<option value="${k.id}">Kecamatan ${k.nama}</option>`).join('');
-  }
-  filterMasterPps();
+  const tbody = document.getElementById('table-db-ppk');
+  if (!tbody) return;
 
-  // 3. TAB AKUN
-  const tbodyAkun = document.getElementById('table-master-akun');
-  if (tbodyAkun) {
-    tbodyAkun.innerHTML = akuns.map(a => `
+  tbody.innerHTML = kecamatans.map((k, idx) => {
+    const kecDesas = desaByKec[k.id] || [];
+    const totalTps = kecDesas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
+    return `
       <tr>
-        <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${a.kode}</code></td>
-        <td><strong>${a.uraian}</strong></td>
-        <td>${a.kelompok || '-'}</td>
-        <td>${a.kategori_dn || '-'}</td>
+        <td class="text-center">${idx + 1}</td>
+        <td class="text-center" style="font-family: var(--font-mono); font-weight: 700;">${k.no_urut || (idx + 1)}</td>
+        <td><strong>${escapeHtml(k.nama)}</strong></td>
+        <td><code style="font-family: var(--font-mono);">${escapeHtml(k.kode || '-')}</code></td>
+        <td>${escapeHtml(k.camat_nama || '-')}</td>
+        <td>${escapeHtml(k.ketua_ppk || k.ketua_nama || '-')}</td>
+        <td>${escapeHtml(k.sekretaris_ppk || k.sekretaris_nama || '-')}</td>
+        <td style="font-family: var(--font-mono); font-size: 11px;">${escapeHtml(k.sekretaris_nip || '-')}</td>
+        <td class="text-center"><span class="badge badge-secondary">${kecDesas.length} Desa</span></td>
+        <td class="text-center"><span class="badge badge-primary">${formatNumber(totalTps)} TPS</span></td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline btn-sm" onclick="openModalKecamatan(${k.id})" title="Edit Kecamatan">✏️</button>
+          <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteKecamatan(${k.id})" title="Hapus Kecamatan">🗑️</button>
+        </td>
       </tr>
-    `).join('');
-  }
-
-  // 4. TAB SBM
-  const tbodySbm = document.getElementById('table-master-sbm');
-  if (tbodySbm) {
-    tbodySbm.innerHTML = sbms.map(s => `
-      <tr>
-        <td><span class="badge badge-secondary">${s.kategori}</span></td>
-        <td><strong>${s.uraian}</strong></td>
-        <td>${s.satuan}</td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(s.harga_satuan || s.pagu_sbm)}</td>
-        <td><small>${s.jenis_regulasi || 'SBM'} ${s.dasar_hukum || ''}</small></td>
-      </tr>
-    `).join('');
-  }
-
-  // 5. TAB KUANTITAS
-  const tbodyKuan = document.getElementById('table-master-kuantitas');
-  if (tbodyKuan) {
-    tbodyKuan.innerHTML = kuantitas.map(q => `
-      <tr>
-        <td><code style="font-family: var(--font-mono); font-weight: 700;">@${q.kode}</code></td>
-        <td><strong>${q.nama || q.uraian}</strong></td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${formatNumber(q.nilai)}</td>
-        <td>${q.satuan || ''}</td>
-        <td><small>${q.keterangan || '-'}</small></td>
-      </tr>
-    `).join('');
-  }
+    `;
+  }).join('');
 }
 
-function filterMasterPpk() {
-  const keyword = (document.getElementById('filter-master-ppk')?.value || '').toLowerCase().trim();
-  const rows = document.querySelectorAll('#table-master-ppk tr');
+function filterDbPpk() {
+  const keyword = (document.getElementById('filter-db-ppk')?.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#table-db-ppk tr');
   rows.forEach(r => {
     const text = r.textContent.toLowerCase();
     r.style.display = text.includes(keyword) ? '' : 'none';
   });
 }
 
-function filterMasterPps() {
+function openModalKecamatan(id = null) {
+  const modal = document.getElementById('modal-kecamatan');
+  if (!modal) return;
+  document.getElementById('form-kecamatan')?.reset();
+  setElVal('kecamatan-id', id || '');
+
+  if (id && AppState.masters?.kecamatans) {
+    const k = AppState.masters.kecamatans.find(item => item.id === Number(id));
+    if (k) {
+      setElVal('kecamatan-no-urut', k.no_urut || 1);
+      setElVal('kecamatan-kode', k.kode || '');
+      setElVal('kecamatan-nama', k.nama || '');
+      setElVal('kecamatan-camat', k.camat_nama || '');
+      setElVal('kecamatan-ketua', k.ketua_ppk || k.ketua_nama || '');
+      setElVal('kecamatan-sekretaris', k.sekretaris_ppk || k.sekretaris_nama || '');
+      setElVal('kecamatan-sekretaris-nip', k.sekretaris_nip || '');
+    }
+  } else {
+    const maxNo = (AppState.masters?.kecamatans?.length || 0) + 1;
+    setElVal('kecamatan-no-urut', maxNo);
+  }
+  modal.style.display = 'flex';
+}
+
+function closeModalKecamatan() {
+  const modal = document.getElementById('modal-kecamatan');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitModalKecamatan() {
+  const id = document.getElementById('kecamatan-id')?.value;
+  const no_urut = document.getElementById('kecamatan-no-urut')?.value;
+  const kode = document.getElementById('kecamatan-kode')?.value;
+  const nama = document.getElementById('kecamatan-nama')?.value;
+  const camat_nama = document.getElementById('kecamatan-camat')?.value;
+  const ketua_ppk = document.getElementById('kecamatan-ketua')?.value;
+  const sekretaris_ppk = document.getElementById('kecamatan-sekretaris')?.value;
+  const sekretaris_nip = document.getElementById('kecamatan-sekretaris-nip')?.value;
+
+  if (!nama || !nama.trim()) {
+    showToast('Nama kecamatan tidak boleh kosong.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/master/kecamatan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AppState.token || ''}`
+      },
+      body: JSON.stringify({ id, no_urut, kode, nama, camat_nama, ketua_ppk, sekretaris_ppk, sekretaris_nip })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('Data Kecamatan berhasil disimpan.', 'success');
+      closeModalKecamatan();
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } else {
+      showToast(result.error || 'Gagal menyimpan kecamatan.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan.', 'error');
+  }
+}
+
+async function deleteKecamatan(id) {
+  if (!confirm('Apakah Anda yakin ingin menghapus kecamatan ini?')) return;
+  try {
+    const res = await fetch(`/api/master/kecamatan/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${AppState.token || ''}` }
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('Kecamatan berhasil dihapus.', 'success');
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } else {
+      showToast(result.error || 'Gagal menghapus kecamatan.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan.', 'error');
+  }
+}
+
+// ============================================================================
+// VIEW: MASTER DESA & TPS (217 PPS) - BASIS DATA PRIMER REAKTIF
+// ============================================================================
+
+function renderDbPps() {
   if (!AppState.masters) return;
   const { kecamatans, desas } = AppState.masters;
-  const kecId = document.getElementById('filter-pps-kec')?.value || 'ALL';
-  const keyword = (document.getElementById('filter-master-pps')?.value || '').toLowerCase().trim();
+
+  // Update summary strip
+  const totalDesa = desas.length;
+  const totalTps = desas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
+  const totalPemilih = desas.reduce((a, b) => a + (Number(b.pemilih) || 0), 0);
+  const totalPantarlih = desas.reduce((a, b) => a + (Number(b.pantarlih) || 0), 0);
+
+  const elTotalDesa = document.getElementById('pps-stat-total-desa');
+  const elTotalTps = document.getElementById('pps-stat-total-tps');
+  const elTotalPem = document.getElementById('pps-stat-total-pemilih');
+  const elTotalPan = document.getElementById('pps-stat-total-pantarlih');
+
+  if (elTotalDesa) elTotalDesa.textContent = `${totalDesa} Desa`;
+  if (elTotalTps) elTotalTps.textContent = `${formatNumber(totalTps)} TPS`;
+  if (elTotalPem) elTotalPem.textContent = `${formatNumber(totalPemilih)} Jiwa`;
+  if (elTotalPan) elTotalPan.textContent = `${formatNumber(totalPantarlih)} Orang`;
+
+  // Update kecamatan dropdown
+  const selKec = document.getElementById('filter-db-pps-kec');
+  if (selKec && selKec.options.length <= 1) {
+    selKec.innerHTML = '<option value="ALL">-- Semua Kecamatan (217 Desa) --</option>' +
+      kecamatans.map(k => `<option value="${k.id}">Kecamatan ${escapeHtml(k.nama)}</option>`).join('');
+  }
+
+  filterDbPps();
+}
+
+function filterDbPps() {
+  if (!AppState.masters) return;
+  const { kecamatans, desas } = AppState.masters;
+  const kecId = document.getElementById('filter-db-pps-kec')?.value || 'ALL';
+  const keyword = (document.getElementById('filter-db-pps-text')?.value || '').toLowerCase().trim();
 
   const kecMap = {};
   for (const k of kecamatans) kecMap[k.id] = k.nama;
@@ -3781,29 +4068,438 @@ function filterMasterPps() {
     return true;
   });
 
-  const countBadge = document.getElementById('pps-count-badge');
-  if (countBadge) countBadge.textContent = `${filtered.length} Desa`;
-
-  const tbody = document.getElementById('table-master-pps');
+  const tbody = document.getElementById('table-db-pps');
   if (!tbody) return;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center" style="padding: 20px;">Tidak ada desa/kelurahan yang cocok dengan kriteria filter.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="padding: 24px; color: var(--text-muted);">Tidak ada desa/kelurahan yang cocok dengan filter.</td></tr>';
     return;
   }
 
   tbody.innerHTML = filtered.map((d, idx) => `
     <tr>
       <td class="text-center">${idx + 1}</td>
-      <td><strong>${kecMap[d.kecamatan_id] || '-'}</strong></td>
-      <td><strong>${d.nama}</strong></td>
+      <td><strong>${escapeHtml(kecMap[d.kecamatan_id] || '-')}</strong></td>
+      <td><strong>${escapeHtml(d.nama)}</strong></td>
       <td class="text-center"><span class="badge badge-primary">${formatNumber(d.tps)} TPS</span></td>
-      <td class="text-center">${formatNumber(d.pantarlih)}</td>
-      <td class="text-center">${formatNumber(d.kotak)}</td>
-      <td class="text-center">${formatNumber(d.rohaniwan)}</td>
-      <td>${d.ketua_nama || '-'}</td>
-      <td>${d.sekretaris_nama || '-'}</td>
-      <td style="font-family: var(--font-mono); font-size: 11px;">${d.sekretaris_nip || '-'}</td>
+      <td class="text-center" style="font-weight: 600; color: #059669;">${formatNumber(d.pantarlih)}</td>
+      <td class="text-right" style="font-weight: 700; color: #7c3aed; font-family: var(--font-mono);">${formatNumber(d.pemilih || 0)}</td>
+      <td class="text-center">${formatNumber(d.kotak || d.tps)}</td>
+      <td class="text-center">${formatNumber(d.rohaniwan || 1)}</td>
+      <td>${escapeHtml(d.ketua_nama || '-')}</td>
+      <td>${escapeHtml(d.sekretaris_nama || '-')}</td>
+      <td style="font-family: var(--font-mono); font-size: 11px;">${escapeHtml(d.sekretaris_nip || '-')}</td>
+      <td class="text-center">
+        <button type="button" class="btn btn-outline btn-sm" onclick="openModalDesa(${d.id})" title="Edit Desa">✏️</button>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteDesa(${d.id})" title="Hapus Desa">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openModalDesa(id = null) {
+  const modal = document.getElementById('modal-desa');
+  if (!modal) return;
+  document.getElementById('form-desa')?.reset();
+  setElVal('desa-id', id || '');
+
+  // Populate kecamatan selector
+  const selKec = document.getElementById('desa-kecamatan-id');
+  if (selKec && AppState.masters?.kecamatans) {
+    selKec.innerHTML = AppState.masters.kecamatans.map(k => `<option value="${k.id}">Kecamatan ${escapeHtml(k.nama)}</option>`).join('');
+  }
+
+  if (id && AppState.masters?.desas) {
+    const d = AppState.masters.desas.find(item => item.id === Number(id));
+    if (d) {
+      setElVal('desa-kecamatan-id', d.kecamatan_id);
+      setElVal('desa-no-urut', d.no_urut || 1);
+      setElVal('desa-nama', d.nama || '');
+      setElVal('desa-tps', d.tps || 1);
+      setElVal('desa-pantarlih', d.pantarlih || (d.tps * 2));
+      setElVal('desa-pemilih', d.pemilih || 0);
+      setElVal('desa-kotak', d.kotak || d.tps);
+      setElVal('desa-rohaniwan', d.rohaniwan || 1);
+      setElVal('desa-ketua', d.ketua_nama || '');
+      setElVal('desa-sekretaris', d.sekretaris_nama || '');
+      setElVal('desa-sekretaris-nip', d.sekretaris_nip || '');
+    }
+  }
+  modal.style.display = 'flex';
+}
+
+function closeModalDesa() {
+  const modal = document.getElementById('modal-desa');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitModalDesa() {
+  const id = document.getElementById('desa-id')?.value;
+  const kecamatan_id = document.getElementById('desa-kecamatan-id')?.value;
+  const no_urut = document.getElementById('desa-no-urut')?.value;
+  const nama = document.getElementById('desa-nama')?.value;
+  const tps = document.getElementById('desa-tps')?.value;
+  const pantarlih = document.getElementById('desa-pantarlih')?.value;
+  const pemilih = document.getElementById('desa-pemilih')?.value;
+  const kotak = document.getElementById('desa-kotak')?.value;
+  const rohaniwan = document.getElementById('desa-rohaniwan')?.value;
+  const ketua_nama = document.getElementById('desa-ketua')?.value;
+  const sekretaris_nama = document.getElementById('desa-sekretaris')?.value;
+  const sekretaris_nip = document.getElementById('desa-sekretaris-nip')?.value;
+
+  if (!nama || !nama.trim()) {
+    showToast('Nama desa tidak boleh kosong.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/master/desa', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AppState.token || ''}`
+      },
+      body: JSON.stringify({ id, kecamatan_id, no_urut, nama, tps, pantarlih, pemilih, kotak, rohaniwan, ketua_nama, sekretaris_nama, sekretaris_nip })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('Data Desa & TPS berhasil disimpan. Seluruh baris RKB otomatis dihitung ulang.', 'success');
+      closeModalDesa();
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } else {
+      showToast(result.error || 'Gagal menyimpan desa.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan.', 'error');
+  }
+}
+
+async function deleteDesa(id) {
+  if (!confirm('Apakah Anda yakin ingin menghapus desa ini?')) return;
+  try {
+    const res = await fetch(`/api/master/desa/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${AppState.token || ''}` }
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('Desa berhasil dihapus.', 'success');
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } else {
+      showToast(result.error || 'Gagal menghapus desa.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan.', 'error');
+  }
+}
+
+// ============================================================================
+// VIEW: MASTER PASANGAN CALON (PASLON)
+// ============================================================================
+
+function renderDbPaslon() {
+  if (!AppState.masters) return;
+  const paslons = AppState.masters.paslons || [];
+
+  const elStatTotal = document.getElementById('paslon-stat-total');
+  const elStatKoef = document.getElementById('paslon-stat-koef');
+  if (elStatTotal) elStatTotal.textContent = `${paslons.length} Pasangan`;
+  if (elStatKoef) elStatKoef.textContent = `${paslons.length} Paslon`;
+
+  const tbody = document.getElementById('table-db-paslon');
+  if (!tbody) return;
+
+  if (paslons.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 24px; color: var(--text-muted);">Belum ada pasangan calon terdaftar.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = paslons.map(p => `
+    <tr>
+      <td class="text-center" style="font-size: 16px; font-weight: 800; color: #1e40af;">
+        <span class="badge badge-primary" style="font-size: 14px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;">
+          ${p.no_urut}
+        </span>
+      </td>
+      <td><strong style="color: #0f172a; font-size: 13.5px;">${escapeHtml(p.nama_calon_bupati)}</strong></td>
+      <td><strong style="color: #334155; font-size: 13.5px;">${escapeHtml(p.nama_calon_wakil_bupati)}</strong></td>
+      <td><span style="font-size: 12px; color: #475569;">${escapeHtml(p.partai_pengusung || '-')}</span></td>
+      <td><i style="color: #64748b; font-size: 12px;">"${escapeHtml(p.slogan || '-')}"</i></td>
+      <td><small style="color: #64748b;">${escapeHtml(p.keterangan || '-')}</small></td>
+      <td class="text-center">
+        <button type="button" class="btn btn-outline btn-sm" onclick="openModalPaslon(${p.id})" title="Edit Paslon">✏️</button>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deletePaslon(${p.id})" title="Hapus Paslon">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterDbPaslon() {
+  const keyword = (document.getElementById('filter-db-paslon')?.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#table-db-paslon tr');
+  rows.forEach(r => {
+    const text = r.textContent.toLowerCase();
+    r.style.display = text.includes(keyword) ? '' : 'none';
+  });
+}
+
+function openModalPaslon(id = null) {
+  const modal = document.getElementById('modal-paslon');
+  if (!modal) return;
+  document.getElementById('form-paslon')?.reset();
+  setElVal('paslon-id', id || '');
+
+  if (id && AppState.masters?.paslons) {
+    const p = AppState.masters.paslons.find(item => item.id === Number(id));
+    if (p) {
+      setElVal('paslon-no-urut', p.no_urut || 1);
+      setElVal('paslon-bupati', p.nama_calon_bupati || '');
+      setElVal('paslon-wakil', p.nama_calon_wakil_bupati || '');
+      setElVal('paslon-partai', p.partai_pengusung || '');
+      setElVal('paslon-slogan', p.slogan || '');
+      setElVal('paslon-keterangan', p.keterangan || '');
+    }
+  } else {
+    const maxNo = (AppState.masters?.paslons?.length || 0) + 1;
+    setElVal('paslon-no-urut', maxNo);
+  }
+  modal.style.display = 'flex';
+}
+
+function closeModalPaslon() {
+  const modal = document.getElementById('modal-paslon');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitModalPaslon() {
+  const id = document.getElementById('paslon-id')?.value;
+  const no_urut = document.getElementById('paslon-no-urut')?.value;
+  const nama_calon_bupati = document.getElementById('paslon-bupati')?.value;
+  const nama_calon_wakil_bupati = document.getElementById('paslon-wakil')?.value;
+  const partai_pengusung = document.getElementById('paslon-partai')?.value;
+  const slogan = document.getElementById('paslon-slogan')?.value;
+  const keterangan = document.getElementById('paslon-keterangan')?.value;
+
+  if (!nama_calon_bupati || !nama_calon_wakil_bupati) {
+    showToast('Nama calon bupati dan wakil bupati wajib diisi.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/master/paslon', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AppState.token || ''}`
+      },
+      body: JSON.stringify({ id, no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('Data Pasangan Calon berhasil disimpan. Koefisien RKB otomatis diperbarui.', 'success');
+      closeModalPaslon();
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } else {
+      showToast(result.error || 'Gagal menyimpan paslon.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan.', 'error');
+  }
+}
+
+async function deletePaslon(id) {
+  if (!confirm('Apakah Anda yakin ingin menghapus pasangan calon ini?')) return;
+  try {
+    const res = await fetch(`/api/master/paslon/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${AppState.token || ''}` }
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('Pasangan calon berhasil dihapus.', 'success');
+      await loadMasters();
+      await loadRkbData();
+      renderAllViews();
+    } else {
+      showToast(result.error || 'Gagal menghapus paslon.', 'error');
+    }
+  } catch (err) {
+    showToast('Terjadi kesalahan jaringan.', 'error');
+  }
+}
+
+// ============================================================================
+// VIEW: PARAMETER & KUANTITAS SSOT
+// ============================================================================
+
+function renderDbKuantitas() {
+  if (!AppState.masters) return;
+  const { kuantitas, kecamatans, desas, paslons } = AppState.masters;
+
+  const totalKec = kecamatans.length;
+  const totalDesa = desas.length;
+  const totalTps = desas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
+  const totalPemilih = desas.reduce((a, b) => a + (Number(b.pemilih) || 0), 0);
+  const totalPantarlih = desas.reduce((a, b) => a + (Number(b.pantarlih) || 0), 0);
+  const totalPaslon = (paslons || []).length;
+
+  setElText('kuantitas-stat-kec', totalKec);
+  setElText('kuantitas-stat-desa', totalDesa);
+  setElText('kuantitas-stat-tps', formatNumber(totalTps));
+  setElText('kuantitas-stat-pemilih', formatNumber(totalPemilih));
+  setElText('kuantitas-stat-pantarlih', formatNumber(totalPantarlih));
+  setElText('kuantitas-stat-paslon', totalPaslon);
+
+  const tbody = document.getElementById('table-db-kuantitas');
+  if (!tbody) return;
+
+  tbody.innerHTML = kuantitas.map(q => {
+    let sourceBadge = '';
+    if (['tps_rkb', 'pemilih_dpt', 'pantarlih'].includes(q.kode)) {
+      sourceBadge = '<span class="badge badge-success" style="font-size:11px;">Reaktif: Detail Desa/TPS</span>';
+    } else if (q.kode === 'kec_ppk') {
+      sourceBadge = '<span class="badge badge-info" style="font-size:11px;">Reaktif: Master PPK</span>';
+    } else if (q.kode === 'paslon') {
+      sourceBadge = '<span class="badge badge-primary" style="font-size:11px;">Reaktif: Master Paslon</span>';
+    } else if (['kpps_ketua', 'kpps_anggota', 'linmas_tps', 'petugas_tps', 'ppk_ketua', 'pps_ketua'].includes(q.kode)) {
+      sourceBadge = '<span class="badge badge-secondary" style="font-size:11px;">Formula Agregat Otomatis</span>';
+    } else {
+      sourceBadge = '<span class="badge badge-warning" style="font-size:11px;">Konfigurasi Koefisien</span>';
+    }
+
+    return `
+      <tr>
+        <td><code style="font-family: var(--font-mono); font-weight: 700; color: #0284c7;">@${q.kode}</code></td>
+        <td><strong>${escapeHtml(q.nama || q.uraian)}</strong></td>
+        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 13.5px;">${formatNumber(q.nilai)}</td>
+        <td>${escapeHtml(q.satuan || '')}</td>
+        <td>
+          ${sourceBadge}
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(q.keterangan || '-')}</div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterDbKuantitas() {
+  const keyword = (document.getElementById('filter-db-kuantitas')?.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#table-db-kuantitas tr');
+  rows.forEach(r => {
+    const text = r.textContent.toLowerCase();
+    r.style.display = text.includes(keyword) ? '' : 'none';
+  });
+}
+
+// ============================================================================
+// VIEW: STANDAR BIAYA MASUKAN (SBM)
+// ============================================================================
+
+function renderDbSbm() {
+  if (!AppState.masters) return;
+  const { sbms } = AppState.masters;
+
+  const selKat = document.getElementById('filter-db-sbm-kat');
+  if (selKat && selKat.options.length <= 1) {
+    const categories = Array.from(new Set(sbms.map(s => s.kategori).filter(Boolean)));
+    selKat.innerHTML = '<option value="ALL">-- Semua Kategori SBM --</option>' +
+      categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  }
+
+  filterDbSbm();
+}
+
+function filterDbSbm() {
+  if (!AppState.masters) return;
+  const { sbms } = AppState.masters;
+  const selectedKat = document.getElementById('filter-db-sbm-kat')?.value || 'ALL';
+  const keyword = (document.getElementById('filter-db-sbm-text')?.value || '').toLowerCase().trim();
+
+  const filtered = sbms.filter(s => {
+    if (selectedKat !== 'ALL' && s.kategori !== selectedKat) return false;
+    if (keyword) {
+      const match = (s.uraian || '').toLowerCase().includes(keyword) ||
+                    (s.kategori || '').toLowerCase().includes(keyword) ||
+                    (s.dasar_hukum || '').toLowerCase().includes(keyword);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  const tbody = document.getElementById('table-db-sbm');
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 24px; color: var(--text-muted);">Tidak ada standar biaya masukan yang cocok.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(s => `
+    <tr>
+      <td><span class="badge badge-secondary">${escapeHtml(s.kategori || 'SBM')}</span></td>
+      <td><strong>${escapeHtml(s.uraian)}</strong></td>
+      <td>${escapeHtml(s.satuan || '')}</td>
+      <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e40af;">${formatRupiah(s.harga_satuan || s.pagu_sbm)}</td>
+      <td><small style="color: #64748b;">${escapeHtml(s.jenis_regulasi || 'SBM')} ${escapeHtml(s.dasar_hukum || '')}</small></td>
+    </tr>
+  `).join('');
+}
+
+// ============================================================================
+// VIEW: BAGAN AKUN STANDAR (BAS)
+// ============================================================================
+
+function renderDbBas() {
+  if (!AppState.masters) return;
+  const { akuns } = AppState.masters;
+
+  const selKel = document.getElementById('filter-db-bas-kel');
+  if (selKel && selKel.options.length <= 1) {
+    const kelompoks = Array.from(new Set(akuns.map(a => a.kelompok).filter(Boolean)));
+    selKel.innerHTML = '<option value="ALL">-- Semua Kelompok Akun --</option>' +
+      kelompoks.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+  }
+
+  filterDbBas();
+}
+
+function filterDbBas() {
+  if (!AppState.masters) return;
+  const { akuns } = AppState.masters;
+  const selectedKel = document.getElementById('filter-db-bas-kel')?.value || 'ALL';
+  const keyword = (document.getElementById('filter-db-bas-text')?.value || '').toLowerCase().trim();
+
+  const filtered = akuns.filter(a => {
+    if (selectedKel !== 'ALL' && a.kelompok !== selectedKel) return false;
+    if (keyword) {
+      const match = (a.kode || '').toLowerCase().includes(keyword) ||
+                    (a.uraian || '').toLowerCase().includes(keyword) ||
+                    (a.kelompok || '').toLowerCase().includes(keyword);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  const tbody = document.getElementById('table-db-bas');
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center" style="padding: 24px; color: var(--text-muted);">Tidak ada akun BAS yang cocok.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(a => `
+    <tr>
+      <td><code style="font-family: var(--font-mono); font-weight: 700; color: #0284c7; font-size: 13px;">${escapeHtml(a.kode)}</code></td>
+      <td><strong>${escapeHtml(a.uraian)}</strong></td>
+      <td>${escapeHtml(a.kelompok || '-')}</td>
+      <td><span class="badge badge-secondary">${escapeHtml(a.kategori_dn || 'Belanja')}</span></td>
     </tr>
   `).join('');
 }
@@ -4099,3 +4795,30 @@ async function toggleUserStatusAction(userId) {
     alert('Gagal mengubah status: ' + err.message);
   }
 }
+
+// Global Window Exports for Inline HTML Handlers
+window.toggleSidebarCollapse = toggleSidebarCollapse;
+window.filterSidebarMenu = filterSidebarMenu;
+window.loadMonitoringReport = loadMonitoringReport;
+window.resetMonitoringFilter = resetMonitoringFilter;
+window.changeMonitoringPage = changeMonitoringPage;
+window.openModalPaslon = openModalPaslon;
+window.closeModalPaslon = closeModalPaslon;
+window.submitModalPaslon = submitModalPaslon;
+window.deletePaslon = deletePaslon;
+window.filterDbPaslon = filterDbPaslon;
+window.openModalDesa = openModalDesa;
+window.closeModalDesa = closeModalDesa;
+window.submitModalDesa = submitModalDesa;
+window.deleteDesa = deleteDesa;
+window.filterDbPps = filterDbPps;
+window.openModalKecamatan = openModalKecamatan;
+window.closeModalKecamatan = closeModalKecamatan;
+window.submitModalKecamatan = submitModalKecamatan;
+window.deleteKecamatan = deleteKecamatan;
+window.filterDbPpk = filterDbPpk;
+window.filterDbKuantitas = filterDbKuantitas;
+window.filterDbSbm = filterDbSbm;
+window.filterDbBas = filterDbBas;
+window.downloadAllSubbagZip = downloadAllSubbagZip;
+

@@ -36,6 +36,78 @@ function initDb() {
   safeAddColumn('periode_anggaran', 'created_at TEXT DEFAULT CURRENT_TIMESTAMP');
   safeAddColumn('periode_anggaran', 'updated_at TEXT DEFAULT CURRENT_TIMESTAMP');
 
+  // 1. Tabel Download Requests (Sistem Antrean Unduh SAKTI Kemenkeu)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS download_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_id TEXT UNIQUE,
+      nama_file TEXT NOT NULL,
+      tipe_unduhan TEXT NOT NULL,
+      periode_id INTEGER,
+      filter_pic TEXT,
+      filter_sasaran TEXT,
+      request_time TEXT,
+      status TEXT DEFAULT 'DIPROSES',
+      file_path TEXT,
+      file_size INTEGER DEFAULT 0,
+      error_message TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT,
+      downloaded_at TEXT
+    );
+  `);
+
+  // 2. Tabel Master Paslon (Basis Data Primer Pasangan Calon Pilkada)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS master_paslon (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      no_urut INTEGER NOT NULL,
+      nama_calon_bupati TEXT NOT NULL,
+      nama_calon_wakil_bupati TEXT NOT NULL,
+      partai_pengusung TEXT,
+      slogan TEXT,
+      keterangan TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Seed default 3 paslon jika kosong (sesuai koefisien RKB paslon = 3)
+  try {
+    const cPaslon = db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt || 0;
+    if (cPaslon === 0) {
+      const insPaslon = db.prepare(`
+        INSERT INTO master_paslon (no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      insPaslon.run(1, 'H. ONY ANWAR HARSONO, S.T., M.H.', 'Dr. DWI RIANTO JATMIKO, M.H., M.Si.', 'PDI Perjuangan, Golkar, PKB, Gerindra, PKS, PAN, NasDem, Demokrat, Hanura, Perindo', 'Ngawi Bergerak Bersama Semesta Berkarya', 'Pasangan Calon Petahana');
+      insPaslon.run(2, 'PASANGAN CALON NOMOR URUT 2', 'WAKIL BUPATI NOMOR URUT 2', 'Koalisi Parpol Non-Parlemen / Independen', 'Maju Bersama Rakyat', 'Kandidat Pilkada Ngawi');
+      insPaslon.run(3, 'PASANGAN CALON NOMOR URUT 3', 'WAKIL BUPATI NOMOR URUT 3', 'Koalisi Bersatu Harapan Baru', 'Sejahtera & Bermartabat', 'Kandidat Pilkada Ngawi');
+    }
+  } catch (e) {}
+
+  // 3. Kolom pemilih di master_desa (DPT per desa)
+  safeAddColumn('master_desa', 'pemilih INTEGER DEFAULT 0');
+
+  // Seed nilai pemilih di master_desa jika masih 0, proporsional berdasarkan TPS (total DPT: 701.425)
+  try {
+    const checkPem = db.prepare('SELECT SUM(pemilih) as sumPem FROM master_desa').get()?.sumPem || 0;
+    if (checkPem === 0) {
+      const desas = db.prepare('SELECT id, tps FROM master_desa ORDER BY id ASC').all();
+      let accum = 0;
+      const upd = db.prepare('UPDATE master_desa SET pemilih = ? WHERE id = ?');
+      desas.forEach((d, idx) => {
+        let p = 0;
+        if (idx === desas.length - 1) {
+          p = 701425 - accum;
+        } else {
+          p = Math.round((d.tps || 1) * (701425 / 1371));
+          accum += p;
+        }
+        upd.run(p, d.id);
+      });
+    }
+  } catch (e) {}
+
   // Pastikan user emenje ada
   try {
     const dev = db.prepare("SELECT id FROM satker_users WHERE username = 'emenje'").get();
@@ -712,6 +784,10 @@ function getMasters() {
   const kecamatans = db.prepare('SELECT * FROM master_kecamatan ORDER BY no_urut ASC, id ASC').all();
   const desas = db.prepare('SELECT * FROM master_desa ORDER BY no_urut ASC, id ASC').all();
   const kuantitas = db.prepare('SELECT * FROM master_kuantitas ORDER BY id ASC').all();
+  let paslons = [];
+  try {
+    paslons = db.prepare('SELECT * FROM master_paslon ORDER BY no_urut ASC, id ASC').all();
+  } catch (e) {}
   
   let settings = {};
   try {
@@ -725,10 +801,14 @@ function getMasters() {
     kecamatans,
     desas,
     kuantitas,
+    paslons,
     settings,
     total_ppk: kecamatans.length,
     total_pps: desas.length,
-    total_tps: desas.reduce((acc, d) => acc + (Number(d.tps) || 0), 0)
+    total_tps: desas.reduce((acc, d) => acc + (Number(d.tps) || 0), 0),
+    total_pantarlih: desas.reduce((acc, d) => acc + (Number(d.pantarlih) || 0), 0),
+    total_pemilih: desas.reduce((acc, d) => acc + (Number(d.pemilih) || 0), 0),
+    total_paslon: paslons.length
   };
 }
 
@@ -737,6 +817,300 @@ function updateSettings(settingsObj) {
     db.prepare('INSERT OR REPLACE INTO settings_satker (key, value) VALUES (?, ?)').run(k, String(v));
   }
   return getMasters().settings;
+}
+
+// ============================================================================
+// BASIS DATA PRIMER TERPADU (SSOT REAKTIF)
+// ============================================================================
+
+function syncPrimaryKuantitas() {
+  let aggDesa = {};
+  try {
+    aggDesa = db.prepare('SELECT COUNT(*) as countDesa, SUM(tps) as sumTps, SUM(pantarlih) as sumPantarlih, SUM(pemilih) as sumPemilih FROM master_desa').get() || {};
+  } catch (e) {}
+
+  const countKec = db.prepare('SELECT COUNT(*) as countKec FROM master_kecamatan').get()?.countKec || 19;
+  let countPaslon = 3;
+  try {
+    countPaslon = db.prepare('SELECT COUNT(*) as countPaslon FROM master_paslon').get()?.countPaslon || 3;
+  } catch (e) {}
+
+  const totalDesa = Number(aggDesa.countDesa) || 217;
+  const totalTps = Number(aggDesa.sumTps) || 1371;
+  const totalPantarlih = Number(aggDesa.sumPantarlih) || 2537;
+  const totalPemilih = Number(aggDesa.sumPemilih) || 701425;
+
+  const updateKuantitasStmt = db.prepare('UPDATE master_kuantitas SET nilai = ? WHERE kode = ?');
+  updateKuantitasStmt.run(countKec, 'kec_ppk');
+  updateKuantitasStmt.run(totalDesa, 'desa_pps');
+  updateKuantitasStmt.run(totalTps, 'tps_rkb');
+  updateKuantitasStmt.run(totalPantarlih, 'pantarlih');
+  updateKuantitasStmt.run(totalPemilih, 'pemilih_dpt');
+  updateKuantitasStmt.run(countPaslon, 'paslon');
+
+  // Turunan personil PPK & PPS & TPS
+  updateKuantitasStmt.run(countKec * 1, 'ppk_ketua');
+  updateKuantitasStmt.run(countKec * 4, 'ppk_anggota');
+  updateKuantitasStmt.run(countKec * 5, 'ppk_komisioner');
+  updateKuantitasStmt.run(countKec * 1, 'ppk_sekretaris');
+  updateKuantitasStmt.run(countKec * 2, 'ppk_staf');
+  updateKuantitasStmt.run(countKec * 3, 'ppk_sekretariat');
+
+  updateKuantitasStmt.run(totalDesa * 1, 'pps_ketua');
+  updateKuantitasStmt.run(totalDesa * 2, 'pps_anggota');
+  updateKuantitasStmt.run(totalDesa * 3, 'pps_komisioner');
+  updateKuantitasStmt.run(totalDesa * 1, 'pps_sekretaris');
+  updateKuantitasStmt.run(totalDesa * 2, 'pps_staf');
+  updateKuantitasStmt.run(totalDesa * 3, 'pps_sekretariat');
+
+  updateKuantitasStmt.run(totalTps * 1, 'kpps_ketua');
+  updateKuantitasStmt.run(totalTps * 6, 'kpps_anggota');
+  updateKuantitasStmt.run(totalTps * 2, 'linmas_tps');
+  updateKuantitasStmt.run(totalTps * 9, 'petugas_tps');
+
+  return {
+    totalKec: countKec,
+    totalDesa,
+    totalTps,
+    totalPantarlih,
+    totalPemilih,
+    totalPaslon: countPaslon
+  };
+}
+
+// Master Paslon CRUD
+function getPaslonList() {
+  return db.prepare('SELECT * FROM master_paslon ORDER BY no_urut ASC, id ASC').all();
+}
+
+function savePaslon(data) {
+  const id = data.id ? Number(data.id) : null;
+  const no_urut = Number(data.no_urut) || 1;
+  const nama_calon_bupati = (data.nama_calon_bupati || '').trim();
+  const nama_calon_wakil_bupati = (data.nama_calon_wakil_bupati || '').trim();
+  const partai_pengusung = (data.partai_pengusung || '').trim();
+  const slogan = (data.slogan || '').trim();
+  const keterangan = (data.keterangan || '').trim();
+
+  if (!nama_calon_bupati) throw new Error('Nama calon bupati tidak boleh kosong.');
+  if (!nama_calon_wakil_bupati) throw new Error('Nama calon wakil bupati tidak boleh kosong.');
+
+  if (id) {
+    db.prepare(`
+      UPDATE master_paslon
+      SET no_urut = ?, nama_calon_bupati = ?, nama_calon_wakil_bupati = ?, partai_pengusung = ?, slogan = ?, keterangan = ?
+      WHERE id = ?
+    `).run(no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan, id);
+  } else {
+    db.prepare(`
+      INSERT INTO master_paslon (no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan);
+  }
+
+  syncPrimaryKuantitas();
+  return getPaslonList();
+}
+
+function deletePaslon(id) {
+  db.prepare('DELETE FROM master_paslon WHERE id = ?').run(id);
+  syncPrimaryKuantitas();
+  return { success: true };
+}
+
+// Master Kecamatan CRUD
+function getKecamatans() {
+  return db.prepare('SELECT * FROM master_kecamatan ORDER BY no_urut ASC, id ASC').all();
+}
+
+function saveKecamatan(data) {
+  const id = data.id ? Number(data.id) : null;
+  const no_urut = Number(data.no_urut) || 1;
+  const nama = (data.nama || '').trim();
+  const kode = (data.kode || '').trim();
+  const camat_nama = (data.camat_nama || '').trim();
+  const ketua_ppk = (data.ketua_ppk || '').trim();
+  const sekretaris_ppk = (data.sekretaris_ppk || '').trim();
+  const sekretaris_nip = (data.sekretaris_nip || '').trim();
+
+  if (!nama) throw new Error('Nama kecamatan tidak boleh kosong.');
+
+  if (id) {
+    db.prepare(`
+      UPDATE master_kecamatan
+      SET no_urut = ?, nama = ?, kode = ?, camat_nama = ?, ketua_ppk = ?, sekretaris_ppk = ?, sekretaris_nip = ?
+      WHERE id = ?
+    `).run(no_urut, nama, kode, camat_nama, ketua_ppk, sekretaris_ppk, sekretaris_nip, id);
+  } else {
+    db.prepare(`
+      INSERT INTO master_kecamatan (no_urut, nama, kode, camat_nama, ketua_ppk, sekretaris_ppk, sekretaris_nip)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(no_urut, nama, kode, camat_nama, ketua_ppk, sekretaris_ppk, sekretaris_nip);
+  }
+
+  syncPrimaryKuantitas();
+  return getKecamatans();
+}
+
+function deleteKecamatan(id) {
+  const countDesa = db.prepare('SELECT COUNT(*) as cnt FROM master_desa WHERE kecamatan_id = ?').get()?.cnt || 0;
+  if (countDesa > 0) {
+    throw new Error(`Tidak dapat menghapus kecamatan ini karena masih memiliki ${countDesa} desa terdaftar.`);
+  }
+  db.prepare('DELETE FROM master_kecamatan WHERE id = ?').run(id);
+  syncPrimaryKuantitas();
+  return { success: true };
+}
+
+// Master Desa CRUD
+function getDesas(kecamatanId = null) {
+  let query = `
+    SELECT d.*, k.nama as kecamatan_nama, k.no_urut as kecamatan_no
+    FROM master_desa d
+    LEFT JOIN master_kecamatan k ON d.kecamatan_id = k.id
+  `;
+  const params = [];
+  if (kecamatanId) {
+    query += ' WHERE d.kecamatan_id = ?';
+    params.push(kecamatanId);
+  }
+  query += ' ORDER BY k.no_urut ASC, d.no_urut ASC, d.id ASC';
+  return db.prepare(query).all(...params);
+}
+
+function saveDesa(data) {
+  const id = data.id ? Number(data.id) : null;
+  const no_urut = Number(data.no_urut) || 1;
+  const kecamatan_id = Number(data.kecamatan_id);
+  const nama = (data.nama || '').trim();
+  const tps = Number(data.tps) || 0;
+  const kotak = Number(data.kotak) || tps;
+  const pantarlih = Number(data.pantarlih) || 0;
+  const pemilih = Number(data.pemilih) || 0;
+  const rohaniwan = Number(data.rohaniwan) || 1;
+  const ketua_nama = (data.ketua_nama || '').trim();
+  const sekretaris_nama = (data.sekretaris_nama || '').trim();
+  const sekretaris_nip = (data.sekretaris_nip || '').trim();
+
+  if (!nama) throw new Error('Nama desa/kelurahan tidak boleh kosong.');
+  if (!kecamatan_id) throw new Error('Kecamatan harus dipilih.');
+
+  if (id) {
+    db.prepare(`
+      UPDATE master_desa
+      SET no_urut = ?, kecamatan_id = ?, nama = ?, tps = ?, kotak = ?, pantarlih = ?, pemilih = ?, rohaniwan = ?,
+          ketua_nama = ?, sekretaris_nama = ?, sekretaris_nip = ?
+      WHERE id = ?
+    `).run(no_urut, kecamatan_id, nama, tps, kotak, pantarlih, pemilih, rohaniwan, ketua_nama, sekretaris_nama, sekretaris_nip, id);
+  } else {
+    db.prepare(`
+      INSERT INTO master_desa (no_urut, kecamatan_id, nama, tps, kotak, pantarlih, pemilih, rohaniwan, ketua_nama, sekretaris_nama, sekretaris_nip)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(no_urut, kecamatan_id, nama, tps, kotak, pantarlih, pemilih, rohaniwan, ketua_nama, sekretaris_nama, sekretaris_nip);
+  }
+
+  syncPrimaryKuantitas();
+  return getDesas(kecamatan_id);
+}
+
+function deleteDesa(id) {
+  db.prepare('DELETE FROM master_desa WHERE id = ?').run(id);
+  syncPrimaryKuantitas();
+  return { success: true };
+}
+
+// ============================================================================
+// SISTEM MONITORING REPORT & ASYNC DOWNLOAD (SAKTI KEMENKEU STYLE)
+// ============================================================================
+
+function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran }) {
+  const reqId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  
+  const dateObj = new Date();
+  const bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const tglStr = `${dateObj.getDate()} ${bulanIndo[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+  const jamStr = String(dateObj.getHours()).padStart(2, '0') + ':' + String(dateObj.getMinutes()).padStart(2, '0') + ':' + String(dateObj.getSeconds()).padStart(2, '0');
+  const request_time = `${tglStr}, ${jamStr} GMT+7`;
+
+  const expiresAt = new Date(dateObj.getTime() + 3600000).toISOString();
+
+  const res = db.prepare(`
+    INSERT INTO download_requests (
+      request_id, nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran,
+      request_time, status, expires_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'DIPROSES', ?)
+  `).run(reqId, nama_file, tipe_unduhan, periode_id || null, filter_pic || null, filter_sasaran || null, request_time, expiresAt);
+
+  return {
+    id: res.lastInsertRowid,
+    request_id: reqId,
+    nama_file,
+    status: 'DIPROSES',
+    request_time,
+    expires_at: expiresAt
+  };
+}
+
+function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai = '' } = {}) {
+  cleanupExpiredDownloads();
+
+  let query = 'SELECT * FROM download_requests WHERE 1=1';
+  const params = [];
+
+  if (search && search.trim()) {
+    query += ' AND nama_file LIKE ?';
+    params.push(`%${search.trim()}%`);
+  }
+
+  if (tanggal_mulai) {
+    query += ' AND date(created_at) >= date(?)';
+    params.push(tanggal_mulai);
+  }
+
+  if (tanggal_selesai) {
+    query += ' AND date(created_at) <= date(?)';
+    params.push(tanggal_selesai);
+  }
+
+  query += ' ORDER BY id DESC LIMIT 50';
+  return db.prepare(query).all(...params);
+}
+
+function getDownloadRequestById(id) {
+  return db.prepare('SELECT * FROM download_requests WHERE id = ?').get(id);
+}
+
+function updateDownloadRequest(id, fields) {
+  const sets = [];
+  const params = [];
+  for (const [k, v] of Object.entries(fields)) {
+    sets.push(`${k} = ?`);
+    params.push(v);
+  }
+  params.push(id);
+  db.prepare(`UPDATE download_requests SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  return getDownloadRequestById(id);
+}
+
+function cleanupExpiredDownloads() {
+  const nowIso = new Date().toISOString();
+  let expired = [];
+  try {
+    expired = db.prepare(`
+      SELECT * FROM download_requests 
+      WHERE status != 'KADALUARSA' AND (expires_at <= ? OR datetime(created_at, '+1 hour') <= datetime('now'))
+    `).all(nowIso);
+
+    for (const item of expired) {
+      if (item.file_path && fs.existsSync(item.file_path)) {
+        try {
+          fs.unlinkSync(item.file_path);
+        } catch (e) {}
+      }
+      db.prepare("UPDATE download_requests SET status = 'KADALUARSA', file_path = NULL WHERE id = ?").run(item.id);
+    }
+  } catch (e) {}
+  return expired.length;
 }
 
 module.exports = {
@@ -764,5 +1138,20 @@ module.exports = {
   toggleUserStatus,
   authenticateUser,
   getMasters,
-  updateSettings
+  updateSettings,
+  syncPrimaryKuantitas,
+  getPaslonList,
+  savePaslon,
+  deletePaslon,
+  getKecamatans,
+  saveKecamatan,
+  deleteKecamatan,
+  getDesas,
+  saveDesa,
+  deleteDesa,
+  createDownloadRequest,
+  getDownloadRequests,
+  getDownloadRequestById,
+  updateDownloadRequest,
+  cleanupExpiredDownloads
 };

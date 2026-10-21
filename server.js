@@ -32,7 +32,22 @@ const {
   toggleUserStatus,
   authenticateUser,
   getMasters,
-  updateSettings
+  updateSettings,
+  syncPrimaryKuantitas,
+  getPaslonList,
+  savePaslon,
+  deletePaslon,
+  getKecamatans,
+  saveKecamatan,
+  deleteKecamatan,
+  getDesas,
+  saveDesa,
+  deleteDesa,
+  createDownloadRequest,
+  getDownloadRequests,
+  getDownloadRequestById,
+  updateDownloadRequest,
+  cleanupExpiredDownloads
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, getRevisionComparison, getRevisionSummary } = require('./src/calculation');
@@ -41,6 +56,87 @@ const { exportRkbToExcelBuffer } = require('./src/excel_io');
 
 const PORT = process.env.PORT || 3456;
 const PUBLIC_DIR = path.resolve(__dirname, 'public');
+const DOWNLOADS_DIR = path.resolve(__dirname, 'data', 'downloads');
+if (!fs.existsSync(DOWNLOADS_DIR)) {
+  fs.mkdirSync(DOWNLOADS_DIR, { recursive: true });
+}
+
+// Background Worker untuk Antrean Unduhan SAKTI Kemenkeu
+async function processDownloadJob(jobId) {
+  try {
+    const job = getDownloadRequestById(jobId);
+    if (!job || job.status !== 'DIPROSES') return;
+
+    let buffer;
+
+    if (job.tipe_unduhan === 'ZIP_SUBBAGIAN') {
+      const periode = getPeriodeById(job.periode_id);
+      const subbags = [
+        { code: 'KUL', filename: `1_RUH_KUL_Keuangan_Umum_Logistik_${(periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'RENDATIN', filename: `2_RUH_RENDATIN_Perencanaan_Data_Informasi_${(periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'TEKNIS', filename: `3_RUH_TEKNIS_Teknis_Penyelenggaraan_Pemilu_${(periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'HUKUM', filename: `4_RUH_HUKUM_Hukum_${(periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` },
+        { code: 'PARSDM', filename: `5_RUH_PARSDM_Partisipasi_Masyarakat_SDM_${(periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx` }
+      ];
+
+      const archiver = require('archiver');
+      const buffers = [];
+      for (const s of subbags) {
+        const buf = await exportRkbToExcelBuffer(job.periode_id, { pic: s.code });
+        buffers.push({ name: s.filename, data: buf });
+      }
+
+      buffer = await new Promise((resolve, reject) => {
+        const archive = archiver('zip', { zlib: { level: 6 } });
+        const bufs = [];
+        archive.on('data', d => bufs.push(d));
+        archive.on('end', () => resolve(Buffer.concat(bufs)));
+        archive.on('error', err => reject(err));
+        for (const b of buffers) {
+          archive.append(b.data, { name: b.name });
+        }
+        archive.finalize();
+      });
+    } else {
+      // Standar RUH Excel
+      const query = {};
+      if (job.filter_pic && job.filter_pic !== 'SEMUA') query.pic = job.filter_pic;
+      if (job.filter_sasaran && job.filter_sasaran !== 'ALL') query.sasaran = job.filter_sasaran;
+      buffer = await exportRkbToExcelBuffer(job.periode_id, query);
+    }
+
+    const cleanName = (job.nama_file || 'Laporan.xlsx').replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+    const diskFilename = `${job.request_id}_${cleanName}`;
+    const targetPath = path.join(DOWNLOADS_DIR, diskFilename);
+
+    fs.writeFileSync(targetPath, buffer);
+
+    updateDownloadRequest(job.id, {
+      status: 'SELESAI',
+      file_path: targetPath,
+      file_size: buffer.length
+    });
+    console.log(`[DOWNLOAD QUEUE] Permintaan #${job.id} (${job.nama_file}) selesai diproses (${buffer.length} bytes).`);
+  } catch (err) {
+    console.error(`[DOWNLOAD QUEUE] Gagal memproses permintaan #${jobId}:`, err);
+    try {
+      updateDownloadRequest(jobId, {
+        status: 'GAGAL',
+        error_message: err.message || 'Gagal menghasilkan berkas unduhan'
+      });
+    } catch (e) {}
+  }
+}
+
+// Auto-cleanup unduhan kadaluarsa setiap 5 menit
+setInterval(() => {
+  try {
+    const cleaned = cleanupExpiredDownloads();
+    if (cleaned > 0) {
+      console.log(`[DOWNLOAD CLEANUP] ${cleaned} berkas unduhan kadaluarsa (> 1 jam) telah dibersihkan.`);
+    }
+  } catch (e) {}
+}, 5 * 60 * 1000);
 
 // MIME types map
 const MIME_TYPES = {
@@ -520,10 +616,133 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { success: true });
     }
 
-    // 13. MASTER DATA
+    // 13. MASTER DATA LENGKAP (SSOT)
     if (pathname === '/api/masters' && method === 'GET') {
       const masters = getMasters();
       return sendJson(res, 200, masters);
+    }
+
+    // 13b. MASTER PASLON (BASIS DATA PRIMER PILKADA)
+    if (pathname === '/api/master/paslon' && method === 'GET') {
+      return sendJson(res, 200, getPaslonList());
+    }
+    if (pathname === '/api/master/paslon' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Paslon.' });
+      }
+      const body = await parseJsonBody(req);
+      const list = savePaslon(body);
+      return sendJson(res, 200, { success: true, list });
+    }
+    const delPaslonMatch = pathname.match(/^\/api\/master\/paslon\/(\d+)$/);
+    if (delPaslonMatch && method === 'DELETE') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+      deletePaslon(Number(delPaslonMatch[1]));
+      return sendJson(res, 200, { success: true, list: getPaslonList() });
+    }
+
+    // 13c. MASTER KECAMATAN (19 PPK)
+    if (pathname === '/api/master/kecamatan' && method === 'GET') {
+      return sendJson(res, 200, getKecamatans());
+    }
+    if (pathname === '/api/master/kecamatan' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Kecamatan.' });
+      }
+      const body = await parseJsonBody(req);
+      const list = saveKecamatan(body);
+      return sendJson(res, 200, { success: true, list });
+    }
+    const delKecMatch = pathname.match(/^\/api\/master\/kecamatan\/(\d+)$/);
+    if (delKecMatch && method === 'DELETE') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+      try {
+        deleteKecamatan(Number(delKecMatch[1]));
+        return sendJson(res, 200, { success: true, list: getKecamatans() });
+      } catch (e) {
+        return sendJson(res, 400, { error: e.message });
+      }
+    }
+
+    // 13d. MASTER DESA / KELURAHAN (217 PPS, TPS, PEMILIH, PANTARLIH)
+    if (pathname === '/api/master/desa' && method === 'GET') {
+      const kecId = query.kecamatan_id ? Number(query.kecamatan_id) : null;
+      return sendJson(res, 200, getDesas(kecId));
+    }
+    if (pathname === '/api/master/desa' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Desa.' });
+      }
+      const body = await parseJsonBody(req);
+      const list = saveDesa(body);
+      return sendJson(res, 200, { success: true, list });
+    }
+    const delDesaMatch = pathname.match(/^\/api\/master\/desa\/(\d+)$/);
+    if (delDesaMatch && method === 'DELETE') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+      deleteDesa(Number(delDesaMatch[1]));
+      return sendJson(res, 200, { success: true, list: getDesas() });
+    }
+
+    // 13e. SISTEM ANTREAN UNDUHAN / MONITORING REPORT (SAKTI KEMENKEU STYLE)
+    if (pathname === '/api/download-requests' && method === 'GET') {
+      const requests = getDownloadRequests({
+        search: query.search || '',
+        tanggal_mulai: query.tanggal_mulai || '',
+        tanggal_selesai: query.tanggal_selesai || ''
+      });
+      return sendJson(res, 200, requests);
+    }
+    if (pathname === '/api/download-requests' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      if (!body.nama_file) {
+        return sendJson(res, 400, { error: 'Nama file unduhan wajib disertakan.' });
+      }
+      const job = createDownloadRequest(body);
+      // Jalankan worker secara asinkron di latar belakang
+      setImmediate(() => processDownloadJob(job.id));
+      return sendJson(res, 201, { success: true, request: job });
+    }
+    const dlFileMatch = pathname.match(/^\/api\/download-requests\/(\d+)\/file$/);
+    if (dlFileMatch && (method === 'GET' || method === 'HEAD')) {
+      const reqId = Number(dlFileMatch[1]);
+      const job = getDownloadRequestById(reqId);
+      if (!job) return sendJson(res, 404, { error: 'Antrean unduhan tidak ditemukan.' });
+
+      if (job.status === 'KADALUARSA') {
+        return sendJson(res, 410, { error: 'Berkas unduhan telah kadaluarsa (> 1 jam) dan terhapus otomatis.' });
+      }
+
+      if (job.status !== 'SELESAI' || !job.file_path || !fs.existsSync(job.file_path)) {
+        return sendJson(res, 400, { error: 'Berkas unduhan sedang diproses atau gagal dibuat.' });
+      }
+
+      updateDownloadRequest(job.id, { downloaded_at: new Date().toISOString() });
+
+      const stat = fs.statSync(job.file_path);
+      const isZip = job.tipe_unduhan === 'ZIP_SUBBAGIAN' || job.nama_file.endsWith('.zip');
+      const contentType = isZip ? 'application/zip' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${job.nama_file}"`,
+        'Content-Length': stat.size
+      });
+
+      if (method === 'HEAD') return res.end();
+      return fs.createReadStream(job.file_path).pipe(res);
     }
 
     // 14. SETTINGS SATKER

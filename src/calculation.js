@@ -75,22 +75,56 @@ function getWilayahData() {
 
 function getKuantitasMap() {
   const list = db.prepare('SELECT * FROM master_kuantitas ORDER BY id').all();
-  const agg = db.prepare('SELECT COUNT(*) as jmlDesa, SUM(tps) as sumTps, SUM(pantarlih) as sumPantarlih FROM master_desa').get() || {};
+  let agg = {};
+  try {
+    agg = db.prepare('SELECT COUNT(*) as jmlDesa, SUM(tps) as sumTps, SUM(pantarlih) as sumPantarlih, SUM(pemilih) as sumPemilih FROM master_desa').get() || {};
+  } catch (e) {}
+
   const livePantarlih = Number(agg.sumPantarlih) || 2537;
   const liveDesa = Number(agg.jmlDesa) || 217;
-  const liveTps = Number(agg.sumTps) || 1374;
+  const liveTps = Number(agg.sumTps) || 1371;
+  const livePemilih = Number(agg.sumPemilih) || 701425;
   const liveKec = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_kecamatan').get()?.cnt) || 19;
+  
+  let livePaslon = 3;
+  try {
+    livePaslon = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt) || 3;
+  } catch (e) {}
 
   const map = {};
   for (const k of list) {
     if (k.kode === 'pantarlih') {
       k.nilai = livePantarlih;
     } else if (k.kode === 'tps_rkb') {
-      k.nilai = Number(k.nilai) || 1371;
+      k.nilai = liveTps;
     } else if (k.kode === 'desa_pps') {
       k.nilai = liveDesa;
     } else if (k.kode === 'kec_ppk') {
       k.nilai = liveKec;
+    } else if (k.kode === 'pemilih_dpt') {
+      k.nilai = livePemilih;
+    } else if (k.kode === 'paslon') {
+      k.nilai = livePaslon;
+    } else if (k.kode === 'kpps_ketua') {
+      k.nilai = liveTps * 1;
+    } else if (k.kode === 'kpps_anggota') {
+      k.nilai = liveTps * 6;
+    } else if (k.kode === 'linmas_tps') {
+      k.nilai = liveTps * 2;
+    } else if (k.kode === 'petugas_tps') {
+      k.nilai = liveTps * 9;
+    } else if (k.kode === 'ppk_ketua') {
+      k.nilai = liveKec * 1;
+    } else if (k.kode === 'ppk_anggota') {
+      k.nilai = liveKec * 4;
+    } else if (k.kode === 'ppk_komisioner') {
+      k.nilai = liveKec * 5;
+    } else if (k.kode === 'pps_ketua') {
+      k.nilai = liveDesa * 1;
+    } else if (k.kode === 'pps_anggota') {
+      k.nilai = liveDesa * 2;
+    } else if (k.kode === 'pps_komisioner') {
+      k.nilai = liveDesa * 3;
     }
     map[k.kode] = k;
   }
@@ -468,6 +502,8 @@ function getCachedRkbDataset(periodeId) {
 }
 
 function clearRkbDatasetCache(periodeId = null) {
+  cachedWilayah = null;
+  cachedKuantitas = null;
   if (periodeId !== null && periodeId !== undefined) {
     datasetCache.delete(Number(periodeId));
   } else {

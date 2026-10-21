@@ -20,6 +20,16 @@
             <span class="app-title">SI-PRABU <span class="app-version">v3.0</span></span>
             <span class="app-subtitle" id="satker-name-header">KPU KABUPATEN NGAWI</span>
           </div>
+          <!-- Tombol Lipat Menu SAKTI Style (<) -->
+          <button type="button" class="sakti-sidebar-toggle-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Lipat / Buka Menu (SAKTI Style)">
+            <span class="toggle-icon">❮</span>
+          </button>
+        </div>
+
+        <!-- Waktu Server SAKTI Style -->
+        <div class="server-clock-pill" id="server-clock-pill" title="Sinkronisasi Jam Server Otomatis">
+          <span class="clock-icon">🕒</span>
+          <span id="server-clock-text">Memuat Waktu Server...</span>
         </div>
 
         <div class="context-pill" id="context-pill">
@@ -54,21 +64,26 @@
     </header>
 
     <!-- MAIN WRAPPER (SIDEBAR + CONTENT) -->
-    <div class="main-wrapper">
+    <div class="main-wrapper" id="main-wrapper">
       <!-- SIDEBAR -->
-      <aside class="sidebar">
-        <nav class="nav-menu">
-          <!-- MENU UTAMA: BERANDA -->
+      <aside class="sidebar" id="main-sidebar">
+        <!-- Pencarian Menu ala SAKTI -->
+        <div class="sidebar-search-box">
+          <input type="text" id="menu-search-input" class="menu-search-input" placeholder="Pencarian Menu" onkeyup="filterSidebarMenu()">
+        </div>
+
+        <nav class="nav-menu" id="sidebar-nav-menu">
+          <!-- 1. BERANDA -->
           <button class="nav-item active" data-view="view-dashboard" onclick="switchView('view-dashboard')">
             <span class="icon">📊</span>
-            <span class="label">Beranda Ringkasan</span>
+            <span class="label">Beranda</span>
           </button>
 
-          <!-- FOLDER 1: PENGANGGARAN -->
+          <!-- 2. PENGANGGARAN -->
           <div class="sakti-tree-group" id="folder-penganggaran">
             <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-penganggaran', event)">
               <span class="sakti-folder-label">
-                <span>📁 PENGANGGARAN</span>
+                <span>📁 Penganggaran</span>
               </span>
               <span class="sakti-chevron">▾</span>
             </button>
@@ -79,72 +94,75 @@
               </button>
               <button class="nav-item" data-view="view-rkb" onclick="switchView('view-rkb')">
                 <span class="icon">📘</span>
-                <span class="label">RUH Belanja</span>
+                <span class="label">RUH Belanja RKB</span>
                 <span class="badge badge-primary badge-sm" id="badge-total-items">953</span>
               </button>
             </div>
           </div>
 
-          <!-- FOLDER 2: DATABASE MASTER SATKER (SSOT) -->
-          <div class="sakti-tree-group" id="folder-master">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-master', event)">
+          <!-- 3. DATABASE REFERENSI (SSOT) -->
+          <div class="sakti-tree-group" id="folder-database">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-database', event)">
               <span class="sakti-folder-label">
-                <span>🗄️ DATABASE MASTER (SSOT)</span>
+                <span>📁 Database Referensi (SSOT)</span>
               </span>
               <span class="sakti-chevron">▾</span>
             </button>
             <div class="sakti-tree-children">
-              <button class="nav-item" data-view="view-master" onclick="switchView('view-master'); switchMasterTab('tab-ppk');">
+              <button class="nav-item" data-view="view-db-ppk" onclick="switchView('view-db-ppk')">
                 <span class="icon">🏛️</span>
-                <span class="label">Database PPK (19 Kec)</span>
+                <span class="label">Master Kecamatan (19 PPK)</span>
               </button>
-              <button class="nav-item" data-view="view-master" onclick="switchView('view-master'); switchMasterTab('tab-pps');">
+              <button class="nav-item" data-view="view-db-pps" onclick="switchView('view-db-pps')">
                 <span class="icon">🏘️</span>
-                <span class="label">Database PPS (217 Desa)</span>
+                <span class="label">Master Desa & TPS (217 PPS)</span>
               </button>
-              <button class="nav-item" data-view="view-master" onclick="switchView('view-master'); switchMasterTab('tab-variabel');">
+              <button class="nav-item" data-view="view-db-paslon" onclick="switchView('view-db-paslon')">
+                <span class="icon">🗳️</span>
+                <span class="label">Master Pasangan Calon (Paslon)</span>
+              </button>
+              <button class="nav-item" data-view="view-db-kuantitas" onclick="switchView('view-db-kuantitas')">
                 <span class="icon">📐</span>
-                <span class="label">Variabel & Kuantitas</span>
+                <span class="label">Parameter & Kuantitas SSOT</span>
               </button>
-              <button class="nav-item" data-view="view-settings" onclick="switchView('view-settings')">
+              <button class="nav-item" data-view="view-db-sbm" onclick="switchView('view-db-sbm')">
+                <span class="icon">💰</span>
+                <span class="label">Standar Biaya Masukan (SBM)</span>
+              </button>
+              <button class="nav-item" data-view="view-db-bas" onclick="switchView('view-db-bas')">
+                <span class="icon">💳</span>
+                <span class="label">Bagan Akun Standar (BAS)</span>
+              </button>
+              <button class="nav-item" data-view="view-db-regulasi" onclick="switchView('view-db-regulasi')">
+                <span class="icon">📜</span>
+                <span class="label">Regulasi & Dasar Hukum</span>
+              </button>
+              <button class="nav-item" data-view="view-db-settings" onclick="switchView('view-db-settings')">
                 <span class="icon">⚙️</span>
-                <span class="label">Pengaturan Satker & Pejabat</span>
-              </button>
-              <button class="nav-item" data-view="view-users" onclick="switchView('view-users')" id="nav-item-users">
-                <span class="icon">👥</span>
-                <span class="label">Manajemen Pengguna</span>
-                <span class="badge badge-info badge-sm" id="badge-total-users">10</span>
+                <span class="label">Pengaturan Satker KPU</span>
               </button>
             </div>
           </div>
 
-          <!-- FOLDER 3: REFERENSI & REGULASI -->
-          <div class="sakti-tree-group" id="folder-referensi">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-referensi', event)">
-              <span class="sakti-folder-label">
-                <span>📜 REFERENSI & REGULASI</span>
-              </span>
-              <span class="sakti-chevron">▾</span>
-            </button>
-            <div class="sakti-tree-children">
-              <button class="nav-item" data-view="view-referensi" onclick="switchView('view-referensi'); switchRefTab('ref-sbm');">
-                <span class="icon">💰</span>
-                <span class="label">Standar Biaya Masukan</span>
-              </button>
-              <button class="nav-item" data-view="view-referensi" onclick="switchView('view-referensi'); switchRefTab('ref-bas');">
-                <span class="icon">💳</span>
-                <span class="label">Bagan Akun Standar (BAS)</span>
-              </button>
-              <button class="nav-item" data-view="view-referensi" onclick="switchView('view-referensi'); switchRefTab('ref-regulasi');">
-                <span class="icon">📜</span>
-                <span class="label">Regulasi & Dasar Hukum</span>
-              </button>
-              <button class="nav-item" data-view="view-referensi" onclick="switchView('view-referensi'); switchRefTab('ref-hierarki');">
-                <span class="icon">🔢</span>
-                <span class="label">Skema Penomoran L1-L4</span>
-              </button>
-            </div>
-          </div>
+          <!-- 4. PANDUAN -->
+          <button class="nav-item" data-view="view-panduan" onclick="switchView('view-panduan')">
+            <span class="icon">📖</span>
+            <span class="label">Panduan</span>
+          </button>
+
+          <!-- 5. MONITORING UNDUHAN -->
+          <button class="nav-item" data-view="view-monitoring" onclick="switchView('view-monitoring')">
+            <span class="icon">📥</span>
+            <span class="label">Monitoring Unduhan</span>
+            <span class="badge badge-success badge-sm" id="badge-monitoring-count">0</span>
+          </button>
+
+          <!-- 6. MANAJEMEN USER -->
+          <button class="nav-item" data-view="view-users" onclick="switchView('view-users')" id="nav-item-users">
+            <span class="icon">👥</span>
+            <span class="label">Manajemen User</span>
+            <span class="badge badge-info badge-sm" id="badge-total-users">10</span>
+          </button>
         </nav>
 
         <div class="sidebar-footer">
@@ -552,305 +570,456 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW: MASTER DATA WILAYAH & AKUN (SSOT) -->
+        <!-- VIEW 1: MASTER KECAMATAN (19 PPK)                                 -->
         <!-- ================================================================= -->
-        <section id="view-master" class="app-view">
+        <section id="view-db-ppk" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Database Master Wilayah & Akun (SSOT)</h2>
-              <p class="view-desc">Single Source of Truth untuk Data Wilayah PPK, PPS, Bagan Akun Standar (BAS), Standar Biaya Masukan (SBM), dan Kuantitas Satker.</p>
+              <h2 class="view-title">Master Kecamatan & Penyelenggara PPK (19 Kecamatan)</h2>
+              <p class="view-desc">Basis Data Kewilayahan Penyelenggara Pemilu Adhoc Tingkat Kecamatan se-Kabupaten Ngawi.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" onclick="openModalKecamatan()">
+                ➕ Tambah Kecamatan
+              </button>
             </div>
           </div>
 
-          <div class="master-tabs">
-            <button class="tab-btn active" onclick="switchMasterTab('tab-ppk')">🏛️ PPK (19 Kecamatan)</button>
-            <button class="tab-btn" onclick="switchMasterTab('tab-pps')">🏡 PPS (217 Desa/Kelurahan)</button>
-            <button class="tab-btn" onclick="switchMasterTab('tab-akun')">📑 Bagan Akun Standar (BAS)</button>
-            <button class="tab-btn" onclick="switchMasterTab('tab-sbm')">🏷️ Standar Biaya Masukan (SBM)</button>
-            <button class="tab-btn" onclick="switchMasterTab('tab-kuantitas')">🔢 Variabel Kuantitas Satker</button>
-          </div>
-
-          <div class="card mt-3">
-            <div class="card-body p-0">
-              <!-- TAB 1: MASTER PPK (19 KECAMATAN) -->
-              <div id="tab-ppk" class="tab-content active">
-                <div class="toolbar-card" style="border: none; border-bottom: 1px solid var(--border-color); border-radius: 0; margin-bottom: 0;">
-                  <div class="filter-group flex-1">
-                    <label>Pencarian Kecamatan / Pejabat PPK:</label>
-                    <input type="text" id="filter-master-ppk" class="input-text input-sm" placeholder="Ketik nama kecamatan atau nama pejabat..." onkeyup="filterMasterPpk()">
-                  </div>
-                </div>
-                <div class="table-responsive">
-                  <table class="table table-striped table-hover">
-                    <thead>
-                      <tr>
-                        <th style="width: 50px;">No</th>
-                        <th style="width: 80px;">No Urut</th>
-                        <th>Nama Kecamatan (PPK)</th>
-                        <th>Ketua PPK</th>
-                        <th>Sekretaris PPK</th>
-                        <th>NIP Sekretaris</th>
-                        <th class="text-center" style="width: 120px;">Jumlah Desa</th>
-                        <th class="text-center" style="width: 110px;">Total TPS</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-master-ppk">
-                      <!-- Populated via JS -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- TAB 2: MASTER PPS (217 DESA / KELURAHAN) -->
-              <div id="tab-pps" class="tab-content">
-                <div class="toolbar-card" style="border: none; border-bottom: 1px solid var(--border-color); border-radius: 0; margin-bottom: 0;">
-                  <div class="filter-group" style="min-width: 200px;">
-                    <label>Filter Kecamatan:</label>
-                    <select id="filter-pps-kec" class="input-select input-sm" onchange="filterMasterPps()">
-                      <option value="ALL">-- Semua Kecamatan (217 Desa) --</option>
-                      <!-- Populated via JS -->
-                    </select>
-                  </div>
-                  <div class="filter-group flex-1">
-                    <label>Pencarian Desa / Kelurahan / Pejabat PPS:</label>
-                    <input type="text" id="filter-master-pps" class="input-text input-sm" placeholder="Ketik nama desa atau pejabat..." onkeyup="filterMasterPps()">
-                  </div>
-                </div>
-                <div class="table-responsive" style="max-height: 550px;">
-                  <table class="table table-striped table-hover">
-                    <thead>
-                      <tr>
-                        <th style="width: 50px;">No</th>
-                        <th>Kecamatan</th>
-                        <th>Nama Desa / Kelurahan (PPS)</th>
-                        <th class="text-center" style="width: 100px;">Jumlah TPS</th>
-                        <th class="text-center" style="width: 90px;">Pantarlih</th>
-                        <th class="text-center" style="width: 80px;">Kotak</th>
-                        <th class="text-center" style="width: 90px;">Rohaniwan</th>
-                        <th>Ketua PPS</th>
-                        <th>Sekretaris PPS</th>
-                        <th>NIP Sekretaris</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-master-pps">
-                      <!-- Populated via JS -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- TAB 3: TAB AKUN -->
-              <div id="tab-akun" class="tab-content">
-                <div class="table-responsive">
-                  <table class="table table-striped">
-                    <thead>
-                      <tr>
-                        <th style="width: 140px;">Kode Akun</th>
-                        <th>Uraian Akun</th>
-                        <th>Kelompok</th>
-                        <th>Kategori DN</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-master-akun">
-                      <!-- Populated via JS -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- TAB 4: TAB SBM -->
-              <div id="tab-sbm" class="tab-content">
-                <div class="table-responsive">
-                  <table class="table table-striped">
-                    <thead>
-                      <tr>
-                        <th>Kategori</th>
-                        <th>Uraian Standar Biaya</th>
-                        <th>Satuan</th>
-                        <th class="text-right">Batas Pagu SBM (Rp)</th>
-                        <th>Dasar Regulasi</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-master-sbm">
-                      <!-- Populated via JS -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- TAB 5: TAB KUANTITAS -->
-              <div id="tab-kuantitas" class="tab-content">
-                <div class="table-responsive">
-                  <table class="table table-striped">
-                    <thead>
-                      <tr>
-                        <th>Kode Variabel</th>
-                        <th>Nama Variabel</th>
-                        <th class="text-right">Nilai Parameter</th>
-                        <th>Satuan</th>
-                        <th>Keterangan SSOT</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-master-kuantitas">
-                      <!-- Populated via JS -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+          <!-- Summary Strip -->
+          <div class="penyelenggara-strip mb-3">
+            <div class="penyelenggara-box">
+              <div class="p-title">Total Kecamatan (PPK)</div>
+              <div class="p-val" id="ppk-stat-total-kec">19 Kecamatan</div>
+              <div class="p-note">Basis Kewilayahan Ngawi</div>
             </div>
-          </div>
-        </section>
-
-        <!-- ================================================================= -->
-        <!-- VIEW 6: PENGATURAN SATKER -->
-        <!-- ================================================================= -->
-        <!-- ================================================================= -->
-        <!-- VIEW: REFERENSI & STANDAR BIAYA REGULASI                           -->
-        <!-- ================================================================= -->
-        <section id="view-referensi" class="app-view">
-          <div class="view-header">
-            <div>
-              <h2 class="view-title">Referensi Standar Biaya & Regulasi</h2>
-              <p class="view-desc">Standar Biaya Masukan (SBM), Bagan Akun Standar (BAS), Dasar Hukum dan Skema Penomoran RKB Pilkada KPU Kabupaten Ngawi.</p>
+            <div class="penyelenggara-box">
+              <div class="p-title">Komisioner PPK</div>
+              <div class="p-val" id="ppk-stat-total-kom">95 Orang</div>
+              <div class="p-note">5 Orang / Kecamatan</div>
+            </div>
+            <div class="penyelenggara-box">
+              <div class="p-title">Sekretariat PPK</div>
+              <div class="p-val" id="ppk-stat-total-sek">57 Orang</div>
+              <div class="p-note">3 Orang / Kecamatan</div>
             </div>
           </div>
 
           <div class="card">
-            <div class="tab-header">
-              <button class="tab-btn active" id="btn-tab-ref-sbm" onclick="switchRefTab('ref-sbm')">💰 Standar Biaya Masukan (SBM)</button>
-              <button class="tab-btn" id="btn-tab-ref-bas" onclick="switchRefTab('ref-bas')">💳 Bagan Akun Standar (BAS)</button>
-              <button class="tab-btn" id="btn-tab-ref-regulasi" onclick="switchRefTab('ref-regulasi')">📜 Dasar Hukum & Regulasi</button>
-              <button class="tab-btn" id="btn-tab-ref-hierarki" onclick="switchRefTab('ref-hierarki')">🔢 Skema Penomoran L1-L4</button>
+            <div class="toolbar-card">
+              <div class="filter-group flex-1">
+                <label>Pencarian Kecamatan / Pejabat PPK:</label>
+                <input type="text" id="filter-db-ppk" class="input-text input-sm" placeholder="Ketik nama kecamatan atau pejabat PPK..." onkeyup="filterDbPpk()">
+              </div>
             </div>
-
-            <div class="card-body">
-              <!-- TAB 1: SBM -->
-              <div id="ref-sbm" class="ref-tab-pane">
-                <div class="table-responsive">
-                  <table class="table">
-                    <thead>
-                      <tr>
-                        <th style="width: 60px;">No</th>
-                        <th>Kategori & Uraian Biaya</th>
-                        <th style="width: 130px;">Sasaran</th>
-                        <th style="width: 100px;">Satuan</th>
-                        <th class="text-right" style="width: 180px;">Besaran Standar Biaya</th>
-                        <th>Dasar Ketentuan</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr style="background:#f8fafc;font-weight:700;"><td colspan="6">HONORARIUM BADAN ADHOC PPK (19 KECAMATAN)</td></tr>
-                      <tr><td>1</td><td>Honorarium Ketua PPK</td><td><span class="badge badge-sasaran-ppk">PPK</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 2.500.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>2</td><td>Honorarium Anggota PPK (4 Org)</td><td><span class="badge badge-sasaran-ppk">PPK</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 2.200.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>3</td><td>Honorarium Sekretaris PPK (1 Org)</td><td><span class="badge badge-sasaran-ppk">PPK</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.850.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>4</td><td>Honorarium Staf Sekretariat PPK (2 Org)</td><td><span class="badge badge-sasaran-ppk">PPK</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.300.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      
-                      <tr style="background:#f8fafc;font-weight:700;"><td colspan="6">HONORARIUM BADAN ADHOC PPS (217 DESA / KELURAHAN)</td></tr>
-                      <tr><td>5</td><td>Honorarium Ketua PPS</td><td><span class="badge badge-sasaran-pps">PPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.500.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>6</td><td>Honorarium Anggota PPS (2 Org)</td><td><span class="badge badge-sasaran-pps">PPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.300.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>7</td><td>Honorarium Sekretaris PPS (1 Org)</td><td><span class="badge badge-sasaran-pps">PPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.150.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>8</td><td>Honorarium Staf Sekretariat PPS (2 Org)</td><td><span class="badge badge-sasaran-pps">PPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.050.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-
-                      <tr style="background:#f8fafc;font-weight:700;"><td colspan="6">HONORARIUM KPPS, LINMAS & PANTARLIH (DI BAWAH PPS)</td></tr>
-                      <tr><td>9</td><td>Honorarium Pantarlih / PPDP (2.537 Petugas)</td><td><span class="badge badge-sasaran-pantarlih">PANTARLIH</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.000.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>10</td><td>Honorarium Ketua KPPS (1.371 TPS)</td><td><span class="badge badge-sasaran-tps">TPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.200.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>11</td><td>Honorarium Anggota KPPS (6 Org / TPS)</td><td><span class="badge badge-sasaran-tps">TPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 1.100.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-                      <tr><td>12</td><td>Honorarium Petugas Ketertiban TPS (Linmas 2 Org / TPS)</td><td><span class="badge badge-sasaran-tps">TPS</span></td><td>Orang / Bln</td><td class="text-right"><strong>Rp 700.000</strong></td><td>Keputusan KPU No. 472/2022</td></tr>
-
-                      <tr style="background:#f8fafc;font-weight:700;"><td colspan="6">BIAYA OPERASIONAL, KONSUMSI & TRANSPORTASI</td></tr>
-                      <tr><td>13</td><td>Konsumsi Rapat Koordinasi (Makan)</td><td><span class="badge badge-sasaran-kab">KAB</span></td><td>Porsi</td><td class="text-right"><strong>Rp 45.000</strong></td><td>SBM Standar Daerah Kab. Ngawi</td></tr>
-                      <tr><td>14</td><td>Konsumsi Rapat Koordinasi (Snack)</td><td><span class="badge badge-sasaran-kab">KAB</span></td><td>Porsi</td><td class="text-right"><strong>Rp 20.000</strong></td><td>SBM Standar Daerah Kab. Ngawi</td></tr>
-                      <tr><td>15</td><td>Uang Transport Koordinasi Dalam Kota</td><td><span class="badge badge-sasaran-kab">KAB</span></td><td>Orang / Hari</td><td class="text-right"><strong>Rp 150.000</strong></td><td>SBM Standar Daerah Kab. Ngawi</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- TAB 2: BAS -->
-              <div id="ref-bas" class="ref-tab-pane" style="display: none;">
-                <div class="table-responsive">
-                  <table class="table">
-                    <thead>
-                      <tr>
-                        <th style="width: 120px;">Kode Akun</th>
-                        <th>Uraian Akun Belanja (BAS)</th>
-                        <th>Lingkup Belanja & Peruntukan</th>
-                        <th style="width: 160px;">Kelompok Output</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td><code>521211</code></td><td><strong>Belanja Bahan</strong></td><td>ATK, fotokopi/penggandaan dokumen, konsumsi rapat kerja & bimtek, spanduk, seminar kit</td><td>Barang & Jasa</td></tr>
-                      <tr><td><code>521213</code></td><td><strong>Honor Output Kegiatan</strong></td><td>Honorarium Pokja Pemilihan & seluruh Badan Adhoc (PPK, PPS, KPPS, Pantarlih, Linmas)</td><td>Honorarium</td></tr>
-                      <tr><td><code>521219</code></td><td><strong>Belanja Barang Non Operasional Lainnya</strong></td><td>Jasa publikasi media massa, iklan kampanye, pembuatan jingle/maskot, audit kantor akuntan publik (KAP), fasilitasi debat paslon</td><td>Barang & Jasa</td></tr>
-                      <tr><td><code>522141</code></td><td><strong>Belanja Sewa Gedung dan Kantor</strong></td><td>Sewa gudang sentral logistik pemilihan, sewa aula rapat pleno, sewa ruangan sekretariat</td><td>Operasional</td></tr>
-                      <tr><td><code>522151</code></td><td><strong>Belanja Sewa Kendaraan</strong></td><td>Sewa truk distribusi kotak dan bilik suara ke 19 PPK dan 217 PPS, sewa kendaraan operasional komisioner</td><td>Operasional</td></tr>
-                      <tr><td><code>524111</code></td><td><strong>Belanja Perjalanan Dinas Biasa</strong></td><td>Perjalanan dinas luar kota/provinsi (koordinasi dan konsultasi ke KPU RI di Jakarta dan KPU Provinsi Jawa Timur di Surabaya)</td><td>Perjalanan Dinas</td></tr>
-                      <tr><td><code>524113</code></td><td><strong>Belanja Perjalanan Dinas Dalam Kota</strong></td><td>Monitoring, supervisi, dan verifikasi faktual lapangan ke 19 PPK dan 217 PPS se-Kabupaten Ngawi</td><td>Perjalanan Dinas</td></tr>
-                      <tr><td><code>532111</code></td><td><strong>Belanja Modal Peralatan dan Mesin</strong></td><td>Pengadaan perangkat keras TI penunjang SIREKAP, SIDALIH, SILOG, laptop, printer, scanner dokumen</td><td>Belanja Modal</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- TAB 3: REGULASI -->
-              <div id="ref-regulasi" class="ref-tab-pane" style="display: none;">
-                <div style="display: grid; gap: 14px;">
-                  <div class="card" style="padding: 16px; border-left: 4px solid #0284c7;">
-                    <h4 style="margin: 0 0 6px 0; color: #0284c7;">1. Keputusan Komisi Pemilihan Umum Nomor 574 Tahun 2024</h4>
-                    <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                      Pedoman Teknis Pengelolaan dan Pelaksanaan Anggaran Hibah Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota. Menjadi acuan tata kelola penatausahaan keuangan RKB dan RKK di tingkat KPU Kabupaten.
-                    </p>
-                  </div>
-                  <div class="card" style="padding: 16px; border-left: 4px solid #16a34a;">
-                    <h4 style="margin: 0 0 6px 0; color: #16a34a;">2. Peraturan Menteri Dalam Negeri Nomor 41 Tahun 2020</h4>
-                    <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                      Perubahan atas Permendagri No. 54 Tahun 2019 tentang Pendanaan Kegiatan Pemilihan Gubernur, Bupati, dan Walikota yang Bersumber dari APBD. Menetapkan mekanisme pencairan bertahap dan pengamanan sisa dana hibah.
-                    </p>
-                  </div>
-                  <div class="card" style="padding: 16px; border-left: 4px solid #d97706;">
-                    <h4 style="margin: 0 0 6px 0; color: #d97706;">3. Keputusan KPU Nomor 472 Tahun 2022</h4>
-                    <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                      Satuan Biaya Masukan Lainnya (SBML) di Lingkungan Komisi Pemilihan Umum. Mengatur besaran honorarium resmi seluruh penyelenggara adhoc (PPK, PPS, KPPS, Pantarlih, dan Linmas).
-                    </p>
-                  </div>
-                  <div class="card" style="padding: 16px; border-left: 4px solid #7c3aed;">
-                    <h4 style="margin: 0 0 6px 0; color: #7c3aed;">4. Naskah Perjanjian Hibah Daerah (NPHD) Kabupaten Ngawi</h4>
-                    <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                      Naskah Perjanjian Hibah Daerah Antara Pemerintah Daerah Kabupaten Ngawi dan Komisi Pemilihan Umum Kabupaten Ngawi tentang Pelaksanaan Pemilihan Bupati dan Wakil Bupati Ngawi Tahun 2024 / 2029 dengan total nilai pagu disahkan sebesar <strong>Rp 49.999.999.000 (Empat Puluh Sembilan Miliar Sembilan Ratus Sembilan Puluh Sembilan Juta Sembilan Ratus Sembilan Puluh Sembilan Ribu Rupiah)</strong>.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- TAB 4: HIERARKI -->
-              <div id="ref-hierarki" class="ref-tab-pane" style="display: none;">
-                <div class="table-responsive">
-                  <table class="table">
-                    <thead>
-                      <tr>
-                        <th style="width: 100px;">Level</th>
-                        <th style="width: 140px;">Sebutan Hierarki</th>
-                        <th>Format Penomoran / Kode</th>
-                        <th>Contoh pada RKB KPU Ngawi</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td><strong>Level 0</strong></td><td>Grand Title</td><td>Huruf Kapital (A, B)</td><td>A. KEBUTUHAN BARANG DAN JASA<br>B. HONORARIUM POKJA DAN PENYELENGGARA</td></tr>
-                      <tr><td><strong>Level 1</strong></td><td>Bagian Utama</td><td>Angka Romawi (I, II)</td><td>I. TAHAPAN PERSIAPAN DAN PELAKSANAAN<br>II. OPERASIONAL DAN ADMINISTRASI KANTOR</td></tr>
-                      <tr><td><strong>Level 2</strong></td><td>Tahapan / Kegiatan</td><td>Angka Biasa (1 s.d 28)</td><td>1. Perencanaan Program dan Anggaran<br>5. Pembentukan dan Pembubaran PPK, PPS, KPPS<br>18. Pemeliharaan</td></tr>
-                      <tr><td><strong>Level 21-25</strong></td><td>Sub-Tahapan (Level 4)</td><td>Desimal (4.1, 4.2, ...) atau Strip (-)</td><td>4.1. Sosialisasi Pemilih Pemula<br>4.2. Bimbingan Teknis Sirekap</td></tr>
-                      <tr><td><strong>Level 3</strong></td><td>Akun Belanja (BAS)</td><td>Kode 6 Digit</td><td>[521211] Belanja Bahan<br>[521213] Honor Output Kegiatan<br>[524111] Belanja Perjalanan Dinas Biasa</td></tr>
-                      <tr><td><strong>Level 4</strong></td><td>Detail Item Belanja</td><td>Uraian Item (Rumus Multi-Faktor)</td><td>-. Konsumsi Rapat (15 Org x 5 Keg x Rp 65.000 = Rp 4.875.000)</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">No</th>
+                    <th style="width: 80px;">No Urut</th>
+                    <th>Nama Kecamatan (PPK)</th>
+                    <th>Kode</th>
+                    <th>Nama Camat</th>
+                    <th>Ketua PPK</th>
+                    <th>Sekretaris PPK</th>
+                    <th>NIP Sekretaris</th>
+                    <th class="text-center" style="width: 110px;">Jumlah Desa</th>
+                    <th class="text-center" style="width: 100px;">Total TPS</th>
+                    <th class="text-center" style="width: 110px;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="table-db-ppk">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
             </div>
           </div>
         </section>
 
         <!-- ================================================================= -->
-        <section id="view-settings" class="app-view">
+        <!-- VIEW 2: MASTER DESA & TPS (217 PPS)                               -->
+        <!-- ================================================================= -->
+        <section id="view-db-pps" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Master Desa / Kelurahan & TPS (217 PPS)</h2>
+              <p class="view-desc">Basis Data Primer TPS, Pemilih (DPT), Pantarlih, Kotak Suara, dan Pejabat PPS se-Kabupaten Ngawi.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" onclick="openModalDesa()">
+                ➕ Tambah Desa / Kelurahan
+              </button>
+            </div>
+          </div>
+
+          <div class="alert alert-info mb-3">
+            <div class="alert-icon">💡</div>
+            <div class="alert-content">
+              <strong>Basis Data Primer Reaktif (SSOT):</strong> Perubahan jumlah TPS, Pantarlih, dan Pemilih (DPT) pada tabel ini akan langsung memperbarui kalkulasi pagu pada seluruh baris RKB yang terhubung secara otomatis tanpa perlu input ulang manual.
+            </div>
+          </div>
+
+          <!-- Summary Strip -->
+          <div class="penyelenggara-strip mb-3">
+            <div class="penyelenggara-box">
+              <div class="p-title">Total Desa / PPS</div>
+              <div class="p-val" id="pps-stat-total-desa">217 Desa</div>
+              <div class="p-note">213 Desa + 4 Kelurahan</div>
+            </div>
+            <div class="penyelenggara-box">
+              <div class="p-title">Total TPS Pilkada</div>
+              <div class="p-val" id="pps-stat-total-tps">1.371 TPS</div>
+              <div class="p-note">Koefisien Utama RKB</div>
+            </div>
+            <div class="penyelenggara-box">
+              <div class="p-title">Pemilih (DPT)</div>
+              <div class="p-val" id="pps-stat-total-pemilih">701.425 Jiwa</div>
+              <div class="p-note">Daftar Pemilih Tetap</div>
+            </div>
+            <div class="penyelenggara-box">
+              <div class="p-title">Petugas Pantarlih</div>
+              <div class="p-val" id="pps-stat-total-pantarlih">2.537 Orang</div>
+              <div class="p-note">Perekrutan Coklit</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="toolbar-card">
+              <div class="filter-group" style="min-width: 220px;">
+                <label>Filter Berdasarkan Kecamatan:</label>
+                <select id="filter-db-pps-kec" class="input-select input-sm" onchange="filterDbPps()">
+                  <option value="ALL">-- Semua Kecamatan (217 Desa) --</option>
+                  <!-- Populated via JS -->
+                </select>
+              </div>
+              <div class="filter-group flex-1">
+                <label>Pencarian Desa / Kelurahan / Pejabat PPS:</label>
+                <input type="text" id="filter-db-pps-text" class="input-text input-sm" placeholder="Ketik nama desa atau nama pejabat PPS..." onkeyup="filterDbPps()">
+              </div>
+            </div>
+            <div class="table-responsive" style="max-height: 600px;">
+              <table class="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">No</th>
+                    <th>Kecamatan</th>
+                    <th>Nama Desa / Kelurahan</th>
+                    <th class="text-center" style="width: 95px;">TPS</th>
+                    <th class="text-center" style="width: 95px;">Pantarlih</th>
+                    <th class="text-right" style="width: 110px;">Pemilih (DPT)</th>
+                    <th class="text-center" style="width: 80px;">Kotak</th>
+                    <th class="text-center" style="width: 90px;">Rohaniwan</th>
+                    <th>Ketua PPS</th>
+                    <th>Sekretaris PPS</th>
+                    <th>NIP Sekretaris</th>
+                    <th class="text-center" style="width: 100px;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="table-db-pps">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 3: MASTER PASANGAN CALON (PASLON)                             -->
+        <!-- ================================================================= -->
+        <section id="view-db-paslon" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Master Pasangan Calon Bupati & Wakil Bupati (Paslon)</h2>
+              <p class="view-desc">Basis Data Primer Pasangan Calon Peserta Pilkada Kabupaten Ngawi.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" onclick="openModalPaslon()">
+                ➕ Tambah Pasangan Calon
+              </button>
+            </div>
+          </div>
+
+          <div class="alert alert-info mb-3">
+            <div class="alert-icon">🗳️</div>
+            <div class="alert-content">
+              <strong>Pengaruh Otomatis ke RKB:</strong> Jumlah pasangan calon di bawah ini secara otomatis menentukan koefisien variabel <code>paslon</code> pada seluruh baris belanja debat publik, pencetakan alat peraga kampanye (APK), bahan kampanye, serta honorarium pokja terkait.
+            </div>
+          </div>
+
+          <!-- Summary Strip -->
+          <div class="penyelenggara-strip mb-3">
+            <div class="penyelenggara-box">
+              <div class="p-title">Paslon Terdaftar</div>
+              <div class="p-val" id="paslon-stat-total">3 Pasangan</div>
+              <div class="p-note">Kontestan Pilkada</div>
+            </div>
+            <div class="penyelenggara-box">
+              <div class="p-title">Koefisien Variabel RKB</div>
+              <div class="p-val" id="paslon-stat-koef">3 Paslon</div>
+              <div class="p-note">Terkunci di Rumus RKB</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="toolbar-card">
+              <div class="filter-group flex-1">
+                <label>Pencarian Pasangan Calon / Partai / Slogan:</label>
+                <input type="text" id="filter-db-paslon" class="input-text input-sm" placeholder="Ketik nama calon bupati, wakil, atau partai..." onkeyup="filterDbPaslon()">
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 70px;" class="text-center">No Urut</th>
+                    <th>Calon Bupati</th>
+                    <th>Calon Wakil Bupati</th>
+                    <th>Partai Politik Pengusung</th>
+                    <th>Slogan / Visi Misi</th>
+                    <th>Keterangan</th>
+                    <th class="text-center" style="width: 120px;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="table-db-paslon">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 4: PARAMETER & KUANTITAS SSOT                                 -->
+        <!-- ================================================================= -->
+        <section id="view-db-kuantitas" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Parameter & Volume Kuantitas Satker (SSOT)</h2>
+              <p class="view-desc">Single Source of Truth untuk Variabel Angka, Volume, Koefisien, dan Indikator RKB.</p>
+            </div>
+          </div>
+
+          <!-- Primary Data Reaktif Cards -->
+          <div class="penyelenggara-strip mb-3">
+            <div class="penyelenggara-box" style="border-top: 3px solid #0284c7;">
+              <div class="p-title">Total Kecamatan (kec_ppk)</div>
+              <div class="p-val" id="kuantitas-stat-kec">19</div>
+              <div class="p-note">Sumber: Master PPK</div>
+            </div>
+            <div class="penyelenggara-box" style="border-top: 3px solid #10b981;">
+              <div class="p-title">Total Desa (desa_pps)</div>
+              <div class="p-val" id="kuantitas-stat-desa">217</div>
+              <div class="p-note">Sumber: Master PPS</div>
+            </div>
+            <div class="penyelenggara-box" style="border-top: 3px solid #f59e0b;">
+              <div class="p-title">Total TPS (tps_rkb)</div>
+              <div class="p-val" id="kuantitas-stat-tps">1.371</div>
+              <div class="p-note">Sumber: Detail Desa</div>
+            </div>
+            <div class="penyelenggara-box" style="border-top: 3px solid #8b5cf6;">
+              <div class="p-title">Total DPT (pemilih_dpt)</div>
+              <div class="p-val" id="kuantitas-stat-pemilih">701.425</div>
+              <div class="p-note">Sumber: Detail Desa</div>
+            </div>
+            <div class="penyelenggara-box" style="border-top: 3px solid #ec4899;">
+              <div class="p-title">Pantarlih (pantarlih)</div>
+              <div class="p-val" id="kuantitas-stat-pantarlih">2.537</div>
+              <div class="p-note">Sumber: Detail Desa</div>
+            </div>
+            <div class="penyelenggara-box" style="border-top: 3px solid #6366f1;">
+              <div class="p-title">Paslon (paslon)</div>
+              <div class="p-val" id="kuantitas-stat-paslon">3</div>
+              <div class="p-note">Sumber: Master Paslon</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="toolbar-card">
+              <div class="filter-group flex-1">
+                <label>Pencarian Variabel / Parameter Kuantitas:</label>
+                <input type="text" id="filter-db-kuantitas" class="input-text input-sm" placeholder="Ketik kode variabel atau nama parameter..." onkeyup="filterDbKuantitas()">
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 160px;">Kode Variabel</th>
+                    <th>Nama Parameter Kuantitas</th>
+                    <th class="text-right" style="width: 140px;">Nilai Saat Ini</th>
+                    <th style="width: 120px;">Satuan</th>
+                    <th>Keterangan / Sumber Basis Data SSOT</th>
+                  </tr>
+                </thead>
+                <tbody id="table-db-kuantitas">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 5: STANDAR BIAYA MASUKAN (SBM)                                -->
+        <!-- ================================================================= -->
+        <section id="view-db-sbm" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Standar Biaya Masukan & SBML (SBM)</h2>
+              <p class="view-desc">Batas Tertinggi Satuan Biaya yang Disetujui Berdasarkan PMK dan Keputusan KPU RI No. 574/2023.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="toolbar-card">
+              <div class="filter-group" style="min-width: 200px;">
+                <label>Kategori Biaya:</label>
+                <select id="filter-db-sbm-kat" class="input-select input-sm" onchange="filterDbSbm()">
+                  <option value="ALL">-- Semua Kategori SBM --</option>
+                  <!-- Populated via JS -->
+                </select>
+              </div>
+              <div class="filter-group flex-1">
+                <label>Pencarian Uraian SBM:</label>
+                <input type="text" id="filter-db-sbm-text" class="input-text input-sm" placeholder="Ketik kata kunci nama biaya SBM..." onkeyup="filterDbSbm()">
+              </div>
+            </div>
+            <div class="table-responsive" style="max-height: 600px;">
+              <table class="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 150px;">Kategori</th>
+                    <th>Uraian Standar Biaya Masukan</th>
+                    <th style="width: 120px;">Satuan</th>
+                    <th class="text-right" style="width: 160px;">Batas Pagu SBM (Rp)</th>
+                    <th>Dasar Regulasi</th>
+                  </tr>
+                </thead>
+                <tbody id="table-db-sbm">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 6: BAGAN AKUN STANDAR (BAS)                                   -->
+        <!-- ================================================================= -->
+        <section id="view-db-bas" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Bagan Akun Standar (BAS) Belanja Hibah</h2>
+              <p class="view-desc">Kodifikasi Akun 6 Digit Standar Akuntansi Pemerintah (SAP) untuk Belanja Pilkada.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="toolbar-card">
+              <div class="filter-group" style="min-width: 200px;">
+                <label>Kelompok Belanja:</label>
+                <select id="filter-db-bas-kel" class="input-select input-sm" onchange="filterDbBas()">
+                  <option value="ALL">-- Semua Kelompok Akun --</option>
+                  <!-- Populated via JS -->
+                </select>
+              </div>
+              <div class="filter-group flex-1">
+                <label>Pencarian Uraian Akun / Kode BAS:</label>
+                <input type="text" id="filter-db-bas-text" class="input-text input-sm" placeholder="Ketik kode 6 digit atau uraian akun..." onkeyup="filterDbBas()">
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 130px;">Kode Akun</th>
+                    <th>Uraian Akun BAS</th>
+                    <th>Kelompok Belanja</th>
+                    <th>Kategori Belanja</th>
+                  </tr>
+                </thead>
+                <tbody id="table-db-bas">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 7: REGULASI & DASAR HUKUM                                     -->
+        <!-- ================================================================= -->
+        <section id="view-db-regulasi" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Regulasi, Dasar Hukum & Skema Penomoran RKB</h2>
+              <p class="view-desc">Landasan Yuridis dan Aturan Tata Kelola Anggaran Hibah Pilkada KPU Kabupaten Ngawi.</p>
+            </div>
+          </div>
+
+          <div class="card p-3 mb-4">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+              📜 Landasan Hukum dan Regulasi Acuan
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
+              <div class="card" style="padding: 16px; border-left: 4px solid #2563eb;">
+                <h4 style="margin: 0 0 6px 0; color: #2563eb;">1. Keputusan KPU Nomor 574 Tahun 2023</h4>
+                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                  Pedoman Teknis Penyusunan Kebutuhan dan Penganggaran Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota.
+                </p>
+              </div>
+              <div class="card" style="padding: 16px; border-left: 4px solid #059669;">
+                <h4 style="margin: 0 0 6px 0; color: #059669;">2. Peraturan Menteri Keuangan (PMK SBM)</h4>
+                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                  PMK Nomor 49/PMK.02/2023 tentang Standar Biaya Masukan Tahun Anggaran 2024 dan perubahannya untuk acuan pagu tertinggi satuan belanja barang dan jasa.
+                </p>
+              </div>
+              <div class="card" style="padding: 16px; border-left: 4px solid #d97706;">
+                <h4 style="margin: 0 0 6px 0; color: #d97706;">3. SBML KPU RI (Honorarium Adhoc)</h4>
+                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                  Satuan Biaya Masukan Lainnya (SBML) KPU yang mengatur besaran honorarium resmi penyelenggara adhoc (PPK, PPS, KPPS, Pantarlih, dan Linmas).
+                </p>
+              </div>
+              <div class="card" style="padding: 16px; border-left: 4px solid #7c3aed;">
+                <h4 style="margin: 0 0 6px 0; color: #7c3aed;">4. NPHD Pemerintah Kabupaten Ngawi</h4>
+                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                  Naskah Perjanjian Hibah Daerah Nomor 001/2023 dengan pagu disahkan sebesar <strong>Rp 49.999.999.000 (Empat Puluh Sembilan Miliar Sembilan Ratus Sembilan Puluh Sembilan Juta Sembilan Ratus Sembilan Puluh Sembilan Ribu Rupiah)</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-3">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+              🔢 Skema Penomoran Hierarki RKB 4-Level
+            </h3>
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 100px;">Level</th>
+                    <th style="width: 140px;">Sebutan Hierarki</th>
+                    <th>Format Penomoran / Kode</th>
+                    <th>Contoh pada RKB KPU Ngawi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>Level 0</strong></td><td>Grand Title</td><td>Huruf Kapital (A, B)</td><td>A. KEBUTUHAN BARANG DAN JASA<br>B. HONORARIUM POKJA DAN PENYELENGGARA</td></tr>
+                  <tr><td><strong>Level 1</strong></td><td>Bagian Utama</td><td>Angka Romawi (I, II)</td><td>I. TAHAPAN PERSIAPAN DAN PELAKSANAAN<br>II. OPERASIONAL DAN ADMINISTRASI KANTOR</td></tr>
+                  <tr><td><strong>Level 2</strong></td><td>Tahapan / Kegiatan</td><td>Angka Biasa (1 s.d 28)</td><td>1. Perencanaan Program dan Anggaran<br>5. Pembentukan dan Pembubaran PPK, PPS, KPPS<br>18. Pemeliharaan</td></tr>
+                  <tr><td><strong>Level 21-25</strong></td><td>Sub-Tahapan (Level 4)</td><td>Desimal (4.1, 4.2, ...) atau Strip (-)</td><td>4.1. Sosialisasi Pemilih Pemula<br>4.2. Bimbingan Teknis Sirekap</td></tr>
+                  <tr><td><strong>Level 3</strong></td><td>Akun Belanja (BAS)</td><td>Kode 6 Digit</td><td>[521211] Belanja Bahan<br>[521213] Honor Output Kegiatan<br>[524111] Belanja Perjalanan Dinas Biasa</td></tr>
+                  <tr><td><strong>Level 4</strong></td><td>Detail Item Belanja</td><td>Uraian Item (Rumus Multi-Faktor)</td><td>-. Konsumsi Rapat (15 Org x 5 Keg x Rp 65.000 = Rp 4.875.000)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW: PENGATURAN SATKER KPU (SSOT)                                -->
+        <!-- ================================================================= -->
+        <section id="view-db-settings" class="app-view">
           <div class="view-header">
             <div>
               <h2 class="view-title">Pengaturan Satker & Pejabat Penandatangan</h2>
@@ -934,6 +1103,254 @@
                   <input type="text" id="set-kota-ttd" class="input-text" value="NGAWI">
                 </div>
               </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 8: PANDUAN PENGGUNAAN SISTEM (PANDUAN LENGKAP SI-PRABU)       -->
+        <!-- ================================================================= -->
+        <section id="view-panduan" class="app-view">
+          <div class="view-header">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#e0e7ff;color:#4338ca;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>📖 PETUNJUK OPERASIONAL RESMI</span>
+              </div>
+              <h2 class="view-title">Panduan Penggunaan Sistem SI-PRABU v3.0</h2>
+              <p class="view-desc">
+                Tata Cara Perencanaan, Penyusunan RKB, Penguncian NPHD Sah, Mekanisme Usulan Revisi, dan Monitoring Unduhan Berkas.
+              </p>
+            </div>
+          </div>
+
+          <!-- Infografis Alur Kerja Sistem -->
+          <div class="card p-4 mb-4" style="background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%); color: #ffffff;">
+            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #ffffff;">
+              🏛️ Alur Tata Kelola Anggaran Hibah Pilkada (End-to-End)
+            </h3>
+            <p style="margin: 0 0 16px 0; font-size: 13px; opacity: 0.9; max-width: 800px;">
+              Sistem SI-PRABU mengintegrasikan Single Source of Truth (SSOT), kalkulasi dinamis 1.764 baris belanja, matriks selisih anggaran revisi, dan sistem antrean unduhan SAKTI Kemenkeu dalam satu platform terpadu.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">1️⃣ Basis Data SSOT</div>
+                <div style="font-size: 12px; opacity: 0.95;">Input data detail Kecamatan, Desa, TPS, DPT, dan Paslon pada Database Referensi.</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">2️⃣ Penyusunan RUH</div>
+                <div style="font-size: 12px; opacity: 0.95;">5 Subbagian menyusun rincian belanja berstandar SBM &amp; BAS pada Dokumen Induk.</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">3️⃣ Kunci NPHD Sah</div>
+                <div style="font-size: 12px; opacity: 0.95;">Setelah disahkan Pemda, dokumen dikunci permanen menjadi Baseline NPHD Rp 49,99 M.</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">4️⃣ Siklus Revisi</div>
+                <div style="font-size: 12px; opacity: 0.95;">Usulan revisi mencatat matriks pergeseran pagu dan justifikasi perubahan otomatis.</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">5️⃣ Cetak &amp; Monitoring</div>
+                <div style="font-size: 12px; opacity: 0.95;">Unduh laporan RUH, Rekapitulasi 4 Sheet, atau Paket Kasubag via Monitoring Report.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modul-Modul Panduan Detail -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px;">
+            <!-- Card 1 -->
+            <div class="card p-3">
+              <h3 style="font-size: 15px; font-weight: 700; color: #1e40af; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>🔄 1. Siklus Anggaran &amp; NPHD</span>
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
+                Dokumen RKB terbagi menjadi 2 jenis status:
+              </p>
+              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
+                <li><b>Draft Aktif / Terbuka:</b> Dokumen dapat diedit oleh PIC Subbagian sesuai kewenangannya.</li>
+                <li><b>Terkunci (NPHD Sah):</b> Dokumen berstatus read-only penuh untuk melindungi integritas naskah hibah. Perubahan selanjutnya wajib melalui tombol <i>"Buat Usulan Revisi"</i> di Pusat Siklus.</li>
+              </ul>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="card p-3">
+              <h3 style="font-size: 15px; font-weight: 700; color: #0284c7; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>📘 2. Penyusunan RUH Belanja &amp; Hierarki 4-Level</span>
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
+                Struktur penganggaran tersusun rapi dalam 4 level hierarkis:
+              </p>
+              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
+                <li><b>Level 1:</b> Program / Bagian Utama (Romawi I &amp; II).</li>
+                <li><b>Level 2:</b> Kegiatan / Tahapan Resmi (1 s.d 28).</li>
+                <li><b>Level 3:</b> Akun Belanja BAS 6 Digit (521211, 521213, dll.).</li>
+                <li><b>Level 4:</b> Detail Item Belanja dengan rumus kuantitas multi-faktor (Vol 1 s.d Vol 4) x Harga Satuan.</li>
+              </ul>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="card p-3">
+              <h3 style="font-size: 15px; font-weight: 700; color: #059669; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>📐 3. Reaktivitas Basis Data Primer (SSOT)</span>
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
+                Perubahan pada data rincian berikut langsung otomatis mengubah RKB:
+              </p>
+              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
+                <li><b>Jumlah TPS per Desa:</b> Mengubah kuantitas <code>tps_rkb</code>, KPPS, Linmas, dan distribusi logistik.</li>
+                <li><b>Jumlah DPT Pemilih:</b> Mengubah kuantitas <code>pemilih_dpt</code> surat suara dan form C.Hasil.</li>
+                <li><b>Pantarlih:</b> Mengubah kuantitas <code>pantarlih</code> honorarium dan perlengkapan coklit.</li>
+                <li><b>Paslon:</b> Mengubah kuantitas <code>paslon</code> debat kandidat dan APK.</li>
+              </ul>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="card p-3">
+              <h3 style="font-size: 15px; font-weight: 700; color: #d97706; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>📥 4. Sistem Monitoring Unduhan (SAKTI Style)</span>
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
+                Pengunduhan berkas skala besar dijalankan di latar belakang:
+              </p>
+              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
+                <li>Saat klik tombol unduh, sistem mencatat tiket antrean berstatus <b>"Diproses"</b>.</li>
+                <li>Setelah worker selesai menghasilkan file, status berubah menjadi <b>"Selesai"</b> dan tombol Download aktif.</li>
+                <li><b>Auto-Cleanup:</b> Berkas unduhan otomatis kadaluarsa dan terhapus setelah <b>1 jam</b> sejak dibuat.</li>
+              </ul>
+            </div>
+
+            <!-- Card 5 -->
+            <div class="card p-3">
+              <h3 style="font-size: 15px; font-weight: 700; color: #7c3aed; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>⚖️ 5. Matriks Revisi &amp; Justifikasi Perubahan</span>
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
+                Transparansi pergeseran anggaran pada setiap siklus revisi:
+              </p>
+              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
+                <li>Perbandingan otomatis nilai Sebelum (Semula) dan Sesudah (Menjadi) serta Nilai Selisih (Delta).</li>
+                <li>Kolom <b>Alasan / Catatan Justifikasi</b> wajib diisi untuk setiap baris belanja yang mengalami pergeseran.</li>
+                <li>Sheet Matrik Revisi di Excel otomatis mencantumkan ringkasan ini secara terpisah untuk audit inspektorat.</li>
+              </ul>
+            </div>
+
+            <!-- Card 6 -->
+            <div class="card p-3">
+              <h3 style="font-size: 15px; font-weight: 700; color: #dc2626; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>👥 6. Hak Akses &amp; 5 Subbagian KPU Ngawi</span>
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
+                Pemberian wewenang Role-Based Access Control (RBAC):
+              </p>
+              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
+                <li><b>RENDATIN:</b> Perencanaan, Data &amp; Informasi (Administrator Perencanaan Anggaran).</li>
+                <li><b>KUL:</b> Keuangan, Umum &amp; Logistik (Operasional, Distribusi, Honorarium Adhoc).</li>
+                <li><b>TEKNIS:</b> Teknis Penyelenggaraan Pemilu &amp; Sirekap.</li>
+                <li><b>HUKUM:</b> Hukum &amp; Pengawasan (Advokasi, Pokja Sengketa, Dokumentasi Hukum).</li>
+                <li><b>PARSDM:</b> Partisipasi Masyarakat, Sosialisasi, Pendidikan Pemilih &amp; SDM.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Bantuan & Narahubung -->
+          <div class="card p-3 mt-4" style="border-left: 4px solid #0284c7;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h4 style="margin: 0 0 4px 0; color: var(--primary);">Pusat Bantuan &amp; Helpdesk Anggaran KPU Kabupaten Ngawi</h4>
+                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
+                  Jika mengalami kendala teknis atau pertanyaan regulasi SBM, hubungi Subbagian Perencanaan, Data &amp; Informasi (RENDATIN).
+                </p>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); text-align: right;">
+                Sistem Dikembangkan Resmi oleh: <b>emenje</b><br>
+                <span>KPU Kabupaten Ngawi © 2026</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 9: MONITORING UNDUHAN (SAKTI KEMENKEU MONITORING REPORT)      -->
+        <!-- ================================================================= -->
+        <section id="view-monitoring" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Monitoring Report</h2>
+              <p class="view-desc">Pemantauan Status Pemrosesan dan Pengunduhan Berkas Laporan Anggaran (Adopsi Sistem SAKTI Kemenkeu).</p>
+            </div>
+          </div>
+
+          <!-- Parameter Card ala SAKTI -->
+          <div class="sakti-card-container mb-4">
+            <div class="sakti-parameter-groupbox">
+              <div class="sakti-parameter-legend">Parameter</div>
+              <div class="sakti-parameter-body">
+                <div class="sakti-form-row">
+                  <div class="sakti-form-label">Nama File</div>
+                  <div class="sakti-form-field">
+                    <input type="text" id="monitoring-search-file" class="input-text" placeholder="Masukan pencarian nama file.." onkeydown="if(event.key==='Enter') loadMonitoringReport()">
+                  </div>
+                </div>
+                <div class="sakti-form-row">
+                  <div class="sakti-form-label">Tanggal</div>
+                  <div class="sakti-form-field" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="date" id="monitoring-date-start" class="input-text" style="max-width: 170px;">
+                    <span style="font-size: 12px; font-weight: 600; color: #475569;">s.d</span>
+                    <input type="date" id="monitoring-date-end" class="input-text" style="max-width: 170px;">
+                  </div>
+                </div>
+                <div class="sakti-form-row" style="margin-top: 6px;">
+                  <div class="sakti-form-label"></div>
+                  <div class="sakti-form-field" style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-primary" onclick="loadMonitoringReport()" style="min-width: 75px; background: #007bff; border-color: #007bff;">
+                      Cari
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="resetMonitoringFilter()" style="min-width: 75px; background: #007bff; border-color: #007bff;">
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabel Monitoring Report -->
+            <div class="table-responsive mt-3">
+              <table class="table table-hover" style="border: 1px solid #dee2e6;">
+                <thead>
+                  <tr style="background-color: #e9ecef; color: #334155; font-size: 13px;">
+                    <th style="padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Nama File</th>
+                    <th style="width: 250px; text-align: center; padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Request Time</th>
+                    <th style="width: 150px; text-align: center; padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Status</th>
+                    <th style="width: 140px; text-align: center; padding: 10px 14px; border-bottom: 2px solid #cbd5e1;">Download</th>
+                  </tr>
+                </thead>
+                <tbody id="monitoring-table-body">
+                  <tr>
+                    <td colspan="4" class="text-center" style="padding: 30px; color: var(--text-muted);">
+                      Memuat daftar permintaan unduhan...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Footer Pagination & Action Buttons -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="changeMonitoringPage('first')" title="Awal">&laquo;</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="changeMonitoringPage('prev')" title="Sebelumnya">&lsaquo;</button>
+                <span class="badge badge-primary" style="padding: 6px 12px; font-size: 12px;" id="monitoring-page-badge">1</span>
+                <button type="button" class="btn btn-outline btn-sm" onclick="changeMonitoringPage('next')" title="Berikutnya">&rsaquo;</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="changeMonitoringPage('last')" title="Akhir">&raquo;</button>
+                <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;" id="monitoring-count-label">Menampilkan 0 data</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-primary" onclick="loadMonitoringReport()" style="background: #007bff; border-color: #007bff; display: inline-flex; align-items: center; gap: 6px;">
+                  <span>🔄 Refresh</span>
+                </button>
+                <button type="button" class="btn btn-primary" onclick="switchView('view-dashboard')" style="background: #007bff; border-color: #007bff; display: inline-flex; align-items: center; gap: 6px;">
+                  <span>🚪 Keluar</span>
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -2166,6 +2583,181 @@
         </div>
       </div>
     </div>
+    <!-- ===================================================================== -->
+    <!-- MODAL: MASTER PASANGAN CALON (PASLON)                                 -->
+    <!-- ===================================================================== -->
+    <div id="modal-paslon" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 580px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 16px;">🗳️ Form Data Pasangan Calon (Paslon)</h3>
+          <button type="button" class="btn-close" onclick="closeModalPaslon()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <form id="form-paslon">
+            <input type="hidden" id="paslon-id">
+            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">No Urut:</label>
+                <input type="number" id="paslon-no-urut" class="input-text" required min="1" max="10" value="1" style="text-align: center; font-weight: 700;">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Nama Calon Bupati:</label>
+                <input type="text" id="paslon-bupati" class="input-text" required placeholder="Gelar &amp; Nama Lengkap Calon Bupati">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Nama Calon Wakil Bupati:</label>
+              <input type="text" id="paslon-wakil" class="input-text" required placeholder="Gelar &amp; Nama Lengkap Calon Wakil Bupati">
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Partai Politik Pengusung / Koalisi:</label>
+              <textarea id="paslon-partai" class="input-text" rows="2" placeholder="Sebutkan partai politik pengusung atau independen..."></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Slogan / Visi Misi:</label>
+              <input type="text" id="paslon-slogan" class="input-text" placeholder="Tagline atau visi misi pasangan calon...">
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 700;">Keterangan Tambahan:</label>
+              <input type="text" id="paslon-keterangan" class="input-text" placeholder="Misal: Pasangan Calon Petahana / Terdaftar di KPU">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalPaslon()">Batal</button>
+          <button type="button" class="btn btn-primary" onclick="submitModalPaslon()">💾 Simpan Paslon</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: MASTER DESA & TPS                                              -->
+    <!-- ===================================================================== -->
+    <div id="modal-desa" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 640px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 16px;">🏘️ Form Master Desa / Kelurahan &amp; TPS</h3>
+          <button type="button" class="btn-close" onclick="closeModalDesa()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <form id="form-desa">
+            <input type="hidden" id="desa-id">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">Kecamatan:</label>
+                <select id="desa-kecamatan-id" class="input-select" required>
+                  <!-- Populated via JS -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">No Urut Desa:</label>
+                <input type="number" id="desa-no-urut" class="input-text" required min="1" value="1">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Nama Desa / Kelurahan:</label>
+              <input type="text" id="desa-nama" class="input-text" required placeholder="Misal: Karangasri, Beran, dll.">
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div class="form-group">
+                <label style="font-size: 11px; font-weight: 700; color: #0284c7;">Jumlah TPS:</label>
+                <input type="number" id="desa-tps" class="input-text" required min="1" value="5" style="text-align: center; font-weight: 700;">
+              </div>
+              <div class="form-group">
+                <label style="font-size: 11px; font-weight: 700; color: #059669;">Pantarlih:</label>
+                <input type="number" id="desa-pantarlih" class="input-text" required min="1" value="10" style="text-align: center; font-weight: 700;">
+              </div>
+              <div class="form-group">
+                <label style="font-size: 11px; font-weight: 700; color: #7c3aed;">Pemilih (DPT):</label>
+                <input type="number" id="desa-pemilih" class="input-text" required min="0" value="2500" style="text-align: center; font-weight: 700;">
+              </div>
+              <div class="form-group">
+                <label style="font-size: 11px; font-weight: 700; color: #475569;">Kotak Suara:</label>
+                <input type="number" id="desa-kotak" class="input-text" min="0" value="5" style="text-align: center;">
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">Nama Ketua PPS:</label>
+                <input type="text" id="desa-ketua" class="input-text" placeholder="Nama Lengkap Ketua PPS">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Nama Sekretaris PPS:</label>
+                <input type="text" id="desa-sekretaris" class="input-text" placeholder="Nama Lengkap Sekretaris PPS">
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 120px; gap: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">NIP Sekretaris PPS:</label>
+                <input type="text" id="desa-sekretaris-nip" class="input-text" placeholder="Nomor Induk Pegawai (bila PNS/PPPK)">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Rohaniwan:</label>
+                <input type="number" id="desa-rohaniwan" class="input-text" min="1" value="1" style="text-align: center;">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalDesa()">Batal</button>
+          <button type="button" class="btn btn-primary" onclick="submitModalDesa()">💾 Simpan Desa</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: MASTER KECAMATAN (PPK)                                         -->
+    <!-- ===================================================================== -->
+    <div id="modal-kecamatan" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 580px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 16px;">🏛️ Form Master Kecamatan (PPK)</h3>
+          <button type="button" class="btn-close" onclick="closeModalKecamatan()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <form id="form-kecamatan">
+            <input type="hidden" id="kecamatan-id">
+            <div style="display: grid; grid-template-columns: 90px 120px 1fr; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">No Urut:</label>
+                <input type="number" id="kecamatan-no-urut" class="input-text" required min="1" value="1" style="text-align: center;">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Kode Wilayah:</label>
+                <input type="text" id="kecamatan-kode" class="input-text" placeholder="Misal: 35.21.01">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Nama Kecamatan:</label>
+                <input type="text" id="kecamatan-nama" class="input-text" required placeholder="Misal: Ngawi, Sine, Kendal">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Nama Camat:</label>
+              <input type="text" id="kecamatan-camat" class="input-text" placeholder="Nama Camat beserta gelar">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">Nama Ketua PPK:</label>
+                <input type="text" id="kecamatan-ketua" class="input-text" placeholder="Nama Lengkap Ketua PPK">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Nama Sekretaris PPK:</label>
+                <input type="text" id="kecamatan-sekretaris" class="input-text" placeholder="Nama Lengkap Sekretaris PPK">
+              </div>
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 700;">NIP Sekretaris PPK:</label>
+              <input type="text" id="kecamatan-sekretaris-nip" class="input-text" placeholder="Nomor Induk Pegawai Sekretaris PPK">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalKecamatan()">Batal</button>
+          <button type="button" class="btn btn-primary" onclick="submitModalKecamatan()">💾 Simpan Kecamatan</button>
+        </div>
+      </div>
+    </div>
+
     <script src="/app.js?v=3.1.2"></script>
   </body>
 </html>

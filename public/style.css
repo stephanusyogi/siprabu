@@ -1755,4 +1755,249 @@ tr.rkb-row-lvl-41.table-row-selected td {
   font-weight: 600;
 }
 
+/* ========================================================================== */
+/* SAKTI KEMENKEU NAVIGATION & SIDEBAR COLLAPSE                               */
+/* ========================================================================== */
+.sakti-sidebar-toggle-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 12px;
+  color: #1e293b;
+  font-size: 13px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.sakti-sidebar-toggle-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0284c7;
+}
+
+.server-clock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.server-clock-pill .clock-icon {
+  font-size: 13px;
+}
+
+/* SAKTI Search Box at top of sidebar */
+.sidebar-search-box {
+  padding: 0 12px 10px 12px;
+}
+
+.menu-search-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  background: #ffffff;
+  transition: border-color 0.2s ease;
+}
+
+.menu-search-input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+/* Sidebar Collapsed State */
+.sidebar.collapsed {
+  width: 60px !important;
+  padding: 16px 0;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar.collapsed .sidebar-search-box,
+.sidebar.collapsed .sidebar-footer,
+.sidebar.collapsed .sakti-chevron,
+.sidebar.collapsed .badge,
+.sidebar.collapsed .label,
+.sidebar.collapsed .sakti-folder-label span {
+  display: none !important;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center !important;
+  padding: 10px 0 !important;
+  margin: 2px 6px !important;
+}
+
+.sidebar.collapsed .nav-item .icon {
+  margin: 0 !important;
+  font-size: 18px;
+}
+
+.sidebar.collapsed .sakti-folder-toggle {
+  justify-content: center !important;
+  padding: 8px 0 !important;
+}
+
+.sidebar.collapsed .sakti-tree-children {
+  padding-left: 0 !important;
+}
+
+/* ========================================================================== */
+/* SAKTI MONITORING REPORT CARD & PARAMETER GROUPBOX                          */
+/* ========================================================================== */
+.sakti-card-container {
+  background: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.sakti-parameter-groupbox {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  position: relative;
+  padding: 14px 18px;
+  margin-top: 10px;
+  background: #ffffff;
+}
+
+.sakti-parameter-legend {
+  position: absolute;
+  top: -12px;
+  left: 14px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 2px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.sakti-parameter-body {
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sakti-form-row {
+  display: flex;
+  align-items: center;
+}
+
+.sakti-form-label {
+  width: 140px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.sakti-form-field {
+  flex: 1;
+  max-width: 500px;
+}
+
+/* SAKTI Download Status Badges */
+.badge-diproses {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-selesai {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-gagal {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-kadaluarsa {
+  background: #e2e3e5;
+  color: #383d41;
+  border: 1px solid #d6d8db;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-sakti-download {
+  background: #007bff;
+  color: #ffffff;
+  border: 1px solid #007bff;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.btn-sakti-download:hover {
+  background: #0069d9;
+  border-color: #0062cc;
+  color: #ffffff;
+}
+
+.btn-sakti-download:disabled,
+.btn-sakti-download.disabled {
+  background: #6c757d;
+  border-color: #6c757d;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+
 
