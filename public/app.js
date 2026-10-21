@@ -734,22 +734,13 @@ function renderSiklus() {
             ${item.catatan_revisi ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">💬 ${escHtml(item.catatan_revisi)}</div>` : ''}
           </td>
           <td><span class="badge badge-primary">${escHtml(item.versi_revisi)}</span></td>
-          <td onclick="event.stopPropagation()">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
-              <div>
-                <span class="badge" style="background:#eff6ff;color:#1e40af;font-weight:700;border:1px solid #bfdbfe;font-size:11px;">
-                  📄 ${escHtml(item.dasar_pengesahan || 'Kertas Kerja')}
-                </span>
-                <div style="font-size:11px;color:#475569;margin-top:3px;font-family:var(--font-mono);">
-                  ${nomorBa ? `<strong>No:</strong> ${escHtml(nomorBa)}` : '<span style="color:#94a3b8;">No: -</span>'}
-                  ${tanggalBa ? `<span style="color:#64748b;margin-left:4px;">(${escHtml(tanggalBa)})</span>` : ''}
-                </div>
-              </div>
-              ${canManage ? `
-                <button type="button" class="btn btn-xs btn-outline-primary" onclick="openEditLegalitasModal(${item.id}, event)" title="Ubah Dasar & Legalitas Dokumen Ini" style="font-size:10px;padding:2px 6px;white-space:nowrap;margin-top:2px;">
-                  ✏️ Edit
-                </button>
-              ` : ''}
+          <td>
+            <span class="badge" style="background:#eff6ff;color:#1e40af;font-weight:700;border:1px solid #bfdbfe;font-size:11px;">
+              📄 ${escHtml(item.dasar_pengesahan || 'Kertas Kerja')}
+            </span>
+            <div style="font-size:11px;color:#475569;margin-top:3px;font-family:var(--font-mono);line-height:1.3;">
+              ${nomorBa ? `<strong>No:</strong> ${escHtml(nomorBa)}` : '<span style="color:#94a3b8;">No: -</span>'}
+              ${tanggalBa ? `<span style="color:#64748b;margin-left:4px;">(${escHtml(tanggalBa)})</span>` : ''}
             </div>
           </td>
           <td>
@@ -767,12 +758,19 @@ function renderSiklus() {
             ${formatNumber(item.total_items || 953)}
           </td>
           <td class="text-center" onclick="event.stopPropagation()">
-            <button class="btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-outline-primary'}" onclick="selectPeriodeAndSwitch(${item.id})" title="Buka lembar kerja RKB untuk dokumen ini">
-              📘 ${isCurrent ? 'Buka di RKB' : 'Pilih & Buka di RKB'}
-            </button>
-            <button class="btn btn-sm btn-success" onclick="exportExcelPeriode(${item.id})" title="Unduh File Excel Dokumen Ini">
-              📥 Excel
-            </button>
+            <div style="display:inline-flex;align-items:center;gap:6px;justify-content:center;white-space:nowrap;">
+              ${canManage ? `
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openEditLegalitasModal(${item.id}, event)" title="Ubah Dasar Pengesahan & Legalitas Dokumen Ini" style="font-size:11px;padding:4px 8px;font-weight:600;">
+                  ✏️ Edit Dasar
+                </button>
+              ` : ''}
+              <button type="button" class="btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-outline-primary'}" onclick="selectPeriodeAndSwitch(${item.id})" title="Buka lembar kerja RKB untuk dokumen ini" style="font-size:11px;padding:4px 8px;font-weight:600;">
+                📘 ${isCurrent ? 'Buka di RKB' : 'Pilih & Buka'}
+              </button>
+              <button type="button" class="btn btn-sm btn-success" onclick="exportExcelPeriode(${item.id})" title="Unduh File Excel Dokumen Ini" style="font-size:11px;padding:4px 8px;font-weight:600;">
+                📥 Excel
+              </button>
+            </div>
           </td>
         </tr>
       `;
