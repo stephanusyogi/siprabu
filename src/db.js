@@ -2178,6 +2178,63 @@ function deleteRevisiPengajuan(id) {
   return { success: true };
 }
 
+function finalizeTahap4Keseluruhan({ nomor_ba, tanggal_ba, link_scan_ba = '', catatan = '', user = null }) {
+  const activePeriode = getActivePeriode();
+  if (!activePeriode) throw new Error('Tidak ada dokumen RKB draf aktif untuk disahkan.');
+  if (activePeriode.is_locked) throw new Error('Dokumen RKB ini sudah berstatus terkunci.');
+
+  const noBa = (nomor_ba || '').trim();
+  const tglBa = (tanggal_ba || '').trim();
+  if (!noBa) throw new Error('Nomor Berita Acara Pleno (BA Pleno) wajib diisi.');
+  if (!tglBa) throw new Error('Tanggal Berita Acara Pleno wajib diisi.');
+
+  const waktuNow = formatWaktuSakti();
+  const userName = user ? `${user.nama_pejabat} (${user.username})` : 'Tim Rendatin & Pleno KPU';
+
+  // 1. Kunci periode RKB aktif
+  lockPeriode(activePeriode.id, {
+    dasar_pengesahan: 'BA Pleno Komisioner & TAPD',
+    nomor_ba_tapd: noBa,
+    tanggal_ba_tapd: tglBa,
+    catatan_revisi: catatan || `Pengesahan Berita Acara Pleno ${noBa}`,
+    gdrive_link_pleno: link_scan_ba,
+    catatan_pleno: catatan
+  });
+
+  // 2. Tandai seluruh usulan revisi terkait periode ini menjadi Tahap 4 (Selesai & Sah)
+  db.prepare(`
+    UPDATE revisi_pengajuan SET
+      tahap_terkini = 4,
+      status_tahap = 'SELESAI',
+      tahap4_waktu = ?,
+      tahap4_oleh = ?,
+      nomor_penetapan = ?,
+      tanggal_penetapan = ?,
+      tahap4_catatan = ?,
+      is_locked = 1,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE (periode_id = ? OR periode_id IS NULL) AND status_tahap != 'DITOLAK'
+  `).run(waktuNow, userName, noBa, tglBa, catatan || 'Disahkan berdasarkan Berita Acara Pleno.', activePeriode.id);
+
+  // 3. Otomatis kloning draft versi berikutnya
+  const nextRevNum = (activePeriode.revisi_ke || 0) + 1;
+  const newPeriode = clonePeriodeToRevision(activePeriode.id, {
+    nama_periode: `RKB KPU Kabupaten Ngawi (Revisi ${nextRevNum})`,
+    versi_revisi: `Revisi ${nextRevNum}`,
+    tahap_revisi: 'PASCA_NPHD',
+    dasar_pengesahan: 'Kertas Kerja Penyusunan',
+    catatan_revisi: `Kertas kerja operasional lanjutan pasca pengesahan BA Pleno ${noBa}`
+  });
+
+  return {
+    success: true,
+    locked_periode: getPeriodeById(activePeriode.id),
+    new_active_periode: newPeriode,
+    nomor_ba: noBa,
+    tanggal_ba: tglBa
+  };
+}
+
 function getArsipRevisiList() {
   const periodes = db.prepare(`
     SELECT p.*,
@@ -2279,5 +2336,6 @@ module.exports = {
   getRevisiPengajuanById,
   updateRevisiTahap,
   deleteRevisiPengajuan,
+  finalizeTahap4Keseluruhan,
   getArsipRevisiList
 };

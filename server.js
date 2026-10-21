@@ -96,6 +96,7 @@ const {
   getRevisiPengajuanById,
   updateRevisiTahap,
   deleteRevisiPengajuan,
+  finalizeTahap4Keseluruhan,
   getArsipRevisiList
 } = require('./src/db');
 
@@ -1014,6 +1015,50 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/revisi/arsip' && method === 'GET') {
       const arsipList = getArsipRevisiList();
       return sendJson(res, 200, { success: true, data: arsipList });
+    }
+
+    // 6b. GET /api/revisi/tahap4-info (Info Draf RKB Aktif & Usulan ACC Pleno untuk Pengesahan Tahap 4)
+    if (pathname === '/api/revisi/tahap4-info' && method === 'GET') {
+      const activePeriode = getActivePeriode();
+      const dataset = getCachedRkbDataset(activePeriode ? activePeriode.id : 1);
+      const totalPagu = (dataset.items || []).reduce((acc, it) => acc + (Number(it.jumlah) || 0), 0);
+      const usulanList = getRevisiPengajuanList({ periode_id: activePeriode ? activePeriode.id : null });
+      const usulanAcc = usulanList.filter(u => u.tahap_terkini >= 3 || u.status_tahap === 'SELESAI');
+
+      return sendJson(res, 200, {
+        success: true,
+        periode: activePeriode,
+        total_pagu: totalPagu,
+        total_items: (dataset.items || []).length,
+        usulan_acc: usulanAcc
+      });
+    }
+
+    // 6c. POST /api/revisi/pengesahan-tahap4-keseluruhan (Tahap 4 Sistem: Kunci RKB Draf Keseluruhan & Lampirkan BA Pleno)
+    if (pathname === '/api/revisi/pengesahan-tahap4-keseluruhan' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || (user.level > 1 && user.role_id !== 'sekretaris' && user.role_id !== 'developer')) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengesahan Tahap 4 (Penguncian RKB & BA Pleno) hanya dapat dilakukan oleh Tim Rendatin (Level 1) atau Sekretaris KPU (KPA).' });
+      }
+
+      const body = await parseJsonBody(req);
+      try {
+        const result = finalizeTahap4Keseluruhan({
+          nomor_ba: body.nomor_ba,
+          tanggal_ba: body.tanggal_ba,
+          link_scan_ba: body.link_scan_ba,
+          catatan: body.catatan,
+          user
+        });
+        clearRkbDatasetCache();
+        return sendJson(res, 200, {
+          success: true,
+          message: `RKB Draf berhasil DIKUNCI RESMI secara keseluruhan dengan Berita Acara Pleno ${result.nomor_ba}. Draft versi baru berhasil dibuat!`,
+          data: result
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
     }
 
     // 7. GET /api/revisi/preview-subbag (Estimasi Semula - Menjadi untuk Form Pengajuan)

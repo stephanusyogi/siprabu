@@ -2382,29 +2382,139 @@ tr.rkb-row-lvl-41.table-row-selected td {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   color: #ffffff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .sakti-tahap-badge.tahap-green {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1.5px solid #047857;
 }
 
 .sakti-tahap-badge.tahap-red {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: 1.5px solid #b91c1c;
 }
 
 .sakti-tahap-badge.tahap-blue {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: 1.5px solid #1d4ed8;
 }
 
 .sakti-tahap-badge.tahap-orange {
-  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  border: 1.5px solid #c2410c;
+}
+
+/* SAKTI Stage Color Box (Kotak Warna Tahapan seperti SAKTI Kemenkeu) */
+.sakti-stage-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  min-height: 48px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+  line-height: 1.35;
+}
+
+/* 1. Selesai / Disetujui / Lolos (Hijau SAKTI) */
+.sakti-stage-box.stage-success {
+  background-color: #d1fae5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+}
+.sakti-stage-box.stage-success .stage-date {
+  font-weight: 700;
+  color: #047857;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.sakti-stage-box.stage-success .stage-meta {
+  color: #065f46;
+  font-size: 10px;
+}
+.sakti-stage-box.stage-success .stage-pill {
+  background-color: #059669;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  margin-top: 3px;
+  display: inline-block;
+}
+
+/* 2. Sedang Aktif / Menunggu Antrean (Kuning / Oranye SAKTI) */
+.sakti-stage-box.stage-pending {
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+}
+.sakti-stage-box.stage-pending .stage-date {
+  font-weight: 700;
+  color: #b45309;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.sakti-stage-box.stage-pending .stage-meta {
+  color: #92400e;
+  font-size: 10px;
+}
+.sakti-stage-box.stage-pending .stage-pill {
+  background-color: #d97706;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  margin-top: 3px;
+  display: inline-block;
+}
+
+/* 3. Dikembalikan / Perlu Perbaikan / Ditolak (Merah SAKTI) */
+.sakti-stage-box.stage-rejected {
+  background-color: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+.sakti-stage-box.stage-rejected .stage-date {
+  font-weight: 700;
+  color: #b91c1c;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.sakti-stage-box.stage-rejected .stage-meta {
+  color: #991b1b;
+  font-size: 10px;
+}
+.sakti-stage-box.stage-rejected .stage-pill {
+  background-color: #dc2626;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  margin-top: 3px;
+  display: inline-block;
+}
+
+/* 4. Belum Tercapai / Kosong (Abu-abu Netral) */
+.sakti-stage-box.stage-empty {
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .sakti-tahap-cell {

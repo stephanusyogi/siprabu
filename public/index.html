@@ -182,29 +182,46 @@
               <span class="sakti-chevron">▾</span>
             </button>
             <div class="sakti-tree-children">
-              <!-- RUH Belanja RKB -->
+              <!-- RUH Belanja RKB (Semua Level) -->
               <button class="nav-item" data-view="view-rkb" onclick="switchView('view-rkb')">
                 <span class="icon">📘</span>
                 <span class="label">RUH Belanja RKB</span>
                 <span class="badge badge-primary badge-sm" id="badge-total-items">953</span>
               </button>
-              <!-- Pengajuan Revisi Subbag -->
+
+              <!-- Khusus Level 2 (PIC Subbag): Pengajuan Usulan Revisi -->
               <button class="nav-item" data-view="view-revisi-pengajuan" onclick="switchView('view-revisi-pengajuan')" id="nav-item-revisi-pengajuan">
                 <span class="icon">📝</span>
                 <span class="label">Pengajuan Usulan Revisi</span>
               </button>
-              <!-- Monitoring Revisi (4 Tahap SAKTI) -->
+
+              <!-- Khusus Level 1 (Tim Rendatin / Validator): Validasi Revisi -->
+              <button class="nav-item" data-view="view-revisi-validasi" onclick="switchView('view-revisi-validasi')" id="nav-item-revisi-validasi" style="display: none;">
+                <span class="icon">🔍</span>
+                <span class="label">Validasi Revisi</span>
+                <span class="badge badge-warning badge-sm" id="badge-revisi-perlu-verifikasi">0</span>
+              </button>
+
+              <!-- Khusus Level 1 (Tim Rendatin) & Level 3: Pengesahan & Penguncian RKB (Tahap 4) -->
+              <button class="nav-item" data-view="view-revisi-tahap4" onclick="switchView('view-revisi-tahap4')" id="nav-item-revisi-tahap4" style="display: none;">
+                <span class="icon">🔒</span>
+                <span class="label">Pengesahan BA Pleno (Tahap 4)</span>
+              </button>
+
+              <!-- Monitoring Revisi 4-Tahap SAKTI (Semua Level) -->
               <button class="nav-item" data-view="view-revisi-monitoring" onclick="switchView('view-revisi-monitoring')" id="nav-item-revisi-monitoring">
                 <span class="icon">📊</span>
                 <span class="label">Monitoring Revisi (4 Tahap)</span>
-                <span class="badge badge-warning badge-sm" id="badge-revisi-aktif">1</span>
+                <span class="badge badge-success badge-sm" id="badge-revisi-aktif">0</span>
               </button>
+
               <!-- Riwayat Arsip Dokumen Revisi (Locked History) -->
               <button class="nav-item" data-view="view-revisi-arsip" onclick="switchView('view-revisi-arsip')" id="nav-item-revisi-arsip">
                 <span class="icon">🗄️</span>
                 <span class="label">Riwayat Arsip Revisi (Locked)</span>
               </button>
-              <!-- Pusat Siklus & Induk Baseline -->
+
+              <!-- Pusat Siklus & Induk Baseline (Level 0 & Level 1) -->
               <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" id="nav-item-siklus" style="margin-bottom: 2px;">
                 <span class="icon">🔄</span>
                 <span class="label">Pusat Siklus Dokumen</span>
@@ -639,22 +656,22 @@
             <div class="sakti-form-body">
               <form id="form-revisi-step-1" onsubmit="event.preventDefault(); goToRevisiStep(2);">
                 <div class="sakti-grid-2col">
-                  <!-- Satker (Read-Only) -->
-                  <div class="sakti-form-group">
-                    <label>Satuan Kerja (Satker):</label>
-                    <input type="text" class="form-control" value="[657811] KPU KABUPATEN NGAWI" readonly>
-                  </div>
-
                   <!-- Subbagian Pengusul -->
                   <div class="sakti-form-group">
                     <label for="revisi-input-subbag">Subbagian Pengusul:</label>
-                    <select id="revisi-input-subbag" class="form-control" onchange="loadSubbagPreviewData(this.value)">
+                    <select id="revisi-input-subbag" class="form-control" onchange="handleSubbagInputChange(this.value)">
                       <option value="TEKNIS">Subbag Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
                       <option value="HUKUM">Subbag Hukum (HUKUM)</option>
                       <option value="PARSDM">Subbag Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
                       <option value="KUL">Subbag Keuangan, Umum &amp; Logistik (KUL)</option>
                       <option value="RENDATIN">Subbag Perencanaan, Data &amp; Informasi (RENDATIN)</option>
                     </select>
+                  </div>
+
+                  <!-- Komisioner Pengusul (Pengampu Divisi) -->
+                  <div class="sakti-form-group">
+                    <label for="revisi-input-komisioner-pengusul">Komisioner Pengusul:</label>
+                    <input type="text" id="revisi-input-komisioner-pengusul" class="form-control" readonly style="font-weight: 600; color: #1e40af; background: #eff6ff;" value="Anggota KPU Divisi Teknis Penyelenggaraan">
                   </div>
                 </div>
 
@@ -678,55 +695,10 @@
                   <input type="text" id="revisi-input-perihal" class="form-control" required placeholder="Contoh: Usulan Revisi Pergeseran Rincian Output Tahapan Pilkada TA 2026">
                 </div>
 
-                <div class="sakti-grid-2col">
-                  <!-- Pejabat Pengusul -->
-                  <div class="sakti-form-group">
-                    <label for="revisi-input-pejabat-pengusul">Pejabat Pengusul (Kasubbag / PPK):</label>
-                    <input type="text" id="revisi-input-pejabat-pengusul" class="form-control" required placeholder="Nama Pejabat Pengusul">
-                  </div>
-
-                  <!-- Jabatan Pengusul -->
-                  <div class="sakti-form-group">
-                    <label for="revisi-input-jabatan-pengusul">Jabatan Pejabat Pengusul:</label>
-                    <input type="text" id="revisi-input-jabatan-pengusul" class="form-control" placeholder="Kasubbag Teknis Penyelenggaraan Pemilu">
-                  </div>
-                </div>
-
-                <div class="sakti-grid-2col">
-                  <!-- Pejabat Penelaah / KPA -->
-                  <div class="sakti-form-group">
-                    <label>Pejabat Penelaah &amp; KPA:</label>
-                    <input type="text" id="revisi-input-nama-kpa" class="form-control" value="Sekretaris KPU Kabupaten Ngawi" readonly>
-                  </div>
-
-                  <!-- Kewenangan Revisi -->
-                  <div class="sakti-form-group">
-                    <label for="revisi-input-kewenangan">Kewenangan Revisi:</label>
-                    <select id="revisi-input-kewenangan" class="form-control">
-                      <option value="KPU Kabupaten Ngawi">KPU Kabupaten Ngawi (Satker)</option>
-                      <option value="KPU Provinsi Jawa Timur">KPU Provinsi Jawa Timur (Kanwil)</option>
-                      <option value="KPU RI / Ditjen Anggaran">KPU RI / Ditjen Anggaran Kemenkeu</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="sakti-grid-2col">
-                  <!-- Jenis Revisi -->
-                  <div class="sakti-form-group">
-                    <label for="revisi-input-jenis">Jenis Usulan Revisi:</label>
-                    <select id="revisi-input-jenis" class="form-control">
-                      <option value="Pergeseran Antar Rincian Output">Pergeseran Antar Rincian Output (RO)</option>
-                      <option value="Pergeseran Antar Akun Belanja">Pergeseran Antar Akun Belanja (Dalam 1 Kegiatan)</option>
-                      <option value="Revisi Administrasi &amp; Nomenklatur">Revisi Administrasi &amp; Nomenklatur RKB</option>
-                      <option value="Penyesuaian Pagu Hibah (Addendum NPHD)">Penyesuaian Pagu Hibah (Addendum NPHD)</option>
-                    </select>
-                  </div>
-
-                  <!-- Validasi PMK SBM -->
-                  <div class="sakti-form-group">
-                    <label>Validasi PMK / SBM:</label>
-                    <input type="text" class="form-control" value="Lolos Uji SBM (Bagan Akun &amp; Standar Tarif Sesuai)" readonly style="font-weight: 600; color: #15803d; background: #f0fdf4;">
-                  </div>
+                <!-- Validasi PMK SBM -->
+                <div class="sakti-form-group">
+                  <label>Validasi Kepatuhan SBM / PMK:</label>
+                  <input type="text" class="form-control" value="Lolos Uji SBM (Bagan Akun &amp; Standar Tarif Biaya Sesuai PMK)" readonly style="font-weight: 600; color: #15803d; background: #f0fdf4;">
                 </div>
 
                 <!-- Keterangan / Latar Belakang -->
@@ -844,16 +816,186 @@
         </section>
 
         <!-- ================================================================= -->
+        <!-- VIEW: VALIDASI REVISI (KHUSUS LEVEL 1: TIM RENDATIN / VALIDATOR)   -->
+        <!-- ================================================================= -->
+        <section id="view-revisi-validasi" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Validasi &amp; Penelitian Teknis Revisi</h2>
+              <p class="view-desc">Meja kerja penelitian teknis Rendatin terhadap usulan pergeseran anggaran yang diajukan oleh subbagian pelaksana (Tahap 2: Penelitian SBM &amp; Pagu NPHD).</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-outline-primary" onclick="switchView('view-revisi-monitoring')">
+                📊 Buka Monitoring 4-Tahap &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- SUMMARY KPI MEJA KERJA VALIDATOR -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px;">
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; box-shadow: var(--shadow-sm);">
+              <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Total Usulan Masuk</span>
+              <div style="font-size: 22px; font-weight: 800; color: #0f172a; font-family: var(--font-mono); margin-top: 4px;" id="val-kpi-total">0</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; box-shadow: var(--shadow-sm);">
+              <span style="font-size: 11px; font-weight: 700; color: #b45309; text-transform: uppercase;">Perlu Diteliti (Tahap 2)</span>
+              <div style="font-size: 22px; font-weight: 800; color: #d97706; font-family: var(--font-mono); margin-top: 4px;" id="val-kpi-pending">0</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; box-shadow: var(--shadow-sm);">
+              <span style="font-size: 11px; font-weight: 700; color: #15803d; text-transform: uppercase;">Telah Lolos ke Pleno</span>
+              <div style="font-size: 22px; font-weight: 800; color: #16a34a; font-family: var(--font-mono); margin-top: 4px;" id="val-kpi-pleno">0</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 8px; padding: 14px; box-shadow: var(--shadow-sm);">
+              <span style="font-size: 11px; font-weight: 700; color: #b91c1c; text-transform: uppercase;">Dikembalikan (Perbaikan)</span>
+              <div style="font-size: 22px; font-weight: 800; color: #dc2626; font-family: var(--font-mono); margin-top: 4px;" id="val-kpi-revisi">0</div>
+            </div>
+          </div>
+
+          <!-- TABEL DAFTAR USULAN MENUNGGU VALIDASI -->
+          <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="margin: 0;">📋 Daftar Usulan Revisi Subbagian Masuk (Perlu Penelitian SBM)</h3>
+              <button class="btn btn-outline btn-sm" onclick="loadValidasiRevisiTable()">🔄 Segarkan Meja Kerja</button>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0">
+                  <thead style="background: #1e293b; color: #ffffff;">
+                    <tr>
+                      <th style="width: 40px;" class="text-center">No</th>
+                      <th style="width: 140px;">ID Revisi</th>
+                      <th style="width: 110px;">Subbagian</th>
+                      <th>Surat Usulan &amp; Perihal</th>
+                      <th>Komisioner Pengusul</th>
+                      <th class="text-right" style="width: 150px;">Total Anggaran</th>
+                      <th style="width: 160px;">Berkas Bukti Dukung</th>
+                      <th style="width: 130px;" class="text-center">Status Tahap</th>
+                      <th style="width: 180px;" class="text-center">Aksi Penelitian</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-validasi-revisi-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW: PENGESAHAN BA PLENO (TAHAP 4: KUNCI RKB DRAF KESELURUHAN)     -->
+        <!-- ================================================================= -->
+        <section id="view-revisi-tahap4" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Pengesahan BA Pleno &amp; Penguncian Dokumen RKB (Tahap 4)</h2>
+              <p class="view-desc">Tahap 4 di sistem: Kunci draf RKB secara keseluruhan dan lampirkan Berita Acara Pleno Sah (BA Pleno) untuk menerbitkan arsip revisi resmi permanen.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-outline-primary" onclick="switchView('view-revisi-monitoring')">
+                📊 Monitoring 4-Tahap &rarr;
+              </button>
+            </div>
+          </div>
+
+          <div class="sakti-grid-2col">
+            <!-- PANEL KIRI: STATUS DRAF RKB AKTIF SAAT INI -->
+            <div class="card">
+              <div class="card-header">
+                <h3>📌 Status Dokumen Draf RKB Aktif Saat Ini</h3>
+                <span class="badge badge-success" id="tahap4-draft-status">🟢 DRAFT AKTIF</span>
+              </div>
+              <div class="card-body">
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                  <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Nama Dokumen Draf:</div>
+                  <div style="font-size: 14px; font-weight: 800; color: #1e293b; margin-top: 2px;" id="tahap4-draft-nama">-</div>
+                  <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 12px;">
+                    <div>Versi: <strong id="tahap4-draft-versi">-</strong></div>
+                    <div>Total Item: <strong id="tahap4-draft-items">-</strong></div>
+                  </div>
+                  <div style="margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                    <span style="font-size: 11px; color: #64748b;">Total Pagu Anggaran RKB:</span>
+                    <div style="font-size: 20px; font-weight: 800; color: #1e40af; font-family: var(--font-mono);" id="tahap4-draft-total">Rp 0</div>
+                  </div>
+                </div>
+
+                <h4 style="font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 8px;">Daftar Usulan Subbag yang Telah ACC Pleno (Siap Disahkan):</h4>
+                <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+                  <table class="table table-sm table-bordered">
+                    <thead style="background: #f1f5f9;">
+                      <tr>
+                        <th>Subbag</th>
+                        <th>ID Revisi</th>
+                        <th>Nomor Surat</th>
+                        <th class="text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-tahap4-usulan-acc">
+                      <!-- Populated via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL KANAN: FORMULIR BERITA ACARA PLENO & PENGUNCIAN KESELURUHAN -->
+            <div class="card">
+              <div class="card-header" style="background: #f0fdf4; border-bottom: 1px solid #bbf7d0;">
+                <h3 style="color: #166534;">📜 Formulir Pengesahan Berita Acara Pleno Komisioner</h3>
+              </div>
+              <div class="card-body">
+                <form id="form-pengesahan-tahap4-rkb" onsubmit="event.preventDefault(); submitPengesahanTahap4Keseluruhan();">
+                  <!-- Nomor BA Pleno -->
+                  <div class="sakti-form-group">
+                    <label for="tahap4-input-nomor-ba">Nomor Berita Acara Pleno (BA Pleno): <span style="color: red;">*</span></label>
+                    <input type="text" id="tahap4-input-nomor-ba" class="form-control" required placeholder="Contoh: 05/BA.01-BA/3521/2026 atau BA/TAPD/2026/01">
+                  </div>
+
+                  <!-- Tanggal BA Pleno -->
+                  <div class="sakti-form-group">
+                    <label for="tahap4-input-tanggal-ba">Tanggal Berita Acara Pleno: <span style="color: red;">*</span></label>
+                    <input type="date" id="tahap4-input-tanggal-ba" class="form-control" required>
+                  </div>
+
+                  <!-- Tautan Berkas Scan BA Pleno -->
+                  <div class="sakti-form-group">
+                    <label for="tahap4-input-link-ba">Tautan Berkas Scan Berita Acara Pleno (TTD Komisioner &amp; Sekretaris): <span style="color: red;">*</span></label>
+                    <input type="url" id="tahap4-input-link-ba" class="form-control" required placeholder="https://drive.google.com/file/d/...">
+                    <small style="color: #64748b;">Tautkan berkas scan pdf Berita Acara Rapat Pleno yang telah ditandatangani Ketua &amp; Anggota Komisioner KPU serta Sekretaris KPU.</small>
+                  </div>
+
+                  <!-- Catatan / Keterangan Legalitas -->
+                  <div class="sakti-form-group">
+                    <label for="tahap4-input-catatan">Catatan / Risalah Penetapan Pleno:</label>
+                    <textarea id="tahap4-input-catatan" class="form-control" rows="3" placeholder="Tuliskan intisari putusan rapat pleno pengesahan revisi RKB ini..."></textarea>
+                  </div>
+
+                  <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 11.5px; color: #b45309;">
+                    🔒 <b>Dampak Aksi Penguncian (Locked History):</b><br>
+                    Dokumen RKB draf ini akan <b>DIKUNCI SECARA KESELURUHAN (LOCKED)</b> menjadi arsip permanen dan tidak dapat diubah lagi. Sistem akan otomatis melahirkan <b>Draf RKB Versi Baru</b> untuk menampung siklus perencanaan berikutnya.
+                  </div>
+
+                  <button type="submit" class="btn btn-success" style="width: 100%; padding: 12px; font-weight: 800; font-size: 13.5px;" id="btn-submit-tahap4-final">
+                    🔒 Kunci RKB Draf Keseluruhan &amp; Sahkan BA Pleno (Tahap 4)
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
         <!-- VIEW: MONITORING REVISI 4 TAHAP (STANDAR SAKTI KEMENKEU)           -->
         <!-- ================================================================= -->
         <section id="view-revisi-monitoring" class="app-view">
           <div class="view-header">
             <div>
               <h2 class="view-title">Monitoring Siklus Proses Revisi</h2>
-              <p class="view-desc">Pelacakan berjenjang 4-Tahap Standar SAKTI: <b>Tahap 1 (Pengajuan)</b> &rarr; <b>Tahap 2 (Penelitian Rendatin)</b> &rarr; <b>Tahap 3 (Penelaahan Pleno &amp; KPA)</b> &rarr; <b>Tahap 4 (Penetapan &amp; Pengesahan)</b>.</p>
+              <p class="view-desc">Pelacakan berjenjang 4-Tahap Standar SAKTI: <b>Tahap 1 (Pengajuan)</b> &rarr; <b>Tahap 2 (Penelitian Rendatin)</b> &rarr; <b>Tahap 3 (ACC Pleno)</b> &rarr; <b>Tahap 4 (BA Pleno di Sahkan)</b>.</p>
             </div>
             <div class="header-actions">
-              <button class="btn btn-primary" onclick="switchView('view-revisi-pengajuan')">
+              <!-- HANYA LEVEL 2 YANG MEMILIKI TOMBOL BUAT USULAN REVISI -->
+              <button class="btn btn-primary" id="btn-monitoring-buat-usulan" onclick="switchView('view-revisi-pengajuan')" style="display: none;">
                 ➕ Buat Usulan Revisi Baru
               </button>
             </div>
@@ -895,7 +1037,7 @@
             </div>
           </div>
 
-          <!-- TABEL GRID MONITORING 4 TAHAP SAKTI -->
+          <!-- TABEL GRID MONITORING 4 TAHAP SAKTI (DENGAN KOTAK WARNA SAKTI) -->
           <div class="card">
             <div class="card-body" style="padding: 0;">
               <div class="table-responsive">
@@ -906,12 +1048,12 @@
                       <th style="width: 140px;">ID Revisi</th>
                       <th>Subbag / Surat Usulan</th>
                       <th style="width: 110px;" class="text-center">Validasi PMK</th>
-                      <th style="width: 135px;" class="text-center">Tahap 1<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Pengajuan</span></th>
-                      <th style="width: 145px;" class="text-center">Tahap 2<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Penelitian Rendatin</span></th>
-                      <th style="width: 145px;" class="text-center">Tahap 3<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Penelaahan Pleno</span></th>
-                      <th style="width: 145px;" class="text-center">Tahap 4<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Penetapan Sah</span></th>
+                      <th style="width: 155px;" class="text-center">Tahap 1<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Pengajuan</span></th>
+                      <th style="width: 165px;" class="text-center">Tahap 2<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">Penelitian Rendatin</span></th>
+                      <th style="width: 165px;" class="text-center">Tahap 3<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">ACC Pleno</span></th>
+                      <th style="width: 165px;" class="text-center">Tahap 4<br><span style="font-size: 10px; font-weight: normal; color: #cbd5e1;">BA Pleno di Sahkan</span></th>
                       <th style="width: 90px;" class="text-center">Tahap Status</th>
-                      <th style="width: 130px;" class="text-center">Aksi</th>
+                      <th style="width: 110px;" class="text-center">Aksi</th>
                     </tr>
                   </thead>
                   <tbody id="table-revisi-monitoring-body">
