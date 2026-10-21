@@ -14,6 +14,18 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 const DB_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite');
+const BACKUP_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.bak');
+const TEMPLATE_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.template');
+
+// Jika file database belum ada (misal instalasi baru atau clone baru), pulihkan dari template atau backup
+if (!fs.existsSync(DB_PATH)) {
+  if (fs.existsSync(BACKUP_PATH)) {
+    try { fs.copyFileSync(BACKUP_PATH, DB_PATH); } catch (e) {}
+  } else if (fs.existsSync(TEMPLATE_PATH)) {
+    try { fs.copyFileSync(TEMPLATE_PATH, DB_PATH); } catch (e) {}
+  }
+}
+
 const db = new DatabaseSync(DB_PATH);
 
 // Helper safe add column
@@ -233,6 +245,10 @@ function initDb() {
     for (const [uname, em] of Object.entries(defaultEmails)) {
       updEmail.run(em, uname);
     }
+
+    // Pastikan email emenje dan kasubbag teknis terkonfigurasi sesuai instruksi
+    db.prepare("UPDATE satker_users SET email = 'noorihan1184@gmail.com' WHERE username = 'emenje'").run();
+    db.prepare("UPDATE satker_users SET email = 'stephanusyogi12@gmail.com' WHERE username = 'teknis'").run();
   } catch (e) {}
 
   // Default settings untuk integrasi Google Sign-In
@@ -915,10 +931,12 @@ function authenticateGoogleUser(googleProfile) {
     u = db.prepare('SELECT * FROM satker_users WHERE LOWER(email) = ? AND is_active = 1').get(email);
   }
 
-  // 2. Fallback pencocokan khusus developer / lead architect emenje
+  // 2. Fallback pencocokan khusus developer emenje dan teknis
   if (!u && email) {
-    if (email === 'noorjihan1184@gmail.com') {
+    if (email === 'noorjihan1184@gmail.com' || email === 'noorihan1184@gmail.com') {
       u = db.prepare("SELECT * FROM satker_users WHERE username = 'emenje' AND is_active = 1").get();
+    } else if (email === 'stephanusyogi12@gmail.com') {
+      u = db.prepare("SELECT * FROM satker_users WHERE username = 'teknis' AND is_active = 1").get();
     }
   }
 

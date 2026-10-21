@@ -2,9 +2,15 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+# Database SQLite produksi (agar data server tidak tertimpa/hilang saat git pull)
+data/*.sqlite
 data/*.sqlite-journal
 data/*.sqlite-wal
 data/*.sqlite-shm
+data/*.sqlite.bak
+
+# Template database dasar tetap di-track untuk instalasi baru
+!data/hibah_kpu.sqlite.template
 
 data/downloads/*
 !data/downloads/.gitkeep
