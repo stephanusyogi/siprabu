@@ -43,15 +43,15 @@ def fix_worksheet_breaks(file_path):
             wb.Close(False)
             return False
 
-        # Cari baris akhir tanda tangan (Nama Ketua KPU)
+        # Cari baris akhir tanda tangan resmi (sebelum Penanda Riwayat File)
         sign_end_row = total_row + 6
-        for r in range(total_row + 1, min(used_rows + 1, total_row + 15)):
-            txt = ws.Cells(r, 9).Text
-            if txt and ('MUSTAKIM' in txt.upper() or 'SAMSU' in txt.upper()):
-                sign_end_row = r
+        for r in range(total_row + 1, min(used_rows + 1, total_row + 20)):
+            txt = ws.Cells(r, 1).Text
+            if txt and '[PENANDA RIWAYAT' in txt.upper():
+                sign_end_row = max(1, r - 3)
                 break
 
-        # Set Print Area Resmi Sheet RUH: hanya dari A1 sampai baris akhir tanda tangan
+        # Set Print Area Resmi Sheet RUH: hanya dari A1 sampai baris akhir tanda tangan (A1:K)
         # Baris Signature / Riwayat File di bawah berada di luar area print
         ws.PageSetup.PrintArea = f"$A$1:$K${sign_end_row}"
 
@@ -60,12 +60,13 @@ def fix_worksheet_breaks(file_path):
             if s.Name == 'Matriks_Revisi':
                 m_used = s.UsedRange.Rows.Count
                 m_end = m_used
-                for r in range(m_used, max(1, m_used - 15), -1):
+                for r in range(m_used, max(1, m_used - 20), -1):
                     txt = s.Cells(r, 1).Text
                     if txt and '[PENANDA RIWAYAT' in txt.upper():
                         m_end = max(1, r - 3)
                         break
-                s.PageSetup.PrintArea = f"$A$1:$M${m_end}"
+                # Kolom No dan Level (L & M) diletakkan di luar area print: printArea terkunci di A1:K
+                s.PageSetup.PrintArea = f"$A$1:$K${m_end}"
             elif s.Name == 'Data_Kertas_Kerja':
                 k_used = s.UsedRange.Rows.Count
                 k_end = k_used
