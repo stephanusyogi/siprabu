@@ -75,7 +75,7 @@
             <label for="screen-login-username">Nama Pengguna (Username):</label>
             <div class="login-input-wrapper">
               <span class="login-input-icon">👤</span>
-              <input type="text" id="screen-login-username" class="login-input-control" required placeholder="Masukkan nama pengguna" autocomplete="username">
+              <input type="text" id="screen-login-username" class="login-input-control" required placeholder="Masukkan nama pengguna" autocomplete="username" oninput="clearLoginScreenError()">
             </div>
           </div>
 
@@ -83,7 +83,7 @@
             <label for="screen-login-password">Kata Sandi (Password):</label>
             <div class="login-input-wrapper">
               <span class="login-input-icon">🔒</span>
-              <input type="password" id="screen-login-password" class="login-input-control" required placeholder="Masukkan kata sandi" autocomplete="current-password">
+              <input type="password" id="screen-login-password" class="login-input-control" required placeholder="Masukkan kata sandi" autocomplete="current-password" oninput="clearLoginScreenError()">
               <button type="button" class="login-toggle-pwd" onclick="toggleScreenPasswordVisibility()" title="Lihat / Sembunyikan Kata Sandi">
                 <span id="screen-pwd-icon">👁️</span>
               </button>

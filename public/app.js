@@ -268,6 +268,12 @@ function toggleScreenPasswordVisibility() {
   }
 }
 
+function clearLoginScreenError() {
+  const errorBox = document.getElementById('login-screen-error');
+  if (errorBox) errorBox.style.display = 'none';
+}
+
+
 async function submitScreenLoginForm() {
   const username = document.getElementById('screen-login-username')?.value?.trim();
   const password = document.getElementById('screen-login-password')?.value || '';
@@ -607,7 +613,8 @@ function renderGoogleButton() {
   const activeTargets = targets.filter(t => Boolean(t.container));
   if (activeTargets.length === 0) return;
 
-  if (googleAuthConfig.client_id) {
+  const isGoogleActive = Boolean(googleAuthConfig.enabled && googleAuthConfig.client_id);
+  if (isGoogleActive) {
     if (window.google && window.google.accounts && window.google.accounts.id) {
       gsiRetryCount = 0;
       activeTargets.forEach(({ container, hint }) => {
@@ -659,9 +666,9 @@ function renderGoogleButton() {
   } else {
     activeTargets.forEach(({ container, hint }) => {
       container.innerHTML = `
-        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 8px 12px; border-radius: 8px; font-size: 11px; color: #64748b; width: 100%;">
-          ℹ️ Single Sign-On Google belum diaktifkan.<br>
-          Silakan masuk menggunakan Akun Lokal di bawah.
+        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 10px 14px; border-radius: 8px; font-size: 11.5px; color: #64748b; width: 100%; text-align: center;">
+          ℹ️ <strong>Single Sign-On (SSO) Google sedang dinonaktifkan</strong><br>
+          <span style="font-size: 11px;">Silakan masuk menggunakan Nama Pengguna & Kata Sandi akun lokal di bawah.</span>
         </div>
       `;
       if (hint) hint.innerHTML = '';
@@ -7893,6 +7900,7 @@ window.filterMatriksModalRows = filterMatriksModalRows;
 window.showLoginScreen = showLoginScreen;
 window.showMainApp = showMainApp;
 window.toggleScreenPasswordVisibility = toggleScreenPasswordVisibility;
+window.clearLoginScreenError = clearLoginScreenError;
 window.submitScreenLoginForm = submitScreenLoginForm;
 window.quickDeveloperLogin = quickDeveloperLogin;
 window.isDeveloperSession = isDeveloperSession;
