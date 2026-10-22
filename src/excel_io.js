@@ -229,73 +229,53 @@ function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPi
 }
 
 /**
- * Menghitung pembagian halaman proporsional (Page Breaks),
- * menyeimbangkan halaman penutup agar bebas orphan signature,
- * dan menerapkan garis bawah penutup tabel tebal/medium hitam pada setiap halaman cetak.
+ * Menyeimbangkan halaman penutup agar bebas orphan signature
+ * dan memastikan Total Pagu Belanja & Tanda Tangan didampingi baris belanja yang proporsional.
+ * Halaman-halaman sebelumnya dibiarkan mengalir secara alami mengikuti driver printer
+ * agar terhindar dari konflik page break ganda (halaman yang hanya berisi 1 baris).
  */
 function applyProportionalPageBreaksAndBorders(ws, dataStartRow, dataEndRow, options = {}) {
   const {
     maxCols = 11, // Kolom A s.d. K
-    page1Capacity = 565, // Total kapasitas tinggi baris Halaman 1 (Judul 58pt + Header 28pt + Data 479pt)
-    pageNextCapacity = 575, // Total kapasitas tinggi baris Halaman 2+ (Header 28pt + Data 547pt, ~24-25 baris belanja)
+    pageCapacity = 550, // Estimasi kapasitas vertikal halaman normal A4 Landscape (~24-25 baris)
     endingBlockHeight = 164, // Total Pagu Belanja (28pt) + Spacer (16pt) + Tanda Tangan (120pt)
-    minFinalRows = 10 // Minimal baris belanja yang menemani Total & TTD di halaman penutup
+    minFinalRows = 12 // Minimal baris belanja yang menemani Total & TTD di halaman penutup
   } = options;
 
-  const rowHeights = [];
+  const totalRows = dataEndRow - dataStartRow + 1;
+  if (totalRows <= minFinalRows) {
+    ws.rowBreaks = [];
+    return [];
+  }
+
+  // Hitung akumulasi tinggi baris secara alami untuk mendeteksi kapasitas halaman terakhir
+  let currentAccumulated = 86; // Halaman 1 (Judul 58pt + Header 28pt)
   for (let r = dataStartRow; r <= dataEndRow; r++) {
-    rowHeights.push({ rowNum: r, height: ws.getRow(r).height || 20 });
-  }
-
-  const pageBreaks = [];
-  let currentPageIndex = 1;
-  let currentAccumulated = (currentPageIndex === 1 ? 86 : 28);
-  let maxCap = (currentPageIndex === 1 ? page1Capacity : pageNextCapacity);
-
-  let i = 0;
-  while (i < rowHeights.length) {
-    const remainingRows = rowHeights.slice(i);
-    const remainingHeight = remainingRows.reduce((sum, item) => sum + item.height, 0);
-
-    // 1. Jika seluruh sisa baris + Blok Total & TTD muat di halaman ini secara penuh
-    if (currentAccumulated + remainingHeight + endingBlockHeight <= maxCap) {
-      break;
-    }
-
-    // 2. Cek apakah sisa baris bisa didistribusikan secara proporsional dalam 2 halaman terakhir
-    const availableForDataOnNextPage = pageNextCapacity - 28 - endingBlockHeight; // ~276 pt
-    const maxDataThisPage = maxCap - currentAccumulated;
-
-    if (remainingHeight <= maxDataThisPage + availableForDataOnNextPage) {
-      const targetFinalCount = Math.max(minFinalRows, Math.floor(remainingRows.length / 2));
-      const actualFinalCount = Math.min(targetFinalCount, remainingRows.length - 2);
-
-      if (actualFinalCount >= 4) {
-        const splitIdx = remainingRows.length - actualFinalCount;
-        const breakRow = remainingRows[splitIdx - 1].rowNum;
-        pageBreaks.push(breakRow);
-        break;
-      }
-    }
-
-    const item = rowHeights[i];
-    if (currentAccumulated + item.height > maxCap) {
-      const prevRow = (i > 0) ? rowHeights[i - 1].rowNum : item.rowNum;
-      pageBreaks.push(prevRow);
-
-      currentPageIndex++;
-      maxCap = pageNextCapacity;
-      currentAccumulated = 28 + item.height;
+    const rH = ws.getRow(r).height || 20;
+    if (currentAccumulated + rH > pageCapacity) {
+      currentAccumulated = 28 + rH; // Halaman berikutnya diawali repeating header 28pt
     } else {
-      currentAccumulated += item.height;
+      currentAccumulated += rH;
     }
-    i++;
   }
 
-  // Terapkan garis bawah MEDIUM BLACK penutup tabel pada baris terakhir setiap halaman cetak
-  pageBreaks.forEach(breakRowNum => {
+  const remainingSpace = pageCapacity - currentAccumulated;
+  const dataHeightOnLastPage = currentAccumulated - 28;
+  const isOverflow = (remainingSpace < endingBlockHeight);
+  const isTooFewRows = (dataHeightOnLastPage < minFinalRows * 20);
+  const pageBreaks = [];
+
+  // Jika sisa ruang di halaman akhir tidak cukup untuk Total Belanja + TTD (overflow / orphan signature),
+  // ATAU jika baris belanja di halaman penutup terlalu sedikit (< minFinalRows baris, terlihat lowong):
+  // Pasang TEPAT 1 manual page break agar minFinalRows baris belanja ikut menyeberang ke halaman penutup
+  if ((isOverflow || isTooFewRows) && totalRows >= minFinalRows + 6) {
+    const breakRow = Math.max(dataStartRow + 4, dataEndRow - minFinalRows);
+    pageBreaks.push(breakRow);
+    ws.rowBreaks = [{ id: breakRow, max: maxCols, man: 1 }];
+
+    // Garis penutup tebal MEDIUM BLACK pada baris break penyeimbang tersebut
     for (let c = 1; c <= maxCols; c++) {
-      const cell = ws.getCell(breakRowNum, c);
+      const cell = ws.getCell(breakRow, c);
       const curr = cell.border || {};
       cell.border = {
         top: curr.top,
@@ -304,11 +284,8 @@ function applyProportionalPageBreaksAndBorders(ws, dataStartRow, dataEndRow, opt
         right: curr.right
       };
     }
-  });
-
-  // Pasang OpenXML rowBreaks
-  if (pageBreaks.length > 0) {
-    ws.rowBreaks = pageBreaks.map(bRow => ({ id: bRow, max: maxCols, man: 1 }));
+  } else {
+    ws.rowBreaks = [];
   }
 
   return pageBreaks;
@@ -587,24 +564,24 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
     // MATRIKS BORDER DAN GARIS BERDASARKAN LEVEL:
     // Pembedaan bentuk garis horizontal dan vertikal agar rapi saat dicetak & dibaca
-    // Memastikan tidak ada baris tanpa garis
+    // Menjamin setiap baris memiliki garis bawah hitam yang jelas (penutup tabel otomatis pada setiap halaman cetak)
     let hTop = undefined;
-    let hBottom = { style: 'thin', color: { argb: 'FFE5E7EB' } };
+    let hBottom = { style: 'thin', color: { argb: 'FF000000' } }; // Garis bawah hitam solid (penutup tabel)
 
     if (treeLvl === 1) {
-      hTop = { style: 'medium', color: { argb: 'FF333333' } };
-      hBottom = { style: 'thin', color: { argb: 'FF333333' } };
+      hTop = { style: 'medium', color: { argb: 'FF000000' } };
+      hBottom = { style: 'thin', color: { argb: 'FF000000' } };
     } else if (treeLvl === 2) {
-      hTop = { style: 'thin', color: { argb: 'FF666666' } };
-      hBottom = { style: 'thin', color: { argb: 'FF666666' } };
+      hTop = { style: 'thin', color: { argb: 'FF000000' } };
+      hBottom = { style: 'thin', color: { argb: 'FF000000' } };
     } else if (treeLvl === 3) {
-      hTop = { style: 'hair', color: { argb: 'FFCCCCCC' } };
-      hBottom = { style: 'thin', color: { argb: 'FFAAAAAA' } };
+      hTop = { style: 'thin', color: { argb: 'FF666666' } };
+      hBottom = { style: 'thin', color: { argb: 'FF000000' } };
     } else if (treeLvl === 4 || treeLvl === 5.5) {
-      hBottom = { style: 'thin', color: { argb: 'FFD4D4D8' } };
+      hBottom = { style: 'thin', color: { argb: 'FF000000' } };
     } else if (treeLvl === 5) {
-      hTop = { style: 'hair', color: { argb: 'FFCCCCCC' } };
-      hBottom = { style: 'thin', color: { argb: 'FFBBBBBB' } };
+      hTop = { style: 'thin', color: { argb: 'FF666666' } };
+      hBottom = { style: 'thin', color: { argb: 'FF000000' } };
     }
 
     // Format Kolom A s.d. D (Nomor Ramping Terpusat) dan Kolom E (Kode)
@@ -732,10 +709,9 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const lastDataRowNumber = ws1.rowCount;
   applyProportionalPageBreaksAndBorders(ws1, 5, lastDataRowNumber, {
     maxCols: 11,
-    page1Capacity: 565,
-    pageNextCapacity: 575,
+    pageCapacity: 550,
     endingBlockHeight: 164,
-    minFinalRows: 10
+    minFinalRows: 12
   });
 
   // BARIS TOTAL PAGU BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold, Tanpa 'RUH')
