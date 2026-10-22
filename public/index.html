@@ -3540,7 +3540,7 @@
     <!-- ===================================================================== -->
     <!-- MODAL: EDIT PARAMETER KUANTITAS SSOT                                  -->
     <!-- ===================================================================== -->
-    <div id="modal-kuantitas" class="modal-backdrop" style="display: none; z-index: 1080;">
+    <div id="modal-kuantitas" class="modal-backdrop" style="display: none; z-index: 1080;" onclick="if (event.target === this) closeModalKuantitas();">
       <div class="modal-box" style="max-width: 520px;">
         <div class="modal-header">
           <h3 id="modal-kuantitas-title" style="margin: 0; font-size: 16px;">📐 Edit Parameter Kuantitas SSOT</h3>
@@ -3984,7 +3984,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.6.1"></script>
+    <script src="/app.js?v=3.6.2"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

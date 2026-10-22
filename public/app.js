@@ -82,6 +82,109 @@ function setElVal(id, val) {
   if (el) el.value = val !== undefined && val !== null ? val : '';
 }
 
+/**
+ * Sistem Notifikasi Toast Global SI-PRABU
+ * @param {string} message - Pesan notifikasi
+ * @param {'success'|'error'|'warning'|'info'|'danger'} type - Tipe status
+ * @param {number} duration - Durasi tayang dalam milidetik (default: 3500)
+ */
+function showToast(message, type = 'info', duration = 3500) {
+  if (!message) return;
+  try {
+    let container = document.getElementById('siprabu-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'siprabu-toast-container';
+      container.style.cssText = `
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 999999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 420px;
+        pointer-events: none;
+      `;
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `siprabu-toast siprabu-toast-${type}`;
+
+    let bg = '#1e293b';
+    let border = '#334155';
+    let icon = 'ℹ️';
+    let textColor = '#ffffff';
+
+    if (type === 'success') {
+      bg = '#065f46';
+      border = '#059669';
+      icon = '✅';
+    } else if (type === 'error' || type === 'danger') {
+      bg = '#991b1b';
+      border = '#dc2626';
+      icon = '❌';
+    } else if (type === 'warning') {
+      bg = '#92400e';
+      border = '#d97706';
+      icon = '⚠️';
+    } else if (type === 'info') {
+      bg = '#1e3a8a';
+      border = '#2563eb';
+      icon = 'ℹ️';
+    }
+
+    toast.style.cssText = `
+      background: ${bg};
+      color: ${textColor};
+      border: 1px solid ${border};
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13.5px;
+      font-weight: 500;
+      line-height: 1.4;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(-10px) scale(0.98);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    `;
+
+    toast.innerHTML = `
+      <span style="font-size: 16px; flex-shrink: 0;">${icon}</span>
+      <span style="flex: 1;">${escapeHtml(message)}</span>
+      <span style="font-size: 16px; opacity: 0.6; margin-left: 8px; cursor: pointer;" title="Tutup">&times;</span>
+    `;
+
+    const dismiss = () => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-10px) scale(0.98)';
+      setTimeout(() => { if (toast.parentElement) toast.remove(); }, 250);
+    };
+
+    toast.onclick = dismiss;
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0) scale(1)';
+    });
+
+    setTimeout(dismiss, duration);
+  } catch (e) {
+    console.log('[Toast ' + type + ']:', message);
+    if (type === 'error' || type === 'danger') {
+      try { alert(message); } catch (_) {}
+    }
+  }
+}
+window.showToast = showToast;
+
 async function apiFetch(endpoint, options = {}) {
   const token = localStorage.getItem('siprabu_token');
   const headers = {
@@ -4702,11 +4805,15 @@ async function submitModalKecamatan() {
       body: JSON.stringify({ id, no_urut, kode, nama, ketua_ppk, sekretaris_ppk, sekretaris_nip })
     });
     if (result.success) {
-      showToast('Data Kecamatan berhasil disimpan.', 'success');
       closeModalKecamatan();
-      await loadMasters();
-      await loadRkbData();
-      renderAllViews();
+      showToast('Data Kecamatan berhasil disimpan.', 'success');
+      try {
+        await loadMasters();
+        await loadRkbData();
+        renderAllViews();
+      } catch (e) {
+        console.warn('Gagal memuat ulang view kecamatan:', e);
+      }
     } else {
       showToast(result.error || 'Gagal menyimpan kecamatan.', 'error');
     }
@@ -4940,11 +5047,15 @@ async function submitModalDesa() {
       body: JSON.stringify({ id, kecamatan_id, no_urut, nama, tps, pantarlih, pemilih, kotak, rohaniwan, ketua_nama, sekretaris_nama, sekretaris_nip })
     });
     if (result.success) {
-      showToast('Data Desa & TPS berhasil disimpan. Seluruh baris RKB otomatis dihitung ulang.', 'success');
       closeModalDesa();
-      await loadMasters();
-      await loadRkbData();
-      renderAllViews();
+      showToast('Data Desa & TPS berhasil disimpan. Seluruh baris RKB otomatis dihitung ulang.', 'success');
+      try {
+        await loadMasters();
+        await loadRkbData();
+        renderAllViews();
+      } catch (e) {
+        console.warn('Gagal memuat ulang view desa:', e);
+      }
     } else {
       showToast(result.error || 'Gagal menyimpan desa.', 'error');
     }
@@ -5121,11 +5232,15 @@ async function submitModalPaslon() {
       body: JSON.stringify({ id, no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan })
     });
     if (result.success) {
-      showToast('Data Pasangan Calon berhasil disimpan. Koefisien RKB otomatis diperbarui.', 'success');
       closeModalPaslon();
-      await loadMasters();
-      await loadRkbData();
-      renderAllViews();
+      showToast('Data Pasangan Calon berhasil disimpan. Koefisien RKB otomatis diperbarui.', 'success');
+      try {
+        await loadMasters();
+        await loadRkbData();
+        renderAllViews();
+      } catch (e) {
+        console.warn('Gagal memuat ulang view paslon:', e);
+      }
     } else {
       showToast(result.error || 'Gagal menyimpan paslon.', 'error');
     }
@@ -5274,6 +5389,11 @@ function openModalKuantitas(id) {
 function closeModalKuantitas() {
   const modal = document.getElementById('modal-kuantitas');
   if (modal) modal.style.display = 'none';
+  const submitBtn = document.getElementById('btn-submit-kuantitas');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '💾 Simpan Parameter';
+  }
 }
 
 async function submitModalKuantitas() {
@@ -5310,11 +5430,20 @@ async function submitModalKuantitas() {
       })
     });
     if (result.success) {
-      showToast(result.message || 'Parameter SSOT berhasil diperbarui!', 'success');
+      // 1. Pastikan pop up langsung tertutup seketika saat sukses
       closeModalKuantitas();
-      await loadMasters();
-      await loadRkbData();
-      renderAllViews();
+
+      // 2. Berikan notifikasi toast konfirmasi
+      showToast(result.message || 'Parameter SSOT berhasil diperbarui!', 'success');
+
+      // 3. Perbarui state dan kalkulasi di latar belakang
+      try {
+        await loadMasters();
+        await loadRkbData();
+        renderAllViews();
+      } catch (refreshErr) {
+        console.warn('Gagal memuat ulang view master kuantitas:', refreshErr);
+      }
     } else {
       showToast(result.error || 'Gagal memperbarui parameter kuantitas.', 'error');
     }
