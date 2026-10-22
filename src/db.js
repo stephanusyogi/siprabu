@@ -393,8 +393,66 @@ function initDb() {
     db.prepare('UPDATE master_desa SET kotak = tps WHERE kotak IS NULL OR kotak = 0').run();
   } catch (e) {}
 
+  // Selaraskan siklus RKB operasional (Hanya 2 RKB: Fondasi Sah dan Usulan 1 Draft Aktif)
+  alignOperationalRkbCycles();
+
   // Buat snapshot beku untuk arsip lama yang belum memiliki snapshot
   freezeExistingLockedPeriods();
+}
+
+/**
+ * Penyelarasan Siklus RKB Operasional (Mandat: Hanya 2 RKB: Fondasi Sah dan Usulan 1 Draft Aktif)
+ * Dijalankan otomatis saat startup agar database produksi / remote selalu sinkron dengan aturan operasional.
+ */
+function alignOperationalRkbCycles() {
+  try {
+    // 1. Hapus draf/arsip prematur Revisi 2 (id = 1000004 atau nama memuat Revisi 2)
+    const premature = db.prepare(`
+      SELECT id FROM periode_anggaran
+      WHERE id = 1000004 OR nama_periode LIKE '%Revisi 2%' OR versi_revisi = 'Revisi 2'
+    `).all();
+    for (const p of premature) {
+      db.prepare('DELETE FROM rab_baris WHERE periode_id = ?').run(p.id);
+      db.prepare('DELETE FROM subbag_usulan_revisi WHERE periode_id = ?').run(p.id);
+      db.prepare('DELETE FROM periode_snapshot WHERE periode_id = ?').run(p.id);
+      db.prepare('DELETE FROM revisi_pengajuan WHERE periode_id = ?').run(p.id);
+      db.prepare('DELETE FROM periode_anggaran WHERE id = ?').run(p.id);
+      console.log(`[STARTUP MIGRATION] Menghapus siklus prematur periode_id=${p.id}`);
+    }
+
+    // 2. Pastikan Usulan 1 (Periode 1000003) berstatus DRAFT AKTIF (is_locked = 0)
+    const p3 = db.prepare('SELECT id, is_locked FROM periode_anggaran WHERE id = 1000003').get();
+    if (p3) {
+      if (p3.is_locked === 1) {
+        db.prepare(`
+          UPDATE periode_anggaran
+          SET is_locked = 0, locked_at = '', nomor_ba_tapd = '', tanggal_ba_tapd = '',
+              dasar_pengesahan = 'Kertas Kerja Penyusunan'
+          WHERE id = 1000003
+        `).run();
+        console.log('[STARTUP MIGRATION] Membuka kunci Periode 1000003 menjadi DRAFT AKTIF');
+      }
+      // Hapus snapshot untuk 1000003 jika ada agar perhitungannya dinamis
+      db.prepare('DELETE FROM periode_snapshot WHERE periode_id = 1000003').run();
+
+      // Pastikan revisi_pengajuan pada periode 1000003 berada pada status ACC_PLENO dan belum terkunci
+      db.prepare(`
+        UPDATE revisi_pengajuan
+        SET is_locked = 0, tahap_terkini = 3, status_tahap = 'ACC_PLENO',
+            nomor_penetapan = '', tanggal_penetapan = '', tahap4_waktu = '', tahap4_catatan = ''
+        WHERE periode_id = 1000003
+      `).run();
+    }
+
+    // 3. Pastikan RKB Awal (Periode 1) berstatus Terkunci sebagai Fondasi Sah dengan Pagu Rp 49.999.999.000
+    db.prepare(`
+      UPDATE periode_anggaran
+      SET is_locked = 1, pagu_nphd = 49999999000
+      WHERE id = 1 AND (is_locked != 1 OR pagu_nphd != 49999999000 OR pagu_nphd IS NULL)
+    `).run();
+  } catch (err) {
+    console.warn('[MIGRATION] Peringatan saat menyelaraskan siklus RKB:', err.message);
+  }
 }
 
 /**
@@ -555,6 +613,7 @@ function getPeriodeList() {
       COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id AND row_type != 'header'), 0) as total_items,
       COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id), 0) as total_baris
     FROM periode_anggaran p
+    WHERE p.id != 1000004 AND p.nama_periode NOT LIKE '%Revisi 2%' AND p.versi_revisi != 'Revisi 2'
     ORDER BY p.id ASC
   `).all();
   return periodes;
@@ -571,12 +630,12 @@ function getPeriodeById(id) {
 
 function getActivePeriode() {
   // RKB Aktif adalah versi RKB yang BELUM dikunci (is_locked = 0)
-  let p = db.prepare("SELECT * FROM periode_anggaran WHERE tipe_dokumen = 'RKB' AND is_locked = 0 ORDER BY id DESC LIMIT 1").get();
+  let p = db.prepare("SELECT * FROM periode_anggaran WHERE tipe_dokumen = 'RKB' AND is_locked = 0 AND id != 1000004 AND nama_periode NOT LIKE '%Revisi 2%' ORDER BY id DESC LIMIT 1").get();
   if (!p) {
-    p = db.prepare("SELECT * FROM periode_anggaran WHERE tipe_dokumen = 'RKB' AND is_locked = 1 ORDER BY revisi_ke DESC, id DESC LIMIT 1").get();
+    p = db.prepare("SELECT * FROM periode_anggaran WHERE tipe_dokumen = 'RKB' AND is_locked = 1 AND id != 1000004 AND nama_periode NOT LIKE '%Revisi 2%' ORDER BY revisi_ke DESC, id DESC LIMIT 1").get();
   }
   if (!p) {
-    p = db.prepare("SELECT * FROM periode_anggaran ORDER BY id DESC LIMIT 1").get();
+    p = db.prepare("SELECT * FROM periode_anggaran WHERE id != 1000004 AND nama_periode NOT LIKE '%Revisi 2%' ORDER BY id DESC LIMIT 1").get();
   }
   if (p) {
     return getPeriodeById(p.id);

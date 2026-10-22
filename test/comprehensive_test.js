@@ -329,6 +329,18 @@ async function runAllTests() {
   assert(code1.startsWith('2026.657811.'), `Kode revisi otomatis dibuat dengan format valid: ${code1}`);
 
   // --------------------------------------------------------------------------
+  // TEST 16b: Validasi Konfigurasi Tepat 2 Dokumen RKB Operasional
+  // --------------------------------------------------------------------------
+  const activePeriodsList = getPeriodeList();
+  assert(activePeriodsList.length === 2, `Sistem mengelola tepat 2 dokumen RKB (aktual: ${activePeriodsList.length}).`);
+  const rkbAwal = activePeriodsList.find(p => p.revisi_ke === 0);
+  const usulan1 = activePeriodsList.find(p => p.revisi_ke === 1);
+  assert(rkbAwal && rkbAwal.is_locked === 1 && rkbAwal.pagu_nphd === 49999999000, 'RKB Awal berstatus TERKUNCI sebagai Fondasi Sah dengan Pagu Rp 49.999.999.000.');
+  assert(usulan1 && usulan1.is_locked === 0, 'RKB Usulan 1 berstatus DRAFT AKTIF (belum disahkan).');
+  const rogueRevisi2 = activePeriodsList.find(p => p.id === 1000004 || p.revisi_ke > 1);
+  assert(!rogueRevisi2, 'Tidak ada dokumen draf prematur Revisi 2 di dalam daftar RKB sistem.');
+
+  // --------------------------------------------------------------------------
   // TEST 17: Master Import Preview Mode & Error Handling
   // --------------------------------------------------------------------------
   console.log('\n--- KELOMPOK 7: IMPORT EXCEL & TRANSAKSI ---');

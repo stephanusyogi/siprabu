@@ -770,7 +770,7 @@ async function loadMasters() {
 
 async function loadPeriodes() {
   const res = await apiFetch('/api/periodes');
-  AppState.periodesList = res.periodes || [];
+  AppState.periodesList = (res.periodes || []).filter(p => p.id !== 1000004 && !String(p.nama_periode || '').includes('Revisi 2') && p.versi_revisi !== 'Revisi 2');
 
   // ATURAN BARU: Inisialisasi & Dashboard SELALU mengambil draft aktif (is_locked = 0)
   try {
@@ -1606,7 +1606,7 @@ async function submitEditLegalitasForm() {
 
     // Reload period list via apiFetch
     const pData = await apiFetch('/api/periodes');
-    AppState.periodesList = pData.periodes || [];
+    AppState.periodesList = (pData.periodes || []).filter(p => p.id !== 1000004 && !String(p.nama_periode || '').includes('Revisi 2') && p.versi_revisi !== 'Revisi 2');
 
     const updated = AppState.periodesList.find(x => x.id === id);
     if (AppState.currentPeriode && AppState.currentPeriode.id === id && updated) {

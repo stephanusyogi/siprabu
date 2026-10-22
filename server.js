@@ -221,6 +221,9 @@ const MIME_TYPES = {
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -596,7 +599,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/periodes' && method === 'GET') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      const periodes = getPeriodeList();
+      const rawPeriodes = getPeriodeList();
+      const periodes = rawPeriodes.filter(p => p.id !== 1000004 && !String(p.nama_periode || '').includes('Revisi 2') && p.versi_revisi !== 'Revisi 2');
       for (const p of periodes) {
         const data = getCachedRkbDataset(p.id);
         p.total_pagu = data.summary.grandTotal;
