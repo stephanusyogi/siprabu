@@ -236,10 +236,10 @@ function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPi
 function applyProportionalPageBreaksAndBorders(ws, dataStartRow, dataEndRow, options = {}) {
   const {
     maxCols = 11, // Kolom A s.d. K
-    page1Capacity = 466, // Total kapasitas tinggi baris Halaman 1 (Judul 58pt + Header 28pt + Data 380pt)
-    pageNextCapacity = 468, // Total kapasitas tinggi baris Halaman 2+ (Header 28pt + Data 440pt)
+    page1Capacity = 565, // Total kapasitas tinggi baris Halaman 1 (Judul 58pt + Header 28pt + Data 479pt)
+    pageNextCapacity = 575, // Total kapasitas tinggi baris Halaman 2+ (Header 28pt + Data 547pt, ~24-25 baris belanja)
     endingBlockHeight = 164, // Total Pagu Belanja (28pt) + Spacer (16pt) + Tanda Tangan (120pt)
-    minFinalRows = 8 // Minimal baris belanja yang menemani Total & TTD di halaman penutup
+    minFinalRows = 10 // Minimal baris belanja yang menemani Total & TTD di halaman penutup
   } = options;
 
   const rowHeights = [];
@@ -732,10 +732,10 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const lastDataRowNumber = ws1.rowCount;
   applyProportionalPageBreaksAndBorders(ws1, 5, lastDataRowNumber, {
     maxCols: 11,
-    page1Capacity: 466,
-    pageNextCapacity: 468,
+    page1Capacity: 565,
+    pageNextCapacity: 575,
     endingBlockHeight: 164,
-    minFinalRows: 8
+    minFinalRows: 10
   });
 
   // BARIS TOTAL PAGU BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold, Tanpa 'RUH')
