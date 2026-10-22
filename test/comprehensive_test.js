@@ -265,7 +265,7 @@ async function runAllTests() {
   // Buat usulan uji
   const nextKode = generateNextKodeRevisi(1);
   const testPengajuan = createRevisiPengajuan({
-    subbag: 'TEKNIS',
+    subbag: 'HUKUM',
     nomor_surat: '001/TEST/2026',
     tanggal_surat: '2026-10-22',
     perihal: 'Uji Alur Tahap Pengesahan',
@@ -275,7 +275,7 @@ async function runAllTests() {
     total_semula: 500000000,
     total_menjadi: 520000000,
     selisih: 20000000
-  }, { id: 10, username: 'teknis_op', nama_pejabat: 'Staf Teknis', level: 2, pic_subbag: 'TEKNIS' });
+  }, { id: 10, username: 'hukum_op', nama_pejabat: 'Staf Hukum', level: 2, pic_subbag: 'HUKUM' });
 
   assert(testPengajuan.tahap_terkini === 1, 'Pengajuan baru selalu berawal dari Tahap 1 (Usulan).');
 
