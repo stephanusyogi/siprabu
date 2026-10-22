@@ -2915,6 +2915,75 @@ async function submitQuickCatatan() {
 // MODAL: FORM TAMBAH / EDIT BARIS BELANJA
 // ============================================================================
 
+function populateFactorVarSelects() {
+  const kuantitasList = AppState.masters?.kuantitas || [];
+  const primaryCodes = ['parpol', 'paslon', 'bakal_paslon', 'paslon_perseorangan', 'komisioner', 'tps_rkb', 'kotak_rkb', 'kec_ppk', 'desa_pps', 'dpt', 'sekretariat_kpu'];
+  
+  const primaryItems = [];
+  const adhocItems = [];
+  const otherItems = [];
+
+  kuantitasList.forEach(k => {
+    const code = String(k.kode || '').toLowerCase();
+    if (primaryCodes.includes(code)) {
+      primaryItems.push(k);
+    } else if (code.startsWith('ppk_') || code.startsWith('pps_') || code.startsWith('kpps_') || code === 'pantarlih' || code === 'linmas_tps' || code === 'petugas_tps') {
+      adhocItems.push(k);
+    } else {
+      otherItems.push(k);
+    }
+  });
+
+  const renderGroup = (label, list) => {
+    if (!list.length) return '';
+    return `<optgroup label="${label}">${list.map(k => `
+      <option value="${k.kode}">@${k.kode} (${k.nama || k.kode}: ${k.nilai} ${k.satuan || ''})</option>
+    `).join('')}</optgroup>`;
+  };
+
+  const html = `
+    <option value="">-- Manual (Input Bebas) --</option>
+    ${renderGroup('Parameter Utama SSOT', primaryItems)}
+    ${renderGroup('Honorarium & Adhoc SSOT', adhocItems)}
+    ${renderGroup('Parameter Lainnya', otherItems)}
+  `;
+
+  for (let i = 1; i <= 4; i++) {
+    const sel = document.getElementById(`modal-f${i}-var`);
+    if (sel) {
+      const currentVal = sel.value;
+      sel.innerHTML = html;
+      if (currentVal) sel.value = currentVal;
+    }
+  }
+}
+
+function onFactorVarSelectChange(factorIdx) {
+  const sel = document.getElementById(`modal-f${factorIdx}-var`);
+  const valEl = document.getElementById(`modal-f${factorIdx}-val`);
+  const unitEl = document.getElementById(`modal-f${factorIdx}-unit`);
+  const badgeEl = document.getElementById(`modal-f${factorIdx}-var-badge`);
+
+  if (!sel || !valEl) return;
+  const varCode = (sel.value || '').trim();
+
+  if (varCode) {
+    if (badgeEl) badgeEl.style.display = 'inline-block';
+    const kuantitasList = AppState.masters?.kuantitas || [];
+    const clean = varCode.replace(/^@/, '').toLowerCase();
+    const item = kuantitasList.find(k => String(k.kode || '').toLowerCase() === clean);
+    if (item) {
+      valEl.value = item.nilai;
+      if (unitEl && (!unitEl.value || unitEl.value.trim() === '')) {
+        unitEl.value = item.satuan || '';
+      }
+    }
+  } else {
+    if (badgeEl) badgeEl.style.display = 'none';
+  }
+  calculateModalTotal();
+}
+
 function openRowModal(rowId, event) {
   if (event) {
     event.preventDefault();
@@ -2975,6 +3044,31 @@ function openRowModal(rowId, event) {
   setElVal('modal-f3-unit', row.f3_unit || '');
   setElVal('modal-f4-val', row.f4_val !== null ? row.f4_val : '');
   setElVal('modal-f4-unit', row.f4_unit || '');
+
+  // Setup variable selectors for F1..F4 (SSOT Binding)
+  populateFactorVarSelects();
+  for (let i = 1; i <= 4; i++) {
+    let fVar = (row[`f${i}_var`] || '').trim();
+    const fUnit = (row[`f${i}_unit`] || '').trim().toLowerCase();
+    if (!fVar) {
+      if (fUnit === 'paslon') {
+        const uLower = String(row.uraian || '').toLowerCase();
+        if (uLower.includes('perseorangan')) fVar = 'paslon_perseorangan';
+        else if (uLower.includes('bakal')) fVar = 'bakal_paslon';
+        else fVar = 'paslon';
+      } else if (fUnit === 'parpol' || fUnit === 'partai' || fUnit.includes('parpol')) {
+        fVar = 'parpol';
+      } else if (fUnit === 'komisioner') {
+        fVar = 'komisioner';
+      } else if (fUnit === 'pemilih') {
+        fVar = 'dpt';
+      }
+    }
+    setElVal(`modal-f${i}-var`, fVar);
+    const badge = document.getElementById(`modal-f${i}-var-badge`);
+    if (badge) badge.style.display = fVar ? 'inline-block' : 'none';
+  }
+
   setElVal('modal-basis-pengali', row.basis_pengali || 'NONE');
 
   // Update Satuan Volume Dropdown & Custom
@@ -3066,15 +3160,25 @@ function openAddRowModal() {
   // Update BAS Account Card Display & Quick SBM Chips
   updateAkunCardDisplay(selectedRow?.kode_akun || '521211');
 
+  populateFactorVarSelects();
+
   setElVal('modal-harga', 0);
   setElVal('modal-f1-val', 1);
   setElVal('modal-f1-unit', 'Keg');
+  setElVal('modal-f1-var', '');
   setElVal('modal-f2-val', '');
   setElVal('modal-f2-unit', '');
+  setElVal('modal-f2-var', '');
   setElVal('modal-f3-val', '');
   setElVal('modal-f3-unit', '');
+  setElVal('modal-f3-var', '');
   setElVal('modal-f4-val', '');
   setElVal('modal-f4-unit', '');
+  setElVal('modal-f4-var', '');
+  for (let i = 1; i <= 4; i++) {
+    const badge = document.getElementById(`modal-f${i}-var-badge`);
+    if (badge) badge.style.display = 'none';
+  }
   setElVal('modal-basis-pengali', 'NONE');
 
   // Update Satuan Volume Dropdown & Custom
@@ -3105,11 +3209,16 @@ function calculateModalTotal() {
   const f3u = document.getElementById('modal-f3-unit')?.value || '';
   const f4u = document.getElementById('modal-f4-unit')?.value || '';
 
+  const f1v = (document.getElementById('modal-f1-var')?.value || '').trim();
+  const f2v = (document.getElementById('modal-f2-var')?.value || '').trim();
+  const f3v = (document.getElementById('modal-f3-var')?.value || '').trim();
+  const f4v = (document.getElementById('modal-f4-var')?.value || '').trim();
+
   const factorDefs = [
-    { el: f1El, unit: f1u },
-    { el: f2El, unit: f2u },
-    { el: f3El, unit: f3u },
-    { el: f4El, unit: f4u }
+    { el: f1El, unit: f1u, varCode: f1v, badge: document.getElementById('modal-f1-var-badge') },
+    { el: f2El, unit: f2u, varCode: f2v, badge: document.getElementById('modal-f2-var-badge') },
+    { el: f3El, unit: f3u, varCode: f3v, badge: document.getElementById('modal-f3-var-badge') },
+    { el: f4El, unit: f4u, varCode: f4v, badge: document.getElementById('modal-f4-var-badge') }
   ];
 
   let baseFactor = 1;
@@ -3118,6 +3227,7 @@ function calculateModalTotal() {
   const parts = [];
 
   for (const f of factorDefs) {
+    if (f.badge) f.badge.style.display = f.varCode ? 'inline-block' : 'none';
     if (!f.el || f.el.value === undefined || f.el.value === null || f.el.value.trim() === '') {
       continue;
     }
@@ -3130,14 +3240,9 @@ function calculateModalTotal() {
     } else {
       const validNum = isNaN(num) ? 0 : num;
       baseFactor *= validNum;
-      parts.push(`${validNum.toLocaleString('id-ID')} ${f.unit}`.trim());
+      const varTag = f.varCode ? ` (@${f.varCode})` : '';
+      parts.push(`${validNum.toLocaleString('id-ID')} ${f.unit}${varTag}`.trim());
     }
-  }
-
-  if (activeFactors === 0) {
-    baseFactor = 1;
-  } else if (hasExplicitZero) {
-    baseFactor = 0;
   }
 
   const basis = (document.getElementById('modal-basis-pengali')?.value || 'NONE').toUpperCase();
@@ -3222,12 +3327,16 @@ async function submitRowForm() {
     harga_satuan: isHeaderMode ? 0 : (Number(document.getElementById('modal-harga')?.value) || 0),
     f1_val: isHeaderMode ? null : (document.getElementById('modal-f1-val')?.value ? Number(document.getElementById('modal-f1-val').value) : null),
     f1_unit: isHeaderMode ? '' : (document.getElementById('modal-f1-unit')?.value || ''),
+    f1_var: isHeaderMode ? '' : (document.getElementById('modal-f1-var')?.value || ''),
     f2_val: isHeaderMode ? null : (document.getElementById('modal-f2-val')?.value ? Number(document.getElementById('modal-f2-val').value) : null),
     f2_unit: isHeaderMode ? '' : (document.getElementById('modal-f2-unit')?.value || ''),
+    f2_var: isHeaderMode ? '' : (document.getElementById('modal-f2-var')?.value || ''),
     f3_val: isHeaderMode ? null : (document.getElementById('modal-f3-val')?.value ? Number(document.getElementById('modal-f3-val').value) : null),
     f3_unit: isHeaderMode ? '' : (document.getElementById('modal-f3-unit')?.value || ''),
+    f3_var: isHeaderMode ? '' : (document.getElementById('modal-f3-var')?.value || ''),
     f4_val: isHeaderMode ? null : (document.getElementById('modal-f4-val')?.value ? Number(document.getElementById('modal-f4-val').value) : null),
     f4_unit: isHeaderMode ? '' : (document.getElementById('modal-f4-unit')?.value || ''),
+    f4_var: isHeaderMode ? '' : (document.getElementById('modal-f4-var')?.value || ''),
     basis_pengali: isHeaderMode ? 'NONE' : (document.getElementById('modal-basis-pengali')?.value || 'NONE'),
     satuan_vol: isHeaderMode ? '' : (document.getElementById('modal-satuan-vol')?.value || 'Paket'),
     catatan_revisi_baris: document.getElementById('modal-catatan-revisi')?.value || ''

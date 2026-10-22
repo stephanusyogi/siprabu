@@ -2366,29 +2366,56 @@
 
                 <!-- FAKTOR 1 SAMPAI 4 -->
                 <div class="factors-section mt-3">
-                  <h4>Faktor Multiplier Volume (F1 x F2 x F3 x F4 x Basis Pengali)</h4>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <h4 style="margin:0;">Faktor Multiplier Volume (F1 x F2 x F3 x F4 x Basis Pengali)</h4>
+                    <span style="font-size:11px; color:#2563eb; font-weight:600;">🔗 Terhubung SSOT</span>
+                  </div>
                   <div class="factors-grid">
                     <div class="factor-card">
-                      <span class="factor-badge">Faktor 1</span>
-                      <input type="number" id="modal-f1-val" class="input-text input-sm" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span class="factor-badge" style="margin-bottom:0;">Faktor 1</span>
+                        <span id="modal-f1-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 4px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
+                      </div>
+                      <select id="modal-f1-var" class="input-select input-sm" style="font-size:11px; padding:2px 4px; height:26px;" onchange="onFactorVarSelectChange(1)">
+                        <option value="">-- Manual --</option>
+                      </select>
+                      <input type="number" id="modal-f1-val" class="input-text input-sm mt-1" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
                       <input type="text" id="modal-f1-unit" list="datalist-factor-units" class="input-text input-sm mt-1" placeholder="Satuan (cth: Org)" oninput="calculateModalTotal()">
                     </div>
 
                     <div class="factor-card">
-                      <span class="factor-badge">Faktor 2</span>
-                      <input type="number" id="modal-f2-val" class="input-text input-sm" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span class="factor-badge" style="margin-bottom:0;">Faktor 2</span>
+                        <span id="modal-f2-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 4px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
+                      </div>
+                      <select id="modal-f2-var" class="input-select input-sm" style="font-size:11px; padding:2px 4px; height:26px;" onchange="onFactorVarSelectChange(2)">
+                        <option value="">-- Manual --</option>
+                      </select>
+                      <input type="number" id="modal-f2-val" class="input-text input-sm mt-1" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
                       <input type="text" id="modal-f2-unit" list="datalist-factor-units" class="input-text input-sm mt-1" placeholder="Satuan (cth: Bln / Keg)" oninput="calculateModalTotal()">
                     </div>
 
                     <div class="factor-card">
-                      <span class="factor-badge">Faktor 3</span>
-                      <input type="number" id="modal-f3-val" class="input-text input-sm" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span class="factor-badge" style="margin-bottom:0;">Faktor 3</span>
+                        <span id="modal-f3-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 4px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
+                      </div>
+                      <select id="modal-f3-var" class="input-select input-sm" style="font-size:11px; padding:2px 4px; height:26px;" onchange="onFactorVarSelectChange(3)">
+                        <option value="">-- Manual --</option>
+                      </select>
+                      <input type="number" id="modal-f3-val" class="input-text input-sm mt-1" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
                       <input type="text" id="modal-f3-unit" list="datalist-factor-units" class="input-text input-sm mt-1" placeholder="Satuan (cth: Hari)" oninput="calculateModalTotal()">
                     </div>
 
                     <div class="factor-card">
-                      <span class="factor-badge">Faktor 4</span>
-                      <input type="number" id="modal-f4-val" class="input-text input-sm" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span class="factor-badge" style="margin-bottom:0;">Faktor 4</span>
+                        <span id="modal-f4-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 4px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
+                      </div>
+                      <select id="modal-f4-var" class="input-select input-sm" style="font-size:11px; padding:2px 4px; height:26px;" onchange="onFactorVarSelectChange(4)">
+                        <option value="">-- Manual --</option>
+                      </select>
+                      <input type="number" id="modal-f4-val" class="input-text input-sm mt-1" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
                       <input type="text" id="modal-f4-unit" list="datalist-factor-units" class="input-text input-sm mt-1" placeholder="Satuan (cth: Kali)" oninput="calculateModalTotal()">
                     </div>
                   </div>
@@ -3984,7 +4011,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.6.2"></script>
+    <script src="/app.js?v=3.6.3"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

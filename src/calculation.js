@@ -180,18 +180,18 @@ function resolveVarValue(varCode, fallbackVal, contextType, entityData, kabSumma
     return parsed !== null ? parsed : 1;
   }
 
-  const codeLower = String(varCode).toLowerCase();
+  const cleanCode = String(varCode).trim().replace(/^@/, '').toLowerCase();
 
-  if (codeLower === 'ppk' || codeLower === 'kec_ppk') {
+  if (cleanCode === 'ppk' || cleanCode === 'kec_ppk') {
     if (contextType === 'KAB') return kabSummary ? kabSummary.jumlah_ppk : 0;
     return 1;
   }
-  if (codeLower === 'pps' || codeLower === 'desa_pps') {
+  if (cleanCode === 'pps' || cleanCode === 'desa_pps') {
     if (contextType === 'KAB') return kabSummary ? kabSummary.jumlah_pps : 0;
     if (contextType === 'PPK') return entityData ? (entityData.jumlah_desa || (entityData.desaList ? entityData.desaList.length : 1)) : 1;
     return 1;
   }
-  if (codeLower === 'tps_rkb') {
+  if (cleanCode === 'tps_rkb' || cleanCode === 'tps') {
     if (contextType === 'KAB') {
       if (kuantitasMap && kuantitasMap.tps_rkb && kuantitasMap.tps_rkb.nilai !== undefined && kuantitasMap.tps_rkb.nilai !== null) {
         return Number(kuantitasMap.tps_rkb.nilai) || 0;
@@ -201,7 +201,7 @@ function resolveVarValue(varCode, fallbackVal, contextType, entityData, kabSumma
     if (entityData && entityData.vars) return Number(entityData.vars.tps) || 0;
     return 0;
   }
-  if (codeLower === 'kotak_rkb') {
+  if (cleanCode === 'kotak_rkb' || cleanCode === 'kotak') {
     if (contextType === 'KAB') {
       if (kuantitasMap && kuantitasMap.kotak_rkb && kuantitasMap.kotak_rkb.nilai !== undefined && kuantitasMap.kotak_rkb.nilai !== null) {
         return Number(kuantitasMap.kotak_rkb.nilai) || 0;
@@ -213,22 +213,23 @@ function resolveVarValue(varCode, fallbackVal, contextType, entityData, kabSumma
   }
 
   // Hierarki Adhoc
-  if (codeLower === 'ppk_ketua') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 1 : 0) : 1;
-  if (codeLower === 'ppk_anggota') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 4 : 0) : 4;
-  if (codeLower === 'ppk_komisioner') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 5 : 0) : 5;
-  if (codeLower === 'ppk_sekretaris') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 1 : 0) : 1;
-  if (codeLower === 'ppk_staf') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 2 : 0) : 2;
-  if (codeLower === 'ppk_sekretariat') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 3 : 0) : 3;
+  if (cleanCode === 'ppk_ketua') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 1 : 0) : 1;
+  if (cleanCode === 'ppk_anggota') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 4 : 0) : 4;
+  if (cleanCode === 'ppk_komisioner') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 5 : 0) : 5;
+  if (cleanCode === 'ppk_sekretaris') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 1 : 0) : 1;
+  if (cleanCode === 'ppk_staf') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 2 : 0) : 2;
+  if (cleanCode === 'ppk_sekretariat') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 3 : 0) : 3;
 
-  if (codeLower === 'pps_ketua') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 1 : 0) : 1;
-  if (codeLower === 'pps_anggota') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 2 : 0) : 2;
-  if (codeLower === 'pps_komisioner') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 3 : 0) : 3;
-  if (codeLower === 'pps_sekretaris') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 1 : 0) : 1;
-  if (codeLower === 'pps_staf') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 2 : 0) : 2;
-  if (codeLower === 'pps_sekretariat') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 3 : 0) : 3;
+  if (cleanCode === 'pps_ketua') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 1 : 0) : 1;
+  if (cleanCode === 'pps_anggota') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 2 : 0) : 2;
+  if (cleanCode === 'pps_komisioner') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 3 : 0) : 3;
+  if (cleanCode === 'pps_sekretaris') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 1 : 0) : 1;
+  if (cleanCode === 'pps_staf') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 2 : 0) : 2;
+  if (cleanCode === 'pps_sekretariat') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 3 : 0) : 3;
 
-  if (kuantitasMap && kuantitasMap[varCode]) {
-    const mVal = kuantitasMap[varCode].nilai;
+  if (kuantitasMap && (kuantitasMap[cleanCode] || kuantitasMap[varCode])) {
+    const item = kuantitasMap[cleanCode] || kuantitasMap[varCode];
+    const mVal = item.nilai;
     // Nilai 0 di master tetap dipertahankan sebagai 0
     return (mVal !== null && mVal !== undefined && !Number.isNaN(Number(mVal))) ? Number(mVal) : 0;
   }
@@ -263,7 +264,31 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
 
   for (let i = 0; i < factorSpecs.length; i++) {
     const fs = factorSpecs[i];
-    const hasVar = fs.varCode && fs.varCode !== '' && fs.varCode !== 'MANUAL';
+    let varCode = (fs.varCode && fs.varCode !== '' && fs.varCode !== 'MANUAL' && fs.varCode !== 'FIXED') ? fs.varCode : null;
+    const unitTrimmed = String(fs.unit || '').trim();
+    const unitLower = unitTrimmed.toLowerCase();
+
+    // AUTO-BINDING CERDAS: Jika baris belum memiliki varCode eksplisit di database, cocokkan secara cerdas dengan satuan atau uraian
+    if (!varCode) {
+      if (unitLower === 'paslon') {
+        const uLower = String(r.uraian || '').toLowerCase();
+        if (uLower.includes('perseorangan')) {
+          varCode = 'paslon_perseorangan';
+        } else if (uLower.includes('bakal')) {
+          varCode = 'bakal_paslon';
+        } else {
+          varCode = 'paslon';
+        }
+      } else if (unitLower === 'parpol' || unitLower === 'partai' || unitLower.includes('parpol')) {
+        varCode = 'parpol';
+      } else if (unitLower === 'komisioner') {
+        varCode = 'komisioner';
+      } else if (unitLower === 'pemilih') {
+        varCode = 'dpt';
+      }
+    }
+
+    const hasVar = Boolean(varCode);
     const hasVal = fs.val !== null && fs.val !== undefined && String(fs.val).trim() !== '';
 
     // Faktor yang benar-benar kosong diabaikan (bukan pengali)
@@ -276,9 +301,11 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
     let unitLabel = fs.unit || '';
 
     if (hasVar) {
-      vNum = resolveVarValue(fs.varCode, fs.val, contextType, entityData, kabSummary, kuantitasMap);
-      if (!unitLabel && kuantitasMap && kuantitasMap[fs.varCode]) {
-        unitLabel = kuantitasMap[fs.varCode].satuan || fs.varCode;
+      vNum = resolveVarValue(varCode, fs.val, contextType, entityData, kabSummary, kuantitasMap);
+      const cleanKey = String(varCode).trim().replace(/^@/, '').toLowerCase();
+      if (!unitLabel && kuantitasMap && (kuantitasMap[cleanKey] || kuantitasMap[varCode])) {
+        const m = kuantitasMap[cleanKey] || kuantitasMap[varCode];
+        unitLabel = m.satuan || varCode;
       }
     } else {
       const parsed = parseIndonesianNumber(fs.val);

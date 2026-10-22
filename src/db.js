@@ -450,6 +450,38 @@ function alignOperationalRkbCycles() {
       SET is_locked = 1, pagu_nphd = 49999999000
       WHERE id = 1 AND (is_locked != 1 OR pagu_nphd != 49999999000 OR pagu_nphd IS NULL)
     `).run();
+
+    // 4. Hubungkan variabel SSOT pada baris belanja draft aktif yang satuannya paslon
+    const draftPeriods = db.prepare('SELECT id FROM periode_anggaran WHERE is_locked = 0').all();
+    for (const dp of draftPeriods) {
+      const paslonRows = db.prepare(`
+        SELECT id, uraian, f1_unit, f1_var, f2_unit, f2_var, f3_unit, f3_var, f4_unit, f4_var
+        FROM rab_baris
+        WHERE periode_id = ? AND (
+          LOWER(f1_unit) = 'paslon' OR LOWER(f2_unit) = 'paslon' OR LOWER(f3_unit) = 'paslon' OR LOWER(f4_unit) = 'paslon'
+        )
+      `).all(dp.id);
+
+      for (const pr of paslonRows) {
+        const uLower = String(pr.uraian || '').toLowerCase();
+        let targetVar = 'paslon';
+        if (uLower.includes('perseorangan')) targetVar = 'paslon_perseorangan';
+        else if (uLower.includes('bakal')) targetVar = 'bakal_paslon';
+
+        const updates = [];
+        const params = [];
+        for (let i = 1; i <= 4; i++) {
+          if (String(pr[`f${i}_unit`] || '').toLowerCase() === 'paslon' && !pr[`f${i}_var`]) {
+            updates.push(`f${i}_var = ?`);
+            params.push(targetVar);
+          }
+        }
+        if (updates.length > 0) {
+          params.push(pr.id);
+          db.prepare(`UPDATE rab_baris SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+        }
+      }
+    }
   } catch (err) {
     console.warn('[MIGRATION] Peringatan saat menyelaraskan siklus RKB:', err.message);
   }
