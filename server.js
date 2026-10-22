@@ -1358,7 +1358,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Paslon.' });
       }
       const body = await parseJsonBody(req);
-      const list = savePaslon(body);
+      const list = savePaslon(body, user);
       return sendJson(res, 200, { success: true, list });
     }
     const delPaslonMatch = pathname.match(/^\/api\/master\/paslon\/(\d+)$/);
@@ -1367,7 +1367,7 @@ const server = http.createServer(async (req, res) => {
       if (!user || user.level > 1) {
         return sendJson(res, 403, { error: 'Akses ditolak.' });
       }
-      deletePaslon(Number(delPaslonMatch[1]));
+      deletePaslon(Number(delPaslonMatch[1]), user);
       return sendJson(res, 200, { success: true, list: getPaslonList() });
     }
 
@@ -1382,7 +1382,7 @@ const server = http.createServer(async (req, res) => {
       }
       try {
         const body = await parseJsonBody(req);
-        const list = saveKuantitas(body);
+        const list = saveKuantitas(body, user);
         clearRkbDatasetCache();
         return sendJson(res, 200, { success: true, list, message: 'Parameter SSOT berhasil diperbarui!' });
       } catch (err) {
@@ -1400,7 +1400,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Kecamatan.' });
       }
       const body = await parseJsonBody(req);
-      const list = saveKecamatan(body);
+      const list = saveKecamatan(body, user);
       return sendJson(res, 200, { success: true, list });
     }
     const delKecMatch = pathname.match(/^\/api\/master\/kecamatan\/(\d+)$/);
@@ -1408,6 +1408,10 @@ const server = http.createServer(async (req, res) => {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
         return sendJson(res, 403, { error: 'Akses ditolak.' });
+      }
+      deleteKecamatan(Number(delKecMatch[1]), user);
+      return sendJson(res, 200, { success: true, list: getKecamatans() });
+    }
       }
       try {
         deleteKecamatan(Number(delKecMatch[1]));
@@ -1475,7 +1479,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Desa.' });
       }
       const body = await parseJsonBody(req);
-      const list = saveDesa(body);
+      const list = saveDesa(body, user);
       return sendJson(res, 200, { success: true, list });
     }
     const delDesaMatch = pathname.match(/^\/api\/master\/desa\/(\d+)$/);
@@ -1484,7 +1488,7 @@ const server = http.createServer(async (req, res) => {
       if (!user || user.level > 1) {
         return sendJson(res, 403, { error: 'Akses ditolak.' });
       }
-      deleteDesa(Number(delDesaMatch[1]));
+      deleteDesa(Number(delDesaMatch[1]), user);
       return sendJson(res, 200, { success: true, list: getDesas() });
     }
     if (pathname === '/api/master/desa/export' && (method === 'GET' || method === 'HEAD')) {
@@ -1545,7 +1549,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data SBM.' });
       }
       const body = await parseJsonBody(req);
-      const saved = saveSbm(body);
+      const saved = saveSbm(body, user);
       clearRkbDatasetCache();
       return sendJson(res, 200, { success: true, item: saved, list: getSbmList() });
     }
@@ -1555,7 +1559,7 @@ const server = http.createServer(async (req, res) => {
       if (!user || user.level > 1) {
         return sendJson(res, 403, { error: 'Akses ditolak.' });
       }
-      deleteSbm(Number(delSbmMatch[1]));
+      deleteSbm(Number(delSbmMatch[1]), user);
       clearRkbDatasetCache();
       return sendJson(res, 200, { success: true, list: getSbmList() });
     }
@@ -1617,7 +1621,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data BAS.' });
       }
       const body = await parseJsonBody(req);
-      const saved = saveAkun(body);
+      const saved = saveAkun(body, user);
       clearRkbDatasetCache();
       return sendJson(res, 200, { success: true, item: saved, list: getAkunList() });
     }
@@ -1627,7 +1631,7 @@ const server = http.createServer(async (req, res) => {
       if (!user || user.level > 1) {
         return sendJson(res, 403, { error: 'Akses ditolak.' });
       }
-      deleteAkun(Number(delAkunMatch[1]));
+      deleteAkun(Number(delAkunMatch[1]), user);
       clearRkbDatasetCache();
       return sendJson(res, 200, { success: true, list: getAkunList() });
     }

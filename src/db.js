@@ -1701,12 +1701,19 @@ function getKuantitasById(id) {
 
 function saveKuantitas(data, actorUser = null) {
   const id = data.id ? Number(data.id) : null;
-  const kode = (data.kode || '').trim().toLowerCase();
-  const nama = (data.nama || '').trim();
-  const satuan = (data.satuan || '').trim();
-  const parsedNilai = parseIndonesianNumber(data.nilai);
-  const nilai = parsedNilai !== null ? parsedNilai : 0;
-  const kategori = (data.kategori || 'UMUM').trim();
+  let existing = null;
+  if (id) {
+    existing = db.prepare('SELECT * FROM master_kuantitas WHERE id = ?').get(id);
+    if (!existing) throw new Error(`Parameter kuantitas dengan ID ${id} tidak ditemukan.`);
+  }
+
+  const kode = (data.kode || existing?.kode || '').trim().toLowerCase();
+  const nama = (data.nama || existing?.nama || '').trim();
+  const satuan = (data.satuan !== undefined ? data.satuan : (existing?.satuan || '')).trim();
+  const parsedNilai = data.nilai !== undefined ? parseIndonesianNumber(data.nilai) : null;
+  const nilai = parsedNilai !== null ? parsedNilai : (existing ? existing.nilai : 0);
+  const kategori = (data.kategori || existing?.kategori || 'UMUM').trim();
+  const keterangan = (data.keterangan !== undefined ? data.keterangan : (existing?.keterangan || '')).trim();
 
   if (!kode) throw new Error('Kode kuantitas tidak boleh kosong.');
   if (!nama) throw new Error('Nama kuantitas tidak boleh kosong.');
@@ -1714,14 +1721,14 @@ function saveKuantitas(data, actorUser = null) {
   if (id) {
     db.prepare(`
       UPDATE master_kuantitas 
-      SET kode = ?, nama = ?, satuan = ?, nilai = ?, kategori = ?
+      SET kode = ?, nama = ?, satuan = ?, nilai = ?, kategori = ?, keterangan = ?
       WHERE id = ?
-    `).run(kode, nama, satuan, nilai, kategori, id);
+    `).run(kode, nama, satuan, nilai, kategori, keterangan, id);
   } else {
     db.prepare(`
-      INSERT INTO master_kuantitas (kode, nama, satuan, nilai, kategori)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(kode, nama, satuan, nilai, kategori);
+      INSERT INTO master_kuantitas (kode, nama, satuan, nilai, kategori, keterangan)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(kode, nama, satuan, nilai, kategori, keterangan);
   }
 
   try {
@@ -1734,7 +1741,7 @@ function saveKuantitas(data, actorUser = null) {
     action: id ? 'UPDATE_KUANTITAS' : 'CREATE_KUANTITAS',
     entity: 'master_kuantitas',
     entity_id: id || kode,
-    new_values: { kode, nama, nilai, satuan },
+    new_values: { kode, nama, nilai, satuan, keterangan },
     notes: `Master kuantitas ${kode} disimpan.`
   });
 

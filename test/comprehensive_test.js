@@ -71,7 +71,9 @@ async function runAllTests() {
     updateRevisiTahap,
     deleteRevisiPengajuan,
     finalizeTahap4Keseluruhan,
-    recordAuditLog
+    recordAuditLog,
+    saveKuantitas,
+    getKuantitasById
   } = require('../src/db');
   const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison } = require('../src/calculation');
   const { parseSbmExcelBuffer, parseDesaExcelBuffer, exportRkbToExcelBuffer } = require('../src/excel_io');
@@ -351,6 +353,13 @@ async function runAllTests() {
   const previewResImport = bulkUpsertKecamatan(previewItems, { preview: true });
   const countAfterPreview = getKecamatans().length;
   assert(previewResImport.preview === true && countAfterPreview === countBefore, 'Pratinjau impor (preview: true) tidak menyimpan perubahan ke database.');
+
+  // --------------------------------------------------------------------------
+  // TEST 17b: Penyimpanan Parameter Kuantitas SSOT Mandiri
+  // --------------------------------------------------------------------------
+  const updatedList = saveKuantitas({ id: 10, nilai: 5, satuan: 'Org', keterangan: '5 Komisioner KPU Kabupaten Uji' }, { id: 10, username: 'emenje' });
+  const komisionerAfter = getKuantitasById(10);
+  assert(komisionerAfter && komisionerAfter.nilai === 5 && komisionerAfter.keterangan === '5 Komisioner KPU Kabupaten Uji', 'Penyimpanan parameter kuantitas SSOT (parsial & lengkap) berhasil tersimpan tanpa error.');
 
   // --------------------------------------------------------------------------
   // TEST 18: Audit Logging

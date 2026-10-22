@@ -3425,7 +3425,7 @@
           <button type="button" class="btn-close" onclick="closeModalPaslon()">&times;</button>
         </div>
         <div class="modal-body" style="padding: 16px;">
-          <form id="form-paslon">
+          <form id="form-paslon" onsubmit="event.preventDefault(); submitModalPaslon();">
             <input type="hidden" id="paslon-id">
             <div style="display: grid; grid-template-columns: 100px 1fr; gap: 12px; margin-bottom: 12px;">
               <div class="form-group">
@@ -3472,7 +3472,7 @@
           <button type="button" class="btn-close" onclick="closeModalDesa()">&times;</button>
         </div>
         <div class="modal-body" style="padding: 16px;">
-          <form id="form-desa">
+          <form id="form-desa" onsubmit="event.preventDefault(); submitModalDesa();">
             <input type="hidden" id="desa-id">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
               <div class="form-group">
@@ -3547,8 +3547,11 @@
           <button type="button" class="btn-close" onclick="closeModalKuantitas()">&times;</button>
         </div>
         <div class="modal-body" style="padding: 16px;">
-          <form id="form-kuantitas">
+          <form id="form-kuantitas" onsubmit="event.preventDefault(); submitModalKuantitas();">
             <input type="hidden" id="kuantitas-id">
+            <input type="hidden" id="kuantitas-kode">
+            <input type="hidden" id="kuantitas-nama">
+            <input type="hidden" id="kuantitas-kategori">
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span style="font-size: 11px; font-weight: 700; color: #64748b;">KODE VARIABEL:</span>
@@ -3576,7 +3579,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModalKuantitas()">Batal</button>
-          <button type="button" class="btn btn-primary" onclick="submitModalKuantitas()">💾 Simpan Parameter</button>
+          <button type="button" id="btn-submit-kuantitas" class="btn btn-primary" onclick="submitModalKuantitas()">💾 Simpan Parameter</button>
         </div>
       </div>
     </div>
@@ -3591,7 +3594,7 @@
           <button type="button" class="btn-close" onclick="closeModalKecamatan()">&times;</button>
         </div>
         <div class="modal-body" style="padding: 16px;">
-          <form id="form-kecamatan">
+          <form id="form-kecamatan" onsubmit="event.preventDefault(); submitModalKecamatan();">
             <input type="hidden" id="kecamatan-id">
             <div style="display: grid; grid-template-columns: 90px 120px 1fr; gap: 12px; margin-bottom: 12px;">
               <div class="form-group">
@@ -3640,7 +3643,7 @@
           <button type="button" class="btn-close" onclick="closeModalSbm()">&times;</button>
         </div>
         <div class="modal-body" style="padding: 16px;">
-          <form id="form-sbm">
+          <form id="form-sbm" onsubmit="event.preventDefault(); submitModalSbm();">
             <input type="hidden" id="sbm-id">
             <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; margin-bottom: 12px;">
               <div class="form-group">
@@ -3701,7 +3704,7 @@
           <button type="button" class="btn-close" onclick="closeModalBas()">&times;</button>
         </div>
         <div class="modal-body" style="padding: 16px;">
-          <form id="form-bas">
+          <form id="form-bas" onsubmit="event.preventDefault(); submitModalBas();">
             <input type="hidden" id="bas-id">
             <div style="display: grid; grid-template-columns: 140px 1fr; gap: 12px; margin-bottom: 12px;">
               <div class="form-group">
@@ -3981,7 +3984,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.6.0"></script>
+    <script src="/app.js?v=3.6.1"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

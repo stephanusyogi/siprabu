@@ -5258,6 +5258,9 @@ function openModalKuantitas(id) {
 
   setElText('modal-kuantitas-title', `📐 Edit Parameter SSOT: ${q.nama || q.kode}`);
   setElVal('kuantitas-id', q.id);
+  setElVal('kuantitas-kode', q.kode || '');
+  setElVal('kuantitas-nama', q.nama || q.kode || '');
+  setElVal('kuantitas-kategori', q.kategori || 'UMUM');
   setElText('modal-kuantitas-kode-chip', `@${q.kode}`);
   setElText('modal-kuantitas-nama', q.nama || q.kode);
   setElVal('kuantitas-nilai', q.nilai);
@@ -5275,6 +5278,9 @@ function closeModalKuantitas() {
 
 async function submitModalKuantitas() {
   const id = document.getElementById('kuantitas-id')?.value;
+  const kode = document.getElementById('kuantitas-kode')?.value;
+  const nama = document.getElementById('kuantitas-nama')?.value;
+  const kategori = document.getElementById('kuantitas-kategori')?.value;
   const nilai = parseFloat(document.getElementById('kuantitas-nilai')?.value);
   const satuan = (document.getElementById('kuantitas-satuan')?.value || '').trim();
   const keterangan = (document.getElementById('kuantitas-keterangan')?.value || '').trim();
@@ -5284,10 +5290,24 @@ async function submitModalKuantitas() {
     return;
   }
 
+  const submitBtn = document.getElementById('btn-submit-kuantitas');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Menyimpan...';
+  }
+
   try {
     const result = await apiFetch('/api/master/kuantitas', {
       method: 'POST',
-      body: JSON.stringify({ id: Number(id), nilai, satuan, keterangan })
+      body: JSON.stringify({
+        id: Number(id),
+        kode,
+        nama,
+        kategori,
+        nilai,
+        satuan,
+        keterangan
+      })
     });
     if (result.success) {
       showToast(result.message || 'Parameter SSOT berhasil diperbarui!', 'success');
@@ -5300,6 +5320,11 @@ async function submitModalKuantitas() {
     }
   } catch (err) {
     showToast('Terjadi kesalahan: ' + err.message, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '💾 Simpan Parameter';
+    }
   }
 }
 
