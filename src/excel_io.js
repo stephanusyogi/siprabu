@@ -229,6 +229,92 @@ function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPi
 }
 
 /**
+ * Menghitung pembagian halaman proporsional (Page Breaks),
+ * menyeimbangkan halaman penutup agar bebas orphan signature,
+ * dan menerapkan garis bawah penutup tabel tebal/medium hitam pada setiap halaman cetak.
+ */
+function applyProportionalPageBreaksAndBorders(ws, dataStartRow, dataEndRow, options = {}) {
+  const {
+    maxCols = 11, // Kolom A s.d. K
+    page1Capacity = 466, // Total kapasitas tinggi baris Halaman 1 (Judul 58pt + Header 28pt + Data 380pt)
+    pageNextCapacity = 468, // Total kapasitas tinggi baris Halaman 2+ (Header 28pt + Data 440pt)
+    endingBlockHeight = 164, // Total Pagu Belanja (28pt) + Spacer (16pt) + Tanda Tangan (120pt)
+    minFinalRows = 8 // Minimal baris belanja yang menemani Total & TTD di halaman penutup
+  } = options;
+
+  const rowHeights = [];
+  for (let r = dataStartRow; r <= dataEndRow; r++) {
+    rowHeights.push({ rowNum: r, height: ws.getRow(r).height || 20 });
+  }
+
+  const pageBreaks = [];
+  let currentPageIndex = 1;
+  let currentAccumulated = (currentPageIndex === 1 ? 86 : 28);
+  let maxCap = (currentPageIndex === 1 ? page1Capacity : pageNextCapacity);
+
+  let i = 0;
+  while (i < rowHeights.length) {
+    const remainingRows = rowHeights.slice(i);
+    const remainingHeight = remainingRows.reduce((sum, item) => sum + item.height, 0);
+
+    // 1. Jika seluruh sisa baris + Blok Total & TTD muat di halaman ini secara penuh
+    if (currentAccumulated + remainingHeight + endingBlockHeight <= maxCap) {
+      break;
+    }
+
+    // 2. Cek apakah sisa baris bisa didistribusikan secara proporsional dalam 2 halaman terakhir
+    const availableForDataOnNextPage = pageNextCapacity - 28 - endingBlockHeight; // ~276 pt
+    const maxDataThisPage = maxCap - currentAccumulated;
+
+    if (remainingHeight <= maxDataThisPage + availableForDataOnNextPage) {
+      const targetFinalCount = Math.max(minFinalRows, Math.floor(remainingRows.length / 2));
+      const actualFinalCount = Math.min(targetFinalCount, remainingRows.length - 2);
+
+      if (actualFinalCount >= 4) {
+        const splitIdx = remainingRows.length - actualFinalCount;
+        const breakRow = remainingRows[splitIdx - 1].rowNum;
+        pageBreaks.push(breakRow);
+        break;
+      }
+    }
+
+    const item = rowHeights[i];
+    if (currentAccumulated + item.height > maxCap) {
+      const prevRow = (i > 0) ? rowHeights[i - 1].rowNum : item.rowNum;
+      pageBreaks.push(prevRow);
+
+      currentPageIndex++;
+      maxCap = pageNextCapacity;
+      currentAccumulated = 28 + item.height;
+    } else {
+      currentAccumulated += item.height;
+    }
+    i++;
+  }
+
+  // Terapkan garis bawah MEDIUM BLACK penutup tabel pada baris terakhir setiap halaman cetak
+  pageBreaks.forEach(breakRowNum => {
+    for (let c = 1; c <= maxCols; c++) {
+      const cell = ws.getCell(breakRowNum, c);
+      const curr = cell.border || {};
+      cell.border = {
+        top: curr.top,
+        bottom: { style: 'medium', color: { argb: 'FF000000' } },
+        left: curr.left,
+        right: curr.right
+      };
+    }
+  });
+
+  // Pasang OpenXML rowBreaks
+  if (pageBreaks.length > 0) {
+    ws.rowBreaks = pageBreaks.map(bRow => ({ id: bRow, max: maxCols, man: 1 }));
+  }
+
+  return pageBreaks;
+}
+
+/**
  * Menghasilkan buffer XLSX untuk download RUH Belanja Multi-Sheet
  * Sesuai Standar FA Detail 16 Segmen SAKTI Kemenkeu
  * @param {number} periodeId
@@ -356,7 +442,11 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 }
+    },
+    headerFooter: {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
     }
   });
 
@@ -635,48 +725,18 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   });
 
   // ==========================================================================
-  // DYNAMIC KEEP-TOGETHER & ANTI-ORPHAN SIGNATURE ENGINE
-  // Menghitung sisa kapasitas vertikal halaman A4 Landscape secara real-time.
-  // Kapasitas cetak A4 Landscape:
-  // - Halaman 1: ~433pt (setelah dikurangi Judul Dokumen Baris 1..4 = 90pt)
-  // - Halaman 2+: ~485pt (setelah dikurangi Print Title Header Kolom Baris 4 = 28pt)
-  // Jika sisa ruang di halaman terakhir < 160pt (tidak cukup menampung Total Belanja + Blok TTD),
-  // sistem otomatis menyisipkan Manual Page Break (OpenXML rowBreaks) pada 2-3 baris
-  // sebelum akhir data belanja, sehingga beberapa baris kegiatan, Total Pagu,
-  // dan Blok TTD Ketua KPU menyeberang bersama-sama (Keep Together) ke halaman penutup.
+  // KALKULASI PEMBAGIAN HALAMAN PROPORSIONAL & GARIS PENUTUP BAWAH TABEL (SSOT)
+  // Menjamin setiap halaman cetak terisi proporsional, bebas orphan signature,
+  // dan memiliki garis penutup tabel tebal/medium hitam pada setiap halaman cetak.
   // ==========================================================================
-  const page1Capacity = 433;
-  const pageNextCapacity = 485;
-  let currentAccumulatedHeight = 0;
-  let activePageLimit = page1Capacity;
-
-  exportRows.forEach((r) => {
-    const isItem = !r.is_header;
-    const treeLvl = r.tree_level || (isItem ? 6 : (r.level_indent === 0 ? 1 : (r.level_indent === 1 ? 2 : (r.level_indent === 2 ? 3 : (r.level_indent === 3 ? 5 : 4)))));
-    let rH = 20;
-    if (treeLvl === 1) rH = 34;
-    else if (treeLvl === 2) rH = 30;
-    else if (treeLvl === 3) rH = 26;
-    else if (treeLvl === 4) rH = 24;
-    else if (treeLvl === 5 || treeLvl === 5.5) rH = 23;
-
-    if (currentAccumulatedHeight + rH > activePageLimit) {
-      currentAccumulatedHeight = rH;
-      activePageLimit = pageNextCapacity;
-    } else {
-      currentAccumulatedHeight += rH;
-    }
-  });
-
-  const remainingSpaceOnLastPage = activePageLimit - currentAccumulatedHeight;
-  const neededEndingSpace = 180; // Total Row (28pt) + Baris Kosong Pemisah (16pt) + TTD & Nama (106pt) + buffer
-
   const lastDataRowNumber = ws1.rowCount;
-  if (remainingSpaceOnLastPage < neededEndingSpace && lastDataRowNumber > 8) {
-    // Sisipkan manual page break 3 baris sebelum akhir data belanja
-    const breakRow = Math.max(5, lastDataRowNumber - 3);
-    ws1.rowBreaks = [{ id: breakRow, max: 11, man: 1 }];
-  }
+  applyProportionalPageBreaksAndBorders(ws1, 5, lastDataRowNumber, {
+    maxCols: 11,
+    page1Capacity: 466,
+    pageNextCapacity: 468,
+    endingBlockHeight: 164,
+    minFinalRows: 8
+  });
 
   // BARIS TOTAL PAGU BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold, Tanpa 'RUH')
   const totalRowNumber = ws1.rowCount + 1;
@@ -877,7 +937,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 },
       printArea: `A1:P${kertasKerjaEndRow}`
+    };
+    ws2.headerFooter = {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
     };
     appendAuditSignature(ws2, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
   }
@@ -1124,8 +1189,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 },
       printArea: `A1:K${signEndRow3}`
+    };
+    ws3.headerFooter = {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
     };
     appendAuditSignature(ws3, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
   } else {
@@ -1179,8 +1248,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 },
       printArea: `A1:G${signEndRow3}`
+    };
+    ws3.headerFooter = {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
     };
     appendAuditSignature(ws3, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
   }
@@ -1501,8 +1574,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 },
       printArea: `A1:F${signEndEksekutif}`
+    };
+    wsRekapEksekutif.headerFooter = {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
     };
     appendAuditSignature(wsRekapEksekutif, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
 
@@ -1681,8 +1758,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 },
       printArea: `A1:E${signEndKegiatan}`
+    };
+    wsRekapKegiatan.headerFooter = {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
     };
     appendAuditSignature(wsRekapKegiatan, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
 
@@ -1695,7 +1776,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
         paperSize: 9,
         fitToPage: true,
         fitToWidth: 1,
-        fitToHeight: 0
+        fitToHeight: 0,
+        margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 }
+      },
+      headerFooter: {
+        oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+        evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
       }
     });
 
@@ -1755,8 +1841,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 },
       printArea: `A1:E${signEndSubbag}`
+    };
+    wsRekapSubbag.headerFooter = {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
     };
     appendAuditSignature(wsRekapSubbag, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
 
@@ -1770,7 +1860,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
         paperSize: 9,
         fitToPage: true,
         fitToWidth: 1,
-        fitToHeight: 0
+        fitToHeight: 0,
+        margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 }
+      },
+      headerFooter: {
+        oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+        evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
       }
     });
 
@@ -1837,42 +1932,18 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 },
       printArea: `A1:F${signEndBas}`
+    };
+    wsRekapBas.headerFooter = {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
     };
     appendAuditSignature(wsRekapBas, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
   }
 
   // Return Buffer XLSX ExcelJS
-  let buffer = await wb.xlsx.writeBuffer();
-
-  // ==========================================================================
-  // NATIVE EXCEL COM ANTI-ORPHAN SIGNATURE ENGINE (Windows Environment)
-  // Menjamin 100% presisi bebas "Orphan Signature" menggunakan kalkulasi layout Excel native
-  // ==========================================================================
-  if (process.platform === 'win32') {
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const { execFileSync } = require('child_process');
-      const tempDir = path.join(__dirname, '..', 'temp');
-      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-      const tempFile = path.join(tempDir, `export_${Date.now()}_${Math.random().toString(36).substring(7)}.xlsx`);
-      fs.writeFileSync(tempFile, buffer);
-
-      const pyScript = path.join(__dirname, 'fix_page_breaks.py');
-      if (fs.existsSync(pyScript)) {
-        execFileSync('python', [pyScript, tempFile], { stdio: 'ignore', timeout: 35000 });
-        if (fs.existsSync(tempFile)) {
-          buffer = fs.readFileSync(tempFile);
-          try { fs.unlinkSync(tempFile); } catch (e) {}
-        }
-      }
-    } catch (postErr) {
-      console.warn('[excel_io] Native Excel post-processor notice:', postErr.message);
-    }
-  }
-
+  const buffer = await wb.xlsx.writeBuffer();
   return buffer;
 }
 
