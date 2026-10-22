@@ -1409,12 +1409,8 @@ const server = http.createServer(async (req, res) => {
       if (!user || user.level > 1) {
         return sendJson(res, 403, { error: 'Akses ditolak.' });
       }
-      deleteKecamatan(Number(delKecMatch[1]), user);
-      return sendJson(res, 200, { success: true, list: getKecamatans() });
-    }
-      }
       try {
-        deleteKecamatan(Number(delKecMatch[1]));
+        deleteKecamatan(Number(delKecMatch[1]), user);
         return sendJson(res, 200, { success: true, list: getKecamatans() });
       } catch (e) {
         return sendJson(res, 400, { error: e.message });
