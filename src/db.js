@@ -352,6 +352,42 @@ function initDb() {
   // Migrasi password lama ke scrypt hash secara aman tanpa mereset akun
   migratePasswordsToScrypt();
 
+  // Konfigurasi / Pemulihan Kata Sandi Admin via Environment Variable (P0 Mandate)
+  try {
+    const envAdminPass = (process.env.ADMIN_RESET_PASSWORD || process.env.ADMIN_PASSWORD || '').trim();
+    if (envAdminPass) {
+      const targetUser = (process.env.ADMIN_RESET_USER || 'perencanaan').trim();
+      const existingUser = db.prepare('SELECT id, username FROM satker_users WHERE username = ?').get(targetUser);
+      if (existingUser) {
+        const hashed = hashPassword(envAdminPass);
+        db.prepare('UPDATE satker_users SET password = ?, token_version = COALESCE(token_version, 1) + 1, is_active = 1 WHERE id = ?').run(hashed, existingUser.id);
+        console.log(`[AUTH] Kata sandi akun "${targetUser}" berhasil dikonfigurasi melalui environment variable.`);
+      }
+    }
+    const envDevPass = (process.env.DEV_PASSWORD || '').trim();
+    if (envDevPass) {
+      const devUser = db.prepare("SELECT id FROM satker_users WHERE username = 'emenje'").get();
+      if (devUser) {
+        const hashed = hashPassword(envDevPass);
+        db.prepare('UPDATE satker_users SET password = ?, token_version = COALESCE(token_version, 1) + 1, is_active = 1 WHERE id = ?').run(hashed, devUser.id);
+        console.log('[AUTH] Kata sandi akun pengembang "emenje" berhasil dikonfigurasi melalui environment variable.');
+      }
+    }
+  } catch (e) {
+    console.warn('[AUTH] Gagal menerapkan konfigurasi kata sandi environment:', e.message);
+  }
+
+  // Sinkronisasi status Google Sign-In via Environment Variable jika disediakan
+  try {
+    if (process.env.GOOGLE_AUTH_ENABLED !== undefined) {
+      const isGoogleEn = (process.env.GOOGLE_AUTH_ENABLED === '1' || process.env.GOOGLE_AUTH_ENABLED === 'true') ? '1' : '0';
+      db.prepare("INSERT OR REPLACE INTO settings_satker (key, value) VALUES ('google_auth_enabled', ?)").run(isGoogleEn);
+    }
+    if (process.env.GOOGLE_CLIENT_ID) {
+      db.prepare("INSERT OR REPLACE INTO settings_satker (key, value) VALUES ('google_client_id', ?)").run(process.env.GOOGLE_CLIENT_ID.trim());
+    }
+  } catch (e) {}
+
   // Pastikan kotak di master_desa sinkron dengan tps jika masih 0
   try {
     db.prepare('UPDATE master_desa SET kotak = tps WHERE kotak IS NULL OR kotak = 0').run();
