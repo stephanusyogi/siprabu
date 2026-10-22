@@ -1,12 +1,13 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
- * Modul Engine Perhitungan RKB, Rollup Hierarki Anggaran & Perbandingan Revisi
+ * Modul Engine Perhitungan RKB, Rollup Hierarki Anggaran, Snapshot Arsip & Perbandingan Revisi
  * Pengembang: emenje
  */
 
 const { db } = require('./db');
+const { parseIndonesianNumber } = require('./number_util');
 
-// Cache wilayah & kuantitas
+// Cache memori internal wilayah & kuantitas
 let cachedWilayah = null;
 let cachedKuantitas = null;
 
@@ -26,18 +27,35 @@ function getWilayahData() {
     anggota_kpps: 0,
     kpps: 0,
     linmas: 0,
-    petugas_tps: 0
+    petugas_tps: 0,
+    tps: 0,
+    kotak: 0,
+    pantarlih: 0,
+    pemilih: 0
   };
   for (const v of variabels) kabVars[v.kode] = 0;
+
+  let totalKotak = 0;
+  let totalPemilih = 0;
+  let totalPantarlih = 0;
 
   for (const d of desaList) {
     let custom = {};
     try { custom = JSON.parse(d.custom_vars || '{}'); } catch (e) { custom = {}; }
     const tpsCount = Number(d.tps) || 0;
+    const kotakCount = d.kotak !== null && d.kotak !== undefined ? (Number(d.kotak) || 0) : tpsCount;
+    const pantarlihCount = Number(d.pantarlih) || (tpsCount > 0 ? tpsCount * 2 : 0);
+    const pemilihCount = Number(d.pemilih) || 0;
+
+    totalKotak += kotakCount;
+    totalPemilih += pemilihCount;
+    totalPantarlih += pantarlihCount;
+
     const vars = {
       tps: tpsCount,
-      kotak: Number(d.kotak) || 0,
-      pantarlih: Number(d.pantarlih) || 0,
+      kotak: kotakCount,
+      pantarlih: pantarlihCount,
+      pemilih: pemilihCount,
       rohaniwan: Number(d.rohaniwan) || 0,
       ...custom,
       ketua_kpps: tpsCount * 1,
@@ -46,11 +64,16 @@ function getWilayahData() {
       linmas: tpsCount * 2,
       petugas_tps: tpsCount * 9
     };
+
     for (const v of variabels) {
       if (vars[v.kode] === undefined) vars[v.kode] = 0;
       vars[v.kode] = Number(vars[v.kode]) || 0;
       kabVars[v.kode] = (kabVars[v.kode] || 0) + vars[v.kode];
     }
+    kabVars.tps += tpsCount;
+    kabVars.kotak += kotakCount;
+    kabVars.pantarlih += pantarlihCount;
+    kabVars.pemilih += pemilihCount;
     kabVars.ketua_kpps += vars.ketua_kpps;
     kabVars.anggota_kpps += vars.anggota_kpps;
     kabVars.kpps += vars.kpps;
@@ -65,7 +88,10 @@ function getWilayahData() {
   return {
     jumlah_ppk: kecList.length,
     jumlah_pps: desaList.length,
-    jumlah_tps: desaList.reduce((acc, d) => acc + (Number(d.tps) || 0), 0),
+    jumlah_tps: kabVars.tps,
+    jumlah_kotak: totalKotak,
+    jumlah_pantarlih: totalPantarlih,
+    jumlah_pemilih: totalPemilih,
     vars: kabVars,
     kecList,
     desaList,
@@ -77,18 +103,30 @@ function getKuantitasMap() {
   const list = db.prepare('SELECT * FROM master_kuantitas ORDER BY id').all();
   let agg = {};
   try {
-    agg = db.prepare('SELECT COUNT(*) as jmlDesa, SUM(tps) as sumTps, SUM(pantarlih) as sumPantarlih, SUM(pemilih) as sumPemilih FROM master_desa').get() || {};
+    agg = db.prepare(`
+      SELECT COUNT(*) as jmlDesa, 
+             COALESCE(SUM(tps), 0) as sumTps, 
+             COALESCE(SUM(kotak), 0) as sumKotak,
+             COALESCE(SUM(pantarlih), 0) as sumPantarlih, 
+             COALESCE(SUM(pemilih), 0) as sumPemilih 
+      FROM master_desa
+    `).get() || {};
   } catch (e) {}
 
-  const livePantarlih = Number(agg.sumPantarlih) || 2537;
-  const liveDesa = Number(agg.jmlDesa) || 217;
-  const liveTps = Number(agg.sumTps) || 1374;
-  const livePemilih = Number(agg.sumPemilih) || 701425;
-  const liveKec = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_kecamatan').get()?.cnt) || 19;
+  const livePantarlih = agg.sumPantarlih !== null && agg.sumPantarlih !== undefined ? Number(agg.sumPantarlih) : 0;
+  const liveDesa = agg.jmlDesa !== null && agg.jmlDesa !== undefined ? Number(agg.jmlDesa) : 0;
+  const liveTps = agg.sumTps !== null && agg.sumTps !== undefined ? Number(agg.sumTps) : 0;
+  const liveKotak = agg.sumKotak !== null && agg.sumKotak !== undefined ? Number(agg.sumKotak) : liveTps;
+  const livePemilih = agg.sumPemilih !== null && agg.sumPemilih !== undefined ? Number(agg.sumPemilih) : 0;
   
-  let livePaslon = 5;
+  let liveKec = 0;
   try {
-    livePaslon = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt) || 5;
+    liveKec = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_kecamatan').get()?.cnt) || 0;
+  } catch (e) {}
+
+  let livePaslon = 0;
+  try {
+    livePaslon = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt) || 0;
   } catch (e) {}
 
   const map = {};
@@ -97,6 +135,8 @@ function getKuantitasMap() {
       k.nilai = livePantarlih;
     } else if (k.kode === 'tps_rkb') {
       k.nilai = liveTps;
+    } else if (k.kode === 'kotak_rkb') {
+      k.nilai = liveKotak;
     } else if (k.kode === 'desa_pps') {
       k.nilai = liveDesa;
     } else if (k.kode === 'kec_ppk') {
@@ -135,79 +175,79 @@ function getKuantitasMap() {
 
 function resolveVarValue(varCode, fallbackVal, contextType, entityData, kabSummary, kuantitasMap) {
   if (!varCode || varCode === 'MANUAL' || varCode === 'FIXED') {
-    const n = Number(fallbackVal);
-    return (fallbackVal !== null && fallbackVal !== '' && !Number.isNaN(n) && n > 0) ? n : 1;
+    const parsed = parseIndonesianNumber(fallbackVal);
+    // Jika user eksplisit memasukkan angka (termasuk 0), gunakan angka tersebut
+    return parsed !== null ? parsed : 1;
   }
-  if (varCode === 'PPK' || varCode === 'kec_ppk') {
-    if (contextType === 'KAB') return kabSummary.jumlah_ppk;
+
+  const codeLower = String(varCode).toLowerCase();
+
+  if (codeLower === 'ppk' || codeLower === 'kec_ppk') {
+    if (contextType === 'KAB') return kabSummary ? kabSummary.jumlah_ppk : 0;
     return 1;
   }
-  if (varCode === 'PPS' || varCode === 'desa_pps') {
-    if (contextType === 'KAB') return kabSummary.jumlah_pps;
-    if (contextType === 'PPK') return entityData ? entityData.jumlah_desa : 1;
+  if (codeLower === 'pps' || codeLower === 'desa_pps') {
+    if (contextType === 'KAB') return kabSummary ? kabSummary.jumlah_pps : 0;
+    if (contextType === 'PPK') return entityData ? (entityData.jumlah_desa || (entityData.desaList ? entityData.desaList.length : 1)) : 1;
     return 1;
   }
-  if (varCode === 'TPS_RKB' || varCode === 'tps_rkb') {
-    if (contextType === 'KAB') return (kuantitasMap && kuantitasMap.tps_rkb) ? Number(kuantitasMap.tps_rkb.nilai) || 1374 : 1374;
+  if (codeLower === 'tps_rkb') {
+    if (contextType === 'KAB') {
+      if (kuantitasMap && kuantitasMap.tps_rkb && kuantitasMap.tps_rkb.nilai !== undefined && kuantitasMap.tps_rkb.nilai !== null) {
+        return Number(kuantitasMap.tps_rkb.nilai) || 0;
+      }
+      return kabSummary ? kabSummary.jumlah_tps : 0;
+    }
     if (entityData && entityData.vars) return Number(entityData.vars.tps) || 0;
     return 0;
   }
-  if (varCode === 'KOTAK_RKB') {
-    if (contextType === 'KAB') return (kuantitasMap && kuantitasMap.tps_rkb) ? Number(kuantitasMap.tps_rkb.nilai) || 1374 : 1374;
+  if (codeLower === 'kotak_rkb') {
+    if (contextType === 'KAB') {
+      if (kuantitasMap && kuantitasMap.kotak_rkb && kuantitasMap.kotak_rkb.nilai !== undefined && kuantitasMap.kotak_rkb.nilai !== null) {
+        return Number(kuantitasMap.kotak_rkb.nilai) || 0;
+      }
+      return kabSummary ? (kabSummary.jumlah_kotak !== undefined ? kabSummary.jumlah_kotak : kabSummary.jumlah_tps) : 0;
+    }
     if (entityData && entityData.vars) return Number(entityData.vars.kotak) || 0;
     return 0;
   }
 
-  const lowerCode = String(varCode).toLowerCase();
-  if (lowerCode === 'ppk_ketua') return contextType === 'KAB' ? kabSummary.jumlah_ppk * 1 : 1;
-  if (lowerCode === 'ppk_anggota') return contextType === 'KAB' ? kabSummary.jumlah_ppk * 4 : 4;
-  if (lowerCode === 'ppk_komisioner') return contextType === 'KAB' ? kabSummary.jumlah_ppk * 5 : 5;
-  if (lowerCode === 'ppk_sekretaris') return contextType === 'KAB' ? kabSummary.jumlah_ppk * 1 : 1;
-  if (lowerCode === 'ppk_staf') return contextType === 'KAB' ? kabSummary.jumlah_ppk * 2 : 2;
-  if (lowerCode === 'ppk_sekretariat') return contextType === 'KAB' ? kabSummary.jumlah_ppk * 3 : 3;
+  // Hierarki Adhoc
+  if (codeLower === 'ppk_ketua') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 1 : 0) : 1;
+  if (codeLower === 'ppk_anggota') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 4 : 0) : 4;
+  if (codeLower === 'ppk_komisioner') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 5 : 0) : 5;
+  if (codeLower === 'ppk_sekretaris') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 1 : 0) : 1;
+  if (codeLower === 'ppk_staf') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 2 : 0) : 2;
+  if (codeLower === 'ppk_sekretariat') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_ppk * 3 : 0) : 3;
 
-  if (lowerCode === 'pps_ketua') return contextType === 'KAB' ? kabSummary.jumlah_pps * 1 : (entityData ? entityData.jumlah_desa * 1 : 1);
-  if (lowerCode === 'pps_anggota') return contextType === 'KAB' ? kabSummary.jumlah_pps * 2 : (entityData ? entityData.jumlah_desa * 2 : 2);
-  if (lowerCode === 'pps_komisioner') return contextType === 'KAB' ? kabSummary.jumlah_pps * 3 : (entityData ? entityData.jumlah_desa * 3 : 3);
-  if (lowerCode === 'pps_sekretaris') return contextType === 'KAB' ? kabSummary.jumlah_pps * 1 : (entityData ? entityData.jumlah_desa * 1 : 1);
-  if (lowerCode === 'pps_staf') return contextType === 'KAB' ? kabSummary.jumlah_pps * 2 : (entityData ? entityData.jumlah_desa * 2 : 2);
-  if (lowerCode === 'pps_sekretariat') return contextType === 'KAB' ? kabSummary.jumlah_pps * 3 : (entityData ? entityData.jumlah_desa * 3 : 3);
+  if (codeLower === 'pps_ketua') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 1 : 0) : 1;
+  if (codeLower === 'pps_anggota') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 2 : 0) : 2;
+  if (codeLower === 'pps_komisioner') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 3 : 0) : 3;
+  if (codeLower === 'pps_sekretaris') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 1 : 0) : 1;
+  if (codeLower === 'pps_staf') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 2 : 0) : 2;
+  if (codeLower === 'pps_sekretariat') return contextType === 'KAB' ? (kabSummary ? kabSummary.jumlah_pps * 3 : 0) : 3;
 
   if (kuantitasMap && kuantitasMap[varCode]) {
-    return Number(kuantitasMap[varCode].nilai) || 1;
+    const mVal = kuantitasMap[varCode].nilai;
+    // Nilai 0 di master tetap dipertahankan sebagai 0
+    return (mVal !== null && mVal !== undefined && !Number.isNaN(Number(mVal))) ? Number(mVal) : 0;
   }
-  const n = Number(fallbackVal);
-  return (!Number.isNaN(n) && n > 0) ? n : 1;
+
+  const parsed = parseIndonesianNumber(fallbackVal);
+  return parsed !== null ? parsed : 1;
 }
 
-function computeRowFactors(r, contextType = 'KAB', entityData = null) {
-  if (!cachedWilayah) cachedWilayah = getWilayahData();
-  if (!cachedKuantitas) cachedKuantitas = getKuantitasMap();
-
-  const kabSummary = cachedWilayah;
-  const kuantitasMap = cachedKuantitas;
-  const isAdhoc = contextType !== 'KAB';
-
-  if (
-    r.f1_val !== null &&
-    r.f1_val !== '' &&
-    r.f1_val !== undefined &&
-    Number(r.f1_val) === 0 &&
-    (!r.f1_var || r.f1_var === 'MANUAL')
-  ) {
-    return {
-      baseFactor: 0,
-      mult: 0,
-      volume: 0,
-      parts: [`0 ${r.f1_unit || ''}`.trim()],
-      formulaText: `0 ${r.f1_unit || ''}`.trim(),
-      harga_satuan: Number(r.harga_satuan) || 0,
-      total_anggaran: 0
-    };
+function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary = null, kuantitasMap = null) {
+  if (!kabSummary) {
+    if (!cachedWilayah) cachedWilayah = getWilayahData();
+    kabSummary = cachedWilayah;
+  }
+  if (!kuantitasMap) {
+    if (!cachedKuantitas) cachedKuantitas = getKuantitasMap();
+    kuantitasMap = cachedKuantitas;
   }
 
-  const parts = [];
-  let baseFactor = 1;
+  const isAdhoc = contextType !== 'KAB';
 
   const factorSpecs = [
     { val: r.f1_val, unit: r.f1_unit, varCode: r.f1_var },
@@ -216,60 +256,97 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null) {
     { val: r.f4_val, unit: r.f4_unit, varCode: r.f4_var }
   ];
 
-  for (const fs of factorSpecs) {
-    if (fs.varCode && fs.varCode !== '' && fs.varCode !== 'MANUAL') {
-      const vNum = resolveVarValue(fs.varCode, fs.val, contextType, entityData, kabSummary, kuantitasMap);
+  const parts = [];
+  let baseFactor = 1;
+  let hasExplicitZero = false;
+  let activeFactorsCount = 0;
+
+  for (let i = 0; i < factorSpecs.length; i++) {
+    const fs = factorSpecs[i];
+    const hasVar = fs.varCode && fs.varCode !== '' && fs.varCode !== 'MANUAL';
+    const hasVal = fs.val !== null && fs.val !== undefined && String(fs.val).trim() !== '';
+
+    // Faktor yang benar-benar kosong diabaikan (bukan pengali)
+    if (!hasVar && !hasVal) {
+      continue;
+    }
+
+    activeFactorsCount++;
+    let vNum = 1;
+    let unitLabel = fs.unit || '';
+
+    if (hasVar) {
+      vNum = resolveVarValue(fs.varCode, fs.val, contextType, entityData, kabSummary, kuantitasMap);
+      if (!unitLabel && kuantitasMap && kuantitasMap[fs.varCode]) {
+        unitLabel = kuantitasMap[fs.varCode].satuan || fs.varCode;
+      }
+    } else {
+      const parsed = parseIndonesianNumber(fs.val);
+      vNum = parsed !== null ? parsed : 0;
+    }
+
+    // Jika nilai faktor adalah 0, perkalian harus menjadi 0 (jangan diabaikan!)
+    if (vNum === 0) {
+      hasExplicitZero = true;
+      baseFactor = 0;
+      parts.push(`0 ${unitLabel}`.trim());
+    } else {
       baseFactor *= vNum;
-      const uLbl = fs.unit || (kuantitasMap[fs.varCode] ? kuantitasMap[fs.varCode].satuan : fs.varCode);
-      parts.push(`${Number(vNum).toLocaleString('id-ID')} ${uLbl}`.trim());
-    } else if (fs.val !== null && fs.val !== '' && fs.val !== undefined && Number(fs.val) > 0) {
-      const vNum = Number(fs.val);
-      baseFactor *= vNum;
-      parts.push(`${vNum.toLocaleString('id-ID')} ${fs.unit || ''}`.trim());
+      parts.push(`${Number(vNum).toLocaleString('id-ID')} ${unitLabel}`.trim());
     }
   }
 
+  if (activeFactorsCount === 0) {
+    baseFactor = 1;
+  } else if (hasExplicitZero) {
+    baseFactor = 0;
+  }
+
+  // Basis Pengali
   let mult = 1;
-  if (!r.basis_pengali || r.basis_pengali === 'NONE') {
+  const basis = (r.basis_pengali || 'NONE').toUpperCase();
+
+  if (!basis || basis === 'NONE' || basis === 'FIXED') {
     mult = 1;
-  } else if (r.basis_pengali === 'TPS_RKB' || r.basis_pengali === 'tps_rkb') {
+  } else if (basis === 'TPS_RKB') {
     if (contextType === 'KAB') {
-      mult = (kuantitasMap && kuantitasMap.tps_rkb) ? Number(kuantitasMap.tps_rkb.nilai) || 1371 : 1371;
+      mult = kuantitasMap && kuantitasMap.tps_rkb ? Number(kuantitasMap.tps_rkb.nilai) || kabSummary.jumlah_tps : kabSummary.jumlah_tps;
     } else {
-      mult = (entityData && entityData.vars) ? Number(entityData.vars.tps) || 0 : 0;
+      mult = entityData && entityData.vars ? Number(entityData.vars.tps) || 0 : 0;
     }
-  } else if (r.basis_pengali === 'KOTAK_RKB') {
+  } else if (basis === 'KOTAK_RKB') {
     if (contextType === 'KAB') {
-      mult = (kuantitasMap && kuantitasMap.tps_rkb) ? Number(kuantitasMap.tps_rkb.nilai) || 1371 : 1371;
+      const kotakVal = kuantitasMap && kuantitasMap.kotak_rkb 
+        ? Number(kuantitasMap.kotak_rkb.nilai) 
+        : (kabSummary ? kabSummary.jumlah_kotak : 0);
+      mult = kotakVal;
     } else {
-      mult = (entityData && entityData.vars) ? Number(entityData.vars.kotak) || 0 : 0;
+      mult = entityData && entityData.vars ? Number(entityData.vars.kotak) || 0 : 0;
     }
   } else if (contextType === 'KAB') {
-    if (r.basis_pengali === 'PPK') mult = kabSummary.jumlah_ppk;
-    else if (r.basis_pengali === 'PPS') mult = kabSummary.jumlah_pps;
-    else if (r.basis_pengali === 'FIXED') mult = 1;
+    if (basis === 'PPK' || basis === 'KEC_PPK') mult = kabSummary.jumlah_ppk;
+    else if (basis === 'PPS' || basis === 'DESA_PPS') mult = kabSummary.jumlah_pps;
     else if (kabSummary.vars && r.basis_pengali in kabSummary.vars) mult = Number(kabSummary.vars[r.basis_pengali]) || 0;
     else mult = resolveVarValue(r.basis_pengali, 1, contextType, entityData, kabSummary, kuantitasMap);
   } else if (contextType === 'PPK') {
-    if (r.basis_pengali === 'PPK') mult = 1;
-    else if (r.basis_pengali === 'PPS') mult = entityData ? entityData.jumlah_desa : 1;
-    else if (r.basis_pengali === 'FIXED') mult = 1;
+    if (basis === 'PPK') mult = 1;
+    else if (basis === 'PPS') mult = entityData ? entityData.jumlah_desa : 1;
     else if (entityData && entityData.vars && r.basis_pengali in entityData.vars) mult = Number(entityData.vars[r.basis_pengali]) || 0;
     else mult = resolveVarValue(r.basis_pengali, 1, contextType, entityData, kabSummary, kuantitasMap);
   } else if (contextType === 'PPS') {
-    if (r.basis_pengali === 'PPS') mult = 1;
-    else if (r.basis_pengali === 'FIXED') mult = 1;
+    if (basis === 'PPS') mult = 1;
     else if (entityData && entityData.vars && r.basis_pengali in entityData.vars) mult = Number(entityData.vars[r.basis_pengali]) || 0;
     else mult = resolveVarValue(r.basis_pengali, 1, contextType, entityData, kabSummary, kuantitasMap);
   }
 
   const label = isAdhoc ? (r.label_pengali_adhoc || r.label_pengali_kab || '') : (r.label_pengali_kab || '');
-  if (r.basis_pengali && r.basis_pengali !== 'NONE' && (label || r.basis_pengali !== 'FIXED')) {
+  if (basis && basis !== 'NONE' && (label || basis !== 'FIXED')) {
     parts.push(`${Number(mult).toLocaleString('id-ID')} ${label}`.trim());
   }
 
   const volume = baseFactor * mult;
-  const harga = Number(r.harga_satuan) || 0;
+  const hargaParsed = parseIndonesianNumber(r.harga_satuan);
+  const harga = (hargaParsed !== null && hargaParsed >= 0) ? hargaParsed : 0;
   const total = volume * harga;
 
   return {
@@ -302,7 +379,7 @@ function getHierarchyRank(row) {
 /**
  * Menghitung seluruh rollup hierarki RKB secara hierarkis presisi (SAKTI standard)
  */
-function calculateRkbDataset(rawRows) {
+function calculateRkbDataset(rawRows, paguNphd = null) {
   let grandTotal = 0;
   let totalItems = 0;
   const bySubbag = { KUL: 0, RENDATIN: 0, TEKNIS: 0, HUKUM: 0, PARSDM: 0 };
@@ -319,15 +396,18 @@ function calculateRkbDataset(rawRows) {
 
   // 1. Hitung seluruh baris item (level_indent === 4 dan row_type !== 'header')
   const processedRows = rawRows.map(r => {
-    const isItem = r.row_type !== 'header' && (Number(r.level_indent) === 4);
+    const isItem = r.row_type === 'item' || (r.row_type !== 'header' && (r.level_indent === undefined || Number(r.level_indent) === 4));
     if (!isItem) {
       return {
         ...r,
         is_header: true,
         hierarchy_rank: getHierarchyRank(r),
         computed_volume: null,
+        vol_total: null,
         computed_formula: '',
-        computed_total: 0
+        formula_text: '',
+        computed_total: 0,
+        jumlah: 0
       };
     }
 
@@ -348,150 +428,138 @@ function calculateRkbDataset(rawRows) {
     if (!byAkun[akun]) byAkun[akun] = 0;
     byAkun[akun] += calc.total_anggaran;
 
-    // Sasaran
+    // Sasaran Alokasi
     const sas = (r.target_scope || 'KAB').toUpperCase();
-    if (!bySasaran[sas]) bySasaran[sas] = 0;
-    bySasaran[sas] += calc.total_anggaran;
+    if (bySasaran[sas] !== undefined) bySasaran[sas] += calc.total_anggaran;
+    else bySasaran.KAB += calc.total_anggaran;
 
-    // Per-Subbag Summary Aggregation
-    if (!subbagSummaries[pic]) {
-      subbagSummaries[pic] = { pic, grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { [pic]: 0 } };
+    // Subbag summary per-PIC
+    if (subbagSummaries[pic]) {
+      subbagSummaries[pic].grandTotal += calc.total_anggaran;
+      subbagSummaries[pic].totalItems++;
+      if (subbagSummaries[pic].bySasaran[sas] !== undefined) {
+        subbagSummaries[pic].bySasaran[sas] += calc.total_anggaran;
+      }
+      if (!subbagSummaries[pic].byAkun[akun]) subbagSummaries[pic].byAkun[akun] = 0;
+      subbagSummaries[pic].byAkun[akun] += calc.total_anggaran;
+      subbagSummaries[pic].bySubbag[pic] += calc.total_anggaran;
     }
-    subbagSummaries[pic].grandTotal += calc.total_anggaran;
-    subbagSummaries[pic].totalItems++;
-    subbagSummaries[pic].bySubbag[pic] = (subbagSummaries[pic].bySubbag[pic] || 0) + calc.total_anggaran;
-    if (!subbagSummaries[pic].bySasaran[sas]) subbagSummaries[pic].bySasaran[sas] = 0;
-    subbagSummaries[pic].bySasaran[sas] += calc.total_anggaran;
-    if (!subbagSummaries[pic].byAkun[akun]) subbagSummaries[pic].byAkun[akun] = 0;
-    subbagSummaries[pic].byAkun[akun] += calc.total_anggaran;
 
     return {
       ...r,
       is_header: false,
       hierarchy_rank: 99,
       computed_volume: calc.volume,
+      vol_total: calc.volume,
       computed_formula: calc.formulaText,
-      computed_total: calc.total_anggaran
+      formula_text: calc.formulaText,
+      computed_total: calc.total_anggaran,
+      jumlah: calc.total_anggaran,
+      harga_satuan: calc.harga_satuan
     };
   });
 
-  // 2. Build Tree Hierarchy (tree_id, parent_tree_id, tree_level, effective_indent, has_children)
-  const headerStack = [];
-  for (let idx = 0; idx < processedRows.length; idx++) {
-    const row = processedRows[idx];
-    const rowId = String(row.id || idx);
-    row.tree_id = row.is_header ? `h_${rowId}` : `i_${rowId}`;
+  // 2. Tentukan tree_id dan parent_tree_id
+  let curL0 = null, curL1 = null, curL2 = null, curL3 = null, curH1 = null;
+  const allRowsWithTree = processedRows.map((r, idx) => {
+    let treeId = `row_${r.id || idx}`;
+    let parentTreeId = null;
 
-    if (row.is_header) {
-      const lvl = Number(row.level_indent ?? 2);
-      let treeLvl = 3;
-      if (lvl === 0) treeLvl = 1;
-      else if (lvl === 1) treeLvl = 2;
-      else if (lvl === 2) treeLvl = 3;
-      else if (lvl >= 21 && lvl <= 25) treeLvl = 4;
-      else if (lvl === 3) treeLvl = 5;
-      else if (lvl === 41 || lvl === 42) treeLvl = 5.5;
-      row.tree_level = treeLvl;
-
-      const rank = row.hierarchy_rank;
-      while (headerStack.length > 0 && headerStack[headerStack.length - 1].rank >= rank) {
-        headerStack.pop();
-      }
-
-      const parentNode = headerStack.length > 0 ? headerStack[headerStack.length - 1] : null;
-      row.parent_tree_id = parentNode ? parentNode.tree_id : null;
-
-      if (lvl === 3) {
-        row.effective_indent = parentNode ? Math.max(parentNode.effective_indent, 28) : 28;
-        row.is_akun_row = true;
-        row.is_sub_header = false;
-      } else if (lvl === 41 || lvl === 42) {
-        row.effective_indent = parentNode ? (parentNode.effective_indent + 14) : 42;
-        row.is_akun_row = false;
-        row.is_sub_header = true;
-      } else {
-        row.effective_indent = lvl === 0 ? 0 : (lvl === 1 ? 14 : (lvl === 2 ? 28 : (lvl >= 21 && lvl <= 25 ? (28 + (lvl - 20) * 14) : 42)));
-        row.is_akun_row = false;
-        row.is_sub_header = false;
-      }
-
-      headerStack.push({
-        rank,
-        tree_id: row.tree_id,
-        tree_level: treeLvl,
-        effective_indent: row.effective_indent
-      });
+    if (r.is_header) {
+      const rank = r.hierarchy_rank;
+      if (rank === 10) { curL0 = treeId; curL1 = null; curL2 = null; curL3 = null; curH1 = null; parentTreeId = null; }
+      else if (rank === 20) { curL1 = treeId; curL2 = null; curL3 = null; curH1 = null; parentTreeId = curL0; }
+      else if (rank === 30) { curL2 = treeId; curL3 = null; curH1 = null; parentTreeId = curL1 || curL0; }
+      else if (rank === 50) { curL3 = treeId; curH1 = null; parentTreeId = curL2 || curL1 || curL0; }
+      else if (rank === 61) { curH1 = treeId; parentTreeId = curL3 || curL2 || curL1 || curL0; }
+      else if (rank === 62) { parentTreeId = curH1 || curL3 || curL2 || curL1 || curL0; }
+      else { parentTreeId = curL2 || curL1 || curL0; }
     } else {
-      row.tree_level = 6;
-      row.is_item_row = true;
-      const parentNode = headerStack.length > 0 ? headerStack[headerStack.length - 1] : null;
-      row.parent_tree_id = parentNode ? parentNode.tree_id : null;
-      row.effective_indent = parentNode ? (parentNode.effective_indent + 14) : 42;
+      parentTreeId = curH1 || curL3 || curL2 || curL1 || curL0;
     }
-  }
 
-  // Hitung jumlah anak (child_count) dan has_children
+    return {
+      ...r,
+      tree_id: treeId,
+      parent_tree_id: parentTreeId
+    };
+  });
+
+  // 3. Rollup vertikal
+  const rowByTreeId = {};
+  allRowsWithTree.forEach(r => { rowByTreeId[r.tree_id] = r; });
+
+  const totalsByTreeId = {};
+  allRowsWithTree.forEach(r => {
+    if (!r.is_header) {
+      let cur = r.parent_tree_id;
+      while (cur && rowByTreeId[cur]) {
+        totalsByTreeId[cur] = (totalsByTreeId[cur] || 0) + r.computed_total;
+        cur = rowByTreeId[cur].parent_tree_id;
+      }
+    }
+  });
+
+  // Pasang computed_total pada baris header
+  const finalRows = allRowsWithTree.map(r => {
+    if (r.is_header) {
+      const tot = totalsByTreeId[r.tree_id] || 0;
+      return {
+        ...r,
+        computed_total: tot,
+        jumlah: tot
+      };
+    }
+    return r;
+  });
+
+  // Hitung jumlah anak (child_count)
   const childCountMap = {};
-  for (const row of processedRows) {
-    if (row.parent_tree_id) {
-      childCountMap[row.parent_tree_id] = (childCountMap[row.parent_tree_id] || 0) + 1;
+  for (const r of finalRows) {
+    if (r.parent_tree_id) {
+      childCountMap[r.parent_tree_id] = (childCountMap[r.parent_tree_id] || 0) + 1;
     }
   }
-  for (const row of processedRows) {
-    row.child_count = childCountMap[row.tree_id] || 0;
-    row.has_children = row.child_count > 0;
+  for (const r of finalRows) {
+    r.child_count = childCountMap[r.tree_id] || 0;
+    r.has_children = r.child_count > 0;
   }
 
-  // 3. Rollup Subtotals Hierarkis Presisi:
-  // Setiap baris header menjumlahkan seluruh item detail di bawah cabangnya sampai bertemu header setingkat atau lebih tinggi
-  for (let i = 0; i < processedRows.length; i++) {
-    const r = processedRows[i];
-    if (r.is_header) {
-      const curRank = r.hierarchy_rank;
-      let sum = 0;
-      for (let j = i + 1; j < processedRows.length; j++) {
-        const next = processedRows[j];
-        if (next.is_header && next.hierarchy_rank <= curRank) break;
-        if (!next.is_header) {
-          sum += next.computed_total;
-        }
-      }
-      r.computed_total = sum;
-    }
-  }
-
-  // 4. Hitung Anti-Miskonsepsi Banner Metrics:
-  // Tahapan 1-17, Operasional 18-28, dan Honor Adhoc + Pokja
-  let tahapanTotal = 0;
-  let operasionalTotal = 0;
-  let honorTotal = 0;
-
-  for (const r of processedRows) {
-    if (r.is_header) {
-      if (r.level_indent === 1 && r.kode === 'I.' && r.uraian.includes('TAHAPAN')) {
-        tahapanTotal = r.computed_total;
-      } else if (r.level_indent === 1 && r.kode === 'II.' && r.uraian.includes('OPERASIONAL')) {
-        operasionalTotal = r.computed_total;
-      } else if (r.level_indent === 0 && r.kode === 'B' && r.uraian.includes('HONORARIUM')) {
-        honorTotal = r.computed_total;
-      }
-    }
-  }
-
+  // Hitung metrik Banner Dashboard
+  const tahapanTotal = finalRows
+    .filter(r => r.is_header && r.level_indent === 0 && (r.uraian || '').includes('TAHAPAN'))
+    .reduce((acc, r) => acc + (r.computed_total || 0), 0);
+  const operasionalTotal = finalRows
+    .filter(r => r.is_header && r.level_indent === 0 && (r.uraian || '').includes('OPERASIONAL'))
+    .reduce((acc, r) => acc + (r.computed_total || 0), 0);
+  const honorTotal = byAkun['521213'] || 0;
   const totalLevelPps = (bySasaran.PPS || 0) + (bySasaran.PANTARLIH || 0) + (bySasaran.TPS || 0);
 
+  // Validasi Keseimbangan terhadap Pagu NPHD yang sesungguhnya (bukan angka hardcoded)
+  const paguTarget = Number(paguNphd);
+  const isPaguSet = Number.isFinite(paguTarget) && paguTarget > 0;
+  const isBalance = isPaguSet ? Math.abs(grandTotal - paguTarget) < 0.01 : false;
+  const selisihPagu = isPaguSet ? grandTotal - paguTarget : null;
+
   return {
-    rows: processedRows,
+    rows: finalRows,
     summary: {
       grandTotal,
       totalItems,
-      totalRows: processedRows.length,
+      totalRows: finalRows.length,
+      paguNphd: isPaguSet ? paguTarget : 0,
+      is_pagu_set: isPaguSet,
+      is_balance: isBalance,
+      is_balanced: isBalance,
+      selisih_pagu: selisihPagu,
+      balance_label: isPaguSet ? (isBalance ? 'Seimbang (Match Pagu NPHD)' : `Selisih Rp ${Number(selisihPagu).toLocaleString('id-ID')}`) : 'Pagu NPHD Belum Dikonfigurasi',
       bySubbag,
       byAkun,
       bySasaran,
       subbagSummaries,
       banner: {
         totalPagu: grandTotal,
+        paguNphd: isPaguSet ? paguTarget : 0,
         tahapanTotal,
         operasionalTotal,
         honorTotal,
@@ -504,7 +572,10 @@ function calculateRkbDataset(rawRows) {
           peserta: bySasaran.PESERTA || 0,
           totalLevelPps
         },
-        is_balance: grandTotal === 49999999000
+        is_pagu_set: isPaguSet,
+        is_balance: isBalance,
+        is_balanced: isBalance,
+        selisih_pagu: selisihPagu
       }
     }
   };
@@ -514,12 +585,39 @@ function calculateRkbDataset(rawRows) {
 const datasetCache = new Map();
 
 function getCachedRkbDataset(periodeId) {
+  return getRkbCalculatedDataset(periodeId);
+}
+
+function getRkbCalculatedDataset(periodeId) {
   const key = Number(periodeId);
   if (datasetCache.has(key)) {
     return datasetCache.get(key);
   }
-  const rawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan, id').all(key);
-  const result = calculateRkbDataset(rawRows);
+
+  // 1. Periksa apakah dokumen berstatus terkunci dan memiliki snapshot tersimpan di database
+  try {
+    const snapRow = db.prepare('SELECT snapshot_data FROM periode_snapshot WHERE periode_id = ?').get(key);
+    if (snapRow && snapRow.snapshot_data) {
+      const snap = JSON.parse(snapRow.snapshot_data);
+      if (snap && snap.rows && snap.summary) {
+        const result = {
+          rows: snap.rows,
+          summary: snap.summary,
+          is_snapshot: true,
+          snapshot_meta: snap.meta || {}
+        };
+        datasetCache.set(key, result);
+        return result;
+      }
+    }
+  } catch (err) {
+    console.warn(`[SNAPSHOT] Peringatan saat membaca snapshot periode ${key}:`, err.message);
+  }
+
+  // 2. Jika bukan arsip bersnapshot (misal draft aktif), hitung secara dinamis
+  const periode = db.prepare('SELECT id, pagu_nphd, is_locked FROM periode_anggaran WHERE id = ?').get(key);
+  const rawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(key);
+  const result = calculateRkbDataset(rawRows, periode ? periode.pagu_nphd : null);
   datasetCache.set(key, result);
   return result;
 }
@@ -540,11 +638,11 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
 
   const { rows, summary: docSummary } = fullDataset;
 
-  // Jika tidak ada filter apa pun, kembalikan dataset penuh asli
+  // Jika tidak ada filter apa pun, kembalikan salinan aman dataset asli
   if (!filterPic && !filterSasaran && !searchQ) {
     return {
-      rows,
-      summary: docSummary
+      rows: [...rows],
+      summary: { ...docSummary }
     };
   }
 
@@ -575,7 +673,7 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
   let totalItems = 0;
 
   rows.forEach(r => {
-    if (r.is_header) return; // Hanya cocokkan item detail secara langsung!
+    if (r.is_header) return;
 
     let rPic = (r.pic_bagian || 'KUL').toUpperCase();
     if (rPic === 'PERENCANAAN') rPic = 'RENDATIN';
@@ -672,7 +770,7 @@ function clearRkbDatasetCache(periodeId = null) {
 
 /**
  * Menghitung perbandingan Semula - Menjadi untuk Dokumen Revisi RKB
- * Dioptimalkan dengan caching memori dan pemadatan payload (compact diff)
+ * Mendeteksi item baru, berubah (meski nominal tetap), bertambah, berkurang, dan dihapus.
  */
 function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, precomputedCurrCalc = null) {
   const periode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periodeId));
@@ -687,11 +785,11 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
     };
   }
 
-  // Tentukan Dokumen Pembanding (Baseline SSOT):
-  // Aturan Tata Kelola Anggaran: Dokumen pembanding default adalah "RKB Awal" di Peta Siklus (revisi_ke = 0).
   let compPeriode = null;
   if (targetComparisonPeriodeId) {
     compPeriode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(targetComparisonPeriodeId));
+  } else if (periode.parent_periode_id) {
+    compPeriode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periode.parent_periode_id));
   } else {
     // Cari RKB Awal di Peta Siklus yang bukan dokumen saat ini
     compPeriode = db.prepare(`
@@ -700,11 +798,6 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
         AND id != ?
       ORDER BY id ASC LIMIT 1
     `).get(periode.id);
-
-    // Fallback: jika dokumen saat ini turunan bertingkat dan tidak ada RKB Awal lain yang terdaftar selain parent
-    if (!compPeriode && periode.parent_periode_id) {
-      compPeriode = db.prepare('SELECT * FROM periode_anggaran WHERE id = ?').get(Number(periode.parent_periode_id));
-    }
   }
 
   const isRkbAwal = Boolean(periode.revisi_ke === 0 || periode.versi_revisi === 'RKB Awal' || !periode.parent_periode_id);
@@ -720,13 +813,17 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
     };
   }
 
-  // Gunakan cached dataset untuk parent dan current (tanpa double-fetching dan double-calculation)
   const parentCalc = getCachedRkbDataset(compPeriode.id);
   const currCalc = precomputedCurrCalc || getCachedRkbDataset(periode.id);
 
   const parentMap = {};
+  const parentBySignature = {};
   for (const pr of parentCalc.rows) {
     parentMap[pr.id] = pr;
+    if (!pr.is_header) {
+      const sig = `${pr.kode || ''}|${(pr.uraian || '').trim().toLowerCase()}|${pr.kode_akun || ''}`;
+      parentBySignature[sig] = pr;
+    }
   }
 
   const byRowId = {};
@@ -739,10 +836,19 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
   const matchedParentIds = new Set();
 
   for (const cr of currCalc.rows) {
-    if (cr.semula_row_id) {
+    // Cari semulaRow: pertama via semula_row_id, kedua via signature kode+uraian+akun jika tidak ada id
+    let semulaRow = null;
+    if (cr.semula_row_id && parentMap[cr.semula_row_id]) {
+      semulaRow = parentMap[cr.semula_row_id];
       matchedParentIds.add(cr.semula_row_id);
+    } else if (!cr.is_header) {
+      const sig = `${cr.kode || ''}|${(cr.uraian || '').trim().toLowerCase()}|${cr.kode_akun || ''}`;
+      if (parentBySignature[sig] && !matchedParentIds.has(parentBySignature[sig].id)) {
+        semulaRow = parentBySignature[sig];
+        matchedParentIds.add(semulaRow.id);
+      }
     }
-    const semulaRow = cr.semula_row_id ? parentMap[cr.semula_row_id] : null;
+
     const sVol = semulaRow ? semulaRow.computed_volume : null;
     const sHarga = semulaRow ? Number(semulaRow.harga_satuan) || 0 : null;
     const sJml = semulaRow ? semulaRow.computed_total : 0;
@@ -759,12 +865,20 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
     } else if (diff < 0) {
       status = 'BERKURANG';
       if (!cr.is_header) deltaBerkurang += Math.abs(diff);
+    } else {
+      // diff === 0, tapi periksa apakah ada perubahan volume, harga, uraian, akun, atau PIC
+      const volChanged = sVol !== cr.computed_volume;
+      const hargaChanged = sHarga !== (Number(cr.harga_satuan) || 0);
+      const uraianChanged = (semulaRow.uraian || '').trim() !== (cr.uraian || '').trim();
+      const akunChanged = (semulaRow.kode_akun || '') !== (cr.kode_akun || '');
+      const picChanged = (semulaRow.pic_bagian || '') !== (cr.pic_bagian || '');
+      if (volChanged || hargaChanged || uraianChanged || akunChanged || picChanged) {
+        status = 'BERUBAH';
+      }
     }
 
     const hasCatatan = Boolean(cr.catatan_revisi_baris && cr.catatan_revisi_baris.trim());
 
-    // Pemadatan payload: hanya kirim rincian baris jika status !== TETAP atau ada catatan!
-    // Untuk baris TETAP tanpa catatan, client sudah memiliki fallback otomatis.
     if (status !== 'TETAP' || hasCatatan) {
       const itemDiff = {
         row_id: cr.id,
@@ -806,7 +920,7 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
       logDetail.push({
         row_id: null,
         tree_id: pr.tree_id,
-        status: 'BERKURANG',
+        status: 'DIHAPUS',
         diff,
         semula_vol: pr.computed_volume,
         semula_satuan: pr.satuan_vol || '',
@@ -850,10 +964,6 @@ function getRevisionComparison(periodeId, targetComparisonPeriodeId = null, prec
   };
 }
 
-/**
- * Ringkasan cepat perbandingan revisi (khusus Pusat Siklus & Matriks Dashboard)
- * Hanya memuat angka rekapitulasi tanpa baris individual (payload < 1 KB)
- */
 function getRevisionSummary(periodeId, targetComparisonPeriodeId = null) {
   const comp = getRevisionComparison(periodeId, targetComparisonPeriodeId);
   return {
@@ -873,8 +983,9 @@ module.exports = {
   getHierarchyRank,
   calculateRkbDataset,
   getCachedRkbDataset,
-  clearRkbDatasetCache,
+  getRkbCalculatedDataset,
   filterAndPruneRkbDataset,
+  clearRkbDatasetCache,
   getRevisionComparison,
   getRevisionSummary
 };

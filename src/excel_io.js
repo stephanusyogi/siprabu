@@ -6,8 +6,9 @@
 
 const ExcelJS = require('exceljs');
 const XLSX = require('xlsx');
-const { db, getRabRows, getPeriodeById, getMasters } = require('./db');
-const { calculateRkbDataset, getRevisionComparison } = require('./calculation');
+const { db, getRabRows, getPeriodeById, getMasters, getKecamatans } = require('./db');
+const { calculateRkbDataset, getCachedRkbDataset, getRevisionComparison } = require('./calculation');
+const { parseIndonesianNumber } = require('./number_util');
 
 const SUBBAG_LABEL_MAP = {
   KUL: 'Keuangan, Umum & Logistik (KUL)',
@@ -236,8 +237,7 @@ function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPi
  */
 async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const periode = getPeriodeById(periodeId);
-  const rawRows = getRabRows(periodeId);
-  const { rows, summary } = calculateRkbDataset(rawRows);
+  const { rows, summary } = getCachedRkbDataset(periodeId);
   const masters = getMasters ? getMasters() : {};
   const settings = masters.settings || {};
   const namaKetua = settings.nama_ketua || 'SAMSU MUSTAKIM';
@@ -2033,6 +2033,7 @@ function parseSbmExcelBuffer(buffer) {
   };
 
   const parsedItems = [];
+  const errors = [];
   for (let r = headerIdx + 1; r < rawRows.length; r++) {
     const row = rawRows[r];
     if (!row || row.length === 0) continue;
@@ -2044,7 +2045,14 @@ function parseSbmExcelBuffer(buffer) {
     const kodeAkunVal = colMap.kode_akun !== -1 ? String(row[colMap.kode_akun] || '521211').trim() : '521211';
     const kategoriVal = colMap.kategori !== -1 ? String(row[colMap.kategori] || 'Umum').trim() : 'Umum';
     const satuanVal = colMap.satuan !== -1 ? String(row[colMap.satuan] || 'OK').trim() : 'OK';
-    const hargaVal = colMap.harga_satuan !== -1 ? (Number(String(row[colMap.harga_satuan] || '0').replace(/[^0-9.-]+/g, '')) || 0) : 0;
+    
+    let rawHarga = colMap.harga_satuan !== -1 ? row[colMap.harga_satuan] : 0;
+    let hargaVal = parseIndonesianNumber(rawHarga, { defaultValue: 0 });
+    if (hargaVal === null || isNaN(hargaVal) || hargaVal < 0) {
+      errors.push({ baris: r + 1, error: `Nilai harga satuan tidak valid: "${rawHarga}" pada rincian "${uraianVal}"` });
+      hargaVal = 0;
+    }
+
     const jenisReg = colMap.jenis_regulasi !== -1 ? String(row[colMap.jenis_regulasi] || 'SBM').trim() : 'SBM';
     const dasarHukumVal = colMap.dasar_hukum !== -1 ? String(row[colMap.dasar_hukum] || '').trim() : '';
     const ketVal = colMap.keterangan !== -1 ? String(row[colMap.keterangan] || '').trim() : '';
@@ -2063,6 +2071,7 @@ function parseSbmExcelBuffer(buffer) {
     });
   }
 
+  parsedItems.errors = errors;
   return parsedItems;
 }
 
@@ -2210,13 +2219,24 @@ function parseBasExcelBuffer(buffer) {
   };
 
   const parsedItems = [];
+  const errors = [];
   for (let r = headerIdx + 1; r < rawRows.length; r++) {
     const row = rawRows[r];
     if (!row || row.length === 0) continue;
 
-    const kodeVal = colMap.kode !== -1 ? String(row[colMap.kode] || '').replace(/[^0-9]/g, '').trim() : '';
+    const kodeRaw = colMap.kode !== -1 ? String(row[colMap.kode] || '').trim() : '';
+    const kodeVal = kodeRaw.replace(/[^0-9]/g, '').trim();
     const uraianVal = colMap.uraian !== -1 ? String(row[colMap.uraian] || '').trim() : '';
-    if (!kodeVal || !uraianVal) continue;
+    if (!kodeRaw && !uraianVal) continue;
+
+    if (!kodeVal || kodeVal.length < 5 || kodeVal.length > 7) {
+      errors.push({ baris: r + 1, error: `Format Kode Akun BAS tidak valid: "${kodeRaw}" pada rincian "${uraianVal}"` });
+      continue;
+    }
+    if (!uraianVal) {
+      errors.push({ baris: r + 1, error: `Uraian nama akun BAS tidak boleh kosong pada kode ${kodeVal}` });
+      continue;
+    }
 
     const idVal = colMap.id !== -1 && row[colMap.id] ? Number(row[colMap.id]) : undefined;
     const kelompokVal = colMap.kelompok !== -1 ? String(row[colMap.kelompok] || '521 - Belanja Barang').trim() : '521 - Belanja Barang';
@@ -2233,6 +2253,7 @@ function parseBasExcelBuffer(buffer) {
     });
   }
 
+  parsedItems.errors = errors;
   return parsedItems;
 }
 
@@ -2421,6 +2442,11 @@ function parseDesaExcelBuffer(buffer) {
   };
 
   const parsedItems = [];
+  const errors = [];
+  const knownKecamatans = getKecamatans();
+  const kecMapById = new Map(knownKecamatans.map(k => [k.id, k]));
+  const kecMapByName = new Map(knownKecamatans.map(k => [k.nama.toLowerCase().trim(), k]));
+
   for (let r = headerIdx + 1; r < rawRows.length; r++) {
     const row = rawRows[r];
     if (!row || row.length === 0) continue;
@@ -2429,15 +2455,37 @@ function parseDesaExcelBuffer(buffer) {
     if (!namaVal) continue;
 
     const idVal = colMap.id !== -1 && row[colMap.id] ? Number(row[colMap.id]) : undefined;
-    const noUrutVal = colMap.no_urut !== -1 && row[colMap.no_urut] ? Number(row[colMap.no_urut]) : undefined;
-    const kecIdVal = colMap.kecamatan_id !== -1 && row[colMap.kecamatan_id] ? Number(row[colMap.kecamatan_id]) : undefined;
+    const noUrutVal = colMap.no_urut !== -1 && row[colMap.no_urut] ? parseIndonesianNumber(row[colMap.no_urut], { defaultValue: undefined }) : undefined;
+    const kecIdVal = colMap.kecamatan_id !== -1 && row[colMap.kecamatan_id] ? parseIndonesianNumber(row[colMap.kecamatan_id], { defaultValue: undefined }) : undefined;
     const kecNamaVal = colMap.kecamatan_nama !== -1 ? String(row[colMap.kecamatan_nama] || '').trim() : '';
 
-    const tpsVal = colMap.tps !== -1 ? (Number(String(row[colMap.tps] || '0').replace(/[^0-9.-]+/g, '')) || 0) : 0;
-    const pantarlihVal = colMap.pantarlih !== -1 ? (Number(String(row[colMap.pantarlih] || '0').replace(/[^0-9.-]+/g, '')) || 0) : 0;
-    const pemilihVal = colMap.pemilih !== -1 ? (Number(String(row[colMap.pemilih] || '0').replace(/[^0-9.-]+/g, '')) || 0) : 0;
-    const kotakVal = colMap.kotak !== -1 ? (Number(String(row[colMap.kotak] || '0').replace(/[^0-9.-]+/g, '')) || 0) : tpsVal;
-    const rohaniwanVal = colMap.rohaniwan !== -1 ? (Number(String(row[colMap.rohaniwan] || '1').replace(/[^0-9.-]+/g, '')) || 1) : 1;
+    // Validasi referensi Kecamatan
+    let matchedKec = null;
+    if (kecIdVal && kecMapById.has(kecIdVal)) {
+      matchedKec = kecMapById.get(kecIdVal);
+    } else if (kecNamaVal && kecMapByName.has(kecNamaVal.toLowerCase())) {
+      matchedKec = kecMapByName.get(kecNamaVal.toLowerCase());
+    } else if (kecIdVal || kecNamaVal) {
+      errors.push({ baris: r + 1, error: `Referensi Kecamatan tidak ditemukan: ID "${kecIdVal || '-'}" / Nama "${kecNamaVal || '-'}" untuk Desa "${namaVal}"` });
+    }
+
+    const rawTps = colMap.tps !== -1 ? row[colMap.tps] : 0;
+    const tpsVal = parseIndonesianNumber(rawTps, { defaultValue: 0 });
+    if (tpsVal === null || isNaN(tpsVal) || tpsVal < 0) {
+      errors.push({ baris: r + 1, error: `Jumlah TPS tidak valid: "${rawTps}" pada Desa "${namaVal}"` });
+    }
+
+    const rawPantarlih = colMap.pantarlih !== -1 ? row[colMap.pantarlih] : 0;
+    const pantarlihVal = parseIndonesianNumber(rawPantarlih, { defaultValue: 0 });
+
+    const rawPemilih = colMap.pemilih !== -1 ? row[colMap.pemilih] : 0;
+    const pemilihVal = parseIndonesianNumber(rawPemilih, { defaultValue: 0 });
+
+    const rawKotak = colMap.kotak !== -1 ? row[colMap.kotak] : tpsVal;
+    const kotakVal = parseIndonesianNumber(rawKotak, { defaultValue: (tpsVal || 0) });
+
+    const rawRohaniwan = colMap.rohaniwan !== -1 ? row[colMap.rohaniwan] : 1;
+    const rohaniwanVal = parseIndonesianNumber(rawRohaniwan, { defaultValue: 1 });
 
     const ketuaVal = colMap.ketua_nama !== -1 ? String(row[colMap.ketua_nama] || '').trim() : '';
     const sekVal = colMap.sekretaris_nama !== -1 ? String(row[colMap.sekretaris_nama] || '').trim() : '';
@@ -2446,20 +2494,21 @@ function parseDesaExcelBuffer(buffer) {
     parsedItems.push({
       id: idVal,
       no_urut: noUrutVal,
-      kecamatan_id: kecIdVal,
-      kecamatan_nama: kecNamaVal,
+      kecamatan_id: matchedKec ? matchedKec.id : kecIdVal,
+      kecamatan_nama: matchedKec ? matchedKec.nama : kecNamaVal,
       nama: namaVal,
-      tps: tpsVal,
-      pantarlih: pantarlihVal,
-      pemilih: pemilihVal,
-      kotak: kotakVal,
-      rohaniwan: rohaniwanVal,
+      tps: tpsVal || 0,
+      pantarlih: pantarlihVal || 0,
+      pemilih: pemilihVal || 0,
+      kotak: kotakVal !== null ? kotakVal : (tpsVal || 0),
+      rohaniwan: rohaniwanVal !== null ? rohaniwanVal : 1,
       ketua_nama: ketuaVal,
       sekretaris_nama: sekVal,
       sekretaris_nip: nipVal
     });
   }
 
+  parsedItems.errors = errors;
   return parsedItems;
 }
 
@@ -2629,6 +2678,7 @@ function parseKecamatanExcelBuffer(buffer) {
   };
 
   const parsedItems = [];
+  const errors = [];
   for (let r = headerIdx + 1; r < rawRows.length; r++) {
     const row = rawRows[r];
     if (!row || row.length === 0) continue;
@@ -2637,7 +2687,7 @@ function parseKecamatanExcelBuffer(buffer) {
     if (!namaVal) continue;
 
     const idVal = colMap.id !== -1 && row[colMap.id] ? Number(row[colMap.id]) : undefined;
-    const noUrutVal = colMap.no_urut !== -1 && row[colMap.no_urut] ? Number(row[colMap.no_urut]) : undefined;
+    const noUrutVal = colMap.no_urut !== -1 && row[colMap.no_urut] ? parseIndonesianNumber(row[colMap.no_urut], { defaultValue: undefined }) : undefined;
     const kodeVal = colMap.kode !== -1 ? String(row[colMap.kode] || '').trim() : '';
     const ketuaVal = colMap.ketua_ppk !== -1 ? String(row[colMap.ketua_ppk] || '').trim() : '';
     const sekVal = colMap.sekretaris_ppk !== -1 ? String(row[colMap.sekretaris_ppk] || '').trim() : '';
@@ -2654,6 +2704,7 @@ function parseKecamatanExcelBuffer(buffer) {
     });
   }
 
+  parsedItems.errors = errors;
   return parsedItems;
 }
 

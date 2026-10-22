@@ -43,6 +43,79 @@ Aplikasi ini dirancang dengan antarmuka modern yang mengadopsi struktur navigasi
 - **Database Engine**: Driver bawaan `node:sqlite` (`DatabaseSync`) dengan arsitektur WAL (*Write-Ahead Logging*) yang cepat dan bebas kompilasi C++ biner.
 - **Frontend**: HTML5, CSS3 kustom (SAKTI Design System), Vanilla ES6 JavaScript (Single Page Architecture).
 - **Pengolah Spreadsheet**: [ExcelJS](https://github.com/exceljs/exceljs) & [SheetJS (xlsx)](https://sheetjs.com/).
+- **Kompresi & Arsip**: [Archiver](https://github.com/archiverjs/node-archiver) (ZIP per-subbag streaming).
+- **Keamanan Kriptografi**: Node.js `node:crypto` (`scrypt` password hashing, timing-safe equality, dynamic session signing key, in-memory rate limiting).
+
+---
+
+## 🔒 Keamanan & Tata Kelola Hak Akses (RBAC)
+
+SIPRABU menerapkan arsitektur keamanan bertingkat yang ketat:
+1. **Penyimpanan Kredensial Berstandar Industri (`scrypt`)**:
+   - Seluruh password di-hash secara aman menggunakan algoritma `scrypt` dengan salt acak 16 byte.
+   - Migrasi transparan dari hash lama saat pengguna login tanpa mereset akun secara diam-diam.
+   - Papan konfigurasi/log disaring otomatis (`sanitizeLogData`) agar tidak membocorkan password atau token.
+2. **Kunci Penandatangan Sesi Dinamis**:
+   - Token sesi ditandatangani menggunakan `SESSION_SECRET` (dapat disetel melalui *environment variable* atau di-generate otomatis ke berkas dengan izin akses terbatas `0o600`).
+3. **Pencabutan Sesi Seketika (*Instant Session Invalidation*)**:
+   - Setiap token JWT terikat pada `token_version` dan status `is_active` pengguna.
+   - Perubahan status akun, penggantian password, atau pergantian hak akses otomatis menaikkan `token_version` dan membatalkan seluruh token lama seketika.
+4. **Isolasi Subbagian & Validasi Kepemilikan (*Zero Trust Backend*)**:
+   - Backend memvalidasi kepemilikan baris berdasarkan rekaman database yang tersimpan, bukan PIC yang dikirim dari browser.
+   - Operator (Level 2) terisolasi ketat hanya pada subbagiannya (KUL, RENDATIN, TEKNIS, HUKUM, PARSDM). Operator dilarang mengedit, menghapus, atau memindahkan baris milik subbagian lain.
+   - Baris Header dilindungi secara ketat dan tidak dapat dihapus jika masih memiliki baris rincian di bawahnya.
+5. **Mitigasi *Brute-Force***:
+   - Pembatasan frekuensi login (*rate limiter*) otomatis memblokir IP setelah 5 kali kegagalan berturut-turut selama jendela waktu 15 menit.
+
+---
+
+## 💾 Pencadangan Basis Data & Integritas (*WAL Checkpoint*)
+
+SIPRABU dilengkapi modul pencadangan SQLite atomik yang memastikan data konsisten:
+- **Pencadangan Manual**:
+  ```bash
+  npm run backup
+  # atau dengan label kustom:
+  node scripts/backup.js pra_pleno_2026
+  ```
+- **Melihat Daftar Riwayat Backup**:
+  ```bash
+  node scripts/backup.js --list
+  ```
+- Setiap proses backup mengeksekusi `PRAGMA wal_checkpoint(TRUNCATE)` untuk memastikan seluruh transaksi WAL tertulis ke berkas utama, diikuti dengan verifikasi `PRAGMA integrity_check === 'ok'`.
+
+---
+
+## 🔑 Pemulihan & Penetapan Password Administrator
+
+Jika akses admin/pengembang (`emenje`) perlu dipulihkan secara aman:
+```bash
+# Menghasilkan password acak berkekuatan tinggi secara otomatis:
+npm run reset-admin -- --generate
+
+# Atau menetapkan password tertentu secara langsung:
+ADMIN_RESET_PASSWORD="PasswordKpuBaru2026!" npm run reset-admin
+```
+
+---
+
+## 🧪 Pengujian Otomatis (*Automated Test Suite*)
+
+SIPRABU menyediakan rangkaian uji komprehensif yang berjalan pada database terisolasi (`data/test_hibah_kpu.sqlite`), sehingga database produksi tetap terlindungi 100%:
+```bash
+npm test
+```
+Rangkaian uji mencakup 42 skenario:
+- **Kelompok 1**: Konsistensi Backup SQLite & Integrity Check.
+- **Kelompok 2**: Kriptografi Scrypt, Timing-Safe Verifier, Dynamic Secret, Session Revocation, Role Coherence.
+- **Kelompok 3**: Isolasi Subbagian Operator, Validasi Periode Terkunci, Proteksi Header RKB.
+- **Kelompok 4**: Parser Angka Indonesia/Internasional, Kalkulasi Faktor 0 Presisi, Multiplier `KOTAK_RKB`, Dynamic Balance NPHD.
+- **Kelompok 5**: *Snapshot Immutability* pada Dokumen Terkunci.
+- **Kelompok 6**: Alur Pengesahan 4 Tahap Berurutan, Pencegahan Pelompatan Tahap, Format Kode Revisi SAKTI Bebas Bentrok.
+- **Kelompok 7**: Transaksional Impor Excel & Mode Pratinjau (*Preview Only*).
+- **Kelompok 8**: *Audit Trail Logging*.
+- **Kelompok 9**: Ekspor Excel RUH per-subbag & Normalisasi Angka Desimal.
+- **Kelompok 10**: Verifikasi Integritas & Isolasi Database Produksi.
 
 ---
 

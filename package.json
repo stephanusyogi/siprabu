@@ -8,11 +8,15 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node test/comprehensive_test.js && node test/business_behavior_test.js",
+    "backup": "node scripts/backup.js",
+    "reset-admin": "node scripts/reset_admin.js"
   },
   "author": "emenje",
   "license": "ISC",
   "dependencies": {
+    "archiver": "^5.3.2",
     "exceljs": "^4.4.0",
     "xlsx": "^0.18.5"
   }

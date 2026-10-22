@@ -55,7 +55,7 @@ function formatNumber(num) {
 }
 
 function escHtml(str) {
-  if (!str) return '';
+  if (str === null || str === undefined) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -63,6 +63,9 @@ function escHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+const escapeHtml = escHtml;
+window.escapeHtml = escHtml;
+window.escHtml = escHtml;
 
 function setElText(id, text) {
   const el = document.getElementById(id);
@@ -109,6 +112,54 @@ async function apiFetch(endpoint, options = {}) {
   }
   return data;
 }
+
+async function downloadProtectedFile(url, fallbackFilename = 'download.xlsx') {
+  const token = localStorage.getItem('siprabu_token');
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, { headers });
+  if (res.status === 401) {
+    if (AppState.currentUser) {
+      localStorage.removeItem('siprabu_token');
+      AppState.currentUser = null;
+      showLoginScreen();
+    }
+    throw new Error('Sesi tidak sah atau telah berakhir. Silakan login kembali.');
+  }
+
+  if (!res.ok) {
+    let errMsg = `Gagal mengunduh berkas (HTTP ${res.status})`;
+    try {
+      const errData = await res.json();
+      if (errData && errData.error) errMsg = errData.error;
+    } catch (_) {}
+    throw new Error(errMsg);
+  }
+
+  let filename = fallbackFilename;
+  const disposition = res.headers.get('Content-Disposition');
+  if (disposition) {
+    const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1].replace(/['"]/g, '').trim();
+    }
+  }
+
+  const blob = await res.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+}
+
+window.downloadProtectedFile = downloadProtectedFile;
 
 // ============================================================================
 // INISIALISASI APLIKASI
@@ -1240,7 +1291,7 @@ function renderSiklus() {
   if (!p) return;
 
   const baselineItem = AppState.periodesList.find(x => x.revisi_ke === 0) || AppState.periodesList[0];
-  const baselinePagu = baselineItem ? (baselineItem.total_pagu || 49999999000) : 49999999000;
+  const baselinePagu = baselineItem ? (baselineItem.total_pagu || baselineItem.pagu_nphd || 0) : (p.pagu_nphd || 0);
 
   setElText('siklus-nama-dokumen', p.nama_periode);
   setElText('siklus-versi-revisi', p.versi_revisi);
@@ -1532,12 +1583,8 @@ async function submitEditLegalitasForm() {
   const catatan = document.getElementById('edit-leg-catatan')?.value.trim();
 
   try {
-    const res = await fetch(`/api/periodes/${id}/legalitas`, {
+    const data = await apiFetch(`/api/periodes/${id}/legalitas`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-      },
       body: JSON.stringify({
         nama_periode: nama,
         versi_revisi: versi,
@@ -1548,17 +1595,10 @@ async function submitEditLegalitasForm() {
       })
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error || 'Gagal menyimpan perubahan dasar legalitas.');
-      return;
-    }
-
     closeEditLegalitasModal();
 
-    // Reload period list
-    const pRes = await fetch('/api/periodes');
-    const pData = await pRes.json();
+    // Reload period list via apiFetch
+    const pData = await apiFetch('/api/periodes');
     AppState.periodesList = pData.periodes || [];
 
     const updated = AppState.periodesList.find(x => x.id === id);
@@ -2553,7 +2593,7 @@ function openResumeSasaranModal() {
   if (!AppState.rkbData) return;
   const { summary } = AppState.rkbData;
   const sas = summary.bySasaran || {};
-  const total = summary.grandTotal || 49999999000;
+  const total = Number(summary.grandTotal) || 0;
 
   const dataSasaran = [
     { title: '🏢 1. KPU Kabupaten', scope: 'KAB', entitas: 'Satker KPU Kab. Ngawi', val: sas.KAB || 0, desc: 'Operasional satker, logistik sentral, bimtek, sosialisasi, advokasi hukum' },
@@ -2565,12 +2605,12 @@ function openResumeSasaranModal() {
   ];
 
   const totalPenyelenggara = (sas.KAB || 0) + (sas.PPK || 0) + (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
-  const pctPenyelenggara = ((totalPenyelenggara / total) * 100).toFixed(2);
+  const pctPenyelenggara = total > 0 ? ((totalPenyelenggara / total) * 100).toFixed(2) : '0.00';
 
   const tbody = document.getElementById('resume-sasaran-tbody');
   if (tbody) {
     let rowsHtml = dataSasaran.map(d => {
-      const pct = ((d.val / total) * 100).toFixed(2);
+      const pct = total > 0 ? ((d.val / total) * 100).toFixed(2) : '0.00';
       return `
         <tr>
           <td><strong>${d.title}</strong></td>
@@ -2945,33 +2985,83 @@ function closeRowModal() {
 }
 
 function calculateModalTotal() {
-  const f1 = Number(document.getElementById('modal-f1-val')?.value) || 1;
+  const f1El = document.getElementById('modal-f1-val');
+  const f2El = document.getElementById('modal-f2-val');
+  const f3El = document.getElementById('modal-f3-val');
+  const f4El = document.getElementById('modal-f4-val');
+
   const f1u = document.getElementById('modal-f1-unit')?.value || '';
-  const f2 = Number(document.getElementById('modal-f2-val')?.value) || 1;
   const f2u = document.getElementById('modal-f2-unit')?.value || '';
-  const f3 = Number(document.getElementById('modal-f3-val')?.value) || 1;
   const f3u = document.getElementById('modal-f3-unit')?.value || '';
-  const f4 = Number(document.getElementById('modal-f4-val')?.value) || 1;
   const f4u = document.getElementById('modal-f4-unit')?.value || '';
 
-  const basis = document.getElementById('modal-basis-pengali')?.value || 'NONE';
+  const factorDefs = [
+    { el: f1El, unit: f1u },
+    { el: f2El, unit: f2u },
+    { el: f3El, unit: f3u },
+    { el: f4El, unit: f4u }
+  ];
+
+  let baseFactor = 1;
+  let activeFactors = 0;
+  let hasExplicitZero = false;
+  const parts = [];
+
+  for (const f of factorDefs) {
+    if (!f.el || f.el.value === undefined || f.el.value === null || f.el.value.trim() === '') {
+      continue;
+    }
+    activeFactors++;
+    const num = Number(f.el.value);
+    if (num === 0) {
+      hasExplicitZero = true;
+      baseFactor = 0;
+      parts.push(`0 ${f.unit}`.trim());
+    } else {
+      const validNum = isNaN(num) ? 0 : num;
+      baseFactor *= validNum;
+      parts.push(`${validNum.toLocaleString('id-ID')} ${f.unit}`.trim());
+    }
+  }
+
+  if (activeFactors === 0) {
+    baseFactor = 1;
+  } else if (hasExplicitZero) {
+    baseFactor = 0;
+  }
+
+  const basis = (document.getElementById('modal-basis-pengali')?.value || 'NONE').toUpperCase();
   let mult = 1;
   let multLabel = '';
-  if (basis === 'PPK') { mult = 19; multLabel = '19 Kec'; }
-  else if (basis === 'PPS') { mult = 217; multLabel = '217 Desa'; }
-  else if (basis === 'TPS_RKB') { mult = 1371; multLabel = '1.371 TPS'; }
 
-  const parts = [];
-  if (document.getElementById('modal-f1-val')?.value) parts.push(`${f1} ${f1u}`.trim());
-  if (document.getElementById('modal-f2-val')?.value) parts.push(`${f2} ${f2u}`.trim());
-  if (document.getElementById('modal-f3-val')?.value) parts.push(`${f3} ${f3u}`.trim());
-  if (document.getElementById('modal-f4-val')?.value) parts.push(`${f4} ${f4u}`.trim());
+  const kecCount = (AppState.masters?.kecamatans || []).length || 19;
+  const desaCount = (AppState.masters?.desas || []).length || 217;
+  const totalTps = (AppState.masters?.desas || []).reduce((a, b) => a + (Number(b.tps) || 0), 0) || 1371;
+  const totalKotak = (AppState.masters?.desas || []).reduce((a, b) => a + (Number(b.kotak) || Number(b.tps) || 0), 0) || totalTps;
+
+  if (basis === 'PPK' || basis === 'KEC_PPK') {
+    mult = kecCount;
+    multLabel = `${kecCount.toLocaleString('id-ID')} Kec`;
+  } else if (basis === 'PPS') {
+    mult = desaCount;
+    multLabel = `${desaCount.toLocaleString('id-ID')} Desa`;
+  } else if (basis === 'TPS_RKB') {
+    mult = totalTps;
+    multLabel = `${totalTps.toLocaleString('id-ID')} TPS`;
+  } else if (basis === 'KOTAK_RKB') {
+    mult = totalKotak;
+    multLabel = `${totalKotak.toLocaleString('id-ID')} Kotak`;
+  } else if (basis === 'PASLON') {
+    const paslonCount = (AppState.masters?.paslons || []).length || 2;
+    mult = paslonCount;
+    multLabel = `${paslonCount.toLocaleString('id-ID')} Paslon`;
+  }
+
   if (multLabel) parts.push(multLabel);
 
-  const totalVol = f1 * (document.getElementById('modal-f2-val')?.value ? f2 : 1) * 
-                        (document.getElementById('modal-f3-val')?.value ? f3 : 1) * 
-                        (document.getElementById('modal-f4-val')?.value ? f4 : 1) * mult;
-  const harga = Number(document.getElementById('modal-harga')?.value) || 0;
+  const totalVol = baseFactor * mult;
+  const hargaRaw = document.getElementById('modal-harga')?.value || '0';
+  const harga = Number(hargaRaw) || 0;
   const totalAnggaran = totalVol * harga;
 
   setElText('modal-preview-formula', parts.join(' x ') || '-');
@@ -4177,19 +4267,11 @@ async function submitRevisionForm() {
   }
 }
 
-function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+
 
 let pendingExportPeriodeId = null;
 
-function downloadExcel(periodeId = null) {
+async function downloadExcel(periodeId = null) {
   try {
     const pId = periodeId || (AppState.currentPeriode ? AppState.currentPeriode.id : null) || (document.getElementById('dashboard-periode-select')?.value ? Number(document.getElementById('dashboard-periode-select').value) : null);
     if (!pId) {
@@ -4268,13 +4350,15 @@ function downloadExcel(periodeId = null) {
       modal.style.display = 'flex';
     } else {
       // Fallback jika modal tidak ditemukan di DOM
-      window.location.href = `/api/export-excel/${pId}`;
+      await downloadProtectedFile(`/api/export-excel/${pId}`, `RKB_Periode_${pId}.xlsx`);
     }
   } catch (err) {
     console.error('Error saat membuka modal ekspor excel:', err);
     // Fallback: unduh langsung
     if (AppState.currentPeriode) {
-      window.location.href = `/api/export-excel/${AppState.currentPeriode.id}`;
+      downloadProtectedFile(`/api/export-excel/${AppState.currentPeriode.id}`, `RKB_Periode_${AppState.currentPeriode.id}.xlsx`).catch(e => {
+        showToast('Gagal mengunduh berkas: ' + e.message, 'error');
+      });
     }
   }
 }
@@ -4466,7 +4550,7 @@ function renderMonitoringTable() {
       dlBtn = '<button class="btn-sakti-download disabled" disabled title="Berkas sedang dibuat...">📄 Download</button>';
     } else if (item.status === 'SELESAI') {
       statusBadge = '<span class="badge-selesai">✓ Selesai</span>';
-      dlBtn = `<a href="/api/download-requests/${item.id}/file" class="btn-sakti-download" target="_blank" download="${escapeHtml(item.nama_file)}">📄 Download</a>`;
+      dlBtn = `<button type="button" class="btn-sakti-download" onclick="downloadMonitoringItem(${item.id}, '${escapeHtml(item.nama_file)}')">📄 Download</button>`;
     } else if (item.status === 'KADALUARSA') {
       statusBadge = '<span class="badge-kadaluarsa">⚠️ Kadaluarsa</span>';
       dlBtn = '<button class="btn-sakti-download disabled" disabled title="Berkas telah kadaluarsa (> 1 jam) dan terhapus otomatis">Kadaluarsa</button>';
@@ -4606,15 +4690,10 @@ async function submitModalKecamatan() {
   }
 
   try {
-    const res = await fetch('/api/master/kecamatan', {
+    const result = await apiFetch('/api/master/kecamatan', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AppState.token || ''}`
-      },
       body: JSON.stringify({ id, no_urut, kode, nama, ketua_ppk, sekretaris_ppk, sekretaris_nip })
     });
-    const result = await res.json();
     if (result.success) {
       showToast('Data Kecamatan berhasil disimpan.', 'success');
       closeModalKecamatan();
@@ -4625,18 +4704,16 @@ async function submitModalKecamatan() {
       showToast(result.error || 'Gagal menyimpan kecamatan.', 'error');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    showToast('Terjadi kesalahan: ' + err.message, 'error');
   }
 }
 
 async function deleteKecamatan(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus kecamatan ini?')) return;
   try {
-    const res = await fetch(`/api/master/kecamatan/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${AppState.token || ''}` }
+    const result = await apiFetch(`/api/master/kecamatan/${id}`, {
+      method: 'DELETE'
     });
-    const result = await res.json();
     if (result.success) {
       showToast('Kecamatan berhasil dihapus.', 'success');
       await loadMasters();
@@ -4646,12 +4723,25 @@ async function deleteKecamatan(id) {
       showToast(result.error || 'Gagal menghapus kecamatan.', 'error');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    showToast('Terjadi kesalahan: ' + err.message, 'error');
   }
 }
 
-function exportKecamatanExcel() {
-  window.location.href = '/api/master/kecamatan/export';
+async function downloadMonitoringItem(id, filename) {
+  try {
+    await downloadProtectedFile(`/api/download-requests/${id}/file`, filename || 'unduhan.xlsx');
+  } catch (err) {
+    showToast('Gagal mengunduh berkas: ' + err.message, 'error');
+  }
+}
+window.downloadMonitoringItem = downloadMonitoringItem;
+
+async function exportKecamatanExcel() {
+  try {
+    await downloadProtectedFile('/api/master/kecamatan/export', 'Master_Kecamatan.xlsx');
+  } catch (err) {
+    showToast('Gagal mengunduh: ' + err.message, 'error');
+  }
 }
 
 function triggerImportKecamatan() {
@@ -4663,17 +4753,28 @@ async function handleExcelUploadKecamatan(event) {
   if (!file) return;
   event.target.value = '';
 
-  if (!confirm(`Mulai unggah berkas "${file.name}" untuk update masal data Kecamatan & Penyelenggara PPK?\nData akan dicocokkan otomatis berdasarkan ID Database atau Nama Kecamatan.`)) {
-    return;
-  }
-
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
       const base64Data = e.target.result.split(',')[1];
+      // 1. Pratinjau terlebih dahulu tanpa menyimpan perubahan
+      const previewRes = await apiFetch('/api/master/kecamatan/import', {
+        method: 'POST',
+        body: JSON.stringify({ file_base64: base64Data, preview: true, filename: file.name })
+      });
+
+      if (previewRes.errors && previewRes.errors.length > 0) {
+        alert(`❌ Terdapat ${previewRes.errors.length} baris bermasalah pada berkas:\n${previewRes.errors[0].error}`);
+        return;
+      }
+
+      const confirmMsg = `Pratinjau Impor Kecamatan/PPK:\n- Total data: ${previewRes.processed}\n- Akan ditambahkan baru: ${previewRes.would_insert}\n- Akan diperbarui: ${previewRes.would_update}\n\nApakah Anda ingin menerapkan perubahan ini ke database?`;
+      if (!confirm(confirmMsg)) return;
+
+      // 2. Terapkan perubahan dalam transaksi
       const res = await apiFetch('/api/master/kecamatan/import', {
         method: 'POST',
-        body: JSON.stringify({ file_base64: base64Data, filename: file.name })
+        body: JSON.stringify({ file_base64: base64Data, preview: false, filename: file.name })
       });
       alert(`✅ ${res.message || 'Update masal Kecamatan/PPK berhasil!'}`);
       await loadMasters();
@@ -4827,15 +4928,10 @@ async function submitModalDesa() {
   }
 
   try {
-    const res = await fetch('/api/master/desa', {
+    const result = await apiFetch('/api/master/desa', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AppState.token || ''}`
-      },
       body: JSON.stringify({ id, kecamatan_id, no_urut, nama, tps, pantarlih, pemilih, kotak, rohaniwan, ketua_nama, sekretaris_nama, sekretaris_nip })
     });
-    const result = await res.json();
     if (result.success) {
       showToast('Data Desa & TPS berhasil disimpan. Seluruh baris RKB otomatis dihitung ulang.', 'success');
       closeModalDesa();
@@ -4846,18 +4942,16 @@ async function submitModalDesa() {
       showToast(result.error || 'Gagal menyimpan desa.', 'error');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    showToast('Terjadi kesalahan: ' + err.message, 'error');
   }
 }
 
 async function deleteDesa(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus desa ini?')) return;
   try {
-    const res = await fetch(`/api/master/desa/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${AppState.token || ''}` }
+    const result = await apiFetch(`/api/master/desa/${id}`, {
+      method: 'DELETE'
     });
-    const result = await res.json();
     if (result.success) {
       showToast('Desa berhasil dihapus.', 'success');
       await loadMasters();
@@ -4867,12 +4961,16 @@ async function deleteDesa(id) {
       showToast(result.error || 'Gagal menghapus desa.', 'error');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    showToast('Terjadi kesalahan: ' + err.message, 'error');
   }
 }
 
-function exportDesaExcel() {
-  window.location.href = '/api/master/desa/export';
+async function exportDesaExcel() {
+  try {
+    await downloadProtectedFile('/api/master/desa/export', 'Master_Desa.xlsx');
+  } catch (err) {
+    showToast('Gagal mengunduh: ' + err.message, 'error');
+  }
 }
 
 function triggerImportDesa() {
@@ -4884,17 +4982,28 @@ async function handleExcelUploadDesa(event) {
   if (!file) return;
   event.target.value = '';
 
-  if (!confirm(`Mulai unggah berkas "${file.name}" untuk update masal data Desa, TPS, DPT & Pejabat PPS?\nData akan dicocokkan otomatis berdasarkan ID Database atau kombinasi (Nama Desa & Kecamatan).`)) {
-    return;
-  }
-
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
       const base64Data = e.target.result.split(',')[1];
+      // 1. Pratinjau terlebih dahulu tanpa menyimpan perubahan
+      const previewRes = await apiFetch('/api/master/desa/import', {
+        method: 'POST',
+        body: JSON.stringify({ file_base64: base64Data, preview: true, filename: file.name })
+      });
+
+      if (previewRes.errors && previewRes.errors.length > 0) {
+        alert(`❌ Terdapat ${previewRes.errors.length} baris bermasalah pada berkas:\n${previewRes.errors[0].error}`);
+        return;
+      }
+
+      const confirmMsg = `Pratinjau Impor Desa/TPS:\n- Total data: ${previewRes.processed}\n- Akan ditambahkan baru: ${previewRes.would_insert}\n- Akan diperbarui: ${previewRes.would_update}\n\nApakah Anda ingin menerapkan perubahan ini ke database?`;
+      if (!confirm(confirmMsg)) return;
+
+      // 2. Terapkan perubahan dalam transaksi
       const res = await apiFetch('/api/master/desa/import', {
         method: 'POST',
-        body: JSON.stringify({ file_base64: base64Data, filename: file.name })
+        body: JSON.stringify({ file_base64: base64Data, preview: false, filename: file.name })
       });
       alert(`✅ ${res.message || 'Update masal Desa/TPS berhasil!'}`);
       await loadMasters();
@@ -5000,15 +5109,10 @@ async function submitModalPaslon() {
   }
 
   try {
-    const res = await fetch('/api/master/paslon', {
+    const result = await apiFetch('/api/master/paslon', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AppState.token || ''}`
-      },
       body: JSON.stringify({ id, no_urut, nama_calon_bupati, nama_calon_wakil_bupati, partai_pengusung, slogan, keterangan })
     });
-    const result = await res.json();
     if (result.success) {
       showToast('Data Pasangan Calon berhasil disimpan. Koefisien RKB otomatis diperbarui.', 'success');
       closeModalPaslon();
@@ -5019,18 +5123,16 @@ async function submitModalPaslon() {
       showToast(result.error || 'Gagal menyimpan paslon.', 'error');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    showToast('Terjadi kesalahan: ' + err.message, 'error');
   }
 }
 
 async function deletePaslon(id) {
   if (!confirm('Apakah Anda yakin ingin menghapus pasangan calon ini?')) return;
   try {
-    const res = await fetch(`/api/master/paslon/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${AppState.token || ''}` }
+    const result = await apiFetch(`/api/master/paslon/${id}`, {
+      method: 'DELETE'
     });
-    const result = await res.json();
     if (result.success) {
       showToast('Pasangan calon berhasil dihapus.', 'success');
       await loadMasters();
@@ -5040,7 +5142,7 @@ async function deletePaslon(id) {
       showToast(result.error || 'Gagal menghapus paslon.', 'error');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    showToast('Terjadi kesalahan: ' + err.message, 'error');
   }
 }
 
@@ -5176,15 +5278,10 @@ async function submitModalKuantitas() {
   }
 
   try {
-    const res = await fetch('/api/master/kuantitas', {
+    const result = await apiFetch('/api/master/kuantitas', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AppState.token || ''}`
-      },
       body: JSON.stringify({ id: Number(id), nilai, satuan, keterangan })
     });
-    const result = await res.json();
     if (result.success) {
       showToast(result.message || 'Parameter SSOT berhasil diperbarui!', 'success');
       closeModalKuantitas();
@@ -5195,7 +5292,7 @@ async function submitModalKuantitas() {
       showToast(result.error || 'Gagal memperbarui parameter kuantitas.', 'error');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan: ' + err.message, 'error');
+    showToast('Terjadi kesalahan: ' + err.message, 'error');
   }
 }
 
@@ -5355,8 +5452,12 @@ async function deleteSbm(id) {
   }
 }
 
-function exportSbmExcel() {
-  window.location.href = '/api/master/sbm/export';
+async function exportSbmExcel() {
+  try {
+    await downloadProtectedFile('/api/master/sbm/export', 'Master_SBM.xlsx');
+  } catch (err) {
+    showToast('Gagal mengunduh: ' + err.message, 'error');
+  }
 }
 
 function triggerImportSbm() {
@@ -5368,17 +5469,28 @@ async function handleExcelUploadSbm(event) {
   if (!file) return;
   event.target.value = '';
 
-  if (!confirm(`Mulai unggah berkas "${file.name}" untuk update masal Standar Biaya Masukan (SBM)?\nData akan dicocokkan berdasarkan ID atau (Kategori & Uraian).`)) {
-    return;
-  }
-
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
       const base64Data = e.target.result.split(',')[1];
+      // 1. Pratinjau terlebih dahulu tanpa menyimpan perubahan
+      const previewRes = await apiFetch('/api/master/sbm/import', {
+        method: 'POST',
+        body: JSON.stringify({ file_base64: base64Data, preview: true, filename: file.name })
+      });
+
+      if (previewRes.errors && previewRes.errors.length > 0) {
+        alert(`❌ Terdapat ${previewRes.errors.length} baris bermasalah pada berkas:\n${previewRes.errors[0].error}`);
+        return;
+      }
+
+      const confirmMsg = `Pratinjau Impor SBM:\n- Total data: ${previewRes.processed}\n- Akan ditambahkan baru: ${previewRes.would_insert}\n- Akan diperbarui: ${previewRes.would_update}\n\nApakah Anda ingin menerapkan perubahan ini ke database?`;
+      if (!confirm(confirmMsg)) return;
+
+      // 2. Terapkan perubahan dalam transaksi
       const res = await apiFetch('/api/master/sbm/import', {
         method: 'POST',
-        body: JSON.stringify({ file_base64: base64Data, filename: file.name })
+        body: JSON.stringify({ file_base64: base64Data, preview: false, filename: file.name })
       });
       alert(`✅ ${res.message || 'Update masal SBM berhasil!'}`);
       await loadMasters();
@@ -5532,8 +5644,12 @@ async function deleteAkun(id) {
   }
 }
 
-function exportBasExcel() {
-  window.location.href = '/api/master/akun/export';
+async function exportBasExcel() {
+  try {
+    await downloadProtectedFile('/api/master/akun/export', 'Master_Akun.xlsx');
+  } catch (err) {
+    showToast('Gagal mengunduh: ' + err.message, 'error');
+  }
 }
 
 function triggerImportBas() {
@@ -5545,23 +5661,34 @@ async function handleExcelUploadBas(event) {
   if (!file) return;
   event.target.value = '';
 
-  if (!confirm(`Mulai unggah berkas "${file.name}" untuk update masal Bagan Akun Standar (BAS)?\nData akan dicocokkan berdasarkan Kode Akun (6 digit).`)) {
-    return;
-  }
-
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
       const base64Data = e.target.result.split(',')[1];
+      // 1. Pratinjau terlebih dahulu tanpa menyimpan perubahan
+      const previewRes = await apiFetch('/api/master/akun/import', {
+        method: 'POST',
+        body: JSON.stringify({ file_base64: base64Data, preview: true, filename: file.name })
+      });
+
+      if (previewRes.errors && previewRes.errors.length > 0) {
+        alert(`❌ Terdapat ${previewRes.errors.length} baris bermasalah pada berkas:\n${previewRes.errors[0].error}`);
+        return;
+      }
+
+      const confirmMsg = `Pratinjau Impor Akun BAS:\n- Total data: ${previewRes.processed}\n- Akan ditambahkan baru: ${previewRes.would_insert}\n- Akan diperbarui: ${previewRes.would_update}\n\nApakah Anda ingin menerapkan perubahan ini ke database?`;
+      if (!confirm(confirmMsg)) return;
+
+      // 2. Terapkan perubahan dalam transaksi
       const res = await apiFetch('/api/master/akun/import', {
         method: 'POST',
-        body: JSON.stringify({ file_base64: base64Data, filename: file.name })
+        body: JSON.stringify({ file_base64: base64Data, preview: false, filename: file.name })
       });
-      alert(`✅ ${res.message || 'Update masal BAS berhasil!'}`);
+      alert(`✅ ${res.message || 'Update masal akun BAS berhasil!'}`);
       await loadMasters();
       renderDbBas();
     } catch (err) {
-      alert('❌ Gagal mengimpor data BAS: ' + err.message);
+      alert('❌ Gagal mengimpor data akun BAS: ' + err.message);
     }
   };
   reader.readAsDataURL(file);
@@ -6712,7 +6839,13 @@ async function submitRevisiUsulanFinal() {
   }
 
   if (!dokSurat) {
-    alert('Tautan Google Drive / berkas surat usulan dinas bermaterai & tanda tangan wajib disertakan pada Langkah 3.');
+    alert('Tautan Google Drive / berkas Nota Dinas / Surat Usulan Dinas bermaterai & tanda tangan wajib disertakan pada Langkah 3.');
+    goToRevisiStep(3);
+    return;
+  }
+
+  if (!dokMatriks) {
+    alert('Tautan berkas dokumen RKB PIC yang telah ditandatangani wajib disertakan pada Langkah 3.');
     goToRevisiStep(3);
     return;
   }
@@ -6954,6 +7087,15 @@ async function loadRevisiMonitoringTable() {
         `;
       }
 
+      if ((rev.status_tahap === 'PERBAIKAN' || rev.status_tahap === 'DIKEMBALIKAN') &&
+          user && (user.level === 0 || (user.level === 2 && (user.pic_subbag === rev.subbag || user.pic_subbag === 'SEMUA')))) {
+        actionButtons += `
+          <button class="btn btn-warning btn-xs" onclick="switchView('view-revisi-pengajuan')" style="margin-top: 3px;" title="Perbaiki & Ajukan Ulang">
+            ✏️ Ajukan Ulang
+          </button>
+        `;
+      }
+
       return `
         <tr>
           <td class="text-center" style="font-weight: 600; color: #64748b;">${index + 1}</td>
@@ -6971,6 +7113,21 @@ async function loadRevisiMonitoringTable() {
             <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
               Surat: <strong>${escHtml(rev.nomor_surat)}</strong> (${escHtml(rev.tanggal_surat)})
             </div>
+            ${rev.alasan_pengembalian ? `
+              <div style="font-size: 11px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; padding: 4px 6px; margin-top: 4px;">
+                ⚠️ <strong>Alasan Pengembalian:</strong> ${escHtml(rev.alasan_pengembalian)}
+              </div>
+            ` : ''}
+            ${rev.l1_koreksi_catatan ? `
+              <div style="font-size: 10.5px; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px; padding: 2px 6px; margin-top: 3px;">
+                ℹ️ <strong>Koreksi L1:</strong> ${escHtml(rev.l1_koreksi_catatan)}
+              </div>
+            ` : ''}
+            ${rev.tahap3_hasil === 'BATAL_KOREKSI_L1' ? `
+              <div style="font-size: 10.5px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 2px 6px; margin-top: 3px;">
+                ⚠️ <strong>ACC Dibatalkan:</strong> Diubah L1 setelah ACC Pleno, perlu ACC ulang
+              </div>
+            ` : ''}
           </td>
           <td class="text-center">
             <span class="badge badge-success" style="font-size: 10px; padding: 3px 6px;">OK / Lolos</span>
@@ -7014,8 +7171,12 @@ async function openRevisiDetail(id) {
   bodyEl.innerHTML = '<div class="text-center" style="padding: 30px; color: #64748b;">Memuat rincian usulan revisi...</div>';
 
   try {
-    const res = await apiFetch(`/api/revisi/pengajuan/${id}`);
+    const [res, histRes] = await Promise.all([
+      apiFetch(`/api/revisi/pengajuan/${id}`),
+      apiFetch(`/api/revisi/pengajuan/${id}/history`).catch(() => ({ history: [] }))
+    ]);
     const rev = res.data;
+    const historyList = histRes.history || [];
     if (titleEl) titleEl.textContent = `ID Revisi: ${rev.kode_revisi} | Subbag: ${rev.subbag}`;
 
     bodyEl.innerHTML = `
@@ -7036,6 +7197,16 @@ async function openRevisiDetail(id) {
           <strong>Keterangan / Latar Belakang Urgensi:</strong><br>
           <p style="color: #475569; margin: 4px 0 0 0; line-height: 1.45;">${escHtml(rev.keterangan_revisi || '-')}</p>
         </div>
+        ${rev.alasan_pengembalian ? `
+          <div style="margin-top: 8px; padding: 6px 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; font-size: 12px; color: #991b1b;">
+            <strong>Catatan Pengembalian Terakhir:</strong><br>${escHtml(rev.alasan_pengembalian)}
+          </div>
+        ` : ''}
+        ${rev.l1_koreksi_catatan ? `
+          <div style="margin-top: 8px; padding: 6px 10px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 12px; color: #1e40af;">
+            <strong>Catatan Koreksi Kecil L1:</strong><br>${escHtml(rev.l1_koreksi_catatan)}
+          </div>
+        ` : ''}
       </div>
 
       <!-- TAUTAN BERKAS PENDUKUNG -->
@@ -7044,12 +7215,17 @@ async function openRevisiDetail(id) {
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
           ${rev.dokumen_surat_link ? `
             <a href="${escHtml(rev.dokumen_surat_link)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #2563eb; text-decoration: none; font-weight: 600; background: #eff6ff; padding: 6px 12px; border-radius: 6px; border: 1px solid #bfdbfe;">
-              📄 Surat Usulan Dinas Bermaterai &amp; TTD (Buka Berkas) &rarr;
+              📄 Nota Dinas / Surat Usulan Dinas TTD (Buka Berkas) &rarr;
             </a>
-          ` : '<span style="color: #94a3b8;">- Tidak ada berkas surat usulan</span>'}
+          ` : '<span style="color: #94a3b8;">- Tidak ada berkas nota dinas</span>'}
           ${rev.dokumen_matriks_link ? `
             <a href="${escHtml(rev.dokumen_matriks_link)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #15803d; text-decoration: none; font-weight: 600; background: #f0fdf4; padding: 6px 12px; border-radius: 6px; border: 1px solid #bbf7d0;">
-              📊 Matriks Rincian Semula-Menjadi Format Excel (Buka Berkas) &rarr;
+              📊 RKB PIC TTD Format Excel/PDF (Buka Berkas) &rarr;
+            </a>
+          ` : '<span style="color: #94a3b8;">- Tidak ada berkas RKB PIC</span>'}
+          ${rev.dokumen_surat_original_link && rev.dokumen_surat_original_link !== rev.dokumen_surat_link ? `
+            <a href="${escHtml(rev.dokumen_surat_original_link)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #475569; text-decoration: none; font-size: 11px; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
+              📑 Arsip Dokumen Pengajuan Awal (Versi 1) &rarr;
             </a>
           ` : ''}
           ${rev.dokumen_dukung_lain ? `
@@ -7066,13 +7242,13 @@ async function openRevisiDetail(id) {
         <div style="border-left: 2px solid #e2e8f0; margin-left: 12px; padding-left: 14px; display: flex; flex-direction: column; gap: 12px;">
           <!-- Tahap 1 -->
           <div>
-            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">1. Tahap Pengajuan Usulan</div>
+            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">1. Tahap Pengajuan Usulan (PIC Subbag)</div>
             <div style="font-size: 11px; color: #64748b;">${escHtml(rev.tahap1_waktu || '-')} oleh <strong>${escHtml(rev.tahap1_oleh || '-')}</strong></div>
             <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">${escHtml(rev.tahap1_catatan || '-')}</div>
           </div>
           <!-- Tahap 2 -->
           <div>
-            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">2. Tahap Penelitian Rendatin</div>
+            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">2. Tahap Penelitian &amp; Validasi (Tim Rendatin)</div>
             <div style="font-size: 11px; color: #64748b;">${escHtml(rev.tahap2_waktu || 'Belum diteliti')} ${rev.tahap2_oleh ? `oleh <strong>${escHtml(rev.tahap2_oleh)}</strong>` : ''}</div>
             <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">${escHtml(rev.tahap2_catatan || '-')}</div>
           </div>
@@ -7084,12 +7260,41 @@ async function openRevisiDetail(id) {
           </div>
           <!-- Tahap 4 -->
           <div>
-            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">4. Tahap BA Pleno di Sahkan (Kunci Dokumen RKB)</div>
+            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">4. Tahap BA Pleno di Sahkan (Kunci RKB Gabungan)</div>
             <div style="font-size: 11px; color: #64748b;">${escHtml(rev.tahap4_waktu || 'Belum disahkan')}</div>
             <div style="font-size: 11.5px; color: #15803d; font-weight: 700; margin-top: 2px;">Nomor Dokumen: ${escHtml(rev.nomor_penetapan || '-')}</div>
           </div>
         </div>
       </div>
+
+      <!-- RIWAYAT AUDIT & VERSI PENGAJUAN -->
+      ${historyList.length > 0 ? `
+        <div style="margin-top: 16px;">
+          <h5 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">📜 Log Riwayat Aksi &amp; Versi Pengajuan:</h5>
+          <div style="max-height: 180px; overflow-y: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11.5px;">
+            <table class="table table-sm" style="margin: 0;">
+              <thead style="background: #f8fafc;">
+                <tr>
+                  <th style="padding: 6px 8px;">Waktu</th>
+                  <th style="padding: 6px 8px;">Aksi</th>
+                  <th style="padding: 6px 8px;">Pelaku</th>
+                  <th style="padding: 6px 8px;">Catatan / Alasan</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${historyList.map(h => `
+                  <tr>
+                    <td style="padding: 6px 8px; font-size: 11px; color: #64748b;">${escHtml(h.waktu || '-')}</td>
+                    <td style="padding: 6px 8px;"><span class="badge badge-secondary" style="font-size: 9.5px;">${escHtml(h.action)}</span></td>
+                    <td style="padding: 6px 8px; font-weight: 600;">${escHtml(h.username_pelaku || '-')}</td>
+                    <td style="padding: 6px 8px; color: #334155;">${escHtml(h.alasan_pengembalian || h.catatan || '-')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ''}
     `;
 
     if (actionsEl) {
@@ -7098,7 +7303,10 @@ async function openRevisiDetail(id) {
       const isValidator = user && (user.level <= 1 || user.role_id === 'developer');
       const isPlenoAuthorized = user && (user.level === 0 || user.level === 1 || user.level === 3 || user.role_id === 'sekretaris');
 
-      if (isValidator && (rev.tahap_terkini === 1 || rev.tahap_terkini === 2) && rev.status_tahap === 'PROSES') {
+      if ((rev.status_tahap === 'PERBAIKAN' || rev.status_tahap === 'DIKEMBALIKAN') &&
+          user && (user.level === 0 || (user.level === 2 && (user.pic_subbag === rev.subbag || user.pic_subbag === 'SEMUA')))) {
+        actionsEl.innerHTML = `<button class="btn btn-warning btn-sm" onclick="closeModalRevisiDetail(); switchView('view-revisi-pengajuan')">✏️ Perbaiki &amp; Ajukan Ulang</button>`;
+      } else if (isValidator && (rev.tahap_terkini === 1 || rev.tahap_terkini === 2) && rev.status_tahap === 'PROSES') {
         actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="closeModalRevisiDetail(); openRevisiTahapAction(${rev.id}, 2)">✔️ Proses Penelitian (Tahap 2)</button>`;
       } else if (isPlenoAuthorized && rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES') {
         actionsEl.innerHTML = `<button class="btn btn-info btn-sm" onclick="closeModalRevisiDetail(); openRevisiTahapAction(${rev.id}, 3)">🏛️ Proses ACC Pleno (Tahap 3)</button>`;
@@ -7442,7 +7650,9 @@ async function loadTahap4ViewData() {
       statusEl.className = p.is_locked ? 'badge badge-secondary' : 'badge badge-success';
       statusEl.textContent = p.is_locked ? '🔒 TERKUNCI' : '🟢 DRAFT AKTIF';
     }
-    if (namaEl) namaEl.textContent = p.nama_periode;
+    if (namaEl) {
+      namaEl.innerHTML = `${escHtml(p.nama_periode)} ${res.dasar_anggaran ? `<br><small style="font-weight:normal; color:#64748b;">(Dasar Semula: <strong>${escHtml(res.dasar_anggaran.nama_periode)}</strong>)</small>` : ''}`;
+    }
     if (versiEl) versiEl.textContent = p.versi_revisi || 'Baseline Draft';
     if (itemsEl) itemsEl.textContent = `${res.total_items} Item RKB`;
     if (totalEl) totalEl.textContent = formatRupiah(res.total_pagu || 0);
@@ -7458,19 +7668,48 @@ async function loadTahap4ViewData() {
       tglBaInput.value = new Date().toISOString().split('T')[0];
     }
 
+    const proposalsList = res.proposals || [];
+    const isReady = Boolean(res.is_ready_for_ratification);
+
     if (tableBody) {
-      const usulanList = res.usulan_acc || [];
-      if (usulanList.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 16px; color: #64748b;">Belum ada usulan revisi subbag yang berstatus ACC Pleno. RKB draf ini dapat disahkan langsung jika telah disepakati rapat pleno.</td></tr>`;
+      if (proposalsList.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 16px; color: #64748b;">Belum ada pengajuan usulan revisi subbag dalam siklus berjalan. RKB draf dapat disahkan jika disepakati bersama.</td></tr>`;
       } else {
-        tableBody.innerHTML = usulanList.map(u => `
-          <tr>
-            <td><span class="badge badge-primary" style="font-size: 10px;">${escHtml(u.subbag)}</span></td>
-            <td><code style="font-size: 11px;">${escHtml(u.kode_revisi)}</code></td>
-            <td style="font-size: 11px;">${escHtml(u.nomor_surat)}</td>
-            <td class="text-center"><span class="badge badge-success" style="font-size: 10px;">ACC Pleno</span></td>
-          </tr>
-        `).join('');
+        tableBody.innerHTML = proposalsList.map(u => {
+          let badgeStatus = '<span class="badge badge-warning" style="font-size: 10px;">Proses</span>';
+          if (u.status_tahap === 'ACC_PLENO' || u.tahap3_hasil === 'SETUJU') {
+            badgeStatus = '<span class="badge badge-success" style="font-size: 10px;">ACC Pleno</span>';
+          } else if (u.status_tahap === 'DIKEMBALIKAN' || u.status_tahap === 'PERBAIKAN') {
+            badgeStatus = '<span class="badge badge-danger" style="font-size: 10px;">Dikembalikan</span>';
+          } else if (u.status_tahap === 'MENUNGGU_PLENO') {
+            badgeStatus = '<span class="badge badge-info" style="font-size: 10px;">Valid (Menunggu Pleno)</span>';
+          } else if (u.status_tahap === 'DIAJUKAN') {
+            badgeStatus = '<span class="badge badge-secondary" style="font-size: 10px;">Tahap 1 (Diajukan)</span>';
+          }
+          return `
+            <tr>
+              <td><span class="badge badge-primary" style="font-size: 10px;">${escHtml(u.subbag)}</span></td>
+              <td><code style="font-size: 11px;">${escHtml(u.kode_revisi)}</code></td>
+              <td style="font-size: 11px;">${escHtml(u.nomor_surat)}</td>
+              <td class="text-center">${badgeStatus}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    const btnSubmit = document.getElementById('btn-submit-tahap4-final');
+    if (btnSubmit) {
+      if (!isReady && res.pending_subbags && res.pending_subbags.length > 0) {
+        btnSubmit.disabled = true;
+        btnSubmit.className = 'btn btn-secondary';
+        btnSubmit.title = `Belum dapat disahkan: Subbag ${res.pending_subbags.join(', ')} belum mencapai ACC Pleno.`;
+        btnSubmit.innerHTML = `⚠️ Belum Dapat Disahkan (Menunggu ACC: ${escHtml(res.pending_subbags.join(', '))})`;
+      } else {
+        btnSubmit.disabled = false;
+        btnSubmit.className = 'btn btn-success';
+        btnSubmit.title = '';
+        btnSubmit.innerHTML = '🔒 Kunci RKB Draf Keseluruhan &amp; Sahkan BA Pleno (Tahap 4)';
       }
     }
   } catch (err) {
@@ -7619,8 +7858,12 @@ async function bukaArsipKertasKerja(periodeId) {
   showToast(`Membuka arsip dokumen: ${p.nama_periode} (Mode Read-Only)`, 'info');
 }
 
-function downloadArsipExcel(periodeId) {
-  window.open(`/api/export-excel/${periodeId}`, '_blank');
+async function downloadArsipExcel(periodeId) {
+  try {
+    await downloadProtectedFile(`/api/export-excel/${periodeId}`, `RKB_Arsip_${periodeId}.xlsx`);
+  } catch (err) {
+    showToast('Gagal mengunduh arsip: ' + err.message, 'error');
+  }
 }
 
 window.initRevisiPengajuanView = initRevisiPengajuanView;

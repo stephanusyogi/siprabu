@@ -8,6 +8,9 @@ data/*.sqlite-journal
 data/*.sqlite-wal
 data/*.sqlite-shm
 data/*.sqlite.bak
+data/.session_secret
+data/backups/
+data/siprabu.db
 
 # Template database dasar tetap di-track untuk instalasi baru
 !data/hibah_kpu.sqlite.template
