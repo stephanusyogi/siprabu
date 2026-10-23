@@ -481,6 +481,19 @@ function alignOperationalRkbCycles() {
           db.prepare(`UPDATE rab_baris SET ${updates.join(', ')} WHERE id = ?`).run(...params);
         }
       }
+
+      // 5. Selaraskan baris anak di bawah PPS (Kode 2) agar selalu mengikuti PIC induknya jika berubah ("level diatasnya dirubah, level dibawah mengikuti")
+      try {
+        const ppsRow = db.prepare(`
+          SELECT id, pic_bagian FROM rab_baris
+          WHERE periode_id = ? AND kode = '2' AND uraian = 'PPS' AND (row_type = 'header' OR level_indent = 2)
+        `).get(dp.id);
+        if (ppsRow && ppsRow.pic_bagian) {
+          updateRabBarisPicWithCascade(dp.id, ppsRow.id, ppsRow.pic_bagian, true);
+        }
+      } catch (e) {
+        console.warn('[MIGRATION] Gagal sinkronisasi baris turunan PPS:', e.message);
+      }
     }
   } catch (err) {
     console.warn('[MIGRATION] Peringatan saat menyelaraskan siklus RKB:', err.message);
@@ -1221,6 +1234,19 @@ function saveRabRow(row, actorUser = null) {
       notes: `Baris RKB [${row.id}] diupdate.`
     });
 
+    // Jika baris yang diedit adalah Header dan PIC-nya diubah, lakukan cascade ke seluruh baris anak ("level diatasnya dirubah, level dibawah mengikuti")
+    const isHeaderRow = (existing.row_type === 'header' || Number(existing.level_indent) < 4);
+    const newPicVal = row.pic_bagian ? normalizePic(row.pic_bagian) : existing.pic_bagian;
+    const isPicChanged = newPicVal && existing.pic_bagian && newPicVal !== normalizePic(existing.pic_bagian);
+
+    if (isHeaderRow && isPicChanged) {
+      try {
+        updateRabBarisPicWithCascade(existing.periode_id, row.id, newPicVal, true, actorUser);
+      } catch (cascadeErr) {
+        console.warn('[saveRabRow] Cascade PIC notice:', cascadeErr.message);
+      }
+    }
+
     return getRabRowById(row.id);
   } else {
     let urutan = row.urutan;
@@ -1310,27 +1336,50 @@ function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = tru
   checkRowEditPermission(periodeId, targetRow.pic_bagian, actorUser);
   checkRowEditPermission(periodeId, cleanPic, actorUser);
 
-  if (!cascade || targetRow.row_type !== 'header') {
+  const isHeader = (targetRow.row_type === 'header' || Number(targetRow.level_indent) < 4);
+
+  // Jika bukan cascade atau baris yang diedit bukan Header (misal: rincian belanja riil/item),
+  // HANYA update baris ini saja, TIDAK BOLEH mengubah baris level di atasnya / parent-nya ("tidak berlaku sebaliknya").
+  if (!cascade || !isHeader) {
     db.prepare('UPDATE rab_baris SET pic_bagian = ? WHERE id = ?').run(cleanPic, rowId);
-    return { success: true, updatedCount: 1 };
+    try {
+      const { clearRkbDatasetCache } = require('./calculation');
+      clearRkbDatasetCache(periodeId);
+    } catch (e) {}
+    return {
+      success: true,
+      updatedCount: 1,
+      count: 1,
+      updatedIds: [Number(rowId)],
+      pic_bagian: cleanPic
+    };
   }
 
-  const allRows = db.prepare('SELECT id, parent_rkb_row_id, row_type FROM rab_baris WHERE periode_id = ?').all(periodeId);
+  // Jika baris adalah HEADER dan cascade = true (Level di atasnya diubah):
+  // SELURUH level di bawahnya (sub-kegiatan, akun belanja & rincian belanja riil) WAJIB mengikuti PIC baru.
+  const { getRkbCalculatedDataset, clearRkbDatasetCache } = require('./calculation');
+  const dataset = getRkbCalculatedDataset(periodeId);
+
   const childrenMap = {};
-  allRows.forEach(r => {
-    if (r.parent_rkb_row_id) {
-      if (!childrenMap[r.parent_rkb_row_id]) childrenMap[r.parent_rkb_row_id] = [];
-      childrenMap[r.parent_rkb_row_id].push(r.id);
+  dataset.rows.forEach(r => {
+    if (r.parent_tree_id) {
+      if (!childrenMap[r.parent_tree_id]) childrenMap[r.parent_tree_id] = [];
+      childrenMap[r.parent_tree_id].push(r);
     }
   });
 
-  const idsToUpdate = [];
-  const queue = [rowId];
+  const targetTreeId = `row_${rowId}`;
+  const idsToUpdate = [Number(rowId)];
+  const queue = [targetTreeId];
+
   while (queue.length > 0) {
-    const cur = queue.shift();
-    idsToUpdate.push(cur);
-    if (childrenMap[cur]) {
-      queue.push(...childrenMap[cur]);
+    const curTreeId = queue.shift();
+    const children = childrenMap[curTreeId] || [];
+    for (const child of children) {
+      if (child.id) {
+        idsToUpdate.push(Number(child.id));
+        queue.push(child.tree_id);
+      }
     }
   }
 
@@ -1345,11 +1394,16 @@ function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = tru
   }
 
   try {
-    const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache(periodeId);
   } catch (e) {}
 
-  return { success: true, updatedCount: idsToUpdate.length };
+  return {
+    success: true,
+    updatedCount: idsToUpdate.length,
+    count: idsToUpdate.length,
+    updatedIds: idsToUpdate,
+    pic_bagian: cleanPic
+  };
 }
 
 function clearRabRows(periodeId) {

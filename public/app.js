@@ -2834,10 +2834,12 @@ async function submitQuickPic() {
     await loadRkbData();
     renderAllViews();
     if (res && res.count > 1) {
-      alert(`Berhasil mengalihkan PIC menjadi ${pic} untuk ${res.count} baris belanja secara hierarkis (Top-Down Cascade).`);
+      showToast(`Berhasil mengubah PIC menjadi ${pic} untuk ${res.count} baris secara hierarkis (Top-Down Cascade).`, 'success');
+    } else {
+      showToast(`Berhasil mengubah PIC baris menjadi ${pic}.`, 'success');
     }
   } catch (err) {
-    alert('Gagal mengubah PIC: ' + err.message);
+    showToast('Gagal mengubah PIC: ' + err.message, 'error');
   }
 }
 
