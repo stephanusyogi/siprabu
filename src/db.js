@@ -1471,7 +1471,7 @@ function reorderRow(periodeId, rowId, direction, actorUser = null) {
   const idx = rows.findIndex(r => r.id === Number(rowId));
   if (idx === -1) throw new Error('Baris tidak ditemukan.');
 
-  const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+  const targetIdx = String(direction).toLowerCase() === 'up' ? idx - 1 : idx + 1;
   if (targetIdx < 0 || targetIdx >= rows.length) return false;
 
   const curRow = rows[idx];

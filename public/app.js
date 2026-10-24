@@ -2237,8 +2237,8 @@ function updateSelectedRowUI() {
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Bagian ini beserta seluruh level di bawahnya">
-            🗑️ Hapus
+          <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Bagian ini beserta seluruh level di bawahnya">
+            🗑️ Hapus Bagian (L1)
           </button>
         `;
       } else if (treeLvl === 2) {
@@ -2253,8 +2253,8 @@ function updateSelectedRowUI() {
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Tahapan/Kegiatan ini beserta seluruh level di bawahnya">
-            🗑️ Hapus
+          <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Tahapan/Kegiatan ini beserta seluruh level di bawahnya">
+            🗑️ Hapus Tahapan (L2)
           </button>
         `;
       } else if (treeLvl === 3) {
@@ -2269,8 +2269,8 @@ function updateSelectedRowUI() {
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Kegiatan ini beserta seluruh level di bawahnya">
-            🗑️ Hapus
+          <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Kegiatan ini beserta seluruh level di bawahnya">
+            🗑️ Hapus Kegiatan (L3)
           </button>
         `;
       } else if (treeLvl === 4) {
@@ -2285,8 +2285,8 @@ function updateSelectedRowUI() {
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Sub-Komponen ini beserta seluruh level di bawahnya">
-            🗑️ Hapus
+          <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Sub-Komponen ini beserta seluruh level di bawahnya">
+            🗑️ Hapus Sub-Komp (L4)
           </button>
         `;
       } else if (treeLvl === 5) {
@@ -2304,8 +2304,8 @@ function updateSelectedRowUI() {
           <button class="btn btn-outline-primary btn-sm" onclick="openQuickAkunModal(${row.id}, event)" style="font-weight:600;" title="Ubah Akun Belanja (BAS)">
             ✏️ Ubah Akun
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Akun Belanja ini beserta seluruh level di bawahnya">
-            🗑️ Hapus
+          <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Akun Belanja ini beserta seluruh level di bawahnya">
+            🗑️ Hapus Akun BAS (L5)
           </button>
         `;
       } else if (treeLvl === 5.5) {
@@ -2320,8 +2320,8 @@ function updateSelectedRowUI() {
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Header Teks ini beserta seluruh level di bawahnya">
-            🗑️ Hapus
+          <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Header Teks ini beserta seluruh level di bawahnya">
+            🗑️ Hapus Header Teks
           </button>
         `;
       } else if (treeLvl === 6) {
@@ -2333,8 +2333,8 @@ function updateSelectedRowUI() {
           <button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id}, event)" style="font-weight:600;" title="Ubah Rincian Belanja ini">
             ✏️ Ubah Rincian
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Rincian Belanja ini">
-            🗑️ Hapus
+          <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Rincian Belanja ini">
+            🗑️ Hapus Rincian
           </button>
         `;
       } else {
@@ -2343,23 +2343,11 @@ function updateSelectedRowUI() {
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Baris ini beserta seluruh level di bawahnya">
-            🗑️ Hapus
+          <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Baris ini beserta seluruh level di bawahnya">
+            🗑️ Hapus Baris
           </button>
         `;
       }
-
-      // 3. Tombol Ordering Bounded: Geser Naik / Geser Turun
-      btns += `
-        <div class="btn-group" style="display:inline-flex;gap:2px;margin-left:4px;">
-          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveRowOrdering(${row.id}, 'UP')" title="Geser baris ini naik 1 posisi di dalam induknya" style="font-weight:700;padding:4px 8px;">
-            🔼 Naik
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveRowOrdering(${row.id}, 'DOWN')" title="Geser baris ini turun 1 posisi di dalam induknya" style="font-weight:700;padding:4px 8px;">
-            🔽 Turun
-          </button>
-        </div>
-      `;
     }
   }
 
@@ -2435,7 +2423,7 @@ function renderRkbTable() {
           <th class="col-sat">Satuan</th>
           <th class="col-harga text-right">Harga Satuan (Rp)</th>
           <th class="col-total text-right">Jumlah Anggaran (Rp)</th>
-          <th class="col-aksi text-center">Aksi</th>
+          <th class="col-aksi text-center" style="width: 135px; min-width: 130px;">Aksi</th>
         </tr>
       `;
     }
@@ -2627,30 +2615,35 @@ function renderRkbTable() {
       `;
     } else {
       let aksiHtml = '';
-      if (isItem) {
-        if (canEdit) {
-          aksiHtml = `
-            <button class="btn btn-sm btn-primary" onclick="openRowModal(${r.id}, event)" title="Edit Rincian Belanja">✏️</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus Baris Rincian Belanja">🗑️</button>
-          `;
-        } else {
-          aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
-        }
-      } else {
-        if (canEdit && !isLocked) {
-          const editFn = r.is_akun_row ? `openQuickAkunModal(${r.id}, event)` : `openEditHeaderModal(${r.id}, event)`;
-          const editTitle = r.is_akun_row ? 'Ubah Akun Belanja (BAS)' : 'Ubah Teks Header ini';
-          aksiHtml = `
-            <button class="btn btn-xs btn-outline-primary" onclick="${editFn}" title="${editTitle}" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;">
+      if (canEdit && !isLocked) {
+        const editFn = isItem
+          ? `openRowModal(${r.id}, event)`
+          : (r.is_akun_row ? `openQuickAkunModal(${r.id}, event)` : `openEditHeaderModal(${r.id}, event)`);
+        const editTitle = isItem
+          ? 'Edit Rincian Belanja'
+          : (r.is_akun_row ? 'Ubah Akun Belanja (BAS)' : 'Ubah Teks Header ini');
+        const delTitle = isItem
+          ? 'Hapus Baris Rincian Belanja ini'
+          : `Hapus [${r.kode || '-'}] ${escHtml(r.uraian || '')} (beserta seluruh level di bawahnya)`;
+
+        aksiHtml = `
+          <div style="display:inline-flex;align-items:center;gap:2px;white-space:nowrap;">
+            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveRowOrdering(${r.id}, 'UP', event)" title="Geser Naik (1 posisi)" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;">
+              ▲
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveRowOrdering(${r.id}, 'DOWN', event)" title="Geser Turun (1 posisi)" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;">
+              ▼
+            </button>
+            <button type="button" class="btn btn-xs btn-primary" onclick="${editFn}" title="${editTitle}" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;margin-left:2px;">
               ✏️
             </button>
-            <button class="btn btn-xs btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus Baris ini (beserta seluruh level di bawahnya)" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;margin-left:2px;">
+            <button type="button" class="btn btn-xs btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="${delTitle}" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;">
               🗑️
             </button>
-          `;
-        } else {
-          aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
-        }
+          </div>
+        `;
+      } else {
+        aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
       }
 
       rowsHtml += `
@@ -3957,7 +3950,11 @@ function toggleModalHeaderMode(isHeader) {
 // GESER URUTAN BARIS (REORDERING: UP / DOWN)
 // ============================================================================
 
-async function moveRowOrdering(rowId, direction) {
+async function moveRowOrdering(rowId, direction, event = null) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   const p = AppState.currentPeriode;
   if (!p) return;
   if (p.is_locked) {
