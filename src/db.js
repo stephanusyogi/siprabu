@@ -434,15 +434,19 @@ function alignOperationalRkbCycles() {
       }
       // Hapus snapshot untuk 1000003 jika ada agar perhitungannya dinamis
       db.prepare('DELETE FROM periode_snapshot WHERE periode_id = 1000003').run();
-
-      // Pastikan revisi_pengajuan pada periode 1000003 berada pada status ACC_PLENO dan belum terkunci
-      db.prepare(`
-        UPDATE revisi_pengajuan
-        SET is_locked = 0, tahap_terkini = 3, status_tahap = 'ACC_PLENO',
-            nomor_penetapan = '', tanggal_penetapan = '', tahap4_waktu = '', tahap4_catatan = ''
-        WHERE periode_id = 1000003
-      `).run();
     }
+
+    // 2b. Bersihkan riwayat revisi dummy/sampel awal agar tabel Monitoring Siklus Proses Revisi bersih (0 riwayat dummy)
+    db.prepare(`
+      DELETE FROM revisi_pengajuan
+      WHERE kode_revisi IN ('2026.657811.001', '2026.657811.002')
+         OR nomor_surat IN ('01/KU.01.1-SD/3521/2024', '05/PP.01.2-SD/3521/2026')
+    `).run();
+    db.prepare('DELETE FROM revisi_pengajuan_log WHERE pengajuan_id NOT IN (SELECT id FROM revisi_pengajuan)').run();
+    db.prepare(`
+      DELETE FROM subbag_usulan_revisi
+      WHERE gdrive_link LIKE '%test-subbag%' OR updated_at = '2026-10-21 20:27:35'
+    `).run();
 
     // 3. Pastikan RKB Awal (Periode 1) berstatus Terkunci sebagai Fondasi Sah dengan Pagu Rp 49.999.999.000
     db.prepare(`
