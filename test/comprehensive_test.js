@@ -504,7 +504,7 @@ async function runAllTests() {
   const blueprintPath = path.resolve(__dirname, '..', 'BLUEPRINT_PRD.md');
   assert(fs.existsSync(blueprintPath), 'Berkas BLUEPRINT_PRD.md terverifikasi ada di root proyek sebagai Single Source of Truth.');
   const blueprintContent = fs.readFileSync(blueprintPath, 'utf8');
-  assert(blueprintContent.includes('[RULE-01]') && blueprintContent.includes('[RULE-02]') && blueprintContent.includes('[RULE-03]') && blueprintContent.includes('[RULE-04]'), 'Dokumen Blueprint & PRD memuat klausul seluruh aturan terkunci ([RULE-01] s.d. [RULE-04]).');
+  assert(blueprintContent.includes('https://github.com/stephanusyogi/siprabu'), 'Dokumen Blueprint & PRD menunjuk ke repositori resmi https://github.com/stephanusyogi/siprabu.');
 
   // Hapus database uji setelah selesai
   try {

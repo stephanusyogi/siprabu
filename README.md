@@ -131,7 +131,7 @@ git -v
 ### 2. Kloning Repository & Jalankan
 ```bash
 # Clone repository
-git clone https://github.com/jihanandro/siprabu.git
+git clone https://github.com/stephanusyogi/siprabu.git
 cd siprabu
 
 # Pasang dependensi
@@ -166,7 +166,7 @@ Hostinger menyediakan dua opsi utama: **Hostinger VPS** (paling direkomendasikan
 3. **Kloning Proyek & Pasang Dependensi**:
    ```bash
    cd /var/www
-   git clone https://github.com/jihanandro/siprabu.git
+   git clone https://github.com/stephanusyogi/siprabu.git
    cd siprabu
    npm install
    ```
@@ -202,7 +202,7 @@ Hostinger menyediakan dua opsi utama: **Hostinger VPS** (paling direkomendasikan
 ### Opsi B: Deployment di Hostinger hPanel (Cloud / Business Hosting)
 
 1. Masuk ke **hPanel Hostinger** ➔ Buka menu **Git**.
-2. Masukkan URL Repository: `https://github.com/jihanandro/siprabu.git` dengan Branch `main`.
+2. Masukkan URL Repository: `https://github.com/stephanusyogi/siprabu.git` dengan Branch `main`.
 3. Masuk ke menu **Node.js** di hPanel:
    - **Node.js Version**: Pilih versi **22.x** (versi tertinggi yang tersedia).
    - **Application Root**: Masukkan folder clone siprabu.
