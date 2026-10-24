@@ -1189,8 +1189,8 @@ const server = http.createServer(async (req, res) => {
         ? filterAndPruneRkbDataset(fullDataset, { pic: filterPic })
         : fullDataset;
 
-      // Bangun Rekap Kegiatan RKB (L1, L2, L3, L4)
-      const kegiatanRows = (activeData.rows || []).filter(r => r.is_header && Number(r.level_indent) <= 29 && Number(r.level_indent) !== 3).map(r => ({
+      // Bangun Rekap Kegiatan RKB (Hanya sampai Level 3: L1 Makro [level_indent=0], L2 Kelompok Tahapan [level_indent=1], L3 Kegiatan [level_indent=2])
+      const kegiatanRows = (activeData.rows || []).filter(r => r.is_header && Number(r.level_indent) <= 2).map(r => ({
         id: r.id,
         urutan: r.urutan,
         kode: r.kode || '-',

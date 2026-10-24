@@ -310,7 +310,7 @@ Menu utama baru: **REKAP ANGGARAN**, ditempatkan setelah **PENGANGGARAN** dan se
 
 ### 21.1 Struktur menu dan keluaran
 1. **Rekap Perencanaan** dan **Rekap Pelaksanaan** merupakan dua konteks/tahapan yang berbeda, bukan satu rekap dengan campuran sumber data.
-2. Masing-masing menyediakan **Ringkasan Eksekutif**, **Rekap Kegiatan RKB**, **Rekap Subbagian**, dan **Rekap Akun BAS**, mengikuti empat sheet rekap workbook resmi.
+2. Masing-masing menyediakan **Ringkasan Eksekutif**, **Rekap Kegiatan RKB (hanya sampai Level 3 / L1–L3)**, **Rekap Subbagian**, dan **Rekap Akun BAS**, mengikuti empat sheet rekap workbook resmi.
 3. Seluruh halaman rekap **VIEW ONLY**: tidak ada tambah, ubah, hapus, atau input angka. Pencarian, filter, tampilan, dan unduhan diperbolehkan sesuai kewenangan.
 4. Angka, subtotal, persentase, dan grafik dihitung otomatis; hasil layar dan ekspor untuk filter/sumber yang sama harus konsisten.
 

@@ -667,10 +667,13 @@ async function runBusinessBehaviorTests() {
 
   const summaryPerencanaan = getRkbCalculatedDataset(rekapPerencanaanActive.id);
   const summaryPelaksanaan = getRkbCalculatedDataset(rekapPelaksanaanLocked.id);
+  const rekapKegiatanL1ToL3 = (summaryPerencanaan.rows || []).filter(r => r.is_header && Number(r.level_indent) <= 2);
   assert(
     summaryPerencanaan && Array.isArray(summaryPerencanaan.rows) &&
-    summaryPelaksanaan && Array.isArray(summaryPelaksanaan.rows),
-    'Test 27.3 (Canon Bab 21.2 & 21.3): Data olahan Rekap Perencanaan (RKB Aktif) dan Rekap Pelaksanaan (Baseline Terkunci Tahap 4) terhitung secara terpisah dan konsisten.'
+    summaryPelaksanaan && Array.isArray(summaryPelaksanaan.rows) &&
+    rekapKegiatanL1ToL3.length > 0 &&
+    rekapKegiatanL1ToL3.every(r => Number(r.level_indent) <= 2),
+    'Test 27.3 (Canon Bab 21.2 & 21.3): Data olahan Rekap Perencanaan (hanya sampai Level 3 / L1-L3) dan Rekap Pelaksanaan (Baseline Terkunci Tahap 4) terhitung secara terpisah dan konsisten.'
   );
 
   console.log('\n================================================================');

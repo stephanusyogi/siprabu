@@ -9363,24 +9363,33 @@ function renderRekapTabContent(mode) {
           <thead>
             <tr>
               <th style="width:90px;">Kode</th>
-              <th>Uraian Bagian / Tahapan / Kegiatan / Sub-Komponen RKB</th>
+              <th>Uraian Bagian / Tahapan / Kegiatan RKB (L1 – L3)</th>
               <th style="width:110px;">PIC Subbag</th>
               <th class="text-right" style="width:180px;">Jumlah Anggaran (Rp)</th>
             </tr>
           </thead>
           <tbody>
-            ${(kegiatan_rows || []).map(r => {
-              const isBold = Number(r.level_indent) <= 2;
+            ${(kegiatan_rows || []).filter(r => Number(r.level_indent) <= 2).map(r => {
+              const lvl = Number(r.level_indent);
+              const rowStyle = lvl === 0
+                ? 'font-weight:800; background:#1e293b; color:#fff;'
+                : (lvl === 1 ? 'font-weight:700; background:#f1f5f9;' : '');
               return `
-                <tr style="${isBold ? 'font-weight:700; background:#f8fafc;' : ''}">
+                <tr style="${rowStyle}">
                   <td style="font-family:var(--font-mono);">${escHtml(r.kode)}</td>
-                  <td style="padding-left:${Number(r.level_indent) * 14 + 8}px;">${escHtml(r.uraian)}</td>
-                  <td><span class="pic-chip pic-${escHtml(r.pic_bagian)}">${escHtml(r.pic_bagian)}</span></td>
-                  <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(r.jumlah)}</td>
+                  <td style="padding-left:${lvl * 16 + 10}px;">${escHtml(r.uraian)}</td>
+                  <td>${lvl <= 1 ? `<span style="font-size:11px; opacity:0.85;">${lvl === 0 ? 'Kelompok Makro' : 'Kelompok Tahapan'}</span>` : `<span class="pic-chip pic-${escHtml(r.pic_bagian)}">${escHtml(r.pic_bagian)}</span>`}</td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-weight:${lvl <= 1 ? '800' : '600'};">${formatRupiah(r.jumlah)}</td>
                 </tr>
               `;
             }).join('')}
           </tbody>
+          <tfoot>
+            <tr style="background:#eff6ff; font-weight:800;">
+              <td colspan="3">TOTAL REKAPITULASI KEGIATAN RKB (L1 – L3)</td>
+              <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(total)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     `;
