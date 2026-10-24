@@ -106,7 +106,7 @@ const {
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset } = require('./src/calculation');
-const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers } = require('./src/auth');
+const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser } = require('./src/auth');
 const { 
   exportRkbToExcelBuffer, 
   exportSbmToExcelBuffer, 
@@ -597,6 +597,58 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, result);
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // 3b. ENDPOINT KHUSUS LEAD DEVELOPER: BLUEPRINT & PRD ARSITEKTUR
+    if (pathname === '/api/developer/blueprint' && method === 'GET') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!isDeveloperUser(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Menu ini hanya dapat diakses oleh Akun Pengembang (Lead Developer).' });
+      }
+
+      const blueprintPath = path.resolve(__dirname, 'BLUEPRINT_PRD.md');
+      let content = '';
+      let mtime = null;
+      try {
+        if (fs.existsSync(blueprintPath)) {
+          content = fs.readFileSync(blueprintPath, 'utf8');
+          const stat = fs.statSync(blueprintPath);
+          mtime = stat.mtime;
+        } else {
+          content = '# BLUEPRINT & PRD ARSITEKTUR SI-PRABU\n\nDokumen blueprint belum diinisialisasi.';
+        }
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Gagal membaca berkas blueprint: ' + err.message });
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        filename: 'BLUEPRINT_PRD.md',
+        last_modified: mtime,
+        content
+      });
+    }
+
+    if (pathname === '/api/developer/blueprint' && (method === 'PUT' || method === 'POST')) {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!isDeveloperUser(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Menu ini hanya dapat diakses oleh Akun Pengembang (Lead Developer).' });
+      }
+
+      const body = await parseJsonBody(req);
+      if (!body || typeof body.content !== 'string') {
+        return sendJson(res, 400, { error: 'Konten dokumen blueprint tidak valid.' });
+      }
+
+      const blueprintPath = path.resolve(__dirname, 'BLUEPRINT_PRD.md');
+      try {
+        fs.writeFileSync(blueprintPath, body.content, 'utf8');
+        return sendJson(res, 200, { success: true, message: 'Dokumen Blueprint & PRD berhasil diperbarui.' });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Gagal menyimpan dokumen blueprint: ' + err.message });
       }
     }
 

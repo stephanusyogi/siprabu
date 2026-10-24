@@ -279,6 +279,20 @@ function validateUserCoherence(userData, isCreating = false) {
   return { valid: true };
 }
 
+/**
+ * Helper verifikasi apakah pengguna adalah Lead Developer (Level 0 / emenje)
+ */
+function isDeveloperUser(user) {
+  if (!user) return false;
+  return Boolean(
+    user.is_developer || 
+    user.level === 0 || 
+    user.role_id === 'developer' || 
+    user.username === 'emenje' ||
+    user.original_dev_username === 'emenje'
+  );
+}
+
 module.exports = {
   createToken,
   verifyToken,
@@ -286,6 +300,7 @@ module.exports = {
   canEditRow,
   canManageLifecycle,
   canManageUsers,
+  isDeveloperUser,
   validateUserCoherence,
   normalizePic,
   getSecretKey

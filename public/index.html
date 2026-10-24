@@ -314,6 +314,13 @@
             <span class="label">Manajemen User</span>
             <span class="badge badge-info badge-sm" id="badge-total-users">10</span>
           </button>
+
+          <!-- 8. RUANG PENGEMBANG (HANYA DEVELOPER) -->
+          <button class="nav-item" data-view="view-developer" onclick="switchView('view-developer')" id="nav-item-developer" style="display: none; background: rgba(15, 23, 42, 0.05); border-left: 3px solid #0f172a; margin-top: 4px;">
+            <span class="icon">🛠️</span>
+            <span class="label" style="font-weight: 700; color: #0f172a;">Blueprint &amp; PRD</span>
+            <span class="badge badge-dark badge-sm" style="background: #0f172a; color: #fff; font-size: 10px; font-weight: 800;">DEV</span>
+          </button>
         </nav>
 
         <div class="sidebar-footer">
@@ -2234,6 +2241,83 @@
                   <!-- Populated via JS -->
                 </tbody>
               </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW: RUANG PENGEMBANG (BLUEPRINT & PRD ARSITEKTUR) - HANYA LEVEL 0 -->
+        <!-- ================================================================= -->
+        <section id="view-developer" class="app-view">
+          <div class="view-header">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#0f172a;color:#f8fafc;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>🛠️ LEAD DEVELOPER &amp; SYSTEM ARCHITECT CONSOLE</span>
+              </div>
+              <h2 class="view-title" style="color:#0f172a;">Blueprint &amp; Dokumen PRD Arsitektur</h2>
+              <p class="view-desc">Single Source of Truth (SSOT) kesepakatan sistem, kontrak arsitektur, dan aturan bisnis terkunci yang diproteksi anti-regresi.</p>
+            </div>
+            <div class="header-actions" style="display: flex; gap: 8px; align-items: center;">
+              <span id="dev-blueprint-mtime" style="font-size: 11.5px; color: #64748b; font-family: var(--font-mono, monospace);"></span>
+              <button class="btn btn-sm btn-outline-primary" onclick="loadDeveloperBlueprint()" title="Muat ulang dokumen blueprint dari server">
+                🔄 Segarkan Dokumen
+              </button>
+            </div>
+          </div>
+
+          <!-- KARTU STATUS KESEPAKATAN CEPAT -->
+          <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 20px;">
+            <div class="stat-card" style="border-left: 4px solid #10b981;">
+              <div class="stat-label">RULE-01: AKSES USER MGMT</div>
+              <div class="stat-value" style="font-size: 16px; color: #065f46; font-weight: 800;">TERKUNCI &amp; PASS ✅</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Level 0 &amp; Kasubbag Perencanaan Only</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #10b981;">
+              <div class="stat-label">RULE-02: ISOLASI UNDUHAN</div>
+              <div class="stat-value" style="font-size: 16px; color: #065f46; font-weight: 800;">TERKUNCI &amp; PASS ✅</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Isolasi per user &amp; auto-purge kadaluarsa</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #10b981;">
+              <div class="stat-label">RULE-03: CASCADE PIC</div>
+              <div class="stat-value" style="font-size: 16px; color: #065f46; font-weight: 800;">TERKUNCI &amp; PASS ✅</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Induk belanja menurunkan PIC ke sub-kegiatan</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #10b981;">
+              <div class="stat-label">RULE-04: SAKTI ROUTE TOKEN</div>
+              <div class="stat-value" style="font-size: 16px; color: #065f46; font-weight: 800;">TERKUNCI &amp; PASS ✅</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Dynamic 43-char token dengan rotasi HMAC</div>
+            </div>
+          </div>
+
+          <!-- KONTENER UTAMA PEMBACA DOKUMEN BLUEPRINT -->
+          <div class="card" style="padding: 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(15,23,42,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 18px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">📜</span>
+                <span style="font-weight: 700; font-size: 15px; color: #0f172a;">Dokumen Kontrak: BLUEPRINT_PRD.md</span>
+                <span class="badge badge-success badge-sm" style="font-size: 10px;">Git Tracked</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-outline btn-xs" id="btn-toggle-raw-blueprint" onclick="toggleRawBlueprintView()">
+                  👁️ Tampilkan Raw Markdown
+                </button>
+              </div>
+            </div>
+
+            <!-- TAMPILAN FORMATTED BLUEPRINT -->
+            <div id="dev-blueprint-formatted-view" style="font-size: 13.5px; line-height: 1.7; color: #1e293b;">
+              <div style="text-align: center; padding: 40px; color: #64748b;">
+                <span>Memuat dokumen Blueprint &amp; PRD dari server...</span>
+              </div>
+            </div>
+
+            <!-- TAMPILAN RAW EDITABLE BLUEPRINT (HIDDEN BY DEFAULT) -->
+            <div id="dev-blueprint-raw-view" style="display: none;">
+              <textarea id="dev-blueprint-raw-textarea" class="form-control" style="width: 100%; height: 500px; font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; padding: 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;" spellcheck="false"></textarea>
+              <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleRawBlueprintView()">Tutup Editor Raw</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveDeveloperBlueprint()">💾 Simpan Dokumen Blueprint</button>
+              </div>
             </div>
           </div>
         </section>

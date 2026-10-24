@@ -63,7 +63,8 @@ const SAKTI_VIEW_CODES = {
   'view-settings': 16,
   'view-panduan': 17,
   'view-monitoring': 18,
-  'view-users': 19
+  'view-users': 19,
+  'view-developer': 20
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -85,7 +86,8 @@ const SAKTI_CODE_TO_VIEW = {
   16: 'view-db-settings',
   17: 'view-panduan',
   18: 'view-monitoring',
-  19: 'view-users'
+  19: 'view-users',
+  20: 'view-developer'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -108,7 +110,8 @@ const SAKTI_VIEW_TITLES = {
   'view-settings': 'Pengaturan Sistem & Parameter',
   'view-panduan': 'Panduan Teknis & Penggunaan',
   'view-monitoring': 'Executive Real-Time Monitoring',
-  'view-users': 'Manajemen Pengguna & Otoritas'
+  'view-users': 'Manajemen Pengguna & Otoritas',
+  'view-developer': 'Ruang Pengembang & Blueprint PRD'
 };
 
 function bufferToBase64Url(uint8Array) {
@@ -849,6 +852,12 @@ function applyRolePermissionsToUI() {
   if (navTahap4) {
     navTahap4.style.display = (user.level <= 1 || user.role_id === 'sekretaris') ? 'flex' : 'none';
   }
+
+  // e. Menu Ruang Pengembang (Blueprint & PRD) HANYA UNTUK DEVELOPER LEVEL 0
+  const navDev = document.getElementById('nav-item-developer');
+  if (navDev) {
+    navDev.style.display = isDeveloperSession() ? 'flex' : 'none';
+  }
 }
 
 async function switchUser(username) {
@@ -1308,6 +1317,13 @@ function switchView(viewId, updateHistory = true) {
       return;
     }
 
+    // 3b. Guard Ruang Pengembang (Blueprint & PRD): HANYA Level 0 (Developer emenje)
+    if (viewId === 'view-developer' && !isDeveloperSession()) {
+      showToast('Akses ditolak: Menu ini khusus untuk Akun Pengembang (Lead Developer).', 'error');
+      switchView('view-dashboard', updateHistory);
+      return;
+    }
+
     // 4. Guard Menu Siklus Revisi Sesuai Role KPU:
     // a. Pengajuan Usulan Revisi: HANYA untuk PIC Subbag (Level 2)
     if (viewId === 'view-revisi-pengajuan' && user.level !== 2) {
@@ -1377,6 +1393,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-panduan') { /* static info */ }
   else if (viewId === 'view-monitoring') loadMonitoringReport();
   else if (viewId === 'view-users') renderUsersTable();
+  else if (viewId === 'view-developer') loadDeveloperBlueprint();
 }
 
 function renderAllViews() {
@@ -6604,6 +6621,190 @@ async function toggleUserStatusAction(userId) {
     alert('Gagal mengubah status: ' + err.message);
   }
 }
+
+// ============================================================================
+// VIEW: RUANG PENGEMBANG & BLUEPRINT PRD ARSITEKTUR (LEAD DEVELOPER ONLY)
+// ============================================================================
+
+let currentBlueprintRawContent = '';
+
+function renderMarkdownToHtml(md) {
+  if (!md) return '<p class="text-muted">Dokumen kosong.</p>';
+  
+  const escape = (str) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  
+  const lines = md.split('\n');
+  let html = '';
+  let inCodeBlock = false;
+  let inTable = false;
+  let inUl = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Code blocks
+    if (line.trim().startsWith('```')) {
+      if (inCodeBlock) {
+        html += '</code></pre>\n';
+        inCodeBlock = false;
+      } else {
+        html += '<pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;overflow-x:auto;font-family:var(--font-mono, monospace);font-size:12px;margin:12px 0;"><code>';
+        inCodeBlock = true;
+      }
+      continue;
+    }
+    if (inCodeBlock) {
+      html += escape(line) + '\n';
+      continue;
+    }
+
+    // Tables
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      const cells = line.split('|').slice(1, -1);
+      if (cells.every(c => /^[\s-:]+$/.test(c))) {
+        continue;
+      }
+      if (!inTable) {
+        html += '<div style="overflow-x:auto;margin:12px 0;"><table class="table table-bordered table-striped" style="font-size:12.5px;background:#fff;width:100%;"><tbody>';
+        inTable = true;
+      }
+      html += '<tr>' + cells.map(c => `<td style="padding:6px 10px;">${inlineFormat(escape(c.trim()))}</td>`).join('') + '</tr>';
+      continue;
+    } else if (inTable) {
+      html += '</tbody></table></div>\n';
+      inTable = false;
+    }
+
+    // Unordered List
+    if (/^\s*[-*]\s+/.test(line)) {
+      if (!inUl) { html += '<ul style="margin:6px 0 10px 20px;padding:0;">'; inUl = true; }
+      const content = line.replace(/^\s*[-*]\s+/, '');
+      html += `<li style="margin-bottom:4px;">${inlineFormat(escape(content))}</li>`;
+      continue;
+    } else if (inUl) {
+      html += '</ul>';
+      inUl = false;
+    }
+
+    // Headers
+    if (line.startsWith('# ')) {
+      html += `<h1 style="font-size:22px;color:#0f172a;border-bottom:2px solid #cbd5e1;padding-bottom:8px;margin-top:24px;margin-bottom:12px;">${inlineFormat(escape(line.substring(2)))}</h1>`;
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      html += `<h2 style="font-size:17px;color:#1e293b;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-top:20px;margin-bottom:10px;">${inlineFormat(escape(line.substring(3)))}</h2>`;
+      continue;
+    }
+    if (line.startsWith('### ')) {
+      html += `<h3 style="font-size:14.5px;color:#334155;margin-top:16px;margin-bottom:8px;font-weight:700;">${inlineFormat(escape(line.substring(4)))}</h3>`;
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith('> ')) {
+      html += `<blockquote style="border-left:4px solid #3b82f6;background:#eff6ff;padding:8px 14px;margin:10px 0;border-radius:0 6px 6px 0;color:#1e40af;">${inlineFormat(escape(line.substring(2)))}</blockquote>`;
+      continue;
+    }
+
+    // Horizontal Rule
+    if (/^---|\*\*\*|___$/.test(line.trim())) {
+      html += '<hr style="border:0;border-top:1px solid #e2e8f0;margin:16px 0;">';
+      continue;
+    }
+
+    // Paragraph
+    if (line.trim().length > 0) {
+      html += `<p style="margin-bottom:8px;">${inlineFormat(escape(line))}</p>`;
+    }
+  }
+
+  if (inCodeBlock) html += '</code></pre>\n';
+  if (inTable) html += '</tbody></table></div>\n';
+  if (inUl) html += '</ul>';
+
+  return html;
+}
+
+function inlineFormat(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:#f1f5f9;color:#0f172a;padding:2px 5px;border-radius:4px;font-size:12px;font-family:var(--font-mono, monospace);">$1</code>');
+}
+
+async function loadDeveloperBlueprint() {
+  if (!isDeveloperSession()) return;
+  const container = document.getElementById('dev-blueprint-formatted-view');
+  const textarea = document.getElementById('dev-blueprint-raw-textarea');
+  const mtimeEl = document.getElementById('dev-blueprint-mtime');
+  if (!container) return;
+
+  container.innerHTML = '<div style="text-align: center; padding: 30px; color: #64748b;"><span>Memuat dokumen Blueprint &amp; PRD dari server...</span></div>';
+
+  try {
+    const res = await apiFetch('/api/developer/blueprint');
+    if (res && res.success) {
+      currentBlueprintRawContent = res.content || '';
+      if (textarea) textarea.value = currentBlueprintRawContent;
+      container.innerHTML = renderMarkdownToHtml(currentBlueprintRawContent);
+      if (mtimeEl && res.last_modified) {
+        const d = new Date(res.last_modified);
+        mtimeEl.textContent = 'Terakhir disinkronkan: ' + d.toLocaleDateString('id-ID') + ' ' + d.toLocaleTimeString('id-ID');
+      }
+    }
+  } catch (err) {
+    container.innerHTML = `<div class="alert alert-danger" style="margin: 20px 0;">Gagal memuat blueprint: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function toggleRawBlueprintView() {
+  const formatted = document.getElementById('dev-blueprint-formatted-view');
+  const raw = document.getElementById('dev-blueprint-raw-view');
+  const btn = document.getElementById('btn-toggle-raw-blueprint');
+  if (!formatted || !raw) return;
+
+  const isRawVisible = raw.style.display !== 'none';
+  if (isRawVisible) {
+    raw.style.display = 'none';
+    formatted.style.display = 'block';
+    if (btn) btn.textContent = '👁️ Tampilkan Raw Markdown';
+    const textarea = document.getElementById('dev-blueprint-raw-textarea');
+    if (textarea && textarea.value !== currentBlueprintRawContent) {
+      currentBlueprintRawContent = textarea.value;
+      formatted.innerHTML = renderMarkdownToHtml(currentBlueprintRawContent);
+    }
+  } else {
+    raw.style.display = 'block';
+    formatted.style.display = 'none';
+    if (btn) btn.textContent = '👁️ Tampilkan Dokumen Rapi';
+    const textarea = document.getElementById('dev-blueprint-raw-textarea');
+    if (textarea) textarea.value = currentBlueprintRawContent;
+  }
+}
+
+async function saveDeveloperBlueprint() {
+  if (!isDeveloperSession()) return;
+  const textarea = document.getElementById('dev-blueprint-raw-textarea');
+  if (!textarea) return;
+
+  const newContent = textarea.value;
+  try {
+    const res = await apiFetch('/api/developer/blueprint', {
+      method: 'POST',
+      body: JSON.stringify({ content: newContent })
+    });
+    showToast(res.message || 'Blueprint berhasil disimpan.', 'success');
+    currentBlueprintRawContent = newContent;
+    toggleRawBlueprintView();
+    await loadDeveloperBlueprint();
+  } catch (err) {
+    showToast('Gagal menyimpan blueprint: ' + err.message, 'error');
+  }
+}
+
+window.loadDeveloperBlueprint = loadDeveloperBlueprint;
+window.toggleRawBlueprintView = toggleRawBlueprintView;
+window.saveDeveloperBlueprint = saveDeveloperBlueprint;
 
 // ============================================================================
 // WORKFLOW REVISI & PLENO SUBBAGIAN

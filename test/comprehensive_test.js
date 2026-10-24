@@ -46,7 +46,7 @@ async function runAllTests() {
   const { createBackup, verifyDatabaseIntegrity } = require('../src/backup');
   const { hashPassword, verifyPassword, sanitizeLogData } = require('../src/crypto_util');
   const { parseIndonesianNumber } = require('../src/number_util');
-  const { createToken, verifyToken, canEditRow, canManageLifecycle, canManageUsers, validateUserCoherence, getSecretKey } = require('../src/auth');
+  const { createToken, verifyToken, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser, validateUserCoherence, getSecretKey } = require('../src/auth');
   const {
     db,
     getPeriodeList,
@@ -150,6 +150,12 @@ async function runAllTests() {
   assert(canManageUsers({ level: 1, username: 'perencanaan', role_id: 'super_admin' }) === true, 'Kasubbag Perencanaan (Level 1) memiliki hak mengelola pengguna.');
   assert(canManageUsers({ level: 1, username: 'staf_perencanaan', role_id: 'admin_perencanaan' }) === false, 'Staf Perencanaan DITOLAK mengelola pengguna (hanya Kasubbag).');
   assert(canManageUsers({ level: 2, username: 'teknis', role_id: 'op_teknis' }) === false, 'Level 2 Operator DITOLAK mengelola pengguna.');
+
+  // Hak Akses Ruang Pengembang (Blueprint & PRD): HANYA Lead Developer
+  assert(isDeveloperUser({ level: 0, username: 'emenje', role_id: 'developer' }) === true, 'Akun Lead Developer emenje (Level 0) terverifikasi sebagai Developer sah.');
+  assert(isDeveloperUser({ level: 1, username: 'perencanaan', role_id: 'super_admin' }) === false, 'Kasubbag Perencanaan (Level 1) DITOLAK mengakses Ruang Pengembang.');
+  assert(isDeveloperUser({ level: 2, username: 'teknis', role_id: 'op_teknis' }) === false, 'Operator Subbagian (Level 2) DITOLAK mengakses Ruang Pengembang.');
+  assert(isDeveloperUser({ level: 3, username: 'ketua', role_id: 'viewer_ketua' }) === false, 'Pimpinan Satker (Level 3) DITOLAK mengakses Ruang Pengembang.');
 
   // --------------------------------------------------------------------------
   // TEST 7: Backend Authorization on Row Editing (Level 2 Subbag Isolation)
@@ -451,6 +457,10 @@ async function runAllTests() {
   const tamperedToken = rkbToken.slice(0, 42) + (rkbToken[42] === 'A' ? 'B' : 'A');
   assert(parseSaktiRouteToken(tamperedToken) === null, 'Token yang diubah / checksum tidak valid ditolak tegas (return null).');
 
+  const devToken = generateSaktiRouteToken('view-developer', false);
+  const parsedDev = parseSaktiRouteToken(devToken);
+  assert(parsedDev && parsedDev.viewId === 'view-developer', 'Rute Ruang Pengembang (view-developer) berhasil diamankan dan didekode oleh modul SAKTI token.');
+
   // --------------------------------------------------------------------------
   // TEST 23: Download Requests User Isolation & Auto-Cleanup Kadaluarsa
   // --------------------------------------------------------------------------
@@ -490,6 +500,11 @@ async function runAllTests() {
   console.log('\n--- KELOMPOK 12: ISOLASI DATABASE & KEBERSIHAN ---');
   const prodCheck = verifyDatabaseIntegrity(PROD_DB_PATH);
   assert(prodCheck.integrity === 'ok', 'Database produksi tetap utuh dan berstatus valid tanpa terganggu selama pengujian.');
+
+  const blueprintPath = path.resolve(__dirname, '..', 'BLUEPRINT_PRD.md');
+  assert(fs.existsSync(blueprintPath), 'Berkas BLUEPRINT_PRD.md terverifikasi ada di root proyek sebagai Single Source of Truth.');
+  const blueprintContent = fs.readFileSync(blueprintPath, 'utf8');
+  assert(blueprintContent.includes('[RULE-01]') && blueprintContent.includes('[RULE-02]') && blueprintContent.includes('[RULE-03]') && blueprintContent.includes('[RULE-04]'), 'Dokumen Blueprint & PRD memuat klausul seluruh aturan terkunci ([RULE-01] s.d. [RULE-04]).');
 
   // Hapus database uji setelah selesai
   try {

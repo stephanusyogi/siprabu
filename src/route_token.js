@@ -26,7 +26,8 @@ const SAKTI_VIEW_CODES = {
   'view-settings': 16,
   'view-panduan': 17,
   'view-monitoring': 18,
-  'view-users': 19
+  'view-users': 19,
+  'view-developer': 20
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -48,7 +49,8 @@ const SAKTI_CODE_TO_VIEW = {
   16: 'view-db-settings',
   17: 'view-panduan',
   18: 'view-monitoring',
-  19: 'view-users'
+  19: 'view-users',
+  20: 'view-developer'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -71,7 +73,8 @@ const SAKTI_VIEW_TITLES = {
   'view-settings': 'Pengaturan Sistem & Parameter',
   'view-panduan': 'Panduan Teknis & Penggunaan',
   'view-monitoring': 'Executive Real-Time Monitoring',
-  'view-users': 'Manajemen Pengguna & Otoritas'
+  'view-users': 'Manajemen Pengguna & Otoritas',
+  'view-developer': 'Ruang Pengembang & Blueprint PRD'
 };
 
 function bufferToBase64Url(buf) {
