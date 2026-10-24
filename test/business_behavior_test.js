@@ -49,8 +49,10 @@ async function runBusinessBehaviorTests() {
     getActiveRevisionCycle,
     getOrCreateRevisionCycle,
     createRevisiPengajuan,
+    getRevisiPengajuanList,
     updateRevisiTahap,
     finalizeTahap4Keseluruhan,
+    updatePostRatificationLinks,
     getRevisionCycleStatus,
     saveRabRow,
     getRabRowById,
@@ -222,6 +224,7 @@ async function runBusinessBehaviorTests() {
   const pTeknisReturned = db.prepare('SELECT * FROM revisi_pengajuan WHERE id = ?').get(pTeknis.id);
   assert(pTeknisReturned.status_tahap === 'DIKEMBALIKAN', 'Test 9.1: Status usulan berubah menjadi DIKEMBALIKAN.');
   assert(pTeknisReturned.alasan_pengembalian.includes('melebihi SBM'), 'Test 9.2: Alasan pengembalian tersimpan dengan jelas.');
+  assert(Number(pTeknisReturned.versi_usulan) === 2, 'Test 9.4 (Canon Bab 3 & FR-02): Penolakan Tahap 2 menaikkan versi pengajuan secara administratif ke V2 tanpa membuat tabel RKB baru.');
 
   // PIC sekarang bisa mengedit kembali rincian miliknya
   let picEditUnlocked = true;
@@ -445,6 +448,37 @@ async function runBusinessBehaviorTests() {
     reRatifyError = err.message.includes('Tidak ada siklus revisi aktif');
   }
   assert(reRatifyError === true, 'Test 20: Pengesahan ulang pada siklus yang sudah sah ditolak.');
+
+  // --------------------------------------------------------------------------
+  // TEST 20B (Canon Bab 6, Bab 4.3, Bab 14 & Bab 17):
+  // - Monitoring Revisi tetap menampilkan siklus terakhir yang baru selesai sebelum siklus berikutnya punya pengajuan Tahap 1.
+  // - Kasubag Rendatin berwenang mengoreksi tautan pasca-pengesahan (tercatat di audit log, tidak mengubah angka baseline), sedangkan PIC ditolak.
+  // --------------------------------------------------------------------------
+  const monAfterRatify = getRevisiPengajuanList();
+  assert(monAfterRatify.length === 3 && monAfterRatify.every(r => r.periode_id === activeCycle1.id && r.status_tahap === 'SELESAI'), 'Test 20B.1 (Canon Bab 6 & FR-08): Monitoring Revisi tetap menampilkan siklus terakhir yang selesai sebelum siklus berikutnya memiliki pengajuan pertama.');
+
+  let picLinkCorrectBlocked = false;
+  try {
+    updatePostRatificationLinks(activeCycle1.id, {
+      gdrive_link_pleno: 'https://drive.google.com/ilegal.pdf'
+    }, userL2Teknis1);
+  } catch (err) {
+    picLinkCorrectBlocked = err.message.includes('Akses ditolak');
+  }
+  assert(picLinkCorrectBlocked === true, 'Test 20B.2 (Canon Bab 14): Operator Level 2 ditolak mengoreksi tautan dokumen pasca-pengesahan.');
+
+  const correctedPeriode = updatePostRatificationLinks(activeCycle1.id, {
+    gdrive_link_pleno: 'https://drive.google.com/ba_pleno_sah_siklus1_corrected.pdf',
+    rkb_final_link: 'https://drive.google.com/rkb_final_siklus1.pdf',
+    kak_gabungan_link: 'https://drive.google.com/kak_gabungan_siklus1.pdf',
+    catatan: 'Perbaikan tautan folder Google Drive resmi'
+  }, userL1);
+  assert(
+    correctedPeriode.gdrive_link_pleno === 'https://drive.google.com/ba_pleno_sah_siklus1_corrected.pdf' &&
+    correctedPeriode.rkb_final_link === 'https://drive.google.com/rkb_final_siklus1.pdf' &&
+    correctedPeriode.kak_gabungan_link === 'https://drive.google.com/kak_gabungan_siklus1.pdf',
+    'Test 20B.3 (Canon Bab 4.3 & Bab 14): Kasubag Rendatin berhasil mengoreksi 3 tautan dokumen pasca-pengesahan tanpa mengubah angka baseline.'
+  );
 
   console.log('--- SIKLUS 2: DASAR ANGGARAN SAH BERIKUTNYA & COMPARISON ---');
 

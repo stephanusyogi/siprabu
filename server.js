@@ -97,6 +97,7 @@ const {
   updateRevisiTahap,
   deleteRevisiPengajuan,
   finalizeTahap4Keseluruhan,
+  updatePostRatificationLinks,
   getArsipRevisiList,
   getLatestRatifiedPeriode,
   getActiveRevisionCycle,
@@ -1134,13 +1135,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 3b. GET /api/revisi/pengajuan/:id/history (Log Riwayat Pengajuan, Pengembalian & Pleno)
+    // Bab 6 Canon: Akses resume proses lengkap dan audit rinci hanya untuk Kasubag Rendatin dan Developer
     const revisiHistoryMatch = pathname.match(/^\/api\/revisi\/pengajuan\/(\d+)\/history$/);
     if (revisiHistoryMatch && method === 'GET') {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const canSeeDetailedAudit = user.level === 0 || (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin' || user.role_id === 'perencanaan'));
+      if (!canSeeDetailedAudit) {
+        return sendJson(res, 200, { success: true, data: [], history: [], restricted: true });
+      }
       const id = Number(revisiHistoryMatch[1]);
       const history = getRevisiPengajuanHistory(id);
-      return sendJson(res, 200, { success: true, data: history });
+      return sendJson(res, 200, { success: true, data: history, history });
     }
 
     // 4. POST /api/revisi/pengajuan/:id/tahap (Proses Tahap 2, 3, atau 4)
@@ -1153,15 +1159,15 @@ const server = http.createServer(async (req, res) => {
       const body = await parseJsonBody(req);
       const targetTahap = Number(body.tahap);
 
-      // Verifikasi otorisasi per tahap
-      if (targetTahap === 2 && user.level > 1 && user.role_id !== 'developer') {
-        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 2 (Penelitian Teknis) hanya berhak diproses oleh Tim Rendatin / Perencanaan.' });
+      // Verifikasi otorisasi per tahap (Bab 4.2 Canon: Tahap 2 & Tahap 3 dioperasikan di sistem oleh akun Perencanaan Level 1)
+      if (targetTahap === 2 && user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 2 (Penelitian Teknis) hanya berhak diproses oleh Tim Rendatin / Perencanaan (Level 1).' });
       }
-      if (targetTahap === 3 && user.level === 2) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 3 (Penelaahan Pleno & KPA) hanya berhak diproses oleh Komisioner, KPA, atau Tim Rendatin.' });
+      if (targetTahap === 3 && user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 3 (Pencatatan Hasil Sidang Pleno) hanya berhak dioperasikan di sistem oleh Tim Rendatin / Perencanaan (Level 1).' });
       }
-      if (targetTahap === 4 && user.level === 2) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 4 (Penetapan & Pengesahan) hanya berhak diproses oleh KPA, Sekretaris KPU, atau Rendatin.' });
+      if (targetTahap === 4 && user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Tahap 4 (Penetapan & Pengesahan) hanya berhak diproses oleh Tim Rendatin / Perencanaan (Level 1).' });
       }
 
       try {
@@ -1225,15 +1231,17 @@ const server = http.createServer(async (req, res) => {
         proposals: cycleStatus.proposals,
         subbag_status: cycleStatus.subbag_status,
         siap_pengesahan: cycleStatus.siap_pengesahan,
-        belum_acc_list: cycleStatus.belum_acc_list
+        is_ready_for_ratification: cycleStatus.siap_pengesahan,
+        belum_acc_list: cycleStatus.belum_acc_list,
+        pending_subbags: cycleStatus.pending_subbags
       });
     }
 
     // 6c. POST /api/revisi/pengesahan-tahap4-keseluruhan (Tahap 4 Sistem: Kunci RKB Draf Keseluruhan & Lampirkan BA Pleno)
     if (pathname === '/api/revisi/pengesahan-tahap4-keseluruhan' && method === 'POST') {
       const user = getUserFromReq(req);
-      if (!user || (user.level > 1 && user.role_id !== 'sekretaris' && user.role_id !== 'developer')) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Pengesahan Tahap 4 (Penguncian RKB & BA Pleno) hanya dapat dilakukan oleh Tim Rendatin (Level 1) atau Sekretaris KPU (KPA).' });
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengesahan Tahap 4 (Penguncian RKB & BA Pleno) hanya dapat dilakukan oleh Tim Rendatin / Perencanaan (Level 1).' });
       }
 
       const body = await parseJsonBody(req);
@@ -1242,6 +1250,12 @@ const server = http.createServer(async (req, res) => {
           nomor_ba: body.nomor_ba,
           tanggal_ba: body.tanggal_ba,
           link_scan_ba: body.link_scan_ba,
+          rkb_final_link: body.rkb_final_link || '',
+          kak_gabungan_link: body.kak_gabungan_link || '',
+          fase_perencanaan: body.fase_perencanaan || '',
+          dasar_pengesahan: body.dasar_pengesahan || '',
+          verifikasi_manual: Boolean(body.verifikasi_manual),
+          strict_tahap4: Boolean(body.strict_tahap4),
           catatan: body.catatan,
           user
         });
@@ -1253,6 +1267,31 @@ const server = http.createServer(async (req, res) => {
         });
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // 6d. POST /api/periodes/:id/koreksi-tautan (Koreksi Tautan Pasca-Pengesahan oleh Kasubag Rendatin, Bab 4.3 & Bab 14)
+    const koreksiTautanMatch = pathname.match(/^\/api\/(?:periodes|revisi\/arsip)\/(\d+)\/koreksi-tautan$/);
+    if (koreksiTautanMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const targetPeriodeId = Number(koreksiTautanMatch[1]);
+      const body = await parseJsonBody(req);
+      try {
+        const updated = updatePostRatificationLinks(targetPeriodeId, {
+          gdrive_link_pleno: body.gdrive_link_pleno,
+          rkb_final_link: body.rkb_final_link,
+          kak_gabungan_link: body.kak_gabungan_link,
+          catatan: body.catatan
+        }, user);
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Tautan dokumen arsip pasca-pengesahan berhasil diperbarui dan dicatat pada Audit Log.',
+          data: updated
+        });
+      } catch (err) {
+        const status = err.message.includes('Akses ditolak') ? 403 : 400;
+        return sendJson(res, status, { error: err.message });
       }
     }
 

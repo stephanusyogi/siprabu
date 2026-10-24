@@ -722,11 +722,11 @@
             </div>
           </div>
 
-          <!-- STEP 2 CONTENT: MATRIKS PERUBAHAN SEMULA - MENJADI -->
+          <!-- STEP 2 CONTENT: RINGKASAN INFORMASI UTAMA & TOTAL ANGGARAN (BAB 4.1 CANON) -->
           <div class="sakti-form-card" id="revisi-step-2-content" style="display: none;">
             <div class="sakti-form-header">
-              <h4>📊 Matriks Perubahan Anggaran (Semula - Menjadi) Subbagian</h4>
-              <span class="badge badge-info">Tahap 2 / Rekapitulasi Fiskal</span>
+              <h4>📊 Ringkasan Informasi Utama &amp; Total Anggaran Usulan</h4>
+              <span class="badge badge-info">Langkah 2 / Rekapitulasi Fiskal</span>
             </div>
             <div class="sakti-form-body">
               <div class="sakti-semula-menjadi-banner">
@@ -744,32 +744,24 @@
                 </div>
               </div>
 
-              <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: #1e40af; display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 18px;">💡</span>
-                <div>
-                  <strong>Informasi Kertas Kerja:</strong>
-                  Data di bawah ini mencerminkan rincian anggaran aktif subbagian Anda pada lembar kerja RUH Belanja. Perubahan nilai satuan atau volume yang disimpan di RUH Belanja otomatis tersinkronisasi sebagai matriks usulan revisi.
+              <!-- Ringkasan Informasi Utama Tanpa Tabel Rincian RUH (Bab 4.1 Canon) -->
+              <div id="revisi-step2-executive-summary" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">📌 Ringkasan Metadata &amp; Kertas Kerja Subbagian</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 12.5px; color: #334155;">
+                  <div><strong>Subbagian Pengusul:</strong> <span id="step2-meta-subbag">-</span></div>
+                  <div><strong>Komisioner Pengampu:</strong> <span id="step2-meta-komisioner">-</span></div>
+                  <div><strong>Nomor &amp; Tanggal Surat:</strong> <span id="step2-meta-surat">-</span></div>
+                  <div><strong>Perihal Usulan:</strong> <span id="step2-meta-perihal">-</span></div>
+                  <div><strong>Jumlah Kegiatan:</strong> <span id="step2-meta-kegiatan">0 Kegiatan</span></div>
+                  <div><strong>Jumlah Item Belanja (L6):</strong> <span id="step2-meta-items">0 Item</span></div>
+                </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 12px; color: #1e40af;">
+                  💡 <strong>Catatan:</strong> Rincian item belanja diambil langsung dari lembar kerja <b>RUH Belanja RKB</b> aktif milik subbagian Anda. Setelah pengajuan dikirim pada Langkah 3, rincian belanja subbagian Anda akan dikunci selama proses penelitian Rendatin dan Sidang Pleno.
                 </div>
               </div>
 
-              <!-- Tabel Sampel Rincian Item Subbag -->
-              <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
-                <table class="table table-bordered table-sm">
-                  <thead style="background: #f1f5f9; position: sticky; top: 0; z-index: 2;">
-                    <tr>
-                      <th style="width: 140px;">Kode Akun / Item</th>
-                      <th>Uraian Belanja Kegiatan</th>
-                      <th class="text-center" style="width: 80px;">Volume</th>
-                      <th class="text-center" style="width: 80px;">Satuan</th>
-                      <th class="text-right" style="width: 130px;">Harga Satuan</th>
-                      <th class="text-right" style="width: 150px;">Total Pagu</th>
-                    </tr>
-                  </thead>
-                  <tbody id="table-revisi-matriks-preview">
-                    <!-- Populated via JS -->
-                  </tbody>
-                </table>
-              </div>
+              <!-- Hidden legacy tbody for backward compatibility -->
+              <table style="display: none;"><tbody id="table-revisi-matriks-preview"></tbody></table>
 
               <div class="sakti-form-footer" style="margin-top: 16px;">
                 <button type="button" class="btn btn-outline" onclick="goToRevisiStep(1)">&larr; Kembali ke Informasi Surat</button>
@@ -778,28 +770,29 @@
             </div>
           </div>
 
-          <!-- STEP 3 CONTENT: DOKUMEN PENDUKUNG & FINAL SUBMIT -->
+          <!-- STEP 3 CONTENT: DOKUMEN PENDUKUNG & FINAL SUBMIT (3 LINK WAJIB + KONFIRMASI, BAB 4.1 & FR-03) -->
           <div class="sakti-form-card" id="revisi-step-3-content" style="display: none;">
             <div class="sakti-form-header">
-              <h4>📎 Dokumen Pendukung &amp; Konfirmasi Pengajuan Usulan</h4>
-              <span class="badge badge-success">Tahap 3 / Finalisasi &amp; Kirim</span>
+              <h4>📎 Dokumen Pendukung Wajib (3 Tautan Google Drive) &amp; Konfirmasi</h4>
+              <span class="badge badge-success">Langkah 3 / Finalisasi &amp; Kirim</span>
             </div>
             <div class="sakti-form-body">
               <div class="sakti-form-group">
-                <label for="revisi-input-dok-surat">Tautan Google Drive / Berkas Surat Usulan Dinas Bermaterai &amp; Tanda Tangan: <span style="color: red;">*</span></label>
+                <label for="revisi-input-dok-surat">1. Tautan Google Drive Nota Dinas / Surat Usulan Bertanda Tangan: <span style="color: red;">*</span></label>
                 <input type="url" id="revisi-input-dok-surat" class="form-control" required placeholder="https://drive.google.com/file/d/...">
-                <small style="color: #64748b;">Unggah surat pengajuan resmi yang telah ditandatangani Kasubbag / PPK dan tempelkan link publiknya di sini.</small>
+                <small style="color: #64748b;">Wajib: Tautan berkas Nota Dinas usulan revisi yang telah ditandatangani resmi.</small>
               </div>
 
               <div class="sakti-form-group">
-                <label for="revisi-input-dok-matriks">Tautan Matriks Semula - Menjadi (Format Excel):</label>
-                <input type="url" id="revisi-input-dok-matriks" class="form-control" placeholder="https://drive.google.com/file/d/...">
-                <small style="color: #64748b;">Tautan berkas lembar kerja Excel matriks komparasi pergeseran anggaran.</small>
+                <label for="revisi-input-dok-matriks">2. Tautan Google Drive RKB Hardcopy PIC Bertanda Tangan: <span style="color: red;">*</span></label>
+                <input type="url" id="revisi-input-dok-matriks" class="form-control" required placeholder="https://drive.google.com/file/d/...">
+                <small style="color: #64748b;">Wajib: Tautan berkas cetakan RKB / Matriks subbagian yang telah ditandatangani Ketua Divisi &amp; Kasubag terkait.</small>
               </div>
 
               <div class="sakti-form-group">
-                <label for="revisi-input-dok-lain">Tautan Dokumen Teknis Pendukung Lainnya (TOR / KAK / RAB Pendukung):</label>
-                <input type="url" id="revisi-input-dok-lain" class="form-control" placeholder="https://drive.google.com/file/d/...">
+                <label for="revisi-input-dok-lain">3. Tautan Google Drive Kerangka Acuan Kerja (KAK) Bertanda Tangan: <span style="color: red;">*</span></label>
+                <input type="url" id="revisi-input-dok-lain" class="form-control" required placeholder="https://drive.google.com/file/d/...">
+                <small style="color: #64748b;">Wajib: Tautan berkas KAK / TOR pendukung revisi yang telah ditandatangani.</small>
               </div>
 
               <!-- Konfirmasi Pakta Keabsahan -->
@@ -807,13 +800,13 @@
                 <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 12.5px; font-weight: 600; color: #1e293b; margin: 0;">
                   <input type="checkbox" id="revisi-check-keabsahan" required style="margin-top: 3px; transform: scale(1.15);">
                   <span>
-                    Saya menyatakan bahwa seluruh data usulan perubahan anggaran dan dokumen pendukung yang diajukan telah sesuai dengan ketentuan peraturan perundang-undangan, Standar Biaya Masukan (SBM), dan kebutuhan riil tahapan Pilkada KPU Kabupaten Ngawi.
+                    Saya menyatakan bahwa seluruh data usulan perubahan anggaran dan ketiga dokumen pendukung (Nota Dinas, RKB Hardcopy PIC, dan KAK bertanda tangan) yang diajukan adalah benar, sah, serta telah sesuai dengan Standar Biaya Masukan (SBM) dan kebutuhan riil tahapan Pilkada KPU Kabupaten Ngawi.
                   </span>
                 </label>
               </div>
 
               <div class="sakti-form-footer" style="margin-top: 20px;">
-                <button type="button" class="btn btn-outline" onclick="goToRevisiStep(2)">&larr; Kembali ke Matriks</button>
+                <button type="button" class="btn btn-outline" onclick="goToRevisiStep(2)">&larr; Kembali ke Ringkasan</button>
                 <button type="button" class="btn btn-success" id="btn-submit-revisi-final" onclick="submitRevisiUsulanFinal()">
                   🚀 Kirim Usulan Revisi (Submit ke Tahap 1)
                 </button>
@@ -952,38 +945,88 @@
               </div>
               <div class="card-body">
                 <form id="form-pengesahan-tahap4-rkb" onsubmit="event.preventDefault(); submitPengesahanTahap4Keseluruhan();">
-                  <!-- Nomor BA Pleno -->
-                  <div class="sakti-form-group">
-                    <label for="tahap4-input-nomor-ba">Nomor Berita Acara Pleno (BA Pleno): <span style="color: red;">*</span></label>
-                    <input type="text" id="tahap4-input-nomor-ba" class="form-control" required placeholder="Contoh: 05/BA.01-BA/3521/2026 atau BA/TAPD/2026/01">
+                  <div class="sakti-grid-2col">
+                    <!-- Fase Perencanaan Eksplisit (Bab 17.1 & 17.2 Canon) -->
+                    <div class="sakti-form-group">
+                      <label for="tahap4-input-fase">Fase Perencanaan Siklus Ini: <span style="color: red;">*</span></label>
+                      <select id="tahap4-input-fase" class="form-control" required style="font-weight: 700; color: #1e40af;">
+                        <option value="PRA_NPHD">PRA_NPHD — Pra-NPHD (Pagu Dinamis)</option>
+                        <option value="NPHD">NPHD — Penetapan NPHD (Pagu Statis Resmi)</option>
+                        <option value="PASCA_NPHD">PASCA_NPHD — Pasca-NPHD (Pergeseran Internal Statis)</option>
+                      </select>
+                      <small style="color: #64748b;">Saat fase <b>NPHD</b> ditetapkan, siklus berikutnya otomatis berfase <b>PASCA_NPHD</b>.</small>
+                    </div>
+
+                    <!-- Dasar Pengesahan Terpisah dari Fase (Bab 17.2 Canon) -->
+                    <div class="sakti-form-group">
+                      <label for="tahap4-input-dasar-pengesahan">Dasar Pengesahan / Acuan Hukum: <span style="color: red;">*</span></label>
+                      <select id="tahap4-input-dasar-pengesahan" class="form-control" required style="font-weight: 600;">
+                        <option value="BA Pleno Komisioner">BA Pleno Komisioner</option>
+                        <option value="BA TAPD">BA TAPD</option>
+                        <option value="Keputusan KPU">Keputusan KPU</option>
+                        <option value="NPHD">NPHD</option>
+                        <option value="Lainnya">Lainnya</option>
+                      </select>
+                      <small style="color: #64748b;">Dipisahkan dari Fase Perencanaan agar acuan hukum tidak tercampur dengan status siklus.</small>
+                    </div>
                   </div>
 
-                  <!-- Tanggal BA Pleno -->
-                  <div class="sakti-form-group">
-                    <label for="tahap4-input-tanggal-ba">Tanggal Berita Acara Pleno: <span style="color: red;">*</span></label>
-                    <input type="date" id="tahap4-input-tanggal-ba" class="form-control" required>
+                  <div class="sakti-grid-2col">
+                    <!-- Nomor BA Pleno -->
+                    <div class="sakti-form-group">
+                      <label for="tahap4-input-nomor-ba">Nomor Berita Acara Pleno (BA Pleno): <span style="color: red;">*</span></label>
+                      <input type="text" id="tahap4-input-nomor-ba" class="form-control" required placeholder="Contoh: 05/BA.01-BA/3521/2029">
+                    </div>
+
+                    <!-- Tanggal BA Pleno -->
+                    <div class="sakti-form-group">
+                      <label for="tahap4-input-tanggal-ba">Tanggal Berita Acara Pleno: <span style="color: red;">*</span></label>
+                      <input type="date" id="tahap4-input-tanggal-ba" class="form-control" required>
+                    </div>
                   </div>
 
-                  <!-- Tautan Berkas Scan BA Pleno -->
+                  <!-- 3 Tautan Google Drive Terpisah (Bab 4.3 & FR-06 Canon) -->
                   <div class="sakti-form-group">
-                    <label for="tahap4-input-link-ba">Tautan Berkas Scan Berita Acara Pleno (TTD Komisioner &amp; Sekretaris): <span style="color: red;">*</span></label>
+                    <label for="tahap4-input-link-ba">1. Tautan Google Drive BA Pleno Bertanda Tangan: <span style="color: red;">*</span></label>
                     <input type="url" id="tahap4-input-link-ba" class="form-control" required placeholder="https://drive.google.com/file/d/...">
-                    <small style="color: #64748b;">Tautkan berkas scan pdf Berita Acara Rapat Pleno yang telah ditandatangani Ketua &amp; Anggota Komisioner KPU serta Sekretaris KPU.</small>
+                    <small style="color: #64748b;">Wajib: Tautkan berkas scan Berita Acara Rapat Pleno yang telah ditandatangani Ketua &amp; Anggota Komisioner KPU.</small>
+                  </div>
+
+                  <div class="sakti-form-group">
+                    <label for="tahap4-input-link-rkb-final">2. Tautan Google Drive RKB Final Bertanda Tangan: <span style="color: red;">*</span></label>
+                    <input type="url" id="tahap4-input-link-rkb-final" class="form-control" required placeholder="https://drive.google.com/file/d/...">
+                    <small style="color: #64748b;">Wajib: Tautkan berkas RKB gabungan final yang telah ditandatangani resmi.</small>
+                  </div>
+
+                  <div class="sakti-form-group">
+                    <label for="tahap4-input-link-kak-gabungan">3. Tautan Google Drive KAK Gabungan: <span style="color: red;">*</span></label>
+                    <input type="url" id="tahap4-input-link-kak-gabungan" class="form-control" required placeholder="https://drive.google.com/file/d/...">
+                    <small style="color: #64748b;">Wajib: Tautkan berkas Kerangka Acuan Kerja (KAK) gabungan seluruh subbagian.</small>
                   </div>
 
                   <!-- Catatan / Keterangan Legalitas -->
                   <div class="sakti-form-group">
                     <label for="tahap4-input-catatan">Catatan / Risalah Penetapan Pleno:</label>
-                    <textarea id="tahap4-input-catatan" class="form-control" rows="3" placeholder="Tuliskan intisari putusan rapat pleno pengesahan revisi RKB ini..."></textarea>
+                    <textarea id="tahap4-input-catatan" class="form-control" rows="2" placeholder="Tuliskan intisari putusan rapat pleno pengesahan revisi RKB ini..."></textarea>
+                  </div>
+
+                  <!-- Verifikasi Manual Sebelum Pengesahan (Bab 4.3 & FR-06 Canon) -->
+                  <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 12px; font-weight: 600; color: #14532d; margin: 0;">
+                      <input type="checkbox" id="tahap4-check-verifikasi" required style="margin-top: 3px; transform: scale(1.15);">
+                      <span>
+                        Saya telah melakukan verifikasi manual terhadap kesesuaian angka RKB gabungan, kelengkapan 3 tautan Google Drive (BA Pleno, RKB Final, KAK Gabungan), dan ketetapan Fase Perencanaan sebelum mengunci baseline secara permanen.
+                      </span>
+                    </label>
                   </div>
 
                   <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 11.5px; color: #b45309;">
-                    🔒 <b>Dampak Aksi Penguncian (Locked History):</b><br>
-                    Dokumen RKB draf ini akan <b>DIKUNCI SECARA KESELURUHAN (LOCKED)</b> menjadi arsip permanen dan tidak dapat diubah lagi. Sistem akan otomatis melahirkan <b>Draf RKB Versi Baru</b> untuk menampung siklus perencanaan berikutnya.
+                    🔒 <b>Dampak Aksi Penguncian (Locked Baseline):</b><br>
+                    Dokumen RKB siklus ini akan <b>DIKUNCI SECARA KESELURUHAN</b> menjadi baseline resmi berikutnya. Siklus revisi baru hanya akan dibuka saat terdapat pengajuan Tahap 1 berikutnya dari PIC Subbagian.
                   </div>
 
                   <button type="submit" class="btn btn-success" style="width: 100%; padding: 12px; font-weight: 800; font-size: 13.5px;" id="btn-submit-tahap4-final">
-                    🔒 Kunci RKB Draf Keseluruhan &amp; Sahkan BA Pleno (Tahap 4)
+                    🔒 Kunci RKB Keseluruhan &amp; Sahkan BA Pleno (Tahap 4)
                   </button>
                 </form>
               </div>

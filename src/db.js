@@ -170,6 +170,10 @@ function initDb() {
   safeAddColumn('master_kecamatan', 'kode TEXT DEFAULT ""');
   safeAddColumn('periode_anggaran', 'gdrive_link_pleno TEXT DEFAULT ""');
   safeAddColumn('periode_anggaran', 'catatan_pleno TEXT DEFAULT ""');
+  safeAddColumn('periode_anggaran', 'fase_perencanaan TEXT DEFAULT "PRA_NPHD"');
+  safeAddColumn('periode_anggaran', 'rkb_final_link TEXT DEFAULT ""');
+  safeAddColumn('periode_anggaran', 'kak_gabungan_link TEXT DEFAULT ""');
+  safeAddColumn('periode_anggaran', 'verifikasi_manual_tahap4 INTEGER DEFAULT 0');
 
   // 1. Tabel Audit Log
   db.exec(`
@@ -319,11 +323,15 @@ function initDb() {
     );
   `);
 
-  // Migrasi kolom tambahan pada revisi_pengajuan
+  // Migrasi kolom tambahan pada revisi_pengajuan (Bab 3, 4 & FR-02, FR-03 Canon)
   safeAddColumn('revisi_pengajuan', "alasan_pengembalian TEXT DEFAULT ''");
   safeAddColumn('revisi_pengajuan', "l1_koreksi_catatan TEXT DEFAULT ''");
   safeAddColumn('revisi_pengajuan', "dokumen_matriks_original_link TEXT DEFAULT ''");
   safeAddColumn('revisi_pengajuan', "dokumen_surat_original_link TEXT DEFAULT ''");
+  safeAddColumn('revisi_pengajuan', "dokumen_kak_link TEXT DEFAULT ''");
+  safeAddColumn('revisi_pengajuan', "dokumen_kak_original_link TEXT DEFAULT ''");
+  safeAddColumn('revisi_pengajuan', "versi_usulan INTEGER DEFAULT 1");
+  safeAddColumn('revisi_pengajuan', "konfirmasi_kebenaran INTEGER DEFAULT 1");
   safeAddColumn('revisi_pengajuan', "siklus_ke INTEGER DEFAULT 1");
 
   // 6b. Tabel Log Riwayat Alur Siklus & Pengajuan Revisi
@@ -333,6 +341,7 @@ function initDb() {
       pengajuan_id INTEGER NOT NULL,
       periode_id INTEGER NOT NULL,
       subbag TEXT NOT NULL,
+      versi_usulan INTEGER DEFAULT 1,
       tahap INTEGER NOT NULL,
       status TEXT NOT NULL,
       aksi TEXT NOT NULL,
@@ -340,6 +349,7 @@ function initDb() {
       alasan_pengembalian TEXT DEFAULT '',
       dokumen_surat_link TEXT DEFAULT '',
       dokumen_matriks_link TEXT DEFAULT '',
+      dokumen_kak_link TEXT DEFAULT '',
       total_semula REAL DEFAULT 0,
       total_menjadi REAL DEFAULT 0,
       selisih REAL DEFAULT 0,
@@ -351,6 +361,8 @@ function initDb() {
       FOREIGN KEY (pengajuan_id) REFERENCES revisi_pengajuan(id) ON DELETE CASCADE
     );
   `);
+  safeAddColumn('revisi_pengajuan_log', 'versi_usulan INTEGER DEFAULT 1');
+  safeAddColumn('revisi_pengajuan_log', "dokumen_kak_link TEXT DEFAULT ''");
 
   // Default settings untuk Google Sign-In jika belum ada
   try {
@@ -634,13 +646,16 @@ function savePeriodeSnapshot(periodeId, user = null, isMigrationFrozen = false, 
     legalitas: {
       dasar_pengesahan: periode.dasar_pengesahan,
       tahap_revisi: periode.tahap_revisi,
+      fase_perencanaan: periode.fase_perencanaan || periode.tahap_revisi || 'PRA_NPHD',
       nomor_ba_tapd: periode.nomor_ba_tapd,
       tanggal_ba_tapd: periode.tanggal_ba_tapd,
       nomor_surat_pengajuan_tapd: periode.nomor_surat_pengajuan_tapd,
       tanggal_surat_pengajuan_tapd: periode.tanggal_surat_pengajuan_tapd,
       nomor_surat_balasan_pemda: periode.nomor_surat_balasan_pemda,
       catatan_revisi: periode.catatan_revisi,
-      gdrive_link_pleno: periode.gdrive_link_pleno,
+      gdrive_link_pleno: periode.gdrive_link_pleno || periode.file_pendukung_path || '',
+      rkb_final_link: periode.rkb_final_link || '',
+      kak_gabungan_link: periode.kak_gabungan_link || '',
       catatan_pleno: periode.catatan_pleno
     },
     master_references: {
@@ -770,7 +785,11 @@ function getActiveRevisionCycle() {
 }
 
 /**
- * Mendapatkan siklus revisi aktif atau membukanya secara atomik jika belum ada
+ * Mendapatkan siklus revisi aktif atau membukanya secara atomik jika belum ada.
+ * Bab 17 Canon Master Blueprint:
+ * - Selesainya Tahap 4 tidak otomatis mengubah fase menjadi NPHD.
+ * - Saat fase NPHD ditetapkan pada siklus sebelumnya, siklus berikutnya otomatis berfase PASCA_NPHD.
+ * - Jika fase sebelumnya PRA_NPHD, siklus berikutnya tetap berfase PRA_NPHD.
  */
 function getOrCreateRevisionCycle(user = null) {
   let active = getActiveRevisionCycle();
@@ -779,11 +798,15 @@ function getOrCreateRevisionCycle(user = null) {
   const base = getLatestRatifiedPeriode();
   if (!base) throw new Error('Tidak ditemukan dokumen RKB dasar yang sah.');
 
+  const basePhase = (base.fase_perencanaan || base.tahap_revisi || 'PRA_NPHD').toUpperCase();
+  const nextPhase = (basePhase === 'NPHD' || basePhase === 'PASCA_NPHD') ? 'PASCA_NPHD' : 'PRA_NPHD';
+
   const nextRev = (base.revisi_ke || 0) + 1;
   active = clonePeriodeToRevision(base.id, {
     nama_periode: `RKB KPU Kabupaten Ngawi (Revisi ${nextRev})`,
     versi_revisi: `Revisi ${nextRev}`,
-    tahap_revisi: 'PASCA_NPHD',
+    tahap_revisi: nextPhase,
+    fase_perencanaan: nextPhase,
     dasar_pengesahan: 'Kertas Kerja Penyusunan',
     catatan_revisi: `Siklus revisi ke-${nextRev} dibuka berdasarkan dasar sah ${base.versi_revisi || base.nama_periode}`
   }, false);
@@ -793,7 +816,7 @@ function getOrCreateRevisionCycle(user = null) {
     action: 'OPEN_REVISION_CYCLE',
     entity: 'periode_anggaran',
     entity_id: active.id,
-    notes: `Siklus revisi ke-${nextRev} (Periode ID: ${active.id}) dibuka berdasarkan dasar sah ${base.versi_revisi} (ID: ${base.id}).`
+    notes: `Siklus revisi ke-${nextRev} (Periode ID: ${active.id}, Fase: ${nextPhase}) dibuka berdasarkan dasar sah ${base.versi_revisi} (ID: ${base.id}).`
   });
 
   return active;
@@ -894,6 +917,7 @@ function logRevisiHistory({
   pengajuan_id,
   periode_id,
   subbag,
+  versi_usulan = null,
   tahap,
   status,
   aksi,
@@ -901,6 +925,7 @@ function logRevisiHistory({
   alasan_pengembalian = '',
   dokumen_surat_link = '',
   dokumen_matriks_link = '',
+  dokumen_kak_link = '',
   total_semula = 0,
   total_menjadi = 0,
   selisih = 0,
@@ -912,21 +937,27 @@ function logRevisiHistory({
   const actorName = user ? (user.nama_pejabat || user.username) : 'System';
 
   try {
+    let ver = Number(versi_usulan);
+    if (!ver || ver < 1) {
+      const pRow = db.prepare('SELECT versi_usulan FROM revisi_pengajuan WHERE id = ?').get(pengajuan_id);
+      ver = pRow && pRow.versi_usulan ? Number(pRow.versi_usulan) : 1;
+    }
+
     db.prepare(`
       INSERT INTO revisi_pengajuan_log (
-        pengajuan_id, periode_id, subbag, tahap, status, aksi,
-        catatan, alasan_pengembalian, dokumen_surat_link, dokumen_matriks_link,
+        pengajuan_id, periode_id, subbag, versi_usulan, tahap, status, aksi,
+        catatan, alasan_pengembalian, dokumen_surat_link, dokumen_matriks_link, dokumen_kak_link,
         total_semula, total_menjadi, selisih,
         actor_id, actor_username, actor_name, waktu_wib
       ) VALUES (
-        ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?
       )
     `).run(
-      pengajuan_id, periode_id, subbag, tahap, status, aksi,
-      catatan, alasan_pengembalian, dokumen_surat_link, dokumen_matriks_link,
+      pengajuan_id, periode_id, subbag, ver, tahap, status, aksi,
+      catatan, alasan_pengembalian, dokumen_surat_link, dokumen_matriks_link, dokumen_kak_link,
       total_semula, total_menjadi, selisih,
       actorId, actorUsername, actorName, waktuNow
     );
@@ -1069,25 +1100,27 @@ function updatePeriodeLegalitas(id, {
 }
 
 function createPeriode({
-  nama_periode, versi_revisi, tahap_revisi, dasar_pengesahan,
+  nama_periode, versi_revisi, tahap_revisi, fase_perencanaan, dasar_pengesahan,
   nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi, parent_periode_id,
   kode_singkat, revisi_ke, sumber_dana, pagu_nphd
 }) {
   const countRev = db.prepare("SELECT COUNT(*) as c FROM periode_anggaran WHERE tipe_dokumen = 'RKB'").get()?.c || 1;
   const calcRevisiKe = revisi_ke !== undefined ? revisi_ke : countRev;
   const calcKodeSingkat = kode_singkat || `RKB-REV-${calcRevisiKe}`;
+  const cleanFase = (fase_perencanaan || tahap_revisi || 'PRA_NPHD').toUpperCase();
 
   const res = db.prepare(`
     INSERT INTO periode_anggaran (
-      nama_periode, versi_revisi, tahap_revisi, dasar_pengesahan,
+      nama_periode, versi_revisi, tahap_revisi, fase_perencanaan, dasar_pengesahan,
       nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi, parent_periode_id,
       is_locked, sumber_dana, tipe_dokumen, jenis_agenda, kode_singkat, revisi_ke, pagu_nphd
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'RKB', 'PILKADA', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'RKB', 'PILKADA', ?, ?, ?)
   `).run(
     nama_periode || `RKB Revisi ${calcRevisiKe}`,
     versi_revisi || `Revisi ${calcRevisiKe}`,
-    tahap_revisi || 'PASCA_NPHD',
-    dasar_pengesahan || 'BA TAPD',
+    tahap_revisi || cleanFase,
+    cleanFase,
+    dasar_pengesahan || 'BA Pleno Komisioner',
     nomor_ba_tapd || '',
     tanggal_ba_tapd || '',
     catatan_revisi || '',
@@ -1101,13 +1134,16 @@ function createPeriode({
 }
 
 function clonePeriodeToRevision(sourcePeriodeId, {
-  nama_periode, versi_revisi, tahap_revisi, dasar_pengesahan, nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi
+  nama_periode, versi_revisi, tahap_revisi, fase_perencanaan, dasar_pengesahan, nomor_ba_tapd, tanggal_ba_tapd, catatan_revisi
 }, insideTransaction = false) {
   const source = getPeriodeById(sourcePeriodeId);
   if (!source) throw new Error('Dokumen sumber tidak ditemukan.');
 
   const nextRev = (source.revisi_ke || 0) + 1;
   const defaultVersi = versi_revisi || `Revisi ${nextRev}`;
+  const sourcePhase = (source.fase_perencanaan || source.tahap_revisi || 'PRA_NPHD').toUpperCase();
+  const autoNextPhase = (sourcePhase === 'NPHD' || sourcePhase === 'PASCA_NPHD') ? 'PASCA_NPHD' : 'PRA_NPHD';
+  const targetFase = (fase_perencanaan || tahap_revisi || autoNextPhase).toUpperCase();
 
   if (!insideTransaction) db.exec('BEGIN TRANSACTION');
   let newPeriode = null;
@@ -1116,8 +1152,9 @@ function clonePeriodeToRevision(sourcePeriodeId, {
     newPeriode = createPeriode({
       nama_periode: nama_periode || `RKB KPU Kabupaten Ngawi (${defaultVersi})`,
       versi_revisi: defaultVersi,
-      tahap_revisi: tahap_revisi || 'PASCA_NPHD',
-      dasar_pengesahan: dasar_pengesahan || 'BA TAPD',
+      tahap_revisi: targetFase,
+      fase_perencanaan: targetFase,
+      dasar_pengesahan: dasar_pengesahan || 'Kertas Kerja Penyusunan',
       nomor_ba_tapd: nomor_ba_tapd || '',
       tanggal_ba_tapd: tanggal_ba_tapd || '',
       catatan_revisi: catatan_revisi || `Turunan revisi dari ${source.versi_revisi}`,
@@ -2926,12 +2963,18 @@ function createRevisiPengajuan(data, user) {
   const perihal = (data.perihal || '').trim();
   const docSurat = (data.dokumen_surat_link || '').trim();
   const docMatriks = (data.dokumen_matriks_link || '').trim();
+  const docKak = (data.dokumen_kak_link || data.dokumen_dukung_lain || '').trim();
+  const konfirmasi = data.konfirmasi_kebenaran !== undefined ? Boolean(data.konfirmasi_kebenaran) : true;
 
   if (!nomorSurat) throw new Error('Nomor surat / nota dinas usulan revisi wajib diisi.');
   if (!tanggalSurat) throw new Error('Tanggal surat usulan revisi wajib diisi.');
   if (!perihal) throw new Error('Perihal usulan revisi wajib diisi.');
-  if (!docSurat) throw new Error('Dokumen Nota Dinas usulan revisi wajib dilampirkan.');
-  if (!docMatriks) throw new Error('Dokumen RKB PIC yang sudah ditandatangani wajib dilampirkan.');
+  if (!docSurat) throw new Error('Tautan Google Drive Nota Dinas bertanda tangan wajib dilampirkan.');
+  if (!docMatriks) throw new Error('Tautan Google Drive RKB Hardcopy PIC bertanda tangan wajib dilampirkan.');
+  if (data.strict_tahap1) {
+    if (!docKak) throw new Error('Tautan Google Drive KAK bertanda tangan wajib dilampirkan.');
+    if (!konfirmasi) throw new Error('Pernyataan konfirmasi kebenaran data wajib dicentang.');
+  }
 
   const tahun = data.tahun_anggaran ? Number(data.tahun_anggaran) : 2026;
   const kodeSatker = data.kode_satker || '657811';
@@ -2969,6 +3012,7 @@ function createRevisiPengajuan(data, user) {
       if (existing.status_tahap === 'DIKEMBALIKAN' || existing.status_tahap === 'DRAFT') {
         proposalId = existing.id;
         kodeRevisi = existing.kode_revisi;
+        const currentVer = Math.max(Number(existing.versi_usulan || 1), existing.status_tahap === 'DIKEMBALIKAN' ? 2 : 1);
 
         db.prepare(`
           UPDATE revisi_pengajuan SET
@@ -2979,7 +3023,10 @@ function createRevisiPengajuan(data, user) {
             jabatan_pengusul = ?,
             dokumen_surat_link = ?,
             dokumen_matriks_link = ?,
-            dokumen_dukung_lain = COALESCE(?, dokumen_dukung_lain),
+            dokumen_kak_link = COALESCE(NULLIF(?, ''), dokumen_kak_link),
+            dokumen_dukung_lain = COALESCE(NULLIF(?, ''), dokumen_dukung_lain),
+            versi_usulan = ?,
+            konfirmasi_kebenaran = ?,
             total_semula = ?,
             total_menjadi = ?,
             selisih = ?,
@@ -2998,9 +3045,10 @@ function createRevisiPengajuan(data, user) {
         `).run(
           nomorSurat, tanggalSurat, perihal,
           pejabatPengusul, jabatanPengusul,
-          docSurat, docMatriks, data.dokumen_dukung_lain || '',
+          docSurat, docMatriks, docKak, docKak,
+          currentVer, konfirmasi ? 1 : 0,
           totalSemula, totalMenjadi, selisih,
-          waktuNow, submitter, data.catatan_usulan || 'Pengajuan ulang pasca perbaikan',
+          waktuNow, submitter, data.catatan_usulan || `Pengajuan ulang pasca perbaikan (V${currentVer})`,
           proposalId
         );
 
@@ -3008,12 +3056,14 @@ function createRevisiPengajuan(data, user) {
           pengajuan_id: proposalId,
           periode_id: periodeId,
           subbag,
+          versi_usulan: currentVer,
           tahap: 1,
           status: 'DIAJUKAN',
           aksi: 'PENGAJUAN_ULANG',
-          catatan: data.catatan_usulan || 'Pengajuan ulang usulan revisi pasca perbaikan oleh PIC.',
+          catatan: data.catatan_usulan || `Pengajuan ulang usulan revisi V${currentVer} pasca perbaikan oleh PIC.`,
           dokumen_surat_link: docSurat,
           dokumen_matriks_link: docMatriks,
+          dokumen_kak_link: docKak,
           total_semula: totalSemula,
           total_menjadi: totalMenjadi,
           selisih,
@@ -3029,8 +3079,9 @@ function createRevisiPengajuan(data, user) {
           kode_revisi, periode_id, subbag, tahun_anggaran, kode_satker, nama_satker,
           nomor_surat, tanggal_surat, perihal, pejabat_pengusul, jabatan_pengusul,
           nama_kpa, kewenangan, jenis_revisi, keterangan_revisi,
-          dokumen_surat_link, dokumen_matriks_link, dokumen_dukung_lain, validasi_sbm,
-          dokumen_surat_original_link, dokumen_matriks_original_link,
+          dokumen_surat_link, dokumen_matriks_link, dokumen_kak_link, dokumen_dukung_lain, validasi_sbm,
+          dokumen_surat_original_link, dokumen_matriks_original_link, dokumen_kak_original_link,
+          versi_usulan, konfirmasi_kebenaran,
           total_semula, total_menjadi, selisih,
           tahap_terkini, status_tahap,
           tahap1_waktu, tahap1_oleh, tahap1_catatan,
@@ -3040,8 +3091,9 @@ function createRevisiPengajuan(data, user) {
           ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?,
           ?, ?, ?, ?,
-          ?, ?, ?, ?,
-          ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?,
+          1, ?,
           ?, ?, ?,
           1, 'DIAJUKAN',
           ?, ?, ?,
@@ -3055,11 +3107,12 @@ function createRevisiPengajuan(data, user) {
         data.kewenangan || 'KPU Kabupaten Ngawi',
         data.jenis_revisi || 'Pergeseran Antar Rincian Output',
         data.keterangan_revisi || '',
-        docSurat, docMatriks, data.dokumen_dukung_lain || '',
+        docSurat, docMatriks, docKak, docKak,
         data.validasi_sbm || 'OK',
-        docSurat, docMatriks,
+        docSurat, docMatriks, docKak,
+        konfirmasi ? 1 : 0,
         totalSemula, totalMenjadi, selisih,
-        waktuNow, submitter, data.catatan_usulan || 'Pengajuan usulan revisi anggaran belanja subbagian'
+        waktuNow, submitter, data.catatan_usulan || 'Pengajuan usulan revisi anggaran belanja subbagian (V1)'
       );
       proposalId = res.lastInsertRowid;
 
@@ -3067,12 +3120,14 @@ function createRevisiPengajuan(data, user) {
         pengajuan_id: proposalId,
         periode_id: periodeId,
         subbag,
+        versi_usulan: 1,
         tahap: 1,
         status: 'DIAJUKAN',
         aksi: 'PENGAJUAN_BARU',
-        catatan: data.catatan_usulan || 'Pengajuan usulan revisi perdana oleh PIC.',
+        catatan: data.catatan_usulan || 'Pengajuan usulan revisi perdana (V1) oleh PIC.',
         dokumen_surat_link: docSurat,
         dokumen_matriks_link: docMatriks,
+        dokumen_kak_link: docKak,
         total_semula: totalSemula,
         total_menjadi: totalMenjadi,
         selisih,
@@ -3098,13 +3153,35 @@ function createRevisiPengajuan(data, user) {
   }
 }
 
-function getRevisiPengajuanList({ subbag = '', status = '', search = '', periode_id = null } = {}) {
+/**
+ * Bab 6 & FR-08 Canon Master Blueprint:
+ * Setelah Tahap 4 selesai, tabel Monitoring Revisi tetap menampilkan siklus terakhir yang baru selesai
+ * sampai siklus berikutnya memiliki pengajuan Tahap 1 pertama.
+ */
+function getRevisiPengajuanList({ subbag = '', status = '', search = '', periode_id = null, all_cycles = false } = {}) {
   let query = 'SELECT * FROM revisi_pengajuan WHERE 1=1';
   const params = [];
 
-  if (periode_id) {
+  let targetPeriodeId = periode_id ? Number(periode_id) : null;
+  if (!targetPeriodeId && !all_cycles) {
+    const activeCycle = getActiveRevisionCycle();
+    if (activeCycle) {
+      const cnt = db.prepare('SELECT COUNT(*) as c FROM revisi_pengajuan WHERE periode_id = ?').get(activeCycle.id)?.c || 0;
+      if (cnt > 0) {
+        targetPeriodeId = activeCycle.id;
+      }
+    }
+    if (!targetPeriodeId) {
+      const latestWithProposals = db.prepare('SELECT MAX(periode_id) as maxPid FROM revisi_pengajuan').get()?.maxPid;
+      if (latestWithProposals) {
+        targetPeriodeId = Number(latestWithProposals);
+      }
+    }
+  }
+
+  if (targetPeriodeId) {
     query += ' AND (periode_id = ? OR periode_id IS NULL)';
-    params.push(Number(periode_id));
+    params.push(Number(targetPeriodeId));
   }
 
   const cleanSub = subbag ? normalizePic(subbag) : '';
@@ -3114,8 +3191,14 @@ function getRevisiPengajuanList({ subbag = '', status = '', search = '', periode
   }
 
   if (status) {
-    query += ' AND status_tahap = ?';
-    params.push(status);
+    if (status === 'PROSES') {
+      query += " AND status_tahap IN ('PROSES', 'DIAJUKAN', 'MENUNGGU_PLENO', 'ACC_PLENO')";
+    } else if (status === 'PERBAIKAN' || status === 'DIKEMBALIKAN') {
+      query += " AND status_tahap IN ('PERBAIKAN', 'DIKEMBALIKAN')";
+    } else {
+      query += ' AND status_tahap = ?';
+      params.push(status);
+    }
   }
 
   if (search) {
@@ -3143,10 +3226,11 @@ function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = ''
   const targetTahap = Number(tahap);
   const waktuNow = formatWaktuSakti();
   const userName = user ? `${user.nama_pejabat || user.username} (${user.username})` : 'Tim Rendatin';
+  const curVer = Number(rev.versi_usulan || 1);
 
   if (targetTahap === 2) {
-    // Validasi L1
-    if (user && user.level > 1 && !user.is_developer) {
+    // Validasi L1 (Bab 4.2 Canon: hanya akun Perencanaan L1 yang mengoperasikan di sistem)
+    if (user && user.level > 1) {
       throw new Error('Akses ditolak. Validasi Tahap 2 hanya berhak diproses oleh Tim Rendatin / Perencanaan.');
     }
     if (rev.tahap_terkini < 1 && rev.status_tahap !== 'DIAJUKAN') {
@@ -3172,21 +3256,24 @@ function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = ''
         pengajuan_id: id,
         periode_id: rev.periode_id,
         subbag: rev.subbag,
+        versi_usulan: curVer,
         tahap: 2,
         status: 'MENUNGGU_PLENO',
         aksi: 'VALIDASI_SETUJU',
-        catatan: catatan || 'Validasi L1 disetujui, lanjut ke Pleno.',
+        catatan: catatan || `Validasi L1 (V${curVer}) disetujui, lanjut ke Pleno.`,
         user
       });
     } else {
-      // Dikembalikan untuk Perbaikan
+      // Dikembalikan untuk Perbaikan -> Versi administratif naik (V1 -> V2 -> V3 dst., Bab 3 & FR-02)
       const reason = (catatan || '').trim();
       if (!reason) throw new Error('Alasan pengembalian untuk perbaikan wajib diisi.');
+      const nextVer = curVer + 1;
 
       db.prepare(`
         UPDATE revisi_pengajuan SET
           tahap_terkini = 1,
           status_tahap = 'DIKEMBALIKAN',
+          versi_usulan = ?,
           tahap2_waktu = ?,
           tahap2_oleh = ?,
           tahap2_hasil = 'DIKEMBALIKAN',
@@ -3194,24 +3281,25 @@ function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = ''
           alasan_pengembalian = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(waktuNow, userName, reason, reason, id);
+      `).run(nextVer, waktuNow, userName, reason, reason, id);
 
       logRevisiHistory({
         pengajuan_id: id,
         periode_id: rev.periode_id,
         subbag: rev.subbag,
+        versi_usulan: curVer,
         tahap: 2,
         status: 'DIKEMBALIKAN',
         aksi: 'DIKEMBALIKAN_PERBAIKAN',
-        catatan: reason,
+        catatan: `${reason} (Versi pengajuan naik ke V${nextVer})`,
         alasan_pengembalian: reason,
         user
       });
     }
 
   } else if (targetTahap === 3) {
-    // Pleno ACC (dicatat oleh L1 dalam sistem, komisioner untuk pemantauan/sidang)
-    if (user && user.level > 1 && !user.is_developer) {
+    // Pleno ACC (Bab 4.2 Canon: dicatat oleh L1 dalam sistem, komisioner memantau/bersidang)
+    if (user && user.level > 1) {
       throw new Error('Akses ditolak. Pencatatan hasil Pleno Tahap 3 dilakukan oleh Tim Rendatin / Perencanaan.');
     }
     if (rev.status_tahap !== 'MENUNGGU_PLENO' && rev.tahap2_hasil !== 'SETUJU') {
@@ -3236,21 +3324,24 @@ function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = ''
         pengajuan_id: id,
         periode_id: rev.periode_id,
         subbag: rev.subbag,
+        versi_usulan: curVer,
         tahap: 3,
         status: 'ACC_PLENO',
         aksi: 'ACC_PLENO',
-        catatan: catatan || 'Hasil Sidang Pleno: Disetujui (ACC Pleno).',
+        catatan: catatan || `Hasil Sidang Pleno (V${curVer}): Disetujui (ACC Pleno).`,
         user
       });
     } else {
-      // Pleno mengembalikan untuk perbaikan
+      // Pleno mengembalikan untuk perbaikan -> Versi administratif naik (V1 -> V2 -> V3 dst., Bab 3 & FR-02)
       const reason = (catatan || '').trim();
       if (!reason) throw new Error('Alasan pengembalian untuk perbaikan wajib diisi.');
+      const nextVer = curVer + 1;
 
       db.prepare(`
         UPDATE revisi_pengajuan SET
           tahap_terkini = 1,
           status_tahap = 'DIKEMBALIKAN',
+          versi_usulan = ?,
           tahap3_waktu = ?,
           tahap3_oleh = ?,
           tahap3_hasil = 'DIKEMBALIKAN',
@@ -3258,16 +3349,17 @@ function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = ''
           alasan_pengembalian = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(waktuNow, userName, reason, reason, id);
+      `).run(nextVer, waktuNow, userName, reason, reason, id);
 
       logRevisiHistory({
         pengajuan_id: id,
         periode_id: rev.periode_id,
         subbag: rev.subbag,
+        versi_usulan: curVer,
         tahap: 3,
         status: 'DIKEMBALIKAN',
         aksi: 'PLENO_MENGEMBALIKAN',
-        catatan: reason,
+        catatan: `${reason} (Versi pengajuan naik ke V${nextVer})`,
         alasan_pengembalian: reason,
         user
       });
@@ -3318,11 +3410,33 @@ function deleteRevisiPengajuan(id, user = null) {
   return { success: true };
 }
 
-function finalizeTahap4Keseluruhan({ nomor_ba, tanggal_ba, link_scan_ba = '', catatan = '', user = null }) {
+function finalizeTahap4Keseluruhan({
+  nomor_ba,
+  tanggal_ba,
+  link_scan_ba = '',
+  rkb_final_link = '',
+  kak_gabungan_link = '',
+  fase_perencanaan = '',
+  dasar_pengesahan = '',
+  verifikasi_manual = false,
+  strict_tahap4 = false,
+  catatan = '',
+  user = null
+}) {
   const noBa = (nomor_ba || '').trim();
   const tglBa = (tanggal_ba || '').trim();
+  const cleanLinkBa = (link_scan_ba || '').trim();
+  const cleanLinkRkb = (rkb_final_link || '').trim();
+  const cleanLinkKak = (kak_gabungan_link || '').trim();
+
   if (!noBa) throw new Error('Nomor Berita Acara Pleno (BA Pleno) wajib diisi.');
   if (!tglBa) throw new Error('Tanggal Berita Acara Pleno wajib diisi.');
+  if (strict_tahap4) {
+    if (!cleanLinkBa) throw new Error('Tautan Google Drive BA Pleno bertanda tangan wajib dilampirkan.');
+    if (!cleanLinkRkb) throw new Error('Tautan Google Drive RKB Final bertanda tangan wajib dilampirkan.');
+    if (!cleanLinkKak) throw new Error('Tautan Google Drive KAK Gabungan wajib dilampirkan.');
+    if (!verifikasi_manual) throw new Error('Verifikasi manual sebelum pengesahan Tahap 4 wajib dicentang.');
+  }
 
   const waktuNow = formatWaktuSakti();
   const userName = user ? `${user.nama_pejabat || user.username} (${user.username})` : 'Tim Rendatin & Pleno KPU';
@@ -3347,24 +3461,43 @@ function finalizeTahap4Keseluruhan({ nomor_ba, tanggal_ba, link_scan_ba = '', ca
       throw new Error(`Pengesahan gabungan ditolak: Masih terdapat pengajuan yang belum berstatus ACC Pleno: ${details}.`);
     }
 
+    // Bab 17: Selesainya Tahap 4 tidak otomatis mengubah fase menjadi NPHD; fase ditentukan eksplisit
+    const validFases = ['PRA_NPHD', 'NPHD', 'PASCA_NPHD'];
+    const rawFase = (fase_perencanaan || cycle.fase_perencanaan || cycle.tahap_revisi || 'PRA_NPHD').toUpperCase();
+    const finalFase = validFases.includes(rawFase) ? rawFase : 'PRA_NPHD';
+    const finalDasar = (dasar_pengesahan || 'BA Pleno Komisioner').trim();
+
     // 4. Kunci dokumen RKB siklus ini
     db.prepare(`
       UPDATE periode_anggaran SET
         is_locked = 1,
         locked_at = ?,
-        dasar_pengesahan = 'BA Pleno Komisioner',
+        fase_perencanaan = ?,
+        tahap_revisi = ?,
+        dasar_pengesahan = ?,
         nomor_ba_tapd = ?,
         tanggal_ba_tapd = ?,
         catatan_revisi = ?,
         file_pendukung_path = ?,
+        gdrive_link_pleno = ?,
+        rkb_final_link = ?,
+        kak_gabungan_link = ?,
+        verifikasi_manual_tahap4 = ?,
         catatan_pleno = ?
       WHERE id = ?
     `).run(
       new Date().toISOString(),
+      finalFase,
+      finalFase,
+      finalDasar,
       noBa,
       tglBa,
       catatan || `Pengesahan Berita Acara Pleno ${noBa}`,
-      link_scan_ba,
+      cleanLinkBa,
+      cleanLinkBa,
+      cleanLinkRkb,
+      cleanLinkKak,
+      verifikasi_manual ? 1 : 0,
       catatan,
       cycle.id
     );
@@ -3393,10 +3526,11 @@ function finalizeTahap4Keseluruhan({ nomor_ba, tanggal_ba, link_scan_ba = '', ca
         pengajuan_id: p.id,
         periode_id: cycle.id,
         subbag: p.subbag,
+        versi_usulan: p.versi_usulan || 1,
         tahap: 4,
         status: 'SELESAI',
         aksi: 'PENGESAHAN_BA_PLENO',
-        catatan: `Disahkan melalui BA Pleno No: ${noBa} tanggal ${tglBa}.`,
+        catatan: `Disahkan melalui BA Pleno No: ${noBa} tanggal ${tglBa} (Fase: ${finalFase}, Dasar: ${finalDasar}).`,
         user
       });
     }
@@ -3416,8 +3550,17 @@ function finalizeTahap4Keseluruhan({ nomor_ba, tanggal_ba, link_scan_ba = '', ca
       action: 'FINALIZE_TAHAP4_KESELURUHAN',
       entity: 'periode_anggaran',
       entity_id: cycle.id,
-      new_values: { nomor_ba: noBa, tanggal_ba: tglBa, total_proposals: proposals.length },
-      notes: `Pengesahan Berita Acara Pleno ${noBa} selesai. RKB ${cycle.nama_periode} resmi dikunci menjadi dasar anggaran berikutnya.`
+      new_values: {
+        nomor_ba: noBa,
+        tanggal_ba: tglBa,
+        fase_perencanaan: finalFase,
+        dasar_pengesahan: finalDasar,
+        gdrive_link_pleno: cleanLinkBa,
+        rkb_final_link: cleanLinkRkb,
+        kak_gabungan_link: cleanLinkKak,
+        total_proposals: proposals.length
+      },
+      notes: `Pengesahan Berita Acara Pleno ${noBa} selesai (Fase: ${finalFase}, Dasar: ${finalDasar}). RKB ${cycle.nama_periode} resmi dikunci menjadi dasar anggaran berikutnya.`
     });
 
     return {
@@ -3425,12 +3568,85 @@ function finalizeTahap4Keseluruhan({ nomor_ba, tanggal_ba, link_scan_ba = '', ca
       locked_periode: getPeriodeById(cycle.id),
       nomor_ba: noBa,
       tanggal_ba: tglBa,
+      fase_perencanaan: finalFase,
+      dasar_pengesahan: finalDasar,
       total_pengajuan: proposals.length
     };
   } catch (err) {
     db.exec('ROLLBACK');
     throw err;
   }
+}
+
+/**
+ * Bab 4.3 & Bab 14 Canon Master Blueprint:
+ * Koreksi tautan dokumen pasca-pengesahan hanya dapat dilakukan oleh Kasubag Rendatin
+ * (atau Developer saat tidak simulasi) dan wajib tercatat di audit log tanpa mengubah angka baseline.
+ */
+function updatePostRatificationLinks(periodeId, { gdrive_link_pleno = '', rkb_final_link = '', kak_gabungan_link = '', catatan = '' } = {}, user = null) {
+  const isKasubagRendatin = user && (
+    user.level === 0 ||
+    (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin' || user.role_id === 'perencanaan'))
+  );
+  if (!isKasubagRendatin) {
+    throw new Error('Akses ditolak. Koreksi tautan dokumen pasca-pengesahan hanya berwenang dilakukan oleh Kasubag Rendatin.');
+  }
+
+  const existing = getPeriodeById(Number(periodeId));
+  if (!existing) throw new Error('Periode arsip RKB tidak ditemukan.');
+  if (Number(existing.is_locked) !== 1) {
+    throw new Error('Koreksi tautan pasca-pengesahan hanya berlaku untuk dokumen RKB yang telah disahkan dan terkunci.');
+  }
+
+  const newBaLink = gdrive_link_pleno !== undefined ? String(gdrive_link_pleno).trim() : (existing.gdrive_link_pleno || existing.file_pendukung_path || '');
+  const newRkbLink = rkb_final_link !== undefined ? String(rkb_final_link).trim() : (existing.rkb_final_link || '');
+  const newKakLink = kak_gabungan_link !== undefined ? String(kak_gabungan_link).trim() : (existing.kak_gabungan_link || '');
+
+  const oldValues = {
+    gdrive_link_pleno: existing.gdrive_link_pleno || existing.file_pendukung_path || '',
+    rkb_final_link: existing.rkb_final_link || '',
+    kak_gabungan_link: existing.kak_gabungan_link || ''
+  };
+
+  db.prepare(`
+    UPDATE periode_anggaran SET
+      gdrive_link_pleno = ?,
+      file_pendukung_path = ?,
+      rkb_final_link = ?,
+      kak_gabungan_link = ?
+    WHERE id = ?
+  `).run(newBaLink, newBaLink, newRkbLink, newKakLink, existing.id);
+
+  // Perbarui metadata legalitas di snapshot tanpa mengubah angka baseline
+  const snapRow = db.prepare('SELECT snapshot_data FROM periode_snapshot WHERE periode_id = ?').get(existing.id);
+  if (snapRow && snapRow.snapshot_data) {
+    try {
+      const snap = JSON.parse(snapRow.snapshot_data);
+      snap.legalitas = {
+        ...(snap.legalitas || {}),
+        gdrive_link_pleno: newBaLink,
+        rkb_final_link: newRkbLink,
+        kak_gabungan_link: newKakLink
+      };
+      db.prepare('UPDATE periode_snapshot SET snapshot_data = ? WHERE periode_id = ?').run(JSON.stringify(snap), existing.id);
+    } catch (e) {}
+  }
+
+  recordAuditLog({
+    user,
+    action: 'UPDATE_POST_RATIFICATION_LINKS',
+    entity: 'periode_anggaran',
+    entity_id: existing.id,
+    old_values: oldValues,
+    new_values: {
+      gdrive_link_pleno: newBaLink,
+      rkb_final_link: newRkbLink,
+      kak_gabungan_link: newKakLink
+    },
+    notes: `Koreksi tautan dokumen pasca-pengesahan pada "${existing.nama_periode}" oleh Kasubag Rendatin${catatan ? `: ${catatan}` : '.'}`
+  });
+
+  return getPeriodeById(existing.id);
 }
 
 function getRevisionCycleStatus(periodeId = null) {
@@ -3469,12 +3685,13 @@ function getRevisionCycleStatus(periodeId = null) {
     } else {
       const isAcc = p.status_tahap === 'ACC_PLENO' || p.status_tahap === 'SELESAI';
       if (!isAcc) {
-        belumAccList.push({ subbag: s, status: p.status_tahap, kode_revisi: p.kode_revisi });
+        belumAccList.push({ subbag: s, status: p.status_tahap, kode_revisi: p.kode_revisi, versi_usulan: p.versi_usulan || 1 });
       }
       subbagStatus[s] = {
         subbag: s,
         proposal_id: p.id,
         kode_revisi: p.kode_revisi,
+        versi_usulan: p.versi_usulan || 1,
         status: p.status_tahap,
         tahap_terkini: p.tahap_terkini,
         status_label: p.status_tahap === 'ACC_PLENO' ? 'ACC Pleno' : (p.status_tahap === 'DIKEMBALIKAN' ? 'Dikembalikan untuk Perbaikan' : (p.status_tahap === 'MENUNGGU_PLENO' ? 'Valid (Menunggu Pleno)' : (p.status_tahap === 'SELESAI' ? 'Disahkan' : 'Diajukan'))),
@@ -3484,6 +3701,7 @@ function getRevisionCycleStatus(periodeId = null) {
         alasan_pengembalian: p.alasan_pengembalian || '',
         dokumen_surat_link: p.dokumen_surat_link,
         dokumen_matriks_link: p.dokumen_matriks_link,
+        dokumen_kak_link: p.dokumen_kak_link || p.dokumen_dukung_lain || '',
         nomor_surat: p.nomor_surat,
         perihal: p.perihal
       };
@@ -3498,6 +3716,8 @@ function getRevisionCycleStatus(periodeId = null) {
       nama_periode: baseRatified.nama_periode,
       versi_revisi: baseRatified.versi_revisi,
       revisi_ke: baseRatified.revisi_ke,
+      fase_perencanaan: baseRatified.fase_perencanaan || baseRatified.tahap_revisi || 'PRA_NPHD',
+      dasar_pengesahan: baseRatified.dasar_pengesahan || 'BA Pleno Komisioner',
       nomor_ba: baseRatified.nomor_ba_tapd,
       tanggal_ba: baseRatified.tanggal_ba_tapd,
       is_locked: 1
@@ -3507,6 +3727,8 @@ function getRevisionCycleStatus(periodeId = null) {
       nama_periode: activeCycle.nama_periode,
       versi_revisi: activeCycle.versi_revisi,
       revisi_ke: activeCycle.revisi_ke,
+      fase_perencanaan: activeCycle.fase_perencanaan || activeCycle.tahap_revisi || 'PRA_NPHD',
+      dasar_pengesahan: activeCycle.dasar_pengesahan || 'Kertas Kerja Penyusunan',
       is_locked: activeCycle.is_locked,
       parent_periode_id: activeCycle.parent_periode_id
     } : null,
@@ -3545,23 +3767,35 @@ function getArsipRevisiList() {
       } catch (e) {}
     }
 
+    const lockedDateStr = p.locked_at ? String(p.locked_at).slice(0, 10) : (p.created_at ? String(p.created_at).slice(0, 10) : '-');
+
     return {
       id: p.id,
+      thang: 2029,
+      kode_satker: '657811',
+      deskripsi: p.nama_periode,
       nama_periode: p.nama_periode,
       versi_revisi: p.versi_revisi,
-      revisi_ke: p.revisi_ke,
-      dasar_pengesahan: p.dasar_pengesahan,
+      revisi_ke: p.revisi_ke || 0,
+      fase_perencanaan: p.fase_perencanaan || p.tahap_revisi || 'PRA_NPHD',
+      dasar_pengesahan: p.dasar_pengesahan || 'BA Pleno Komisioner',
       tahap_revisi: p.tahap_revisi,
       nomor_ba_tapd: p.nomor_ba_tapd || '-',
       tanggal_ba_tapd: p.tanggal_ba_tapd || '-',
+      tanggal_revisi: p.tanggal_ba_tapd || lockedDateStr,
+      tanggal_penetapan: lockedDateStr,
       locked_at: p.locked_at || p.created_at,
+      catatan_revisi: p.catatan_revisi || '',
+      status_label: 'TERKUNCI SAH',
       total_items: p.total_items,
       total_baris: p.total_baris,
       total_anggaran: grandTotal,
       is_locked: 1,
       is_migration_frozen: isMigrationFrozen,
       notice,
-      gdrive_link_pleno: p.gdrive_link_pleno || '',
+      gdrive_link_pleno: p.gdrive_link_pleno || p.file_pendukung_path || '',
+      rkb_final_link: p.rkb_final_link || '',
+      kak_gabungan_link: p.kak_gabungan_link || '',
       catatan_pleno: p.catatan_pleno || ''
     };
   });
@@ -3644,6 +3878,7 @@ module.exports = {
   updateRevisiTahap,
   deleteRevisiPengajuan,
   finalizeTahap4Keseluruhan,
+  updatePostRatificationLinks,
   getArsipRevisiList,
   getLatestRatifiedPeriode,
   getActiveRevisionCycle,

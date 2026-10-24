@@ -7726,9 +7726,13 @@ async function loadSubbagPreviewData(subbag) {
   const selisihEl = document.getElementById('preview-selisih-val');
   const tableBody = document.getElementById('table-revisi-matriks-preview');
 
-  if (tableBody) {
-    tableBody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 20px; color: #64748b;">Memuat rincian matriks semula-menjadi Subbag ${escHtml(sub)}...</td></tr>`;
-  }
+  // Update metadata ringkasan Langkah 2 (Bab 4.1 Canon: informasi utama & total anggaran tanpa tabel rincian RUH)
+  setElText('step2-meta-subbag', sub);
+  setElText('step2-meta-komisioner', document.getElementById('revisi-input-komisioner-pengusul')?.value || getKomisionerBySubbag(sub));
+  const noSurat = document.getElementById('revisi-input-nomor-surat')?.value?.trim() || '-';
+  const tglSurat = document.getElementById('revisi-input-tanggal-surat')?.value || '-';
+  setElText('step2-meta-surat', `${noSurat} (${tglSurat})`);
+  setElText('step2-meta-perihal', document.getElementById('revisi-input-perihal')?.value?.trim() || '-');
 
   try {
     const res = await apiFetch(`/api/revisi/preview-subbag?subbag=${encodeURIComponent(sub)}`);
@@ -7738,30 +7742,11 @@ async function loadSubbagPreviewData(subbag) {
     if (semulaEl) semulaEl.textContent = formatRupiah(total);
     if (menjadiEl) menjadiEl.textContent = formatRupiah(total);
     if (selisihEl) selisihEl.textContent = 'Rp 0 (Seimbang)';
-
-    if (tableBody) {
-      const items = res.items_sample || [];
-      if (items.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 20px; color: #64748b;">Belum ada rincian belanja aktif untuk Subbag ${escHtml(sub)}.</td></tr>`;
-        return;
-      }
-
-      tableBody.innerHTML = items.map((it, idx) => `
-        <tr>
-          <td><code style="font-size: 11px; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">${escHtml(it.kode || '-')}</code></td>
-          <td style="font-weight: 600; color: #1e293b;">${escHtml(it.uraian || '-')}</td>
-          <td class="text-center">${formatNumber(it.volume || 1)}</td>
-          <td class="text-center"><span class="badge badge-secondary" style="font-size: 10px;">${escHtml(it.satuan || 'Keg')}</span></td>
-          <td class="text-right" style="font-family: var(--font-mono);">${formatRupiah(it.harga || 0)}</td>
-          <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e40af;">${formatRupiah(it.total || 0)}</td>
-        </tr>
-      `).join('');
-    }
+    setElText('step2-meta-kegiatan', `${res.total_kegiatan || 0} Kegiatan`);
+    setElText('step2-meta-items', `${res.total_item || 0} Item Belanja`);
+    if (tableBody) tableBody.innerHTML = '';
   } catch (err) {
     console.warn('Gagal memuat preview subbag:', err);
-    if (tableBody) {
-      tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger" style="padding: 20px;">Gagal memuat pratinjau matriks: ${escHtml(err.message)}</td></tr>`;
-    }
   }
 }
 
@@ -7806,19 +7791,25 @@ async function submitRevisiUsulanFinal() {
   }
 
   if (!dokSurat) {
-    alert('Tautan Google Drive / berkas Nota Dinas / Surat Usulan Dinas bermaterai & tanda tangan wajib disertakan pada Langkah 3.');
+    alert('Tautan Google Drive Nota Dinas / Surat Usulan bertanda tangan wajib disertakan pada Langkah 3.');
     goToRevisiStep(3);
     return;
   }
 
   if (!dokMatriks) {
-    alert('Tautan berkas dokumen RKB PIC yang telah ditandatangani wajib disertakan pada Langkah 3.');
+    alert('Tautan Google Drive RKB Hardcopy PIC bertanda tangan wajib disertakan pada Langkah 3.');
+    goToRevisiStep(3);
+    return;
+  }
+
+  if (!dokLain) {
+    alert('Tautan Google Drive Kerangka Acuan Kerja (KAK) bertanda tangan wajib disertakan pada Langkah 3.');
     goToRevisiStep(3);
     return;
   }
 
   if (!checkKeabsahan || !checkKeabsahan.checked) {
-    alert('Harap beri tanda centang pada pernyataan konfirmasi keabsahan dokumen untuk melanjutkan.');
+    alert('Harap beri tanda centang pada pernyataan konfirmasi kebenaran data dan keabsahan dokumen untuk melanjutkan.');
     return;
   }
 
@@ -7838,7 +7829,10 @@ async function submitRevisiUsulanFinal() {
     keterangan_revisi: keterangan,
     dokumen_surat_link: dokSurat,
     dokumen_matriks_link: dokMatriks,
+    dokumen_kak_link: dokLain,
     dokumen_dukung_lain: dokLain,
+    konfirmasi_kebenaran: true,
+    strict_tahap1: true,
     total_semula: totalSemula,
     total_menjadi: totalMenjadi
   };
@@ -7901,7 +7895,7 @@ async function loadRevisiMonitoringTable() {
     monitoringRevisiData = list;
 
     // Update badge di sidebar menu
-    const activeCount = list.filter(r => r.status_tahap === 'PROSES').length;
+    const activeCount = list.filter(r => ['PROSES', 'DIAJUKAN', 'MENUNGGU_PLENO', 'ACC_PLENO'].includes(r.status_tahap)).length;
     const badgeEl = document.getElementById('badge-revisi-aktif');
     if (badgeEl) badgeEl.textContent = String(activeCount);
 
@@ -7913,13 +7907,14 @@ async function loadRevisiMonitoringTable() {
     tableBody.innerHTML = list.map((rev, index) => {
       let tahapCircleClass = 'tahap-green';
       let tahapCircleNum = rev.tahap_terkini || 1;
+      const verBadge = `V${rev.versi_usulan || 1}`;
 
       if (rev.status_tahap === 'SELESAI') {
         tahapCircleClass = 'tahap-green';
         tahapCircleNum = 4;
-      } else if (rev.status_tahap === 'PERBAIKAN') {
+      } else if (rev.status_tahap === 'PERBAIKAN' || rev.status_tahap === 'DIKEMBALIKAN') {
         tahapCircleClass = 'tahap-red';
-        tahapCircleNum = 2;
+        tahapCircleNum = rev.tahap3_hasil === 'DIKEMBALIKAN' ? 3 : 2;
       } else if (rev.status_tahap === 'DITOLAK') {
         tahapCircleClass = 'tahap-red';
         tahapCircleNum = 3;
@@ -7933,13 +7928,13 @@ async function loadRevisiMonitoringTable() {
         <div class="sakti-stage-box stage-success">
           <span class="stage-date">${escHtml(rev.tahap1_waktu)}</span>
           <span class="stage-meta">${escHtml(rev.tahap1_oleh || 'Pengusul')}</span>
-          <span class="stage-pill">Diajukan</span>
+          <span class="stage-pill">Diajukan (${verBadge})</span>
         </div>
       ` : `<div class="sakti-stage-box stage-empty">-</div>`;
 
       // 2. Kolom Tahap 2: Penelitian Rendatin (Kotak Warna SAKTI)
       let t2Html = '';
-      if (rev.tahap2_waktu) {
+      if (rev.tahap2_waktu && rev.tahap2_hasil) {
         if (rev.tahap2_hasil === 'SETUJU') {
           t2Html = `
             <div class="sakti-stage-box stage-success">
@@ -7953,11 +7948,11 @@ async function loadRevisiMonitoringTable() {
             <div class="sakti-stage-box stage-rejected">
               <span class="stage-date">${escHtml(rev.tahap2_waktu)}</span>
               <span class="stage-meta">${escHtml(rev.tahap2_oleh || 'Tim Rendatin')}</span>
-              <span class="stage-pill">Perlu Perbaikan</span>
+              <span class="stage-pill">Dikembalikan</span>
             </div>
           `;
         }
-      } else if (rev.tahap_terkini === 1 || (rev.tahap_terkini === 2 && rev.status_tahap === 'PROSES')) {
+      } else if (rev.status_tahap === 'DIAJUKAN' || (rev.tahap_terkini <= 2 && rev.status_tahap === 'PROSES')) {
         t2Html = `
           <div class="sakti-stage-box stage-pending">
             <span class="stage-date">Antrean</span>
@@ -7971,7 +7966,7 @@ async function loadRevisiMonitoringTable() {
 
       // 3. Kolom Tahap 3: ACC Pleno (Kotak Warna SAKTI)
       let t3Html = '';
-      if (rev.tahap3_waktu) {
+      if (rev.tahap3_waktu && rev.tahap3_hasil) {
         if (rev.tahap3_hasil === 'SETUJU') {
           t3Html = `
             <div class="sakti-stage-box stage-success">
@@ -7985,11 +7980,11 @@ async function loadRevisiMonitoringTable() {
             <div class="sakti-stage-box stage-rejected">
               <span class="stage-date">${escHtml(rev.tahap3_waktu)}</span>
               <span class="stage-meta">${escHtml(rev.tahap3_oleh || 'Pleno Komisioner')}</span>
-              <span class="stage-pill">Ditolak Pleno</span>
+              <span class="stage-pill">${rev.tahap3_hasil === 'BATAL_KOREKSI_L1' ? 'Batal (Koreksi L1)' : 'Dikembalikan Pleno'}</span>
             </div>
           `;
         }
-      } else if (rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES') {
+      } else if (rev.status_tahap === 'MENUNGGU_PLENO' || (rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES')) {
         t3Html = `
           <div class="sakti-stage-box stage-pending">
             <span class="stage-date">Agenda</span>
@@ -8011,7 +8006,7 @@ async function loadRevisiMonitoringTable() {
             <span class="stage-pill">BA Sah &amp; Kunci</span>
           </div>
         `;
-      } else if (rev.tahap_terkini === 4 && rev.status_tahap === 'PROSES') {
+      } else if (rev.status_tahap === 'ACC_PLENO' || (rev.tahap_terkini === 4 && rev.status_tahap === 'PROSES')) {
         t4Html = `
           <div class="sakti-stage-box stage-pending">
             <span class="stage-date">Menunggu</span>
@@ -8023,30 +8018,28 @@ async function loadRevisiMonitoringTable() {
         t4Html = `<div class="sakti-stage-box stage-empty">-</div>`;
       }
 
-      // Tombol Aksi Sesuai Role
+      // Tombol Aksi Sesuai Role (Bab 4.2 Canon: Tahap 2, 3, 4 dioperasikan di sistem oleh akun Perencanaan Level 1)
       let actionButtons = `
         <button class="btn btn-outline btn-xs" onclick="openRevisiDetail(${rev.id})" title="Lihat Berkas & Detail Usulan">
           🔍 Detail
         </button>
       `;
 
-      // HANYA LEVEL <= 1 / PEJABAT TERKAIT YANG BISA MELAKUKAN VALIDASI TAHAP
-      const isValidator = user && (user.level <= 1 || user.role_id === 'developer');
-      const isPlenoAuthorized = user && (user.level === 0 || user.level === 1 || user.level === 3 || user.role_id === 'sekretaris');
+      const isValidator = user && user.level <= 1;
 
-      if (isValidator && (rev.tahap_terkini === 1 || rev.tahap_terkini === 2) && rev.status_tahap === 'PROSES') {
+      if (isValidator && (rev.status_tahap === 'DIAJUKAN' || ((rev.tahap_terkini === 1 || rev.tahap_terkini === 2) && rev.status_tahap === 'PROSES'))) {
         actionButtons += `
           <button class="btn btn-primary btn-xs" onclick="openRevisiTahapAction(${rev.id}, 2)" style="margin-top: 3px;" title="Lakukan Penelitian Kelayakan SBM">
             ✔️ Teliti SBM
           </button>
         `;
-      } else if (isPlenoAuthorized && rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES') {
+      } else if (isValidator && (rev.status_tahap === 'MENUNGGU_PLENO' || (rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES'))) {
         actionButtons += `
-          <button class="btn btn-info btn-xs" onclick="openRevisiTahapAction(${rev.id}, 3)" style="margin-top: 3px;" title="Putusan Sidang Pleno Komisioner & KPA">
+          <button class="btn btn-info btn-xs" onclick="openRevisiTahapAction(${rev.id}, 3)" style="margin-top: 3px;" title="Catat Putusan Sidang Pleno Komisioner">
             🏛️ ACC Pleno
           </button>
         `;
-      } else if (isValidator && rev.tahap_terkini === 4 && rev.status_tahap === 'PROSES') {
+      } else if (isValidator && (rev.status_tahap === 'ACC_PLENO' || (rev.tahap_terkini === 4 && rev.status_tahap === 'PROSES'))) {
         actionButtons += `
           <button class="btn btn-success btn-xs" onclick="switchView('view-revisi-tahap4')" style="margin-top: 3px;" title="Sahkan RKB dan Kunci Dokumen dengan BA Pleno">
             🔒 Sahkan BA
@@ -8057,8 +8050,8 @@ async function loadRevisiMonitoringTable() {
       if ((rev.status_tahap === 'PERBAIKAN' || rev.status_tahap === 'DIKEMBALIKAN') &&
           user && (user.level === 0 || (user.level === 2 && (user.pic_subbag === rev.subbag || user.pic_subbag === 'SEMUA')))) {
         actionButtons += `
-          <button class="btn btn-warning btn-xs" onclick="switchView('view-revisi-pengajuan')" style="margin-top: 3px;" title="Perbaiki & Ajukan Ulang">
-            ✏️ Ajukan Ulang
+          <button class="btn btn-warning btn-xs" onclick="switchView('view-revisi-pengajuan')" style="margin-top: 3px;" title="Perbaiki & Ajukan Ulang (${verBadge})">
+            ✏️ Ajukan Ulang (${verBadge})
           </button>
         `;
       }
@@ -8069,6 +8062,7 @@ async function loadRevisiMonitoringTable() {
           <td>
             <div style="font-family: var(--font-mono); font-weight: 700; color: #1e40af; font-size: 11.5px;">
               ${escHtml(rev.kode_revisi)}
+              <span class="badge badge-info" style="font-size: 9.5px; margin-left: 4px;">${verBadge}</span>
             </div>
             <div style="font-size: 10px; color: #64748b;">Thang: ${rev.tahun_anggaran}</div>
           </td>
@@ -8140,18 +8134,21 @@ async function openRevisiDetail(id) {
   try {
     const [res, histRes] = await Promise.all([
       apiFetch(`/api/revisi/pengajuan/${id}`),
-      apiFetch(`/api/revisi/pengajuan/${id}/history`).catch(() => ({ history: [] }))
+      apiFetch(`/api/revisi/pengajuan/${id}/history`).catch(() => ({ data: [], history: [] }))
     ]);
     const rev = res.data;
-    const historyList = histRes.history || [];
-    if (titleEl) titleEl.textContent = `ID Revisi: ${rev.kode_revisi} | Subbag: ${rev.subbag}`;
+    const historyList = histRes.history || histRes.data || [];
+    const verBadge = `V${rev.versi_usulan || 1}`;
+    if (titleEl) titleEl.textContent = `ID Revisi: ${rev.kode_revisi} (${verBadge}) | Subbag: ${rev.subbag}`;
+
+    const kakLink = rev.dokumen_kak_link || rev.dokumen_dukung_lain || '';
 
     bodyEl.innerHTML = `
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 12px;">
           <div><strong>Nomor Surat Usulan:</strong> ${escHtml(rev.nomor_surat)}</div>
           <div><strong>Tanggal Surat:</strong> ${escHtml(rev.tanggal_surat)}</div>
-          <div><strong>Subbagian Pengusul:</strong> <span class="badge badge-primary" style="font-size: 10px;">${escHtml(rev.subbag)}</span></div>
+          <div><strong>Subbagian Pengusul:</strong> <span class="badge badge-primary" style="font-size: 10px;">${escHtml(rev.subbag)}</span> <span class="badge badge-info" style="font-size: 10px;">Versi ${verBadge}</span></div>
           <div><strong>Komisioner Pengusul:</strong> <span style="color: #1e40af; font-weight: 700;">${escHtml(rev.pejabat_pengusul || getKomisionerBySubbag(rev.subbag))}</span></div>
           <div><strong>Kewenangan Revisi:</strong> ${escHtml(rev.kewenangan || 'KPU KABUPATEN NGAWI')}</div>
           <div><strong>Jenis Revisi:</strong> ${escHtml(rev.jenis_revisi || 'Pergeseran Antar Rincian Output')}</div>
@@ -8176,28 +8173,28 @@ async function openRevisiDetail(id) {
         ` : ''}
       </div>
 
-      <!-- TAUTAN BERKAS PENDUKUNG -->
+      <!-- TAUTAN BERKAS PENDUKUNG (3 TAUTAN WAJIB, BAB 4.1 CANON) -->
       <div style="margin-bottom: 16px;">
-        <h5 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">📎 Dokumen Pendukung Terlampir:</h5>
+        <h5 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">📎 Dokumen Pendukung Terlampir (Google Drive):</h5>
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
           ${rev.dokumen_surat_link ? `
             <a href="${escHtml(rev.dokumen_surat_link)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #2563eb; text-decoration: none; font-weight: 600; background: #eff6ff; padding: 6px 12px; border-radius: 6px; border: 1px solid #bfdbfe;">
-              📄 Nota Dinas / Surat Usulan Dinas TTD (Buka Berkas) &rarr;
+              📄 1. Nota Dinas Bertanda Tangan (Buka Berkas) &rarr;
             </a>
-          ` : '<span style="color: #94a3b8;">- Tidak ada berkas nota dinas</span>'}
+          ` : '<span style="color: #94a3b8;">- Tidak ada berkas Nota Dinas</span>'}
           ${rev.dokumen_matriks_link ? `
             <a href="${escHtml(rev.dokumen_matriks_link)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #15803d; text-decoration: none; font-weight: 600; background: #f0fdf4; padding: 6px 12px; border-radius: 6px; border: 1px solid #bbf7d0;">
-              📊 RKB PIC TTD Format Excel/PDF (Buka Berkas) &rarr;
+              📊 2. RKB Hardcopy PIC Bertanda Tangan (Buka Berkas) &rarr;
             </a>
-          ` : '<span style="color: #94a3b8;">- Tidak ada berkas RKB PIC</span>'}
+          ` : '<span style="color: #94a3b8;">- Tidak ada berkas RKB Hardcopy PIC</span>'}
+          ${kakLink ? `
+            <a href="${escHtml(kakLink)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #7c3aed; text-decoration: none; font-weight: 600; background: #faf5ff; padding: 6px 12px; border-radius: 6px; border: 1px solid #e9d5ff;">
+              📑 3. Kerangka Acuan Kerja / KAK Bertanda Tangan (Buka Berkas) &rarr;
+            </a>
+          ` : '<span style="color: #94a3b8;">- Tidak ada berkas KAK</span>'}
           ${rev.dokumen_surat_original_link && rev.dokumen_surat_original_link !== rev.dokumen_surat_link ? `
             <a href="${escHtml(rev.dokumen_surat_original_link)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #475569; text-decoration: none; font-size: 11px; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
-              📑 Arsip Dokumen Pengajuan Awal (Versi 1) &rarr;
-            </a>
-          ` : ''}
-          ${rev.dokumen_dukung_lain ? `
-            <a href="${escHtml(rev.dokumen_dukung_lain)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #7c3aed; text-decoration: none; font-weight: 600; background: #faf5ff; padding: 6px 12px; border-radius: 6px; border: 1px solid #e9d5ff;">
-              📑 Dokumen Teknis Lainnya / KAK / RAB (Buka Berkas) &rarr;
+              📑 Arsip Dokumen Pengajuan Awal (V1) &rarr;
             </a>
           ` : ''}
         </div>
@@ -8205,7 +8202,7 @@ async function openRevisiDetail(id) {
 
       <!-- REKAPITULASI PROGRES 4 TAHAP SAKTI -->
       <div>
-        <h5 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">🕒 Riwayat Jejak Verifikasi 4 Tahap SAKTI:</h5>
+        <h5 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">🕒 Status Tahapan Revisi (${verBadge}):</h5>
         <div style="border-left: 2px solid #e2e8f0; margin-left: 12px; padding-left: 14px; display: flex; flex-direction: column; gap: 12px;">
           <!-- Tahap 1 -->
           <div>
@@ -8227,22 +8224,23 @@ async function openRevisiDetail(id) {
           </div>
           <!-- Tahap 4 -->
           <div>
-            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">4. Tahap BA Pleno di Sahkan (Kunci RKB Gabungan)</div>
+            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">4. Tahap BA Pleno Disahkan (Kunci RKB Gabungan)</div>
             <div style="font-size: 11px; color: #64748b;">${escHtml(rev.tahap4_waktu || 'Belum disahkan')}</div>
             <div style="font-size: 11.5px; color: #15803d; font-weight: 700; margin-top: 2px;">Nomor Dokumen: ${escHtml(rev.nomor_penetapan || '-')}</div>
           </div>
         </div>
       </div>
 
-      <!-- RIWAYAT AUDIT & VERSI PENGAJUAN -->
+      <!-- RESUME PROSES LENGKAP & AUDIT RINCI (KHUSUS KASUBAG RENDATIN & DEVELOPER, BAB 6 CANON) -->
       ${historyList.length > 0 ? `
         <div style="margin-top: 16px;">
-          <h5 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">📜 Log Riwayat Aksi &amp; Versi Pengajuan:</h5>
+          <h5 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">📜 Resume Proses Lengkap &amp; Audit Rinci Versi Pengajuan (Khusus Kasubag Rendatin &amp; Developer):</h5>
           <div style="max-height: 180px; overflow-y: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11.5px;">
             <table class="table table-sm" style="margin: 0;">
               <thead style="background: #f8fafc;">
                 <tr>
                   <th style="padding: 6px 8px;">Waktu</th>
+                  <th style="padding: 6px 8px;">Versi</th>
                   <th style="padding: 6px 8px;">Aksi</th>
                   <th style="padding: 6px 8px;">Pelaku</th>
                   <th style="padding: 6px 8px;">Catatan / Alasan</th>
@@ -8251,9 +8249,10 @@ async function openRevisiDetail(id) {
               <tbody>
                 ${historyList.map(h => `
                   <tr>
-                    <td style="padding: 6px 8px; font-size: 11px; color: #64748b;">${escHtml(h.waktu || '-')}</td>
-                    <td style="padding: 6px 8px;"><span class="badge badge-secondary" style="font-size: 9.5px;">${escHtml(h.action)}</span></td>
-                    <td style="padding: 6px 8px; font-weight: 600;">${escHtml(h.username_pelaku || '-')}</td>
+                    <td style="padding: 6px 8px; font-size: 11px; color: #64748b;">${escHtml(h.waktu_wib || h.waktu || '-')}</td>
+                    <td style="padding: 6px 8px;"><span class="badge badge-info" style="font-size: 9.5px;">V${h.versi_usulan || 1}</span></td>
+                    <td style="padding: 6px 8px;"><span class="badge badge-secondary" style="font-size: 9.5px;">${escHtml(h.aksi || h.action || '-')}</span></td>
+                    <td style="padding: 6px 8px; font-weight: 600;">${escHtml(h.actor_name || h.actor_username || h.username_pelaku || '-')}</td>
                     <td style="padding: 6px 8px; color: #334155;">${escHtml(h.alasan_pengembalian || h.catatan || '-')}</td>
                   </tr>
                 `).join('')}
@@ -8267,17 +8266,16 @@ async function openRevisiDetail(id) {
     if (actionsEl) {
       actionsEl.innerHTML = '';
       const user = AppState.currentUser;
-      const isValidator = user && (user.level <= 1 || user.role_id === 'developer');
-      const isPlenoAuthorized = user && (user.level === 0 || user.level === 1 || user.level === 3 || user.role_id === 'sekretaris');
+      const isValidator = user && user.level <= 1;
 
       if ((rev.status_tahap === 'PERBAIKAN' || rev.status_tahap === 'DIKEMBALIKAN') &&
           user && (user.level === 0 || (user.level === 2 && (user.pic_subbag === rev.subbag || user.pic_subbag === 'SEMUA')))) {
-        actionsEl.innerHTML = `<button class="btn btn-warning btn-sm" onclick="closeModalRevisiDetail(); switchView('view-revisi-pengajuan')">✏️ Perbaiki &amp; Ajukan Ulang</button>`;
-      } else if (isValidator && (rev.tahap_terkini === 1 || rev.tahap_terkini === 2) && rev.status_tahap === 'PROSES') {
+        actionsEl.innerHTML = `<button class="btn btn-warning btn-sm" onclick="closeModalRevisiDetail(); switchView('view-revisi-pengajuan')">✏️ Perbaiki &amp; Ajukan Ulang (${verBadge})</button>`;
+      } else if (isValidator && (rev.status_tahap === 'DIAJUKAN' || ((rev.tahap_terkini === 1 || rev.tahap_terkini === 2) && rev.status_tahap === 'PROSES'))) {
         actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="closeModalRevisiDetail(); openRevisiTahapAction(${rev.id}, 2)">✔️ Proses Penelitian (Tahap 2)</button>`;
-      } else if (isPlenoAuthorized && rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES') {
-        actionsEl.innerHTML = `<button class="btn btn-info btn-sm" onclick="closeModalRevisiDetail(); openRevisiTahapAction(${rev.id}, 3)">🏛️ Proses ACC Pleno (Tahap 3)</button>`;
-      } else if (isValidator && rev.tahap_terkini === 4 && rev.status_tahap === 'PROSES') {
+      } else if (isValidator && (rev.status_tahap === 'MENUNGGU_PLENO' || (rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES'))) {
+        actionsEl.innerHTML = `<button class="btn btn-info btn-sm" onclick="closeModalRevisiDetail(); openRevisiTahapAction(${rev.id}, 3)">🏛️ Catat Hasil Pleno (Tahap 3)</button>`;
+      } else if (isValidator && (rev.status_tahap === 'ACC_PLENO' || (rev.tahap_terkini === 4 && rev.status_tahap === 'PROSES'))) {
         actionsEl.innerHTML = `<button class="btn btn-success btn-sm" onclick="closeModalRevisiDetail(); switchView('view-revisi-tahap4')">🔒 Pengesahan BA Pleno (Tahap 4)</button>`;
       }
     }
@@ -8444,9 +8442,9 @@ async function loadValidasiRevisiTable() {
 
     // Hitung KPI Meja Kerja Validator
     const totalUsulan = list.length;
-    const pendingVal = list.filter(r => (r.tahap_terkini === 1 || r.tahap_terkini === 2) && r.status_tahap === 'PROSES').length;
-    const plenoVal = list.filter(r => r.tahap_terkini >= 3 || r.status_tahap === 'SELESAI').length;
-    const perbaikanVal = list.filter(r => r.status_tahap === 'PERBAIKAN').length;
+    const pendingVal = list.filter(r => r.status_tahap === 'DIAJUKAN' || ((r.tahap_terkini === 1 || r.tahap_terkini === 2) && r.status_tahap === 'PROSES')).length;
+    const plenoVal = list.filter(r => r.status_tahap === 'MENUNGGU_PLENO' || r.status_tahap === 'ACC_PLENO' || r.status_tahap === 'SELESAI' || r.tahap_terkini >= 3).length;
+    const perbaikanVal = list.filter(r => r.status_tahap === 'PERBAIKAN' || r.status_tahap === 'DIKEMBALIKAN').length;
 
     setElText('val-kpi-total', String(totalUsulan));
     setElText('val-kpi-pending', String(pendingVal));
@@ -8462,37 +8460,41 @@ async function loadValidasiRevisiTable() {
     }
 
     tableBody.innerHTML = list.map((rev, idx) => {
+      const verBadge = `V${rev.versi_usulan || 1}`;
       // Status badge
       let statusBadge = '';
       if (rev.status_tahap === 'SELESAI') {
         statusBadge = '<span class="badge badge-success" style="font-size: 10px; padding: 4px 8px;">🔒 Selesai &amp; Sah</span>';
-      } else if (rev.status_tahap === 'PERBAIKAN') {
-        statusBadge = '<span class="badge badge-danger" style="font-size: 10px; padding: 4px 8px;">↩️ Dikembalikan</span>';
-      } else if (rev.tahap_terkini === 3) {
+      } else if (rev.status_tahap === 'PERBAIKAN' || rev.status_tahap === 'DIKEMBALIKAN') {
+        statusBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 4px 8px;">↩️ Dikembalikan (${verBadge})</span>`;
+      } else if (rev.status_tahap === 'ACC_PLENO' || rev.tahap_terkini === 3) {
         statusBadge = '<span class="badge badge-info" style="font-size: 10px; padding: 4px 8px;">🏛️ ACC Pleno</span>';
+      } else if (rev.status_tahap === 'MENUNGGU_PLENO') {
+        statusBadge = '<span class="badge badge-primary" style="font-size: 10px; padding: 4px 8px;">📋 Menunggu Pleno</span>';
       } else {
-        statusBadge = '<span class="badge badge-warning" style="font-size: 10px; padding: 4px 8px;">⏳ Perlu Diteliti</span>';
+        statusBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 4px 8px;">⏳ Perlu Diteliti (${verBadge})</span>`;
       }
 
-      // Berkas Links
+      // Berkas Links (3 tautan wajib Bab 4.1 Canon)
+      const kakLink = rev.dokumen_kak_link || rev.dokumen_dukung_lain || '';
       let berkasHtml = '<div style="display: flex; flex-direction: column; gap: 3px; font-size: 11px;">';
       if (rev.dokumen_surat_link) {
-        berkasHtml += `<a href="${escHtml(rev.dokumen_surat_link)}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-weight: 600;">📄 Surat Dinas &rarr;</a>`;
+        berkasHtml += `<a href="${escHtml(rev.dokumen_surat_link)}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-weight: 600;">📄 Nota Dinas &rarr;</a>`;
       }
       if (rev.dokumen_matriks_link) {
-        berkasHtml += `<a href="${escHtml(rev.dokumen_matriks_link)}" target="_blank" rel="noopener noreferrer" style="color: #15803d; text-decoration: none; font-weight: 600;">📊 Matriks Excel &rarr;</a>`;
+        berkasHtml += `<a href="${escHtml(rev.dokumen_matriks_link)}" target="_blank" rel="noopener noreferrer" style="color: #15803d; text-decoration: none; font-weight: 600;">📊 RKB PIC &rarr;</a>`;
       }
-      if (rev.dokumen_dukung_lain) {
-        berkasHtml += `<a href="${escHtml(rev.dokumen_dukung_lain)}" target="_blank" rel="noopener noreferrer" style="color: #7c3aed; text-decoration: none; font-weight: 600;">📑 Bukti Dukung &rarr;</a>`;
+      if (kakLink) {
+        berkasHtml += `<a href="${escHtml(kakLink)}" target="_blank" rel="noopener noreferrer" style="color: #7c3aed; text-decoration: none; font-weight: 600;">📑 KAK &rarr;</a>`;
       }
-      if (!rev.dokumen_surat_link && !rev.dokumen_matriks_link && !rev.dokumen_dukung_lain) {
+      if (!rev.dokumen_surat_link && !rev.dokumen_matriks_link && !kakLink) {
         berkasHtml += '<span style="color: #94a3b8;">- Tidak ada berkas -</span>';
       }
       berkasHtml += '</div>';
 
       // Tombol Aksi Meja Kerja
-      const isPerluPenelitian = (rev.tahap_terkini === 1 || rev.tahap_terkini === 2) && rev.status_tahap === 'PROSES';
-      const isMenungguPleno = rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES';
+      const isPerluPenelitian = rev.status_tahap === 'DIAJUKAN' || ((rev.tahap_terkini === 1 || rev.tahap_terkini === 2) && rev.status_tahap === 'PROSES');
+      const isMenungguPleno = rev.status_tahap === 'MENUNGGU_PLENO' || (rev.tahap_terkini === 3 && rev.status_tahap === 'PROSES');
 
       let actionBtns = `
         <button class="btn btn-outline btn-xs" onclick="openRevisiDetail(${rev.id})" style="width: 100%; margin-bottom: 3px;">
@@ -8527,6 +8529,7 @@ async function loadValidasiRevisiTable() {
           <td>
             <div style="font-family: var(--font-mono); font-weight: 700; color: #1e40af; font-size: 11.5px;">
               ${escHtml(rev.kode_revisi)}
+              <span class="badge badge-info" style="font-size: 9.5px; margin-left: 3px;">${verBadge}</span>
             </div>
             <div style="font-size: 10px; color: #64748b;">Thang: ${rev.tahun_anggaran}</div>
           </td>
@@ -8609,7 +8612,16 @@ async function loadTahap4ViewData() {
     const res = await apiFetch('/api/revisi/tahap4-info');
     const p = res.periode;
     if (!p) {
-      if (namaEl) namaEl.textContent = 'Tidak ada draf aktif';
+      if (namaEl) namaEl.textContent = 'Tidak ada siklus revisi aktif (Menunggu Pengajuan Tahap 1)';
+      if (tableBody) {
+        tableBody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 16px; color: #64748b;">Belum ada siklus revisi aktif. Siklus baru akan terbuka otomatis saat PIC Subbagian mengajukan usulan Tahap 1.</td></tr>`;
+      }
+      const btnSubmit = document.getElementById('btn-submit-tahap4-final');
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.className = 'btn btn-secondary';
+        btnSubmit.innerHTML = '⚠️ Tidak Ada Siklus Aktif yang Siap Disahkan';
+      }
       return;
     }
 
@@ -8618,11 +8630,21 @@ async function loadTahap4ViewData() {
       statusEl.textContent = p.is_locked ? '🔒 TERKUNCI' : '🟢 DRAFT AKTIF';
     }
     if (namaEl) {
-      namaEl.innerHTML = `${escHtml(p.nama_periode)} ${res.dasar_anggaran ? `<br><small style="font-weight:normal; color:#64748b;">(Dasar Semula: <strong>${escHtml(res.dasar_anggaran.nama_periode)}</strong>)</small>` : ''}`;
+      namaEl.innerHTML = `${escHtml(p.nama_periode)} ${res.dasar_anggaran ? `<br><small style="font-weight:normal; color:#64748b;">(Dasar Semula: <strong>${escHtml(res.dasar_anggaran.nama_periode)}</strong> | Fase: <strong>${escHtml(p.fase_perencanaan || 'PRA_NPHD')}</strong>)</small>` : ''}`;
     }
     if (versiEl) versiEl.textContent = p.versi_revisi || 'Baseline Draft';
     if (itemsEl) itemsEl.textContent = `${res.total_items} Item RKB`;
     if (totalEl) totalEl.textContent = formatRupiah(res.total_pagu || 0);
+
+    // Default Fase Perencanaan & Dasar Pengesahan (Bab 17 Canon)
+    const faseInput = document.getElementById('tahap4-input-fase');
+    if (faseInput) {
+      faseInput.value = p.fase_perencanaan || 'PRA_NPHD';
+    }
+    const dasarInput = document.getElementById('tahap4-input-dasar-pengesahan');
+    if (dasarInput && p.dasar_pengesahan && p.dasar_pengesahan !== 'Kertas Kerja Penyusunan') {
+      dasarInput.value = p.dasar_pengesahan;
+    }
 
     // Default nomor BA Pleno & tanggal
     const noBaInput = document.getElementById('tahap4-input-nomor-ba');
@@ -8636,22 +8658,23 @@ async function loadTahap4ViewData() {
     }
 
     const proposalsList = res.proposals || [];
-    const isReady = Boolean(res.is_ready_for_ratification);
+    const isReady = Boolean(res.is_ready_for_ratification || res.siap_pengesahan);
 
     if (tableBody) {
       if (proposalsList.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 16px; color: #64748b;">Belum ada pengajuan usulan revisi subbag dalam siklus berjalan. RKB draf dapat disahkan jika disepakati bersama.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 16px; color: #64748b;">Belum ada pengajuan usulan revisi subbag dalam siklus berjalan.</td></tr>`;
       } else {
         tableBody.innerHTML = proposalsList.map(u => {
+          const verBadge = `V${u.versi_usulan || 1}`;
           let badgeStatus = '<span class="badge badge-warning" style="font-size: 10px;">Proses</span>';
           if (u.status_tahap === 'ACC_PLENO' || u.tahap3_hasil === 'SETUJU') {
-            badgeStatus = '<span class="badge badge-success" style="font-size: 10px;">ACC Pleno</span>';
+            badgeStatus = `<span class="badge badge-success" style="font-size: 10px;">ACC Pleno (${verBadge})</span>`;
           } else if (u.status_tahap === 'DIKEMBALIKAN' || u.status_tahap === 'PERBAIKAN') {
-            badgeStatus = '<span class="badge badge-danger" style="font-size: 10px;">Dikembalikan</span>';
+            badgeStatus = `<span class="badge badge-danger" style="font-size: 10px;">Dikembalikan (${verBadge})</span>`;
           } else if (u.status_tahap === 'MENUNGGU_PLENO') {
-            badgeStatus = '<span class="badge badge-info" style="font-size: 10px;">Valid (Menunggu Pleno)</span>';
+            badgeStatus = `<span class="badge badge-info" style="font-size: 10px;">Valid / Menunggu Pleno (${verBadge})</span>`;
           } else if (u.status_tahap === 'DIAJUKAN') {
-            badgeStatus = '<span class="badge badge-secondary" style="font-size: 10px;">Tahap 1 (Diajukan)</span>';
+            badgeStatus = `<span class="badge badge-secondary" style="font-size: 10px;">Tahap 1 Diajukan (${verBadge})</span>`;
           }
           return `
             <tr>
@@ -8667,16 +8690,17 @@ async function loadTahap4ViewData() {
 
     const btnSubmit = document.getElementById('btn-submit-tahap4-final');
     if (btnSubmit) {
-      if (!isReady && res.pending_subbags && res.pending_subbags.length > 0) {
+      if (!isReady) {
         btnSubmit.disabled = true;
         btnSubmit.className = 'btn btn-secondary';
-        btnSubmit.title = `Belum dapat disahkan: Subbag ${res.pending_subbags.join(', ')} belum mencapai ACC Pleno.`;
-        btnSubmit.innerHTML = `⚠️ Belum Dapat Disahkan (Menunggu ACC: ${escHtml(res.pending_subbags.join(', '))})`;
+        const pendingStr = (res.pending_subbags && res.pending_subbags.length > 0) ? res.pending_subbags.join(', ') : 'Belum ada pengajuan ACC Pleno';
+        btnSubmit.title = `Belum dapat disahkan: ${pendingStr}`;
+        btnSubmit.innerHTML = `⚠️ Belum Dapat Disahkan (${escHtml(pendingStr)})`;
       } else {
         btnSubmit.disabled = false;
         btnSubmit.className = 'btn btn-success';
         btnSubmit.title = '';
-        btnSubmit.innerHTML = '🔒 Kunci RKB Draf Keseluruhan &amp; Sahkan BA Pleno (Tahap 4)';
+        btnSubmit.innerHTML = '🔒 Kunci RKB Keseluruhan &amp; Sahkan BA Pleno (Tahap 4)';
       }
     }
   } catch (err) {
@@ -8688,9 +8712,14 @@ async function loadTahap4ViewData() {
 }
 
 async function submitPengesahanTahap4Keseluruhan() {
+  const fasePerencanaan = document.getElementById('tahap4-input-fase')?.value || 'PRA_NPHD';
+  const dasarPengesahan = document.getElementById('tahap4-input-dasar-pengesahan')?.value || 'BA Pleno Komisioner';
   const noBa = document.getElementById('tahap4-input-nomor-ba')?.value?.trim();
   const tglBa = document.getElementById('tahap4-input-tanggal-ba')?.value;
   const linkBa = document.getElementById('tahap4-input-link-ba')?.value?.trim();
+  const linkRkbFinal = document.getElementById('tahap4-input-link-rkb-final')?.value?.trim();
+  const linkKakGabungan = document.getElementById('tahap4-input-link-kak-gabungan')?.value?.trim();
+  const checkVerifikasi = document.getElementById('tahap4-check-verifikasi');
   const catatan = document.getElementById('tahap4-input-catatan')?.value?.trim();
 
   if (!noBa || !tglBa) {
@@ -8699,15 +8728,31 @@ async function submitPengesahanTahap4Keseluruhan() {
   }
 
   if (!linkBa) {
-    alert('Tautan berkas scan Berita Acara Pleno (BA Pleno) yang telah ditandatangani Ketua & Anggota Komisioner wajib dilampirkan.');
+    alert('Tautan Google Drive Berita Acara Pleno (BA Pleno) bertanda tangan wajib dilampirkan.');
     return;
   }
 
-  const confirmMsg = `PERINGATAN PENGESAHAN DOKUMEN TAHAP 4 (SAKTI):\n\n` +
-    `Anda akan MENGUNCI RESMI RKB Draf secara keseluruhan berlandaskan Berita Acara Pleno:\n` +
-    `Nomor: ${noBa}\n` +
-    `Tanggal: ${tglBa}\n\n` +
-    `Dokumen RKB draf saat ini akan dikunci permanen menjadi Arsip Revisi Terkunci, dan sistem akan otomatis melahirkan Draf RKB Versi Baru.\n\n` +
+  if (!linkRkbFinal) {
+    alert('Tautan Google Drive RKB Final bertanda tangan wajib dilampirkan.');
+    return;
+  }
+
+  if (!linkKakGabungan) {
+    alert('Tautan Google Drive KAK Gabungan wajib dilampirkan.');
+    return;
+  }
+
+  if (!checkVerifikasi || !checkVerifikasi.checked) {
+    alert('Harap beri tanda centang pada verifikasi manual sebelum mengesahkan dan mengunci RKB Tahap 4.');
+    return;
+  }
+
+  const confirmMsg = `PERINGATAN PENGESAHAN DOKUMEN TAHAP 4:\n\n` +
+    `Anda akan MENGUNCI RESMI RKB siklus ini secara keseluruhan:\n` +
+    `- Fase Perencanaan: ${fasePerencanaan}\n` +
+    `- Dasar Pengesahan: ${dasarPengesahan}\n` +
+    `- Nomor BA Pleno: ${noBa} (${tglBa})\n\n` +
+    `Dokumen RKB saat ini akan dikunci permanen menjadi Baseline Sah berikutnya.\n\n` +
     `Apakah Anda yakin ingin melanjutkan pengesahan?`;
 
   if (!confirm(confirmMsg)) return;
@@ -8715,7 +8760,7 @@ async function submitPengesahanTahap4Keseluruhan() {
   const btnSubmit = document.getElementById('btn-submit-tahap4-final');
   if (btnSubmit) {
     btnSubmit.disabled = true;
-    btnSubmit.textContent = '🔒 Mengunci RKB Draf & Menyahkan Dokumen...';
+    btnSubmit.textContent = '🔒 Mengunci RKB & Mengesahkan Dokumen...';
   }
 
   try {
@@ -8725,11 +8770,17 @@ async function submitPengesahanTahap4Keseluruhan() {
         nomor_ba: noBa,
         tanggal_ba: tglBa,
         link_scan_ba: linkBa,
+        rkb_final_link: linkRkbFinal,
+        kak_gabungan_link: linkKakGabungan,
+        fase_perencanaan: fasePerencanaan,
+        dasar_pengesahan: dasarPengesahan,
+        verifikasi_manual: true,
+        strict_tahap4: true,
         catatan
       })
     });
 
-    showToast(res.message || 'RKB Draf berhasil dikunci secara keseluruhan dengan BA Pleno!', 'success');
+    showToast(res.message || 'RKB Siklus berhasil dikunci secara keseluruhan dengan BA Pleno!', 'success');
 
     // Reload periodes dan RKB dataset
     await loadPeriodes();
@@ -8743,7 +8794,7 @@ async function submitPengesahanTahap4Keseluruhan() {
   } finally {
     if (btnSubmit) {
       btnSubmit.disabled = false;
-      btnSubmit.textContent = '🔒 Kunci RKB Draf Keseluruhan & Sahkan BA Pleno (Tahap 4)';
+      btnSubmit.textContent = '🔒 Kunci RKB Keseluruhan & Sahkan BA Pleno (Tahap 4)';
     }
   }
 }
@@ -8767,51 +8818,108 @@ async function loadRevisiArsipTable() {
       return;
     }
 
-    tableBody.innerHTML = list.map(item => `
-      <tr>
-        <td class="text-center" style="font-weight: 700; color: #64748b;">${item.thang}</td>
-        <td style="font-family: var(--font-mono); font-size: 11.5px; color: #1e40af;">${escHtml(item.kode_satker)}</td>
-        <td>
-          <div style="font-weight: 700; color: #0f172a;">${escHtml(item.deskripsi)}</div>
-          <div style="font-size: 11px; color: #64748b;">${escHtml(item.catatan_revisi || 'Dokumen resmi')}</div>
-        </td>
-        <td class="text-center">
-          <span class="badge badge-primary" style="font-size: 11px;">Rev ${item.revisi_ke}</span>
-        </td>
-        <td class="text-center">
-          <span class="badge badge-success" style="font-size: 11px; padding: 4px 8px;">
-            🔒 ${escHtml(item.status_label || 'TERKUNCI')}
-          </span>
-        </td>
-        <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e40af;">
-          ${formatRupiah(item.total_anggaran || 0)}
-        </td>
-        <td class="text-center" style="font-size: 12px; color: #475569;">
-          ${escHtml(item.tanggal_revisi || '-')}
-        </td>
-        <td class="text-center" style="font-size: 12px; font-weight: 600; color: #15803d;">
-          ${escHtml(item.tanggal_penetapan || '-')}
-        </td>
-        <td>
-          <div style="font-size: 11.5px; font-weight: 600; color: #1e293b;">${escHtml(item.dasar_pengesahan)}</div>
-          <div style="font-size: 11px; color: #64748b;">No: ${escHtml(item.nomor_ba_tapd)}</div>
-        </td>
-        <td class="text-center">
-          <div style="display: flex; gap: 4px; justify-content: center;">
-            <button class="btn btn-outline-primary btn-xs" onclick="bukaArsipKertasKerja(${item.id})" title="Buka Kertas Kerja RKB Versi Ini (Read-Only)">
-              📖 Buka
-            </button>
-            <button class="btn btn-outline btn-xs" onclick="downloadArsipExcel(${item.id})" title="Unduh Arsip Excel">
-              📥 Excel
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
+    const user = AppState.currentUser;
+    const canCorrectLinks = user && (
+      user.level === 0 ||
+      (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin' || user.role_id === 'perencanaan'))
+    );
+
+    tableBody.innerHTML = list.map(item => {
+      const linksHtml = [
+        item.gdrive_link_pleno ? `<a href="${escHtml(item.gdrive_link_pleno)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#2563eb; text-decoration:none; font-weight:600;">📄 BA Pleno</a>` : '',
+        item.rkb_final_link ? `<a href="${escHtml(item.rkb_final_link)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#15803d; text-decoration:none; font-weight:600;">📊 RKB Final</a>` : '',
+        item.kak_gabungan_link ? `<a href="${escHtml(item.kak_gabungan_link)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#7c3aed; text-decoration:none; font-weight:600;">📑 KAK Gabungan</a>` : ''
+      ].filter(Boolean).join(' &bull; ');
+
+      return `
+        <tr>
+          <td class="text-center" style="font-weight: 700; color: #64748b;">${item.thang || 2029}</td>
+          <td style="font-family: var(--font-mono); font-size: 11.5px; color: #1e40af;">${escHtml(item.kode_satker || '657811')}</td>
+          <td>
+            <div style="font-weight: 700; color: #0f172a;">${escHtml(item.deskripsi || item.nama_periode)}</div>
+            <div style="font-size: 11px; color: #64748b;">${escHtml(item.catatan_revisi || 'Dokumen resmi')}</div>
+            ${linksHtml ? `<div style="margin-top: 3px;">${linksHtml}</div>` : ''}
+          </td>
+          <td class="text-center">
+            <span class="badge badge-primary" style="font-size: 11px;">Rev ${item.revisi_ke ?? 0}</span>
+            <div style="margin-top: 3px;"><span class="badge badge-info" style="font-size: 9.5px;">${escHtml(item.fase_perencanaan || item.tahap_revisi || 'PRA_NPHD')}</span></div>
+          </td>
+          <td class="text-center">
+            <span class="badge badge-success" style="font-size: 11px; padding: 4px 8px;">
+              🔒 ${escHtml(item.status_label || 'TERKUNCI')}
+            </span>
+          </td>
+          <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e40af;">
+            ${formatRupiah(item.total_anggaran || 0)}
+          </td>
+          <td class="text-center" style="font-size: 12px; color: #475569;">
+            ${escHtml(item.tanggal_revisi || '-')}
+          </td>
+          <td class="text-center" style="font-size: 12px; font-weight: 600; color: #15803d;">
+            ${escHtml(item.tanggal_penetapan || '-')}
+          </td>
+          <td>
+            <div style="font-size: 11.5px; font-weight: 600; color: #1e293b;">${escHtml(item.dasar_pengesahan || 'BA Pleno Komisioner')}</div>
+            <div style="font-size: 11px; color: #64748b;">No: ${escHtml(item.nomor_ba_tapd || '-')}</div>
+          </td>
+          <td class="text-center">
+            <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
+              <button class="btn btn-outline-primary btn-xs" onclick="bukaArsipKertasKerja(${item.id})" title="Buka Kertas Kerja RKB Versi Ini (Read-Only)">
+                📖 Buka
+              </button>
+              <button class="btn btn-outline btn-xs" onclick="downloadArsipExcel(${item.id})" title="Unduh Arsip Excel">
+                📥 Excel
+              </button>
+              ${canCorrectLinks ? `
+                <button class="btn btn-outline btn-xs" onclick="openKoreksiTautanPascaPengesahan(${item.id})" title="Koreksi Tautan Dokumen Pasca-Pengesahan (Khusus Kasubag Rendatin)">
+                  🔗 Tautan
+                </button>
+              ` : ''}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
   } catch (err) {
     console.warn('Gagal memuat arsip revisi:', err);
     tableBody.innerHTML = `<tr><td colspan="10" class="text-center text-danger" style="padding: 24px;">Gagal memuat arsip: ${escHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function openKoreksiTautanPascaPengesahan(periodeId) {
+  try {
+    const res = await apiFetch('/api/revisi/arsip');
+    const item = (res.data || []).find(a => Number(a.id) === Number(periodeId));
+    if (!item) {
+      alert('Data arsip tidak ditemukan.');
+      return;
+    }
+
+    const newBa = prompt('1. Koreksi Tautan Google Drive BA Pleno Bertanda Tangan:', item.gdrive_link_pleno || '');
+    if (newBa === null) return;
+    const newRkb = prompt('2. Koreksi Tautan Google Drive RKB Final Bertanda Tangan:', item.rkb_final_link || '');
+    if (newRkb === null) return;
+    const newKak = prompt('3. Koreksi Tautan Google Drive KAK Gabungan:', item.kak_gabungan_link || '');
+    if (newKak === null) return;
+    const catatan = prompt('Alasan / Catatan Koreksi Tautan (Wajib untuk Audit Log):', 'Perbaikan tautan Google Drive dokumen arsip pasca-pengesahan');
+    if (catatan === null) return;
+
+    const saveRes = await apiFetch(`/api/periodes/${periodeId}/koreksi-tautan`, {
+      method: 'POST',
+      body: JSON.stringify({
+        gdrive_link_pleno: newBa.trim(),
+        rkb_final_link: newRkb.trim(),
+        kak_gabungan_link: newKak.trim(),
+        catatan: catatan.trim()
+      })
+    });
+
+    showToast(saveRes.message || 'Tautan dokumen arsip berhasil diperbarui.', 'success');
+    await loadRevisiArsipTable();
+    await loadPeriodes();
+  } catch (err) {
+    alert('Gagal memperbarui tautan pasca-pengesahan: ' + err.message);
   }
 }
 
@@ -8853,6 +8961,7 @@ window.quickRejectTahap2 = quickRejectTahap2;
 window.loadTahap4ViewData = loadTahap4ViewData;
 window.submitPengesahanTahap4Keseluruhan = submitPengesahanTahap4Keseluruhan;
 window.loadRevisiArsipTable = loadRevisiArsipTable;
+window.openKoreksiTautanPascaPengesahan = openKoreksiTautanPascaPengesahan;
 window.bukaArsipKertasKerja = bukaArsipKertasKerja;
 window.downloadArsipExcel = downloadArsipExcel;
 
