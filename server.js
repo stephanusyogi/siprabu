@@ -106,7 +106,7 @@ const {
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset } = require('./src/calculation');
-const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle } = require('./src/auth');
+const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers } = require('./src/auth');
 const { 
   exportRkbToExcelBuffer, 
   exportSbmToExcelBuffer, 
@@ -532,8 +532,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/users' && method === 'POST') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      if (currentUser.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan pengguna hanya diizinkan untuk Akun Developer dan Tim Perencanaan (Level 1).' });
+      if (!canManageUsers(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan pengguna hanya diizinkan untuk Akun Developer dan Kasubbag Perencanaan.' });
       }
 
       const body = await parseJsonBody(req);
@@ -563,8 +563,8 @@ const server = http.createServer(async (req, res) => {
     if (delUserMatch && method === 'DELETE') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      if (currentUser.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Penghapusan pengguna hanya diizinkan untuk Akun Developer dan Tim Perencanaan.' });
+      if (!canManageUsers(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Penghapusan pengguna hanya diizinkan untuk Akun Developer dan Kasubbag Perencanaan.' });
       }
 
       const targetId = Number(delUserMatch[1]);
@@ -587,8 +587,8 @@ const server = http.createServer(async (req, res) => {
     if (toggleUserMatch && method === 'POST') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      if (currentUser.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak.' });
+      if (!canManageUsers(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengaktifan pengguna hanya diizinkan untuk Akun Developer dan Kasubbag Perencanaan.' });
       }
 
       const targetId = Number(toggleUserMatch[1]);

@@ -769,16 +769,23 @@ function applyRolePermissionsToUI() {
     folderDb.style.display = (user.level <= 1) ? 'block' : 'none';
   }
 
-  // 3. Akses Menu Manajemen Pengguna: Hanya Level <= 1
+  // 3. Akses Menu Manajemen Pengguna: HANYA Level 0 dan Kasubbag Perencanaan
+  const canAccessUserMgmt = Boolean(
+    user.level === 0 || 
+    user.role_id === 'developer' || 
+    user.username === 'emenje' || 
+    user.username === 'perencanaan' || 
+    (user.level === 1 && user.role_id === 'super_admin')
+  );
   const navUserMgmt = document.getElementById('nav-item-users');
   if (navUserMgmt) {
-    navUserMgmt.style.display = (user.level <= 1) ? 'flex' : 'none';
+    navUserMgmt.style.display = canAccessUserMgmt ? 'flex' : 'none';
   }
 
   // 4. Tombol Tambah Pengguna di view-users
   const btnTambahUser = document.getElementById('btn-tambah-user');
   if (btnTambahUser) {
-    btnTambahUser.style.display = (user.level <= 1) ? 'inline-flex' : 'none';
+    btnTambahUser.style.display = canAccessUserMgmt ? 'inline-flex' : 'none';
   }
 
   // 5. Pembatasan Subbag RKB:
@@ -1287,9 +1294,16 @@ function switchView(viewId, updateHistory = true) {
       return;
     }
 
-    // 3. Guard Manajemen User: Hanya Level <= 1
-    if (viewId === 'view-users' && user.level > 1) {
-      showToast('Akses ditolak: Menu Manajemen Pengguna hanya untuk Tim Perencanaan & Pengembang.', 'warning');
+    // 3. Guard Manajemen User: HANYA Level 0 dan Kasubbag Perencanaan
+    const canAccessUserMgmt = Boolean(
+      user.level === 0 || 
+      user.role_id === 'developer' || 
+      user.username === 'emenje' || 
+      user.username === 'perencanaan' || 
+      (user.level === 1 && user.role_id === 'super_admin')
+    );
+    if (viewId === 'view-users' && !canAccessUserMgmt) {
+      showToast('Akses ditolak: Menu Manajemen Pengguna hanya untuk Akun Developer dan Kasubbag Perencanaan.', 'warning');
       switchView('view-dashboard', updateHistory);
       return;
     }

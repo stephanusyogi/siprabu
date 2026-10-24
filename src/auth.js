@@ -241,6 +241,15 @@ function canManageLifecycle(user) {
 }
 
 /**
+ * Helper izin kelola pengguna: HANYA Level 0 (Developer) dan Kasubbag Perencanaan
+ */
+function canManageUsers(user) {
+  if (!user) return false;
+  if (user.level === 0 || user.is_developer || user.role_id === 'developer' || user.username === 'emenje') return true;
+  return Boolean(user.username === 'perencanaan' || (user.level === 1 && user.role_id === 'super_admin'));
+}
+
+/**
  * Helper validasi kecocokan level, role_id, dan pic_subbag saat simpan pengguna
  */
 function validateUserCoherence(userData, isCreating = false) {
@@ -276,6 +285,7 @@ module.exports = {
   getUserFromReq,
   canEditRow,
   canManageLifecycle,
+  canManageUsers,
   validateUserCoherence,
   normalizePic,
   getSecretKey

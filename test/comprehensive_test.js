@@ -46,7 +46,7 @@ async function runAllTests() {
   const { createBackup, verifyDatabaseIntegrity } = require('../src/backup');
   const { hashPassword, verifyPassword, sanitizeLogData } = require('../src/crypto_util');
   const { parseIndonesianNumber } = require('../src/number_util');
-  const { createToken, verifyToken, canEditRow, canManageLifecycle, validateUserCoherence, getSecretKey } = require('../src/auth');
+  const { createToken, verifyToken, canEditRow, canManageLifecycle, canManageUsers, validateUserCoherence, getSecretKey } = require('../src/auth');
   const {
     db,
     getPeriodeList,
@@ -141,6 +141,12 @@ async function runAllTests() {
   assert(invalidRole.valid === false, 'validateUserCoherence() menolak kombinasi peran yang tidak konsisten (Level 1 tapi role operator).');
   const validRole = validateUserCoherence({ level: 2, role_id: 'operator', pic_subbag: 'TEKNIS' });
   assert(validRole.valid === true, 'validateUserCoherence() menyetujui peran yang konsisten.');
+
+  // Hak Akses Manajemen Pengguna: HANYA Level 0 dan Kasubbag Perencanaan
+  assert(canManageUsers({ level: 0, username: 'emenje', role_id: 'developer' }) === true, 'Level 0 Developer memiliki hak mengelola pengguna.');
+  assert(canManageUsers({ level: 1, username: 'perencanaan', role_id: 'super_admin' }) === true, 'Kasubbag Perencanaan (Level 1) memiliki hak mengelola pengguna.');
+  assert(canManageUsers({ level: 1, username: 'staf_perencanaan', role_id: 'admin_perencanaan' }) === false, 'Staf Perencanaan DITOLAK mengelola pengguna (hanya Kasubbag).');
+  assert(canManageUsers({ level: 2, username: 'teknis', role_id: 'op_teknis' }) === false, 'Level 2 Operator DITOLAK mengelola pengguna.');
 
   // --------------------------------------------------------------------------
   // TEST 7: Backend Authorization on Row Editing (Level 2 Subbag Isolation)
