@@ -6713,9 +6713,21 @@ function renderSettings() {
   setElVal('set-kpa-nip', s.kpa_nip);
   setElVal('set-ppkom-nama', s.ppkom_nama);
   setElVal('set-ppkom-nip', s.ppkom_nip);
-  setElVal('set-bp-nama', s.bendahara_nama);
-  setElVal('set-bp-nip', s.bendahara_nip);
+  setElVal('set-bp-nama', s.bendahara_nama || s.bp_nama);
+  setElVal('set-bp-nip', s.bendahara_nip || s.bp_nip || '19850615 200902 2 013');
   setElVal('set-kota-ttd', s.kota_penandatangan || 'NGAWI');
+
+  // Pejabat Penandatangan Dokumen Perencanaan 5 Divisi/Subbagian (Canon Bab 22)
+  const subbagList = AppState.masters.subbagians || [];
+  ['RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM', 'KUL'].forEach(code => {
+    const sub = subbagList.find(item => String(item.kode).toUpperCase() === code);
+    if (sub) {
+      setElVal(`set-kom-nama-${code}`, sub.komisioner_nama || '');
+      setElVal(`set-kom-jab-${code}`, sub.komisioner_jabatan || '');
+      setElVal(`set-kas-nama-${code}`, sub.kasubag_nama || '');
+      setElVal(`set-kas-nip-${code}`, sub.kasubag_nip || '');
+    }
+  });
 
   // Google OAuth Settings
   setElVal('set-google-client-id', s.google_client_id || '');
@@ -6731,6 +6743,19 @@ function renderSettings() {
 }
 
 async function saveSatkerSettings() {
+  const subbag_signatories = {};
+  ['RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM', 'KUL'].forEach(code => {
+    subbag_signatories[code] = {
+      komisioner_nama: document.getElementById(`set-kom-nama-${code}`)?.value || '',
+      komisioner_jabatan: document.getElementById(`set-kom-jab-${code}`)?.value || '',
+      kasubag_nama: document.getElementById(`set-kas-nama-${code}`)?.value || '',
+      kasubag_nip: document.getElementById(`set-kas-nip-${code}`)?.value || ''
+    };
+  });
+
+  const bpNipVal = document.getElementById('set-bp-nip')?.value || '';
+  const bpNamaVal = document.getElementById('set-bp-nama')?.value || '';
+
   const payload = {
     nama_satker: document.getElementById('set-nama-satker')?.value || '',
     kode_satker: document.getElementById('set-kode-satker')?.value || '',
@@ -6742,12 +6767,15 @@ async function saveSatkerSettings() {
     kpa_nip: document.getElementById('set-kpa-nip')?.value || '',
     ppkom_nama: document.getElementById('set-ppkom-nama')?.value || '',
     ppkom_nip: document.getElementById('set-ppkom-nip')?.value || '',
-    bendahara_nama: document.getElementById('set-bp-nama')?.value || '',
-    bendahara_nip: document.getElementById('set-bp-nip')?.value || '',
+    bendahara_nama: bpNamaVal,
+    bp_nama: bpNamaVal,
+    bendahara_nip: bpNipVal,
+    bp_nip: bpNipVal,
     kota_penandatangan: document.getElementById('set-kota-ttd')?.value || 'NGAWI',
     google_client_id: document.getElementById('set-google-client-id')?.value || '',
     google_auth_enabled: document.getElementById('set-google-auth-enabled')?.value || '0',
-    google_allowed_domains: document.getElementById('set-google-allowed-domains')?.value || 'kpu.go.id, gmail.com'
+    google_allowed_domains: document.getElementById('set-google-allowed-domains')?.value || 'kpu.go.id, gmail.com',
+    subbag_signatories
   };
 
   try {
@@ -7861,14 +7889,20 @@ let monitoringRevisiData = [];
 let monitoringRevisiSearchDebounce = null;
 
 function getKomisionerBySubbag(subbag) {
+  const code = (subbag || '').toUpperCase();
+  const subList = AppState.masters?.subbagians || [];
+  const found = subList.find(item => String(item.kode).toUpperCase() === code);
+  if (found && found.komisioner_nama) {
+    return `${found.komisioner_nama} (${found.komisioner_jabatan || 'Ketua Divisi'})`;
+  }
   const map = {
-    'TEKNIS': 'Anggota KPU Divisi Teknis Penyelenggaraan',
-    'HUKUM': 'Anggota KPU Divisi Hukum & Pengawasan',
-    'PARSDM': 'Anggota KPU Divisi Sosdiklih, Parmas & SDM',
-    'KUL': 'Anggota KPU Divisi Keuangan, Umum & Logistik',
-    'RENDATIN': 'Anggota KPU Divisi Perencanaan, Data & Informasi'
+    'TEKNIS': 'MUHAMMAD PRASETYO NUGROHO (Ketua Divisi Teknis Penyelenggaraan)',
+    'HUKUM': 'SUDARSONO (Ketua Divisi Hukum & Pengawasan)',
+    'PARSDM': 'JEANNI TRIANGGALUH PRAMINTO (Ketua Divisi Sosdiklih, Parmas & SDM)',
+    'KUL': 'SAMSU MUSTAKIM (Ketua Divisi Keuangan, Umum & Logistik)',
+    'RENDATIN': 'PUTRA ADI WIBOWO SW (Ketua Divisi Perencanaan, Data & Informasi)'
   };
-  return map[(subbag || '').toUpperCase()] || 'Anggota KPU Divisi Teknis Penyelenggaraan';
+  return map[code] || 'MUHAMMAD PRASETYO NUGROHO (Ketua Divisi Teknis Penyelenggaraan)';
 }
 
 function handleSubbagInputChange(subbag) {

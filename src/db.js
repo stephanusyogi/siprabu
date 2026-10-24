@@ -622,6 +622,16 @@ function alignOperationalRkbCycles() {
 
     // 6. Sinkronkan kuantitas primer SSOT (termasuk Jalur Parpol & Jalur Perseorangan dari Master Paslon)
     syncPrimaryKuantitas();
+
+    // 7. Pastikan NIP Bendahara Pengeluaran pada settings_satker sinkron dengan bp_nip jika masih kosong
+    try {
+      db.prepare(`
+        UPDATE settings_satker
+        SET value = (SELECT value FROM settings_satker WHERE key = 'bp_nip')
+        WHERE key = 'bendahara_nip' AND (value IS NULL OR value = '')
+          AND EXISTS (SELECT 1 FROM settings_satker WHERE key = 'bp_nip' AND value != '')
+      `).run();
+    } catch (e) {}
   } catch (err) {
     console.warn('[MIGRATION] Peringatan saat menyelaraskan siklus RKB:', err.message);
   }
@@ -2057,10 +2067,34 @@ function getMasters() {
 
 function updateSettings(settingsObj, actorUser = null) {
   const stmt = db.prepare('INSERT OR REPLACE INTO settings_satker (key, value) VALUES (?, ?)');
+  const updSubbag = db.prepare(`
+    UPDATE master_subbagian
+    SET komisioner_nama = COALESCE(?, komisioner_nama),
+        komisioner_jabatan = COALESCE(?, komisioner_jabatan),
+        kasubag_nama = COALESCE(?, kasubag_nama),
+        kasubag_nip = COALESCE(?, kasubag_nip),
+        kasubag_jabatan = COALESCE(?, kasubag_jabatan)
+    WHERE kode = ?
+  `);
   db.exec('BEGIN TRANSACTION');
   try {
     for (const [k, v] of Object.entries(settingsObj)) {
-      stmt.run(k, String(v));
+      if (k === 'subbag_signatories' && v && typeof v === 'object') {
+        for (const [subCode, sig] of Object.entries(v)) {
+          if (sig && typeof sig === 'object') {
+            updSubbag.run(
+              sig.komisioner_nama !== undefined ? String(sig.komisioner_nama).trim() : null,
+              sig.komisioner_jabatan !== undefined ? String(sig.komisioner_jabatan).trim() : null,
+              sig.kasubag_nama !== undefined ? String(sig.kasubag_nama).trim() : null,
+              sig.kasubag_nip !== undefined ? String(sig.kasubag_nip).trim() : null,
+              sig.kasubag_jabatan !== undefined ? String(sig.kasubag_jabatan).trim() : null,
+              String(subCode).toUpperCase()
+            );
+          }
+        }
+      } else {
+        stmt.run(k, String(v));
+      }
     }
     db.exec('COMMIT');
   } catch (err) {
@@ -2077,7 +2111,7 @@ function updateSettings(settingsObj, actorUser = null) {
     user: actorUser,
     action: 'UPDATE_SETTINGS',
     entity: 'settings_satker',
-    notes: 'Pengaturan satker diperbarui.'
+    notes: 'Pengaturan satker & pejabat penandatangan dokumen perencanaan diperbarui.'
   });
 
   return getMasters().settings;
