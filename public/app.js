@@ -41,6 +41,172 @@ const SUBBAG_META = {
 };
 
 // ============================================================================
+// SISTEM ROUTING DINAMIS TERENKRIPSI ALA SAKTI KEMENKEU (43-CHAR TOKENS)
+// ============================================================================
+const SAKTI_VIEW_CODES = {
+  'view-dashboard': 1,
+  'view-rkb': 2,
+  'view-siklus': 3,
+  'view-revisi-pengajuan': 4,
+  'view-revisi-validasi': 5,
+  'view-revisi-tahap4': 6,
+  'view-revisi-monitoring': 7,
+  'view-revisi-arsip': 8,
+  'view-db-ppk': 9,
+  'view-db-pps': 10,
+  'view-db-paslon': 11,
+  'view-db-kuantitas': 12,
+  'view-db-sbm': 13,
+  'view-db-bas': 14,
+  'view-db-regulasi': 15,
+  'view-db-settings': 16,
+  'view-settings': 16,
+  'view-panduan': 17,
+  'view-monitoring': 18,
+  'view-users': 19
+};
+
+const SAKTI_CODE_TO_VIEW = {
+  1: 'view-dashboard',
+  2: 'view-rkb',
+  3: 'view-siklus',
+  4: 'view-revisi-pengajuan',
+  5: 'view-revisi-validasi',
+  6: 'view-revisi-tahap4',
+  7: 'view-revisi-monitoring',
+  8: 'view-revisi-arsip',
+  9: 'view-db-ppk',
+  10: 'view-db-pps',
+  11: 'view-db-paslon',
+  12: 'view-db-kuantitas',
+  13: 'view-db-sbm',
+  14: 'view-db-bas',
+  15: 'view-db-regulasi',
+  16: 'view-db-settings',
+  17: 'view-panduan',
+  18: 'view-monitoring',
+  19: 'view-users'
+};
+
+const SAKTI_VIEW_TITLES = {
+  'view-dashboard': 'Dashboard KPI Eksekutif',
+  'view-rkb': 'RUH Belanja RKB Pilkada',
+  'view-siklus': 'Pusat Siklus & Tata Kelola Anggaran',
+  'view-revisi-pengajuan': 'Pengajuan Usulan Revisi (Tahap 1)',
+  'view-revisi-validasi': 'Validasi & Telaah Usulan Revisi (Tahap 2-3)',
+  'view-revisi-tahap4': 'Pengesahan BA Pleno Revisi (Tahap 4)',
+  'view-revisi-monitoring': 'Monitoring Siklus & Matriks Revisi',
+  'view-revisi-arsip': 'Arsip Digital BA & Dokumen Revisi',
+  'view-db-ppk': 'Master Data PPK',
+  'view-db-pps': 'Master Data PPS',
+  'view-db-paslon': 'Master Data Pasangan Calon',
+  'view-db-kuantitas': 'Master Database Kuantitas',
+  'view-db-sbm': 'Master Standar Biaya Masukan (SBM)',
+  'view-db-bas': 'Master Bagan Akun Standar (BAS)',
+  'view-db-regulasi': 'Database Regulasi & Keputusan KPU',
+  'view-db-settings': 'Pengaturan Sistem & Parameter',
+  'view-settings': 'Pengaturan Sistem & Parameter',
+  'view-panduan': 'Panduan Teknis & Penggunaan',
+  'view-monitoring': 'Executive Real-Time Monitoring',
+  'view-users': 'Manajemen Pengguna & Otoritas'
+};
+
+function bufferToBase64Url(uint8Array) {
+  let binary = '';
+  const len = uint8Array.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  const base64 = (typeof btoa === 'function') ? btoa(binary) : '';
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlToBuffer(base64UrlStr) {
+  let base64 = base64UrlStr.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4 !== 0) {
+    base64 += '=';
+  }
+  if (typeof atob === 'function') {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+  return new Uint8Array(0);
+}
+
+function generateSaktiLoginToken() {
+  const bytes = new Uint8Array(15);
+  if (window.crypto && window.crypto.getRandomValues) {
+    window.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 15; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return 'LL-' + bufferToBase64Url(bytes);
+}
+
+function generateSaktiRouteToken(viewId, isSanding = false) {
+  const code = SAKTI_VIEW_CODES[viewId] || 1;
+  const bytes = new Uint8Array(32);
+  bytes[0] = 0x53; // 'S' Magic Byte
+  bytes[1] = code;
+  bytes[2] = isSanding ? 1 : 0;
+  const nowSec = Math.floor(Date.now() / 1000);
+  bytes[3] = (nowSec >> 24) & 0xff;
+  bytes[4] = (nowSec >> 16) & 0xff;
+  bytes[5] = (nowSec >> 8) & 0xff;
+  bytes[6] = nowSec & 0xff;
+
+  const rand = new Uint8Array(23);
+  if (window.crypto && window.crypto.getRandomValues) {
+    window.crypto.getRandomValues(rand);
+  } else {
+    for (let i = 0; i < 23; i++) rand[i] = Math.floor(Math.random() * 256);
+  }
+  bytes.set(rand, 7);
+
+  let sum1 = 0, sum2 = 0;
+  for (let i = 0; i < 30; i++) {
+    sum1 = (sum1 + bytes[i]) % 255;
+    sum2 = (sum2 + sum1) % 255;
+  }
+  bytes[30] = sum1;
+  bytes[31] = sum2;
+
+  return bufferToBase64Url(bytes);
+}
+
+function parseSaktiRouteToken(tokenPath) {
+  if (!tokenPath) return null;
+  const clean = tokenPath.replace(/^\/+/, '').split('?')[0].split('#')[0];
+  if (!clean) return null;
+  if (clean.startsWith('LL-')) {
+    return { isLogin: true };
+  }
+  if (clean.length !== 43) return null;
+  try {
+    const bytes = base64UrlToBuffer(clean);
+    if (!bytes || bytes.length !== 32) return null;
+    if (bytes[0] !== 0x53) return null;
+    let sum1 = 0, sum2 = 0;
+    for (let i = 0; i < 30; i++) {
+      sum1 = (sum1 + bytes[i]) % 255;
+      sum2 = (sum2 + sum1) % 255;
+    }
+    if (bytes[30] !== sum1 || bytes[31] !== sum2) return null;
+    const viewCode = bytes[1];
+    const isSanding = (bytes[2] & 1) === 1;
+    const viewId = SAKTI_CODE_TO_VIEW[viewCode];
+    if (!viewId) return null;
+    return { viewId, isSanding, isLogin: false };
+  } catch (e) {
+    return null;
+  }
+}
+
+// ============================================================================
 // UTILITIES & DEFENSIVE DOM HELPERS
 // ============================================================================
 
@@ -278,6 +444,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       await loadPeriodes();
       await loadRkbData();
       renderAllViews();
+
+      // Kembalikan rute dari token URL jika ada
+      const parsedRoute = parseSaktiRouteToken(window.location.pathname);
+      let targetViewId = 'view-dashboard';
+      if (parsedRoute && parsedRoute.viewId) {
+        targetViewId = parsedRoute.viewId;
+        if (parsedRoute.isSanding) {
+          AppState.revisionViewMode = 'SANDING';
+          const cb = document.getElementById('chk-revision-sanding');
+          if (cb) cb.checked = true;
+        }
+      }
+      switchView(targetViewId, false);
+
+      // Pastikan URL termutakhirkan dengan token SAKTI yang valid
+      const token = generateSaktiRouteToken(AppState.activeView, AppState.revisionViewMode === 'SANDING');
+      window.history.replaceState({ viewId: AppState.activeView, revisionViewMode: AppState.revisionViewMode }, '', '/' + token);
+      document.title = (SAKTI_VIEW_TITLES[AppState.activeView] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
     }
   } catch (err) {
     console.error('Initialization error:', err);
@@ -310,7 +494,12 @@ async function initAuth() {
     updateUserNavbar();
   } else {
     AppState.currentUser = null;
-    showLoginScreen();
+    // Jika user mencoba membuka link modul tanpa login, simpan untuk redirect setelah login
+    const parsed = parseSaktiRouteToken(window.location.pathname);
+    if (parsed && parsed.viewId) {
+      sessionStorage.setItem('siprabu_redirect_view', parsed.viewId);
+    }
+    showLoginScreen(true);
   }
 }
 
@@ -326,7 +515,7 @@ function isDeveloperSession() {
   );
 }
 
-function showLoginScreen() {
+function showLoginScreen(updateHistory = true) {
   const splash = document.getElementById('app-loading-splash');
   const loginScreen = document.getElementById('login-screen');
   const appLayout = document.getElementById('app');
@@ -345,6 +534,15 @@ function showLoginScreen() {
   if (errBox) errBox.style.display = 'none';
 
   renderGoogleButton();
+
+  if (updateHistory !== false) {
+    const curPath = window.location.pathname.replace(/^\/+/, '');
+    if (!curPath.startsWith('LL-')) {
+      const loginToken = generateSaktiLoginToken();
+      window.history.replaceState({ isLogin: true }, '', '/' + loginToken);
+    }
+    document.title = 'Masuk Sistem | SAKTI Kemenkeu - KPU Ngawi';
+  }
 }
 
 function showMainApp() {
@@ -413,6 +611,9 @@ async function submitScreenLoginForm() {
     await loadPeriodes();
     await loadRkbData();
     renderAllViews();
+    const redirectView = sessionStorage.getItem('siprabu_redirect_view');
+    sessionStorage.removeItem('siprabu_redirect_view');
+    switchView(redirectView || 'view-dashboard', true);
   } catch (err) {
     if (errorBox && errorText) {
       errorText.textContent = err.message || 'Username atau kata sandi tidak sesuai. Silakan coba lagi.';
@@ -437,6 +638,9 @@ async function quickDeveloperLogin() {
     await loadPeriodes();
     await loadRkbData();
     renderAllViews();
+    const redirectView = sessionStorage.getItem('siprabu_redirect_view');
+    sessionStorage.removeItem('siprabu_redirect_view');
+    switchView(redirectView || 'view-dashboard', true);
   } catch (err) {
     if (errorBox && errorText) {
       errorText.textContent = err.message || 'Gagal masuk akun pengembang.';
@@ -677,10 +881,11 @@ function logout() {
 
   localStorage.removeItem('siprabu_token');
   sessionStorage.removeItem('siprabu_is_developer_origin');
+  sessionStorage.removeItem('siprabu_redirect_view');
   AppState.currentUser = null;
   AppState.rkbData = null;
   AppState.currentPeriode = null;
-  showLoginScreen();
+  showLoginScreen(true);
   showToast('Anda telah berhasil keluar dari sistem.', 'info');
 }
 
@@ -802,6 +1007,9 @@ async function handleGoogleSignInCallback(response) {
       await loadPeriodes();
       await loadRkbData();
       renderAllViews();
+      const redirectView = sessionStorage.getItem('siprabu_redirect_view');
+      sessionStorage.removeItem('siprabu_redirect_view');
+      switchView(redirectView || 'view-dashboard', true);
     } else {
       const errBox = document.getElementById('login-screen-error');
       const errText = document.getElementById('login-screen-error-text');
@@ -1057,7 +1265,7 @@ function startServerClockTicker() {
   setInterval(updateClock, 1000);
 }
 
-function switchView(viewId) {
+function switchView(viewId, updateHistory = true) {
   const user = AppState.currentUser;
   if (user) {
     // 1. Guard Pusat Siklus: Hanya Level <= 1, Sekretaris KPU, dan Divisi Rendatin
@@ -1067,7 +1275,7 @@ function switchView(viewId) {
 
     if (viewId === 'view-siklus' && !canAccessSiklus) {
       showToast('Akses ditolak: Menu Pusat Siklus & Revisi hanya dapat diakses oleh Tim Perencanaan, Sekretaris KPU, dan Divisi Rendatin.', 'warning');
-      switchView('view-dashboard');
+      switchView('view-dashboard', updateHistory);
       return;
     }
 
@@ -1075,14 +1283,14 @@ function switchView(viewId) {
     const isMasterDbView = ['view-db-ppk', 'view-db-pps', 'view-db-paslon', 'view-db-settings', 'view-settings'].includes(viewId);
     if (isMasterDbView && user.level > 1) {
       showToast('Akses ditolak: Menu Master Database hanya untuk Tim Perencanaan & Pengembang.', 'warning');
-      switchView('view-dashboard');
+      switchView('view-dashboard', updateHistory);
       return;
     }
 
     // 3. Guard Manajemen User: Hanya Level <= 1
     if (viewId === 'view-users' && user.level > 1) {
       showToast('Akses ditolak: Menu Manajemen Pengguna hanya untuk Tim Perencanaan & Pengembang.', 'warning');
-      switchView('view-dashboard');
+      switchView('view-dashboard', updateHistory);
       return;
     }
 
@@ -1090,19 +1298,19 @@ function switchView(viewId) {
     // a. Pengajuan Usulan Revisi: HANYA untuk PIC Subbag (Level 2)
     if (viewId === 'view-revisi-pengajuan' && user.level !== 2) {
       showToast('Akses dibatasi: Form Pengajuan Usulan Revisi hanya untuk Akun PIC Subbag (Level 2). Anda dialihkan ke Validasi Revisi.', 'info');
-      switchView('view-revisi-validasi');
+      switchView('view-revisi-validasi', updateHistory);
       return;
     }
     // b. Validasi Revisi: HANYA untuk Tim Rendatin (Level <= 1) & Developer
     if (viewId === 'view-revisi-validasi' && user.level > 1 && user.role_id !== 'sekretaris' && user.role_id !== 'developer') {
       showToast('Akses ditolak: Menu Validasi Revisi khusus untuk Tim Rendatin (Level 1).', 'warning');
-      switchView('view-revisi-monitoring');
+      switchView('view-revisi-monitoring', updateHistory);
       return;
     }
     // c. Pengesahan BA Pleno (Tahap 4): HANYA untuk Tim Rendatin (Level <= 1), Sekretaris KPU, & Developer
     if (viewId === 'view-revisi-tahap4' && user.level > 1 && user.role_id !== 'sekretaris' && user.role_id !== 'developer') {
       showToast('Akses ditolak: Pengesahan BA Pleno (Tahap 4) khusus untuk Tim Rendatin (Level 1) & Sekretaris KPU.', 'warning');
-      switchView('view-revisi-monitoring');
+      switchView('view-revisi-monitoring', updateHistory);
       return;
     }
   }
@@ -1120,6 +1328,13 @@ function switchView(viewId) {
 
   const targetView = document.getElementById(viewId);
   if (targetView) targetView.classList.add('active');
+
+  // Perbarui Riwayat URL Browser & Judul Layar SAKTI Kemenkeu
+  if (updateHistory !== false) {
+    const routeToken = generateSaktiRouteToken(viewId, AppState.revisionViewMode === 'SANDING');
+    window.history.pushState({ viewId, revisionViewMode: AppState.revisionViewMode }, '', '/' + routeToken);
+  }
+  document.title = (SAKTI_VIEW_TITLES[viewId] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
 
   if (viewId === 'view-dashboard') {
     // ATURAN BARU: Masuk ke dashboard SELALU beralih dan mengambil data draft aktif
@@ -2020,6 +2235,10 @@ function isNodeExpanded(treeId) {
 
 function toggleRevisionSandingMode(checked) {
   AppState.revisionViewMode = checked ? 'SANDING' : 'STANDARD';
+  if (AppState.activeView === 'view-rkb') {
+    const token = generateSaktiRouteToken('view-rkb', checked);
+    window.history.replaceState({ viewId: 'view-rkb', revisionViewMode: AppState.revisionViewMode }, '', '/' + token);
+  }
   renderRkbTable();
 }
 
@@ -8247,4 +8466,43 @@ window.submitScreenLoginForm = submitScreenLoginForm;
 window.quickDeveloperLogin = quickDeveloperLogin;
 window.isDeveloperSession = isDeveloperSession;
 window.logout = logout;
+window.switchView = switchView;
+window.generateSaktiRouteToken = generateSaktiRouteToken;
+window.generateSaktiLoginToken = generateSaktiLoginToken;
+window.parseSaktiRouteToken = parseSaktiRouteToken;
+window.SAKTI_VIEW_TITLES = SAKTI_VIEW_TITLES;
+
+// ============================================================================
+// POPSTATE LISTENER: DUKUNGAN NAVIGASI BROWSER (BACK / FORWARD) ALA SAKTI
+// ============================================================================
+window.addEventListener('popstate', (event) => {
+  if (!AppState.currentUser) {
+    showLoginScreen(false);
+    return;
+  }
+  if (event.state && event.state.viewId) {
+    if (event.state.revisionViewMode) {
+      AppState.revisionViewMode = event.state.revisionViewMode;
+      const cb = document.getElementById('chk-revision-sanding');
+      if (cb) cb.checked = (event.state.revisionViewMode === 'SANDING');
+    }
+    switchView(event.state.viewId, false);
+    document.title = (SAKTI_VIEW_TITLES[event.state.viewId] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
+  } else {
+    const parsed = parseSaktiRouteToken(window.location.pathname);
+    if (parsed && parsed.viewId) {
+      if (parsed.isSanding) {
+        AppState.revisionViewMode = 'SANDING';
+        const cb = document.getElementById('chk-revision-sanding');
+        if (cb) cb.checked = true;
+      }
+      switchView(parsed.viewId, false);
+      document.title = (SAKTI_VIEW_TITLES[parsed.viewId] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
+    } else {
+      switchView('view-dashboard', false);
+      document.title = (SAKTI_VIEW_TITLES['view-dashboard'] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
+    }
+  }
+});
+
 

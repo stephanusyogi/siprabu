@@ -414,9 +414,38 @@ async function runAllTests() {
   assert(typeof nonZeroGrandTotal === 'number' && nonZeroGrandTotal > 0, 'Summary kalkulasi mengembalikan grandTotal yang valid dan non-zero.');
 
   // --------------------------------------------------------------------------
-  // TEST 22: Clean Database Teardown & Production Isolation
+  // TEST 22: SAKTI-Style Encrypted Route Tokens
   // --------------------------------------------------------------------------
-  console.log('\n--- KELOMPOK 10: ISOLASI DATABASE & KEBERSIHAN ---');
+  console.log('\n--- KELOMPOK 10: SISTEM ROUTING DINAMIS TERENKRIPSI ALA SAKTI ---');
+  const {
+    SAKTI_VIEW_CODES,
+    SAKTI_CODE_TO_VIEW,
+    generateSaktiLoginToken,
+    generateSaktiRouteToken,
+    parseSaktiRouteToken
+  } = require('../src/route_token');
+
+  const rkbToken = generateSaktiRouteToken('view-rkb', true);
+  assert(typeof rkbToken === 'string' && rkbToken.length === 43, 'generateSaktiRouteToken menghasilkan string URL-safe tepat 43 karakter.');
+  const parsedRkb = parseSaktiRouteToken(rkbToken);
+  assert(parsedRkb && parsedRkb.viewId === 'view-rkb' && parsedRkb.isSanding === true, 'parseSaktiRouteToken berhasil mendekode viewId dan flag mode sanding.');
+
+  const dashToken = generateSaktiRouteToken('view-dashboard', false);
+  const parsedDash = parseSaktiRouteToken(dashToken);
+  assert(parsedDash && parsedDash.viewId === 'view-dashboard' && parsedDash.isSanding === false, 'Token dashboard berhasil didekode dengan flag sanding false.');
+
+  const loginToken = generateSaktiLoginToken();
+  assert(loginToken.startsWith('LL-') && loginToken.length >= 22, 'Token login SAKTI menggunakan prefix LL- dan karakter acak.');
+  const parsedLogin = parseSaktiRouteToken(loginToken);
+  assert(parsedLogin && parsedLogin.isLogin === true, 'Token login dikenali secara sah sebagai rute autentikasi.');
+
+  const tamperedToken = rkbToken.slice(0, 42) + (rkbToken[42] === 'A' ? 'B' : 'A');
+  assert(parseSaktiRouteToken(tamperedToken) === null, 'Token yang diubah / checksum tidak valid ditolak tegas (return null).');
+
+  // --------------------------------------------------------------------------
+  // TEST 23: Clean Database Teardown & Production Isolation
+  // --------------------------------------------------------------------------
+  console.log('\n--- KELOMPOK 11: ISOLASI DATABASE & KEBERSIHAN ---');
   const prodCheck = verifyDatabaseIntegrity(PROD_DB_PATH);
   assert(prodCheck.integrity === 'ok', 'Database produksi tetap utuh dan berstatus valid tanpa terganggu selama pengujian.');
 

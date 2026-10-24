@@ -264,7 +264,12 @@ function serveStatic(req, res, pathname) {
     // Fallback to index.html for Single Page App navigation
     const indexPath = path.join(PUBLIC_DIR, 'index.html');
     if (fs.existsSync(indexPath)) {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
       return fs.createReadStream(indexPath).pipe(res);
     }
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
