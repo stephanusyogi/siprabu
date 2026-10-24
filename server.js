@@ -102,11 +102,12 @@ const {
   getActiveRevisionCycle,
   getOrCreateRevisionCycle,
   getRevisionCycleStatus,
-  getRevisiPengajuanHistory
+  getRevisiPengajuanHistory,
+  recordAuditLog
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset } = require('./src/calculation');
-const { createToken, verifyToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser } = require('./src/auth');
+const { createToken, verifyToken, revokeToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser } = require('./src/auth');
 const { 
   exportRkbToExcelBuffer, 
   exportSbmToExcelBuffer, 
@@ -487,14 +488,32 @@ const server = http.createServer(async (req, res) => {
       const targetUser = db.prepare('SELECT * FROM satker_users WHERE username = ? AND is_active = 1').get(username);
       if (!targetUser) return sendJson(res, 404, { error: 'Pengguna target tidak ditemukan atau dinonaktifkan.' });
 
-      // Tetap sematkan is_developer: true dan simpan identitas asal developer
+      // Tetap sematkan is_developer: true dan simpan identitas asal developer (tidak memperpanjang batas waktu mutlak 8 jam)
       const originalDevId = currentUser.original_dev_id || currentUser.id;
+      const originalDevUsername = currentUser.original_dev_username || (currentUser.level === 0 ? currentUser.username : 'emenje');
       const token = createToken({
         ...targetUser,
         is_developer: true,
         original_dev_id: originalDevId,
+        original_dev_username: originalDevUsername,
         dev_token_version: currentUser.dev_token_version || currentUser.token_version
+      }, null, {
+        preserveIat: currentUser.iat,
+        preserveExp: currentUser.exp,
+        preserveSid: currentUser.sid
       });
+
+      recordAuditLog({
+        user_id: targetUser.id,
+        username: targetUser.username,
+        role_id: targetUser.role_id,
+        action: 'SWITCH_ROLE_SIMULATION',
+        target_type: 'satker_users',
+        target_id: targetUser.id,
+        notes: `Developer (${originalDevUsername}) beralih simulasi peran ke ${targetUser.username} (Level ${targetUser.level} - ${targetUser.jabatan})`,
+        user: { ...targetUser, is_developer: true, original_dev_id: originalDevId, original_dev_username: originalDevUsername }
+      });
+
       return sendJson(res, 200, {
         success: true,
         token,
@@ -508,9 +527,34 @@ const server = http.createServer(async (req, res) => {
           pic_subbag: targetUser.pic_subbag,
           email: targetUser.email || '',
           avatar_url: targetUser.avatar_url || '',
-          is_developer: true
+          is_developer: true,
+          original_dev_id: originalDevId,
+          original_dev_username: originalDevUsername
         }
       });
+    }
+
+    // 1d. POST /api/logout (Pencabutan Sesi Server-Side - Bab 12 & FR-15)
+    if (pathname === '/api/logout' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
+      const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (rawToken) {
+        revokeToken(rawToken);
+      }
+      if (currentUser) {
+        recordAuditLog({
+          user_id: currentUser.id,
+          username: currentUser.username,
+          role_id: currentUser.role_id,
+          action: 'LOGOUT',
+          target_type: 'session',
+          target_id: currentUser.id,
+          notes: `Sesi pengguna diakhiri (Logout manual / Timeout inaktivitas)`,
+          user: currentUser
+        });
+      }
+      return sendJson(res, 200, { success: true, message: 'Sesi berhasil diakhiri.' });
     }
 
     // 2. ME / PROFIL USER AKTIF
@@ -808,7 +852,7 @@ const server = http.createServer(async (req, res) => {
       if (Number(periode.is_locked) === 1) return sendJson(res, 403, { error: 'Dokumen berstatus terkunci.' });
 
       // Operator tidak boleh memindahkan PIC / Subbagian
-      if (user.level > 1 && !user.is_developer) {
+      if (user.level > 1) {
         return sendJson(res, 403, { error: 'Akses ditolak. Operator tidak berwenang memindahkan PIC / Subbagian.' });
       }
 
@@ -1317,14 +1361,14 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 403, { error: `Akses ditolak. Anda login sebagai PIC ${user.pic_subbag}, tidak berwenang mengedit baris PIC ${storedRow.pic_bagian || '-'}.` });
         }
         // Operator tidak boleh memindahkan PIC baris
-        if (user.level > 1 && !user.is_developer && row.pic_bagian && row.pic_bagian !== user.pic_subbag) {
+        if (user.level > 1 && row.pic_bagian && row.pic_bagian !== user.pic_subbag) {
           return sendJson(res, 403, { error: 'Akses ditolak. Operator tidak berwenang memindahkan PIC ke subbagian lain.' });
         }
       } else {
         if (periode.is_locked) {
           return sendJson(res, 403, { error: 'Dokumen RKB ini berstatus TERKUNCI (NPHD Sah).' });
         }
-        if (user.level > 1 && !user.is_developer) {
+        if (user.level > 1) {
           row.pic_bagian = user.pic_subbag;
         }
       }
@@ -1768,8 +1812,15 @@ const server = http.createServer(async (req, res) => {
       if (!body.nama_file) {
         return sendJson(res, 400, { error: 'Nama file unduhan wajib disertakan.' });
       }
+      if (currentUser.level === 2 && body.tipe_unduhan === 'ZIP_SUBBAGIAN') {
+        return sendJson(res, 403, { error: 'Akses ditolak. Paket ZIP 5 Subbagian hanya dapat diunduh oleh Tim Perencanaan, Komisioner, atau Pengembang.' });
+      }
+      if (currentUser.level === 2 && currentUser.pic_subbag && currentUser.pic_subbag !== 'SEMUA') {
+        body.filter_pic = currentUser.pic_subbag;
+      }
       body.user_id = currentUser.id;
       body.username = currentUser.username;
+      body.user = currentUser;
 
       const job = createDownloadRequest(body);
       // Jalankan worker secara asinkron di latar belakang
@@ -1792,9 +1843,9 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Anda hanya berhak mengunduh berkas permintaan Anda sendiri.' });
       }
 
-      if (job.status === 'KADALUARSA') {
+      if (job.status === 'KADALUARSA' || (job.expires_at && new Date(job.expires_at) < new Date())) {
         cleanupExpiredDownloads();
-        return sendJson(res, 410, { error: 'Berkas unduhan telah kadaluarsa dan riwayat terhapus otomatis.' });
+        return sendJson(res, 410, { error: 'Berkas unduhan telah kedaluwarsa (> 1 jam). Riwayat unduhan tetap tercatat untuk audit.' });
       }
 
       if (job.status !== 'SELESAI' || !job.file_path || !fs.existsSync(job.file_path)) {
@@ -1863,7 +1914,7 @@ const server = http.createServer(async (req, res) => {
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu untuk mengunduh laporan.' });
 
       // Tolak Operator Level 2 agar tidak mengekspor paket ZIP seluruh subbagian
-      if (user.level === 2 && !user.is_developer) {
+      if (user.level === 2) {
         return sendJson(res, 403, { error: 'Akses ditolak. Paket ZIP 5 Subbagian hanya dapat diunduh oleh Tim Perencanaan, Komisioner, atau Pengembang.' });
       }
 

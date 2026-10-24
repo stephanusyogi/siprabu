@@ -2035,7 +2035,7 @@
           <div class="view-header">
             <div>
               <h2 class="view-title">Monitoring Report</h2>
-              <p class="view-desc">Pemantauan Status Pemrosesan dan Pengunduhan Berkas Laporan Anggaran (Adopsi Sistem SAKTI Kemenkeu).</p>
+              <p class="view-desc">Pemantauan Status Pemrosesan dan Pengunduhan Berkas Laporan Anggaran (Adopsi Sistem SAKTI Kemenkeu). Berkas fisik tersedia selama 1 jam sejak selesai dibuat, sedangkan riwayat unduhan tetap tercatat untuk keperluan audit.</p>
             </div>
           </div>
 
@@ -3418,17 +3418,20 @@
           <button class="btn-close" onclick="closeExportModal()">✕</button>
         </div>
         <div class="modal-body" style="padding: 16px;">
-          <!-- Penjelasan 4 Sheet Standar -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 11.5px; color: #334155;">
+          <!-- Penjelasan Sheet Standar (7 Sheet Satker / 2 Sheet Subbagian) -->
+          <div id="export-sheet-composition-box" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 11.5px; color: #334155;">
             <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-              <span>📑 Format Berkas Multi-Sheet Resmi KPU:</span>
+              <span>📑 Format Berkas Multi-Sheet Resmi KPU (7 Sheet Satker Penuh):</span>
             </div>
-            <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-              <li><strong>Sheet 1 (RUH_Belanja_Resmi):</strong> Format cetak baku resmi KPU &amp; SAKTI (Penandatangan: <em>Ketua KPU</em>).</li>
+            <ul style="margin: 0; padding-left: 18px; line-height: 1.55;">
+              <li><strong>Sheet 1 (RUH_Belanja_Resmi):</strong> Format cetak baku resmi KPU &amp; SAKTI.</li>
               <li><strong>Sheet 2 (Data_Kertas_Kerja):</strong> Tabel data datar (flat) lengkap untuk analisis spreadsheet / pivot.</li>
-              <li><strong>Sheet 3 (Matriks_Revisi):</strong> Rincian belanja yang terevisi lengkap dengan rute hierarki utamanya.</li>
-              <li><strong>Sheet 4 (Rekap_Alokasi):</strong> Resume Sasaran 1-5, Tahapan, Subbag PIC &amp; Akun BAS.</li>
+              <li><strong>Sheet 3 (Matriks_Revisi):</strong> Matriks sandingan rincian belanja <em>Sebelum vs Menjadi</em> beserta selisih.</li>
+              <li><strong>Sheet 4–7 (Rekap Anggaran):</strong> <em>Rekap_Eksekutif</em>, <em>Rekap_Kegiatan_RKB</em>, <em>Rekap_Subbagian</em>, dan <em>Rekap_Akun_BAS</em>.</li>
             </ul>
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1; color: #475569; font-size: 11px;">
+              💡 <strong>Catatan Cetak Per-Subbagian (PIC):</strong> Menghasilkan <strong>2 Sheet Fokus</strong> (<em>RUH_Belanja_Resmi</em> &amp; <em>Matriks_Revisi</em>) dengan penandatangan kontekstual Subbagian/Divisi.
+            </div>
           </div>
 
           <!-- Pilihan Filter & Akses -->
@@ -3440,17 +3443,17 @@
             <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
               <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
                 <input type="radio" name="exportScope" value="FULL" id="export-scope-full" checked onchange="toggleExportFilterScope()">
-                <span><strong>Cetak Seluruh Dokumen (Penuh)</strong> &mdash; <span style="color: #64748b;">Semua Subbag &amp; Sasaran (4 Sheet)</span></span>
+                <span><strong>Cetak Seluruh Dokumen (Penuh)</strong> &mdash; <span id="export-scope-full-desc" style="color: #64748b;">Semua Subbag &amp; Sasaran (7 Sheet Lengkap)</span></span>
               </label>
 
               <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
                 <input type="radio" name="exportScope" value="FILTERED" id="export-scope-filtered" onchange="toggleExportFilterScope()">
-                <span><strong>Cetak Berdasarkan Bagian / Filter Tertentu</strong></span>
+                <span><strong>Cetak Berdasarkan Bagian / Filter Tertentu</strong> <span style="color: #64748b; font-size: 11.5px;">(2 Sheet Fokus Subbagian)</span></span>
               </label>
 
               <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
                 <input type="radio" name="exportScope" value="ZIP_ALL_SUBBAG" id="export-scope-zip" onchange="toggleExportFilterScope()">
-                <span><strong>📦 Paket 5 Subbagian Terpecah (.zip)</strong> &mdash; <span style="color: #059669; font-weight: 700;">1-Klik Unduh Sekaligus</span> <span style="font-size:11.5px; color:#475569;">(KUL, Rendatin, Teknis, Hukum, ParSDM)</span></span>
+                <span><strong>📦 Paket 5 Subbagian Terpecah (.zip)</strong> &mdash; <span style="color: #059669; font-weight: 700;">1-Klik Unduh Sekaligus</span> <span style="font-size:11.5px; color:#475569;">(5 Berkas @ 2 Sheet Fokus: KUL, Rendatin, Teknis, Hukum, ParSDM)</span></span>
               </label>
             </div>
 

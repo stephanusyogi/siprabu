@@ -688,6 +688,17 @@ async function performLogin(username, password = '') {
   return res;
 }
 
+function canViewDatabaseMaster(user) {
+  if (!user) return false;
+  if (user.level <= 1) return true;
+  // Bab 5 & Bab 7: Level 3 yang dapat melihat DATABASE (Read-Only) hanya Sekretaris dan Divisi Perencanaan
+  const role = (user.role_id || '').toLowerCase();
+  const uname = (user.username || '').toLowerCase();
+  if (role === 'sekretaris' || uname === 'sekretaris' || role === 'viewer_sekretaris') return true;
+  if (role === 'komisioner_rendatin' || uname === 'divisi_rendatin' || uname === 'komisioner') return true;
+  return false;
+}
+
 function updateUserNavbar() {
   const user = AppState.currentUser;
   if (!user) return;
@@ -695,29 +706,42 @@ function updateUserNavbar() {
   // Set default dashboard scope based on user's role/pic
   AppState.dashboardSubbag = (user && user.pic_subbag && user.pic_subbag !== 'SEMUA') ? user.pic_subbag : 'SEMUA';
 
-  setElText('user-nama-pejabat', user.nama_pejabat);
+  const isDevSimulating = isDeveloperSession() && user.level > 0;
+  setElText('user-nama-pejabat', isDevSimulating ? `${user.nama_pejabat} (Simulasi L${user.level})` : user.nama_pejabat);
   const switcher = document.getElementById('user-switcher');
   if (switcher) switcher.value = user.username;
 
   const roleEl = document.getElementById('user-role-badge');
   if (roleEl) {
-    roleEl.textContent = `Level ${user.level}: ${user.role || user.role_id || 'User'}`;
-    if (user.level === 0) {
+    // Bab 11 & FR-14: Saat mode simulasi aktif, badge peran pada header tetap menampilkan identitas utama Level 0 Developer
+    if (isDeveloperSession()) {
+      roleEl.textContent = 'LEVEL 0: DEVELOPER';
       roleEl.className = 'user-role badge';
       roleEl.style.background = '#0f172a';
       roleEl.style.color = '#fff';
-    } else if (user.level === 1) {
-      roleEl.className = 'user-role badge badge-primary';
-      roleEl.style.background = '';
-      roleEl.style.color = '';
-    } else if (user.level === 2) {
-      roleEl.className = 'user-role badge badge-success';
-      roleEl.style.background = '';
-      roleEl.style.color = '';
+      roleEl.title = isDevSimulating
+        ? `Identitas Utama: Developer (emenje) | Sedang Simulasi: Level ${user.level} (${user.nama_pejabat})`
+        : 'Identitas Utama: Level 0 Developer (emenje)';
     } else {
-      roleEl.className = 'user-role badge badge-secondary';
-      roleEl.style.background = '';
-      roleEl.style.color = '';
+      roleEl.textContent = `Level ${user.level}: ${user.role || user.role_id || 'User'}`;
+      roleEl.removeAttribute('title');
+      if (user.level === 0) {
+        roleEl.className = 'user-role badge';
+        roleEl.style.background = '#0f172a';
+        roleEl.style.color = '#fff';
+      } else if (user.level === 1) {
+        roleEl.className = 'user-role badge badge-primary';
+        roleEl.style.background = '';
+        roleEl.style.color = '';
+      } else if (user.level === 2) {
+        roleEl.className = 'user-role badge badge-success';
+        roleEl.style.background = '';
+        roleEl.style.color = '';
+      } else {
+        roleEl.className = 'user-role badge badge-secondary';
+        roleEl.style.background = '';
+        roleEl.style.color = '';
+      }
     }
   }
 
@@ -766,19 +790,16 @@ function applyRolePermissionsToUI() {
     navSiklus.style.display = canAccessSiklus ? 'flex' : 'none';
   }
 
-  // 2. Akses Folder Database Master: Hanya Level <= 1
+  // 2. Akses Folder Database Master: Level <= 1 (CRUD) + Sekretaris & Divisi Perencanaan (Read-Only) sesuai Bab 5 & Bab 7
   const folderDb = document.getElementById('folder-database');
   if (folderDb) {
-    folderDb.style.display = (user.level <= 1) ? 'block' : 'none';
+    folderDb.style.display = canViewDatabaseMaster(user) ? 'block' : 'none';
   }
 
-  // 3. Akses Menu Manajemen Pengguna: HANYA Level 0 dan Kasubbag Perencanaan
+  // 3. Akses Menu Manajemen Pengguna: HANYA Level 0 aktif dan Kasubbag Perencanaan (mengikuti batas peran simulasi)
   const canAccessUserMgmt = Boolean(
     user.level === 0 || 
-    user.role_id === 'developer' || 
-    user.username === 'emenje' || 
-    user.username === 'perencanaan' || 
-    (user.level === 1 && user.role_id === 'super_admin')
+    (user.level === 1 && (user.username === 'perencanaan' || user.role_id === 'super_admin'))
   );
   const navUserMgmt = document.getElementById('nav-item-users');
   if (navUserMgmt) {
@@ -806,17 +827,25 @@ function applyRolePermissionsToUI() {
     }
   }
 
-  // 6. Read-Only Protection di Referensi (SBM, BAS, SSOT) untuk Level 2 & Level 3
+  // 6. Read-Only Protection di Referensi (SBM, BAS, SSOT) & Database Master (PPK, PPS, Paslon, Settings) untuk Level 2 & Level 3
   const isLevel1 = (user.level <= 1);
-  const btnTambahSbm = document.getElementById('btn-tambah-sbm');
-  if (btnTambahSbm) btnTambahSbm.style.display = isLevel1 ? 'inline-flex' : 'none';
-  const btnImportSbm = document.getElementById('btn-import-sbm');
-  if (btnImportSbm) btnImportSbm.style.display = isLevel1 ? 'inline-flex' : 'none';
-
-  const btnTambahBas = document.getElementById('btn-tambah-bas');
-  if (btnTambahBas) btnTambahBas.style.display = isLevel1 ? 'inline-flex' : 'none';
-  const btnImportBas = document.getElementById('btn-import-bas');
-  if (btnImportBas) btnImportBas.style.display = isLevel1 ? 'inline-flex' : 'none';
+  const masterActionSelectors = [
+    '#view-db-sbm button[onclick*="openModalSbm"]',
+    '#view-db-sbm button[onclick*="triggerImportSbm"]',
+    '#view-db-bas button[onclick*="openModalBas"]',
+    '#view-db-bas button[onclick*="triggerImportBas"]',
+    '#view-db-ppk button[onclick*="openModalKecamatan"]',
+    '#view-db-ppk button[onclick*="triggerImportKecamatan"]',
+    '#view-db-pps button[onclick*="openModalDesa"]',
+    '#view-db-pps button[onclick*="triggerImportDesa"]',
+    '#view-db-paslon button[onclick*="openModalPaslon"]',
+    '#btn-simpan-settings'
+  ];
+  masterActionSelectors.forEach(sel => {
+    document.querySelectorAll(sel).forEach(btn => {
+      btn.style.display = isLevel1 ? 'inline-flex' : 'none';
+    });
+  });
 
   // 7. Pengendali Switcher Cepat: HANYA tampil untuk Pengembang (Level 0 / QC Mode)
   const switcherContainer = document.getElementById('user-switcher-container');
@@ -891,9 +920,15 @@ async function switchUser(username) {
   }
 }
 
-function logout() {
-  const konfirmasi = confirm('Apakah Anda yakin ingin keluar dari sistem SI-PRABU?');
-  if (!konfirmasi) return;
+async function logout(isAutoTimeout = false) {
+  if (!isAutoTimeout) {
+    const konfirmasi = confirm('Apakah Anda yakin ingin keluar dari sistem SI-PRABU?');
+    if (!konfirmasi) return;
+  }
+
+  try {
+    await apiFetch('/api/logout', { method: 'POST' });
+  } catch (e) {}
 
   localStorage.removeItem('siprabu_token');
   sessionStorage.removeItem('siprabu_is_developer_origin');
@@ -902,7 +937,30 @@ function logout() {
   AppState.rkbData = null;
   AppState.currentPeriode = null;
   showLoginScreen(true);
-  showToast('Anda telah berhasil keluar dari sistem.', 'info');
+  if (isAutoTimeout) {
+    showToast('Sesi berakhir otomatis karena tidak ada aktivitas selama 30 menit.', 'warning');
+  } else {
+    showToast('Anda telah berhasil keluar dari sistem.', 'info');
+  }
+}
+
+// Pelacak Inaktivitas 30 Menit (Bab 12 & FR-15)
+const CLIENT_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+let clientIdleTimer = null;
+function resetClientIdleTimer() {
+  if (clientIdleTimer) clearTimeout(clientIdleTimer);
+  if (!localStorage.getItem('siprabu_token')) return;
+  clientIdleTimer = setTimeout(() => {
+    if (localStorage.getItem('siprabu_token') && AppState.currentUser) {
+      logout(true);
+    }
+  }, CLIENT_IDLE_TIMEOUT_MS);
+}
+if (typeof window !== 'undefined') {
+  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+    window.addEventListener(evt, resetClientIdleTimer, { passive: true });
+  });
+  resetClientIdleTimer();
 }
 
 // ============================================================================
@@ -1295,24 +1353,21 @@ function switchView(viewId, updateHistory = true) {
       return;
     }
 
-    // 2. Guard Database Master: Hanya Level <= 1
+    // 2. Guard Database Master: Level <= 1 (CRUD) + Sekretaris & Divisi Perencanaan (Read-Only)
     const isMasterDbView = ['view-db-ppk', 'view-db-pps', 'view-db-paslon', 'view-db-settings', 'view-settings'].includes(viewId);
-    if (isMasterDbView && user.level > 1) {
-      showToast('Akses ditolak: Menu Master Database hanya untuk Tim Perencanaan & Pengembang.', 'warning');
+    if (isMasterDbView && !canViewDatabaseMaster(user)) {
+      showToast('Akses ditolak: Menu Master Database hanya untuk Tim Perencanaan, Sekretaris, Divisi Perencanaan & Pengembang.', 'warning');
       switchView('view-dashboard', updateHistory);
       return;
     }
 
-    // 3. Guard Manajemen User: HANYA Level 0 dan Kasubbag Perencanaan
+    // 3. Guard Manajemen User: HANYA Level 0 aktif dan Kasubbag Perencanaan
     const canAccessUserMgmt = Boolean(
       user.level === 0 || 
-      user.role_id === 'developer' || 
-      user.username === 'emenje' || 
-      user.username === 'perencanaan' || 
-      (user.level === 1 && user.role_id === 'super_admin')
+      (user.level === 1 && (user.username === 'perencanaan' || user.role_id === 'super_admin'))
     );
     if (viewId === 'view-users' && !canAccessUserMgmt) {
-      showToast('Akses ditolak: Menu Manajemen Pengguna hanya untuk Akun Developer dan Kasubbag Perencanaan.', 'warning');
+      showToast('Akses ditolak: Menu Manajemen Pengguna hanya untuk Akun Developer (Level 0) dan Kasubbag Perencanaan.', 'warning');
       switchView('view-dashboard', updateHistory);
       return;
     }
@@ -1382,14 +1437,14 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-revisi-monitoring') loadRevisiMonitoringTable();
   else if (viewId === 'view-revisi-arsip') loadRevisiArsipTable();
   else if (viewId === 'view-rkb') renderRkbTable();
-  else if (viewId === 'view-db-ppk') renderDbPpk();
-  else if (viewId === 'view-db-pps') renderDbPps();
-  else if (viewId === 'view-db-paslon') renderDbPaslon();
-  else if (viewId === 'view-db-kuantitas') renderDbKuantitas();
-  else if (viewId === 'view-db-sbm') renderDbSbm();
-  else if (viewId === 'view-db-bas') renderDbBas();
-  else if (viewId === 'view-db-regulasi') { /* static info */ }
-  else if (viewId === 'view-db-settings' || viewId === 'view-settings') renderSettings();
+  else if (viewId === 'view-db-ppk') { renderDbPpk(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-pps') { renderDbPps(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-paslon') { renderDbPaslon(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-kuantitas') { renderDbKuantitas(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-sbm') { renderDbSbm(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-bas') { renderDbBas(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-regulasi') { renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-settings' || viewId === 'view-settings') { renderSettings(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-panduan') { /* static info */ }
   else if (viewId === 'view-monitoring') loadMonitoringReport();
   else if (viewId === 'view-users') renderUsersTable();
@@ -5101,17 +5156,27 @@ function renderMonitoringTable() {
       dlBtn = `<button type="button" class="btn-sakti-download" onclick="downloadMonitoringItem(${item.id}, '${escapeHtml(item.nama_file)}')">📄 Download</button>`;
     } else if (item.status === 'KADALUARSA') {
       statusBadge = '<span class="badge-kadaluarsa">⚠️ Kadaluarsa</span>';
-      dlBtn = '<button class="btn-sakti-download disabled" disabled title="Berkas telah kadaluarsa (> 1 jam) dan terhapus otomatis">Kadaluarsa</button>';
+      dlBtn = '<button class="btn-sakti-download disabled" disabled title="Berkas fisik telah kedaluwarsa (> 1 jam), riwayat tetap tercatat untuk audit">Kadaluarsa</button>';
     } else {
       statusBadge = '<span class="badge-gagal">✕ Gagal</span>';
       dlBtn = `<button class="btn-sakti-download disabled" disabled title="${escapeHtml(item.error_message || 'Gagal')}">Gagal</button>`;
     }
 
+    const siklusInfo = item.siklus_versi || item.siklus_nama || 'Siklus Aktif';
+    const scopeInfo = item.tipe_unduhan === 'ZIP_SUBBAGIAN'
+      ? 'Paket ZIP 5 Subbagian (@ 2 Sheet Fokus)'
+      : (item.filter_pic && item.filter_pic !== 'SEMUA'
+          ? `Fokus PIC: ${item.filter_pic} (2 Sheet)`
+          : 'Satker Penuh (7 Sheet)');
+
     return `
       <tr>
         <td style="padding: 10px 14px; font-weight: 600; color: #1e293b;">
           ${escapeHtml(item.nama_file)}
-          ${item.file_size ? `<small style="display:block; color:#64748b; font-weight:normal;">${(item.file_size / 1024).toFixed(1)} KB</small>` : ''}
+          <small style="display:block; color:#475569; font-weight:500; margin-top:2px;">
+            📌 ${escapeHtml(siklusInfo)} &bull; ${escapeHtml(scopeInfo)}
+            ${item.file_size ? ` &bull; ${(item.file_size / 1024).toFixed(1)} KB` : ''}
+          </small>
         </td>
         <td style="padding: 10px 14px; text-align: center; color: #475569; font-size: 12.5px;">${escapeHtml(item.request_time || '-')}</td>
         <td style="padding: 10px 14px; text-align: center;">${statusBadge}</td>
@@ -5139,6 +5204,109 @@ function changeMonitoringPage(dir) {
 }
 
 // ============================================================================
+// PENGINGAT KONTEKSTUAL PEMUTAKHIRAN DATA DASAR (BAB 7.1 & MATRIKS A-03)
+// ============================================================================
+
+async function renderContextualMasterReminderBanner(viewId = null) {
+  const targetViews = viewId
+    ? [viewId]
+    : ['view-db-kuantitas', 'view-db-sbm', 'view-db-bas', 'view-db-regulasi', 'view-db-ppk', 'view-db-pps', 'view-db-paslon', 'view-db-settings'];
+
+  let stageCode = 'TAHAP_0';
+  try {
+    const list = Array.isArray(AppState.revisiList) && AppState.revisiList.length > 0
+      ? AppState.revisiList
+      : await apiFetch('/api/revisi/pengajuan').catch(() => []);
+    if (Array.isArray(list) && list.length > 0) {
+      AppState.revisiList = list;
+      const activeItems = list.filter(x => x.status_tahap !== 'DISAHKAN_TAHAP4');
+      if (activeItems.length === 0) {
+        stageCode = 'TAHAP_0';
+      } else if (activeItems.length === 5 && activeItems.every(x => x.status_tahap === 'DISETUJUI_PLENO')) {
+        stageCode = 'TAHAP_4';
+      } else if (activeItems.some(x => x.status_tahap === 'DISETUJUI_PLENO' || x.status_tahap === 'TERVALIDASI_RENDATIN')) {
+        stageCode = 'TAHAP_3';
+      } else if (activeItems.some(x => x.status_tahap === 'DIAJUKAN_SUBBAG')) {
+        stageCode = 'TAHAP_2';
+      } else {
+        stageCode = 'TAHAP_1';
+      }
+    }
+  } catch (e) {}
+
+  const stageMeta = {
+    TAHAP_0: {
+      bg: '#eff6ff',
+      border: '#93c5fd',
+      color: '#1e3a8a',
+      icon: '🏛️',
+      title: 'Tahap 0 — Pra-Pengajuan (Pemutakhiran Data Dasar):',
+      desc: 'Pastikan pemutakhiran data dasar (Kuantitas SSOT, SBM/SBML, BAS, Wilayah PPK/PPS, Paslon, dan Pejabat Satker) telah diselesaikan sebelum Subbagian menyusun dan mengunci usulan revisi.'
+    },
+    TAHAP_1: {
+      bg: '#f0fdf4',
+      border: '#86efac',
+      color: '#14532d',
+      icon: '📝',
+      title: 'Tahap 1 — Pengajuan Subbagian Sedang Berlangsung:',
+      desc: 'Perubahan pada parameter referensi/master pada tahap ini akan langsung memengaruhi kalkulasi draf kerja RKB yang sedang disusun oleh Subbagian.'
+    },
+    TAHAP_2: {
+      bg: '#fefce8',
+      border: '#fde047',
+      color: '#713f12',
+      icon: '🔍',
+      title: 'Tahap 2 — Validasi Subbag Perencanaan (Rendatin):',
+      desc: 'Pastikan parameter SSOT, standar biaya SBM, dan kode akun BAS telah sinkron sebelum meneruskan usulan Subbagian ke Tahap 3 (Pleno Pimpinan).'
+    },
+    TAHAP_3: {
+      bg: '#fff7ed',
+      border: '#fdba74',
+      color: '#7c2d12',
+      icon: '⚖️',
+      title: 'Tahap 3 — Pembahasan Pleno Pimpinan:',
+      desc: 'Usulan sedang berada pada tahap Pleno Pimpinan. Hindari mengubah parameter master yang berdampak pada angka RKB kecuali atas instruksi koreksi Pleno.'
+    },
+    TAHAP_4: {
+      bg: '#fef2f2',
+      border: '#fca5a5',
+      color: '#7f1d1d',
+      icon: '🔒',
+      title: 'Tahap 4 — Siap Pengesahan Akhir Siklus:',
+      desc: 'Seluruh 5 Subbagian telah disetujui Pleno. Perubahan data master menjelang pengesahan akhir tidak disarankan agar baseline anggaran tetap konsisten.'
+    }
+  }[stageCode];
+
+  const user = AppState.currentUser;
+  const readOnlyNote = (user && user.level > 1)
+    ? ` <span style="display:inline-block; margin-left:6px; padding:1px 8px; border-radius:12px; background:rgba(15,23,42,0.08); font-weight:700; font-size:11px;">Mode Baca Saja (Read-Only — Level ${user.level})</span>`
+    : '';
+
+  targetViews.forEach(vId => {
+    const section = document.getElementById(vId);
+    if (!section) return;
+    let banner = section.querySelector('.contextual-master-reminder-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'contextual-master-reminder-banner mb-3';
+      const header = section.querySelector('.view-header');
+      if (header && header.nextSibling) {
+        section.insertBefore(banner, header.nextSibling);
+      } else {
+        section.prepend(banner);
+      }
+    }
+    banner.style.cssText = `background:${stageMeta.bg}; border:1px solid ${stageMeta.border}; color:${stageMeta.color}; padding:10px 14px; border-radius:8px; font-size:12.5px; display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;`;
+    banner.innerHTML = `
+      <span style="font-size:16px; line-height:1.2;">${stageMeta.icon}</span>
+      <div style="flex:1; line-height:1.45;">
+        <strong>${stageMeta.title}</strong> ${stageMeta.desc}${readOnlyNote}
+      </div>
+    `;
+  });
+}
+
+// ============================================================================
 // VIEW: MASTER PPK (19 KECAMATAN)
 // ============================================================================
 
@@ -5163,6 +5331,7 @@ function renderDbPpk() {
   const tbody = document.getElementById('table-db-ppk');
   if (!tbody) return;
 
+  const isLevel1 = (AppState.currentUser?.level <= 1);
   tbody.innerHTML = kecamatans.map((k, idx) => {
     const kecDesas = desaByKec[k.id] || [];
     const totalTps = kecDesas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
@@ -5178,8 +5347,10 @@ function renderDbPpk() {
         <td class="text-center"><span class="badge badge-secondary">${kecDesas.length} Desa</span></td>
         <td class="text-center"><span class="badge badge-primary">${formatNumber(totalTps)} TPS</span></td>
         <td class="text-center">
+          ${isLevel1 ? `
           <button type="button" class="btn btn-outline btn-sm" onclick="openModalKecamatan(${k.id})" title="Edit Kecamatan">✏️</button>
           <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteKecamatan(${k.id})" title="Hapus Kecamatan">🗑️</button>
+          ` : `<span class="badge badge-secondary" style="font-size:11px;">Read-Only</span>`}
         </td>
       </tr>
     `;
@@ -5403,6 +5574,7 @@ function filterDbPps() {
     return;
   }
 
+  const isLevel1 = (AppState.currentUser?.level <= 1);
   tbody.innerHTML = filtered.map((d, idx) => `
     <tr>
       <td class="text-center">${idx + 1}</td>
@@ -5417,8 +5589,10 @@ function filterDbPps() {
       <td>${escapeHtml(d.sekretaris_nama || '-')}</td>
       <td style="font-family: var(--font-mono); font-size: 11px;">${escapeHtml(d.sekretaris_nip || '-')}</td>
       <td class="text-center">
+        ${isLevel1 ? `
         <button type="button" class="btn btn-outline btn-sm" onclick="openModalDesa(${d.id})" title="Edit Desa">✏️</button>
         <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteDesa(${d.id})" title="Hapus Desa">🗑️</button>
+        ` : `<span class="badge badge-secondary" style="font-size:11px;">Read-Only</span>`}
       </td>
     </tr>
   `).join('');
@@ -5593,6 +5767,7 @@ function renderDbPaslon() {
     return;
   }
 
+  const isLevel1 = (AppState.currentUser?.level <= 1);
   tbody.innerHTML = paslons.map(p => `
     <tr>
       <td class="text-center" style="font-size: 16px; font-weight: 800; color: #1e40af;">
@@ -5606,8 +5781,10 @@ function renderDbPaslon() {
       <td><i style="color: #64748b; font-size: 12px;">"${escapeHtml(p.slogan || '-')}"</i></td>
       <td><small style="color: #64748b;">${escapeHtml(p.keterangan || '-')}</small></td>
       <td class="text-center">
+        ${isLevel1 ? `
         <button type="button" class="btn btn-outline btn-sm" onclick="openModalPaslon(${p.id})" title="Edit Paslon">✏️</button>
         <button type="button" class="btn btn-outline-danger btn-sm" onclick="deletePaslon(${p.id})" title="Hapus Paslon">🗑️</button>
+        ` : `<span class="badge badge-secondary" style="font-size:11px;">Read-Only</span>`}
       </td>
     </tr>
   `).join('');
@@ -6319,6 +6496,13 @@ function renderSettings() {
   setElVal('set-google-client-id', s.google_client_id || '');
   setElVal('set-google-auth-enabled', s.google_auth_enabled || '0');
   setElVal('set-google-allowed-domains', s.google_allowed_domains || 'kpu.go.id, gmail.com');
+
+  const isLevel1 = (AppState.currentUser?.level <= 1);
+  const btnSimpan = document.getElementById('btn-simpan-settings');
+  if (btnSimpan) btnSimpan.style.display = isLevel1 ? 'inline-flex' : 'none';
+  document.querySelectorAll('#form-settings input, #form-settings select').forEach(el => {
+    el.disabled = !isLevel1;
+  });
 }
 
 async function saveSatkerSettings() {

@@ -40,8 +40,36 @@ function getSecretKey() {
   return newSecret;
 }
 
-// Masa berlaku token standar: 7 hari (dalam milidetik)
-const TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+// Masa berlaku token absolut: 8 jam sejak login (Bab 12 & FR-15 Canon Master Blueprint)
+// Aktivitas pengguna dan simulasi peran TIDAK memperpanjang batas 8 jam ini.
+const TOKEN_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+
+// Batas tidak aktif (idle timeout): 30 menit tanpa aktivitas (Bab 12 & FR-15)
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+
+// Pelacak aktivitas sesi & daftar pencabutan sesi (revocation list) di sisi server
+const sessionLastActive = new Map();
+const revokedSessions = new Set();
+
+/**
+ * Cabut sesi aktif di sisi server saat pengguna logout
+ */
+function revokeToken(token) {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.split('.');
+  if (parts.length !== 2) return false;
+  const [str, sig] = parts;
+  revokedSessions.add(sig);
+  try {
+    const payload = JSON.parse(Buffer.from(str, 'base64url').toString('utf8'));
+    if (payload && payload.sid) {
+      revokedSessions.add(payload.sid);
+      sessionLastActive.delete(payload.sid);
+    }
+  } catch (e) {}
+  sessionLastActive.delete(sig);
+  return true;
+}
 
 /**
  * Normalisasi kode PIC subbagian
@@ -56,9 +84,10 @@ function normalizePic(pic) {
 }
 
 /**
- * Buat token session HMAC bertandatangan dengan masa berlaku dan token_version
+ * Buat token session HMAC bertandatangan dengan masa berlaku absolut 8 jam dan token_version.
+ * Mendukung pelestarian iat/exp/sid saat simulasi ganti peran agar tidak memperpanjang sesi 8 jam.
  */
-function createToken(user, originalDevUser = null) {
+function createToken(user, originalDevUser = null, options = {}) {
   const secretKey = getSecretKey();
   const isDev = Boolean(
     user.is_developer || 
@@ -69,7 +98,12 @@ function createToken(user, originalDevUser = null) {
   );
 
   const now = Date.now();
+  const iat = (options.preserveIat && Number.isFinite(Number(options.preserveIat))) ? Number(options.preserveIat) : now;
+  const exp = (options.preserveExp && Number.isFinite(Number(options.preserveExp))) ? Number(options.preserveExp) : (iat + TOKEN_MAX_AGE_MS);
+  const sid = options.preserveSid || user.sid || crypto.randomBytes(12).toString('hex');
+
   const payload = {
+    sid,
     id: user.id,
     username: user.username,
     nama_pejabat: user.nama_pejabat,
@@ -79,34 +113,37 @@ function createToken(user, originalDevUser = null) {
     pic_subbag: user.pic_subbag,
     is_developer: isDev,
     token_version: user.token_version !== undefined ? Number(user.token_version) : 1,
-    iat: now,
-    exp: now + TOKEN_MAX_AGE_MS
+    iat,
+    exp
   };
 
   // Jika developer berpindah peran untuk QC, sematkan identitas asli pengembang yang tervalidasi
   if (originalDevUser && isDev) {
     payload.original_dev_id = originalDevUser.id;
-    payload.original_dev_username = originalDevUser.username;
+    payload.original_dev_username = originalDevUser.username || 'emenje';
     payload.dev_token_version = originalDevUser.token_version !== undefined ? Number(originalDevUser.token_version) : 1;
   } else if (user.original_dev_id && isDev) {
     payload.original_dev_id = user.original_dev_id;
-    payload.original_dev_username = user.original_dev_username;
+    payload.original_dev_username = user.original_dev_username || 'emenje';
     payload.dev_token_version = user.dev_token_version;
   }
 
   const str = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const sig = crypto.createHmac('sha256', secretKey).update(str).digest('base64url');
+  sessionLastActive.set(sid, now);
   return `${str}.${sig}`;
 }
 
 /**
- * Verifikasi token session dan periksa status aktif serta versi token pengguna
+ * Verifikasi token session dan periksa batas absolut 8 jam, idle 30 menit, pencabutan logout, serta versi token pengguna
  */
-function verifyToken(token, dbInstance = null) {
+function verifyToken(token, dbInstance = null, options = {}) {
   if (!token || typeof token !== 'string') return null;
   const parts = token.split('.');
   if (parts.length !== 2) return null;
   const [str, sig] = parts;
+
+  if (revokedSessions.has(sig)) return null;
 
   const secretKey = getSecretKey();
   const expectedSig = crypto.createHmac('sha256', secretKey).update(str).digest('base64url');
@@ -120,12 +157,32 @@ function verifyToken(token, dbInstance = null) {
   try {
     const payload = JSON.parse(Buffer.from(str, 'base64url').toString('utf8'));
     const now = Date.now();
+    const sessionKey = payload.sid || sig;
 
-    // 1. Periksa masa berlaku (expiration check)
-    if (payload.exp && now > payload.exp) return null;
-    if (payload.iat && (now - payload.iat > TOKEN_MAX_AGE_MS)) return null;
+    if (revokedSessions.has(sessionKey)) return null;
 
-    // 2. Jika koneksi database diberikan, verifikasi integritas status user real-time
+    // 1. Periksa batas absolut 8 jam sejak login (expiration check)
+    if (payload.exp && now > payload.exp) {
+      sessionLastActive.delete(sessionKey);
+      return null;
+    }
+    if (payload.iat && (now - payload.iat > TOKEN_MAX_AGE_MS)) {
+      sessionLastActive.delete(sessionKey);
+      return null;
+    }
+
+    // 2. Periksa batas tidak aktif (idle timeout 30 menit)
+    const lastActive = sessionLastActive.get(sessionKey);
+    if (lastActive !== undefined && (now - lastActive > IDLE_TIMEOUT_MS)) {
+      sessionLastActive.delete(sessionKey);
+      revokedSessions.add(sessionKey);
+      return null;
+    }
+    if (options.touch !== false) {
+      sessionLastActive.set(sessionKey, now);
+    }
+
+    // 3. Jika koneksi database diberikan, verifikasi integritas status user real-time
     if (dbInstance && payload.id) {
       const dbUser = dbInstance.prepare(`
         SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, email, avatar_url, is_active, token_version
@@ -162,9 +219,13 @@ function verifyToken(token, dbInstance = null) {
 
       return {
         ...dbUser,
+        sid: payload.sid || null,
+        iat: payload.iat || null,
+        exp: payload.exp || null,
         is_developer: Boolean(payload.is_developer),
         original_dev_id: payload.original_dev_id || null,
-        original_dev_username: payload.original_dev_username || null
+        original_dev_username: payload.original_dev_username || (payload.is_developer ? 'emenje' : null),
+        dev_token_version: payload.dev_token_version || null
       };
     }
 
@@ -241,11 +302,12 @@ function canManageLifecycle(user) {
 }
 
 /**
- * Helper izin kelola pengguna: HANYA Level 0 (Developer) dan Kasubbag Perencanaan
+ * Helper izin kelola pengguna: HANYA Level 0 (Developer) dan Kasubbag Perencanaan.
+ * Saat simulasi peran aktif (user.level > 0), hak mengikuti peran yang sedang diuji (Bab 11 Canon).
  */
 function canManageUsers(user) {
   if (!user) return false;
-  if (user.level === 0 || user.is_developer || user.role_id === 'developer' || user.username === 'emenje') return true;
+  if (user.level === 0 || user.role_id === 'developer' || user.username === 'emenje') return true;
   return Boolean(user.username === 'perencanaan' || (user.level === 1 && user.role_id === 'super_admin'));
 }
 
@@ -296,6 +358,7 @@ function isDeveloperUser(user) {
 module.exports = {
   createToken,
   verifyToken,
+  revokeToken,
   getUserFromReq,
   canEditRow,
   canManageLifecycle,
@@ -303,5 +366,7 @@ module.exports = {
   isDeveloperUser,
   validateUserCoherence,
   normalizePic,
-  getSecretKey
+  getSecretKey,
+  TOKEN_MAX_AGE_MS,
+  IDLE_TIMEOUT_MS
 };

@@ -46,7 +46,7 @@ async function runAllTests() {
   const { createBackup, verifyDatabaseIntegrity } = require('../src/backup');
   const { hashPassword, verifyPassword, sanitizeLogData } = require('../src/crypto_util');
   const { parseIndonesianNumber } = require('../src/number_util');
-  const { createToken, verifyToken, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser, validateUserCoherence, getSecretKey } = require('../src/auth');
+  const { createToken, verifyToken, revokeToken, TOKEN_MAX_AGE_MS, IDLE_TIMEOUT_MS, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser, validateUserCoherence, getSecretKey } = require('../src/auth');
   const {
     db,
     getPeriodeList,
@@ -454,7 +454,7 @@ async function runAllTests() {
   const parsedLogin = parseSaktiRouteToken(loginToken);
   assert(parsedLogin && parsedLogin.isLogin === true, 'Token login dikenali secara sah sebagai rute autentikasi.');
 
-  const tamperedToken = rkbToken.slice(0, 42) + (rkbToken[42] === 'A' ? 'B' : 'A');
+  const tamperedToken = rkbToken.slice(0, 20) + (rkbToken[20] === 'A' ? 'Z' : 'A') + rkbToken.slice(21);
   assert(parseSaktiRouteToken(tamperedToken) === null, 'Token yang diubah / checksum tidak valid ditolak tegas (return null).');
 
   const devToken = generateSaktiRouteToken('view-developer', false);
@@ -487,12 +487,43 @@ async function runAllTests() {
   const listB = getDownloadRequests({ username: 'user_b' });
   assert(listB.length === 1 && listB[0].nama_file === 'Laporan_User_B.xlsx', 'User B hanya melihat berkas unduhan miliknya sendiri (tidak bocor ke User A).');
 
-  // Buat berkas buatan berstatus kadaluarsa (waktu lampau)
-  db.prepare("UPDATE download_requests SET expires_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(jobUserA.id);
+  // Buat berkas buatan berstatus kadaluarsa (waktu lampau > 1 jam)
+  db.prepare("UPDATE download_requests SET expires_at = '2020-01-01T00:00:00.000Z', status = 'SELESAI' WHERE id = ?").run(jobUserA.id);
   const cleanedCount = cleanupExpiredDownloads();
-  assert(cleanedCount >= 0, 'cleanupExpiredDownloads() berjalan tanpa error.');
+  assert(cleanedCount >= 1, 'cleanupExpiredDownloads() berhasil menandai berkas kadaluarsa (> 1 jam).');
   const listAAfterClean = getDownloadRequests({ username: 'user_a' });
-  assert(listAAfterClean.length === 0, 'History unduhan yang telah kadaluarsa otomatis terhapus bersih dari sistem.');
+  assert(
+    listAAfterClean.length === 1 && listAAfterClean[0].status === 'KADALUARSA' && listAAfterClean[0].file_path === null,
+    'Berkas unduhan yang kadaluarsa ditolak akses fisiknya (file_path = null, status = KADALUARSA) namun riwayat tetap tercatat untuk audit (Bab 9 & FR-10).'
+  );
+
+  // Verifikasi Bab 11, Bab 12, FR-14, FR-15 (Sesi 8 Jam Mutlak, Idle 30 Menit, Revoke Logout, Simulasi Peran)
+  assert(TOKEN_MAX_AGE_MS === 8 * 60 * 60 * 1000, 'Batas maksimum sesi mutlak adalah 8 jam sejak login (Bab 12 & FR-15).');
+  assert(IDLE_TIMEOUT_MS === 30 * 60 * 1000, 'Batas inaktivitas sesi adalah 30 menit (Bab 12 & FR-15).');
+
+  const devAccount = db.prepare("SELECT * FROM satker_users WHERE username = 'emenje'").get();
+  const baseDevToken = createToken(devAccount);
+  const baseDecoded = verifyToken(baseDevToken);
+  assert(baseDecoded && baseDecoded.username === 'emenje', 'Token Developer valid saat dibuat.');
+
+  const kulAccount = db.prepare("SELECT * FROM satker_users WHERE username = 'kasubag_kul'").get();
+  const simToken = createToken(
+    { ...kulAccount, is_developer: true, original_dev_id: devAccount.id, original_dev_username: 'emenje' },
+    null,
+    { preserveIat: baseDecoded.iat, preserveExp: baseDecoded.exp, preserveSid: baseDecoded.sid }
+  );
+  const simDecoded = verifyToken(simToken);
+  assert(
+    simDecoded && simDecoded.exp === baseDecoded.exp && simDecoded.sid === baseDecoded.sid,
+    'Simulasi peran Developer tidak memperpanjang batas waktu mutlak 8 jam sejak login awal (Bab 11 & Bab 12).'
+  );
+  assert(
+    canManageUsers(simDecoded) === false,
+    'Saat Developer mensimulasikan Level 2 (kasubag_kul), hak operasional mengikuti batas peran yang disimulasikan (Bab 11 & FR-14).'
+  );
+
+  revokeToken(simToken);
+  assert(verifyToken(simToken) === null, 'Logout mencabut sesi secara server-side sehingga token langsung ditolak (Bab 12 & FR-15).');
 
   // --------------------------------------------------------------------------
   // TEST 24: Clean Database Teardown & Production Isolation

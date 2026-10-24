@@ -74,7 +74,8 @@ function formatWaktuSakti(d = new Date()) {
 }
 
 /**
- * Catat log audit ke tabel audit_log tanpa merekam password atau token
+ * Catat log audit ke tabel audit_log tanpa merekam password atau token.
+ * Membedakan identitas asli pengembang (Level 0) dan peran simulasi saat pengujian (Bab 11 & FR-14 Canon).
  */
 function recordAuditLog({
   user = null,
@@ -92,6 +93,16 @@ function recordAuditLog({
     const cleanNew = new_values ? JSON.stringify(sanitizeLogData(new_values)) : null;
     const now = new Date();
     const waktuWib = getJakartaTimeString(now);
+
+    const isSimulated = Boolean(user?.original_dev_username && user.original_dev_username !== user.username);
+    const roleRecorded = isSimulated
+      ? `${user.role_id || '-'} [simulasi:${user.original_dev_username}]`
+      : (user?.role_id || '-');
+    const simPrefix = isSimulated
+      ? `[Identitas Asli: ${user.original_dev_username} | Peran Simulasi: ${user.username}] `
+      : '';
+    const finalNotes = simPrefix + (notes || '');
+
     const stmt = db.prepare(`
       INSERT INTO audit_log (
         waktu_wib, timestamp_ms, user_id, username, role_id, ip_address,
@@ -103,7 +114,7 @@ function recordAuditLog({
       now.getTime(),
       user?.id || null,
       user?.username || 'anonymous',
-      user?.role_id || '-',
+      roleRecorded,
       ip || '',
       action,
       entity,
@@ -111,7 +122,7 @@ function recordAuditLog({
       cleanOld,
       cleanNew,
       status,
-      notes || ''
+      finalNotes
     );
   } catch (err) {
     console.warn('[AUDIT] Gagal mencatat log audit:', err.message);
@@ -2588,12 +2599,18 @@ function bulkUpsertAkun(rows, options = {}) {
   return { success: true, processed: wouldInsert.length + wouldUpdate.length, inserted: wouldInsert.length, updated: wouldUpdate.length };
 }
 
-// Download Requests
-function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran, user_id, username }) {
+// Download Requests (Bab 9 & FR-10 Canon Master Blueprint)
+function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran, user_id, username, user = null }) {
   const reqId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const dateObj = new Date();
   const requestTime = formatWaktuSakti(dateObj);
   const expiresAt = new Date(dateObj.getTime() + 60 * 60 * 1000).toISOString();
+  const cleanTipe = tipe_unduhan || 'EXCEL_RKB';
+  const cleanPeriodeId = periode_id ? Number(periode_id) : null;
+  const cleanPic = filter_pic ? normalizePic(filter_pic) : 'SEMUA';
+  const cleanSasaran = filter_sasaran || 'ALL';
+  const cleanUsername = username || (user ? user.username : null);
+  const cleanUserId = user_id || (user ? user.id : null);
 
   const stmt = db.prepare(`
     INSERT INTO download_requests (
@@ -2605,55 +2622,92 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
   const res = stmt.run(
     reqId,
     nama_file,
-    tipe_unduhan || 'EXCEL_RKB',
-    periode_id ? Number(periode_id) : null,
-    filter_pic ? normalizePic(filter_pic) : 'SEMUA',
-    filter_sasaran || 'ALL',
+    cleanTipe,
+    cleanPeriodeId,
+    cleanPic,
+    cleanSasaran,
     requestTime,
     expiresAt,
-    user_id || null,
-    username || null
+    cleanUserId,
+    cleanUsername
   );
 
-  return getDownloadRequestById(res.lastInsertRowid);
+  const created = getDownloadRequestById(res.lastInsertRowid);
+  recordAuditLog({
+    user: user || { id: cleanUserId, username: cleanUsername || 'anonymous', role_id: '-' },
+    action: 'CREATE_DOWNLOAD_REQUEST',
+    entity: 'download_requests',
+    entity_id: created?.id || res.lastInsertRowid,
+    new_values: {
+      request_id: reqId,
+      nama_file,
+      tipe_unduhan: cleanTipe,
+      periode_id: cleanPeriodeId,
+      filter_pic: cleanPic,
+      filter_sasaran: cleanSasaran,
+      status: 'DIPROSES',
+      expires_at: expiresAt
+    },
+    notes: `Permintaan unduhan [${cleanTipe}] "${nama_file}" (Siklus ID: ${cleanPeriodeId || '-'}, PIC: ${cleanPic}, Sasaran: ${cleanSasaran})`
+  });
+
+  return created;
 }
 
-function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai = '', username = '' } = {}) {
-  // 1. Bersihkan riwayat & berkas kadaluarsa secara proaktif dan otomatis
+function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai = '', username = '', exclude_expired = false } = {}) {
+  // 1. Bersihkan berkas fisik yang telah kadaluarsa (> 1 jam) & tandai status KADALUARSA
   cleanupExpiredDownloads();
 
-  // 2. Isolasi ketat: jika username tidak ada, tolak / kembalikan kosong
+  // 2. Isolasi ketat: setiap pengguna hanya dapat melihat riwayat unduhan miliknya sendiri (Bab 9 & FR-10)
   if (!username) {
     return [];
   }
 
-  const now = new Date().toISOString();
-  // Setiap user HANYA melihat riwayat unduhannya sendiri (tidak ada akses ke unduhan user lain)
-  let sql = "SELECT * FROM download_requests WHERE username = ? AND status != 'KADALUARSA' AND (expires_at IS NULL OR expires_at >= ?)";
-  const params = [username, now];
+  let sql = `
+    SELECT d.*,
+           p.nama_periode AS siklus_nama,
+           p.versi_revisi AS siklus_versi
+    FROM download_requests d
+    LEFT JOIN periode_anggaran p ON p.id = d.periode_id
+    WHERE d.username = ?
+  `;
+  const params = [username];
+
+  if (exclude_expired) {
+    const now = new Date().toISOString();
+    sql += " AND d.status != 'KADALUARSA' AND (d.expires_at IS NULL OR d.expires_at >= ?)";
+    params.push(now);
+  }
 
   if (search) {
-    sql += ' AND (nama_file LIKE ? OR filter_pic LIKE ? OR request_id LIKE ?)';
+    sql += ' AND (d.nama_file LIKE ? OR d.filter_pic LIKE ? OR d.request_id LIKE ? OR d.tipe_unduhan LIKE ?)';
     const term = `%${search}%`;
-    params.push(term, term, term);
+    params.push(term, term, term, term);
   }
 
   if (tanggal_mulai) {
-    sql += ' AND created_at >= ?';
+    sql += ' AND d.created_at >= ?';
     params.push(tanggal_mulai);
   }
 
   if (tanggal_selesai) {
-    sql += ' AND created_at <= ?';
+    sql += ' AND d.created_at <= ?';
     params.push(`${tanggal_selesai} 23:59:59`);
   }
 
-  sql += ' ORDER BY id DESC LIMIT 100';
+  sql += ' ORDER BY d.id DESC LIMIT 100';
   return db.prepare(sql).all(...params);
 }
 
 function getDownloadRequestById(id) {
-  return db.prepare('SELECT * FROM download_requests WHERE id = ?').get(id);
+  return db.prepare(`
+    SELECT d.*,
+           p.nama_periode AS siklus_nama,
+           p.versi_revisi AS siklus_versi
+    FROM download_requests d
+    LEFT JOIN periode_anggaran p ON p.id = d.periode_id
+    WHERE d.id = ?
+  `).get(id);
 }
 
 function updateDownloadRequest(id, fields) {
@@ -2667,15 +2721,42 @@ function updateDownloadRequest(id, fields) {
   params.push(id);
 
   db.prepare(`UPDATE download_requests SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-  return getDownloadRequestById(id);
+  const updated = getDownloadRequestById(id);
+
+  if (fields.status === 'SELESAI' || fields.status === 'GAGAL') {
+    recordAuditLog({
+      user: { id: updated?.user_id || null, username: updated?.username || 'system', role_id: '-' },
+      action: fields.status === 'SELESAI' ? 'COMPLETE_DOWNLOAD_REQUEST' : 'FAIL_DOWNLOAD_REQUEST',
+      entity: 'download_requests',
+      entity_id: id,
+      new_values: {
+        status: fields.status,
+        nama_file: updated?.nama_file,
+        tipe_unduhan: updated?.tipe_unduhan,
+        periode_id: updated?.periode_id,
+        filter_pic: updated?.filter_pic,
+        file_size: updated?.file_size || 0,
+        error_message: updated?.error_message || null
+      },
+      status: fields.status === 'SELESAI' ? 'SUCCESS' : 'FAILED',
+      notes: `Unduhan "${updated?.nama_file || id}" berstatus ${fields.status}.`
+    });
+  }
+
+  return updated;
 }
 
+/**
+ * Bab 9 & FR-10 Canon Master Blueprint:
+ * File hasil unduhan .xlsx dan .zip kedaluwarsa tepat 1 jam setelah dibuat dan file fisiknya dihapus otomatis.
+ * Akses ke URL file yang sudah kedaluwarsa ditolak oleh sistem, sedangkan riwayat/log unduhan tetap tercatat untuk keperluan audit.
+ */
 function cleanupExpiredDownloads() {
   const now = new Date().toISOString();
-  // Ambil semua permintaan unduhan yang telah kadaluarsa (melewati expires_at atau berstatus KADALUARSA)
   const expired = db.prepare(`
     SELECT * FROM download_requests 
-    WHERE (expires_at IS NOT NULL AND expires_at < ?) OR status = 'KADALUARSA'
+    WHERE (expires_at IS NOT NULL AND expires_at < ? AND status != 'KADALUARSA')
+       OR (status = 'KADALUARSA' AND file_path IS NOT NULL)
   `).all(now);
 
   let cleaned = 0;
@@ -2683,16 +2764,15 @@ function cleanupExpiredDownloads() {
     if (row.file_path && fs.existsSync(row.file_path)) {
       try {
         fs.unlinkSync(row.file_path);
-        cleaned++;
       } catch (e) {}
     }
+    db.prepare(`
+      UPDATE download_requests
+      SET status = 'KADALUARSA', file_path = NULL
+      WHERE id = ?
+    `).run(row.id);
+    cleaned++;
   }
-
-  // Hapus riwayat secara permanen dari database agar tidak mengotori tabel riwayat unduhan
-  db.prepare(`
-    DELETE FROM download_requests 
-    WHERE (expires_at IS NOT NULL AND expires_at < ?) OR status = 'KADALUARSA'
-  `).run(now);
 
   return cleaned;
 }
