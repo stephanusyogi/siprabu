@@ -1301,18 +1301,53 @@ function deleteRabRow(id, actorUser = null) {
 
   checkRowEditPermission(row.periode_id, row.pic_bagian, actorUser);
 
-  // Lindungi penghapusan header yang masih memiliki anak komponen / rincian
-  if (row.row_type === 'header' || row.is_header) {
-    const childCount = db.prepare('SELECT COUNT(*) as cnt FROM rab_baris WHERE parent_rkb_row_id = ?').get(id)?.cnt || 0;
-    if (childCount > 0) {
-      throw new Error(`Tidak dapat menghapus header "${row.uraian}" karena masih memiliki ${childCount} rincian di bawahnya. Hapus atau pindahkan rincian terlebih dahulu.`);
+  // Dapatkan seluruh pohon keturunan dari kalkulasi hierarki riil
+  const { getRkbCalculatedDataset, clearRkbDatasetCache } = require('./calculation');
+  const dataset = getRkbCalculatedDataset(row.periode_id);
+
+  const childrenMap = {};
+  (dataset.rows || []).forEach(r => {
+    if (r.parent_tree_id) {
+      if (!childrenMap[r.parent_tree_id]) childrenMap[r.parent_tree_id] = [];
+      childrenMap[r.parent_tree_id].push(r);
+    }
+  });
+
+  const targetTreeId = `row_${id}`;
+  const idsToDelete = [];
+  const visitedIds = new Set();
+  const queue = [targetTreeId];
+
+  visitedIds.add(Number(id));
+  idsToDelete.push(Number(id));
+
+  // Jelajahi seluruh turunan (anak, cucu, cicit, dsb.) secara top-down (Cascade Delete)
+  while (queue.length > 0) {
+    const curTreeId = queue.shift();
+    const children = childrenMap[curTreeId] || [];
+    for (const child of children) {
+      if (child.id && !visitedIds.has(Number(child.id))) {
+        visitedIds.add(Number(child.id));
+        idsToDelete.push(Number(child.id));
+        queue.push(child.tree_id);
+      }
     }
   }
 
-  db.prepare('DELETE FROM rab_baris WHERE id = ?').run(id);
+  // Hapus seluruh baris terpilih dalam 1 transaksi atomik
+  const delStmt = db.prepare('DELETE FROM rab_baris WHERE id = ?');
+  db.exec('BEGIN TRANSACTION');
+  try {
+    for (const delId of idsToDelete) {
+      delStmt.run(delId);
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
 
   try {
-    const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache(row.periode_id);
   } catch (e) {}
 
@@ -1322,10 +1357,17 @@ function deleteRabRow(id, actorUser = null) {
     entity: 'rab_baris',
     entity_id: id,
     old_values: { kode: row.kode, uraian: row.uraian, total: row.harga_satuan, pic: row.pic_bagian },
-    notes: `Baris RKB [${row.kode || '-'}] ${row.uraian} dihapus.`
+    notes: idsToDelete.length > 1
+      ? `Baris RKB [${row.kode || '-'}] ${row.uraian} beserta ${idsToDelete.length - 1} rincian di bawahnya berhasil dihapus (cascade delete: total ${idsToDelete.length} baris).`
+      : `Baris RKB [${row.kode || '-'}] ${row.uraian} dihapus.`
   });
 
-  return { success: true };
+  return {
+    success: true,
+    count: idsToDelete.length,
+    deletedCount: idsToDelete.length,
+    deletedIds: idsToDelete
+  };
 }
 
 function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = true, actorUser = null) {

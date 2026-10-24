@@ -1332,9 +1332,14 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
-        deleteRabRow(rowId);
-        clearRkbDatasetCache();
-        return sendJson(res, 200, { success: true });
+        const result = deleteRabRow(rowId, user);
+        clearRkbDatasetCache(row.periode_id);
+        return sendJson(res, 200, {
+          success: true,
+          count: result.count,
+          deletedCount: result.count,
+          deletedIds: result.deletedIds
+        });
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
       }

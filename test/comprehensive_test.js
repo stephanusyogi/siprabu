@@ -154,24 +154,38 @@ async function runAllTests() {
   assert(canEditRow(userTeknis, rowTeknis, 1) === false, 'Operator DITOLAK mengedit dokumen yang berstatus TERKUNCI.');
 
   // --------------------------------------------------------------------------
-  // TEST 8: Header Row Deletion Protection
+  // TEST 8: Hierarchical Cascade Delete (Top-Down) & Non-Reverse Deletion
   // --------------------------------------------------------------------------
-  const headerWithChildren = db.prepare(`
-    SELECT h.id FROM rab_baris h
-    WHERE LOWER(h.row_type) = 'header' AND EXISTS (SELECT 1 FROM rab_baris c WHERE c.parent_rkb_row_id = h.id)
-    LIMIT 1
-  `).get();
-  if (headerWithChildren) {
-    let deleteFailed = false;
-    try {
-      deleteRabRow(headerWithChildren.id);
-    } catch (err) {
-      deleteFailed = true;
-    }
-    assert(deleteFailed === true, 'Penghapusan Header yang masih memiliki rincian item di bawahnya berhasil DICEGAH.');
-  } else {
-    assert(true, 'Proteksi penghapusan header terverifikasi via query logic.');
-  }
+  const openPeriode = db.prepare('SELECT id FROM periode_anggaran WHERE is_locked = 0 LIMIT 1').get() || { id: 2 };
+  const insertMockParent = db.prepare(`
+    INSERT INTO rab_baris (periode_id, urutan, level_indent, row_type, kode, uraian, pic_bagian)
+    VALUES (?, 99990, 2, 'header', '99', 'Uji Header Cascade Parent', 'KUL')
+  `).run(openPeriode.id);
+  const parentId = insertMockParent.lastInsertRowid;
+
+  const insertMockChild = db.prepare(`
+    INSERT INTO rab_baris (periode_id, urutan, level_indent, row_type, kode, uraian, pic_bagian, harga_satuan)
+    VALUES (?, 99991, 5, 'item', null, 'Uji Item Child Cascade', 'KUL', 50000)
+  `).run(openPeriode.id);
+  const childId = insertMockChild.lastInsertRowid;
+
+  // Hapus level bawah (item) tidak boleh menghapus parent
+  deleteRabRow(childId);
+  const parentCheck = db.prepare('SELECT id FROM rab_baris WHERE id = ?').get(parentId);
+
+  // Buat child kedua di bawah parent
+  const insertMockChild2 = db.prepare(`
+    INSERT INTO rab_baris (periode_id, urutan, level_indent, row_type, kode, uraian, pic_bagian, harga_satuan)
+    VALUES (?, 99991, 5, 'item', null, 'Uji Item Child Cascade 2', 'KUL', 50000)
+  `).run(openPeriode.id);
+  const childId2 = insertMockChild2.lastInsertRowid;
+
+  // Hapus parent secara otomatis menghapus seluruh level di bawahnya
+  deleteRabRow(parentId);
+  const parentAfter = db.prepare('SELECT id FROM rab_baris WHERE id = ?').get(parentId);
+  const childAfter = db.prepare('SELECT id FROM rab_baris WHERE id = ?').get(childId2);
+
+  assert(parentCheck !== undefined && parentAfter === undefined && childAfter === undefined, 'Hapus level di atasnya otomatis menghapus level di bawahnya, dan tidak berlaku sebaliknya.');
 
   // --------------------------------------------------------------------------
   // TEST 9: Indonesian & International Number Parsing

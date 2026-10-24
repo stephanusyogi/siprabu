@@ -2226,7 +2226,7 @@ function updateSelectedRowUI() {
     const canEdit = checkCanEditRow(user, row, isLocked);
     if (canEdit) {
       if (treeLvl === 1) {
-        // L1: Tambah L1 (Setingkat) + Tambah L2 (Sub-Level)
+        // L1: Tambah L1 (Setingkat) + Tambah L2 (Sub-Level) + Ubah Teks + Hapus
         btns += `
           <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(1, ${row.id})" style="font-weight:600;" title="Tambah Bagian baru sejajar dengan baris ini">
             ➕ Tambah Bagian (L1)
@@ -2234,9 +2234,15 @@ function updateSelectedRowUI() {
           <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(2, ${row.id})" style="font-weight:700;" title="Tambah Tahapan baru di bawah Bagian ini">
             📂 Tambah Tahapan (L2)
           </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
+            ✏️ Ubah Teks
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Bagian ini beserta seluruh level di bawahnya">
+            🗑️ Hapus
+          </button>
         `;
       } else if (treeLvl === 2) {
-        // L2: Tambah L2 (Setingkat) + Tambah L3 (Sub-Level)
+        // L2: Tambah L2 (Setingkat) + Tambah L3 (Sub-Level) + Ubah Teks + Hapus
         btns += `
           <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(2, ${row.id})" style="font-weight:600;" title="Tambah Tahapan baru sejajar dengan baris ini">
             ➕ Tambah Tahapan (L2)
@@ -2244,9 +2250,15 @@ function updateSelectedRowUI() {
           <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:700;" title="Tambah Kegiatan baru di bawah Tahapan ini">
             📂 Tambah Kegiatan (L3)
           </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
+            ✏️ Ubah Teks
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Tahapan/Kegiatan ini beserta seluruh level di bawahnya">
+            🗑️ Hapus
+          </button>
         `;
       } else if (treeLvl === 3) {
-        // L3: Tambah L3 (Setingkat) + Tambah L4 (Sub-Level)
+        // L3: Tambah L3 (Setingkat) + Tambah L4 (Sub-Level) + Ubah Teks + Hapus
         btns += `
           <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:600;" title="Tambah Kegiatan baru sejajar dengan baris ini">
             ➕ Tambah Kegiatan (L3)
@@ -2254,9 +2266,15 @@ function updateSelectedRowUI() {
           <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:700;" title="Tambah Sub-Komponen baru di bawah Kegiatan ini">
             📂 Tambah Sub-Komp (L4)
           </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
+            ✏️ Ubah Teks
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Kegiatan ini beserta seluruh level di bawahnya">
+            🗑️ Hapus
+          </button>
         `;
       } else if (treeLvl === 4) {
-        // L4: Tambah L4 (Setingkat) + Tambah L5 (Akun BAS)
+        // L4: Tambah L4 (Setingkat) + Tambah L5 (Akun BAS) + Ubah Teks + Hapus
         btns += `
           <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:600;" title="Tambah Sub-Komponen baru sejajar dengan baris ini">
             ➕ Tambah Sub-Komp (L4)
@@ -2264,9 +2282,15 @@ function updateSelectedRowUI() {
           <button class="btn btn-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:700;" title="Rekam Akun Belanja (BAS 6-Digit) di bawah Sub-Komponen ini">
             🏷️ Rekam Akun BAS (L5)
           </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
+            ✏️ Ubah Teks
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Sub-Komponen ini beserta seluruh level di bawahnya">
+            🗑️ Hapus
+          </button>
         `;
       } else if (treeLvl === 5) {
-        // L5 (Akun BAS): Tambah Akun Sejajar (L5) + Tambah Detail Belanja (L6) + Tambah Header Teks
+        // L5 (Akun BAS): Tambah Akun Sejajar (L5) + Tambah Detail Belanja (L6) + Tambah Header Teks + Ubah Akun + Hapus
         btns += `
           <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;" title="Tambah Akun Belanja BAS baru sejajar dengan akun ini">
             🏷️ Tambah Akun Sejajar (L5)
@@ -2276,6 +2300,12 @@ function updateSelectedRowUI() {
           </button>
           <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(5.5, ${row.id})" style="font-weight:700;" title="Tambah Header Teks / Sub-Header Pengelompok (seperti a., b., Paket 1) di bawah akun ini">
             📑 Tambah Header Teks
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openQuickAkunModal(${row.id}, event)" style="font-weight:600;" title="Ubah Akun Belanja (BAS)">
+            ✏️ Ubah Akun
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Akun Belanja ini beserta seluruh level di bawahnya">
+            🗑️ Hapus
           </button>
         `;
       } else if (treeLvl === 5.5) {
@@ -2290,7 +2320,7 @@ function updateSelectedRowUI() {
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
           </button>
-          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Header Teks ini">
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Header Teks ini beserta seluruh level di bawahnya">
             🗑️ Hapus
           </button>
         `;
@@ -2304,6 +2334,16 @@ function updateSelectedRowUI() {
             ✏️ Ubah Rincian
           </button>
           <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Rincian Belanja ini">
+            🗑️ Hapus
+          </button>
+        `;
+      } else {
+        // Fallback Header Lainnya (misal: L0 Program): Ubah Teks + Hapus
+        btns += `
+          <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
+            ✏️ Ubah Teks
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:600;" title="Hapus Baris ini beserta seluruh level di bawahnya">
             🗑️ Hapus
           </button>
         `;
@@ -2590,26 +2630,26 @@ function renderRkbTable() {
       if (isItem) {
         if (canEdit) {
           aksiHtml = `
-            <button class="btn btn-sm btn-primary" onclick="openRowModal(${r.id}, event)" title="Edit Rincian">✏️</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus">🗑️</button>
+            <button class="btn btn-sm btn-primary" onclick="openRowModal(${r.id}, event)" title="Edit Rincian Belanja">✏️</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus Baris Rincian Belanja">🗑️</button>
           `;
         } else {
           aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
         }
       } else {
         if (canEdit && !isLocked) {
-          if (lvl === 41 || lvl === 42) {
-            // Header Teks (Level 5.5, seperti a. Kantor/Inventaris): Aksi Ubah Teks & Hapus
-            aksiHtml = `
-              <button class="btn btn-xs btn-outline-primary" onclick="openEditHeaderModal(${r.id}, event)" title="Ubah Teks Header ini" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;">
-                ✏️
-              </button>
-              <button class="btn btn-xs btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus Header Teks ini" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;margin-left:2px;">
-                🗑️
-              </button>
-            `;
-          }
-          // Catatan: Seluruh penambahan baris hirarki L1..L6 dikelola terpusat lewat baris aktif di toolbar (#saktiActionButtons)
+          const editFn = r.is_akun_row ? `openQuickAkunModal(${r.id}, event)` : `openEditHeaderModal(${r.id}, event)`;
+          const editTitle = r.is_akun_row ? 'Ubah Akun Belanja (BAS)' : 'Ubah Teks Header ini';
+          aksiHtml = `
+            <button class="btn btn-xs btn-outline-primary" onclick="${editFn}" title="${editTitle}" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;">
+              ✏️
+            </button>
+            <button class="btn btn-xs btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="Hapus Baris ini (beserta seluruh level di bawahnya)" style="font-size:10px;padding:2px 5px;font-weight:700;border-radius:4px;margin-left:2px;">
+              🗑️
+            </button>
+          `;
+        } else {
+          aksiHtml = `<span class="text-muted" style="font-size: 11px;">🔒 Read-Only</span>`;
         }
       }
 
@@ -3373,11 +3413,51 @@ async function deleteRow(rowId, event) {
     event.preventDefault();
     event.stopPropagation();
   }
-  if (!confirm('Apakah Anda yakin ingin menghapus baris belanja ini?')) return;
+
+  const allRows = AppState.rkbData?.rows || [];
+  const targetRow = allRows.find(r => r.id === Number(rowId));
+  let confirmMsg = 'Apakah Anda yakin ingin menghapus baris belanja ini?';
+
+  if (targetRow) {
+    // Bangun childrenMap dari relasi parent_tree_id riil
+    const childrenMap = {};
+    allRows.forEach(r => {
+      if (r.parent_tree_id) {
+        if (!childrenMap[r.parent_tree_id]) childrenMap[r.parent_tree_id] = [];
+        childrenMap[r.parent_tree_id].push(r);
+      }
+    });
+
+    const targetTreeId = `row_${targetRow.id}`;
+    const queue = [targetTreeId];
+    let descendantCount = 0;
+    while (queue.length > 0) {
+      const curTreeId = queue.shift();
+      const children = childrenMap[curTreeId] || [];
+      for (const child of children) {
+        descendantCount++;
+        queue.push(child.tree_id);
+      }
+    }
+
+    if (descendantCount > 0) {
+      confirmMsg = `⚠️ PERINGATAN HAPUS BERJENJANG (CASCADE):\n\nMenghapus baris [${targetRow.kode || '-'}] "${targetRow.uraian}" akan OTOMATIS menghapus ${descendantCount} level/rincian di bawahnya.\n\n(Catatan: Level di atas baris ini TIDAK akan terhapus).\n\nApakah Anda yakin ingin melanjutkan penghapusan?`;
+    } else {
+      confirmMsg = `Apakah Anda yakin ingin menghapus baris [${targetRow.kode || '-'}] "${targetRow.uraian}"?`;
+    }
+  }
+
+  if (!confirm(confirmMsg)) return;
+
   try {
-    await apiFetch(`/api/rkb/row/${rowId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/rkb/row/${rowId}`, { method: 'DELETE' });
+    const count = (res && res.count) || 1;
     await loadRkbData();
+    AppState.selectedRowId = null;
     renderAllViews();
+    if (typeof showToast === 'function') {
+      showToast(`🗑️ Berhasil menghapus ${count} baris.`);
+    }
   } catch (err) {
     alert('Gagal menghapus baris: ' + err.message);
   }
