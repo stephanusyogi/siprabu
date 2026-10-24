@@ -193,15 +193,15 @@ async function processDownloadJob(jobId) {
   }
 }
 
-// Auto-cleanup unduhan kadaluarsa setiap 5 menit
+// Auto-cleanup unduhan kadaluarsa setiap 1 menit (otomatis membersihkan history dan file kadaluarsa)
 setInterval(() => {
   try {
     const cleaned = cleanupExpiredDownloads();
     if (cleaned > 0) {
-      console.log(`[DOWNLOAD CLEANUP] ${cleaned} berkas unduhan kadaluarsa (> 1 jam) telah dibersihkan.`);
+      console.log(`[DOWNLOAD CLEANUP] ${cleaned} riwayat dan berkas unduhan kadaluarsa telah dibersihkan otomatis.`);
     }
   } catch (e) {}
-}, 5 * 60 * 1000);
+}, 60 * 1000);
 
 // MIME types map
 const MIME_TYPES = {
@@ -1735,13 +1735,14 @@ const server = http.createServer(async (req, res) => {
       const job = getDownloadRequestById(reqId);
       if (!job) return sendJson(res, 404, { error: 'Antrean unduhan tidak ditemukan.' });
 
-      // Verifikasi hak unduh: pengguna hanya boleh mengunduh berkas buatannya sendiri
-      if (job.username && job.username !== currentUser.username && currentUser.level > 0) {
+      // Verifikasi hak unduh: pengguna hanya boleh mengunduh berkas buatannya sendiri (isolasi total per-user)
+      if (job.username !== currentUser.username) {
         return sendJson(res, 403, { error: 'Akses ditolak. Anda hanya berhak mengunduh berkas permintaan Anda sendiri.' });
       }
 
       if (job.status === 'KADALUARSA') {
-        return sendJson(res, 410, { error: 'Berkas unduhan telah kadaluarsa (> 1 jam) dan terhapus otomatis.' });
+        cleanupExpiredDownloads();
+        return sendJson(res, 410, { error: 'Berkas unduhan telah kadaluarsa dan riwayat terhapus otomatis.' });
       }
 
       if (job.status !== 'SELESAI' || !job.file_path || !fs.existsSync(job.file_path)) {

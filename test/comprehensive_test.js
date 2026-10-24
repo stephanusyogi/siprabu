@@ -73,7 +73,10 @@ async function runAllTests() {
     finalizeTahap4Keseluruhan,
     recordAuditLog,
     saveKuantitas,
-    getKuantitasById
+    getKuantitasById,
+    createDownloadRequest,
+    getDownloadRequests,
+    cleanupExpiredDownloads
   } = require('../src/db');
   const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison } = require('../src/calculation');
   const { parseSbmExcelBuffer, parseDesaExcelBuffer, exportRkbToExcelBuffer } = require('../src/excel_io');
@@ -449,9 +452,42 @@ async function runAllTests() {
   assert(parseSaktiRouteToken(tamperedToken) === null, 'Token yang diubah / checksum tidak valid ditolak tegas (return null).');
 
   // --------------------------------------------------------------------------
-  // TEST 23: Clean Database Teardown & Production Isolation
+  // TEST 23: Download Requests User Isolation & Auto-Cleanup Kadaluarsa
   // --------------------------------------------------------------------------
-  console.log('\n--- KELOMPOK 11: ISOLASI DATABASE & KEBERSIHAN ---');
+  console.log('\n--- KELOMPOK 11: ISOLASI ANTREAN UNDUHAN & AUTO-CLEANUP KADALUARSA ---');
+  const jobUserA = createDownloadRequest({
+    nama_file: 'Laporan_User_A.xlsx',
+    tipe_unduhan: 'EXCEL_RKB',
+    periode_id: 1,
+    filter_pic: 'TEKNIS',
+    username: 'user_a'
+  });
+
+  const jobUserB = createDownloadRequest({
+    nama_file: 'Laporan_User_B.xlsx',
+    tipe_unduhan: 'EXCEL_RKB',
+    periode_id: 1,
+    filter_pic: 'KUL',
+    username: 'user_b'
+  });
+
+  const listA = getDownloadRequests({ username: 'user_a' });
+  assert(listA.length === 1 && listA[0].nama_file === 'Laporan_User_A.xlsx', 'User A hanya melihat berkas unduhan miliknya sendiri.');
+
+  const listB = getDownloadRequests({ username: 'user_b' });
+  assert(listB.length === 1 && listB[0].nama_file === 'Laporan_User_B.xlsx', 'User B hanya melihat berkas unduhan miliknya sendiri (tidak bocor ke User A).');
+
+  // Buat berkas buatan berstatus kadaluarsa (waktu lampau)
+  db.prepare("UPDATE download_requests SET expires_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(jobUserA.id);
+  const cleanedCount = cleanupExpiredDownloads();
+  assert(cleanedCount >= 0, 'cleanupExpiredDownloads() berjalan tanpa error.');
+  const listAAfterClean = getDownloadRequests({ username: 'user_a' });
+  assert(listAAfterClean.length === 0, 'History unduhan yang telah kadaluarsa otomatis terhapus bersih dari sistem.');
+
+  // --------------------------------------------------------------------------
+  // TEST 24: Clean Database Teardown & Production Isolation
+  // --------------------------------------------------------------------------
+  console.log('\n--- KELOMPOK 12: ISOLASI DATABASE & KEBERSIHAN ---');
   const prodCheck = verifyDatabaseIntegrity(PROD_DB_PATH);
   assert(prodCheck.integrity === 'ok', 'Database produksi tetap utuh dan berstatus valid tanpa terganggu selama pengujian.');
 

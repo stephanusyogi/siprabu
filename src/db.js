@@ -2568,13 +2568,18 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
 }
 
 function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai = '', username = '' } = {}) {
-  let sql = 'SELECT * FROM download_requests WHERE 1=1';
-  const params = [];
+  // 1. Bersihkan riwayat & berkas kadaluarsa secara proaktif dan otomatis
+  cleanupExpiredDownloads();
 
-  if (username) {
-    sql += ' AND (username = ? OR username IS NULL)';
-    params.push(username);
+  // 2. Isolasi ketat: jika username tidak ada, tolak / kembalikan kosong
+  if (!username) {
+    return [];
   }
+
+  const now = new Date().toISOString();
+  // Setiap user HANYA melihat riwayat unduhannya sendiri (tidak ada akses ke unduhan user lain)
+  let sql = "SELECT * FROM download_requests WHERE username = ? AND status != 'KADALUARSA' AND (expires_at IS NULL OR expires_at >= ?)";
+  const params = [username, now];
 
   if (search) {
     sql += ' AND (nama_file LIKE ? OR filter_pic LIKE ? OR request_id LIKE ?)';
@@ -2616,9 +2621,10 @@ function updateDownloadRequest(id, fields) {
 
 function cleanupExpiredDownloads() {
   const now = new Date().toISOString();
+  // Ambil semua permintaan unduhan yang telah kadaluarsa (melewati expires_at atau berstatus KADALUARSA)
   const expired = db.prepare(`
     SELECT * FROM download_requests 
-    WHERE expires_at < ? AND status = 'SELESAI'
+    WHERE (expires_at IS NOT NULL AND expires_at < ?) OR status = 'KADALUARSA'
   `).all(now);
 
   let cleaned = 0;
@@ -2631,10 +2637,10 @@ function cleanupExpiredDownloads() {
     }
   }
 
+  // Hapus riwayat secara permanen dari database agar tidak mengotori tabel riwayat unduhan
   db.prepare(`
-    UPDATE download_requests 
-    SET status = 'KADALUARSA', file_path = NULL 
-    WHERE expires_at < ? AND status = 'SELESAI'
+    DELETE FROM download_requests 
+    WHERE (expires_at IS NOT NULL AND expires_at < ?) OR status = 'KADALUARSA'
   `).run(now);
 
   return cleaned;
