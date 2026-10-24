@@ -44,6 +44,7 @@ const {
   saveRabRow,
   deleteRabRow,
   updateRabBarisPicWithCascade,
+  updateRabBarisSasaranWithCascade,
   reorderRow,
   getUsers,
   getUserById,
@@ -107,7 +108,7 @@ const {
   recordAuditLog
 } = require('./src/db');
 
-const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset } = require('./src/calculation');
+const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset, auditRkbIntegrity } = require('./src/calculation');
 const { createToken, verifyToken, revokeToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser } = require('./src/auth');
 const { 
   exportRkbToExcelBuffer, 
@@ -864,7 +865,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 404, { error: 'Baris RKB tidak ditemukan pada periode ini.' });
       }
 
-      const result = updateRabBarisPicWithCascade(periodeId, Number(row_id), pic_bagian, cascade !== false);
+      const result = updateRabBarisPicWithCascade(periodeId, Number(row_id), pic_bagian, cascade !== false, user);
       clearRkbDatasetCache();
       return sendJson(res, 200, {
         ok: true,
@@ -873,6 +874,52 @@ const server = http.createServer(async (req, res) => {
         updatedIds: result.updatedIds,
         pic_bagian: result.pic_bagian
       });
+    }
+
+    const quickSasaranMatch = pathname.match(/^\/api\/rkb\/(\d+)\/quick-sasaran$/);
+    if (quickSasaranMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(quickSasaranMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+      if (Number(periode.is_locked) === 1) return sendJson(res, 403, { error: 'Dokumen berstatus terkunci.' });
+
+      const body = await parseJsonBody(req);
+      const { row_id, target_scope, cascade } = body;
+      const storedRow = getRabRowById(Number(row_id));
+      if (!storedRow || storedRow.periode_id !== periodeId) {
+        return sendJson(res, 404, { error: 'Baris RKB tidak ditemukan pada periode ini.' });
+      }
+      if (!canEditRow(user, storedRow, periode.is_locked)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Anda tidak berwenang mengedit baris ini.' });
+      }
+
+      try {
+        const result = updateRabBarisSasaranWithCascade(periodeId, Number(row_id), target_scope, cascade !== false, user);
+        clearRkbDatasetCache();
+        return sendJson(res, 200, {
+          ok: true,
+          message: `Sasaran baris berhasil diperbarui (${result.count} baris terupdate).`,
+          count: result.count,
+          updatedIds: result.updatedIds,
+          target_scope: result.target_scope
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    const auditIntegritasMatch = pathname.match(/^\/api\/rkb\/(\d+)\/audit-integritas$/);
+    if (auditIntegritasMatch && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(auditIntegritasMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+
+      const report = auditRkbIntegrity(periodeId);
+      return sendJson(res, 200, { ok: true, report });
     }
 
     const quickAkunMatch = pathname.match(/^\/api\/rkb\/(\d+)\/quick-akun$/);
@@ -1445,9 +1492,12 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
-        const result = reorderRow(periodeId, row_id, direction);
+        const result = reorderRow(periodeId, row_id, direction, user);
         clearRkbDatasetCache();
-        return sendJson(res, 200, result);
+        if (!result) {
+          return sendJson(res, 400, { error: 'Baris sudah berada di batas awal atau akhir grup induknya.' });
+        }
+        return sendJson(res, 200, { ok: true, success: true });
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
       }

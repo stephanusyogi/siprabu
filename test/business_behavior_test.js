@@ -585,6 +585,62 @@ async function runBusinessBehaviorTests() {
 
   testServer.close();
 
+  // --------------------------------------------------------------------------
+  // TEST 26: Bab 18, 19, 22 Canon Master Blueprint (Cascade Sasaran, Subtree Reorder, Audit Integritas, Blok Penandatangan)
+  // --------------------------------------------------------------------------
+  console.log('--- TEST BAB 18, 19, 22 CANON: CASCADE SASARAN, REORDER SUBTREE, AUDIT INTEGRITAS & BLOK TTD ---');
+  const { updateRabBarisSasaranWithCascade, reorderRow } = require('../src/db');
+  const { auditRkbIntegrity } = require('../src/calculation');
+  const { appendOfficialSignature } = require('../src/excel_io');
+  const ExcelJS = require('exceljs');
+
+  // 26.1: Top-down cascade Sasaran pada baris Header memperbarui seluruh turunannya, sedangkan perubahan Sasaran pada baris item tidak mengubah induknya
+  const headerL5 = db.prepare("SELECT id, level_indent, target_scope FROM rab_baris WHERE periode_id = ? AND row_type = 'header' AND level_indent = 3 LIMIT 1").get(activeCycle2.id);
+  const cascadeSasRes = updateRabBarisSasaranWithCascade(activeCycle2.id, headerL5.id, 'PPK', true, userL1);
+  assert(cascadeSasRes.success === true && cascadeSasRes.count > 1, 'Test 26.1 (Canon Bab 18.3): Perubahan Sasaran pada baris induk secara otomatis mengalir (Top-Down Cascade) ke seluruh baris turunannya.');
+
+  const childItemId = cascadeSasRes.updatedIds.find(id => id !== headerL5.id);
+  updateRabBarisSasaranWithCascade(activeCycle2.id, childItemId, 'TPS', true, userL1);
+  const headerAfterChildEdit = db.prepare('SELECT target_scope FROM rab_baris WHERE id = ?').get(headerL5.id);
+  assert(headerAfterChildEdit.target_scope === 'PPK', 'Test 26.2 (Canon Bab 18.3): Perubahan Sasaran pada baris anak bersifat satu arah dan TIDAK mengubah Sasaran baris induk di atasnya.');
+
+  // 26.3: Reorder baris dibatasi dalam grup induknya (boundary check)
+  const firstRowInPeriod = db.prepare('SELECT id FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC LIMIT 1').get(activeCycle2.id);
+  const moveUpFirst = reorderRow(activeCycle2.id, firstRowInPeriod.id, 'UP', userL1);
+  assert(moveUpFirst === false, 'Test 26.3 (Canon Bab 18.5): Pergeseran naik pada baris di urutan paling awal grup induknya ditolak dengan aman.');
+
+  // 26.4: Audit Integritas Pra-Operasional berjalan 100% Read-Only dan menghasilkan ringkasan Kritis/Peringatan/Valid
+  const auditReport = auditRkbIntegrity(activeCycle2.id);
+  assert(
+    auditReport &&
+    auditReport.summary &&
+    typeof auditReport.summary.kritis === 'number' &&
+    typeof auditReport.summary.peringatan === 'number' &&
+    typeof auditReport.summary.valid === 'number' &&
+    auditReport.summary.total_checked > 0,
+    'Test 26.4 (Canon Bab 19): Mesin Audit Integritas Data RKB Pra-Operasional memeriksa seluruh baris secara Read-Only.'
+  );
+
+  // 26.5: Blok Penandatangan (Bab 22): Default Lembaga hanya Ketua KPU saja; Pleno menyertakan Ketua + 4 Anggota
+  const wbTest = new ExcelJS.Workbook();
+  const wsLembaga = wbTest.addWorksheet('Lembaga');
+  appendOfficialSignature(wsLembaga, { isPic: false, tanggalUnduh: '24 Oktober 2026', settings: { nama_ketua: 'SAMSU MUSTAKIM' } });
+  let lembagaText = '';
+  wsLembaga.eachRow(r => r.eachCell(c => { if (c.value) lembagaText += ' ' + String(c.value); }));
+  assert(
+    lembagaText.includes('Ketua Komisi Pemilihan Umum') && !lembagaText.includes('ANGGOTA,'),
+    'Test 26.5 (Canon Bab 22.1 & 22.2): Blok tanda tangan dokumen pengusulan/pelaporan/arsip lembaga hanya mencantumkan Ketua KPU saja.'
+  );
+
+  const wsPleno = wbTest.addWorksheet('Pleno');
+  appendOfficialSignature(wsPleno, { isPic: false, signContext: 'PLENO', tanggalUnduh: '24 Oktober 2026', settings: { nama_ketua: 'SAMSU MUSTAKIM' } });
+  let plenoText = '';
+  wsPleno.eachRow(r => r.eachCell(c => { if (c.value) plenoText += ' ' + String(c.value); }));
+  assert(
+    plenoText.includes('KETUA,') && plenoText.includes('ANGGOTA,'),
+    'Test 26.6 (Canon Bab 22.1): Blok tanda tangan Pengesahan Pleno mencantumkan Ketua KPU bersama 4 Anggota Komisioner KPU.'
+  );
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');

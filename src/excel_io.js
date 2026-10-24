@@ -91,13 +91,12 @@ function getSubbagSignatureInfo(picCode) {
 }
 
 /**
- * Menambahkan blok tanda tangan resmi:
- * - Jika PIC: Komisioner di Kiri, Kasubag di Kanan, baris Center:
- *     "Ngawi, [tanggal unduh]"
- *     "Divisi / Kasubag [Subbagian]"
- * - Jika Full: Ketua KPU di Kanan (Kolom I:K)
+ * Menambahkan blok tanda tangan resmi sesuai Bab 22 Canon Master Blueprint:
+ * - Jika PIC (Perencanaan Divisi): Ketua Divisi di Kiri, Kasubag terkait di Kanan
+ * - Jika signContext === 'PLENO' (Pengesahan Pleno): Ketua KPU bersama 4 Anggota KPU lainnya (5 Komisioner)
+ * - Jika Full (Pengusulan, Pelaporan, dan Arsip Lembaga - Default): Ketua KPU saja di Kanan (Kolom I:K)
  */
-function appendOfficialSignature(ws, { isPic, filterPic, tanggalUnduh, settings, colLeftMerge = 'B:F', colRightMerge = 'H:K' }) {
+function appendOfficialSignature(ws, { isPic, filterPic, tanggalUnduh, settings, signContext = 'LEMBAGA', colLeftMerge = 'B:F', colRightMerge = 'H:K' }) {
   if (isPic) {
     const subInfo = getSubbagSignatureInfo(filterPic);
 
@@ -173,8 +172,104 @@ function appendOfficialSignature(ws, { isPic, filterPic, tanggalUnduh, settings,
     cNipKas.font = { name: 'Calibri', size: 10, color: { argb: 'FF000000' } };
 
     return ws.rowCount;
+  } else if (String(signContext || '').toUpperCase() === 'PLENO') {
+    // Bab 22.1: Pengesahan Pleno -> Ketua KPU bersama 4 Anggota KPU lainnya
+    const namaKetua = (settings && settings.nama_ketua) || 'SAMSU MUSTAKIM';
+    const komRendatin = getSubbagSignatureInfo('RENDATIN').komisioner_nama;
+    const komTeknis = getSubbagSignatureInfo('TEKNIS').komisioner_nama;
+    const komHukum = getSubbagSignatureInfo('HUKUM').komisioner_nama;
+    const komParsdm = getSubbagSignatureInfo('PARSDM').komisioner_nama;
+
+    const rowDate = ws.addRow([]);
+    rowDate.height = 20;
+    ws.mergeCells(`A${rowDate.number}:K${rowDate.number}`);
+    const cDate = ws.getCell(`A${rowDate.number}`);
+    cDate.value = `NGAWI, ${tanggalUnduh}`;
+    cDate.alignment = { horizontal: 'center', vertical: 'middle' };
+    cDate.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
+
+    const rowTitle = ws.addRow([]);
+    rowTitle.height = 20;
+    ws.mergeCells(`A${rowTitle.number}:K${rowTitle.number}`);
+    const cTitle = ws.getCell(`A${rowTitle.number}`);
+    cTitle.value = 'KOMISI PEMILIHAN UMUM KABUPATEN NGAWI';
+    cTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+    cTitle.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } };
+
+    // Ketua KPU di Tengah
+    const rowKetuaJab = ws.addRow([]);
+    rowKetuaJab.height = 18;
+    ws.mergeCells(`E${rowKetuaJab.number}:G${rowKetuaJab.number}`);
+    const cKJab = ws.getCell(`E${rowKetuaJab.number}`);
+    cKJab.value = 'KETUA,';
+    cKJab.alignment = { horizontal: 'center', vertical: 'middle' };
+    cKJab.font = { name: 'Calibri', size: 10.5, bold: true };
+
+    const spaceKetua = ws.addRow([]);
+    spaceKetua.height = 26;
+
+    const rowKetuaNama = ws.addRow([]);
+    rowKetuaNama.height = 20;
+    ws.mergeCells(`E${rowKetuaNama.number}:G${rowKetuaNama.number}`);
+    const cKNama = ws.getCell(`E${rowKetuaNama.number}`);
+    cKNama.value = namaKetua;
+    cKNama.alignment = { horizontal: 'center', vertical: 'middle' };
+    cKNama.font = { name: 'Calibri', size: 11, bold: true };
+
+    // 4 Anggota Komisioner KPU
+    const rowAnggotaJab = ws.addRow([]);
+    rowAnggotaJab.height = 18;
+    ws.mergeCells(`B${rowAnggotaJab.number}:F${rowAnggotaJab.number}`);
+    ws.mergeCells(`H${rowAnggotaJab.number}:K${rowAnggotaJab.number}`);
+    ws.getCell(`B${rowAnggotaJab.number}`).value = 'ANGGOTA,';
+    ws.getCell(`H${rowAnggotaJab.number}`).value = 'ANGGOTA,';
+    ['B', 'H'].forEach(col => {
+      ws.getCell(`${col}${rowAnggotaJab.number}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getCell(`${col}${rowAnggotaJab.number}`).font = { name: 'Calibri', size: 10.5, bold: true };
+    });
+
+    const spaceAnggota1 = ws.addRow([]);
+    spaceAnggota1.height = 26;
+
+    const rowAnggotaNama1 = ws.addRow([]);
+    rowAnggotaNama1.height = 20;
+    ws.mergeCells(`B${rowAnggotaNama1.number}:F${rowAnggotaNama1.number}`);
+    ws.mergeCells(`H${rowAnggotaNama1.number}:K${rowAnggotaNama1.number}`);
+    ws.getCell(`B${rowAnggotaNama1.number}`).value = komRendatin;
+    ws.getCell(`H${rowAnggotaNama1.number}`).value = komTeknis;
+    ['B', 'H'].forEach(col => {
+      ws.getCell(`${col}${rowAnggotaNama1.number}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getCell(`${col}${rowAnggotaNama1.number}`).font = { name: 'Calibri', size: 11, bold: true };
+    });
+
+    const rowAnggotaJab2 = ws.addRow([]);
+    rowAnggotaJab2.height = 18;
+    ws.mergeCells(`B${rowAnggotaJab2.number}:F${rowAnggotaJab2.number}`);
+    ws.mergeCells(`H${rowAnggotaJab2.number}:K${rowAnggotaJab2.number}`);
+    ws.getCell(`B${rowAnggotaJab2.number}`).value = 'ANGGOTA,';
+    ws.getCell(`H${rowAnggotaJab2.number}`).value = 'ANGGOTA,';
+    ['B', 'H'].forEach(col => {
+      ws.getCell(`${col}${rowAnggotaJab2.number}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getCell(`${col}${rowAnggotaJab2.number}`).font = { name: 'Calibri', size: 10.5, bold: true };
+    });
+
+    const spaceAnggota2 = ws.addRow([]);
+    spaceAnggota2.height = 26;
+
+    const rowAnggotaNama2 = ws.addRow([]);
+    rowAnggotaNama2.height = 20;
+    ws.mergeCells(`B${rowAnggotaNama2.number}:F${rowAnggotaNama2.number}`);
+    ws.mergeCells(`H${rowAnggotaNama2.number}:K${rowAnggotaNama2.number}`);
+    ws.getCell(`B${rowAnggotaNama2.number}`).value = komHukum;
+    ws.getCell(`H${rowAnggotaNama2.number}`).value = komParsdm;
+    ['B', 'H'].forEach(col => {
+      ws.getCell(`${col}${rowAnggotaNama2.number}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getCell(`${col}${rowAnggotaNama2.number}`).font = { name: 'Calibri', size: 11, bold: true };
+    });
+
+    return ws.rowCount;
   } else {
-    // Unduhan Full: Ketua KPU di Kolom I:K
+    // Bab 22.1 & 22.2: Pengusulan, Pelaporan, dan Arsip Lembaga -> Ketua KPU saja di Kolom I:K
     const signR1 = ws.rowCount + 1;
     const rowDate = ws.addRow(['', '', '', '', '', '', '', '', `NGAWI, ${tanggalUnduh}`]);
     rowDate.height = 20;
@@ -186,7 +281,7 @@ function appendOfficialSignature(ws, { isPic, filterPic, tanggalUnduh, settings,
     const signSpace1 = ws.addRow([]);
     signSpace1.height = 26;
 
-    const namaKetua = settings.nama_ketua || 'SAMSU MUSTAKIM';
+    const namaKetua = (settings && settings.nama_ketua) || 'SAMSU MUSTAKIM';
     const rowNama = ws.addRow(['', '', '', '', '', '', '', '', namaKetua]);
     rowNama.height = 22;
     const signEndRow = ws.rowCount;
@@ -2764,5 +2859,7 @@ module.exports = {
   exportDesaToExcelBuffer,
   parseDesaExcelBuffer,
   exportKecamatanToExcelBuffer,
-  parseKecamatanExcelBuffer
+  parseKecamatanExcelBuffer,
+  appendOfficialSignature,
+  getSubbagSignatureInfo
 };

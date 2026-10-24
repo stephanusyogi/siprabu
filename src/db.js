@@ -1343,6 +1343,17 @@ function saveRabRow(row, actorUser = null) {
       }
     }
 
+    const newSasaranVal = row.target_scope ? String(row.target_scope).toUpperCase().trim() : existing.target_scope;
+    const isSasaranChanged = newSasaranVal && existing.target_scope && newSasaranVal !== String(existing.target_scope).toUpperCase().trim();
+
+    if (isHeaderRow && isSasaranChanged) {
+      try {
+        updateRabBarisSasaranWithCascade(existing.periode_id, row.id, newSasaranVal, true, actorUser);
+      } catch (cascadeErr) {
+        console.warn('[saveRabRow] Cascade Sasaran notice:', cascadeErr.message);
+      }
+    }
+
     return getRabRowById(row.id);
   } else {
     let urutan = row.urutan;
@@ -1547,6 +1558,68 @@ function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = tru
   };
 }
 
+function updateRabBarisSasaranWithCascade(periodeId, rowId, targetScope, cascade = true, actorUser = null) {
+  const cleanSasaran = String(targetScope || 'KAB').toUpperCase().trim();
+  const targetRow = getRabRowById(rowId);
+  if (!targetRow) throw new Error('Baris tidak ditemukan.');
+
+  checkRowEditPermission(periodeId, targetRow.pic_bagian, actorUser);
+
+  const isHeader = (targetRow.row_type === 'header' || Number(targetRow.level_indent) < 4);
+
+  if (!cascade || !isHeader) {
+    db.prepare('UPDATE rab_baris SET target_scope = ? WHERE id = ?').run(cleanSasaran, rowId);
+    try {
+      const { clearRkbDatasetCache } = require('./calculation');
+      if (typeof clearRkbDatasetCache === 'function') clearRkbDatasetCache(periodeId);
+    } catch (e) {}
+    return {
+      success: true,
+      updatedCount: 1,
+      count: 1,
+      updatedIds: [Number(rowId)],
+      target_scope: cleanSasaran
+    };
+  }
+
+  const allRows = db.prepare('SELECT id, urutan, kode, uraian, row_type, level_indent, pic_bagian, target_scope FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
+  const targetIdx = allRows.findIndex(r => r.id === Number(rowId));
+  if (targetIdx === -1) throw new Error('Baris tidak ditemukan dalam periode ini.');
+
+  const targetRank = getRowHierarchyRank(targetRow);
+  const idsToUpdate = [Number(targetRow.id)];
+
+  for (let i = targetIdx + 1; i < allRows.length; i++) {
+    const child = allRows[i];
+    const rRank = getRowHierarchyRank(child);
+    if (rRank <= targetRank) break;
+    idsToUpdate.push(Number(child.id));
+  }
+
+  const upd = db.prepare('UPDATE rab_baris SET target_scope = ? WHERE id = ?');
+  db.exec('BEGIN TRANSACTION');
+  try {
+    idsToUpdate.forEach(id => upd.run(cleanSasaran, id));
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
+  try {
+    const { clearRkbDatasetCache } = require('./calculation');
+    if (typeof clearRkbDatasetCache === 'function') clearRkbDatasetCache(periodeId);
+  } catch (e) {}
+
+  return {
+    success: true,
+    updatedCount: idsToUpdate.length,
+    count: idsToUpdate.length,
+    updatedIds: idsToUpdate,
+    target_scope: cleanSasaran
+  };
+}
+
 function clearRabRows(periodeId) {
   const p = getPeriodeById(periodeId);
   if (p && Number(p.is_locked) === 1) {
@@ -1566,22 +1639,112 @@ function reorderRow(periodeId, rowId, direction, actorUser = null) {
 
   checkRowEditPermission(periodeId, curItem.pic_bagian, actorUser);
 
-  const rows = db.prepare('SELECT id, urutan, parent_rkb_row_id, pic_bagian FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
+  const rows = db.prepare('SELECT id, urutan, row_type, level_indent, parent_rkb_row_id, pic_bagian FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
   const idx = rows.findIndex(r => r.id === Number(rowId));
   if (idx === -1) throw new Error('Baris tidak ditemukan.');
 
-  const targetIdx = String(direction).toLowerCase() === 'up' ? idx - 1 : idx + 1;
-  if (targetIdx < 0 || targetIdx >= rows.length) return false;
-
   const curRow = rows[idx];
-  const swapRow = rows[targetIdx];
+  const curRank = getRowHierarchyRank(curRow);
+  const dir = String(direction).toLowerCase();
+
+  // Tentukan rentang blok (subtree) dari baris terpilih: [idx .. curBlockEnd]
+  let curBlockEnd = idx;
+  if (curRow.row_type === 'header' || curRank < 99) {
+    for (let i = idx + 1; i < rows.length; i++) {
+      if (getRowHierarchyRank(rows[i]) <= curRank) break;
+      curBlockEnd = i;
+    }
+  }
+
+  // Tentukan batas parent group (induk terdekat dengan rank < curRank)
+  let parentIdx = -1;
+  let parentRank = 0;
+  for (let i = idx - 1; i >= 0; i--) {
+    const rRank = getRowHierarchyRank(rows[i]);
+    if (rRank < curRank) {
+      parentIdx = i;
+      parentRank = rRank;
+      break;
+    }
+  }
+
+  let groupStart = parentIdx + 1;
+  let groupEnd = rows.length - 1;
+  if (parentIdx !== -1) {
+    for (let i = parentIdx + 1; i < rows.length; i++) {
+      if (getRowHierarchyRank(rows[i]) <= parentRank) {
+        groupEnd = i - 1;
+        break;
+      }
+    }
+  }
+
+  let siblingStart = -1;
+  let siblingEnd = -1;
+
+  if (dir === 'up') {
+    if (idx <= groupStart) return false; // Sudah di paling atas grup induknya
+    // Cari sibling sejajar tepat di atas dalam grup induk yang sama
+    for (let i = idx - 1; i >= groupStart; i--) {
+      const rRank = getRowHierarchyRank(rows[i]);
+      if (rRank === curRank) {
+        siblingStart = i;
+        siblingEnd = idx - 1;
+        break;
+      }
+      if (rRank < curRank) break;
+    }
+    if (siblingStart === -1) return false;
+  } else {
+    if (curBlockEnd >= groupEnd) return false; // Sudah di paling bawah grup induknya
+    const nextIdx = curBlockEnd + 1;
+    if (nextIdx > groupEnd) return false;
+    const nextRank = getRowHierarchyRank(rows[nextIdx]);
+    if (nextRank !== curRank) return false;
+    siblingStart = nextIdx;
+    siblingEnd = nextIdx;
+    if (rows[nextIdx].row_type === 'header' || nextRank < 99) {
+      for (let i = nextIdx + 1; i <= groupEnd; i++) {
+        if (getRowHierarchyRank(rows[i]) <= nextRank) break;
+        siblingEnd = i;
+      }
+    }
+  }
+
+  const swapRow = rows[siblingStart];
   checkRowEditPermission(periodeId, swapRow.pic_bagian, actorUser);
 
-  const tempUrutan = curRow.urutan;
-  const newUrutan = swapRow.urutan;
+  // Susun ulang urutan dalam rentang gabungan kedua blok menggunakan nilai urutan yang ada
+  const rangeStart = Math.min(idx, siblingStart);
+  const rangeEnd = Math.max(curBlockEnd, siblingEnd);
+  const existingUrutans = [];
+  for (let i = rangeStart; i <= rangeEnd; i++) {
+    existingUrutans.push(rows[i].urutan !== null && rows[i].urutan !== undefined ? Number(rows[i].urutan) : (i + 1) * 10);
+  }
+  // Pastikan urutan strictly increasing bila ada duplikat
+  for (let i = 1; i < existingUrutans.length; i++) {
+    if (existingUrutans[i] <= existingUrutans[i - 1]) {
+      existingUrutans[i] = existingUrutans[i - 1] + 1;
+    }
+  }
 
-  db.prepare('UPDATE rab_baris SET urutan = ? WHERE id = ?').run(newUrutan, curRow.id);
-  db.prepare('UPDATE rab_baris SET urutan = ? WHERE id = ?').run(tempUrutan, swapRow.id);
+  const curBlock = rows.slice(idx, curBlockEnd + 1);
+  const siblingBlock = rows.slice(siblingStart, siblingEnd + 1);
+  const reorderedBlock = dir === 'up'
+    ? [...curBlock, ...siblingBlock]
+    : [...siblingBlock, ...curBlock];
+
+  const updStmt = db.prepare('UPDATE rab_baris SET urutan = ? WHERE id = ?');
+  db.exec('BEGIN TRANSACTION');
+  try {
+    for (let i = 0; i < reorderedBlock.length; i++) {
+      updStmt.run(existingUrutans[i], reorderedBlock[i].id);
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
 
   try {
     const { clearRkbDatasetCache } = require('./calculation');
@@ -1593,7 +1756,7 @@ function reorderRow(periodeId, rowId, direction, actorUser = null) {
     action: 'REORDER_ROW',
     entity: 'rab_baris',
     entity_id: rowId,
-    notes: `Pengurutan baris [${rowId}] ditukar ke arah ${direction}.`
+    notes: `Pengurutan baris [${rowId}] (${curBlock.length} baris) ditukar ke arah ${direction}.`
   });
 
   return true;
@@ -3823,6 +3986,7 @@ module.exports = {
   saveRabRow,
   deleteRabRow,
   updateRabBarisPicWithCascade,
+  updateRabBarisSasaranWithCascade,
   clearRabRows,
   reorderRow,
   getUsers,

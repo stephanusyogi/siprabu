@@ -1002,6 +1002,238 @@ function getRevisionSummary(periodeId, targetComparisonPeriodeId = null) {
   };
 }
 
+/**
+ * Bab 19 Canon Master Blueprint:
+ * Audit Integritas Data RKB Pra-Operasional (100% Read-Only, Tanpa Mengubah Data Secara Otomatis)
+ */
+function auditRkbIntegrity(periodeId) {
+  const key = Number(periodeId);
+  const dataset = getRkbCalculatedDataset(key);
+  const rows = dataset.rows || [];
+
+  const akunRows = db.prepare('SELECT kode, uraian FROM master_akun').all();
+  const validAkuns = new Map(akunRows.map(a => [String(a.kode).trim(), a.uraian]));
+  const sbmRows = db.prepare('SELECT * FROM master_sbm').all();
+
+  const rowByTreeId = {};
+  rows.forEach(r => { rowByTreeId[r.tree_id] = r; });
+
+  const findings = [];
+  const rowStatusMap = new Map(); // row.id -> 'KRITIS' | 'PERINGATAN' | 'VALID'
+
+  const markRowStatus = (rowId, severity) => {
+    const cur = rowStatusMap.get(rowId) || 'VALID';
+    if (severity === 'KRITIS') {
+      rowStatusMap.set(rowId, 'KRITIS');
+    } else if (severity === 'PERINGATAN' && cur !== 'KRITIS') {
+      rowStatusMap.set(rowId, 'PERINGATAN');
+    }
+  };
+
+  rows.forEach(r => {
+    rowStatusMap.set(r.id, 'VALID');
+  });
+
+  // 1-5 Pemeriksaan per baris
+  for (let idx = 0; idx < rows.length; idx++) {
+    const r = rows[idx];
+    const locLabel = `Baris #${r.urutan || (idx + 1)} [${r.kode || (r.is_header ? 'HEADER' : 'ITEM')}] ${r.uraian || ''}`;
+    const parentRow = r.parent_tree_id ? rowByTreeId[r.parent_tree_id] : null;
+
+    if (!r.is_header) {
+      // 1. Audit Kuantitas: cek keterhubungan variabel @var atau basis_pengali untuk kata kunci SSOT
+      const hasAnyVar = Boolean(
+        (r.f1_var && r.f1_var !== 'MANUAL' && r.f1_var !== 'FIXED') ||
+        (r.f2_var && r.f2_var !== 'MANUAL' && r.f2_var !== 'FIXED') ||
+        (r.f3_var && r.f3_var !== 'MANUAL' && r.f3_var !== 'FIXED') ||
+        (r.f4_var && r.f4_var !== 'MANUAL' && r.f4_var !== 'FIXED') ||
+        (r.basis_pengali && r.basis_pengali !== 'NONE' && r.basis_pengali !== 'FIXED')
+      );
+      const combinedText = `${r.uraian || ''} ${r.f1_unit || ''} ${r.f2_unit || ''} ${r.f3_unit || ''} ${r.f4_unit || ''} ${r.satuan_vol || ''}`.toLowerCase();
+      const ssotKeywords = [
+        { kw: 'tps', ref: '@tps_rkb (Master TPS Desa)' },
+        { kw: 'ppk', ref: '@kec_ppk (Master 19 Kecamatan)' },
+        { kw: 'pps', ref: '@desa_pps (Master 217 Desa)' },
+        { kw: 'pantarlih', ref: '@pantarlih (Master Pantarlih Desa)' },
+        { kw: 'kpps', ref: '@kpps_ketua / @kpps_anggota (Master TPS)' },
+        { kw: 'linmas', ref: '@linmas_tps (Master TPS)' },
+        { kw: 'paslon', ref: '@paslon (Master Pasangan Calon)' }
+      ];
+      if (!hasAnyVar) {
+        const matchedKw = ssotKeywords.find(k => new RegExp(`\\b${k.kw}\\b`, 'i').test(combinedText));
+        if (matchedKw) {
+          markRowStatus(r.id, 'PERINGATAN');
+          findings.push({
+            row_id: r.id,
+            urutan: r.urutan || (idx + 1),
+            tingkat: 'PERINGATAN',
+            kategori: 'KUANTITAS',
+            lokasi_baris: locLabel,
+            jenis_masalah: 'Kuantitas Manual Tanpa Ikatan Variabel SSOT (@var)',
+            nilai_ditemukan: r.computed_formula || `${r.computed_volume || 0} ${r.satuan_vol || ''}`,
+            acuan_seharusnya: matchedKw.ref,
+            panduan_perbaikan: `Hubungkan faktor pengali baris ini ke variabel ${matchedKw.ref} pada modal Edit Rincian agar otomatis mengikuti perubahan Master Data.`
+          });
+        }
+      }
+
+      // 2. Audit Harga Satuan (SBM)
+      const harga = Number(r.harga_satuan) || 0;
+      if (harga <= 0) {
+        markRowStatus(r.id, 'KRITIS');
+        findings.push({
+          row_id: r.id,
+          urutan: r.urutan || (idx + 1),
+          tingkat: 'KRITIS',
+          kategori: 'HARGA_SATUAN',
+          lokasi_baris: locLabel,
+          jenis_masalah: 'Harga Satuan Nol atau Tidak Valid',
+          nilai_ditemukan: `Rp ${harga.toLocaleString('id-ID')}`,
+          acuan_seharusnya: '> Rp 0 (Sesuai Standar Biaya Masukan / RKA)',
+          panduan_perbaikan: 'Isi harga satuan belanja yang valid (> Rp 0) pada baris rincian ini.'
+        });
+      } else {
+        const uLower = String(r.uraian || '').toLowerCase();
+        const matchedSbm = sbmRows.find(s => {
+          const sUraian = String(s.uraian || '').toLowerCase().trim();
+          return sUraian.length >= 6 && (uLower.includes(sUraian) || sUraian.includes(uLower));
+        });
+        if (matchedSbm) {
+          const batasSbm = Number(matchedSbm.pagu_sbm || matchedSbm.harga_satuan) || 0;
+          if (batasSbm > 0 && harga > batasSbm) {
+            markRowStatus(r.id, 'KRITIS');
+            findings.push({
+              row_id: r.id,
+              urutan: r.urutan || (idx + 1),
+              tingkat: 'KRITIS',
+              kategori: 'HARGA_SATUAN',
+              lokasi_baris: locLabel,
+              jenis_masalah: 'Harga Satuan Melampaui Batas Pagu SBM',
+              nilai_ditemukan: `Rp ${harga.toLocaleString('id-ID')}`,
+              acuan_seharusnya: `Maks Rp ${batasSbm.toLocaleString('id-ID')} (${matchedSbm.uraian})`,
+              panduan_perbaikan: `Turunkan harga satuan agar tidak melebihi pagu SBM (${matchedSbm.dasar_hukum || 'PMK SBM'}).`
+            });
+          }
+        }
+      }
+
+      // 3. Audit Akun & Hierarki (L6 wajib memiliki kode akun 6-digit valid & berada di bawah induk)
+      const kodeAkun = String(r.kode_akun || '').trim();
+      if (!/^\d{6}$/.test(kodeAkun) || !validAkuns.has(kodeAkun)) {
+        markRowStatus(r.id, 'KRITIS');
+        findings.push({
+          row_id: r.id,
+          urutan: r.urutan || (idx + 1),
+          tingkat: 'KRITIS',
+          kategori: 'AKUN_HIERARKI',
+          lokasi_baris: locLabel,
+          jenis_masalah: 'Kode Akun BAS 6-Digit Tidak Terdaftar di Master BAS',
+          nilai_ditemukan: kodeAkun || '(Kosong)',
+          acuan_seharusnya: 'Kode Akun 6-Digit Terdaftar di Master BAS (misal: 521211, 521213)',
+          panduan_perbaikan: 'Pilih Kode Akun 6-digit yang sah melalui tombol Ubah Akun atau Edit Rincian.'
+        });
+      }
+      if (!parentRow) {
+        markRowStatus(r.id, 'KRITIS');
+        findings.push({
+          row_id: r.id,
+          urutan: r.urutan || (idx + 1),
+          tingkat: 'KRITIS',
+          kategori: 'AKUN_HIERARKI',
+          lokasi_baris: locLabel,
+          jenis_masalah: 'Baris Rincian Belanja (L6) Tanpa Induk Hierarki',
+          nilai_ditemukan: 'Tidak memiliki baris induk (Orphan Item)',
+          acuan_seharusnya: 'Berada di bawah Header Akun BAS (L5) / Sub-Komponen (L4)',
+          panduan_perbaikan: 'Pindahkan urutan baris rincian ini ke bawah Header Akun BAS yang sesuai.'
+        });
+      }
+
+      // 4. Audit Perhitungan Item (Volume x Harga Satuan === Total)
+      const calc = computeRowFactors(r, 'KAB');
+      const expectedTotal = Math.round(calc.volume * calc.harga_satuan);
+      const actualTotal = Math.round(Number(r.computed_total) || 0);
+      if (Math.abs(expectedTotal - actualTotal) > 1) {
+        markRowStatus(r.id, 'KRITIS');
+        findings.push({
+          row_id: r.id,
+          urutan: r.urutan || (idx + 1),
+          tingkat: 'KRITIS',
+          kategori: 'PERHITUNGAN',
+          lokasi_baris: locLabel,
+          jenis_masalah: 'Ketidaksesuaian Perkalian Volume x Harga Satuan',
+          nilai_ditemukan: `Rp ${actualTotal.toLocaleString('id-ID')}`,
+          acuan_seharusnya: `Rp ${expectedTotal.toLocaleString('id-ID')} (${calc.volume} x Rp ${calc.harga_satuan.toLocaleString('id-ID')})`,
+          panduan_perbaikan: 'Buka dan simpan ulang baris rincian ini untuk menyinkronkan hasil perhitungan.'
+        });
+      }
+    } else {
+      // Baris Header: Cek Perhitungan Rollup Subtotal Induk terhadap anak langsungnya
+      const directChildren = rows.filter(child => child.parent_tree_id === r.tree_id);
+      if (directChildren.length > 0) {
+        const sumChildren = Math.round(directChildren.reduce((acc, c) => acc + (Number(c.computed_total) || 0), 0));
+        const headerTotal = Math.round(Number(r.computed_total) || 0);
+        if (Math.abs(sumChildren - headerTotal) > 1) {
+          markRowStatus(r.id, 'KRITIS');
+          findings.push({
+            row_id: r.id,
+            urutan: r.urutan || (idx + 1),
+            tingkat: 'KRITIS',
+            kategori: 'PERHITUNGAN',
+            lokasi_baris: locLabel,
+            jenis_masalah: 'Subtotal Induk Tidak Sama Dengan Jumlah Rincian di Bawahnya',
+            nilai_ditemukan: `Rp ${headerTotal.toLocaleString('id-ID')}`,
+            acuan_seharusnya: `Rp ${sumChildren.toLocaleString('id-ID')}`,
+            panduan_perbaikan: 'Periksa struktur hierarki di bawah induk ini agar tidak terjadi salah hitung atau penghitungan ganda.'
+          });
+        }
+      }
+    }
+
+    // 5. Audit Konsistensi Data (PIC & Sasaran terhadap baris induk langsung untuk L3..L6)
+    const rRank = r.hierarchy_rank || 99;
+    if (parentRow && rRank >= 50 && (parentRow.hierarchy_rank || 10) >= 30) {
+      const parentPic = String(parentRow.pic_bagian || '').toUpperCase().trim();
+      const childPic = String(r.pic_bagian || '').toUpperCase().trim();
+      if (parentPic && childPic && parentPic !== childPic) {
+        markRowStatus(r.id, 'PERINGATAN');
+        findings.push({
+          row_id: r.id,
+          urutan: r.urutan || (idx + 1),
+          tingkat: 'PERINGATAN',
+          kategori: 'KONSISTENSI_DATA',
+          lokasi_baris: locLabel,
+          jenis_masalah: 'Ketidakselarasan PIC Subbagian antara Induk dan Anak',
+          nilai_ditemukan: `PIC Anak: ${childPic}`,
+          acuan_seharusnya: `PIC Induk: ${parentPic} (${parentRow.kode || ''} ${parentRow.uraian || ''})`,
+          panduan_perbaikan: `Gunakan fitur Ubah PIC dengan opsi Cascade pada baris induk atau sesuaikan PIC baris ini menjadi ${parentPic}.`
+        });
+      }
+    }
+  }
+
+  let kritisCount = 0;
+  let peringatanCount = 0;
+  let validCount = 0;
+  for (const status of rowStatusMap.values()) {
+    if (status === 'KRITIS') kritisCount++;
+    else if (status === 'PERINGATAN') peringatanCount++;
+    else validCount++;
+  }
+
+  return {
+    periode_id: key,
+    summary: {
+      kritis: findings.filter(f => f.tingkat === 'KRITIS').length,
+      peringatan: findings.filter(f => f.tingkat === 'PERINGATAN').length,
+      valid: validCount,
+      baris_kritis: kritisCount,
+      baris_peringatan: peringatanCount,
+      total_checked: rows.length
+    },
+    findings
+  };
+}
+
 module.exports = {
   getWilayahData,
   getKuantitasMap,
@@ -1014,5 +1246,6 @@ module.exports = {
   filterAndPruneRkbDataset,
   clearRkbDatasetCache,
   getRevisionComparison,
-  getRevisionSummary
+  getRevisionSummary,
+  auditRkbIntegrity
 };

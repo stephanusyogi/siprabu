@@ -2839,6 +2839,25 @@ function renderRkbTable() {
     return true;
   };
 
+  // Pre-compute boundary sibling info for Move Up / Move Down buttons (Bab 18.5 Canon)
+  const siblingBoundsById = {};
+  const siblingBuckets = {};
+  for (const r of rows) {
+    const pKey = r.parent_tree_id || '__ROOT__';
+    const rRank = r.hierarchy_rank || (r.is_header ? 45 : 99);
+    const bKey = `${pKey}|${rRank}`;
+    if (!siblingBuckets[bKey]) siblingBuckets[bKey] = [];
+    siblingBuckets[bKey].push(r.id);
+  }
+  Object.values(siblingBuckets).forEach(idList => {
+    idList.forEach((id, pos) => {
+      siblingBoundsById[id] = {
+        isFirst: pos === 0,
+        isLast: pos === idList.length - 1
+      };
+    });
+  });
+
   let rowsHtml = '';
   for (let idx = 0; idx < rows.length; idx++) {
     const r = rows[idx];
@@ -2865,7 +2884,8 @@ function renderRkbTable() {
     const showPic = lvl >= 2 || isItem;
 
     const targetSas = (r.target_scope || 'KAB').toUpperCase();
-    const sasChip = `<span class="scope-chip scope-${targetSas}">${targetSas}</span>`;
+    const sasChip = `<span class="scope-chip scope-${targetSas}" onclick="openQuickSasaranModal(${r.id}, event)" style="cursor:pointer;" title="Klik untuk mengubah Sasaran Anggaran (Mendukung Top-Down Cascade)">${targetSas}</span>`;
+    const showSas = lvl >= 2 || isItem;
 
     const canEdit = checkCanEditRow(user, r, isLocked);
 
@@ -2930,13 +2950,16 @@ function renderRkbTable() {
         const delTitle = isItem
           ? 'Hapus Baris Rincian Belanja ini'
           : `Hapus [${r.kode || '-'}] ${escHtml(r.uraian || '')} (beserta seluruh level di bawahnya)`;
+        const bounds = siblingBoundsById[r.id] || { isFirst: false, isLast: false };
+        const disableUp = bounds.isFirst ? 'disabled style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;opacity:0.35;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;"';
+        const disableDown = bounds.isLast ? 'disabled style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;opacity:0.35;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;"';
 
         aksiHtml = `
           <div style="display:inline-flex;align-items:center;gap:2px;white-space:nowrap;">
-            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveRowOrdering(${r.id}, 'UP', event)" title="Geser Naik (1 posisi)" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;">
+            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveRowOrdering(${r.id}, 'UP', event)" title="${bounds.isFirst ? 'Sudah berada di urutan paling atas grup induknya' : 'Geser Naik (1 posisi dalam grup induk)'}" ${disableUp}>
               ▲
             </button>
-            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveRowOrdering(${r.id}, 'DOWN', event)" title="Geser Turun (1 posisi)" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;">
+            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveRowOrdering(${r.id}, 'DOWN', event)" title="${bounds.isLast ? 'Sudah berada di urutan paling bawah grup induknya' : 'Geser Turun (1 posisi dalam grup induk)'}" ${disableDown}>
               ▼
             </button>
             <button type="button" class="btn btn-xs btn-primary" onclick="${editFn}" title="${editTitle}" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;margin-left:2px;">
@@ -2965,7 +2988,7 @@ function renderRkbTable() {
             ${isItem && r.catatan_revisi_baris ? `<div style="font-size:11px;color:#1e40af;background:#eff6ff;border-left:2px solid #3b82f6;padding:2px 6px;margin:3px 0 0 28px;border-radius:2px;display:inline-block;"><span style="font-weight:600;">Catatan:</span> ${escHtml(r.catatan_revisi_baris)}</div>` : ''}
           </td>
           <td class="col-pic">${showPic ? picChip : ''}</td>
-          <td class="col-sasaran">${isItem ? sasChip : ''}</td>
+          <td class="col-sasaran">${showSas ? sasChip : ''}</td>
           <td class="col-formula" style="font-family: var(--font-mono); font-size: 11px; color: ${isItem ? '#475569' : 'inherit'};">
             ${isItem ? (r.computed_formula || '-') : ''}
           </td>
@@ -3180,6 +3203,176 @@ async function submitQuickPic() {
     showToast('Gagal mengubah PIC: ' + err.message, 'error');
   }
 }
+
+function openQuickSasaranModal(rowId, event) {
+  if (event) event.stopPropagation();
+  const row = (AppState.rkbData?.rows || []).find(r => r.id === rowId);
+  if (!row) return;
+
+  setElVal('quick-sasaran-row-id', row.id);
+  setElVal('quick-sasaran-select', (row.target_scope || 'KAB').toUpperCase());
+
+  const isHeader = Boolean(row.is_header);
+  const lvl = Number(row.level_indent);
+  const uraianEl = document.getElementById('quick-sasaran-uraian');
+  const badgeEl = document.getElementById('quick-sasaran-level-badge');
+  const cascadeBox = document.getElementById('quick-sasaran-cascade-box');
+  const itemHint = document.getElementById('quick-sasaran-item-hint');
+  const cascadeDesc = document.getElementById('quick-sasaran-cascade-desc');
+  const cascadeCheck = document.getElementById('quick-sasaran-cascade');
+
+  let lvlName = 'Rincian Belanja (Item Level 6)';
+  if (lvl === 2) lvlName = 'Kegiatan (Level 3)';
+  else if (lvl >= 21 && lvl <= 25) lvlName = 'Sub-Kegiatan (Level 4)';
+  else if (lvl === 3) lvlName = 'Akun Belanja 6-Digit BAS (Level 5)';
+
+  if (badgeEl) {
+    badgeEl.innerHTML = `<span class="badge ${isHeader ? 'badge-primary' : 'badge-subtle'}" style="font-size:11px; padding:3px 8px;">${lvlName}</span>`;
+  }
+  if (uraianEl) {
+    uraianEl.innerHTML = `<strong>${escHtml(row.kode ? `[${row.kode}] ` : '')}${escHtml(row.uraian)}</strong>`;
+  }
+
+  if (isHeader) {
+    const allRows = AppState.rkbData?.rows || [];
+    const idx = allRows.findIndex(r => r.id === row.id);
+    let childCount = 0;
+    const targetRank = row.hierarchy_rank || (lvl === 2 ? 30 : (lvl === 3 ? 50 : 45));
+    if (idx !== -1) {
+      for (let i = idx + 1; i < allRows.length; i++) {
+        const rRank = allRows[i].hierarchy_rank || (allRows[i].is_header ? (allRows[i].level_indent === 2 ? 30 : (allRows[i].level_indent === 3 ? 50 : 45)) : 99);
+        if (rRank <= targetRank) break;
+        childCount++;
+      }
+    }
+    if (cascadeBox) cascadeBox.style.display = 'block';
+    if (itemHint) itemHint.style.display = 'none';
+    if (cascadeCheck) cascadeCheck.checked = true;
+    if (cascadeDesc) {
+      cascadeDesc.textContent = `Akan memperbarui ${childCount} baris turunan di bawah induk ini secara serentak.`;
+    }
+  } else {
+    if (cascadeBox) cascadeBox.style.display = 'none';
+    if (itemHint) itemHint.style.display = 'block';
+    if (cascadeCheck) cascadeCheck.checked = false;
+  }
+
+  document.getElementById('modal-quick-sasaran').style.display = 'flex';
+}
+
+function closeQuickSasaranModal() {
+  const m = document.getElementById('modal-quick-sasaran');
+  if (m) m.style.display = 'none';
+}
+
+async function submitQuickSasaran() {
+  const rowId = Number(document.getElementById('quick-sasaran-row-id')?.value);
+  const sasaran = document.getElementById('quick-sasaran-select')?.value;
+  const cascade = Boolean(document.getElementById('quick-sasaran-cascade')?.checked);
+  const periodeId = AppState.currentPeriode.id;
+
+  try {
+    const res = await apiFetch(`/api/rkb/${periodeId}/quick-sasaran`, {
+      method: 'POST',
+      body: JSON.stringify({ row_id: rowId, target_scope: sasaran, cascade })
+    });
+    closeQuickSasaranModal();
+    await loadRkbData();
+    renderAllViews();
+    if (res && res.count > 1) {
+      showToast(`Berhasil mengubah Sasaran menjadi ${sasaran} untuk ${res.count} baris secara hierarkis (Top-Down Cascade).`, 'success');
+    } else {
+      showToast(`Berhasil mengubah Sasaran baris menjadi ${sasaran}.`, 'success');
+    }
+  } catch (err) {
+    showToast('Gagal mengubah Sasaran: ' + err.message, 'error');
+  }
+}
+
+async function openAuditIntegritasModal() {
+  const periodeId = AppState.currentPeriode?.id || 1;
+  const modal = document.getElementById('modal-audit-integritas');
+  const tbody = document.getElementById('audit-integritas-tbody');
+  if (modal) modal.style.display = 'flex';
+  if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 24px;">⏳ Sedang memeriksa integritas data RKB...</td></tr>`;
+
+  try {
+    const res = await apiFetch(`/api/rkb/${periodeId}/audit-integritas`);
+    AppState.lastAuditReport = res.report || { summary: { kritis: 0, peringatan: 0, valid: 0 }, findings: [] };
+    renderAuditIntegritasRows();
+  } catch (err) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger" style="padding: 20px;">Gagal memuat laporan audit: ${escHtml(err.message)}</td></tr>`;
+    }
+  }
+}
+
+function closeAuditIntegritasModal() {
+  const modal = document.getElementById('modal-audit-integritas');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderAuditIntegritasRows() {
+  const report = AppState.lastAuditReport || { summary: { kritis: 0, peringatan: 0, valid: 0 }, findings: [] };
+  const sum = report.summary || { kritis: 0, peringatan: 0, valid: 0 };
+  setElText('audit-badge-kritis', `🔴 Kritis: ${sum.kritis || 0}`);
+  setElText('audit-badge-peringatan', `🟡 Peringatan: ${sum.peringatan || 0}`);
+  setElText('audit-badge-valid', `🟢 Baris Valid: ${sum.valid || 0} / ${sum.total_checked || 0}`);
+
+  const filterVal = document.getElementById('audit-integritas-filter')?.value || 'ALL';
+  let findings = report.findings || [];
+  if (filterVal !== 'ALL') {
+    findings = findings.filter(f => f.tingkat === filterVal);
+  }
+
+  const tbody = document.getElementById('audit-integritas-tbody');
+  if (!tbody) return;
+
+  if (findings.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center" style="padding: 28px; color: #15803d; font-weight: 700;">
+          ✅ Tidak ditemukan masalah pada kategori filter ini. Seluruh struktur &amp; perhitungan sudah selaras!
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = findings.map(f => {
+    const badge = f.tingkat === 'KRITIS'
+      ? '<span class="badge badge-danger" style="font-size:10.5px;">🔴 Kritis</span>'
+      : '<span class="badge badge-warning" style="font-size:10.5px;">🟡 Peringatan</span>';
+    return `
+      <tr onclick="jumpToAuditedRow(${f.row_id})" style="cursor:pointer;" title="Klik untuk menyorot baris ini di tabel RUH Belanja">
+        <td class="text-center">${badge}</td>
+        <td style="font-weight: 600; color: #1e293b;">${escHtml(f.lokasi_baris)}</td>
+        <td><strong>${escHtml(f.jenis_masalah)}</strong></td>
+        <td style="font-family: var(--font-mono); color: #b91c1c;">${escHtml(f.nilai_ditemukan)}</td>
+        <td style="font-family: var(--font-mono); color: #0369a1;">${escHtml(f.acuan_seharusnya)}</td>
+        <td style="font-size: 11.5px; color: #334155;">${escHtml(f.panduan_perbaikan)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function jumpToAuditedRow(rowId) {
+  closeAuditIntegritasModal();
+  if (!rowId) return;
+  expandAncestorsOfRow(Number(rowId));
+  AppState.selectedRowId = Number(rowId);
+  renderRkbTable();
+  setTimeout(() => {
+    highlightAndScrollToRow(Number(rowId));
+  }, 150);
+}
+window.openQuickSasaranModal = openQuickSasaranModal;
+window.closeQuickSasaranModal = closeQuickSasaranModal;
+window.submitQuickSasaran = submitQuickSasaran;
+window.openAuditIntegritasModal = openAuditIntegritasModal;
+window.closeAuditIntegritasModal = closeAuditIntegritasModal;
+window.renderAuditIntegritasRows = renderAuditIntegritasRows;
+window.jumpToAuditedRow = jumpToAuditedRow;
 
 function openQuickAkunModal(rowId, event) {
   if (event) event.stopPropagation();
