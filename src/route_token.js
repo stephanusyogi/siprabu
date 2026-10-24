@@ -27,7 +27,9 @@ const SAKTI_VIEW_CODES = {
   'view-panduan': 17,
   'view-monitoring': 18,
   'view-users': 19,
-  'view-developer': 20
+  'view-developer': 20,
+  'view-rekap-perencanaan': 21,
+  'view-rekap-pelaksanaan': 22
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -50,7 +52,9 @@ const SAKTI_CODE_TO_VIEW = {
   17: 'view-panduan',
   18: 'view-monitoring',
   19: 'view-users',
-  20: 'view-developer'
+  20: 'view-developer',
+  21: 'view-rekap-perencanaan',
+  22: 'view-rekap-pelaksanaan'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -74,7 +78,9 @@ const SAKTI_VIEW_TITLES = {
   'view-panduan': 'Panduan Teknis & Penggunaan',
   'view-monitoring': 'Executive Real-Time Monitoring',
   'view-users': 'Manajemen Pengguna & Otoritas',
-  'view-developer': 'Ruang Pengembang & Blueprint PRD'
+  'view-developer': 'Ruang Pengembang & Blueprint PRD',
+  'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
+  'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)'
 };
 
 function bufferToBase64Url(buf) {

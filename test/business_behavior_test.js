@@ -641,6 +641,38 @@ async function runBusinessBehaviorTests() {
     'Test 26.6 (Canon Bab 22.1): Blok tanda tangan Pengesahan Pleno mencantumkan Ketua KPU bersama 4 Anggota Komisioner KPU.'
   );
 
+  // =========================================================================
+  // 27. BATCH 4 CANON — MENU MANDIRI REKAP ANGGARAN (PERENCANAAN & PELAKSANAAN - BAB 21)
+  // =========================================================================
+  console.log('\n--- [27] Menu Mandiri Rekap Anggaran: Perencanaan vs Pelaksanaan (Bab 21) ---');
+  const { generateSaktiRouteToken, parseSaktiRouteToken } = require('../src/route_token');
+  const { getRkbCalculatedDataset } = require('../src/calculation');
+
+  const tokPerencanaan = generateSaktiRouteToken('view-rekap-perencanaan');
+  const tokPelaksanaan = generateSaktiRouteToken('view-rekap-pelaksanaan');
+  const parsedPerencanaan = parseSaktiRouteToken(tokPerencanaan);
+  const parsedPelaksanaan = parseSaktiRouteToken(tokPelaksanaan);
+  assert(
+    parsedPerencanaan && parsedPerencanaan.viewId === 'view-rekap-perencanaan' &&
+    parsedPelaksanaan && parsedPelaksanaan.viewId === 'view-rekap-pelaksanaan',
+    'Test 27.1 (Canon Bab 21.1): Route token untuk view-rekap-perencanaan dan view-rekap-pelaksanaan terpetakan secara valid.'
+  );
+
+  const rekapPerencanaanActive = getActiveRevisionCycle() || getLatestRatifiedPeriode();
+  const rekapPelaksanaanLocked = getLatestRatifiedPeriode();
+  assert(
+    rekapPelaksanaanLocked && rekapPelaksanaanLocked.is_locked === 1,
+    'Test 27.2 (Canon Bab 21.3): Rekap Pelaksanaan bersumber secara otomatis dari baseline RKB terakhir yang telah disahkan dan dikunci pada Tahap 4 (is_locked = 1).'
+  );
+
+  const summaryPerencanaan = getRkbCalculatedDataset(rekapPerencanaanActive.id);
+  const summaryPelaksanaan = getRkbCalculatedDataset(rekapPelaksanaanLocked.id);
+  assert(
+    summaryPerencanaan && Array.isArray(summaryPerencanaan.rows) &&
+    summaryPelaksanaan && Array.isArray(summaryPelaksanaan.rows),
+    'Test 27.3 (Canon Bab 21.2 & 21.3): Data olahan Rekap Perencanaan (RKB Aktif) dan Rekap Pelaksanaan (Baseline Terkunci Tahap 4) terhitung secara terpisah dan konsisten.'
+  );
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');

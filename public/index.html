@@ -229,6 +229,26 @@
             </div>
           </div>
 
+          <!-- 2B. REKAP ANGGARAN (BAB 21 CANON: REKAP PERENCANAAN & REKAP PELAKSANAAN) -->
+          <div class="sakti-tree-group" id="folder-rekap">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-rekap', event)">
+              <span class="sakti-folder-label">
+                <span>📁 Rekap Anggaran</span>
+              </span>
+              <span class="sakti-chevron">▾</span>
+            </button>
+            <div class="sakti-tree-children">
+              <button class="nav-item" data-view="view-rekap-perencanaan" id="nav-item-rekap-perencanaan" onclick="switchView('view-rekap-perencanaan')">
+                <span class="icon">📊</span>
+                <span class="label">Rekap Perencanaan</span>
+              </button>
+              <button class="nav-item" data-view="view-rekap-pelaksanaan" id="nav-item-rekap-pelaksanaan" onclick="switchView('view-rekap-pelaksanaan')">
+                <span class="icon">🏛️</span>
+                <span class="label">Rekap Pelaksanaan</span>
+              </button>
+            </div>
+          </div>
+
           <!-- 3. REFERENSI (SSOT, SBM, BAS) -->
           <div class="sakti-tree-group" id="folder-referensi">
             <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-referensi', event)">
@@ -1289,6 +1309,111 @@
                   </tfoot>
                 </table>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW REKAP PERENCANAAN (BAB 21.3 CANON: SUMBER RKB AKTIF)          -->
+        <!-- ================================================================= -->
+        <section id="view-rekap-perencanaan" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">📊 Rekap Perencanaan Anggaran (Sumber: RKB Aktif)</h2>
+              <p class="view-desc">Rekapitulasi 4 sudut pandang perencanaan anggaran berjalan (VIEW ONLY — bebas dari tombol edit/hapus rincian).</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div id="rekap-perencanaan-pic-filter-box" style="display: inline-flex; align-items: center; gap: 6px; background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+                <label for="rekap-perencanaan-pic-select" style="font-size: 11.5px; font-weight: 700; color: #334155; margin: 0;">Cakupan PIC:</label>
+                <select id="rekap-perencanaan-pic-select" class="input-select input-sm" onchange="loadRekapView('perencanaan')" style="font-weight: 600;">
+                  <option value="SEMUA">🏛️ Seluruh Satker (Semua Subbag)</option>
+                  <option value="RENDATIN">RENDATIN</option>
+                  <option value="TEKNIS">TEKNIS</option>
+                  <option value="HUKUM">HUKUM</option>
+                  <option value="PARSDM">PARSDM</option>
+                  <option value="KUL">KUL</option>
+                </select>
+              </div>
+              <span id="rekap-perencanaan-pic-locked-badge" class="badge badge-info" style="display: none; font-size: 12px; padding: 6px 10px;"></span>
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportRekapExcel('perencanaan')" style="font-weight: 700;">
+                📥 Unduh Excel (.xlsx)
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="printRekapPdf('perencanaan')" style="font-weight: 700;">
+                🖨️ Cetak / PDF (.pdf)
+              </button>
+            </div>
+          </div>
+
+          <div class="alert alert-info mb-3" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <strong>Sumber Dokumen Rekap Perencanaan:</strong> <span id="rekap-perencanaan-doc-label">Memuat...</span>
+            </div>
+            <span class="badge badge-primary">🔒 Mode Tampilan Saja (VIEW ONLY)</span>
+          </div>
+
+          <!-- 4 Tab Sudut Pandang Rekap (Bab 21.5 Canon) -->
+          <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;" id="rekap-perencanaan-tabs">
+            <button type="button" class="btn btn-sm btn-primary" data-tab="EKSEKUTIF" onclick="switchRekapTab('perencanaan', 'EKSEKUTIF')">1. Ringkasan Eksekutif</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="KEGIATAN" onclick="switchRekapTab('perencanaan', 'KEGIATAN')">2. Rekap Kegiatan RKB</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="SUBBAGIAN" onclick="switchRekapTab('perencanaan', 'SUBBAGIAN')">3. Rekap Subbagian</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="AKUN_BAS" onclick="switchRekapTab('perencanaan', 'AKUN_BAS')">4. Rekap Akun BAS</button>
+          </div>
+
+          <div class="card">
+            <div class="card-body" id="rekap-perencanaan-content">
+              <div class="text-center" style="padding: 28px;">Memuat data Rekap Perencanaan...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW REKAP PELAKSANAAN (BAB 21.4 CANON: SUMBER BASELINE TAHAP 4)   -->
+        <!-- ================================================================= -->
+        <section id="view-rekap-pelaksanaan" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">🏛️ Rekap Pelaksanaan Anggaran (Sumber: Baseline Sah Terakhir)</h2>
+              <p class="view-desc">Acuan pagu pelaksanaan dari hasil pengesahan Tahap 4 terakhir yang terkunci (tidak terpengaruh draf revisi berjalan).</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div id="rekap-pelaksanaan-pic-filter-box" style="display: inline-flex; align-items: center; gap: 6px; background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+                <label for="rekap-pelaksanaan-pic-select" style="font-size: 11.5px; font-weight: 700; color: #334155; margin: 0;">Cakupan PIC:</label>
+                <select id="rekap-pelaksanaan-pic-select" class="input-select input-sm" onchange="loadRekapView('pelaksanaan')" style="font-weight: 600;">
+                  <option value="SEMUA">🏛️ Seluruh Satker (Semua Subbag)</option>
+                  <option value="RENDATIN">RENDATIN</option>
+                  <option value="TEKNIS">TEKNIS</option>
+                  <option value="HUKUM">HUKUM</option>
+                  <option value="PARSDM">PARSDM</option>
+                  <option value="KUL">KUL</option>
+                </select>
+              </div>
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportRekapExcel('pelaksanaan')" style="font-weight: 700;">
+                📥 Unduh Excel (.xlsx)
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="printRekapPdf('pelaksanaan')" style="font-weight: 700;">
+                🖨️ Cetak / PDF (.pdf)
+              </button>
+            </div>
+          </div>
+
+          <div class="alert alert-warning mb-3" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <strong>Sumber Baseline Sah Terkunci (Otomatis tanpa pemilih versi manual):</strong> <span id="rekap-pelaksanaan-doc-label">Memuat...</span>
+            </div>
+            <span class="badge badge-danger">🔒 Baseline Sah Terkunci (VIEW ONLY)</span>
+          </div>
+
+          <!-- 4 Tab Sudut Pandang Rekap (Bab 21.5 Canon) -->
+          <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;" id="rekap-pelaksanaan-tabs">
+            <button type="button" class="btn btn-sm btn-primary" data-tab="EKSEKUTIF" onclick="switchRekapTab('pelaksanaan', 'EKSEKUTIF')">1. Ringkasan Eksekutif</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="KEGIATAN" onclick="switchRekapTab('pelaksanaan', 'KEGIATAN')">2. Rekap Kegiatan RKB</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="SUBBAGIAN" onclick="switchRekapTab('pelaksanaan', 'SUBBAGIAN')">3. Rekap Subbagian</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="AKUN_BAS" onclick="switchRekapTab('pelaksanaan', 'AKUN_BAS')">4. Rekap Akun BAS</button>
+          </div>
+
+          <div class="card">
+            <div class="card-body" id="rekap-pelaksanaan-content">
+              <div class="text-center" style="padding: 28px;">Memuat data Rekap Pelaksanaan...</div>
             </div>
           </div>
         </section>
@@ -4230,7 +4355,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.8.1"></script>
+    <script src="/app.js?v=3.9.0"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

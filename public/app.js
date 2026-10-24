@@ -64,7 +64,9 @@ const SAKTI_VIEW_CODES = {
   'view-panduan': 17,
   'view-monitoring': 18,
   'view-users': 19,
-  'view-developer': 20
+  'view-developer': 20,
+  'view-rekap-perencanaan': 21,
+  'view-rekap-pelaksanaan': 22
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -87,7 +89,9 @@ const SAKTI_CODE_TO_VIEW = {
   17: 'view-panduan',
   18: 'view-monitoring',
   19: 'view-users',
-  20: 'view-developer'
+  20: 'view-developer',
+  21: 'view-rekap-perencanaan',
+  22: 'view-rekap-pelaksanaan'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -111,7 +115,9 @@ const SAKTI_VIEW_TITLES = {
   'view-panduan': 'Panduan Teknis & Penggunaan',
   'view-monitoring': 'Executive Real-Time Monitoring',
   'view-users': 'Manajemen Pengguna & Otoritas',
-  'view-developer': 'Ruang Pengembang & Blueprint PRD'
+  'view-developer': 'Ruang Pengembang & Blueprint PRD',
+  'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
+  'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)'
 };
 
 function bufferToBase64Url(uint8Array) {
@@ -887,6 +893,17 @@ function applyRolePermissionsToUI() {
   if (navDev) {
     navDev.style.display = isDeveloperSession() ? 'flex' : 'none';
   }
+
+  // f. Menu Rekap Pelaksanaan (Bab 21.4 Canon): Dikunci khusus untuk Ketua KPU, Sekretaris KPU, dan Level 1 (serta Level 0)
+  const navRekapPelaksanaan = document.getElementById('nav-item-rekap-pelaksanaan');
+  const roleLow = (user.role_id || '').toLowerCase();
+  const unameLow = (user.username || '').toLowerCase();
+  const canAccessRekapPelaksanaan = user.level <= 1 ||
+    roleLow === 'ketua_kpu' || unameLow === 'ketua' || unameLow === 'ketua_kpu' ||
+    roleLow === 'sekretaris' || unameLow === 'sekretaris' || roleLow === 'viewer_sekretaris';
+  if (navRekapPelaksanaan) {
+    navRekapPelaksanaan.style.display = canAccessRekapPelaksanaan ? 'flex' : 'none';
+  }
 }
 
 async function switchUser(username) {
@@ -1449,6 +1466,8 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-monitoring') loadMonitoringReport();
   else if (viewId === 'view-users') renderUsersTable();
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
+  else if (viewId === 'view-rekap-perencanaan') loadRekapView('perencanaan');
+  else if (viewId === 'view-rekap-pelaksanaan') loadRekapView('pelaksanaan');
 }
 
 function renderAllViews() {
@@ -9205,5 +9224,308 @@ window.addEventListener('popstate', (event) => {
     }
   }
 });
+
+// ============================================================================
+// MENU MANDIRI: REKAP ANGGARAN (REKAP PERENCANAAN & REKAP PELAKSANAAN - BAB 21)
+// ============================================================================
+
+AppState.rekapState = {
+  perencanaan: { tab: 'EKSEKUTIF', data: null },
+  pelaksanaan: { tab: 'EKSEKUTIF', data: null }
+};
+
+async function loadRekapView(mode = 'perencanaan') {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  const selectEl = document.getElementById(`rekap-${cleanMode}-pic-select`);
+  const picBox = document.getElementById(`rekap-${cleanMode}-pic-filter-box`);
+  const lockedBadge = document.getElementById(`rekap-${cleanMode}-pic-locked-badge`);
+  const contentBox = document.getElementById(`rekap-${cleanMode}-content`);
+  const docLabel = document.getElementById(`rekap-${cleanMode}-doc-label`);
+
+  if (contentBox) {
+    contentBox.innerHTML = `<div class="text-center" style="padding: 28px;">⏳ Memuat data Rekap ${cleanMode === 'pelaksanaan' ? 'Pelaksanaan' : 'Perencanaan'}...</div>`;
+  }
+
+  const requestedPic = selectEl ? selectEl.value : 'SEMUA';
+  try {
+    const res = await apiFetch(`/api/rekap/${cleanMode}?pic=${encodeURIComponent(requestedPic)}`);
+    AppState.rekapState[cleanMode].data = res;
+
+    if (docLabel && res.periode) {
+      docLabel.innerHTML = `<strong>${escHtml(res.periode.nama_periode)}</strong> (${escHtml(res.periode.versi_revisi || 'Induk')}) • Fase: <span class="badge badge-info">${escHtml(res.periode.fase_perencanaan || 'PRA_NPHD')}</span> • Dasar: <strong>${escHtml(res.periode.dasar_pengesahan || '-')}</strong>`;
+    }
+
+    if (res.can_view_all) {
+      if (picBox) picBox.style.display = 'inline-flex';
+      if (lockedBadge) lockedBadge.style.display = 'none';
+      if (selectEl) selectEl.value = res.filter_pic || 'SEMUA';
+    } else {
+      if (picBox) picBox.style.display = 'none';
+      if (lockedBadge) {
+        lockedBadge.style.display = 'inline-flex';
+        lockedBadge.textContent = `🏢 Terkunci pada PIC: ${res.filter_pic}`;
+      }
+    }
+
+    renderRekapTabContent(cleanMode);
+  } catch (err) {
+    if (contentBox) {
+      contentBox.innerHTML = `<div class="alert alert-danger" style="margin:0;">❌ ${escHtml(err.message)}</div>`;
+    }
+  }
+}
+
+function switchRekapTab(mode, tabName) {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  AppState.rekapState[cleanMode].tab = tabName;
+  const tabContainer = document.getElementById(`rekap-${cleanMode}-tabs`);
+  if (tabContainer) {
+    tabContainer.querySelectorAll('button[data-tab]').forEach(btn => {
+      const isAct = btn.getAttribute('data-tab') === tabName;
+      btn.className = isAct ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-primary';
+    });
+  }
+  renderRekapTabContent(cleanMode);
+}
+
+function renderRekapTabContent(mode) {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  const state = AppState.rekapState[cleanMode];
+  const contentBox = document.getElementById(`rekap-${cleanMode}-content`);
+  if (!contentBox || !state || !state.data) return;
+
+  const { summary, doc_summary, kegiatan_rows, akun_map, filter_pic, periode } = state.data;
+  const tab = state.tab || 'EKSEKUTIF';
+  const total = Number(summary?.grandTotal) || 0;
+
+  if (tab === 'EKSEKUTIF') {
+    const bySasaran = summary?.bySasaran || {};
+    const sasOrder = [
+      { code: 'KAB', label: '1. KPU Kabupaten Ngawi (Satker)' },
+      { code: 'PPK', label: '2. PPK (19 Kecamatan)' },
+      { code: 'PPS', label: '3. PPS (217 Desa / Kelurahan)' },
+      { code: 'PANTARLIH', label: '4. Pantarlih / PPDP' },
+      { code: 'TPS', label: '5. TPS (KPPS & Linmas)' },
+      { code: 'PESERTA', label: '6. Peserta Pemilihan (Paslon)' }
+    ];
+    contentBox.innerHTML = `
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 18px;">
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:14px;">
+          <div style="font-size:11px; font-weight:700; color:#1e40af;">TOTAL PAGU (${escHtml(filter_pic)})</div>
+          <div style="font-size:20px; font-weight:800; font-family:var(--font-mono); color:#1e3a8a; margin-top:4px;">${formatRupiah(total)}</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px;">
+          <div style="font-size:11px; font-weight:700; color:#475569;">TOTAL ITEM BELANJA</div>
+          <div style="font-size:20px; font-weight:800; font-family:var(--font-mono); color:#0f172a; margin-top:4px;">${formatNumber(summary?.totalItems || 0)} Item</div>
+        </div>
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:14px;">
+          <div style="font-size:11px; font-weight:700; color:#166534;">FASE &amp; STATUS SUMBER</div>
+          <div style="font-size:14px; font-weight:800; color:#15803d; margin-top:6px;">${escHtml(periode?.fase_perencanaan || 'PRA_NPHD')} • ${periode?.is_locked ? 'TERKUNCI SAH' : 'RKB AKTIF'}</div>
+        </div>
+      </div>
+      <h4 style="font-size:14px; font-weight:700; margin-bottom:10px;">Distribusi Alokasi Berdasarkan Sasaran</h4>
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr>
+              <th>Kelompok Sasaran</th>
+              <th class="text-right">Jumlah Anggaran (Rp)</th>
+              <th class="text-right">Porsi (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sasOrder.map(s => {
+              const val = Number(bySasaran[s.code]) || 0;
+              const pct = total > 0 ? ((val / total) * 100).toFixed(2) : '0.00';
+              return `
+                <tr>
+                  <td><strong>${escHtml(s.label)}</strong></td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-weight:700;">${formatRupiah(val)}</td>
+                  <td class="text-right" style="font-family:var(--font-mono);">${pct}%</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:#eff6ff; font-weight:800;">
+              <td>TOTAL REKAPITULASI</td>
+              <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(total)}</td>
+              <td class="text-right" style="font-family:var(--font-mono);">100.00%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  } else if (tab === 'KEGIATAN') {
+    contentBox.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead>
+            <tr>
+              <th style="width:90px;">Kode</th>
+              <th>Uraian Bagian / Tahapan / Kegiatan / Sub-Komponen RKB</th>
+              <th style="width:110px;">PIC Subbag</th>
+              <th class="text-right" style="width:180px;">Jumlah Anggaran (Rp)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(kegiatan_rows || []).map(r => {
+              const isBold = Number(r.level_indent) <= 2;
+              return `
+                <tr style="${isBold ? 'font-weight:700; background:#f8fafc;' : ''}">
+                  <td style="font-family:var(--font-mono);">${escHtml(r.kode)}</td>
+                  <td style="padding-left:${Number(r.level_indent) * 14 + 8}px;">${escHtml(r.uraian)}</td>
+                  <td><span class="pic-chip pic-${escHtml(r.pic_bagian)}">${escHtml(r.pic_bagian)}</span></td>
+                  <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(r.jumlah)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (tab === 'SUBBAGIAN') {
+    const bySub = (filter_pic && filter_pic !== 'SEMUA') ? (summary?.bySubbag || {}) : (doc_summary?.bySubbag || summary?.bySubbag || {});
+    const refTotal = (filter_pic && filter_pic !== 'SEMUA') ? total : (Number(doc_summary?.grandTotal) || total);
+    const subKeys = ['RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM', 'KUL'];
+    contentBox.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr>
+              <th style="width:120px;">Kode PIC</th>
+              <th>Nama Subbagian Pelaksana</th>
+              <th class="text-right" style="width:190px;">Alokasi Pagu (Rp)</th>
+              <th class="text-right" style="width:110px;">Porsi (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${subKeys.filter(k => filter_pic === 'SEMUA' || k === filter_pic).map(k => {
+              const val = Number(bySub[k]) || 0;
+              const pct = refTotal > 0 ? ((val / refTotal) * 100).toFixed(2) : '0.00';
+              const meta = SUBBAG_META[k] || { name: k };
+              return `
+                <tr>
+                  <td><span class="pic-chip pic-${k}">${k}</span></td>
+                  <td><strong>${escHtml(meta.name)}</strong></td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-weight:700;">${formatRupiah(val)}</td>
+                  <td class="text-right" style="font-family:var(--font-mono);">${pct}%</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:#eff6ff; font-weight:800;">
+              <td colspan="2">TOTAL ANGGARAN</td>
+              <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(total)}</td>
+              <td class="text-right" style="font-family:var(--font-mono);">100.00%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  } else if (tab === 'AKUN_BAS') {
+    const byAkun = summary?.byAkun || {};
+    const sorted = Object.entries(byAkun).filter(([_, v]) => Number(v) > 0).sort((a, b) => a[0].localeCompare(b[0]));
+    contentBox.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr>
+              <th style="width:110px;">Kode BAS</th>
+              <th>Uraian Bagan Akun Standar (6 Digit)</th>
+              <th class="text-right" style="width:190px;">Alokasi Anggaran (Rp)</th>
+              <th class="text-right" style="width:110px;">Porsi (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map(([code, val]) => {
+              const numVal = Number(val) || 0;
+              const pct = total > 0 ? ((numVal / total) * 100).toFixed(2) : '0.00';
+              const info = (akun_map && akun_map[code]) || {};
+              return `
+                <tr>
+                  <td style="font-family:var(--font-mono); font-weight:700; color:#0284c7;">${escHtml(code)}</td>
+                  <td>${escHtml(info.uraian || 'Belanja Terkait')}</td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-weight:700;">${formatRupiah(numVal)}</td>
+                  <td class="text-right" style="font-family:var(--font-mono);">${pct}%</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:#eff6ff; font-weight:800;">
+              <td colspan="2">TOTAL BAGAN AKUN STANDAR</td>
+              <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(total)}</td>
+              <td class="text-right" style="font-family:var(--font-mono);">100.00%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  }
+}
+
+async function exportRekapExcel(mode = 'perencanaan') {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  const state = AppState.rekapState[cleanMode]?.data;
+  if (!state || !state.periode) {
+    showToast('Data rekap belum dimuat.', 'warning');
+    return;
+  }
+  const pId = state.periode.id;
+  const filterPic = state.filter_pic || 'SEMUA';
+  const qs = filterPic !== 'SEMUA' ? `?pic=${encodeURIComponent(filterPic)}` : '';
+  await downloadAuthenticatedFile(`/api/export-excel/${pId}${qs}`, `Rekap_${cleanMode}_${state.periode.versi_revisi || 'RKB'}_${filterPic}.xlsx`);
+}
+
+function printRekapPdf(mode = 'perencanaan') {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  const state = AppState.rekapState[cleanMode]?.data;
+  const contentEl = document.getElementById(`rekap-${cleanMode}-content`);
+  if (!state || !contentEl) return;
+
+  const win = window.open('', '_blank');
+  if (!win) {
+    window.print();
+    return;
+  }
+  const title = cleanMode === 'pelaksanaan' ? 'REKAP PELAKSANAAN ANGGARAN (BASELINE SAH)' : 'REKAP PERENCANAAN ANGGARAN (RKB AKTIF)';
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <title>${escHtml(title)} - SI-PRABU KPU Kabupaten Ngawi</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; font-size: 12px; }
+        h2 { margin: 0 0 4px 0; font-size: 16px; }
+        .meta { margin-bottom: 16px; font-size: 11.5px; color: #334155; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #94a3b8; padding: 6px 8px; text-align: left; }
+        th { background: #f1f5f9; }
+        .text-right { text-align: right; }
+      </style>
+    </head>
+    <body>
+      <h2>${escHtml(title)}</h2>
+      <div class="meta">
+        Dokumen: <strong>${escHtml(state.periode.nama_periode)} (${escHtml(state.periode.versi_revisi)})</strong> |
+        Fase: <strong>${escHtml(state.periode.fase_perencanaan)}</strong> |
+        Cakupan PIC: <strong>${escHtml(state.filter_pic)}</strong>
+      </div>
+      ${contentEl.innerHTML}
+      <script>window.onload = function() { window.print(); };<\/script>
+    </body>
+    </html>
+  `);
+  win.document.close();
+}
+
+window.loadRekapView = loadRekapView;
+window.switchRekapTab = switchRekapTab;
+window.exportRekapExcel = exportRekapExcel;
+window.printRekapPdf = printRekapPdf;
+
 
 

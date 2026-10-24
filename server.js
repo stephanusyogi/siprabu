@@ -1149,6 +1149,84 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { success: true, data: statusSiklus });
     }
 
+    // 1c. GET /api/rekap/perencanaan & GET /api/rekap/pelaksanaan (Bab 21 Canon Master Blueprint)
+    const rekapMatch = pathname.match(/^\/api\/rekap\/(perencanaan|pelaksanaan)$/);
+    if (rekapMatch && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const mode = rekapMatch[1]; // 'perencanaan' | 'pelaksanaan'
+      const role = (user.role_id || '').toLowerCase();
+      const uname = (user.username || '').toLowerCase();
+      const isKetua = role === 'ketua_kpu' || uname === 'ketua' || uname === 'ketua_kpu';
+      const isSekretaris = role === 'sekretaris' || uname === 'sekretaris' || role === 'viewer_sekretaris';
+      const isDivPerencanaan = role === 'komisioner_rendatin' || uname === 'divisi_rendatin' || uname === 'komisioner';
+
+      if (mode === 'pelaksanaan') {
+        // Bab 21.4: Rekap Pelaksanaan dikunci khusus untuk Ketua KPU, Sekretaris KPU, dan Level 1 (serta Level 0)
+        const canAccessPelaksanaan = user.level <= 1 || isKetua || isSekretaris;
+        if (!canAccessPelaksanaan) {
+          return sendJson(res, 403, { error: 'Akses ditolak. Menu Rekap Pelaksanaan dikunci khusus untuk Ketua KPU, Sekretaris KPU, dan Tim Perencanaan (Level 1).' });
+        }
+      }
+
+      const targetPeriode = mode === 'pelaksanaan'
+        ? getLatestRatifiedPeriode()
+        : (getActivePeriode() || getLatestRatifiedPeriode());
+
+      if (!targetPeriode) {
+        return sendJson(res, 404, { error: 'Dokumen RKB sumber rekap tidak ditemukan.' });
+      }
+
+      const canViewAll = user.level <= 1 || isKetua || isSekretaris || isDivPerencanaan || (user.pic_subbag === 'SEMUA');
+      let filterPic = query.pic || 'SEMUA';
+      if (!canViewAll && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        filterPic = user.pic_subbag;
+      }
+
+      const fullDataset = getCachedRkbDataset(targetPeriode.id);
+      const activeData = (filterPic && filterPic !== 'SEMUA')
+        ? filterAndPruneRkbDataset(fullDataset, { pic: filterPic })
+        : fullDataset;
+
+      // Bangun Rekap Kegiatan RKB (L1, L2, L3, L4)
+      const kegiatanRows = (activeData.rows || []).filter(r => r.is_header && Number(r.level_indent) <= 29 && Number(r.level_indent) !== 3).map(r => ({
+        id: r.id,
+        urutan: r.urutan,
+        kode: r.kode || '-',
+        uraian: r.uraian || '-',
+        level_indent: r.level_indent,
+        pic_bagian: r.pic_bagian || '-',
+        target_scope: r.target_scope || 'KAB',
+        jumlah: r.computed_total || 0
+      }));
+
+      const masters = getMasters();
+      const akunMap = {};
+      (masters.akuns || []).forEach(a => { akunMap[a.kode] = a; });
+
+      return sendJson(res, 200, {
+        ok: true,
+        mode,
+        can_view_all: canViewAll,
+        filter_pic: filterPic,
+        periode: {
+          id: targetPeriode.id,
+          nama_periode: targetPeriode.nama_periode,
+          versi_revisi: targetPeriode.versi_revisi,
+          fase_perencanaan: targetPeriode.fase_perencanaan || targetPeriode.tahap_revisi || 'PRA_NPHD',
+          dasar_pengesahan: targetPeriode.dasar_pengesahan || 'BA Pleno Komisioner',
+          nomor_ba_tapd: targetPeriode.nomor_ba_tapd || '-',
+          tanggal_ba_tapd: targetPeriode.tanggal_ba_tapd || '-',
+          is_locked: targetPeriode.is_locked
+        },
+        summary: activeData.summary,
+        doc_summary: fullDataset.summary,
+        kegiatan_rows: kegiatanRows,
+        akun_map: akunMap
+      });
+    }
+
     // 2. POST /api/revisi/pengajuan (Submit Usulan Revisi Subbag Baru)
     if (pathname === '/api/revisi/pengajuan' && method === 'POST') {
       const user = getUserFromReq(req);
