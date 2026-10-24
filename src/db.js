@@ -530,14 +530,35 @@ function alignOperationalRkbCycles() {
         }
       }
 
-      // Pastikan parameter paslon_parpol tersedia di master_kuantitas sebagai SSOT reaktif
-      const hasPaslonParpol = db.prepare("SELECT id FROM master_kuantitas WHERE kode = 'paslon_parpol'").get();
-      if (!hasPaslonParpol) {
-        db.prepare(`
-          INSERT INTO master_kuantitas (kode, nama, nilai, satuan, kategori, keterangan)
-          VALUES ('paslon_parpol', 'Pasangan Calon Jalur Parpol', 4, 'Paslon', 'PESERTA', 'Otomatis dari Master Paslon Parameter Jalur Parpol')
-        `).run();
-      }
+      // Selaraskan 3 baris parameter Paslon pada master_kuantitas (ID 6, 7, 8) sesuai Master Paslon:
+      // ID 6: @paslon_parpol (Bakal Paslon Jalur Parpol = 4)
+      // ID 7: @paslon_perseorangan (Bakal Paslon Jalur Perseorangan = 1)
+      // ID 8: @paslon (Total Bakal Pasangan Calon = 5)
+      db.prepare("DELETE FROM master_kuantitas WHERE id > 10 AND kode IN ('paslon_parpol', 'bakal_paslon')").run();
+      db.prepare(`
+        UPDATE master_kuantitas
+        SET kode = 'paslon_parpol',
+            nama = 'Bakal Paslon Jalur Parpol',
+            satuan = 'Paslon',
+            kategori = 'PESERTA'
+        WHERE id = 6
+      `).run();
+      db.prepare(`
+        UPDATE master_kuantitas
+        SET kode = 'paslon_perseorangan',
+            nama = 'Bakal Paslon Jalur Perseorangan',
+            satuan = 'Paslon',
+            kategori = 'PESERTA'
+        WHERE id = 7
+      `).run();
+      db.prepare(`
+        UPDATE master_kuantitas
+        SET kode = 'paslon',
+            nama = 'Total Bakal Pasangan Calon (Paslon)',
+            satuan = 'Paslon',
+            kategori = 'PESERTA'
+        WHERE id = 8
+      `).run();
     } catch (e) {
       console.warn('[MIGRATION] Gagal normalisasi parameter Jalur Paslon:', e.message);
     }
@@ -545,6 +566,11 @@ function alignOperationalRkbCycles() {
     // 4. Hubungkan variabel SSOT pada baris belanja draft aktif yang satuannya paslon
     const draftPeriods = db.prepare('SELECT id FROM periode_anggaran WHERE is_locked = 0').all();
     for (const dp of draftPeriods) {
+      db.prepare("UPDATE rab_baris SET f1_var = 'paslon' WHERE periode_id = ? AND f1_var = 'bakal_paslon'").run(dp.id);
+      db.prepare("UPDATE rab_baris SET f2_var = 'paslon' WHERE periode_id = ? AND f2_var = 'bakal_paslon'").run(dp.id);
+      db.prepare("UPDATE rab_baris SET f3_var = 'paslon' WHERE periode_id = ? AND f3_var = 'bakal_paslon'").run(dp.id);
+      db.prepare("UPDATE rab_baris SET f4_var = 'paslon' WHERE periode_id = ? AND f4_var = 'bakal_paslon'").run(dp.id);
+
       const paslonRows = db.prepare(`
         SELECT id, uraian, f1_unit, f1_var, f2_unit, f2_var, f3_unit, f3_var, f4_unit, f4_var
         FROM rab_baris
@@ -557,7 +583,7 @@ function alignOperationalRkbCycles() {
         const uLower = String(pr.uraian || '').toLowerCase();
         let targetVar = 'paslon';
         if (uLower.includes('perseorangan')) targetVar = 'paslon_perseorangan';
-        else if (uLower.includes('bakal')) targetVar = 'bakal_paslon';
+        else if (uLower.includes('jalur parpol') || uLower.includes('paslon parpol')) targetVar = 'paslon_parpol';
 
         const updates = [];
         const params = [];
@@ -2100,10 +2126,9 @@ function syncPrimaryKuantitas() {
     upd.run(liveKec, 'kec_ppk');
     upd.run(livePemilih, 'pemilih_dpt');
     upd.run(livePemilih, 'dpt');
-    updWithKet.run(livePaslon, `Total Pasangan Calon Tetap (Otomatis dari Master Paslon: ${livePaslonParpol} Jalur Parpol + ${livePaslonPerseorangan} Jalur Perseorangan = ${livePaslon} Paslon)`, 'paslon');
-    updWithKet.run(livePaslonParpol, `Pasangan Calon Jalur Parpol (Otomatis dari Master Paslon Parameter Jalur Parpol: ${livePaslonParpol} Paslon)`, 'paslon_parpol');
-    updWithKet.run(livePaslonPerseorangan, `Pasangan Calon Jalur Perseorangan (Otomatis dari Master Paslon Parameter Jalur Perseorangan: ${livePaslonPerseorangan} Paslon)`, 'paslon_perseorangan');
-    updWithKet.run(livePaslon, `Jumlah Bakal Pasangan Calon (Otomatis dari Master Paslon: ${livePaslon} Paslon)`, 'bakal_paslon');
+    updWithKet.run(livePaslonParpol, `Bakal Pasangan Calon Jalur Parpol (Otomatis dari Master Paslon Parameter Jalur Parpol: ${livePaslonParpol} Paslon)`, 'paslon_parpol');
+    updWithKet.run(livePaslonPerseorangan, `Bakal Pasangan Calon Jalur Perseorangan (Otomatis dari Master Paslon Parameter Jalur Perseorangan: ${livePaslonPerseorangan} Paslon)`, 'paslon_perseorangan');
+    updWithKet.run(livePaslon, `Total Bakal Pasangan Calon (Otomatis dari Master Paslon: ${livePaslonParpol} Jalur Parpol + ${livePaslonPerseorangan} Jalur Perseorangan = ${livePaslon} Paslon)`, 'paslon');
 
     upd.run(liveTps * 1, 'kpps_ketua');
     upd.run(liveTps * 6, 'kpps_anggota');

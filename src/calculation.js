@@ -178,6 +178,9 @@ function getKuantitasMap() {
     }
     map[k.kode] = k;
   }
+  if (!map.bakal_paslon && map.paslon) {
+    map.bakal_paslon = map.paslon;
+  }
   return map;
 }
 
@@ -284,8 +287,6 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
           varCode = 'paslon_perseorangan';
         } else if (uLower.includes('jalur parpol') || uLower.includes('paslon parpol')) {
           varCode = 'paslon_parpol';
-        } else if (uLower.includes('bakal')) {
-          varCode = 'bakal_paslon';
         } else {
           varCode = 'paslon';
         }
