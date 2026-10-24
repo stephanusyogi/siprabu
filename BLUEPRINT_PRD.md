@@ -267,6 +267,17 @@
 ### 18.1 Sumber data, tampilan dan struktur
 RUH menampilkan satu RKB aktif, hierarki L1–L6, kode, uraian komponen/akun/rincian, PIC Subbag, Sasaran, rincian perhitungan (faktor × pengali), volume, satuan, harga satuan, jumlah anggaran, dan aksi baris. Navigasi yang terlihat mencakup pencarian uraian/kode, filter subbagian, sasaran, level, cakupan baris, ekspansi/kolaps cabang, pilihan baris aktif, Sanding, Resume, Audit Integritas, dan Unduh Excel. Fungsi detail tombol yang belum disepakati tidak boleh direkayasa.
 
+#### Skema Penomoran Hierarki RKB (L1–L6)
+
+| Level | Sebutan Hierarki | Format Penomoran / Kode | Contoh pada RKB KPU Ngawi |
+| :--- | :--- | :--- | :--- |
+| **L1** | Bagian Utama (Grand Title) | Huruf Kapital (`A, B`) | `A. KEBUTUHAN BARANG DAN JASA`<br>`B. HONORARIUM POKJA DAN PENYELENGGARA` |
+| **L2** | Kelompok Tahapan | Angka Romawi (`I, II`) | `I. TAHAPAN PERSIAPAN DAN PELAKSANAAN`<br>`II. OPERASIONAL DAN ADMINISTRASI KANTOR` |
+| **L3** | Tahapan / Kegiatan | Angka Biasa (`1 s.d 28`) | `1. Perencanaan Program dan Anggaran`<br>`5. Pembentukan dan Pembubaran PPK, PPS, KPPS`<br>`18. Pemeliharaan` |
+| **L4** | Sub-Tahapan / Komponen | Desimal (`4.1, 4.2, ...`) atau Strip (`-`) | `4.1. Sosialisasi Pemilih Pemula`<br>`4.2. Bimbingan Teknis Sirekap` |
+| **L5** | Akun Belanja (BAS) | Kode 6 Digit (`[521211]`) | `[521211] Belanja Bahan`<br>`[521213] Honor Output Kegiatan`<br>`[524111] Belanja Perjalanan Dinas Biasa` |
+| **L6** | Detail Item Belanja | Uraian Item (Rumus Multi-Faktor) | `-. Konsumsi Rapat (15 Org x 5 Keg x Rp 65.000 = Rp 4.875.000)` |
+
 ### 18.2 Penambahan baris berdasarkan baris aktif
 Baris aktif `L1` mengaktifkan penambahan `L1/L2`; `L2` → `L2/L3`; `L3` → `L3/L4`; `L4` → `L4/L5`; `L5` → `L5/L6`; `L6` → `L6` saja. Penambahan level sama menciptakan sibling, satu level di bawah menciptakan child. Baris baru wajib terhubung pada parent yang sah dan berada pada cabang yang benar.
 
