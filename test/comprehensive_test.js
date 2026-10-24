@@ -151,10 +151,11 @@ async function runAllTests() {
   assert(canManageUsers({ level: 1, username: 'staf_perencanaan', role_id: 'admin_perencanaan' }) === false, 'Staf Perencanaan DITOLAK mengelola pengguna (hanya Kasubbag).');
   assert(canManageUsers({ level: 2, username: 'teknis', role_id: 'op_teknis' }) === false, 'Level 2 Operator DITOLAK mengelola pengguna.');
 
-  // Hak Akses Ruang Pengembang (Blueprint & PRD): HANYA Lead Developer
+  // Hak Akses Ruang Pengembang (Blueprint & PRD): HANYA Lead Developer Aktif (Level 0)
   assert(isDeveloperUser({ level: 0, username: 'emenje', role_id: 'developer' }) === true, 'Akun Lead Developer emenje (Level 0) terverifikasi sebagai Developer sah.');
   assert(isDeveloperUser({ level: 1, username: 'perencanaan', role_id: 'super_admin' }) === false, 'Kasubbag Perencanaan (Level 1) DITOLAK mengakses Ruang Pengembang.');
   assert(isDeveloperUser({ level: 2, username: 'teknis', role_id: 'op_teknis' }) === false, 'Operator Subbagian (Level 2) DITOLAK mengakses Ruang Pengembang.');
+  assert(isDeveloperUser({ level: 2, username: 'teknis', role_id: 'op_teknis', is_developer: true, original_dev_username: 'emenje' }) === false, 'Saat simulasi peran non-Developer (Level 2), akses Blueprint & PRD DITOLAK mengikuti batas peran simulasi.');
   assert(isDeveloperUser({ level: 3, username: 'ketua', role_id: 'viewer_ketua' }) === false, 'Pimpinan Satker (Level 3) DITOLAK mengakses Ruang Pengembang.');
 
   // --------------------------------------------------------------------------

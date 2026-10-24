@@ -498,11 +498,14 @@ async function initAuth() {
     AppState.currentUser = loggedInUser;
     if (loggedInUser.is_developer || loggedInUser.level === 0 || loggedInUser.username === 'emenje') {
       sessionStorage.setItem('siprabu_is_developer_origin', 'true');
+    } else {
+      sessionStorage.removeItem('siprabu_is_developer_origin');
     }
     showMainApp();
     updateUserNavbar();
   } else {
     AppState.currentUser = null;
+    sessionStorage.removeItem('siprabu_is_developer_origin');
     // Jika user mencoba membuka link modul tanpa login, simpan untuk redirect setelah login
     const parsed = parseSaktiRouteToken(window.location.pathname);
     if (parsed && parsed.viewId) {
@@ -521,6 +524,20 @@ function isDeveloperSession() {
     user.username === 'emenje' || 
     user.is_developer === true ||
     sessionStorage.getItem('siprabu_is_developer_origin') === 'true'
+  );
+}
+
+/**
+ * Verifikasi ketat bahwa akun yang sedang aktif adalah Developer (Level 0 / emenje).
+ * Saat sedang mensimulasikan peran lain (Level 1/2/3), bernilai false agar menu Blueprint & PRD tersembunyi.
+ */
+function isActiveDeveloperUser(user = AppState.currentUser) {
+  if (!user) return false;
+  return Boolean(
+    Number(user.level) === 0 && (
+      user.role_id === 'developer' ||
+      user.username === 'emenje'
+    )
   );
 }
 
@@ -889,10 +906,10 @@ function applyRolePermissionsToUI() {
     navTahap4.style.display = (user.level <= 1 || user.role_id === 'sekretaris') ? 'flex' : 'none';
   }
 
-  // e. Menu Ruang Pengembang (Blueprint & PRD) HANYA UNTUK DEVELOPER LEVEL 0
+  // e. Menu Ruang Pengembang (Blueprint & PRD) HANYA UNTUK AKUN DEVELOPER AKTIF (LEVEL 0)
   const navDev = document.getElementById('nav-item-developer');
   if (navDev) {
-    navDev.style.display = isDeveloperSession() ? 'flex' : 'none';
+    navDev.style.display = isActiveDeveloperUser(user) ? 'flex' : 'none';
   }
 
   // f. Menu Rekap Pelaksanaan (Bab 21.4 Canon): Dikunci khusus untuk Ketua KPU, Sekretaris KPU, dan Level 1 (serta Level 0)
@@ -928,6 +945,18 @@ async function switchUser(username) {
     updateUserNavbar();
     applyRolePermissionsToUI();
     showToast(`Beralih peran ke: ${res.user.nama_pejabat} [Level ${res.user.level}]`, 'info');
+
+    // Jika beralih ke peran non-developer saat sedang membuka Blueprint & PRD, bersihkan & arahkan ke Dashboard
+    if (!isActiveDeveloperUser(res.user)) {
+      currentBlueprintRawContent = '';
+      const bpContainer = document.getElementById('dev-blueprint-formatted-view');
+      const bpTextarea = document.getElementById('dev-blueprint-raw-textarea');
+      if (bpContainer) bpContainer.innerHTML = '';
+      if (bpTextarea) bpTextarea.value = '';
+      if (AppState.activeView === 'view-developer') {
+        switchView('view-dashboard', true);
+      }
+    }
 
     // Reload active draft dan render ulang semua tampilan sesuai peran
     await loadPeriodes();
@@ -1091,6 +1120,11 @@ async function handleGoogleSignInCallback(response) {
     if (res.success && res.token) {
       localStorage.setItem('siprabu_token', res.token);
       AppState.currentUser = res.user;
+      if (res.user?.level === 0 || res.user?.role_id === 'developer' || res.user?.username === 'emenje') {
+        sessionStorage.setItem('siprabu_is_developer_origin', 'true');
+      } else {
+        sessionStorage.removeItem('siprabu_is_developer_origin');
+      }
       showMainApp();
       updateUserNavbar();
       closeLoginModal();
@@ -1390,9 +1424,9 @@ function switchView(viewId, updateHistory = true) {
       return;
     }
 
-    // 3b. Guard Ruang Pengembang (Blueprint & PRD): HANYA Level 0 (Developer emenje)
-    if (viewId === 'view-developer' && !isDeveloperSession()) {
-      showToast('Akses ditolak: Menu ini khusus untuk Akun Pengembang (Lead Developer).', 'error');
+    // 3b. Guard Ruang Pengembang (Blueprint & PRD): HANYA Akun Developer Aktif (Level 0 / emenje)
+    if (viewId === 'view-developer' && !isActiveDeveloperUser(user)) {
+      showToast('Akses ditolak: Blueprint & PRD hanya dapat dilihat oleh Developer (Level 0).', 'error');
       switchView('view-dashboard', updateHistory);
       return;
     }
@@ -7483,7 +7517,7 @@ function inlineFormat(text) {
 }
 
 async function loadDeveloperBlueprint() {
-  if (!isDeveloperSession()) return;
+  if (!isActiveDeveloperUser()) return;
   const container = document.getElementById('dev-blueprint-formatted-view');
   const textarea = document.getElementById('dev-blueprint-raw-textarea');
   const mtimeEl = document.getElementById('dev-blueprint-mtime');
@@ -7533,7 +7567,7 @@ function toggleRawBlueprintView() {
 }
 
 async function saveDeveloperBlueprint() {
-  if (!isDeveloperSession()) return;
+  if (!isActiveDeveloperUser()) return;
   const textarea = document.getElementById('dev-blueprint-raw-textarea');
   if (!textarea) return;
 

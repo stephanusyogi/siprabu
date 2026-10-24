@@ -342,16 +342,17 @@ function validateUserCoherence(userData, isCreating = false) {
 }
 
 /**
- * Helper verifikasi apakah pengguna adalah Lead Developer (Level 0 / emenje)
+ * Helper verifikasi apakah pengguna aktif saat ini adalah Lead Developer (Level 0 / emenje).
+ * Saat mode simulasi peran aktif (level > 0), akses Ruang Pengembang & Blueprint PRD ditutup
+ * mengikuti batasan peran yang sedang disimulasikan.
  */
 function isDeveloperUser(user) {
   if (!user) return false;
   return Boolean(
-    user.is_developer || 
-    user.level === 0 || 
-    user.role_id === 'developer' || 
-    user.username === 'emenje' ||
-    user.original_dev_username === 'emenje'
+    Number(user.level) === 0 && (
+      user.role_id === 'developer' || 
+      user.username === 'emenje'
+    )
   );
 }
 
