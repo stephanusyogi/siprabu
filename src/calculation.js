@@ -125,8 +125,12 @@ function getKuantitasMap() {
   } catch (e) {}
 
   let livePaslon = 0;
+  let livePaslonParpol = 0;
+  let livePaslonPerseorangan = 0;
   try {
     livePaslon = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt) || 0;
+    livePaslonParpol = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Parpol'").get()?.cnt) || 0;
+    livePaslonPerseorangan = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Perseorangan'").get()?.cnt) || 0;
   } catch (e) {}
 
   const map = {};
@@ -143,8 +147,12 @@ function getKuantitasMap() {
       k.nilai = liveKec;
     } else if (k.kode === 'pemilih_dpt' || k.kode === 'dpt') {
       k.nilai = livePemilih;
-    } else if (k.kode === 'paslon') {
+    } else if (k.kode === 'paslon' || k.kode === 'bakal_paslon') {
       k.nilai = livePaslon;
+    } else if (k.kode === 'paslon_parpol') {
+      k.nilai = livePaslonParpol;
+    } else if (k.kode === 'paslon_perseorangan') {
+      k.nilai = livePaslonPerseorangan;
     } else if (k.kode === 'kpps_ketua') {
       k.nilai = liveTps * 1;
     } else if (k.kode === 'kpps_anggota') {
@@ -274,6 +282,8 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
         const uLower = String(r.uraian || '').toLowerCase();
         if (uLower.includes('perseorangan')) {
           varCode = 'paslon_perseorangan';
+        } else if (uLower.includes('jalur parpol') || uLower.includes('paslon parpol')) {
+          varCode = 'paslon_parpol';
         } else if (uLower.includes('bakal')) {
           varCode = 'bakal_paslon';
         } else {

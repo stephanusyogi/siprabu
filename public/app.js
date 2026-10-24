@@ -5965,10 +5965,16 @@ async function handleExcelUploadDesa(event) {
 function renderDbPaslon() {
   if (!AppState.masters) return;
   const paslons = AppState.masters.paslons || [];
+  const countPerseorangan = paslons.filter(p => p.keterangan === 'Jalur Perseorangan').length;
+  const countParpol = paslons.length - countPerseorangan;
 
   const elStatTotal = document.getElementById('paslon-stat-total');
+  const elStatParpol = document.getElementById('paslon-stat-parpol');
+  const elStatPerseorangan = document.getElementById('paslon-stat-perseorangan');
   const elStatKoef = document.getElementById('paslon-stat-koef');
   if (elStatTotal) elStatTotal.textContent = `${paslons.length} Pasangan`;
+  if (elStatParpol) elStatParpol.textContent = `${countParpol} Paslon`;
+  if (elStatPerseorangan) elStatPerseorangan.textContent = `${countPerseorangan} Paslon`;
   if (elStatKoef) elStatKoef.textContent = `${paslons.length} Paslon`;
 
   const tbody = document.getElementById('table-db-paslon');
@@ -5980,7 +5986,12 @@ function renderDbPaslon() {
   }
 
   const isLevel1 = (AppState.currentUser?.level <= 1);
-  tbody.innerHTML = paslons.map(p => `
+  tbody.innerHTML = paslons.map(p => {
+    const jalurParam = p.keterangan === 'Jalur Perseorangan' ? 'Jalur Perseorangan' : 'Jalur Parpol';
+    const jalurBadge = jalurParam === 'Jalur Perseorangan'
+      ? `<span class="badge badge-warning" style="font-size: 11.5px; padding: 4px 10px; font-weight: 700;">👤 ${escapeHtml(jalurParam)}</span>`
+      : `<span class="badge badge-primary" style="font-size: 11.5px; padding: 4px 10px; font-weight: 700;">🏛️ ${escapeHtml(jalurParam)}</span>`;
+    return `
     <tr>
       <td class="text-center" style="font-size: 16px; font-weight: 800; color: #1e40af;">
         <span class="badge badge-primary" style="font-size: 14px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;">
@@ -5991,7 +6002,7 @@ function renderDbPaslon() {
       <td><strong style="color: #334155; font-size: 13.5px;">${escapeHtml(p.nama_calon_wakil_bupati)}</strong></td>
       <td><span style="font-size: 12px; color: #475569;">${escapeHtml(p.partai_pengusung || '-')}</span></td>
       <td><i style="color: #64748b; font-size: 12px;">"${escapeHtml(p.slogan || '-')}"</i></td>
-      <td><small style="color: #64748b;">${escapeHtml(p.keterangan || '-')}</small></td>
+      <td>${jalurBadge}</td>
       <td class="text-center">
         ${isLevel1 ? `
         <button type="button" class="btn btn-outline btn-sm" onclick="openModalPaslon(${p.id})" title="Edit Paslon">✏️</button>
@@ -5999,7 +6010,8 @@ function renderDbPaslon() {
         ` : `<span class="badge badge-secondary" style="font-size:11px;">Read-Only</span>`}
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function filterDbPaslon() {
@@ -6025,11 +6037,12 @@ function openModalPaslon(id = null) {
       setElVal('paslon-wakil', p.nama_calon_wakil_bupati || '');
       setElVal('paslon-partai', p.partai_pengusung || '');
       setElVal('paslon-slogan', p.slogan || '');
-      setElVal('paslon-keterangan', p.keterangan || '');
+      setElVal('paslon-keterangan', p.keterangan === 'Jalur Perseorangan' ? 'Jalur Perseorangan' : 'Jalur Parpol');
     }
   } else {
     const maxNo = (AppState.masters?.paslons?.length || 0) + 1;
     setElVal('paslon-no-urut', maxNo);
+    setElVal('paslon-keterangan', 'Jalur Parpol');
   }
   modal.style.display = 'flex';
 }
@@ -6122,7 +6135,7 @@ function renderDbKuantitas() {
 
   const reactiveDesa = ['tps_rkb', 'pemilih_dpt', 'dpt', 'pantarlih', 'desa_pps'];
   const reactivePpk = ['kec_ppk'];
-  const reactivePaslon = ['paslon'];
+  const reactivePaslon = ['paslon', 'paslon_parpol', 'paslon_perseorangan', 'bakal_paslon'];
   const formulaKeys = [
     'kpps_ketua', 'kpps_anggota', 'linmas_tps', 'petugas_tps', 'kpps_all',
     'ppk_ketua', 'ppk_anggota', 'ppk_komisioner', 'ppk_sekretaris', 'ppk_staf', 'ppk_sekretariat',

@@ -1604,7 +1604,7 @@
           <div class="alert alert-info mb-3">
             <div class="alert-icon">🗳️</div>
             <div class="alert-content">
-              <strong>Pengaruh Otomatis ke RKB:</strong> Jumlah pasangan calon di bawah ini secara otomatis menentukan koefisien variabel <code>paslon</code> pada seluruh baris belanja debat publik, pencetakan alat peraga kampanye (APK), bahan kampanye, serta honorarium pokja terkait.
+              <strong>Pengaruh Otomatis ke RKB (SSOT Reaktif):</strong> Jumlah pasangan calon dan parameter keterangan jalur pencalonan (<strong>Jalur Parpol</strong> / <strong>Jalur Perseorangan</strong>) di bawah ini secara otomatis menentukan koefisien variabel <code>paslon</code>, <code>paslon_parpol</code>, <code>paslon_perseorangan</code>, dan <code>bakal_paslon</code> pada seluruh baris belanja RKB.
             </div>
           </div>
 
@@ -1614,6 +1614,16 @@
               <div class="p-title">Paslon Terdaftar</div>
               <div class="p-val" id="paslon-stat-total">5 Pasangan</div>
               <div class="p-note">Kontestan Pilkada</div>
+            </div>
+            <div class="penyelenggara-box">
+              <div class="p-title">Jalur Parpol</div>
+              <div class="p-val" id="paslon-stat-parpol">4 Paslon</div>
+              <div class="p-note">Parameter SSOT Parpol</div>
+            </div>
+            <div class="penyelenggara-box">
+              <div class="p-title">Jalur Perseorangan</div>
+              <div class="p-val" id="paslon-stat-perseorangan">1 Paslon</div>
+              <div class="p-note">Parameter SSOT Perseorangan</div>
             </div>
             <div class="penyelenggara-box">
               <div class="p-title">Koefisien Variabel RKB</div>
@@ -3821,8 +3831,11 @@
               <input type="text" id="paslon-slogan" class="input-text" placeholder="Tagline atau visi misi pasangan calon...">
             </div>
             <div class="form-group">
-              <label style="font-weight: 700;">Keterangan Tambahan:</label>
-              <input type="text" id="paslon-keterangan" class="input-text" placeholder="Misal: Pasangan Calon Petahana / Terdaftar di KPU">
+              <label style="font-weight: 700;">Keterangan (Parameter Jalur Pencalonan):</label>
+              <select id="paslon-keterangan" class="input-select" required>
+                <option value="Jalur Parpol">Jalur Parpol</option>
+                <option value="Jalur Perseorangan">Jalur Perseorangan</option>
+              </select>
             </div>
           </form>
         </div>
@@ -4355,7 +4368,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.9.1"></script>
+    <script src="/app.js?v=3.9.2"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

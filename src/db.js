@@ -515,6 +515,33 @@ function alignOperationalRkbCycles() {
       WHERE id = 1 AND (is_locked != 1 OR pagu_nphd != 49999999000 OR pagu_nphd IS NULL)
     `).run();
 
+    // 3b. Normalisasi parameter Keterangan pada Master Paslon menjadi 'Jalur Parpol' atau 'Jalur Perseorangan'
+    try {
+      const allPaslons = db.prepare('SELECT id, partai_pengusung, keterangan FROM master_paslon').all();
+      const updPaslon = db.prepare('UPDATE master_paslon SET keterangan = ?, partai_pengusung = ? WHERE id = ?');
+      for (const p of allPaslons) {
+        const normKet = normalizeJalurPaslon(p.keterangan, p.partai_pengusung);
+        let normPartai = p.partai_pengusung || '';
+        if (normKet === 'Jalur Parpol' && normPartai === 'Koalisi Parpol Non-Parlemen / Independen') {
+          normPartai = 'Koalisi Parpol Non-Parlemen';
+        }
+        if (p.keterangan !== normKet || p.partai_pengusung !== normPartai) {
+          updPaslon.run(normKet, normPartai, p.id);
+        }
+      }
+
+      // Pastikan parameter paslon_parpol tersedia di master_kuantitas sebagai SSOT reaktif
+      const hasPaslonParpol = db.prepare("SELECT id FROM master_kuantitas WHERE kode = 'paslon_parpol'").get();
+      if (!hasPaslonParpol) {
+        db.prepare(`
+          INSERT INTO master_kuantitas (kode, nama, nilai, satuan, kategori, keterangan)
+          VALUES ('paslon_parpol', 'Pasangan Calon Jalur Parpol', 4, 'Paslon', 'PESERTA', 'Otomatis dari Master Paslon Parameter Jalur Parpol')
+        `).run();
+      }
+    } catch (e) {
+      console.warn('[MIGRATION] Gagal normalisasi parameter Jalur Paslon:', e.message);
+    }
+
     // 4. Hubungkan variabel SSOT pada baris belanja draft aktif yang satuannya paslon
     const draftPeriods = db.prepare('SELECT id FROM periode_anggaran WHERE is_locked = 0').all();
     for (const dp of draftPeriods) {
@@ -566,6 +593,9 @@ function alignOperationalRkbCycles() {
         console.warn('[MIGRATION] Gagal sinkronisasi baris turunan PPK/PPS:', e.message);
       }
     }
+
+    // 6. Sinkronkan kuantitas primer SSOT (termasuk Jalur Parpol & Jalur Perseorangan dari Master Paslon)
+    syncPrimaryKuantitas();
   } catch (err) {
     console.warn('[MIGRATION] Peringatan saat menyelaraskan siklus RKB:', err.message);
   }
@@ -2027,6 +2057,18 @@ function updateSettings(settingsObj, actorUser = null) {
   return getMasters().settings;
 }
 
+function normalizeJalurPaslon(ket, partai = '') {
+  const k = String(ket || '').trim();
+  if (k === 'Jalur Perseorangan' || k === 'Jalur Parpol') return k;
+  if (
+    k.toLowerCase().includes('perseorangan') ||
+    String(partai || '').trim().toLowerCase().startsWith('perseorangan')
+  ) {
+    return 'Jalur Perseorangan';
+  }
+  return 'Jalur Parpol';
+}
+
 function syncPrimaryKuantitas() {
   try {
     const agg = db.prepare(`
@@ -2045,8 +2087,11 @@ function syncPrimaryKuantitas() {
     const livePemilih = Number(agg.sumPemilih) || 0;
     const liveKec = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_kecamatan').get()?.cnt) || 0;
     const livePaslon = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt) || 0;
+    const livePaslonParpol = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Parpol'").get()?.cnt) || 0;
+    const livePaslonPerseorangan = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Perseorangan'").get()?.cnt) || 0;
 
     const upd = db.prepare('UPDATE master_kuantitas SET nilai = ? WHERE kode = ?');
+    const updWithKet = db.prepare('UPDATE master_kuantitas SET nilai = ?, keterangan = ? WHERE kode = ?');
 
     upd.run(livePantarlih, 'pantarlih');
     upd.run(liveTps, 'tps_rkb');
@@ -2055,7 +2100,10 @@ function syncPrimaryKuantitas() {
     upd.run(liveKec, 'kec_ppk');
     upd.run(livePemilih, 'pemilih_dpt');
     upd.run(livePemilih, 'dpt');
-    upd.run(livePaslon, 'paslon');
+    updWithKet.run(livePaslon, `Total Pasangan Calon Tetap (Otomatis dari Master Paslon: ${livePaslonParpol} Jalur Parpol + ${livePaslonPerseorangan} Jalur Perseorangan = ${livePaslon} Paslon)`, 'paslon');
+    updWithKet.run(livePaslonParpol, `Pasangan Calon Jalur Parpol (Otomatis dari Master Paslon Parameter Jalur Parpol: ${livePaslonParpol} Paslon)`, 'paslon_parpol');
+    updWithKet.run(livePaslonPerseorangan, `Pasangan Calon Jalur Perseorangan (Otomatis dari Master Paslon Parameter Jalur Perseorangan: ${livePaslonPerseorangan} Paslon)`, 'paslon_perseorangan');
+    updWithKet.run(livePaslon, `Jumlah Bakal Pasangan Calon (Otomatis dari Master Paslon: ${livePaslon} Paslon)`, 'bakal_paslon');
 
     upd.run(liveTps * 1, 'kpps_ketua');
     upd.run(liveTps * 6, 'kpps_anggota');
@@ -2150,7 +2198,7 @@ function savePaslon(data, actorUser = null) {
   const wakil = (data.nama_calon_wakil_bupati || '').trim();
   const partai = (data.partai_pengusung || '').trim();
   const slogan = (data.slogan || '').trim();
-  const ket = (data.keterangan || '').trim();
+  const ket = normalizeJalurPaslon(data.keterangan, partai);
 
   if (!bupati) throw new Error('Nama calon bupati wajib diisi.');
 
