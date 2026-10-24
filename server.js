@@ -61,6 +61,9 @@ const {
   getPaslonList,
   savePaslon,
   deletePaslon,
+  getRegulasiList,
+  saveRegulasi,
+  deleteRegulasi,
   getKecamatans,
   saveKecamatan,
   deleteKecamatan,
@@ -1642,6 +1645,33 @@ const server = http.createServer(async (req, res) => {
       }
       deletePaslon(Number(delPaslonMatch[1]), user);
       return sendJson(res, 200, { success: true, list: getPaslonList() });
+    }
+
+    // 13b-jdih. MASTER REGULASI & DASAR HUKUM (JDIH PENYUSUNAN & PELAKSANAAN ANGGARAN - BAB 8.1)
+    if (pathname === '/api/master/regulasi' && method === 'GET') {
+      return sendJson(res, 200, getRegulasiList());
+    }
+    if (pathname === '/api/master/regulasi' && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Level 0 (Pengembang) dan Level 1 (Perencanaan) yang dapat mengelola katalog Regulasi JDIH.' });
+      }
+      try {
+        const body = await parseJsonBody(req);
+        const list = saveRegulasi(body, user);
+        return sendJson(res, 200, { success: true, list, message: 'Produk hukum JDIH berhasil disimpan.' });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+    const delRegMatch = pathname.match(/^\/api\/master\/regulasi\/(\d+)$/);
+    if (delRegMatch && method === 'DELETE') {
+      const user = getUserFromReq(req);
+      if (!user || user.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Level 0 dan Level 1 yang dapat menghapus produk hukum JDIH.' });
+      }
+      deleteRegulasi(Number(delRegMatch[1]), user);
+      return sendJson(res, 200, { success: true, list: getRegulasiList() });
     }
 
     // 13b. MASTER KUANTITAS (SSOT)

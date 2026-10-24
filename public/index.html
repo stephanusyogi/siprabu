@@ -1861,46 +1861,94 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 7: REGULASI & DASAR HUKUM                                     -->
+        <!-- VIEW 7: REGULASI & DASAR HUKUM (PORTAL JDIH PENYUSUNAN & PELAKSANAAN) -->
         <!-- ================================================================= -->
         <section id="view-db-regulasi" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Regulasi & Dasar Hukum</h2>
-              <p class="view-desc">Landasan Yuridis dan Aturan Tata Kelola Anggaran Hibah Pilkada KPU Kabupaten Ngawi.</p>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>⚖️ JDIH KPU &bull; JARINGAN DOKUMENTASI DAN INFORMASI HUKUM</span>
+              </div>
+              <h2 class="view-title">Regulasi &amp; Dasar Hukum Anggaran Pemilihan</h2>
+              <p class="view-desc">Katalog Terpadu Produk Hukum Penyusunan Anggaran (Perencanaan RKB) &amp; Pelaksanaan Anggaran Hibah Pemilihan.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" id="btn-tambah-regulasi" onclick="openModalRegulasi()">
+                ➕ Tambah Produk Hukum (JDIH)
+              </button>
             </div>
           </div>
 
-          <div class="card p-3">
-            <h3 style="font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">
-              📜 Landasan Hukum dan Regulasi Acuan
-            </h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
-              <div class="card" style="padding: 16px; border-left: 4px solid #2563eb;">
-                <h4 style="margin: 0 0 6px 0; color: #2563eb;">1. Keputusan KPU Nomor 574 Tahun 2023</h4>
-                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                  Pedoman Teknis Penyusunan Kebutuhan dan Penganggaran Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota.
-                </p>
+          <!-- JDIH Summary Strip -->
+          <div class="penyelenggara-strip mb-3">
+            <div class="penyelenggara-box" style="border-left: 4px solid #1e40af;">
+              <div class="p-title">Total Koleksi JDIH</div>
+              <div class="p-val" id="jdih-stat-total">13 Produk Hukum</div>
+              <div class="p-note">Terverifikasi Berlaku Aktif</div>
+            </div>
+            <div class="penyelenggara-box" style="border-left: 4px solid #0284c7;">
+              <div class="p-title">Penyusunan Anggaran</div>
+              <div class="p-val" id="jdih-stat-penyusunan">10 Regulasi</div>
+              <div class="p-note">Perencanaan RKB, SBM/SBML &amp; BAS</div>
+            </div>
+            <div class="penyelenggara-box" style="border-left: 4px solid #059669;">
+              <div class="p-title">Pelaksanaan Anggaran</div>
+              <div class="p-val" id="jdih-stat-pelaksanaan">10 Regulasi</div>
+              <div class="p-note">Penatausahaan, SPJ, PBJ &amp; Hibah</div>
+            </div>
+            <div class="penyelenggara-box" style="border-left: 4px solid #7c3aed;">
+              <div class="p-title">Lintas Tahapan</div>
+              <div class="p-val" id="jdih-stat-lintas">7 Regulasi</div>
+              <div class="p-note">Penyusunan &amp; Pelaksanaan</div>
+            </div>
+          </div>
+
+          <!-- JDIH Search & Filter Toolbar -->
+          <div class="card mb-3" style="padding: 14px 16px;">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;" id="jdih-scope-tabs">
+                <button type="button" class="btn btn-sm btn-primary" data-scope="ALL" onclick="setJdihScopeFilter('ALL')">
+                  📚 Semua Produk Hukum
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-scope="PENYUSUNAN" onclick="setJdihScopeFilter('PENYUSUNAN')">
+                  📐 Penyusunan Anggaran (Perencanaan)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-scope="PELAKSANAAN" onclick="setJdihScopeFilter('PELAKSANAAN')">
+                  ⚙️ Pelaksanaan &amp; Pertanggungjawaban Anggaran
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-scope="PENYUSUNAN & PELAKSANAAN" onclick="setJdihScopeFilter('PENYUSUNAN & PELAKSANAAN')">
+                  🔄 Penyusunan &amp; Pelaksanaan (Lintas)
+                </button>
               </div>
-              <div class="card" style="padding: 16px; border-left: 4px solid #059669;">
-                <h4 style="margin: 0 0 6px 0; color: #059669;">2. Peraturan Menteri Keuangan (PMK SBM)</h4>
-                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                  PMK Nomor 49/PMK.02/2023 tentang Standar Biaya Masukan Tahun Anggaran 2024 dan perubahannya untuk acuan pagu tertinggi satuan belanja barang dan jasa.
-                </p>
-              </div>
-              <div class="card" style="padding: 16px; border-left: 4px solid #d97706;">
-                <h4 style="margin: 0 0 6px 0; color: #d97706;">3. SBML KPU RI (Honorarium Adhoc)</h4>
-                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                  Satuan Biaya Masukan Lainnya (SBML) KPU yang mengatur besaran honorarium resmi penyelenggara adhoc (PPK, PPS, KPPS, Pantarlih, dan Linmas).
-                </p>
-              </div>
-              <div class="card" style="padding: 16px; border-left: 4px solid #7c3aed;">
-                <h4 style="margin: 0 0 6px 0; color: #7c3aed;">4. NPHD Pemerintah Kabupaten Ngawi</h4>
-                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                  Naskah Perjanjian Hibah Daerah Nomor 001/2023 dengan pagu disahkan sebesar <strong>Rp 49.999.999.000 (Empat Puluh Sembilan Miliar Sembilan Ratus Sembilan Puluh Sembilan Juta Sembilan Ratus Sembilan Puluh Sembilan Ribu Rupiah)</strong>.
-                </p>
+              <div style="font-size: 11.5px; color: #64748b; font-weight: 600;" id="jdih-showing-count">
+                Menampilkan 13 dari 13 produk hukum
               </div>
             </div>
+
+            <div style="display: grid; grid-template-columns: 240px 1fr; gap: 12px;">
+              <div>
+                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Filter Jenis Produk Hukum:</label>
+                <select id="filter-jdih-jenis" class="input-select input-sm" onchange="filterDbRegulasi()">
+                  <option value="ALL">-- Semua Jenis Produk Hukum --</option>
+                  <option value="UU / PERPPU">UU / PERPPU (Undang-Undang)</option>
+                  <option value="PP / PERPRES">PP / PERPRES (Peraturan Pemerintah / Presiden)</option>
+                  <option value="PERMENDAGRI">PERMENDAGRI (Kementerian Dalam Negeri)</option>
+                  <option value="PMK">PMK (Peraturan Menteri Keuangan)</option>
+                  <option value="PKPU">PKPU (Peraturan KPU)</option>
+                  <option value="KPT KPU">KPT KPU (Keputusan KPU)</option>
+                  <option value="KEP / PEDOMAN">KEP / PEDOMAN (Keputusan Teknis / BAS)</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Pencarian Katalog JDIH (Nomor, Tahun, Tentang, atau Materi Pokok):</label>
+                <input type="text" id="filter-jdih-search" class="input-text input-sm" placeholder="Ketik nomor peraturan, tahun, kata kunci penyusunan RKB, SBM, SBML, SPJ, atau pengadaan..." onkeyup="filterDbRegulasi()">
+              </div>
+            </div>
+          </div>
+
+          <!-- JDIH Document Catalog List -->
+          <div id="jdih-catalog-container" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Rendered dynamically via renderDbRegulasi() in app.js -->
           </div>
         </section>
 
@@ -4480,7 +4528,108 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.9.3"></script>
+    <!-- ===================================================================== -->
+    <!-- MODAL: KATALOG PRODUK HUKUM JDIH (TAMBAH / EDIT & DETAIL ABSTRAK)     -->
+    <!-- ===================================================================== -->
+    <div id="modal-regulasi" class="modal-backdrop" style="display: none; z-index: 1085;">
+      <div class="modal-box" style="max-width: 680px;">
+        <div class="modal-header">
+          <h3 id="modal-regulasi-title" style="margin: 0; font-size: 16px;">⚖️ Form Produk Hukum JDIH</h3>
+          <button type="button" class="btn-close" onclick="closeModalRegulasi()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px; max-height: 75vh; overflow-y: auto;">
+          <form id="form-regulasi" onsubmit="event.preventDefault(); submitModalRegulasi();">
+            <input type="hidden" id="regulasi-id">
+            <div style="display: grid; grid-template-columns: 90px 1fr 120px; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">No Urut:</label>
+                <input type="number" id="regulasi-no-urut" class="input-text" required min="1" value="1" style="text-align: center; font-weight: 700;">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Jenis Produk Hukum:</label>
+                <select id="regulasi-jenis" class="input-select" required>
+                  <option value="UU / PERPPU">UU / PERPPU (Undang-Undang)</option>
+                  <option value="PP / PERPRES">PP / PERPRES (Peraturan Pemerintah / Presiden)</option>
+                  <option value="PERMENDAGRI">PERMENDAGRI (Permendagri)</option>
+                  <option value="PMK">PMK (Peraturan Menteri Keuangan)</option>
+                  <option value="PKPU">PKPU (Peraturan KPU)</option>
+                  <option value="KPT KPU">KPT KPU (Keputusan KPU)</option>
+                  <option value="KEP / PEDOMAN">KEP / PEDOMAN (Keputusan Teknis / BAS)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Tahun:</label>
+                <input type="number" id="regulasi-tahun" class="input-text" required min="2000" max="2035" value="2024" style="text-align: center; font-weight: 700;">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Nomor Peraturan / Produk Hukum:</label>
+              <input type="text" id="regulasi-nomor" class="input-text" required placeholder="Contoh: Keputusan KPU Nomor 574 Tahun 2023">
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Judul / Tentang:</label>
+              <textarea id="regulasi-tentang" class="input-text" rows="2" required placeholder="Tuliskan nomenklatur / tentang peraturan secara lengkap..."></textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 180px; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">Lingkup Tahapan Anggaran:</label>
+                <select id="regulasi-lingkup" class="input-select" required>
+                  <option value="PENYUSUNAN">Penyusunan Anggaran (Perencanaan RKB)</option>
+                  <option value="PELAKSANAAN">Pelaksanaan &amp; Pertanggungjawaban Anggaran</option>
+                  <option value="PENYUSUNAN & PELAKSANAAN">Penyusunan &amp; Pelaksanaan Anggaran (Lintas Tahapan)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Status Keberlakuan:</label>
+                <select id="regulasi-status" class="input-select" required>
+                  <option value="Berlaku">Berlaku</option>
+                  <option value="Diubah Sebagian">Diubah Sebagian</option>
+                  <option value="Tidak Berlaku">Tidak Berlaku</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">Instansi / Pejabat Penetap:</label>
+                <input type="text" id="regulasi-instansi" class="input-text" placeholder="Contoh: Komisi Pemilihan Umum RI">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Keterkaitan Modul SI-PRABU:</label>
+                <input type="text" id="regulasi-modul" class="input-text" placeholder="Contoh: RUH Belanja RKB, SBM/SBML, SPJ Hibah">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="font-weight: 700;">Abstrak / Pokok Materi Penganggaran &amp; Pelaksanaan:</label>
+              <textarea id="regulasi-abstrak" class="input-text" rows="3" placeholder="Ringkasan substansi hukum terkait penyusunan atau pelaksanaan anggaran..."></textarea>
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 700;">Tautan Portal JDIH / Dokumen Resmi (Opsional):</label>
+              <input type="url" id="regulasi-tautan" class="input-text" placeholder="https://jdih.kpu.go.id/...">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalRegulasi()">Batal</button>
+          <button type="button" class="btn btn-primary" onclick="submitModalRegulasi()">💾 Simpan Produk Hukum</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-regulasi-detail" class="modal-backdrop" style="display: none; z-index: 1086;">
+      <div class="modal-box" style="max-width: 680px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 16px;">📖 Lembar Metadata &amp; Abstrak Produk Hukum (JDIH)</h3>
+          <button type="button" class="btn-close" onclick="closeModalRegulasiDetail()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-regulasi-detail-body" style="padding: 18px; max-height: 75vh; overflow-y: auto;">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalRegulasiDetail()">Tutup</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js?v=3.9.4"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

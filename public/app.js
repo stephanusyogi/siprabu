@@ -845,6 +845,7 @@ function applyRolePermissionsToUI() {
     '#view-db-pps button[onclick*="openModalDesa"]',
     '#view-db-pps button[onclick*="triggerImportDesa"]',
     '#view-db-paslon button[onclick*="openModalPaslon"]',
+    '#btn-tambah-regulasi',
     '#btn-simpan-settings'
   ];
   masterActionSelectors.forEach(sel => {
@@ -1460,7 +1461,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-db-kuantitas') { renderDbKuantitas(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-sbm') { renderDbSbm(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-bas') { renderDbBas(); renderContextualMasterReminderBanner(viewId); }
-  else if (viewId === 'view-db-regulasi') { renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-regulasi') { renderDbRegulasi(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-settings' || viewId === 'view-settings') { renderSettings(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-panduan') { /* static info */ }
   else if (viewId === 'view-monitoring') loadMonitoringReport();
@@ -1481,6 +1482,7 @@ function renderAllViews() {
   renderDbKuantitas();
   renderDbSbm();
   renderDbBas();
+  renderDbRegulasi();
   renderSettings();
   renderUsersTable();
   applyRolePermissionsToUI();
@@ -6693,6 +6695,317 @@ async function handleExcelUploadBas(event) {
     }
   };
   reader.readAsDataURL(file);
+}
+
+// ============================================================================
+// VIEW 7: REGULASI & DASAR HUKUM (PORTAL KATALOG JDIH PENYUSUNAN & PELAKSANAAN)
+// ============================================================================
+
+let currentJdihScopeFilter = 'ALL';
+
+function getJdihJenisStyle(jenis) {
+  const j = String(jenis || '').toUpperCase();
+  if (j.includes('UU')) return { bg: '#fee2e2', color: '#991b1b', border: '#dc2626', icon: '🏛️' };
+  if (j.includes('PP') || j.includes('PERPRES')) return { bg: '#fef3c7', color: '#92400e', border: '#d97706', icon: '📜' };
+  if (j.includes('PERMENDAGRI')) return { bg: '#e0e7ff', color: '#3730a3', border: '#4f46e5', icon: '🏢' };
+  if (j.includes('PMK')) return { bg: '#dcfce7', color: '#166534', border: '#16a34a', icon: '💰' };
+  if (j.includes('PKPU')) return { bg: '#dbeafe', color: '#1e40af', border: '#2563eb', icon: '🗳️' };
+  if (j.includes('KPT KPU')) return { bg: '#f3e8ff', color: '#6b21a8', border: '#9333ea', icon: '⚖️' };
+  return { bg: '#f1f5f9', color: '#334155', border: '#64748b', icon: '📋' };
+}
+
+function getJdihScopeBadge(lingkup) {
+  const l = String(lingkup || '').toUpperCase();
+  if (l === 'PENYUSUNAN') {
+    return `<span class="badge badge-info" style="font-size:11px; padding:3px 9px; font-weight:700;">📐 Penyusunan Anggaran (Perencanaan)</span>`;
+  }
+  if (l === 'PELAKSANAAN') {
+    return `<span class="badge badge-success" style="font-size:11px; padding:3px 9px; font-weight:700;">⚙️ Pelaksanaan &amp; Pertanggungjawaban</span>`;
+  }
+  return `<span class="badge badge-primary" style="font-size:11px; padding:3px 9px; font-weight:700;">🔄 Penyusunan &amp; Pelaksanaan</span>`;
+}
+
+function renderDbRegulasi() {
+  if (!AppState.masters) return;
+  const regulasis = AppState.masters.regulasis || [];
+
+  const totalCount = regulasis.length;
+  const penyusunanCount = regulasis.filter(r => r.lingkup_anggaran === 'PENYUSUNAN' || r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
+  const pelaksanaanCount = regulasis.filter(r => r.lingkup_anggaran === 'PELAKSANAAN' || r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
+  const lintasCount = regulasis.filter(r => r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
+
+  setElText('jdih-stat-total', `${totalCount} Produk Hukum`);
+  setElText('jdih-stat-penyusunan', `${penyusunanCount} Regulasi`);
+  setElText('jdih-stat-pelaksanaan', `${pelaksanaanCount} Regulasi`);
+  setElText('jdih-stat-lintas', `${lintasCount} Regulasi`);
+
+  const isLevel1 = (AppState.currentUser?.level <= 1);
+  const btnTambah = document.getElementById('btn-tambah-regulasi');
+  if (btnTambah) btnTambah.style.display = isLevel1 ? 'inline-flex' : 'none';
+
+  filterDbRegulasi();
+}
+
+function setJdihScopeFilter(scope) {
+  currentJdihScopeFilter = scope || 'ALL';
+  const tabs = document.querySelectorAll('#jdih-scope-tabs button[data-scope]');
+  tabs.forEach(btn => {
+    const isAct = btn.getAttribute('data-scope') === currentJdihScopeFilter;
+    btn.className = isAct ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-primary';
+  });
+  filterDbRegulasi();
+}
+
+function filterDbRegulasi() {
+  const container = document.getElementById('jdih-catalog-container');
+  if (!container || !AppState.masters) return;
+
+  const regulasis = AppState.masters.regulasis || [];
+  const selectedJenis = document.getElementById('filter-jdih-jenis')?.value || 'ALL';
+  const keyword = (document.getElementById('filter-jdih-search')?.value || '').toLowerCase().trim();
+
+  const filtered = regulasis.filter(r => {
+    if (currentJdihScopeFilter === 'PENYUSUNAN') {
+      if (r.lingkup_anggaran !== 'PENYUSUNAN' && r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
+    } else if (currentJdihScopeFilter === 'PELAKSANAAN') {
+      if (r.lingkup_anggaran !== 'PELAKSANAAN' && r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
+    } else if (currentJdihScopeFilter === 'PENYUSUNAN & PELAKSANAAN') {
+      if (r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
+    }
+
+    if (selectedJenis !== 'ALL' && r.jenis_produk !== selectedJenis) return false;
+
+    if (keyword) {
+      const hay = `${r.jenis_produk} ${r.nomor_peraturan} ${r.tahun} ${r.tentang} ${r.instansi_penetap} ${r.modul_terkait} ${r.abstrak}`.toLowerCase();
+      if (!hay.includes(keyword)) return false;
+    }
+    return true;
+  });
+
+  setElText('jdih-showing-count', `Menampilkan ${filtered.length} dari ${regulasis.length} produk hukum`);
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="card" style="padding: 32px; text-align: center; color: var(--text-muted);">
+        Tidak ada produk hukum JDIH yang cocok dengan filter atau kata kunci pencarian.
+      </div>
+    `;
+    return;
+  }
+
+  const isLevel1 = (AppState.currentUser?.level <= 1);
+  container.innerHTML = filtered.map((r, idx) => {
+    const jStyle = getJdihJenisStyle(r.jenis_produk);
+    const scopeBadge = getJdihScopeBadge(r.lingkup_anggaran);
+    const statusBadge = r.status_berlaku === 'Berlaku'
+      ? `<span class="badge badge-success" style="font-size:10.5px;">✅ Berlaku</span>`
+      : `<span class="badge badge-warning" style="font-size:10.5px;">⚠️ ${escapeHtml(r.status_berlaku)}</span>`;
+
+    return `
+      <div class="card" style="padding: 16px 18px; border-left: 5px solid ${jStyle.border}; transition: box-shadow 0.15s ease;">
+        <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px;">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <span style="background: ${jStyle.bg}; color: ${jStyle.color}; border: 1px solid ${jStyle.border}40; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.3px;">
+              ${jStyle.icon} ${escapeHtml(r.jenis_produk)}
+            </span>
+            <span style="background: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-family: var(--font-mono); font-size: 11px; font-weight: 700;">
+              Tahun ${escapeHtml(r.tahun)}
+            </span>
+            ${scopeBadge}
+            ${statusBadge}
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button type="button" class="btn btn-outline-primary btn-xs" onclick="openModalRegulasiDetail(${r.id})" title="Lihat Lembar Metadata & Abstrak JDIH">
+              📖 Abstrak &amp; Metadata
+            </button>
+            ${r.tautan_dokumen ? `
+              <a href="${escapeHtml(r.tautan_dokumen)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs" style="text-decoration: none;" title="Buka Portal JDIH Resmi">
+                🔗 Portal JDIH &rarr;
+              </a>
+            ` : ''}
+            ${isLevel1 ? `
+              <button type="button" class="btn btn-outline btn-xs" onclick="openModalRegulasi(${r.id})" title="Edit Produk Hukum">✏️</button>
+              <button type="button" class="btn btn-outline-danger btn-xs" onclick="deleteRegulasi(${r.id})" title="Hapus Produk Hukum">🗑️</button>
+            ` : ''}
+          </div>
+        </div>
+
+        <h4 style="margin: 0 0 4px 0; font-size: 15px; font-weight: 800; color: #0f172a;">
+          ${idx + 1}. ${escapeHtml(r.nomor_peraturan)}
+        </h4>
+        <div style="font-size: 13px; font-weight: 700; color: #1e3a8a; margin-bottom: 8px; line-height: 1.45;">
+          Tentang ${escapeHtml(r.tentang)}
+        </div>
+        <p style="margin: 0 0 10px 0; font-size: 12.5px; color: #475569; line-height: 1.55;">
+          ${escapeHtml(r.abstrak || '-')}
+        </p>
+
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0; font-size: 11.5px; color: #64748b;">
+          <div>
+            <strong>Instansi Penetap:</strong> ${escapeHtml(r.instansi_penetap || '-')}
+          </div>
+          <div>
+            <strong>Relevansi Modul SI-PRABU:</strong> <span style="color: #0369a1; font-weight: 700;">${escapeHtml(r.modul_terkait || '-')}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openModalRegulasiDetail(id) {
+  const modal = document.getElementById('modal-regulasi-detail');
+  const body = document.getElementById('modal-regulasi-detail-body');
+  if (!modal || !body) return;
+
+  const r = (AppState.masters?.regulasis || []).find(item => item.id === Number(id));
+  if (!r) return;
+
+  const scopeBadge = getJdihScopeBadge(r.lingkup_anggaran);
+  body.innerHTML = `
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <span class="badge badge-primary" style="font-size:11px;">${escapeHtml(r.jenis_produk)}</span>
+        ${scopeBadge}
+        <span class="badge badge-success" style="font-size:11px;">Status: ${escapeHtml(r.status_berlaku)}</span>
+      </div>
+      <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">${escapeHtml(r.nomor_peraturan)}</div>
+      <div style="font-size: 13.5px; font-weight: 700; color: #1e40af; line-height: 1.45;">Tentang ${escapeHtml(r.tentang)}</div>
+    </div>
+
+    <table class="table table-bordered" style="font-size: 12.5px; margin-bottom: 12px;">
+      <tbody>
+        <tr>
+          <th style="width: 190px; background: #f1f5f9;">Jenis Produk Hukum</th>
+          <td><strong>${escapeHtml(r.jenis_produk)}</strong></td>
+        </tr>
+        <tr>
+          <th style="background: #f1f5f9;">Nomor &amp; Tahun</th>
+          <td>${escapeHtml(r.nomor_peraturan)} (Tahun ${escapeHtml(r.tahun)})</td>
+        </tr>
+        <tr>
+          <th style="background: #f1f5f9;">Instansi / Pejabat Penetap</th>
+          <td>${escapeHtml(r.instansi_penetap || '-')}</td>
+        </tr>
+        <tr>
+          <th style="background: #f1f5f9;">Lingkup Penganggaran</th>
+          <td>${scopeBadge}</td>
+        </tr>
+        <tr>
+          <th style="background: #f1f5f9;">Relevansi Modul SI-PRABU</th>
+          <td><strong style="color: #0369a1;">${escapeHtml(r.modul_terkait || '-')}</strong></td>
+        </tr>
+        <tr>
+          <th style="background: #f1f5f9;">Abstrak / Pokok Materi</th>
+          <td style="line-height: 1.6;">${escapeHtml(r.abstrak || '-')}</td>
+        </tr>
+        ${r.tautan_dokumen ? `
+        <tr>
+          <th style="background: #f1f5f9;">Tautan JDIH Resmi</th>
+          <td><a href="${escapeHtml(r.tautan_dokumen)}" target="_blank" rel="noopener noreferrer" style="font-weight:700; color:#2563eb;">${escapeHtml(r.tautan_dokumen)} &rarr;</a></td>
+        </tr>
+        ` : ''}
+      </tbody>
+    </table>
+  `;
+  modal.style.display = 'flex';
+}
+
+function closeModalRegulasiDetail() {
+  const modal = document.getElementById('modal-regulasi-detail');
+  if (modal) modal.style.display = 'none';
+}
+
+function openModalRegulasi(id = null) {
+  const modal = document.getElementById('modal-regulasi');
+  if (!modal) return;
+  document.getElementById('form-regulasi')?.reset();
+  setElVal('regulasi-id', id || '');
+
+  if (id && AppState.masters?.regulasis) {
+    const r = AppState.masters.regulasis.find(item => item.id === Number(id));
+    if (r) {
+      setElText('modal-regulasi-title', '✏️ Edit Produk Hukum JDIH');
+      setElVal('regulasi-no-urut', r.no_urut || 1);
+      setElVal('regulasi-jenis', r.jenis_produk || 'KPT KPU');
+      setElVal('regulasi-tahun', r.tahun || 2024);
+      setElVal('regulasi-nomor', r.nomor_peraturan || '');
+      setElVal('regulasi-tentang', r.tentang || '');
+      setElVal('regulasi-lingkup', r.lingkup_anggaran || 'PENYUSUNAN & PELAKSANAAN');
+      setElVal('regulasi-status', r.status_berlaku || 'Berlaku');
+      setElVal('regulasi-instansi', r.instansi_penetap || '');
+      setElVal('regulasi-modul', r.modul_terkait || '');
+      setElVal('regulasi-abstrak', r.abstrak || '');
+      setElVal('regulasi-tautan', r.tautan_dokumen || '');
+    }
+  } else {
+    setElText('modal-regulasi-title', '➕ Tambah Produk Hukum JDIH Baru');
+    const maxNo = (AppState.masters?.regulasis?.length || 0) + 1;
+    setElVal('regulasi-no-urut', maxNo);
+    setElVal('regulasi-jenis', 'KPT KPU');
+    setElVal('regulasi-tahun', 2024);
+    setElVal('regulasi-lingkup', 'PENYUSUNAN & PELAKSANAAN');
+    setElVal('regulasi-status', 'Berlaku');
+  }
+  modal.style.display = 'flex';
+}
+
+function closeModalRegulasi() {
+  const modal = document.getElementById('modal-regulasi');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitModalRegulasi() {
+  const payload = {
+    id: document.getElementById('regulasi-id')?.value || undefined,
+    no_urut: Number(document.getElementById('regulasi-no-urut')?.value) || 1,
+    jenis_produk: document.getElementById('regulasi-jenis')?.value || 'KPT KPU',
+    tahun: Number(document.getElementById('regulasi-tahun')?.value) || 2024,
+    nomor_peraturan: (document.getElementById('regulasi-nomor')?.value || '').trim(),
+    tentang: (document.getElementById('regulasi-tentang')?.value || '').trim(),
+    lingkup_anggaran: document.getElementById('regulasi-lingkup')?.value || 'PENYUSUNAN & PELAKSANAAN',
+    status_berlaku: document.getElementById('regulasi-status')?.value || 'Berlaku',
+    instansi_penetap: (document.getElementById('regulasi-instansi')?.value || '').trim(),
+    modul_terkait: (document.getElementById('regulasi-modul')?.value || '').trim(),
+    abstrak: (document.getElementById('regulasi-abstrak')?.value || '').trim(),
+    tautan_dokumen: (document.getElementById('regulasi-tautan')?.value || '').trim()
+  };
+
+  if (!payload.nomor_peraturan || !payload.tentang) {
+    showToast('Nomor Peraturan dan Judul/Tentang wajib diisi.', 'error');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/master/regulasi', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (res.success) {
+      closeModalRegulasi();
+      showToast(res.message || 'Produk hukum JDIH berhasil disimpan.', 'success');
+      await loadMasters();
+      renderDbRegulasi();
+    } else {
+      showToast(res.error || 'Gagal menyimpan produk hukum.', 'error');
+    }
+  } catch (err) {
+    showToast('Gagal menyimpan produk hukum: ' + err.message, 'error');
+  }
+}
+
+async function deleteRegulasi(id) {
+  if (!confirm('Apakah Anda yakin ingin menghapus produk hukum ini dari katalog JDIH?')) return;
+  try {
+    const res = await apiFetch(`/api/master/regulasi/${id}`, { method: 'DELETE' });
+    if (res.success) {
+      showToast('Produk hukum JDIH berhasil dihapus.', 'success');
+      await loadMasters();
+      renderDbRegulasi();
+    }
+  } catch (err) {
+    showToast('Gagal menghapus produk hukum: ' + err.message, 'error');
+  }
 }
 
 // ============================================================================

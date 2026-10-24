@@ -250,6 +250,27 @@ function initDb() {
     );
   `);
 
+  // 4b. Tabel Master Regulasi & Dasar Hukum (Katalog JDIH Penyusunan & Pelaksanaan Anggaran)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS master_regulasi (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      no_urut INTEGER DEFAULT 1,
+      jenis_produk TEXT NOT NULL,
+      nomor_peraturan TEXT NOT NULL,
+      tahun INTEGER NOT NULL,
+      tentang TEXT NOT NULL,
+      lingkup_anggaran TEXT NOT NULL DEFAULT 'PENYUSUNAN & PELAKSANAAN',
+      status_berlaku TEXT NOT NULL DEFAULT 'Berlaku',
+      instansi_penetap TEXT DEFAULT '',
+      modul_terkait TEXT DEFAULT '',
+      abstrak TEXT DEFAULT '',
+      tautan_dokumen TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  seedMasterRegulasiJdih();
+
   // 5. Tabel Subbag Usulan Revisi
   db.exec(`
     CREATE TABLE IF NOT EXISTS subbag_usulan_revisi (
@@ -634,6 +655,216 @@ function alignOperationalRkbCycles() {
     } catch (e) {}
   } catch (err) {
     console.warn('[MIGRATION] Peringatan saat menyelaraskan siklus RKB:', err.message);
+  }
+}
+
+/**
+ * Inisialisasi & Pemutakhiran Katalog JDIH Regulasi Penyusunan & Pelaksanaan Anggaran
+ * Catatan Canon: NPHD adalah naskah perjanjian hibah daerah (bukan produk hukum/regulasi).
+ */
+function seedMasterRegulasiJdih() {
+  try {
+    // Pastikan NPHD tidak pernah masuk ke dalam daftar produk hukum / regulasi
+    db.prepare("DELETE FROM master_regulasi WHERE UPPER(jenis_produk) LIKE '%NPHD%' OR UPPER(nomor_peraturan) LIKE '%NPHD%' OR UPPER(tentang) LIKE '%NASKAH PERJANJIAN HIBAH DAERAH%'").run();
+
+    const countRow = db.prepare('SELECT COUNT(*) as c FROM master_regulasi').get();
+    if (countRow && Number(countRow.c) > 0) return;
+
+    const initialRegulasis = [
+      {
+        no_urut: 1,
+        jenis_produk: 'UU / PERPPU',
+        nomor_peraturan: 'UU Nomor 1 Tahun 2015 jo. UU Nomor 10 Tahun 2016 jo. UU Nomor 6 Tahun 2020',
+        tahun: 2020,
+        tentang: 'Penetapan Peraturan Pemerintah Pengganti Undang-Undang Nomor 1 Tahun 2014 tentang Pemilihan Gubernur, Bupati, dan Walikota Menjadi Undang-Undang',
+        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Pemerintah RI & DPR RI',
+        modul_terkait: 'Payung Hukum Pendanaan Pemilihan (APBD / Hibah Daerah)',
+        abstrak: 'Mengatur landasan hukum penyelenggaraan Pemilihan Gubernur, Bupati, dan Wakil Bupati/Walikota secara serentak serta ketentuan Pasal 166 mengenai pendanaan kegiatan Pemilihan yang dibebankan pada APBD melalui mekanisme belanja hibah daerah.',
+        tautan_dokumen: 'https://jdih.kpu.go.id/'
+      },
+      {
+        no_urut: 2,
+        jenis_produk: 'PP / PERPRES',
+        nomor_peraturan: 'PP Nomor 12 Tahun 2019',
+        tahun: 2019,
+        tentang: 'Pengelolaan Keuangan Daerah',
+        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Presiden Republik Indonesia',
+        modul_terkait: 'Penganggaran, Pelaksanaan & Pertanggungjawaban Hibah Daerah',
+        abstrak: 'Mengatur asas umum pengelolaan keuangan daerah, tata cara penganggaran belanja hibah pada APBD, pelaksanaan penatausahaan, hingga pelaporan dan pertanggungjawaban keuangan hibah daerah.',
+        tautan_dokumen: 'https://peraturan.bpk.go.id/'
+      },
+      {
+        no_urut: 3,
+        jenis_produk: 'PERMENDAGRI',
+        nomor_peraturan: 'Permendagri Nomor 54 Tahun 2019 jo. Permendagri Nomor 41 Tahun 2020',
+        tahun: 2020,
+        tentang: 'Pendanaan Kegiatan Pemilihan Gubernur, Bupati, dan Wali Kota yang Bersumber dari Anggaran Pendapatan dan Belanja Daerah',
+        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Menteri Dalam Negeri RI',
+        modul_terkait: 'Siklus Pra-NPHD, Pembahasan TAPD, Pencairan & Revisi RKB',
+        abstrak: 'Pedoman utama penyusunan pengajuan kebutuhan pendanaan Pemilihan oleh KPU kepada Pemerintah Daerah, mekanisme pembahasan RKB bersama TAPD, tahapan pencairan dana hibah, perubahan/revisi rincian penggunaan dana hibah, serta pelaporan akhir penggunaan dana hibah.',
+        tautan_dokumen: 'https://peraturan.bpk.go.id/'
+      },
+      {
+        no_urut: 4,
+        jenis_produk: 'PMK',
+        nomor_peraturan: 'PMK Nomor 62 Tahun 2023',
+        tahun: 2023,
+        tentang: 'Perencanaan Anggaran, Pelaksanaan Anggaran, serta Akuntansi dan Pelaporan Keuangan',
+        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Menteri Keuangan RI',
+        modul_terkait: 'Kaidah Kertas Kerja RKA/RKB, Revisi Anggaran & Pelaksanaan Belanja',
+        abstrak: 'Mengatur tata kelola penyusunan rincian kertas kerja anggaran berbasis kinerja, tata cara pergeseran/revisi anggaran antar rincian output/komponen, tata cara pengujian tagihan dan pembayaran beban anggaran, serta akuntansi pelaporan keuangan satker.',
+        tautan_dokumen: 'https://jdih.kemenkeu.go.id/'
+      },
+      {
+        no_urut: 5,
+        jenis_produk: 'PMK',
+        nomor_peraturan: 'PMK Nomor 49 Tahun 2023 / PMK Nomor 39 Tahun 2024',
+        tahun: 2024,
+        tentang: 'Standar Biaya Masukan (SBM) Tahun Anggaran',
+        lingkup_anggaran: 'PENYUSUNAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Menteri Keuangan RI',
+        modul_terkait: 'Referensi Standar Biaya Masukan (SBM) & Validasi Harga Satuan RKB',
+        abstrak: 'Menetapkan satuan biaya berupa harga satuan, tarif, dan indeks yang digunakan untuk menyusun biaya komponen masukan kegiatan dalam RKB, baik yang berfungsi sebagai batas tertinggi (pagu tertinggi) maupun satuan biaya estimasi.',
+        tautan_dokumen: 'https://jdih.kemenkeu.go.id/'
+      },
+      {
+        no_urut: 6,
+        jenis_produk: 'PMK',
+        nomor_peraturan: 'PMK Nomor 181/PMK.05/2022 jo. PMK Nomor 204/PMK.05/2020',
+        tahun: 2022,
+        tentang: 'Tata Cara Pengelolaan Rekening Milik Satuan Kerja Lingkup Kementerian Negara/Lembaga dan Pengelolaan Hibah Langsung dalam Bentuk Uang',
+        lingkup_anggaran: 'PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Menteri Keuangan RI',
+        modul_terkait: 'Rekening Hibah Pilkada, Registrasi Hibah, Revisi DIPA & Pengesahan SP2HL/MPHL-BJS',
+        abstrak: 'Mengatur pembukaan dan pengelolaan Rekening Penampungan Dana Hibah Langsung (RPDHL) dan Rekening Penyaluran Dana Hibah pada satker KPU, mekanisme registrasi hibah, revisi penyesuaian pagu hibah, serta pengesahan belanja hibah ke KPPN.',
+        tautan_dokumen: 'https://jdih.kemenkeu.go.id/'
+      },
+      {
+        no_urut: 7,
+        jenis_produk: 'KEP / PEDOMAN',
+        nomor_peraturan: 'Keputusan Dirjen Perbendaharaan Nomor KEP-331/PB/2021',
+        tahun: 2021,
+        tentang: 'Kodefikasi Segmen Akun pada Bagan Akun Standar (BAS)',
+        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Direktorat Jenderal Perbendaharaan Kemenkeu RI',
+        modul_terkait: 'Referensi Bagan Akun Standar (BAS 6 Digit) & Rekap Akun BAS',
+        abstrak: 'Pedoman penggunaan kode akun 6 digit (Belanja Bahan 521211, Belanja Barang Non Operasional Lainnya 521219, Honor Output Kegiatan 521213, Belanja Jasa Profesi 522151, Belanja Sewa 522141, dan Belanja Perjalanan Dinas 524111/524113) agar penyusunan RKB dan pembebanan SPJ selaras.',
+        tautan_dokumen: 'https://djpb.kemenkeu.go.id/'
+      },
+      {
+        no_urut: 8,
+        jenis_produk: 'PKPU',
+        nomor_peraturan: 'PKPU Nomor 2 Tahun 2024',
+        tahun: 2024,
+        tentang: 'Tahapan dan Jadwal Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota',
+        lingkup_anggaran: 'PENYUSUNAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Komisi Pemilihan Umum RI',
+        modul_terkait: 'Struktur Tahapan Kegiatan RKB (L1–L3) & Volume Masa Kerja',
+        abstrak: 'Menetapkan rincian tahapan persiapan dan tahapan penyelenggaraan Pemilihan beserta jadwal waktunya, yang menjadi dasar perhitungan frekuensi kegiatan, durasi masa kerja badan adhoc/pokja, dan jadwal distribusi kebutuhan anggaran.',
+        tautan_dokumen: 'https://jdih.kpu.go.id/'
+      },
+      {
+        no_urut: 9,
+        jenis_produk: 'PKPU',
+        nomor_peraturan: 'PKPU Nomor 8 Tahun 2022',
+        tahun: 2022,
+        tentang: 'Pembentukan dan Tata Kerja Badan Adhoc Penyelenggara Pemilihan Umum dan Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, dan Walikota dan Wakil Walikota',
+        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Komisi Pemilihan Umum RI',
+        modul_terkait: 'Kuantitas SSOT Personil Adhoc (PPK, PPS, KPPS, Pantarlih & Sekretariat)',
+        abstrak: 'Mengatur komposisi dan jumlah personil penyelenggara badan adhoc di tingkat Kecamatan (5 Komisioner PPK + 3 Sekretariat PPK), Desa/Kelurahan (3 Komisioner PPS + 3 Sekretariat PPS), Pantarlih, dan TPS (7 Anggota KPPS + 2 Petugas Ketertiban).',
+        tautan_dokumen: 'https://jdih.kpu.go.id/'
+      },
+      {
+        no_urut: 10,
+        jenis_produk: 'KPT KPU',
+        nomor_peraturan: 'Keputusan KPU Nomor 574 Tahun 2023',
+        tahun: 2023,
+        tentang: 'Pedoman Teknis Penyusunan Kebutuhan dan Penganggaran Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota',
+        lingkup_anggaran: 'PENYUSUNAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Komisi Pemilihan Umum RI',
+        modul_terkait: 'RUH Belanja RKB, Komponen Standar Kebutuhan & Format KAK',
+        abstrak: 'Standar baku struktur Rencana Kebutuhan Biaya (RKB) Pilkada di lingkungan KPU Provinsi dan KPU Kabupaten/Kota, mengatur nomenklatur kegiatan, rincian komponen barang/jasa per tahapan, serta penyusunan Kerangka Acuan Kerja (KAK).',
+        tautan_dokumen: 'https://jdih.kpu.go.id/'
+      },
+      {
+        no_urut: 11,
+        jenis_produk: 'KPT KPU',
+        nomor_peraturan: 'Keputusan KPU Nomor 472 Tahun 2022 jo. Surat Menkeu S-647/MK.02/2022',
+        tahun: 2022,
+        tentang: 'Satuan Biaya Masukan Lainnya (SBML) di Lingkungan KPU, KPU Provinsi, dan KPU Kabupaten/Kota dalam Rangka Tahapan Pemilihan',
+        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Komisi Pemilihan Umum RI & Kementerian Keuangan RI',
+        modul_terkait: 'Standar Honorarium Badan Adhoc (PPK, PPS, KPPS, Pantarlih), Pokja & Santunan',
+        abstrak: 'Menetapkan besaran honorarium bulanan/kegiatan bagi Ketua dan Anggota PPK, Sekretaris dan Staf Sekretariat PPK, Ketua dan Anggota PPS, Sekretariat PPS, Pantarlih, KPPS, Petugas Ketertiban TPS, Kelompok Kerja (Pokja) Pemilihan, serta santunan kecelakaan kerja badan adhoc.',
+        tautan_dokumen: 'https://jdih.kpu.go.id/'
+      },
+      {
+        no_urut: 12,
+        jenis_produk: 'KPT KPU',
+        nomor_peraturan: 'Keputusan KPU Nomor 1396 Tahun 2023',
+        tahun: 2023,
+        tentang: 'Petunjuk Teknis Pelaksanaan dan Pertanggungjawaban Keuangan Dana Hibah Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota',
+        lingkup_anggaran: 'PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Komisi Pemilihan Umum RI',
+        modul_terkait: 'Rekap Pelaksanaan, Penyaluran Dana Adhoc, Bukti SPJ, Pajak & Pengembalian Sisa Hibah',
+        abstrak: 'Pedoman operasional pelaksanaan anggaran hibah Pemilihan oleh KPA, PPK, dan Bendahara Pengeluaran, mencakup mekanisme penyaluran dana operasional dan honorarium ke PPK/PPS/KPPS, kelengkapan bukti pertanggungjawaban (SPJ), pemungutan pajak, hingga pelaporan dan pengembalian sisa dana hibah.',
+        tautan_dokumen: 'https://jdih.kpu.go.id/'
+      },
+      {
+        no_urut: 13,
+        jenis_produk: 'PP / PERPRES',
+        nomor_peraturan: 'Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021',
+        tahun: 2021,
+        tentang: 'Pengadaan Barang/Jasa Pemerintah',
+        lingkup_anggaran: 'PELAKSANAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Presiden Republik Indonesia',
+        modul_terkait: 'Pelaksanaan Pengadaan Logistik Pemilihan, APK/BK & Kontrak Belanja Barang/Jasa',
+        abstrak: 'Mengatur tata cara pemilihan penyedia, e-Purchasing melalui Katalog Elektronik, pengadaan langsung, tender cepat, pengelolaan kontrak oleh Pejabat Pembuat Komitmen (PPK), serta serah terima hasil pekerjaan barang/jasa dan logistik Pemilihan.',
+        tautan_dokumen: 'https://jdih.lkpp.go.id/'
+      }
+    ];
+
+    const ins = db.prepare(`
+      INSERT INTO master_regulasi (
+        no_urut, jenis_produk, nomor_peraturan, tahun, tentang,
+        lingkup_anggaran, status_berlaku, instansi_penetap, modul_terkait, abstrak, tautan_dokumen
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const r of initialRegulasis) {
+      ins.run(
+        r.no_urut,
+        r.jenis_produk,
+        r.nomor_peraturan,
+        r.tahun,
+        r.tentang,
+        r.lingkup_anggaran,
+        r.status_berlaku,
+        r.instansi_penetap,
+        r.modul_terkait,
+        r.abstrak,
+        r.tautan_dokumen
+      );
+    }
+  } catch (e) {
+    console.warn('[JDIH SEED] Gagal inisialisasi master_regulasi:', e.message);
   }
 }
 
@@ -2061,8 +2292,85 @@ function getMasters() {
     sbms: db.prepare('SELECT * FROM master_sbm ORDER BY id ASC').all(),
     akuns: db.prepare('SELECT * FROM master_akun ORDER BY kode ASC').all(),
     subbagians: db.prepare('SELECT * FROM master_subbagian ORDER BY id').all(),
+    regulasis: getRegulasiList(),
     settings
   };
+}
+
+function getRegulasiList() {
+  try {
+    return db.prepare('SELECT * FROM master_regulasi ORDER BY no_urut ASC, tahun DESC, id ASC').all();
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveRegulasi(data, actorUser = null) {
+  const id = data.id ? Number(data.id) : null;
+  const no_urut = Number(data.no_urut) || 1;
+  const jenis_produk = String(data.jenis_produk || 'KPT KPU').trim();
+  const nomor_peraturan = String(data.nomor_peraturan || '').trim();
+  const tahun = Number(data.tahun) || new Date().getFullYear();
+  const tentang = String(data.tentang || '').trim();
+  const lingkup_anggaran = String(data.lingkup_anggaran || 'PENYUSUNAN & PELAKSANAAN').trim();
+  const status_berlaku = String(data.status_berlaku || 'Berlaku').trim();
+  const instansi_penetap = String(data.instansi_penetap || '').trim();
+  const modul_terkait = String(data.modul_terkait || '').trim();
+  const abstrak = String(data.abstrak || '').trim();
+  const tautan_dokumen = String(data.tautan_dokumen || '').trim();
+
+  if (!nomor_peraturan || !tentang) {
+    throw new Error('Nomor Peraturan dan Judul/Tentang Regulasi wajib diisi.');
+  }
+  if (/nphd/i.test(jenis_produk) || /naskah perjanjian hibah daerah/i.test(tentang)) {
+    throw new Error('NPHD adalah dokumen perjanjian hibah daerah, bukan produk hukum/regulasi JDIH.');
+  }
+
+  if (id) {
+    db.prepare(`
+      UPDATE master_regulasi
+      SET no_urut = ?, jenis_produk = ?, nomor_peraturan = ?, tahun = ?, tentang = ?,
+          lingkup_anggaran = ?, status_berlaku = ?, instansi_penetap = ?, modul_terkait = ?,
+          abstrak = ?, tautan_dokumen = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      no_urut, jenis_produk, nomor_peraturan, tahun, tentang,
+      lingkup_anggaran, status_berlaku, instansi_penetap, modul_terkait,
+      abstrak, tautan_dokumen, id
+    );
+  } else {
+    db.prepare(`
+      INSERT INTO master_regulasi (
+        no_urut, jenis_produk, nomor_peraturan, tahun, tentang,
+        lingkup_anggaran, status_berlaku, instansi_penetap, modul_terkait, abstrak, tautan_dokumen
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      no_urut, jenis_produk, nomor_peraturan, tahun, tentang,
+      lingkup_anggaran, status_berlaku, instansi_penetap, modul_terkait, abstrak, tautan_dokumen
+    );
+  }
+
+  recordAuditLog({
+    user: actorUser,
+    action: id ? 'UPDATE_REGULASI_JDIH' : 'CREATE_REGULASI_JDIH',
+    entity: 'master_regulasi',
+    entity_id: id || nomor_peraturan,
+    notes: `Produk hukum JDIH "${nomor_peraturan}" disimpan.`
+  });
+
+  return getRegulasiList();
+}
+
+function deleteRegulasi(id, actorUser = null) {
+  db.prepare('DELETE FROM master_regulasi WHERE id = ?').run(Number(id));
+  recordAuditLog({
+    user: actorUser,
+    action: 'DELETE_REGULASI_JDIH',
+    entity: 'master_regulasi',
+    entity_id: id,
+    notes: `Produk hukum JDIH ID ${id} dihapus.`
+  });
+  return { success: true };
 }
 
 function updateSettings(settingsObj, actorUser = null) {
@@ -4112,6 +4420,9 @@ module.exports = {
   getPaslonList,
   savePaslon,
   deletePaslon,
+  getRegulasiList,
+  saveRegulasi,
+  deleteRegulasi,
   getKecamatans,
   saveKecamatan,
   deleteKecamatan,
