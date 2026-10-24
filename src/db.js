@@ -254,21 +254,40 @@ function initDb() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS master_regulasi (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kategori TEXT DEFAULT 'PEDOMAN_KPU',
+      nomor_regulasi TEXT DEFAULT '',
       no_urut INTEGER DEFAULT 1,
-      jenis_produk TEXT NOT NULL,
-      nomor_peraturan TEXT NOT NULL,
-      tahun INTEGER NOT NULL,
-      tentang TEXT NOT NULL,
-      lingkup_anggaran TEXT NOT NULL DEFAULT 'PENYUSUNAN & PELAKSANAAN',
-      status_berlaku TEXT NOT NULL DEFAULT 'Berlaku',
+      urutan INTEGER DEFAULT 1,
+      jenis_produk TEXT DEFAULT 'KPT KPU',
+      nomor_peraturan TEXT DEFAULT '',
+      tahun INTEGER NOT NULL DEFAULT 2024,
+      tentang TEXT NOT NULL DEFAULT '',
+      instansi TEXT DEFAULT '',
       instansi_penetap TEXT DEFAULT '',
+      lingkup_rkb TEXT DEFAULT '',
+      pasal_kunci TEXT DEFAULT '',
+      lingkup_anggaran TEXT DEFAULT 'PENYUSUNAN & PELAKSANAAN',
+      status TEXT DEFAULT 'BERLAKU',
+      status_berlaku TEXT DEFAULT 'Berlaku',
       modul_terkait TEXT DEFAULT '',
       abstrak TEXT DEFAULT '',
       tautan_dokumen TEXT DEFAULT '',
+      file_pdf_nama TEXT DEFAULT '',
+      file_pdf_base64 TEXT DEFAULT '',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  safeAddColumn('master_regulasi', 'no_urut INTEGER DEFAULT 1');
+  safeAddColumn('master_regulasi', "jenis_produk TEXT DEFAULT 'KPT KPU'");
+  safeAddColumn('master_regulasi', "nomor_peraturan TEXT DEFAULT ''");
+  safeAddColumn('master_regulasi', "lingkup_anggaran TEXT DEFAULT 'PENYUSUNAN & PELAKSANAAN'");
+  safeAddColumn('master_regulasi', "status_berlaku TEXT DEFAULT 'Berlaku'");
+  safeAddColumn('master_regulasi', "instansi_penetap TEXT DEFAULT ''");
+  safeAddColumn('master_regulasi', "modul_terkait TEXT DEFAULT ''");
+  safeAddColumn('master_regulasi', "abstrak TEXT DEFAULT ''");
+  safeAddColumn('master_regulasi', "tautan_dokumen TEXT DEFAULT ''");
+  safeAddColumn('master_regulasi', 'updated_at TEXT DEFAULT CURRENT_TIMESTAMP');
   seedMasterRegulasiJdih();
 
   // 5. Tabel Subbag Usulan Revisi
@@ -665,10 +684,14 @@ function alignOperationalRkbCycles() {
 function seedMasterRegulasiJdih() {
   try {
     // Pastikan NPHD tidak pernah masuk ke dalam daftar produk hukum / regulasi
-    db.prepare("DELETE FROM master_regulasi WHERE UPPER(jenis_produk) LIKE '%NPHD%' OR UPPER(nomor_peraturan) LIKE '%NPHD%' OR UPPER(tentang) LIKE '%NASKAH PERJANJIAN HIBAH DAERAH%'").run();
+    db.prepare("DELETE FROM master_regulasi WHERE UPPER(COALESCE(jenis_produk,'')) LIKE '%NPHD%' OR UPPER(COALESCE(nomor_peraturan,'')) LIKE '%NPHD%' OR UPPER(COALESCE(nomor_regulasi,'')) LIKE '%NPHD%' OR UPPER(COALESCE(tentang,'')) LIKE '%NASKAH PERJANJIAN HIBAH DAERAH%'").run();
 
-    const countRow = db.prepare('SELECT COUNT(*) as c FROM master_regulasi').get();
-    if (countRow && Number(countRow.c) > 0) return;
+    // Periksa apakah katalog JDIH 13 produk hukum sudah terisi lengkap
+    const hasSeededJdih = db.prepare("SELECT COUNT(*) as c FROM master_regulasi WHERE nomor_peraturan != '' AND modul_terkait != ''").get();
+    if (hasSeededJdih && Number(hasSeededJdih.c) >= 13) return;
+
+    // Bersihkan baris lama yang belum termigrasi ke skema JDIH dan isi dengan 13 regulasi resmi Penyusunan & Pelaksanaan Anggaran
+    db.prepare('DELETE FROM master_regulasi').run();
 
     const initialRegulasis = [
       {
@@ -752,8 +775,8 @@ function seedMasterRegulasiJdih() {
       {
         no_urut: 7,
         jenis_produk: 'KEP / PEDOMAN',
-        nomor_peraturan: 'Keputusan Dirjen Perbendaharaan Nomor KEP-331/PB/2021',
-        tahun: 2021,
+        nomor_peraturan: 'PMK Nomor 214/PMK.05/2013 jo. PER-13/PB/2023 & KEP-331/PB/2021',
+        tahun: 2023,
         tentang: 'Kodefikasi Segmen Akun pada Bagan Akun Standar (BAS)',
         lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
         status_berlaku: 'Berlaku',
@@ -791,13 +814,13 @@ function seedMasterRegulasiJdih() {
       {
         no_urut: 10,
         jenis_produk: 'KPT KPU',
-        nomor_peraturan: 'Keputusan KPU Nomor 574 Tahun 2023',
-        tahun: 2023,
+        nomor_peraturan: 'Keputusan KPU Nomor 574 Tahun 2023 jo. Keputusan KPU Nomor 188 Tahun 2024',
+        tahun: 2024,
         tentang: 'Pedoman Teknis Penyusunan Kebutuhan dan Penganggaran Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota',
         lingkup_anggaran: 'PENYUSUNAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Komisi Pemilihan Umum RI',
-        modul_terkait: 'RUH Belanja RKB, Komponen Standar Kebutuhan & Format KAK',
+        modul_terkait: 'RUH Belanja RKB, Standar Kebutuhan Barang/Jasa & Format KAK',
         abstrak: 'Standar baku struktur Rencana Kebutuhan Biaya (RKB) Pilkada di lingkungan KPU Provinsi dan KPU Kabupaten/Kota, mengatur nomenklatur kegiatan, rincian komponen barang/jasa per tahapan, serta penyusunan Kerangka Acuan Kerja (KAK).',
         tautan_dokumen: 'https://jdih.kpu.go.id/'
       },
@@ -817,14 +840,14 @@ function seedMasterRegulasiJdih() {
       {
         no_urut: 12,
         jenis_produk: 'KPT KPU',
-        nomor_peraturan: 'Keputusan KPU Nomor 1396 Tahun 2023',
+        nomor_peraturan: 'Keputusan KPU Nomor 1394 Tahun 2023 & Keputusan KPU Nomor 1396 Tahun 2023',
         tahun: 2023,
-        tentang: 'Petunjuk Teknis Pelaksanaan dan Pertanggungjawaban Keuangan Dana Hibah Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, serta Walikota dan Wakil Walikota',
+        tentang: 'Petunjuk Teknis Pengelolaan, Pelaksanaan, dan Pertanggungjawaban Keuangan Dana Hibah Pemilihan di Lingkungan KPU',
         lingkup_anggaran: 'PELAKSANAAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Komisi Pemilihan Umum RI',
         modul_terkait: 'Rekap Pelaksanaan, Penyaluran Dana Adhoc, Bukti SPJ, Pajak & Pengembalian Sisa Hibah',
-        abstrak: 'Pedoman operasional pelaksanaan anggaran hibah Pemilihan oleh KPA, PPK, dan Bendahara Pengeluaran, mencakup mekanisme penyaluran dana operasional dan honorarium ke PPK/PPS/KPPS, kelengkapan bukti pertanggungjawaban (SPJ), pemungutan pajak, hingga pelaporan dan pengembalian sisa dana hibah.',
+        abstrak: 'Pedoman operasional pelaksanaan anggaran hibah Pemilihan oleh KPA, PPK, dan Bendahara Pengeluaran, mencakup mekanisme penyaluran dana operasional dan honorarium ke PPK/PPS/KPPS, kelengkapan bukti pertanggungjawaban (SPJ), pemungutan pajak, pengesahan SAKTI, hingga pelaporan dan pengembalian sisa dana hibah.',
         tautan_dokumen: 'https://jdih.kpu.go.id/'
       },
       {
@@ -844,12 +867,20 @@ function seedMasterRegulasiJdih() {
 
     const ins = db.prepare(`
       INSERT INTO master_regulasi (
+        kategori, nomor_regulasi, urutan, instansi, lingkup_rkb, pasal_kunci, status,
         no_urut, jenis_produk, nomor_peraturan, tahun, tentang,
         lingkup_anggaran, status_berlaku, instansi_penetap, modul_terkait, abstrak, tautan_dokumen
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const r of initialRegulasis) {
       ins.run(
+        r.jenis_produk,
+        r.nomor_peraturan,
+        r.no_urut,
+        r.instansi_penetap,
+        r.abstrak,
+        r.modul_terkait,
+        'BERLAKU',
         r.no_urut,
         r.jenis_produk,
         r.nomor_peraturan,
@@ -2329,11 +2360,13 @@ function saveRegulasi(data, actorUser = null) {
   if (id) {
     db.prepare(`
       UPDATE master_regulasi
-      SET no_urut = ?, jenis_produk = ?, nomor_peraturan = ?, tahun = ?, tentang = ?,
+      SET kategori = ?, nomor_regulasi = ?, urutan = ?, instansi = ?, lingkup_rkb = ?, pasal_kunci = ?, status = ?,
+          no_urut = ?, jenis_produk = ?, nomor_peraturan = ?, tahun = ?, tentang = ?,
           lingkup_anggaran = ?, status_berlaku = ?, instansi_penetap = ?, modul_terkait = ?,
           abstrak = ?, tautan_dokumen = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
+      jenis_produk, nomor_peraturan, no_urut, instansi_penetap, abstrak, modul_terkait, status_berlaku.toUpperCase(),
       no_urut, jenis_produk, nomor_peraturan, tahun, tentang,
       lingkup_anggaran, status_berlaku, instansi_penetap, modul_terkait,
       abstrak, tautan_dokumen, id
@@ -2341,10 +2374,12 @@ function saveRegulasi(data, actorUser = null) {
   } else {
     db.prepare(`
       INSERT INTO master_regulasi (
+        kategori, nomor_regulasi, urutan, instansi, lingkup_rkb, pasal_kunci, status,
         no_urut, jenis_produk, nomor_peraturan, tahun, tentang,
         lingkup_anggaran, status_berlaku, instansi_penetap, modul_terkait, abstrak, tautan_dokumen
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
+      jenis_produk, nomor_peraturan, no_urut, instansi_penetap, abstrak, modul_terkait, status_berlaku.toUpperCase(),
       no_urut, jenis_produk, nomor_peraturan, tahun, tentang,
       lingkup_anggaran, status_berlaku, instansi_penetap, modul_terkait, abstrak, tautan_dokumen
     );
