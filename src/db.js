@@ -448,6 +448,33 @@ function alignOperationalRkbCycles() {
       WHERE gdrive_link LIKE '%test-subbag%' OR updated_at = '2026-10-21 20:27:35'
     `).run();
 
+    // 2c. Bersihkan catatan_revisi simulasi pada periode_anggaran & log simulasi lama
+    db.prepare(`
+      UPDATE periode_anggaran
+      SET catatan_revisi = ''
+      WHERE id = 1000003 AND catatan_revisi LIKE '%2026.657811.002%'
+    `).run();
+    db.prepare(`
+      UPDATE periode_anggaran
+      SET nomor_ba_tapd = '', tanggal_ba_tapd = ''
+      WHERE id = 1 AND tanggal_ba_tapd = '2023-11-10'
+    `).run();
+    try {
+      db.prepare(`
+        DELETE FROM audit_log_perubahan
+        WHERE waktu_perubahan LIKE '2024-05-02%'
+           OR waktu_perubahan LIKE '2026-10-17%'
+           OR waktu_perubahan LIKE '2026-10-19%'
+           OR waktu_perubahan LIKE '2026-10-22%'
+      `).run();
+    } catch (e) {}
+    try {
+      db.prepare(`
+        DELETE FROM audit_log
+        WHERE waktu_wib LIKE '2026-10-22%'
+      `).run();
+    } catch (e) {}
+
     // 3. Pastikan RKB Awal (Periode 1) berstatus Terkunci sebagai Fondasi Sah dengan Pagu Rp 49.999.999.000
     db.prepare(`
       UPDATE periode_anggaran
