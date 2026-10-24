@@ -474,6 +474,16 @@ function alignOperationalRkbCycles() {
         WHERE waktu_wib LIKE '2026-10-22%'
       `).run();
     } catch (e) {}
+    try {
+      const rkbHistCount = db.prepare('SELECT COUNT(*) as c FROM rkb_revisi_history').get();
+      if (rkbHistCount && rkbHistCount.c > 1) {
+        db.prepare('DELETE FROM rkb_revisi_history').run();
+        db.prepare(`
+          INSERT INTO rkb_revisi_history (id, folder_no, nama_folder, tanggal, total_pagu, tps, keterangan)
+          VALUES (1, 1, 'RKB Pilkada 2024', '2024', 49999999000, 1374, 'Baseline anggaran sebelum perencanaan Pilkada 2029')
+        `).run();
+      }
+    } catch (e) {}
 
     // 3. Pastikan RKB Awal (Periode 1) berstatus Terkunci sebagai Fondasi Sah dengan Pagu Rp 49.999.999.000
     db.prepare(`
