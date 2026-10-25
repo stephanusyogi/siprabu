@@ -2206,161 +2206,288 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 8: PANDUAN PENGGUNAAN SISTEM (PANDUAN LENGKAP SI-PRABU)       -->
+        <!-- VIEW 8: PANDUAN PENGGUNAAN SISTEM (PANDUAN LEVEL 2 & VIEWER)       -->
         <!-- ================================================================= -->
         <section id="view-panduan" class="app-view">
-          <div class="view-header">
+          <div class="view-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
             <div>
-              <div style="display:inline-flex;align-items:center;gap:6px;background:#e0e7ff;color:#4338ca;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
-                <span>📖 PETUNJUK OPERASIONAL RESMI</span>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#e0e7ff;color:#1e40af;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>📖 PANDUAN SINGKAT SI-PRABU • CANON MASTER</span>
               </div>
-              <h2 class="view-title">Panduan Penggunaan Sistem SI-PRABU v3.0</h2>
+              <h2 class="view-title">Panduan Penggunaan Sistem SI-PRABU</h2>
               <p class="view-desc">
-                Tata Cara Perencanaan, Penyusunan RKB, Penguncian NPHD Sah, Mekanisme Usulan Revisi, dan Monitoring Unduhan Berkas.
+                <strong>Khusus Pengguna Level 2 (PIC Subbagian) dan Viewer</strong> &mdash; Panduan praktis untuk pekerjaan sehari-hari yang disusun dari Canon Master dan kesepakatan alur SI-PRABU.
               </p>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <a href="/assets/Panduan_Si_Prabu_Level_2_dan_Viewer.docx" download="Panduan_Si_Prabu_Level_2_dan_Viewer.docx" class="btn btn-primary btn-sm" style="text-decoration:none; font-weight:700;">
+                📥 Unduh Dokumen Panduan (.docx)
+              </a>
             </div>
           </div>
 
-          <!-- Infografis Alur Kerja Sistem -->
-          <div class="card p-4 mb-4" style="background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%); color: #ffffff;">
-            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #ffffff;">
-              🏛️ Alur Tata Kelola Anggaran Hibah Pilkada (End-to-End)
+          <!-- RINGKASAN SATU MENIT (BANNER UTAMA) -->
+          <div class="card p-4 mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #0284c7 100%); color: #ffffff; border: none; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.25);">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+              <h3 style="margin: 0; font-size: 16.5px; font-weight: 800; color: #ffffff; display:flex; align-items:center; gap:8px;">
+                <span>⚡ 10. Ringkasan Satu Menit (Alur Inti)</span>
+              </h3>
+              <span style="background:rgba(255,255,255,0.16); padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; color:#fde047;">SI-PRABU — Sistem Perencanaan dan Belanja Terpadu</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px;">
+              <div style="background: rgba(255,255,255,0.12); padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.22);">
+                <div style="font-size: 12px; font-weight: 800; color: #fde047; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">👨‍💼 ALUR PENGGUNA LEVEL 2 (PIC SUBBAGIAN)</div>
+                <div style="font-size: 13px; line-height: 1.55; color: #f8fafc;">
+                  Susun &amp; periksa RKB PIC sendiri &rarr; Simpan perubahan draf RKB &rarr; Ajukan <strong>3 tautan dokumen pendukung</strong> (RKB, Nota Dinas, KAK) &rarr; Pantau status di Monitoring Revisi &rarr; Lihat &amp; unduh rekap sesuai PIC sendiri.
+                </div>
+              </div>
+              <div style="background: rgba(255,255,255,0.12); padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.22);">
+                <div style="font-size: 12px; font-weight: 800; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">👁️ ALUR PENGGUNA VIEWER (LIHAT-SAJA)</div>
+                <div style="font-size: 13px; line-height: 1.55; color: #f8fafc;">
+                  Baca data &amp; laporan yang diizinkan sesuai cakupan akun/divisi &rarr; Gunakan fitur pencarian, filter, dan unduhan jika tersedia untuk perannya &rarr; <strong>Tidak mengubah data</strong> atau mengajukan revisi.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BAGIAN 1 & 2: KENALI PERAN ANDA & MENU YANG PERLU DIKETAHUI -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 16px; margin-bottom: 16px;">
+            <!-- 1. KENALI PERAN ANDA -->
+            <div class="card p-3" style="border-top: 3px solid #1e40af;">
+              <h3 style="font-size: 15px; font-weight: 800; color: #1e3a8a; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <span>👥 1. Kenali Peran Anda</span>
+              </h3>
+              <div class="table-responsive">
+                <table class="table table-bordered" style="font-size: 12.5px; margin-bottom: 10px;">
+                  <thead>
+                    <tr style="background: #eff6ff;">
+                      <th style="width: 50%; color: #1e40af;">Level 2 (PIC Subbagian)</th>
+                      <th style="width: 50%; color: #334155;">Viewer (Pengguna Lihat-Saja)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Mengelola draft RKB untuk PIC/subbagian sendiri, selama tahap dan status memungkinkan.</td>
+                      <td>Melihat informasi dan laporan yang memang diberikan kepada akunnya.</td>
+                    </tr>
+                    <tr>
+                      <td>Dapat menyiapkan dan mengajukan usulan revisi PIC sendiri melalui alur resmi.</td>
+                      <td>Tidak menginput, mengubah, menghapus, atau mengajukan revisi.</td>
+                    </tr>
+                    <tr>
+                      <td>Melihat data dan mengunduh keluaran yang dibatasi pada kewenangan PIC.</td>
+                      <td>Hanya melihat dan mengunduh jika fitur tersebut tersedia untuk perannya; cakupan data mengikuti kewenangan akun.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #92400e; line-height: 1.5;">
+                <strong>⚠️ Penting:</strong> <em>"Viewer"</em> bukan otomatis berarti dapat melihat semua anggaran. Hak lihat ditentukan oleh kewenangan akun/divisi yang diberikan. Panduan ini tidak memberikan hak akses baru.
+              </div>
+            </div>
+
+            <!-- 2. MENU YANG PERLU DIKETAHUI -->
+            <div class="card p-3" style="border-top: 3px solid #0284c7;">
+              <h3 style="font-size: 15px; font-weight: 800; color: #0369a1; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <span>🧭 2. Menu yang Perlu Diketahui</span>
+              </h3>
+              <div class="table-responsive">
+                <table class="table table-bordered table-hover" style="font-size: 12.5px; margin-bottom: 0;">
+                  <thead>
+                    <tr style="background: #f0f9ff;">
+                      <th style="width: 190px; color: #0369a1;">Menu</th>
+                      <th style="color: #0f172a;">Untuk Apa?</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>📘 RUH Belanja RKB</strong></td>
+                      <td>Level 2 menyusun rincian PIC sendiri. Viewer hanya dapat melihat bila menu tersedia untuk akunnya.</td>
+                    </tr>
+                    <tr>
+                      <td><strong>📝 Pengajuan Usulan Revisi</strong></td>
+                      <td>Level 2 mengajukan revisi PIC sendiri setelah dokumen siap. Bukan fitur untuk Viewer.</td>
+                    </tr>
+                    <tr>
+                      <td><strong>📊 Monitoring Revisi</strong></td>
+                      <td>Melihat perkembangan pengajuan, validasi, pleno, dan pengesahan sesuai kewenangan.</td>
+                    </tr>
+                    <tr>
+                      <td><strong>📊 Rekap Perencanaan</strong></td>
+                      <td>Membaca ringkasan dari RKB aktif; data yang terlihat dibatasi kewenangan.</td>
+                    </tr>
+                    <tr>
+                      <td><strong>📥 Monitoring Unduhan</strong></td>
+                      <td>Memeriksa hasil unduhan milik akun sendiri.</td>
+                    </tr>
+                    <tr>
+                      <td><strong>📖 Panduan Penggunaan Sistem</strong></td>
+                      <td>Membaca bantuan dan petunjuk pemakaian.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- BAGIAN 3, 4, 5: LANGKAH MENYUSUN RKB, ATURAN EDIT RUH, & MENGAJUKAN REVISI -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 16px;">
+            <!-- 3. LANGKAH LEVEL 2: MENYUSUN RKB -->
+            <div class="card p-3" style="border-top: 3px solid #059669;">
+              <h3 style="font-size: 15px; font-weight: 800; color: #065f46; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <span>🛠️ 3. Langkah Level 2: Menyusun RKB</span>
+              </h3>
+              <ol style="font-size: 12.5px; color: #334155; padding-left: 18px; margin: 0; line-height: 1.65; display: flex; flex-direction: column; gap: 6px;">
+                <li>Masuk dengan akun Anda dan buka <strong>Penganggaran &rarr; RUH Belanja RKB</strong>.</li>
+                <li>Pilih atau pastikan <strong>PIC subbagian</strong> yang menjadi kewenangan Anda. Gunakan pencarian kode/uraian dan filter bila diperlukan.</li>
+                <li>Buka cabang baris <strong>L1–L6</strong> untuk melihat induk dan rincian belanja.</li>
+                <li>Isi atau koreksi rincian yang diperbolehkan: <strong>uraian, faktor/pengali, volume, satuan, harga satuan, PIC, dan sasaran</strong>. Periksa jumlah anggaran yang dihitung sistem.</li>
+                <li>Jika perlu menambah baris, pilih induk/level yang tepat. Penambahan mengikuti hierarki; misalnya <strong>L4</strong> dapat menambah <strong>L4 sejajar</strong> atau <strong>L5 di bawahnya</strong>.</li>
+                <li>Sebelum menghapus baris induk, baca konfirmasi: <strong>semua anak di bawah induk tersebut ikut terhapus</strong>.</li>
+                <li>Klik tombol <strong>Simpan Perubahan RKB</strong> untuk menyimpan draf ke database, lalu periksa kembali total dan data PIC sebelum mengajukan revisi.</li>
+              </ol>
+            </div>
+
+            <!-- 4. ATURAN PENTING SAAT MENGEDIT RUH -->
+            <div class="card p-3" style="border-top: 3px solid #d97706;">
+              <h3 style="font-size: 15px; font-weight: 800; color: #b45309; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <span>📌 4. Aturan Penting Saat Mengedit RUH</span>
+              </h3>
+              <ul style="font-size: 12.5px; color: #334155; padding-left: 18px; margin: 0; line-height: 1.65; display: flex; flex-direction: column; gap: 6px;">
+                <li><strong>Pewarisan Satu Arah (Top-Down Cascade):</strong> Perubahan PIC atau Sasaran pada baris induk diterapkan ke semua turunannya; perubahan pada anak <u>tidak</u> mengubah induk atau saudara.</li>
+                <li><strong>Geser Urutan Sejajar:</strong> Tombol naik/turun (<code>▲</code> / <code>▼</code>) hanya mengubah urutan antarbaris sejajar di bawah induk yang sama. Cabang anak ikut bergerak bersama induknya.</li>
+                <li><strong>Kalkulasi Otomatis:</strong> Subtotal induk dan distribusi pagu dihitung otomatis. <strong>Jangan mengisi angka pada halaman Rekap.</strong></li>
+                <li><strong>Kunci Saat Pengajuan:</strong> Setelah PIC mengajukan revisi, bagian PIC terkunci sampai tahapan resmi mengizinkan perbaikan.</li>
+                <li><strong>Integritas Acuan SSOT/SBM/BAS:</strong> Apabila ada angka acuan TPS, kuantitas, harga SBM, atau akun BAS yang diragukan, laporkan untuk pemeriksaan sumbernya; jangan memperbaiki dengan mengubah Rekap.</li>
+              </ul>
+            </div>
+
+            <!-- 5. LANGKAH LEVEL 2: MENGAJUKAN REVISI -->
+            <div class="card p-3" style="border-top: 3px solid #7c3aed;">
+              <h3 style="font-size: 15px; font-weight: 800; color: #5b21b6; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <span>📤 5. Langkah Level 2: Mengajukan Revisi</span>
+              </h3>
+              <ol style="font-size: 12.5px; color: #334155; padding-left: 18px; margin: 0; line-height: 1.65; display: flex; flex-direction: column; gap: 6px;">
+                <li>Pastikan seluruh rincian belanja PIC sudah lengkap, disimpan, dan diperiksa.</li>
+                <li>Buka menu <strong>Penganggaran &rarr; Pengajuan Usulan Revisi</strong>.</li>
+                <li>Siapkan <strong>3 (tiga) tautan dokumen bertanda tangan yang terpisah</strong>:
+                  <ul style="margin-top:4px; padding-left:16px; color:#4c1d95; font-weight:600;">
+                    <li>Tautan Dokumen <strong>RKB</strong></li>
+                    <li>Tautan Dokumen <strong>Nota Dinas</strong></li>
+                    <li>Tautan Dokumen <strong>KAK (Kerangka Acuan Kerja)</strong></li>
+                  </ul>
+                </li>
+                <li>Periksa usulan, lalu kirim melalui alur pengajuan. <strong>Setelah diajukan, PIC terkunci.</strong></li>
+                <li>Lihat status pada <strong>Monitoring Revisi</strong>. Jika dinyatakan <em>Tidak Memenuhi Syarat (TMS)</em> atau <em>Tidak Disetujui</em>, baca alasannya dan lakukan perbaikan setelah dikembalikan melalui alur resmi.</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- BAGIAN 6, 7, 8: REKAP PERENCANAAN, REKAP PELAKSANAAN, & MENGUNDUH DOKUMEN -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 16px;">
+            <!-- 6. CARA MEMBACA REKAP PERENCANAAN -->
+            <div class="card p-3" style="border-top: 3px solid #2563eb;">
+              <h3 style="font-size: 15px; font-weight: 800; color: #1d4ed8; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>📊 6. Cara Membaca Rekap Perencanaan</span>
+              </h3>
+              <p style="font-size: 12.5px; color: #475569; line-height: 1.5; margin-bottom: 8px;">
+                <strong>Rekap Perencanaan</strong> bersumber dari <strong>RKB aktif</strong>. Angkanya dapat berubah ketika ada perbaikan yang sah pada RKB. Seluruh rekap bersifat <strong>VIEW ONLY</strong> (tidak ada input, edit, atau hapus):
+              </p>
+              <ul style="font-size: 12.5px; color: #334155; padding-left: 18px; margin-bottom: 10px; line-height: 1.6;">
+                <li><strong>Ringkasan Eksekutif:</strong> Gambaran total anggaran sesuai data yang boleh Anda lihat.</li>
+                <li><strong>Rekap Kegiatan RKB:</strong> Rincian ringkas menurut kegiatan (Level 1 s.d. Level 3).</li>
+                <li><strong>Rekap Subbagian:</strong> Distribusi anggaran sesuai cakupan akses.</li>
+                <li><strong>Rekap Akun BAS:</strong> Ringkasan menurut akun belanja 6-digit.</li>
+                <li>Gunakan pencarian dan filter. Jika tersedia, pilih <strong>Unduh Excel</strong> atau <strong>Unduh PDF</strong>; hasilnya tetap dibatasi oleh kewenangan Anda.</li>
+              </ul>
+              <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 8px 10px; border-radius: 6px; font-size: 11.5px; color: #1e40af; line-height: 1.45;">
+                💡 <strong>Cakupan Data:</strong> Khusus Level 2, Rekap Perencanaan hanya menampilkan data PIC sendiri (contoh: PIC KUL hanya melihat rekap KUL). Untuk Viewer, cakupan mengikuti kewenangan yang ditetapkan pada akun; jangan menganggap Viewer memiliki akses lintas PIC.
+              </div>
+            </div>
+
+            <!-- 7. BATAS AKSES REKAP PELAKSANAAN -->
+            <div class="card p-3" style="border-top: 3px solid #dc2626;">
+              <h3 style="font-size: 15px; font-weight: 800; color: #b91c1c; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>🏛️ 7. Batas Akses Rekap Pelaksanaan</span>
+              </h3>
+              <p style="font-size: 12.5px; color: #334155; line-height: 1.6; margin-bottom: 10px;">
+                <strong>Rekap Pelaksanaan</strong> memakai <strong>RKB terakhir yang telah disahkan dan dikunci (Tahap 4)</strong>, bukan revisi aktif yang belum disahkan.
+              </p>
+              <div style="background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; padding: 10px 12px; border-radius: 6px; font-size: 12px; color: #991b1b; line-height: 1.55;">
+                🔒 <strong>Kebijakan Akses Saat Ini:</strong><br>
+                Untuk sementara akses <strong>Rekap Pelaksanaan</strong> hanya dibuka bagi <strong>Ketua KPU, Sekretaris KPU, dan Level 1 (Rendatin)</strong>. Karena itu <strong>Level 2 dan Viewer biasa tidak menggunakan Rekap Pelaksanaan</strong>, kecuali kebijakan akses diubah secara resmi kemudian.
+              </div>
+            </div>
+
+            <!-- 8. MENGUNDUH DOKUMEN -->
+            <div class="card p-3" style="border-top: 3px solid #0d9488;">
+              <h3 style="font-size: 15px; font-weight: 800; color: #0f766e; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span>📥 8. Mengunduh Dokumen &amp; Tanda Tangan</span>
+              </h3>
+              <ul style="font-size: 12.5px; color: #334155; padding-left: 18px; margin: 0; line-height: 1.65; display: flex; flex-direction: column; gap: 6px;">
+                <li>Pada fitur yang mengizinkan, pilih unduh <strong>Excel</strong> atau <strong>PDF</strong>. Hasil unduhan selalu mengikuti data yang boleh Anda lihat.</li>
+                <li><strong>Workbook RKB Level 2:</strong> Keluaran Excel dibatasi pada 2 sheet fokus: <code>RUH_Belanja_Resmi</code> dan <code>Matriks_Revisi</code> untuk PIC sendiri.</li>
+                <li><strong>Masa Berlaku File:</strong> Periksa <strong>Monitoring Unduhan</strong> untuk file milik akun sendiri. File sementara <code>XLSX</code>/<code>ZIP</code> berlaku <strong>1 (satu) jam</strong> sejak dibuat; segera unduh sebelum kedaluwarsa.</li>
+                <li><strong>Format Penandatangan:</strong> Dokumen RKB divisi untuk pengajuan ditandatangani <strong>Ketua Divisi dan Kasubag terkait</strong>. Penandatangan untuk konteks dokumen lain mengikuti format resmi yang disediakan sistem.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- BAGIAN 9: JIKA MENGALAMI KENDALA (TABEL TROUBLESHOOTING) -->
+          <div class="card p-3 mb-4" style="border-top: 3px solid #475569;">
+            <h3 style="font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+              <span>🛟 9. Jika Mengalami Kendala (Panduan Penyelesaian Cepat)</span>
             </h3>
-            <p style="margin: 0 0 16px 0; font-size: 13px; opacity: 0.9; max-width: 800px;">
-              Sistem SI-PRABU mengintegrasikan Single Source of Truth (SSOT), kalkulasi dinamis 1.764 baris belanja, matriks selisih anggaran revisi, dan sistem antrean unduhan SAKTI Kemenkeu dalam satu platform terpadu.
-            </p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">1️⃣ Basis Data SSOT</div>
-                <div style="font-size: 12px; opacity: 0.95;">Input data detail Kecamatan, Desa, TPS, DPT, dan Paslon pada Database Referensi.</div>
-              </div>
-              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">2️⃣ Penyusunan RUH</div>
-                <div style="font-size: 12px; opacity: 0.95;">5 Subbagian menyusun rincian belanja berstandar SBM &amp; BAS pada Dokumen Induk.</div>
-              </div>
-              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">3️⃣ Kunci NPHD Sah</div>
-                <div style="font-size: 12px; opacity: 0.95;">Setelah disahkan Pemda, dokumen dikunci permanen menjadi Baseline NPHD Rp 49,99 M.</div>
-              </div>
-              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">4️⃣ Siklus Revisi</div>
-                <div style="font-size: 12px; opacity: 0.95;">Usulan revisi mencatat matriks pergeseran pagu dan justifikasi perubahan otomatis.</div>
-              </div>
-              <div style="background: rgba(255,255,255,0.12); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">5️⃣ Cetak &amp; Monitoring</div>
-                <div style="font-size: 12px; opacity: 0.95;">Unduh laporan RUH, Rekapitulasi 4 Sheet, atau Paket Kasubag via Monitoring Report.</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modul-Modul Panduan Detail -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px;">
-            <!-- Card 1 -->
-            <div class="card p-3">
-              <h3 style="font-size: 15px; font-weight: 700; color: #1e40af; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span>🔄 1. Siklus Anggaran &amp; NPHD</span>
-              </h3>
-              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
-                Dokumen RKB terbagi menjadi 2 jenis status:
-              </p>
-              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
-                <li><b>Draft Aktif / Terbuka:</b> Dokumen dapat diedit oleh PIC Subbagian sesuai kewenangannya.</li>
-                <li><b>Terkunci (NPHD Sah):</b> Dokumen berstatus read-only penuh untuk melindungi integritas naskah hibah. Perubahan selanjutnya wajib melalui tombol <i>"Buat Usulan Revisi"</i> di Pusat Siklus.</li>
-              </ul>
-            </div>
-
-            <!-- Card 2 -->
-            <div class="card p-3">
-              <h3 style="font-size: 15px; font-weight: 700; color: #0284c7; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span>📘 2. Penyusunan RUH Belanja &amp; Hierarki 4-Level</span>
-              </h3>
-              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
-                Struktur penganggaran tersusun rapi dalam 4 level hierarkis:
-              </p>
-              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
-                <li><b>Level 1:</b> Program / Bagian Utama (Romawi I &amp; II).</li>
-                <li><b>Level 2:</b> Kegiatan / Tahapan Resmi (1 s.d 28).</li>
-                <li><b>Level 3:</b> Akun Belanja BAS 6 Digit (521211, 521213, dll.).</li>
-                <li><b>Level 4:</b> Detail Item Belanja dengan rumus kuantitas multi-faktor (Vol 1 s.d Vol 4) x Harga Satuan.</li>
-              </ul>
-            </div>
-
-            <!-- Card 3 -->
-            <div class="card p-3">
-              <h3 style="font-size: 15px; font-weight: 700; color: #059669; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span>📐 3. Reaktivitas Basis Data Primer (SSOT)</span>
-              </h3>
-              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
-                Perubahan pada data rincian berikut langsung otomatis mengubah RKB:
-              </p>
-              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
-                <li><b>Jumlah TPS per Desa:</b> Mengubah kuantitas <code>tps_rkb</code>, KPPS, Linmas, dan distribusi logistik.</li>
-                <li><b>Jumlah DPT Pemilih:</b> Mengubah kuantitas <code>pemilih_dpt</code> surat suara dan form C.Hasil.</li>
-                <li><b>Pantarlih:</b> Mengubah kuantitas <code>pantarlih</code> honorarium dan perlengkapan coklit.</li>
-                <li><b>Paslon:</b> Mengubah kuantitas <code>paslon</code> debat kandidat dan APK.</li>
-              </ul>
-            </div>
-
-            <!-- Card 4 -->
-            <div class="card p-3">
-              <h3 style="font-size: 15px; font-weight: 700; color: #d97706; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span>📥 4. Sistem Monitoring Unduhan (SAKTI Style)</span>
-              </h3>
-              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
-                Pengunduhan berkas skala besar dijalankan di latar belakang:
-              </p>
-              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
-                <li>Saat klik tombol unduh, sistem mencatat tiket antrean berstatus <b>"Diproses"</b>.</li>
-                <li>Setelah worker selesai menghasilkan file, status berubah menjadi <b>"Selesai"</b> dan tombol Download aktif.</li>
-                <li><b>Auto-Cleanup:</b> Berkas unduhan otomatis kadaluarsa dan terhapus setelah <b>1 jam</b> sejak dibuat.</li>
-              </ul>
-            </div>
-
-            <!-- Card 5 -->
-            <div class="card p-3">
-              <h3 style="font-size: 15px; font-weight: 700; color: #7c3aed; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span>⚖️ 5. Matriks Revisi &amp; Justifikasi Perubahan</span>
-              </h3>
-              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
-                Transparansi pergeseran anggaran pada setiap siklus revisi:
-              </p>
-              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
-                <li>Perbandingan otomatis nilai Sebelum (Semula) dan Sesudah (Menjadi) serta Nilai Selisih (Delta).</li>
-                <li>Kolom <b>Alasan / Catatan Justifikasi</b> wajib diisi untuk setiap baris belanja yang mengalami pergeseran.</li>
-                <li>Sheet Matrik Revisi di Excel otomatis mencantumkan ringkasan ini secara terpisah untuk audit inspektorat.</li>
-              </ul>
-            </div>
-
-            <!-- Card 6 -->
-            <div class="card p-3">
-              <h3 style="font-size: 15px; font-weight: 700; color: #dc2626; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span>👥 6. Hak Akses &amp; 5 Subbagian KPU Ngawi</span>
-              </h3>
-              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
-                Pemberian wewenang Role-Based Access Control (RBAC):
-              </p>
-              <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; margin-bottom: 8px; line-height: 1.6;">
-                <li><b>RENDATIN:</b> Perencanaan, Data &amp; Informasi (Administrator Perencanaan Anggaran).</li>
-                <li><b>KUL:</b> Keuangan, Umum &amp; Logistik (Operasional, Distribusi, Honorarium Adhoc).</li>
-                <li><b>TEKNIS:</b> Teknis Penyelenggaraan Pemilu &amp; Sirekap.</li>
-                <li><b>HUKUM:</b> Hukum &amp; Pengawasan (Advokasi, Pokja Sengketa, Dokumentasi Hukum).</li>
-                <li><b>PARSDM:</b> Partisipasi Masyarakat, Sosialisasi, Pendidikan Pemilih &amp; SDM.</li>
-              </ul>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" style="font-size: 12.5px; margin-bottom: 0;">
+                <thead>
+                  <tr style="background: #f8fafc;">
+                    <th style="width: 34%; color: #0f172a;">Kendala yang Ditemui</th>
+                    <th style="color: #0f172a;">Yang Perlu Dilakukan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Data subbagian lain tidak muncul</strong></td>
+                    <td>Ini normal bila akses Anda dibatasi pada PIC/divisi sendiri.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Tombol edit tidak tersedia</strong></td>
+                    <td>Periksa apakah akun berstatus Viewer, PIC sedang terkunci karena sudah mengajukan revisi, atau tahapan dokumen tidak mengizinkan edit.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Rekap berbeda dari sebelumnya</strong></td>
+                    <td>Rekap Perencanaan mengikuti perubahan RKB aktif secara <em>real-time</em>; periksa filter aktif dan waktu pembaruan data.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Tidak bisa membuka Rekap Pelaksanaan</strong></td>
+                    <td>Saat ini akses Rekap Pelaksanaan dibatasi khusus untuk Ketua KPU, Sekretaris KPU, dan Level 1 (Rendatin).</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Usulan revisi ditolak / dikembalikan</strong></td>
+                    <td>Baca alasan penolakan/pengembalian di menu <strong>Monitoring Revisi</strong> dan ikuti alur perbaikan resmi.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Tautan unduhan kedaluwarsa</strong></td>
+                    <td>Buat ulang permintaan unduhan baru bila fitur dan kewenangan akun mengizinkan (masa aktif file sementara adalah 1 jam).</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
           <!-- Bantuan & Narahubung -->
-          <div class="card p-3 mt-4" style="border-left: 4px solid #0284c7;">
+          <div class="card p-3" style="border-left: 4px solid #0284c7;">
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
               <div>
-                <h4 style="margin: 0 0 4px 0; color: var(--primary);">Pusat Bantuan &amp; Helpdesk Anggaran KPU Kabupaten Ngawi</h4>
-                <p style="margin: 0; font-size: 13px; color: var(--text-muted);">
-                  Jika mengalami kendala teknis atau pertanyaan regulasi SBM, hubungi Subbagian Perencanaan, Data &amp; Informasi (RENDATIN).
+                <h4 style="margin: 0 0 4px 0; color: var(--primary);">Pusat Bantuan &amp; Koordinasi Teknis SI-PRABU — KPU Kabupaten Ngawi</h4>
+                <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">
+                  Apabila terdapat angka acuan TPS, kuantitas SSOT, tarif SBM, atau kode akun BAS yang perlu diklarifikasi, hubungi <strong>Subbagian Perencanaan, Data &amp; Informasi (RENDATIN)</strong>.
                 </p>
               </div>
               <div style="font-size: 12px; color: var(--text-muted); text-align: right;">
                 <span style="font-weight: 700; color: var(--text-main);">KPU Kabupaten Ngawi</span><br>
-                <span>Subbag Perencanaan, Data &amp; Informasi</span>
+                <span>Subbag Perencanaan, Data &amp; Informasi (RENDATIN)</span>
               </div>
             </div>
           </div>

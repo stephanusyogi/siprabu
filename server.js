@@ -225,7 +225,8 @@ const MIME_TYPES = {
   '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/png',
-  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 };
 
 // Helper kirim JSON response
