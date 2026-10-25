@@ -736,12 +736,13 @@ const server = http.createServer(async (req, res) => {
     const lockMatch = pathname.match(/^\/api\/periodes\/(\d+)\/lock$/);
     if (lockMatch && method === 'POST') {
       const user = getUserFromReq(req);
-      if (!canManageLifecycle(user)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Kasubbag Perencanaan dan Pengembang yang dapat mengunci dokumen.' });
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (Number(user.level) !== 0) {
+        return sendJson(res, 403, { error: 'Penguncian dan pengesahan siklus RKB wajib dilakukan melalui menu Pengesahan BA Pleno (Tahap 4) setelah seluruh pengajuan PIC berstatus ACC Pleno.' });
       }
       const id = Number(lockMatch[1]);
       const body = await parseJsonBody(req);
-      const updated = lockPeriode(id, body);
+      const updated = lockPeriode(id, body, user);
       clearRkbDatasetCache();
       return sendJson(res, 200, { success: true, message: 'Dokumen berhasil dikunci (Mode Read-Only).', periode: updated });
     }
@@ -750,13 +751,18 @@ const server = http.createServer(async (req, res) => {
     const unlockMatch = pathname.match(/^\/api\/periodes\/(\d+)\/unlock$/);
     if (unlockMatch && method === 'POST') {
       const user = getUserFromReq(req);
-      if (!canManageLifecycle(user)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Kasubbag Perencanaan dan Pengembang yang dapat membuka kunci dokumen.' });
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (Number(user.level) !== 0) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Baseline RKB yang telah disahkan dan terkunci bersifat immutable (permanen) sesuai Canon Bab 3 & FR-07 dan tidak dapat dibuka kuncinya kembali.' });
       }
       const id = Number(unlockMatch[1]);
-      const updated = unlockPeriode(id);
-      clearRkbDatasetCache();
-      return sendJson(res, 200, { success: true, message: 'Kunci dokumen berhasil dibuka. Dokumen kini berstatus LEMBAR KERJA AKTIF.', periode: updated });
+      try {
+        const updated = unlockPeriode(id, user);
+        clearRkbDatasetCache();
+        return sendJson(res, 200, { success: true, message: 'Kunci dokumen berhasil dibuka. Dokumen kini berstatus LEMBAR KERJA AKTIF.', periode: updated });
+      } catch (err) {
+        return sendJson(res, 403, { error: err.message });
+      }
     }
 
     // 8. UPDATE LEGALITAS PERIODE (SK / BA TAPD)
@@ -767,8 +773,12 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan yang dapat mengubah legalitas pengesahan.' });
       }
       const id = Number(legalMatch[1]);
+      const existingPeriode = getPeriodeById(id);
+      if (existingPeriode && Number(existingPeriode.is_locked) === 1 && Number(user.level) !== 0) {
+        return sendJson(res, 403, { error: 'Dokumen baseline telah disahkan dan terkunci. Untuk memperbarui tautan dokumen arsip, gunakan fitur Koreksi Tautan Pasca-Pengesahan.' });
+      }
       const body = await parseJsonBody(req);
-      const updated = updatePeriodeLegalitas(id, body);
+      const updated = updatePeriodeLegalitas(id, body, user);
       clearRkbDatasetCache();
       return sendJson(res, 200, { success: true, message: 'Dasar legalitas dokumen berhasil diperbarui.', periode: updated });
     }
@@ -944,9 +954,23 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Anda tidak berwenang mengedit baris ini.' });
       }
 
-      db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ? AND periode_id = ?').run(kode_akun, row_id, periodeId);
-      clearRkbDatasetCache();
-      return sendJson(res, 200, { ok: true, message: 'Kode Akun berhasil diperbarui.' });
+      try {
+        checkRowEditPermission(periodeId, storedRow.pic_bagian, user);
+        db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ? AND periode_id = ?').run(kode_akun, row_id, periodeId);
+        recordAuditLog({
+          user,
+          action: 'QUICK_UPDATE_AKUN',
+          entity: 'rab_baris',
+          entity_id: row_id,
+          old_values: { kode_akun: storedRow.kode_akun },
+          new_values: { kode_akun },
+          notes: `Kode akun baris RKB [${row_id}] diubah menjadi ${kode_akun}.`
+        });
+        clearRkbDatasetCache();
+        return sendJson(res, 200, { ok: true, message: 'Kode Akun berhasil diperbarui.' });
+      } catch (err) {
+        return sendJson(res, 403, { error: err.message });
+      }
     }
 
     const quickCatatanMatch = pathname.match(/^\/api\/rkb\/(\d+)\/quick-catatan$/);
@@ -968,14 +992,30 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Anda tidak berwenang mengedit baris ini.' });
       }
 
-      db.prepare('UPDATE rab_baris SET catatan_revisi_baris = ? WHERE id = ? AND periode_id = ?').run(catatan_revisi_baris || '', row_id, periodeId);
-      clearRkbDatasetCache();
-      return sendJson(res, 200, { ok: true, message: 'Catatan justifikasi revisi berhasil disimpan.' });
+      try {
+        checkRowEditPermission(periodeId, storedRow.pic_bagian, user);
+        db.prepare('UPDATE rab_baris SET catatan_revisi_baris = ? WHERE id = ? AND periode_id = ?').run(catatan_revisi_baris || '', row_id, periodeId);
+        recordAuditLog({
+          user,
+          action: 'QUICK_UPDATE_CATATAN',
+          entity: 'rab_baris',
+          entity_id: row_id,
+          old_values: { catatan_revisi_baris: storedRow.catatan_revisi_baris || '' },
+          new_values: { catatan_revisi_baris: catatan_revisi_baris || '' },
+          notes: `Catatan justifikasi baris RKB [${row_id}] diperbarui.`
+        });
+        clearRkbDatasetCache();
+        return sendJson(res, 200, { ok: true, message: 'Catatan justifikasi revisi berhasil disimpan.' });
+      } catch (err) {
+        return sendJson(res, 403, { error: err.message });
+      }
     }
 
     // 10c. RESUME SASARAN CEPAT (PENYELENGGARA VS PESERTA)
     const resumeSasaranMatch = pathname.match(/^\/api\/rkb\/(\d+)\/resume-sasaran$/);
     if (resumeSasaranMatch && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       const periodeId = Number(resumeSasaranMatch[1]);
       const rawRows = getRabRows(periodeId);
       const { summary } = calculateRkbDataset(rawRows);
@@ -986,8 +1026,9 @@ const server = http.createServer(async (req, res) => {
     // GET /api/rkb/:id/usulan-subbag
     const usulanListMatch = pathname.match(/^\/api\/rkb\/(\d+)\/usulan-subbag$/);
     if (usulanListMatch && method === 'GET') {
-      const periodeId = Number(usulanListMatch[1]);
       const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(usulanListMatch[1]);
       const list = getSubbagUsulanList(periodeId);
       
       // Hitung perbandingan Semula vs Menjadi per subbag secara real-time
@@ -1042,6 +1083,9 @@ const server = http.createServer(async (req, res) => {
     if (usulanAjukanMatch && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (Number(user.level) === 3) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat mengajukan usulan revisi.' });
+      }
       const periodeId = Number(usulanAjukanMatch[1]);
       const body = await parseJsonBody(req);
       
@@ -1129,9 +1173,10 @@ const server = http.createServer(async (req, res) => {
     // 1. GET /api/revisi/monitoring & /api/revisi/pengajuan
     if ((pathname === '/api/revisi/monitoring' || pathname === '/api/revisi/pengajuan') && method === 'GET') {
       const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       let subbagFilter = query.subbag || '';
       // PIC Level 2 hanya dapat memantau usulan subbagnya sendiri
-      if (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+      if (user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
         subbagFilter = user.pic_subbag;
       }
       const list = getRevisiPengajuanList({
@@ -1234,6 +1279,9 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/revisi/pengajuan' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu untuk mengajukan usulan revisi.' });
+      if (Number(user.level) === 3) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat mengajukan usulan revisi.' });
+      }
 
       const body = await parseJsonBody(req);
       // Jika user adalah PIC Level 2, paksa subbag sesuai dengan wewenangnya
@@ -1256,9 +1304,14 @@ const server = http.createServer(async (req, res) => {
     // 3. GET /api/revisi/pengajuan/:id (Detail Usulan Revisi)
     const revisiDetailMatch = pathname.match(/^\/api\/revisi\/pengajuan\/(\d+)$/);
     if (revisiDetailMatch && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       const id = Number(revisiDetailMatch[1]);
       const item = getRevisiPengajuanById(id);
       if (!item) return sendJson(res, 404, { error: 'Data usulan revisi tidak ditemukan.' });
+      if (user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA' && String(item.subbag || '').toUpperCase() !== String(user.pic_subbag).toUpperCase()) {
+        return sendJson(res, 403, { error: `Akses ditolak. Anda hanya berhak melihat detail pengajuan revisi milik Subbagian ${user.pic_subbag}.` });
+      }
       return sendJson(res, 200, { success: true, data: item });
     }
 
@@ -1322,12 +1375,16 @@ const server = http.createServer(async (req, res) => {
     if (revisiDetailMatch && method === 'DELETE') {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (Number(user.level) === 3) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only.' });
+      }
       const id = Number(revisiDetailMatch[1]);
       try {
         deleteRevisiPengajuan(id, user);
         return sendJson(res, 200, { success: true, message: 'Usulan revisi berhasil dibatalkan.' });
       } catch (err) {
-        return sendJson(res, 400, { error: err.message });
+        const status = err.message.includes('Akses ditolak') ? 403 : 400;
+        return sendJson(res, status, { error: err.message });
       }
     }
 
@@ -1461,8 +1518,9 @@ const server = http.createServer(async (req, res) => {
     // GET /api/rkb/:id/matriks-semula-menjadi
     const matriksMatch = pathname.match(/^\/api\/rkb\/(\d+)\/matriks-semula-menjadi$/);
     if (matriksMatch && method === 'GET') {
-      const periodeId = Number(matriksMatch[1]);
       const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(matriksMatch[1]);
       const comparison = getRevisionComparison(periodeId);
       let details = comparison.log_detail || [];
 
@@ -1541,11 +1599,12 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
-        const saved = saveRabRow(row);
+        const saved = saveRabRow(row, user);
         clearRkbDatasetCache();
         return sendJson(res, 200, { success: true, row: saved });
       } catch (err) {
-        return sendJson(res, 400, { error: err.message });
+        const status = err.message.includes('Akses ditolak') || err.message.includes('terkunci') ? 403 : 400;
+        return sendJson(res, status, { error: err.message });
       }
     }
 
@@ -1626,6 +1685,8 @@ const server = http.createServer(async (req, res) => {
 
     // 13b. MASTER PASLON (BASIS DATA PRIMER PILKADA)
     if (pathname === '/api/master/paslon' && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       return sendJson(res, 200, getPaslonList());
     }
     if (pathname === '/api/master/paslon' && method === 'POST') {
@@ -1649,6 +1710,8 @@ const server = http.createServer(async (req, res) => {
 
     // 13b-jdih. MASTER REGULASI & DASAR HUKUM (JDIH PENYUSUNAN & PELAKSANAAN ANGGARAN - BAB 8.1)
     if (pathname === '/api/master/regulasi' && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       return sendJson(res, 200, getRegulasiList());
     }
     if (pathname === '/api/master/regulasi' && method === 'POST') {
@@ -1676,6 +1739,8 @@ const server = http.createServer(async (req, res) => {
 
     // 13b. MASTER KUANTITAS (SSOT)
     if (pathname === '/api/master/kuantitas' && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       return sendJson(res, 200, getKuantitasList());
     }
     if (pathname === '/api/master/kuantitas' && method === 'POST') {
@@ -1695,6 +1760,8 @@ const server = http.createServer(async (req, res) => {
 
     // 13c. MASTER KECAMATAN (19 PPK)
     if (pathname === '/api/master/kecamatan' && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       return sendJson(res, 200, getKecamatans());
     }
     if (pathname === '/api/master/kecamatan' && method === 'POST') {
@@ -1752,7 +1819,7 @@ const server = http.createServer(async (req, res) => {
       if (!items || items.length === 0) {
         return sendJson(res, 400, { error: 'Tidak ada baris data Kecamatan/PPK yang valid ditemukan dalam berkas Excel.' });
       }
-      const result = bulkUpsertKecamatan(items, { preview: isPreview });
+      const result = bulkUpsertKecamatan(items, { preview: isPreview, user });
       if (isPreview) {
         return sendJson(res, 200, result);
       }
@@ -1769,6 +1836,8 @@ const server = http.createServer(async (req, res) => {
 
     // 13d. MASTER DESA / KELURAHAN (217 PPS, TPS, PEMILIH, PANTARLIH)
     if (pathname === '/api/master/desa' && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       const kecId = query.kecamatan_id ? Number(query.kecamatan_id) : null;
       return sendJson(res, 200, getDesas(kecId));
     }
@@ -1823,7 +1892,7 @@ const server = http.createServer(async (req, res) => {
       if (!items || items.length === 0) {
         return sendJson(res, 400, { error: 'Tidak ada baris data Desa/TPS yang valid ditemukan dalam berkas Excel.' });
       }
-      const result = bulkUpsertDesa(items, { preview: isPreview });
+      const result = bulkUpsertDesa(items, { preview: isPreview, user });
       if (isPreview) {
         return sendJson(res, 200, result);
       }
@@ -1840,6 +1909,8 @@ const server = http.createServer(async (req, res) => {
 
     // 13e. MASTER STANDAR BIAYA MASUKAN (SBM)
     if (pathname === '/api/master/sbm' && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       return sendJson(res, 200, getSbmList());
     }
     if (pathname === '/api/master/sbm' && method === 'POST') {
@@ -1895,7 +1966,7 @@ const server = http.createServer(async (req, res) => {
       if (!items || items.length === 0) {
         return sendJson(res, 400, { error: 'Tidak ada baris data SBM yang valid ditemukan dalam berkas Excel.' });
       }
-      const result = bulkUpsertSbm(items, { preview: isPreview });
+      const result = bulkUpsertSbm(items, { preview: isPreview, user });
       if (isPreview) {
         return sendJson(res, 200, result);
       }
@@ -1912,6 +1983,8 @@ const server = http.createServer(async (req, res) => {
 
     // 13f. MASTER BAGAN AKUN STANDAR (BAS)
     if (pathname === '/api/master/akun' && method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       return sendJson(res, 200, getAkunList());
     }
     if (pathname === '/api/master/akun' && method === 'POST') {
@@ -1967,7 +2040,7 @@ const server = http.createServer(async (req, res) => {
       if (!items || items.length === 0) {
         return sendJson(res, 400, { error: 'Tidak ada baris data akun BAS yang valid ditemukan dalam berkas Excel.' });
       }
-      const result = bulkUpsertAkun(items, { preview: isPreview });
+      const result = bulkUpsertAkun(items, { preview: isPreview, user });
       if (isPreview) {
         return sendJson(res, 200, result);
       }
@@ -2072,7 +2145,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah pengaturan.' });
       }
       const body = await parseJsonBody(req);
-      const updated = updateSettings(body);
+      const updated = updateSettings(body, user);
       return sendJson(res, 200, { success: true, message: 'Pengaturan Satker berhasil disimpan.', settings: updated });
     }
 

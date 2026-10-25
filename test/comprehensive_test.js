@@ -527,6 +527,82 @@ async function runAllTests() {
   assert(verifyToken(simToken) === null, 'Logout mencabut sesi secara server-side sehingga token langsung ditolak (Bab 12 & FR-15).');
 
   // --------------------------------------------------------------------------
+  // TEST 23C: Penguatan Keamanan Kerja Perencanaan (Anti-Negatif, Imutabilitas Baseline, Proteksi Read-Only L3)
+  // --------------------------------------------------------------------------
+  console.log('\n--- KELOMPOK 11C: PENGUATAN KEAMANAN KERJA PERENCANAAN ---');
+  const activePer = getActivePeriode();
+  let negPriceRejected = false;
+  try {
+    saveRabRow({
+      periode_id: activePer.id,
+      row_type: 'item',
+      uraian: 'Item Uji Harga Negatif',
+      level_indent: 4,
+      pic_bagian: 'KUL',
+      f1_val: 1,
+      harga_satuan: -50000
+    }, { id: 2, username: 'perencanaan', level: 1, role_id: 'super_admin', pic_subbag: 'SEMUA' });
+  } catch (err) {
+    if (err.message.includes('tidak boleh bernilai negatif')) negPriceRejected = true;
+  }
+  assert(negPriceRejected === true, 'saveRabRow() menolak tegas harga satuan bernilai negatif (< 0).');
+
+  let negFactorRejected = false;
+  try {
+    saveRabRow({
+      periode_id: activePer.id,
+      row_type: 'item',
+      uraian: 'Item Uji Faktor Negatif',
+      level_indent: 4,
+      pic_bagian: 'KUL',
+      f1_val: -3,
+      harga_satuan: 50000
+    }, { id: 2, username: 'perencanaan', level: 1, role_id: 'super_admin', pic_subbag: 'SEMUA' });
+  } catch (err) {
+    if (err.message.includes('tidak boleh bernilai negatif')) negFactorRejected = true;
+  }
+  assert(negFactorRejected === true, 'saveRabRow() menolak tegas faktor volume (f1 s.d. f4) bernilai negatif (< 0).');
+
+  let unlockBaselineRejected = false;
+  try {
+    unlockPeriode(1, { id: 2, username: 'perencanaan', level: 1, role_id: 'super_admin' });
+  } catch (err) {
+    if (err.message.includes('immutable')) unlockBaselineRejected = true;
+  }
+  assert(unlockBaselineRejected === true, 'unlockPeriode() menolak pembukaan kunci pada Baseline yang telah disahkan (Canon Bab 3 & FR-07).');
+
+  let level3SubmitRejected = false;
+  try {
+    createRevisiPengajuan({
+      subbag: 'KUL',
+      nomor_surat: 'ND-L3/2026',
+      tanggal_surat: '2026-10-25',
+      perihal: 'Uji Coba L3',
+      dokumen_surat_link: 'https://drive.google.com/nd',
+      dokumen_matriks_link: 'https://drive.google.com/rkb'
+    }, { id: 9, username: 'ketua', level: 3, role_id: 'viewer_ketua', pic_subbag: 'SEMUA' });
+  } catch (err) {
+    if (err.message.includes('Read-Only')) level3SubmitRejected = true;
+  }
+  assert(level3SubmitRejected === true, 'Akun Pimpinan / Viewer (Level 3) ditolak mengajukan usulan revisi (Read-Only).');
+
+  let level3EditRowRejected = false;
+  try {
+    saveRabRow({
+      periode_id: activePer.id,
+      row_type: 'item',
+      uraian: 'Uji Edit L3',
+      level_indent: 4,
+      pic_bagian: 'KUL',
+      f1_val: 1,
+      harga_satuan: 10000
+    }, { id: 9, username: 'ketua', level: 3, role_id: 'viewer_ketua', pic_subbag: 'SEMUA' });
+  } catch (err) {
+    if (err.message.includes('Read-Only')) level3EditRowRejected = true;
+  }
+  assert(level3EditRowRejected === true, 'Akun Pimpinan / Viewer (Level 3) ditolak menyunting rincian baris RKB (Read-Only).');
+
+  // --------------------------------------------------------------------------
   // TEST 24: Clean Database Teardown & Production Isolation
   // --------------------------------------------------------------------------
   console.log('\n--- KELOMPOK 12: ISOLASI DATABASE & KEBERSIHAN ---');

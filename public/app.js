@@ -1795,31 +1795,31 @@ function renderSiklus() {
 
   const btnBuatRevisi = document.getElementById('btn-buat-revisi');
   if (btnBuatRevisi) {
-    btnBuatRevisi.style.display = canManage ? 'inline-flex' : 'none';
+    btnBuatRevisi.style.display = (user && user.level === 2) ? 'inline-flex' : 'none';
   }
 
   if (actionContainer) {
     let buttonsHtml = '';
     if (canManage) {
       if (p.is_locked) {
-        buttonsHtml += `
-          <button class="btn btn-warning" onclick="toggleLockPeriode(${p.id}, false)">
-            🔓 Buka Kunci Dokumen
-          </button>
-        `;
+        const isKasubagRendatin = user.level === 0 || (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin' || user.role_id === 'perencanaan'));
+        if (isKasubagRendatin) {
+          buttonsHtml += `
+            <button class="btn btn-outline-secondary" onclick="switchView('view-revisi-arsip')">
+              🔗 Koreksi Tautan Arsip Pasca-Pengesahan
+            </button>
+          `;
+        }
       } else {
         buttonsHtml += `
-          <button class="btn btn-danger" onclick="toggleLockPeriode(${p.id}, true)">
-            🔒 Kunci Dokumen (Tetapkan Arsip Resmi)
+          <button class="btn btn-danger" onclick="switchView('view-revisi-tahap4')">
+            🔏 Pengesahan BA Pleno (Tahap 4)
+          </button>
+          <button class="btn btn-outline-secondary" onclick="openEditLegalitasModal(${p.id})">
+            ✏️ Ubah Dasar &amp; Legalitas
           </button>
         `;
       }
-
-      buttonsHtml += `
-        <button class="btn btn-outline-secondary" onclick="openEditLegalitasModal(${p.id})">
-          ✏️ Ubah Dasar &amp; Legalitas
-        </button>
-      `;
     }
 
     buttonsHtml += `

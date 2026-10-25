@@ -1164,6 +1164,10 @@ function checkRowEditPermission(periodeId, subbag, user = null) {
   const cleanSubbag = normalizePic(subbag || 'KUL');
   const proposal = db.prepare('SELECT * FROM revisi_pengajuan WHERE periode_id = ? AND subbag = ?').get(periodeId, cleanSubbag);
 
+  if (user && Number(user.level) === 3) {
+    throw new Error('Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat menyunting rincian RKB.');
+  }
+
   if (user && user.level > 1) {
     // Level 2 (Operator Subbag):
     const userPic = normalizePic(user.pic_subbag);
@@ -1346,8 +1350,8 @@ function lockPeriode(id, details = {}, user = null) {
 }
 
 function unlockPeriode(id, user = null) {
-  if (user && user.level > 1) {
-    throw new Error('Akses ditolak. Pembukaan kunci dokumen hanya diizinkan untuk Tim Perencanaan (Level 1) atau Pengembang (Level 0).');
+  if (!user || Number(user.level) !== 0) {
+    throw new Error('Akses ditolak. Baseline RKB yang telah disahkan dan terkunci bersifat immutable (permanen) sesuai Canon Bab 3 & FR-07 dan tidak dapat dibuka kuncinya kembali.');
   }
 
   const existing = getPeriodeById(id);
@@ -1582,6 +1586,15 @@ function saveRabRow(row, actorUser = null) {
   const f4 = isHeader ? null : parseIndonesianNumber(row.f4_val);
   const harga = isHeader ? 0 : (parseIndonesianNumber(row.harga_satuan) || 0);
 
+  if (!isHeader) {
+    if ((f1 !== null && f1 < 0) || (f2 !== null && f2 < 0) || (f3 !== null && f3 < 0) || (f4 !== null && f4 < 0)) {
+      throw new Error('Faktor volume perhitungan (f1 s.d. f4) tidak boleh bernilai negatif.');
+    }
+    if (harga < 0) {
+      throw new Error('Harga satuan rincian belanja tidak boleh bernilai negatif.');
+    }
+  }
+
   if (row.id) {
     const existing = getRabRowById(row.id);
     if (!existing) throw new Error('Baris yang akan diedit tidak ditemukan.');
@@ -1765,6 +1778,21 @@ function deleteRabRow(id, actorUser = null) {
         visitedIds.add(Number(child.id));
         idsToDelete.push(Number(child.id));
         queue.push(child.tree_id);
+      }
+    }
+  }
+
+  // Verifikasi bahwa tidak ada baris turunan dalam idsToDelete yang melanggar batas subbagian atau terkunci pengajuan
+  if (actorUser && idsToDelete.length > 1) {
+    const checkedPics = new Set([normalizePic(row.pic_bagian)]);
+    for (const delId of idsToDelete) {
+      const childRow = getRabRowById(delId);
+      if (childRow) {
+        const childPic = normalizePic(childRow.pic_bagian);
+        if (!checkedPics.has(childPic)) {
+          checkRowEditPermission(row.periode_id, childPic, actorUser);
+          checkedPics.add(childPic);
+        }
       }
     }
   }
@@ -2688,6 +2716,15 @@ function saveKecamatan(data, actorUser = null) {
     clearRkbDatasetCache();
   } catch (e) {}
 
+  recordAuditLog({
+    user: actorUser,
+    action: id ? 'UPDATE_KECAMATAN' : 'CREATE_KECAMATAN',
+    entity: 'master_kecamatan',
+    entity_id: id || nama,
+    new_values: { no_urut, nama, kode, ketua, sekretaris },
+    notes: `Master Kecamatan "${nama}" disimpan.`
+  });
+
   return getKecamatans();
 }
 
@@ -2698,6 +2735,15 @@ function deleteKecamatan(id, actorUser = null) {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
   } catch (e) {}
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'DELETE_KECAMATAN',
+    entity: 'master_kecamatan',
+    entity_id: id,
+    notes: `Master Kecamatan ID ${id} dihapus.`
+  });
+
   return { success: true };
 }
 
@@ -2784,6 +2830,14 @@ function bulkUpsertKecamatan(items, options = {}) {
     clearRkbDatasetCache();
   } catch (e) {}
 
+  recordAuditLog({
+    user: options.user || null,
+    action: 'BULK_IMPORT_KECAMATAN',
+    entity: 'master_kecamatan',
+    new_values: { inserted: wouldInsert.length, updated: wouldUpdate.length },
+    notes: `Impor massal Kecamatan/PPK: ${wouldInsert.length} baru, ${wouldUpdate.length} diperbarui.`
+  });
+
   return { success: true, processed: wouldInsert.length + wouldUpdate.length, inserted: wouldInsert.length, updated: wouldUpdate.length };
 }
 
@@ -2839,6 +2893,15 @@ function saveDesa(data, actorUser = null) {
     clearRkbDatasetCache();
   } catch (e) {}
 
+  recordAuditLog({
+    user: actorUser,
+    action: id ? 'UPDATE_DESA' : 'CREATE_DESA',
+    entity: 'master_desa',
+    entity_id: id || cleanNama,
+    new_values: { nama: cleanNama, kecamatan_id: kecId, tps, kotak, pantarlih, pemilih },
+    notes: `Master Desa "${cleanNama}" disimpan.`
+  });
+
   return getDesas();
 }
 
@@ -2849,6 +2912,15 @@ function deleteDesa(id, actorUser = null) {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
   } catch (e) {}
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'DELETE_DESA',
+    entity: 'master_desa',
+    entity_id: id,
+    notes: `Master Desa ID ${id} dihapus.`
+  });
+
   return { success: true };
 }
 
@@ -2975,6 +3047,14 @@ function bulkUpsertDesa(items, options = {}) {
     clearRkbDatasetCache();
   } catch (e) {}
 
+  recordAuditLog({
+    user: options.user || null,
+    action: 'BULK_IMPORT_DESA',
+    entity: 'master_desa',
+    new_values: { inserted: wouldInsert.length, updated: wouldUpdate.length },
+    notes: `Impor massal Desa/TPS: ${wouldInsert.length} baru, ${wouldUpdate.length} diperbarui.`
+  });
+
   return {
     success: true,
     processed: wouldInsert.length + wouldUpdate.length,
@@ -3012,18 +3092,42 @@ function saveSbm(data, actorUser = null) {
       SET kode_akun = ?, kategori = ?, uraian = ?, satuan = ?, harga_satuan = ?, keterangan = ?, pagu_sbm = ?, jenis_regulasi = ?, dasar_hukum = ?
       WHERE id = ?
     `).run(kode_akun, kategori, uraian, satuan, harga, ket, pagu, regulasi, dasar, id);
+    recordAuditLog({
+      user: actorUser,
+      action: 'UPDATE_SBM',
+      entity: 'master_sbm',
+      entity_id: id,
+      new_values: { kode_akun, kategori, uraian, satuan, harga_satuan: harga },
+      notes: `Master SBM "${uraian}" diperbarui.`
+    });
     return getSbmById(id);
   } else {
     const res = db.prepare(`
       INSERT INTO master_sbm (kode_akun, kategori, uraian, satuan, harga_satuan, keterangan, pagu_sbm, jenis_regulasi, dasar_hukum)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(kode_akun, kategori, uraian, satuan, harga, ket, pagu, regulasi, dasar);
+    recordAuditLog({
+      user: actorUser,
+      action: 'CREATE_SBM',
+      entity: 'master_sbm',
+      entity_id: res.lastInsertRowid,
+      new_values: { kode_akun, kategori, uraian, satuan, harga_satuan: harga },
+      notes: `Master SBM baru "${uraian}" ditambahkan.`
+    });
     return getSbmById(res.lastInsertRowid);
   }
 }
 
 function deleteSbm(id, actorUser = null) {
-  return db.prepare('DELETE FROM master_sbm WHERE id = ?').run(id);
+  const res = db.prepare('DELETE FROM master_sbm WHERE id = ?').run(id);
+  recordAuditLog({
+    user: actorUser,
+    action: 'DELETE_SBM',
+    entity: 'master_sbm',
+    entity_id: id,
+    notes: `Master SBM ID ${id} dihapus.`
+  });
+  return res;
 }
 
 function bulkUpsertSbm(rows, options = {}) {
@@ -3146,6 +3250,14 @@ function saveAkun(data, actorUser = null) {
       SET kode = ?, uraian = ?, kelompok = ?, kategori_dn = ?, keterangan = ?
       WHERE id = ?
     `).run(cleanKode, cleanUraian, cleanKelompok, cleanKategori, cleanKet, id);
+    recordAuditLog({
+      user: actorUser,
+      action: 'UPDATE_AKUN_BAS',
+      entity: 'master_akun',
+      entity_id: id,
+      new_values: { kode: cleanKode, uraian: cleanUraian },
+      notes: `Master Akun BAS [${cleanKode}] diperbarui.`
+    });
     return getAkunById(id);
   } else {
     const existing = db.prepare('SELECT id FROM master_akun WHERE kode = ?').get(cleanKode);
@@ -3155,19 +3267,43 @@ function saveAkun(data, actorUser = null) {
         SET uraian = ?, kelompok = ?, kategori_dn = ?, keterangan = ?
         WHERE id = ?
       `).run(cleanUraian, cleanKelompok, cleanKategori, cleanKet, existing.id);
+      recordAuditLog({
+        user: actorUser,
+        action: 'UPDATE_AKUN_BAS',
+        entity: 'master_akun',
+        entity_id: existing.id,
+        new_values: { kode: cleanKode, uraian: cleanUraian },
+        notes: `Master Akun BAS [${cleanKode}] diperbarui.`
+      });
       return getAkunById(existing.id);
     } else {
       const info = db.prepare(`
         INSERT INTO master_akun (kode, uraian, kelompok, kategori_dn, keterangan)
         VALUES (?, ?, ?, ?, ?)
       `).run(cleanKode, cleanUraian, cleanKelompok, cleanKategori, cleanKet);
+      recordAuditLog({
+        user: actorUser,
+        action: 'CREATE_AKUN_BAS',
+        entity: 'master_akun',
+        entity_id: info.lastInsertRowid,
+        new_values: { kode: cleanKode, uraian: cleanUraian },
+        notes: `Master Akun BAS baru [${cleanKode}] ditambahkan.`
+      });
       return getAkunById(info.lastInsertRowid);
     }
   }
 }
 
 function deleteAkun(id, actorUser = null) {
-  return db.prepare('DELETE FROM master_akun WHERE id = ?').run(id);
+  const res = db.prepare('DELETE FROM master_akun WHERE id = ?').run(id);
+  recordAuditLog({
+    user: actorUser,
+    action: 'DELETE_AKUN_BAS',
+    entity: 'master_akun',
+    entity_id: id,
+    notes: `Master Akun BAS ID ${id} dihapus.`
+  });
+  return res;
 }
 
 function bulkUpsertAkun(rows, options = {}) {
@@ -3460,6 +3596,9 @@ function getSubbagUsulan(periodeId, subbag) {
 }
 
 function submitSubbagUsulan({ periodeId, subbag, gdrive_link, catatan_usulan, user, total_semula = 0, total_menjadi = 0 }) {
+  if (user && Number(user.level) === 3) {
+    throw new Error('Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat mengajukan usulan revisi.');
+  }
   const cleanSubbag = normalizePic(subbag);
   const now = formatWaktuSakti();
   const submitter = user ? `${user.nama_pejabat} (${user.username})` : 'PIC Subbag';
@@ -3563,6 +3702,9 @@ function generateNextKodeRevisi(tahun = 2026, kodeSatker = '657811') {
 }
 
 function createRevisiPengajuan(data, user) {
+  if (user && Number(user.level) === 3) {
+    throw new Error('Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat mengajukan usulan revisi.');
+  }
   const subbag = normalizePic(data.subbag || (user ? user.pic_subbag : 'RENDATIN') || 'RENDATIN');
   if (user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
     const userSub = normalizePic(user.pic_subbag);
@@ -3996,6 +4138,18 @@ function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = ''
 function deleteRevisiPengajuan(id, user = null) {
   const rev = getRevisiPengajuanById(id);
   if (!rev) throw new Error('Data usulan revisi tidak ditemukan.');
+
+  if (user && Number(user.level) === 3) {
+    throw new Error('Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only.');
+  }
+
+  if (user && Number(user.level) === 2 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+    const userPic = normalizePic(user.pic_subbag);
+    const revPic = normalizePic(rev.subbag);
+    if (userPic !== revPic) {
+      throw new Error(`Akses ditolak. Operator ${userPic} tidak berwenang membatalkan usulan milik subbagian ${revPic}.`);
+    }
+  }
 
   if (rev.status_tahap === 'SELESAI' || rev.is_locked === 1) {
     throw new Error('Usulan revisi yang telah disahkan (Tahap 4) tidak dapat dibatalkan atau dihapus.');
