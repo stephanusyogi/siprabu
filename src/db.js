@@ -191,13 +191,16 @@ function recordAuditLog({
     const resolvedEntityId = String(entity_id !== '' && entity_id !== undefined && entity_id !== null ? entity_id : (target_id || ''));
 
     const isSimulated = Boolean(user?.original_dev_username && user.original_dev_username !== resolvedUsername);
+    const actorUsername = isSimulated ? user.original_dev_username : resolvedUsername;
+    const actorUserId = isSimulated ? (user.original_dev_id ?? resolvedUserId) : resolvedUserId;
     const roleRecorded = isSimulated
-      ? `${resolvedRole} [simulasi:${user.original_dev_username}]`
+      ? `developer [simulasi:${resolvedUsername}]`
       : resolvedRole;
-    const simPrefix = isSimulated
+    const rawNotes = String(notes || '');
+    const simPrefix = (isSimulated && !rawNotes.startsWith('[Identitas Asli:'))
       ? `[Identitas Asli: ${user.original_dev_username} | Peran Simulasi: ${resolvedUsername}] `
       : '';
-    const finalNotes = simPrefix + (notes || '');
+    const finalNotes = simPrefix + rawNotes;
 
     const stmt = db.prepare(`
       INSERT INTO audit_log (
@@ -208,8 +211,8 @@ function recordAuditLog({
     stmt.run(
       waktuWib,
       now.getTime(),
-      resolvedUserId,
-      resolvedUsername,
+      actorUserId,
+      actorUsername,
       roleRecorded,
       ip || '',
       action,
@@ -249,8 +252,31 @@ function getAuditLogs({
     if (row.new_values) {
       try { newObj = JSON.parse(row.new_values); } catch (e) { newObj = row.new_values; }
     }
+
+    // Normalisasi baris historis yang sebelumnya mencatat nama peran simulasi sebagai username utama
+    let normUsername = row.username;
+    let normRoleId = row.role_id || '-';
+    const legacySimMatch = String(normRoleId).match(/^(.*?)\s*\[simulasi:([^\]]+)\]$/i);
+    if (legacySimMatch) {
+      const prefixRole = legacySimMatch[1].trim();
+      const bracketVal = legacySimMatch[2].trim();
+      // Jika di dalam bracket adalah 'emenje' sedangkan username di kolom adalah akun simulasi (misal 'kul' / 'perencanaan')
+      if (bracketVal.toLowerCase() === 'emenje' && String(normUsername || '').toLowerCase() !== 'emenje') {
+        const simulatedTarget = normUsername;
+        normUsername = 'emenje';
+        normRoleId = `developer [simulasi:${simulatedTarget}]`;
+        try {
+          db.prepare('UPDATE audit_log SET username = ?, role_id = ? WHERE id = ?').run(normUsername, normRoleId, row.id);
+        } catch (_) {}
+      } else if (prefixRole.toLowerCase() !== 'developer' && String(normUsername || '').toLowerCase() === 'emenje') {
+        normRoleId = `developer [simulasi:${bracketVal}]`;
+      }
+    }
+
     return {
       ...row,
+      username: normUsername,
+      role_id: normRoleId,
       category: cat,
       old_values_obj: oldObj,
       new_values_obj: newObj

@@ -10635,6 +10635,20 @@ function renderAuditLogsTable() {
       : '<span class="badge badge-success" style="font-size:10.5px;">BERHASIL</span>';
 
     const hasDetail = Boolean(row.old_values || row.new_values);
+    const simMatch = String(row.role_id || '').match(/^(.*?)\s*\[simulasi:([^\]]+)\]$/i);
+    let roleHtml = `<div style="font-size:10.5px;color:#64748b;">${escHtml(row.role_id || '-')}</div>`;
+    if (simMatch) {
+      const baseRole = simMatch[1].trim() || 'developer';
+      const simRoleName = simMatch[2].trim();
+      roleHtml = `
+        <div style="font-size:10.5px;color:#64748b;">${escHtml(baseRole)}</div>
+        <div style="margin-top:2px;">
+          <span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:10px;">
+            🎭 Simulasi: ${escHtml(simRoleName)}
+          </span>
+        </div>
+      `;
+    }
     return `
       <tr>
         <td style="font-family:var(--font-mono);font-size:11px;color:#334155;white-space:nowrap;">
@@ -10643,7 +10657,7 @@ function renderAuditLogsTable() {
         </td>
         <td>
           <div style="font-weight:700;color:#0f172a;">${escHtml(row.username || 'anonymous')}</div>
-          <div style="font-size:10.5px;color:#64748b;">${escHtml(row.role_id || '-')}</div>
+          ${roleHtml}
         </td>
         <td class="text-center">
           <span style="display:inline-flex;align-items:center;gap:4px;background:${catMeta.badgeBg};color:${catMeta.badgeColor};font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:12px;">

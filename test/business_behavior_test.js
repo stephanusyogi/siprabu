@@ -810,7 +810,7 @@ async function runBusinessBehaviorTests() {
   // 29. BATCH 6 CANON — LOG AKTIVITAS: HAK AKSES EKSKLUSIF & 6 KELOMPOK KEJADIAN (BAB 14)
   // =========================================================================
   console.log('\n--- [29] Log Aktivitas: Hak Akses Eksklusif (Dev & Kasubag Rendatin) & 6 Kelompok Kejadian (Bab 14) ---');
-  const { getAuditLogs, classifyAuditCategory } = require('../src/db');
+  const { getAuditLogs, classifyAuditCategory, recordAuditLog } = require('../src/db');
   const { canManageUsers } = require('../src/auth');
 
   const tokAudit = generateSaktiRouteToken('view-audit');
@@ -885,6 +885,21 @@ async function runBusinessBehaviorTests() {
     isDeveloperUser(verifiedSimUser) === false &&
     canManageUsers(verifiedSimUser) === false,
     'Test 30.1 (Canon Bab 11.2 & 11.3): Saat Developer ganti peran ke Operator Level 2, identitas login permanen (emenje / LEVEL 0: DEVELOPER) tetap tersimpan untuk badge header, sementara kewenangan fitur mengikuti peran baru.'
+  );
+
+  recordAuditLog({
+    user: verifiedSimUser,
+    action: 'SWITCH_ROLE_SIMULATION',
+    entity: 'satker_users',
+    entity_id: verifiedSimUser.id,
+    notes: 'Pengujian atribusi pelaku simulasi Developer pada Log Aktivitas'
+  });
+  const latestSimAudit = db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 1').get();
+  assert(
+    latestSimAudit &&
+    latestSimAudit.username === 'emenje' &&
+    latestSimAudit.role_id === `developer [simulasi:${realTeknisRow.username}]`,
+    'Test 30.2 (Canon Bab 11.5 & Bab 14): Saat Developer melakukan Simulasi Ganti Peran atau aksi dalam mode simulasi, Pelaku (username) tercatat sebagai Developer (emenje) dengan keterangan peran simulasi (developer [simulasi:...]).'
   );
 
   console.log('\n================================================================');
