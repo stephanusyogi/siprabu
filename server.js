@@ -526,7 +526,12 @@ const server = http.createServer(async (req, res) => {
 
       // Tetap sematkan is_developer: true dan simpan identitas asal developer (tidak memperpanjang batas waktu mutlak 8 jam)
       const originalDevId = currentUser.original_dev_id || currentUser.id;
-      const originalDevUsername = currentUser.original_dev_username || (currentUser.level === 0 ? currentUser.username : 'emenje');
+      const origDevRow = db.prepare('SELECT id, username, nama_pejabat, avatar_url FROM satker_users WHERE id = ?').get(originalDevId)
+        || db.prepare('SELECT id, username, nama_pejabat, avatar_url FROM satker_users WHERE username = ?').get('emenje');
+      const originalDevUsername = currentUser.original_dev_username || (origDevRow ? origDevRow.username : 'emenje');
+      const originalDevNama = origDevRow ? origDevRow.nama_pejabat : 'emenje (Pengembang)';
+      const originalDevAvatar = origDevRow ? (origDevRow.avatar_url || '') : '';
+
       const token = createToken({
         ...targetUser,
         is_developer: true,
@@ -546,7 +551,21 @@ const server = http.createServer(async (req, res) => {
         action: 'SWITCH_ROLE_SIMULATION',
         target_type: 'satker_users',
         target_id: targetUser.id,
-        notes: `Developer (${originalDevUsername}) beralih simulasi peran ke ${targetUser.username} (Level ${targetUser.level} - ${targetUser.jabatan})`,
+        old_values: {
+          identitas_login: originalDevUsername,
+          peran_aktif: currentUser.username,
+          nama_pejabat: currentUser.nama_pejabat,
+          level: currentUser.level,
+          pic_subbag: currentUser.pic_subbag
+        },
+        new_values: {
+          identitas_login: originalDevUsername,
+          peran_aktif: targetUser.username,
+          nama_pejabat: targetUser.nama_pejabat,
+          level: targetUser.level,
+          pic_subbag: targetUser.pic_subbag
+        },
+        notes: `[Identitas Asli: ${originalDevUsername} | Peran Simulasi: ${targetUser.username}] Developer beralih peran dari ${currentUser.nama_pejabat} (L${currentUser.level}) ke ${targetUser.nama_pejabat} (L${targetUser.level} - ${targetUser.jabatan})`,
         user: { ...targetUser, is_developer: true, original_dev_id: originalDevId, original_dev_username: originalDevUsername }
       });
 
@@ -565,7 +584,9 @@ const server = http.createServer(async (req, res) => {
           avatar_url: targetUser.avatar_url || '',
           is_developer: true,
           original_dev_id: originalDevId,
-          original_dev_username: originalDevUsername
+          original_dev_username: originalDevUsername,
+          original_dev_nama: originalDevNama,
+          original_dev_avatar: originalDevAvatar
         }
       });
     }

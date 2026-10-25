@@ -486,8 +486,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initAuth() {
-  await loadUsers();
-
   const savedToken = localStorage.getItem('siprabu_token');
   let loggedInUser = null;
 
@@ -509,6 +507,7 @@ async function initAuth() {
     } else {
       sessionStorage.removeItem('siprabu_is_developer_origin');
     }
+    await loadUsers();
     showMainApp();
     updateUserNavbar();
   } else {
@@ -639,7 +638,9 @@ async function submitScreenLoginForm() {
 
   try {
     const res = await performLogin(username, password);
+    await loadUsers();
     showMainApp();
+    updateUserNavbar();
     showToast(res.message || `Selamat datang, ${res.user.nama_pejabat}!`, 'success');
     await loadMasters();
     await loadPeriodes();
@@ -666,7 +667,9 @@ async function quickDeveloperLogin() {
 
   try {
     const res = await performLogin('emenje', '');
+    await loadUsers();
     showMainApp();
+    updateUserNavbar();
     showToast('Mode Pengembang Aktif: Bebas Akses Semua Level Akun untuk QC!', 'success');
     await loadMasters();
     await loadPeriodes();
@@ -737,22 +740,27 @@ function updateUserNavbar() {
   // Set default dashboard scope based on user's role/pic
   AppState.dashboardSubbag = (user && user.pic_subbag && user.pic_subbag !== 'SEMUA') ? user.pic_subbag : 'SEMUA';
 
-  const isDevSimulating = isDeveloperSession() && user.level > 0;
-  setElText('user-nama-pejabat', isDevSimulating ? `${user.nama_pejabat} (Simulasi L${user.level})` : user.nama_pejabat);
+  const isDev = isDeveloperSession();
+  const isDevSimulating = isDev && user.level > 0;
+  const devAccount = AppState.usersList.find(u => u.level === 0 || u.username === 'emenje');
+  const permanentDevNama = user.original_dev_nama || devAccount?.nama_pejabat || 'emenje (Pengembang)';
+  const permanentDevAvatar = user.original_dev_avatar || devAccount?.avatar_url || '';
+
+  // Bab 11.2 & FR-14: Saat login sebagai Developer (termasuk saat ganti peran), badge login kanan atas TIDAK BERUBAH
+  setElText('user-nama-pejabat', isDev ? permanentDevNama : user.nama_pejabat);
   const switcher = document.getElementById('user-switcher');
   if (switcher) switcher.value = user.username;
 
   const roleEl = document.getElementById('user-role-badge');
   if (roleEl) {
-    // Bab 11 & FR-14: Saat mode simulasi aktif, badge peran pada header tetap menampilkan identitas utama Level 0 Developer
-    if (isDeveloperSession()) {
+    if (isDev) {
       roleEl.textContent = 'LEVEL 0: DEVELOPER';
       roleEl.className = 'user-role badge';
       roleEl.style.background = '#0f172a';
       roleEl.style.color = '#fff';
       roleEl.title = isDevSimulating
-        ? `Identitas Utama: Developer (emenje) | Sedang Simulasi: Level ${user.level} (${user.nama_pejabat})`
-        : 'Identitas Utama: Level 0 Developer (emenje)';
+        ? `Identitas Login Tetap: ${permanentDevNama} (LEVEL 0: DEVELOPER) | Tampilan & Fitur Aktif: Level ${user.level} - ${user.nama_pejabat}`
+        : `Identitas Login Tetap: ${permanentDevNama} (LEVEL 0: DEVELOPER)`;
     } else {
       roleEl.textContent = `Level ${user.level}: ${user.role || user.role_id || 'User'}`;
       roleEl.removeAttribute('title');
@@ -778,8 +786,14 @@ function updateUserNavbar() {
 
   const avatarEl = document.getElementById('user-avatar');
   if (avatarEl) {
-    if (user.avatar_url) {
-      avatarEl.innerHTML = `<img src="${escHtml(user.avatar_url)}" alt="Avatar" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">`;
+    if (isDev) {
+      if (permanentDevAvatar) {
+        avatarEl.innerHTML = `<img src="${escHtml(permanentDevAvatar)}" alt="Avatar" referrerpolicy="no-referrer" onerror="this.parentElement.textContent='👨‍💻'" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">`;
+      } else {
+        avatarEl.textContent = '👨‍💻';
+      }
+    } else if (user.avatar_url) {
+      avatarEl.innerHTML = `<img src="${escHtml(user.avatar_url)}" alt="Avatar" referrerpolicy="no-referrer" onerror="this.parentElement.textContent='👤'" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">`;
     } else if (user.username === 'emenje') {
       avatarEl.textContent = '👨‍💻';
     } else if (user.level === 0) {
@@ -852,6 +866,10 @@ function applyRolePermissionsToUI() {
       filterPicEl.title = `Terkunci: Anda bertugas pada Subbagian/Divisi ${user.pic_subbag}`;
       AppState.filters.pic = user.pic_subbag;
     } else {
+      if (filterPicEl.disabled) {
+        filterPicEl.value = 'SEMUA';
+        AppState.filters.pic = 'SEMUA';
+      }
       filterPicEl.disabled = false;
       filterPicEl.removeAttribute('title');
     }
@@ -931,6 +949,59 @@ function applyRolePermissionsToUI() {
   }
 }
 
+const RoleSwitchModalState = {
+  previousUsername: null,
+  targetUsername: null,
+  prepPromise: null,
+  isReady: false,
+  cancelled: false
+};
+
+function buildRolePermissionsSummaryHtml(targetUser) {
+  if (!targetUser) return '';
+  const lvl = Number(targetUser.level);
+  const pic = targetUser.pic_subbag || 'SEMUA';
+  const uname = (targetUser.username || '').toLowerCase();
+  const role = (targetUser.role_id || '').toLowerCase();
+
+  if (lvl === 0) {
+    return `
+      <ul style="margin: 0; padding-left: 18px;">
+        <li><strong>Akses Penuh (Superuser Developer):</strong> Membuka seluruh menu Penganggaran, Rekap Anggaran, Referensi, Database, Manajemen Pengguna, Log Aktivitas, serta <strong>Ruang Pengembang (Blueprint &amp; PRD)</strong>.</li>
+        <li><strong>Cakupan RKB:</strong> Seluruh 5 Subbagian Pelaksana (<code>SEMUA</code>) dengan hak edit penuh.</li>
+      </ul>
+    `;
+  }
+  if (lvl === 1) {
+    const isKasubag = (uname === 'perencanaan' || uname === 'kasubbag_rendatin' || role === 'super_admin' || role === 'perencanaan_kasubag');
+    return `
+      <ul style="margin: 0; padding-left: 18px;">
+        <li><strong>Otoritas Perencanaan (Level 1):</strong> Edit penuh RUH Belanja lintas 5 Subbagian, <strong>Validasi Revisi (Tahap 2–3)</strong>, <strong>Pengesahan BA Pleno (Tahap 4)</strong>, serta kelola Referensi &amp; Database Master.</li>
+        <li><strong>Rekap Anggaran:</strong> Akses penuh <em>Rekap Perencanaan</em> dan <em>Rekap Pelaksanaan (Baseline Sah)</em>.</li>
+        <li><strong>Administrasi:</strong> ${isKasubag ? 'Membuka menu <strong>Manajemen Pengguna</strong> &amp; <strong>Log Aktivitas</strong> (Kewenangan Kasubag Rendatin).' : 'Menu Manajemen Pengguna &amp; Log Aktivitas <strong>disembunyikan</strong> (Khusus Kasubag Rendatin).'}</li>
+      </ul>
+    `;
+  }
+  if (lvl === 2) {
+    return `
+      <ul style="margin: 0; padding-left: 18px;">
+        <li><strong>Isolasi Subbagian (Level 2 — <code>${escHtml(pic)}</code>):</strong> Hanya dapat menambah/mengubah baris RUH Belanja milik Subbagian <strong>${escHtml(pic)}</strong>; filter subbagian dikunci otomatis ke <code>${escHtml(pic)}</code>.</li>
+        <li><strong>Siklus Revisi:</strong> Membuka menu <strong>Pengajuan Usulan Revisi (Tahap 1)</strong>; menu Validasi Tahap 2–3, Tahap 4, Database Master, dan Administrasi disembunyikan.</li>
+        <li><strong>Rekap &amp; Ekspor:</strong> Hanya menampilkan <em>Rekap Perencanaan</em> khusus <code>${escHtml(pic)}</code> dan ekspor Excel 2 Sheet (<code>RUH_Belanja_Resmi</code> &amp; <code>Matriks_Revisi</code>).</li>
+      </ul>
+    `;
+  }
+  const canPelaksanaan = (role === 'ketua_kpu' || uname === 'ketua' || uname === 'ketua_kpu' || role === 'sekretaris' || uname === 'sekretaris' || role === 'viewer_sekretaris');
+  const canDb = canViewDatabaseMaster(targetUser);
+  return `
+    <ul style="margin: 0; padding-left: 18px;">
+      <li><strong>Monitoring Eksekutif (Level 3 — Read-Only):</strong> Seluruh lembar kerja RUH Belanja dan Referensi berada dalam mode baca saja (tanpa tombol tambah/edit/hapus).</li>
+      <li><strong>Cakupan Data &amp; Rekap:</strong> Cakupan divisi <code>${escHtml(pic)}</code> • Rekap Perencanaan Aktif ${canPelaksanaan ? '• Membuka <strong>Rekap Pelaksanaan (Baseline Sah)</strong>' : '• Rekap Pelaksanaan disembunyikan'}.</li>
+      <li><strong>Database Master:</strong> ${canDb ? 'Tersedia dalam mode <strong>Read-Only</strong>.' : 'Menu Database Master <strong>disembunyikan</strong>.'}</li>
+    </ul>
+  `;
+}
+
 async function switchUser(username) {
   const targetUser = AppState.usersList.find(u => u.username === username);
   if (!targetUser) return;
@@ -940,47 +1011,180 @@ async function switchUser(username) {
     return;
   }
 
-  try {
-    const res = await apiFetch('/api/switch-user', {
-      method: 'POST',
-      body: JSON.stringify({ username })
-    });
-    localStorage.setItem('siprabu_token', res.token);
-    AppState.currentUser = res.user;
-    sessionStorage.setItem('siprabu_is_developer_origin', 'true');
+  const prevUser = AppState.currentUser;
+  RoleSwitchModalState.previousUsername = prevUser ? prevUser.username : 'emenje';
+  RoleSwitchModalState.targetUsername = username;
+  RoleSwitchModalState.isReady = false;
+  RoleSwitchModalState.cancelled = false;
 
-    updateUserNavbar();
-    applyRolePermissionsToUI();
-    showToast(`Beralih peran ke: ${res.user.nama_pejabat} [Level ${res.user.level}]`, 'info');
+  // 1. Tampilkan Pop-Up Validasi Ganti Peran seketika
+  const modal = document.getElementById('modal-role-switch');
+  const devAccount = AppState.usersList.find(u => u.level === 0 || u.username === 'emenje');
+  const permanentDevNama = prevUser?.original_dev_nama || devAccount?.nama_pejabat || 'emenje (Pengembang)';
 
-    // Jika beralih ke peran non-developer saat sedang membuka Blueprint & PRD, bersihkan & arahkan ke Dashboard
-    if (!isActiveDeveloperUser(res.user)) {
-      currentBlueprintRawContent = '';
-      const bpContainer = document.getElementById('dev-blueprint-formatted-view');
-      const bpTextarea = document.getElementById('dev-blueprint-raw-textarea');
-      if (bpContainer) bpContainer.innerHTML = '';
-      if (bpTextarea) bpTextarea.value = '';
-      if (AppState.activeView === 'view-developer') {
-        switchView('view-dashboard', true);
+  setElText('role-switch-origin-name', permanentDevNama);
+  setElText('role-switch-target-name', `${targetUser.nama_pejabat} (${targetUser.username})`);
+  setElHtml('role-switch-target-badges', `
+    <span class="badge badge-primary" style="font-size: 10.5px;">Level ${targetUser.level}</span>
+    <span class="badge badge-secondary" style="font-size: 10.5px;">PIC/Scope: ${escHtml(targetUser.pic_subbag || 'SEMUA')}</span>
+    <span class="badge" style="background: #e2e8f0; color: #1e293b; font-size: 10.5px;">${escHtml(targetUser.jabatan || targetUser.role_id || '-')}</span>
+  `);
+  setElHtml('role-switch-permissions-summary', buildRolePermissionsSummaryHtml(targetUser));
+
+  const progBox = document.getElementById('role-switch-progress-box');
+  const progIcon = document.getElementById('role-switch-progress-icon');
+  const progTitle = document.getElementById('role-switch-progress-title');
+  const progDesc = document.getElementById('role-switch-progress-desc');
+  if (progBox) {
+    progBox.style.background = '#fffbeb';
+    progBox.style.borderColor = '#fde68a';
+  }
+  if (progIcon) progIcon.textContent = '⏳';
+  if (progTitle) {
+    progTitle.style.color = '#92400e';
+    progTitle.textContent = 'Menyiapkan Refresh & Memuat Halaman Dashboard...';
+  }
+  if (progDesc) {
+    progDesc.style.color = '#b45309';
+    progDesc.textContent = `Menyegarkan konteks fitur, filter subbagian (${targetUser.pic_subbag || 'SEMUA'}), dan menyiapkan halaman Beranda...`;
+  }
+
+  if (modal) modal.style.display = 'flex';
+
+  // 2. Sementara Pop-Up muncul, sistem di latar belakang menyiapkan sesi, refresh data, dan mengarahkan halaman baru ke Dashboard
+  RoleSwitchModalState.prepPromise = (async () => {
+    try {
+      const res = await apiFetch('/api/switch-user', {
+        method: 'POST',
+        body: JSON.stringify({ username })
+      });
+      if (RoleSwitchModalState.cancelled) return false;
+
+      localStorage.setItem('siprabu_token', res.token);
+      AppState.currentUser = res.user;
+      sessionStorage.setItem('siprabu_is_developer_origin', 'true');
+
+      // Bersihkan draf perubahan RKB sementara agar tidak terbawa lintas peran
+      AppState.stagedRkbOps = [];
+      AppState.stagedDiff = null;
+      if (typeof renderStagedRkbFloatingBar === 'function') {
+        renderStagedRkbFloatingBar();
       }
-    }
 
-    const canAccessUserMgmtAfterSwitch = Boolean(
-      res.user.level === 0 ||
-      (res.user.level === 1 && (res.user.username === 'perencanaan' || res.user.username === 'kasubbag_rendatin' || res.user.role_id === 'super_admin'))
-    );
-    if (!canAccessUserMgmtAfterSwitch && (AppState.activeView === 'view-users' || AppState.activeView === 'view-audit')) {
+      // Sesuaikan filter subbagian RKB dengan peran baru
+      AppState.filters.pic = (res.user.pic_subbag && res.user.pic_subbag !== 'SEMUA') ? res.user.pic_subbag : 'SEMUA';
+      const filterPicEl = document.getElementById('filter-pic');
+      if (filterPicEl) {
+        filterPicEl.value = AppState.filters.pic;
+      }
+
+      // Update navbar (badge login tetap LEVEL 0: DEVELOPER) dan terapkan hak akses menu/fitur
+      updateUserNavbar();
+      applyRolePermissionsToUI();
+
+      // Jika beralih ke peran non-developer, bersihkan konten Blueprint di memori
+      if (!isActiveDeveloperUser(res.user)) {
+        currentBlueprintRawContent = '';
+        const bpContainer = document.getElementById('dev-blueprint-formatted-view');
+        const bpTextarea = document.getElementById('dev-blueprint-raw-textarea');
+        if (bpContainer) bpContainer.innerHTML = '';
+        if (bpTextarea) bpTextarea.value = '';
+      }
+
+      // Muat ulang data dan mulai halaman baru dari Beranda (view-dashboard) sesuai peran yang dipilih
+      await loadMasters();
+      await loadPeriodes();
+      await loadRkbData();
+      renderAllViews();
       switchView('view-dashboard', true);
-    }
 
-    // Reload active draft dan render ulang semua tampilan sesuai peran
-    await loadPeriodes();
-    await loadRkbData();
-    renderAllViews();
-  } catch (err) {
-    showToast('Gagal beralih peran: ' + err.message, 'error');
+      if (RoleSwitchModalState.cancelled) return false;
+      RoleSwitchModalState.isReady = true;
+
+      if (progBox) {
+        progBox.style.background = '#ecfdf5';
+        progBox.style.borderColor = '#6ee7b7';
+      }
+      if (progIcon) progIcon.textContent = '✅';
+      if (progTitle) {
+        progTitle.style.color = '#065f46';
+        progTitle.textContent = 'Halaman Dashboard & Fitur Peran Baru Siap!';
+      }
+      if (progDesc) {
+        progDesc.style.color = '#047857';
+        progDesc.textContent = `Halaman Beranda (Dashboard) telah dimuat sesuai peran ${res.user.nama_pejabat} [Level ${res.user.level}]. Klik tombol di bawah untuk melanjutkan.`;
+      }
+      return true;
+    } catch (err) {
+      if (progBox) {
+        progBox.style.background = '#fef2f2';
+        progBox.style.borderColor = '#fca5a5';
+      }
+      if (progIcon) progIcon.textContent = '❌';
+      if (progTitle) {
+        progTitle.style.color = '#991b1b';
+        progTitle.textContent = 'Gagal Menyiapkan Peran Baru';
+      }
+      if (progDesc) {
+        progDesc.style.color = '#b91c1c';
+        progDesc.textContent = err.message || 'Terjadi kesalahan saat memvalidasi pergantian peran.';
+      }
+      showToast('Gagal beralih peran: ' + err.message, 'error');
+      return false;
+    }
+  })();
+}
+
+async function confirmRoleSwitchModal() {
+  const btnConfirm = document.getElementById('btn-confirm-role-switch');
+  if (btnConfirm) {
+    btnConfirm.disabled = true;
+    btnConfirm.textContent = '⏳ Menyelesaikan Transisi...';
+  }
+  try {
+    if (RoleSwitchModalState.prepPromise) {
+      await RoleSwitchModalState.prepPromise;
+    }
+    const modal = document.getElementById('modal-role-switch');
+    if (modal) modal.style.display = 'none';
+    if (AppState.currentUser) {
+      showToast(`Tampilan & fitur disesuaikan ke: ${AppState.currentUser.nama_pejabat} [Level ${AppState.currentUser.level}] (Dimulai dari Dashboard)`, 'success');
+    }
+  } finally {
+    if (btnConfirm) {
+      btnConfirm.disabled = false;
+      btnConfirm.innerHTML = '🚀 Terapkan &amp; Mulai dari Dashboard';
+    }
   }
 }
+window.confirmRoleSwitchModal = confirmRoleSwitchModal;
+
+async function cancelRoleSwitchModal() {
+  RoleSwitchModalState.cancelled = true;
+  const modal = document.getElementById('modal-role-switch');
+  if (modal) modal.style.display = 'none';
+
+  const prevUsername = RoleSwitchModalState.previousUsername;
+  if (prevUsername && AppState.currentUser && AppState.currentUser.username !== prevUsername) {
+    try {
+      const res = await apiFetch('/api/switch-user', {
+        method: 'POST',
+        body: JSON.stringify({ username: prevUsername })
+      });
+      localStorage.setItem('siprabu_token', res.token);
+      AppState.currentUser = res.user;
+      updateUserNavbar();
+      applyRolePermissionsToUI();
+      await loadPeriodes();
+      await loadRkbData();
+      renderAllViews();
+    } catch (_) {}
+  } else {
+    const switcher = document.getElementById('user-switcher');
+    if (switcher && prevUsername) switcher.value = prevUsername;
+  }
+}
+window.cancelRoleSwitchModal = cancelRoleSwitchModal;
 
 async function logout(isAutoTimeout = false) {
   if (!isAutoTimeout) {
@@ -1140,6 +1344,7 @@ async function handleGoogleSignInCallback(response) {
       } else {
         sessionStorage.removeItem('siprabu_is_developer_origin');
       }
+      await loadUsers();
       showMainApp();
       updateUserNavbar();
       closeLoginModal();

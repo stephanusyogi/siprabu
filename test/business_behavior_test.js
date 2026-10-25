@@ -850,6 +850,36 @@ async function runBusinessBehaviorTests() {
     'Test 29.3 (Canon Bab 14.2): Mesin Log Aktivitas mengklasifikasikan 6 kelompok kejadian (RKB, SIKLUS, MASTER, USER, AUTH, UNDUH) dan menyajikan data Semula vs Menjadi secara akurat.'
   );
 
+  // =========================================================================
+  // 30. BATCH 7 CANON — GANTI PERAN (SIMULASI): BADGE LOGIN TETAP & FITUR MENYESUAIKAN PERAN (BAB 11)
+  // =========================================================================
+  console.log('\n--- [30] Ganti Peran: Badge Login Tetap Permanen & Konteks Fitur Menyesuaikan Peran Baru (Bab 11) ---');
+  const { isDeveloperUser } = require('../src/auth');
+  const realDevRow = db.prepare("SELECT * FROM satker_users WHERE username = 'emenje'").get();
+  const realTeknisRow = db.prepare("SELECT * FROM satker_users WHERE username = 'teknis' OR pic_subbag = 'TEKNIS' LIMIT 1").get();
+
+  const simToken = createToken({
+    ...realTeknisRow,
+    is_developer: true,
+    original_dev_id: realDevRow.id,
+    original_dev_username: realDevRow.username,
+    dev_token_version: realDevRow.token_version
+  });
+  const verifiedSimUser = verifyToken(simToken, db);
+
+  assert(
+    verifiedSimUser &&
+    verifiedSimUser.is_developer === true &&
+    verifiedSimUser.original_dev_id === realDevRow.id &&
+    verifiedSimUser.original_dev_username === 'emenje' &&
+    verifiedSimUser.original_dev_nama === realDevRow.nama_pejabat &&
+    verifiedSimUser.level === realTeknisRow.level &&
+    verifiedSimUser.pic_subbag === realTeknisRow.pic_subbag &&
+    isDeveloperUser(verifiedSimUser) === false &&
+    canManageUsers(verifiedSimUser) === false,
+    'Test 30.1 (Canon Bab 11.2 & 11.3): Saat Developer ganti peran ke Operator Level 2, identitas login permanen (emenje / LEVEL 0: DEVELOPER) tetap tersimpan untuk badge header, sementara kewenangan fitur mengikuti peran baru.'
+  );
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');

@@ -203,9 +203,10 @@ function verifyToken(token, dbInstance = null, options = {}) {
       }
 
       // Jika sesi ini berasal dari peran hasil switch pengembang, verifikasi akun pengembang asal
+      let origDev = null;
       if (payload.original_dev_id && payload.is_developer) {
-        const origDev = dbInstance.prepare(`
-          SELECT id, username, is_active, token_version
+        origDev = dbInstance.prepare(`
+          SELECT id, username, nama_pejabat, avatar_url, is_active, token_version
           FROM satker_users
           WHERE id = ? AND is_active = 1
         `).get(payload.original_dev_id);
@@ -223,8 +224,10 @@ function verifyToken(token, dbInstance = null, options = {}) {
         iat: payload.iat || null,
         exp: payload.exp || null,
         is_developer: Boolean(payload.is_developer),
-        original_dev_id: payload.original_dev_id || null,
-        original_dev_username: payload.original_dev_username || (payload.is_developer ? 'emenje' : null),
+        original_dev_id: payload.original_dev_id || (payload.is_developer ? dbUser.id : null),
+        original_dev_username: payload.original_dev_username || (origDev ? origDev.username : (payload.is_developer ? 'emenje' : null)),
+        original_dev_nama: origDev ? origDev.nama_pejabat : (payload.is_developer ? dbUser.nama_pejabat : null),
+        original_dev_avatar: origDev ? (origDev.avatar_url || '') : (payload.is_developer ? (dbUser.avatar_url || '') : null),
         dev_token_version: payload.dev_token_version || null
       };
     }

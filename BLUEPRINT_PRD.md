@@ -97,7 +97,7 @@
 | **Validasi Revisi** | Validasi Tahap 2 dan Tahap 3 beserta keputusan, alasan penolakan, dan status PIC. |
 | **Pengesahan BA Pleno** | Verifikasi dokumen Tahap 4, pengesahan baseline, dan penutupan siklus. |
 | **Monitoring Revisi** | Status per PIC, alasan penolakan, jejak tahap, dan pemantauan siklus. |
-| **Pusat Siklus Dokumen** | Arsip anggaran awal dan seluruh baseline disahkan beserta dokumen pendukung; termasuk riwayat arsip revisi. |
+| **Pusat Siklus Dokumen** | Arsip anggaran awal dan seluruh baseline disahkan beserta dokumen pendukung; menyatukan fungsi riwayat arsip revisi dalam satu tampilan terpadu (dilengkapi aksi buka rincian RKB, sanding semula vs menjadi, unduh Excel, dan koreksi tautan). |
 
 ---
 
@@ -181,8 +181,8 @@
 
 ## 11. Ganti Peran untuk Pengujian
 1. Fitur **Ganti Peran** hanya tersedia bagi **Level 0** sebagai alat uji fitur web.
-2. Akun login, identitas permanen, dan badge kanan atas tetap **LEVEL 0: DEVELOPER**.
-3. Pilihan peran simulasi memicu refresh konteks fitur web sehingga menu dan aksi mengikuti aturan peran yang sedang diuji.
+2. **Badge Login Tetap Permanen:** Akun login, nama profil (`emenje (Pengembang)`), avatar, dan badge kanan atas tetap **LEVEL 0: DEVELOPER** (tidak ikut berubah menjadi nama/badge peran simulasi); hanya pemilih `Ganti Peran`, tampilan halaman, menu navigasi, filter, dan fitur aplikasi yang menyesuaikan peran baru.
+3. **Pop-Up Validasi Ganti Peran & Start dari Dashboard:** Saat memilih peran simulasi pada dropdown `Ganti Peran`, sistem memunculkan **Pop-Up Validasi Ganti Peran** yang menampilkan detail peran tujuan beserta cakupan hak aksesnya. Sementara Pop-Up tampil, sistem di latar belakang menyiapkan penyegaran sesi, menyesuaikan hak akses fitur/menu serta filter subbagian, dan memuat halaman baru dimulai dari **Beranda / Dashboard (`#view-dashboard`)** sesuai peran yang dipilih.
 4. Simulasi tidak mengubah data akun permanen dan tidak dapat meningkatkan kewenangan backend di luar ketentuan peran uji.
 5. Audit tindakan selama simulasi membedakan identitas asli dan peran simulasi; logout menghapus simulasi.
 

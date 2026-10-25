@@ -4867,7 +4867,64 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.9.8"></script>
+    <!-- ================================================================= -->
+    <!-- MODAL: POP-UP VALIDASI & TRANSISI GANTI PERAN (BAB 11 CANON)      -->
+    <!-- ================================================================= -->
+    <div id="modal-role-switch" class="modal-backdrop" style="display: none; z-index: 1100;">
+      <div class="modal-box" style="max-width: 560px; width: 95%;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff;">
+          <div>
+            <h3 style="margin: 0; font-size: 16px; color: #ffffff;">🔄 Validasi Ganti Peran (Simulasi Pengujian)</h3>
+            <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">Badge Login Tetap LEVEL 0: DEVELOPER • Tampilan &amp; Fitur Menyesuaikan Peran Baru</div>
+          </div>
+          <button type="button" class="btn-close" style="color: #ffffff;" onclick="cancelRoleSwitchModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 18px;">
+          <!-- Identitas Permanen vs Peran Tujuan -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">🔒 Identitas Login Permanen</div>
+              <div style="font-size: 13.5px; font-weight: 800; color: #0f172a;" id="role-switch-origin-name">emenje (Pengembang)</div>
+              <div style="margin-top: 4px;">
+                <span class="badge" style="background: #0f172a; color: #ffffff; font-size: 10.5px; font-weight: 700;">LEVEL 0: DEVELOPER (TETAP)</span>
+              </div>
+            </div>
+            <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">🎯 Peran Simulasi Tujuan</div>
+              <div style="font-size: 13.5px; font-weight: 800; color: #1e3a8a;" id="role-switch-target-name">-</div>
+              <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;" id="role-switch-target-badges">
+                <!-- Badges populated via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Cakupan Tampilan & Fitur Peran Baru -->
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+            <div style="font-size: 11.5px; font-weight: 800; color: #334155; margin-bottom: 6px;">📋 Penyesuaian Tampilan &amp; Hak Akses Fitur:</div>
+            <div id="role-switch-permissions-summary" style="font-size: 12px; color: #475569; line-height: 1.55;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- Status Penyiapan & Refresh Halaman Baru (Start Dashboard) -->
+          <div id="role-switch-progress-box" style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;">
+            <div id="role-switch-progress-icon" style="font-size: 20px;">⏳</div>
+            <div style="flex: 1;">
+              <div id="role-switch-progress-title" style="font-size: 12.5px; font-weight: 800; color: #92400e;">Menyiapkan Refresh &amp; Memuat Halaman Dashboard...</div>
+              <div id="role-switch-progress-desc" style="font-size: 11.5px; color: #b45309; margin-top: 2px;">Menyegarkan konteks fitur, filter subbagian, dan memuat halaman Beranda sesuai peran baru.</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-role-switch" onclick="cancelRoleSwitchModal()">Batal &amp; Kembali</button>
+          <button type="button" class="btn btn-primary" id="btn-confirm-role-switch" style="font-weight: 800;" onclick="confirmRoleSwitchModal()">
+            🚀 Terapkan &amp; Mulai dari Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js?v=3.9.9"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
