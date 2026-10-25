@@ -75,15 +75,104 @@ function formatWaktuSakti(d = new Date()) {
 }
 
 /**
+ * Klasifikasikan setiap entri audit_log ke dalam 6 kelompok kejadian utama (Bab 14 Canon):
+ * 1. RKB    - Perubahan RUH Belanja RKB (Batch Commit & mutasi baris)
+ * 2. SIKLUS - Alur Siklus & Revisi 4 Tahap (Pengajuan, Validasi, Pleno, Pengesahan Tahap 4, Tautan Pasca-Pengesahan)
+ * 3. MASTER - Referensi & Database Master (PPK, PPS/TPS, Paslon, Kuantitas, SBM, BAS, Regulasi JDIH, Pengaturan Satker)
+ * 4. USER   - Manajemen Pengguna & Hak Akses
+ * 5. AUTH   - Autentikasi, Sesi & Simulasi Ganti Peran
+ * 6. UNDUH  - Unduhan & Ekspor Dokumen Resmi
+ */
+function classifyAuditCategory(action = '', entity = '') {
+  const act = String(action || '').toUpperCase();
+  const ent = String(entity || '').toLowerCase();
+
+  if (
+    act === 'COMMIT_RKB_CHANGES' ||
+    act.includes('_RKB_ROW') ||
+    act === 'CASCADE_PIC_SUBBAG' ||
+    act === 'CASCADE_SASARAN' ||
+    act === 'REORDER_ROW' ||
+    act === 'CLEAR_RKB_ROWS' ||
+    ent === 'rab_baris'
+  ) {
+    return 'RKB';
+  }
+
+  if (
+    act.includes('REVISI') ||
+    act.includes('TAHAP4') ||
+    act.includes('POST_RATIFICATION') ||
+    act.includes('PERIODE') ||
+    act.includes('USULAN') ||
+    act.includes('PLENO') ||
+    ent === 'revisi_pengajuan' ||
+    ent === 'subbag_usulan_revisi' ||
+    (ent === 'periode_anggaran' && act !== 'COMMIT_RKB_CHANGES')
+  ) {
+    return 'SIKLUS';
+  }
+
+  if (
+    act.includes('KUANTITAS') ||
+    act.includes('PASLON') ||
+    act.includes('KECAMATAN') ||
+    act.includes('DESA') ||
+    act.includes('SBM') ||
+    act.includes('AKUN') ||
+    act.includes('REGULASI') ||
+    act === 'UPDATE_SETTINGS' ||
+    ent.startsWith('master_') ||
+    ent === 'settings_satker'
+  ) {
+    return 'MASTER';
+  }
+
+  if (
+    act === 'CREATE_USER' ||
+    act === 'UPDATE_USER' ||
+    act === 'DELETE_USER' ||
+    act === 'TOGGLE_USER_STATUS' ||
+    (ent === 'satker_users' && act !== 'SWITCH_ROLE_SIMULATION')
+  ) {
+    return 'USER';
+  }
+
+  if (
+    act.startsWith('LOGIN_') ||
+    act === 'LOGOUT' ||
+    act === 'SWITCH_ROLE_SIMULATION' ||
+    ent === 'session'
+  ) {
+    return 'AUTH';
+  }
+
+  if (
+    act.includes('DOWNLOAD') ||
+    act.includes('EXPORT') ||
+    ent === 'download_requests'
+  ) {
+    return 'UNDUH';
+  }
+
+  return 'MASTER';
+}
+
+/**
  * Catat log audit ke tabel audit_log tanpa merekam password atau token.
  * Membedakan identitas asli pengembang (Level 0) dan peran simulasi saat pengujian (Bab 11 & FR-14 Canon).
  */
 function recordAuditLog({
   user = null,
+  user_id = null,
+  username = '',
+  role_id = '',
   ip = '',
   action = '',
   entity = '',
   entity_id = '',
+  target_type = '',
+  target_id = '',
   old_values = null,
   new_values = null,
   status = 'SUCCESS',
@@ -95,12 +184,18 @@ function recordAuditLog({
     const now = new Date();
     const waktuWib = getJakartaTimeString(now);
 
-    const isSimulated = Boolean(user?.original_dev_username && user.original_dev_username !== user.username);
+    const resolvedUsername = user?.username || username || 'anonymous';
+    const resolvedUserId = user?.id ?? user_id ?? null;
+    const resolvedRole = user?.role_id || role_id || '-';
+    const resolvedEntity = entity || target_type || 'system';
+    const resolvedEntityId = String(entity_id !== '' && entity_id !== undefined && entity_id !== null ? entity_id : (target_id || ''));
+
+    const isSimulated = Boolean(user?.original_dev_username && user.original_dev_username !== resolvedUsername);
     const roleRecorded = isSimulated
-      ? `${user.role_id || '-'} [simulasi:${user.original_dev_username}]`
-      : (user?.role_id || '-');
+      ? `${resolvedRole} [simulasi:${user.original_dev_username}]`
+      : resolvedRole;
     const simPrefix = isSimulated
-      ? `[Identitas Asli: ${user.original_dev_username} | Peran Simulasi: ${user.username}] `
+      ? `[Identitas Asli: ${user.original_dev_username} | Peran Simulasi: ${resolvedUsername}] `
       : '';
     const finalNotes = simPrefix + (notes || '');
 
@@ -113,13 +208,13 @@ function recordAuditLog({
     stmt.run(
       waktuWib,
       now.getTime(),
-      user?.id || null,
-      user?.username || 'anonymous',
+      resolvedUserId,
+      resolvedUsername,
       roleRecorded,
       ip || '',
       action,
-      entity,
-      String(entity_id || ''),
+      resolvedEntity,
+      resolvedEntityId,
       cleanOld,
       cleanNew,
       status,
@@ -130,24 +225,107 @@ function recordAuditLog({
   }
 }
 
-function getAuditLogs({ limit = 100, offset = 0, action = '', entity = '', username = '' } = {}) {
-  let sql = 'SELECT * FROM audit_log WHERE 1=1';
-  const params = [];
-  if (action) {
-    sql += ' AND action = ?';
-    params.push(action);
+function getAuditLogs({
+  limit = 100,
+  offset = 0,
+  category = '',
+  action = '',
+  entity = '',
+  username = '',
+  search = '',
+  date_start = '',
+  date_end = '',
+  include_meta = false
+} = {}) {
+  let allRows = db.prepare('SELECT * FROM audit_log ORDER BY id DESC').all();
+
+  const enriched = allRows.map(row => {
+    const cat = classifyAuditCategory(row.action, row.entity);
+    let oldObj = null;
+    let newObj = null;
+    if (row.old_values) {
+      try { oldObj = JSON.parse(row.old_values); } catch (e) { oldObj = row.old_values; }
+    }
+    if (row.new_values) {
+      try { newObj = JSON.parse(row.new_values); } catch (e) { newObj = row.new_values; }
+    }
+    return {
+      ...row,
+      category: cat,
+      old_values_obj: oldObj,
+      new_values_obj: newObj
+    };
+  });
+
+  const summary = {
+    total: enriched.length,
+    RKB: 0,
+    SIKLUS: 0,
+    MASTER: 0,
+    USER: 0,
+    AUTH: 0,
+    UNDUH: 0
+  };
+  const userSet = new Set();
+  enriched.forEach(r => {
+    if (summary[r.category] !== undefined) summary[r.category]++;
+    if (r.username) userSet.add(r.username);
+  });
+
+  let filtered = enriched;
+
+  if (category && category !== 'ALL') {
+    const cleanCat = String(category).toUpperCase();
+    filtered = filtered.filter(r => r.category === cleanCat);
   }
-  if (entity) {
-    sql += ' AND entity = ?';
-    params.push(entity);
+  if (action && action !== 'ALL') {
+    filtered = filtered.filter(r => r.action === action);
   }
-  if (username) {
-    sql += ' AND username = ?';
-    params.push(username);
+  if (entity && entity !== 'ALL') {
+    filtered = filtered.filter(r => r.entity === entity);
   }
-  sql += ' ORDER BY id DESC LIMIT ? OFFSET ?';
-  params.push(Number(limit) || 100, Number(offset) || 0);
-  return db.prepare(sql).all(...params);
+  if (username && username !== 'ALL') {
+    filtered = filtered.filter(r => String(r.username || '').toLowerCase() === String(username).toLowerCase());
+  }
+  if (date_start) {
+    const startMs = new Date(`${date_start}T00:00:00+07:00`).getTime();
+    if (!Number.isNaN(startMs)) {
+      filtered = filtered.filter(r => Number(r.timestamp_ms || 0) >= startMs);
+    }
+  }
+  if (date_end) {
+    const endMs = new Date(`${date_end}T23:59:59.999+07:00`).getTime();
+    if (!Number.isNaN(endMs)) {
+      filtered = filtered.filter(r => Number(r.timestamp_ms || 0) <= endMs);
+    }
+  }
+  if (search && String(search).trim() !== '') {
+    const q = String(search).trim().toLowerCase();
+    filtered = filtered.filter(r =>
+      String(r.action || '').toLowerCase().includes(q) ||
+      String(r.entity || '').toLowerCase().includes(q) ||
+      String(r.username || '').toLowerCase().includes(q) ||
+      String(r.role_id || '').toLowerCase().includes(q) ||
+      String(r.notes || '').toLowerCase().includes(q) ||
+      String(r.old_values || '').toLowerCase().includes(q) ||
+      String(r.new_values || '').toLowerCase().includes(q)
+    );
+  }
+
+  const totalFiltered = filtered.length;
+  const lim = Math.max(1, Number(limit) || 100);
+  const off = Math.max(0, Number(offset) || 0);
+  const paged = filtered.slice(off, off + lim);
+
+  if (include_meta) {
+    return {
+      logs: paged,
+      total: totalFiltered,
+      summary,
+      distinct_users: Array.from(userSet).sort()
+    };
+  }
+  return paged;
 }
 
 // Inisialisasi DB & Migrasi Skema
@@ -3008,8 +3186,11 @@ function saveKuantitas(data, actorUser = null) {
     action: id ? 'UPDATE_KUANTITAS' : 'CREATE_KUANTITAS',
     entity: 'master_kuantitas',
     entity_id: id || kode,
+    old_values: existing ? { kode: existing.kode, nama: existing.nama, nilai: existing.nilai, satuan: existing.satuan } : null,
     new_values: { kode, nama, nilai, satuan, keterangan },
-    notes: `Master kuantitas ${kode} disimpan.`
+    notes: existing
+      ? `Parameter kuantitas [${kode}] diubah: ${existing.nilai} ${existing.satuan || ''} → ${nilai} ${satuan || ''}.`
+      : `Master kuantitas [${kode}] ditambahkan (${nilai} ${satuan || ''}).`
   });
 
   return getKuantitasList();
@@ -3486,6 +3667,7 @@ function saveSbm(data, actorUser = null) {
   if (!uraian) throw new Error('Uraian SBM tidak boleh kosong.');
 
   if (id) {
+    const existingSbm = getSbmById(id);
     db.prepare(`
       UPDATE master_sbm 
       SET kode_akun = ?, kategori = ?, uraian = ?, satuan = ?, harga_satuan = ?, keterangan = ?, pagu_sbm = ?, jenis_regulasi = ?, dasar_hukum = ?
@@ -3496,8 +3678,9 @@ function saveSbm(data, actorUser = null) {
       action: 'UPDATE_SBM',
       entity: 'master_sbm',
       entity_id: id,
+      old_values: existingSbm ? { kode_akun: existingSbm.kode_akun, kategori: existingSbm.kategori, uraian: existingSbm.uraian, satuan: existingSbm.satuan, harga_satuan: existingSbm.harga_satuan } : null,
       new_values: { kode_akun, kategori, uraian, satuan, harga_satuan: harga },
-      notes: `Master SBM "${uraian}" diperbarui.`
+      notes: `Master SBM "${uraian}" diperbarui (Rp ${(existingSbm?.harga_satuan || 0).toLocaleString('id-ID')} → Rp ${(harga || 0).toLocaleString('id-ID')}).`
     });
     return getSbmById(id);
   } else {
@@ -3619,6 +3802,14 @@ function bulkUpsertSbm(rows, options = {}) {
     db.exec('ROLLBACK');
     throw err;
   }
+
+  recordAuditLog({
+    user: options.user || null,
+    action: 'BULK_IMPORT_SBM',
+    entity: 'master_sbm',
+    new_values: { inserted: wouldInsert.length, updated: wouldUpdate.length, total_processed: wouldInsert.length + wouldUpdate.length },
+    notes: `Impor massal SBM: ${wouldInsert.length} baru, ${wouldUpdate.length} diperbarui.`
+  });
 
   return { success: true, processed: wouldInsert.length + wouldUpdate.length, inserted: wouldInsert.length, updated: wouldUpdate.length };
 }
@@ -3780,6 +3971,14 @@ function bulkUpsertAkun(rows, options = {}) {
     db.exec('ROLLBACK');
     throw err;
   }
+
+  recordAuditLog({
+    user: options.user || null,
+    action: 'BULK_IMPORT_AKUN_BAS',
+    entity: 'master_akun',
+    new_values: { inserted: wouldInsert.length, updated: wouldUpdate.length, total_processed: wouldInsert.length + wouldUpdate.length },
+    notes: `Impor massal Akun BAS: ${wouldInsert.length} baru, ${wouldUpdate.length} diperbarui.`
+  });
 
   return { success: true, processed: wouldInsert.length + wouldUpdate.length, inserted: wouldInsert.length, updated: wouldUpdate.length };
 }
@@ -4523,15 +4722,32 @@ function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = ''
     throw new Error('Tahap 4 (Pengesahan Gabungan & BA Pleno) dilakukan untuk seluruh pengajuan dalam siklus sekaligus melalui menu Pengesahan Gabungan.');
   }
 
+  const updatedRev = getRevisiPengajuanById(id);
   recordAuditLog({
     user,
     action: `UPDATE_REVISI_TAHAP_${targetTahap}`,
     entity: 'revisi_pengajuan',
     entity_id: id,
-    notes: `Tahap ${targetTahap} revisi [${rev.kode_revisi}] diproses: aksi ${aksi || 'SETUJU'}.`
+    old_values: {
+      kode_revisi: rev.kode_revisi,
+      subbag: rev.subbag,
+      versi_usulan: rev.versi_usulan || 1,
+      tahap_terkini: rev.tahap_terkini,
+      status_tahap: rev.status_tahap
+    },
+    new_values: {
+      kode_revisi: updatedRev.kode_revisi,
+      subbag: updatedRev.subbag,
+      versi_usulan: updatedRev.versi_usulan || 1,
+      tahap_terkini: updatedRev.tahap_terkini,
+      status_tahap: updatedRev.status_tahap,
+      aksi: aksi || 'SETUJU',
+      catatan: catatan || ''
+    },
+    notes: `Tahap ${targetTahap} revisi [${rev.kode_revisi} - ${rev.subbag}] diproses: ${aksi || 'SETUJU'} (${rev.status_tahap} → ${updatedRev.status_tahap}, V${rev.versi_usulan || 1} → V${updatedRev.versi_usulan || 1})${catatan ? ` | Catatan: ${catatan}` : ''}.`
   });
 
-  return getRevisiPengajuanById(id);
+  return updatedRev;
 }
 
 function deleteRevisiPengajuan(id, user = null) {
@@ -4972,6 +5188,7 @@ module.exports = {
   safeAddColumn,
   getJakartaTimeString,
   formatWaktuSakti,
+  classifyAuditCategory,
   recordAuditLog,
   getAuditLogs,
   savePeriodeSnapshot,

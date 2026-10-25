@@ -806,6 +806,50 @@ async function runBusinessBehaviorTests() {
     'Test 28.3 (Canon Bab 14 & 18.8): Konfirmasi Simpan Perubahan RKB mengeksekusi seluruh draf secara atomik dan mencatat tepat 1 entri bersih COMMIT_RKB_CHANGES pada Audit Log.'
   );
 
+  // =========================================================================
+  // 29. BATCH 6 CANON — LOG AKTIVITAS: HAK AKSES EKSKLUSIF & 6 KELOMPOK KEJADIAN (BAB 14)
+  // =========================================================================
+  console.log('\n--- [29] Log Aktivitas: Hak Akses Eksklusif (Dev & Kasubag Rendatin) & 6 Kelompok Kejadian (Bab 14) ---');
+  const { getAuditLogs, classifyAuditCategory } = require('../src/db');
+  const { canManageUsers } = require('../src/auth');
+
+  const tokAudit = generateSaktiRouteToken('view-audit');
+  const parsedAudit = parseSaktiRouteToken(tokAudit);
+  assert(
+    parsedAudit && parsedAudit.viewId === 'view-audit',
+    'Test 29.1 (Canon Bab 14): Route token untuk view-audit (Log Aktivitas) terpetakan secara valid.'
+  );
+
+  const userStafRendatin = { id: 99, username: 'staf_rendatin', level: 1, role_id: 'perencanaan_staf', pic_subbag: 'RENDATIN' };
+  const userKomisioner = { id: 98, username: 'ketua', level: 3, role_id: 'ketua_kpu', pic_subbag: 'SEMUA' };
+  assert(
+    canManageUsers(userDev) === true &&
+    canManageUsers(userL1) === true &&
+    canManageUsers(userStafRendatin) === false &&
+    canManageUsers(userL2Teknis1) === false &&
+    canManageUsers(userKomisioner) === false,
+    'Test 29.2 (Canon Bab 14.1): Hak akses Log Aktivitas dibatasi secara eksklusif hanya untuk Developer (Level 0) dan Kasubag Rendatin.'
+  );
+
+  const auditMetaRes = getAuditLogs({ limit: 50, offset: 0, category: 'ALL', include_meta: true });
+  const rkbOnlyRes = getAuditLogs({ limit: 20, offset: 0, category: 'RKB', include_meta: true });
+  assert(
+    auditMetaRes &&
+    Array.isArray(auditMetaRes.logs) &&
+    auditMetaRes.summary &&
+    auditMetaRes.summary.RKB >= 1 &&
+    auditMetaRes.summary.SIKLUS >= 1 &&
+    auditMetaRes.summary.MASTER >= 1 &&
+    classifyAuditCategory('COMMIT_RKB_CHANGES', 'periode_anggaran') === 'RKB' &&
+    classifyAuditCategory('FINALIZE_TAHAP4_KESELURUHAN', 'periode_anggaran') === 'SIKLUS' &&
+    classifyAuditCategory('UPDATE_SBM', 'master_sbm') === 'MASTER' &&
+    classifyAuditCategory('CREATE_USER', 'satker_users') === 'USER' &&
+    classifyAuditCategory('LOGIN_SUCCESS', 'session') === 'AUTH' &&
+    classifyAuditCategory('CREATE_DOWNLOAD_REQUEST', 'download_requests') === 'UNDUH' &&
+    rkbOnlyRes.logs.every(l => l.category === 'RKB'),
+    'Test 29.3 (Canon Bab 14.2): Mesin Log Aktivitas mengklasifikasikan 6 kelompok kejadian (RKB, SIKLUS, MASTER, USER, AUTH, UNDUH) dan menyajikan data Semula vs Menjadi secara akurat.'
+  );
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');

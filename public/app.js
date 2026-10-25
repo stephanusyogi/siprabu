@@ -71,7 +71,8 @@ const SAKTI_VIEW_CODES = {
   'view-users': 19,
   'view-developer': 20,
   'view-rekap-perencanaan': 21,
-  'view-rekap-pelaksanaan': 22
+  'view-rekap-pelaksanaan': 22,
+  'view-audit': 23
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -96,7 +97,8 @@ const SAKTI_CODE_TO_VIEW = {
   19: 'view-users',
   20: 'view-developer',
   21: 'view-rekap-perencanaan',
-  22: 'view-rekap-pelaksanaan'
+  22: 'view-rekap-pelaksanaan',
+  23: 'view-audit'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -122,7 +124,8 @@ const SAKTI_VIEW_TITLES = {
   'view-users': 'Manajemen Pengguna & Otoritas',
   'view-developer': 'Ruang Pengembang & Blueprint PRD',
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
-  'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)'
+  'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
+  'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem'
 };
 
 function bufferToBase64Url(uint8Array) {
@@ -819,14 +822,18 @@ function applyRolePermissionsToUI() {
     folderDb.style.display = canViewDatabaseMaster(user) ? 'block' : 'none';
   }
 
-  // 3. Akses Menu Manajemen Pengguna: HANYA Level 0 aktif dan Kasubbag Perencanaan (mengikuti batas peran simulasi)
+  // 3. Akses Menu Manajemen Pengguna & Log Aktivitas: HANYA Level 0 aktif dan Kasubbag Perencanaan (mengikuti batas peran simulasi)
   const canAccessUserMgmt = Boolean(
     user.level === 0 || 
-    (user.level === 1 && (user.username === 'perencanaan' || user.role_id === 'super_admin'))
+    (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin'))
   );
   const navUserMgmt = document.getElementById('nav-item-users');
   if (navUserMgmt) {
     navUserMgmt.style.display = canAccessUserMgmt ? 'flex' : 'none';
+  }
+  const navAudit = document.getElementById('nav-item-audit');
+  if (navAudit) {
+    navAudit.style.display = canAccessUserMgmt ? 'flex' : 'none';
   }
 
   // 4. Tombol Tambah Pengguna di view-users
@@ -956,6 +963,14 @@ async function switchUser(username) {
       if (AppState.activeView === 'view-developer') {
         switchView('view-dashboard', true);
       }
+    }
+
+    const canAccessUserMgmtAfterSwitch = Boolean(
+      res.user.level === 0 ||
+      (res.user.level === 1 && (res.user.username === 'perencanaan' || res.user.username === 'kasubbag_rendatin' || res.user.role_id === 'super_admin'))
+    );
+    if (!canAccessUserMgmtAfterSwitch && (AppState.activeView === 'view-users' || AppState.activeView === 'view-audit')) {
+      switchView('view-dashboard', true);
     }
 
     // Reload active draft dan render ulang semua tampilan sesuai peran
@@ -1438,13 +1453,13 @@ function switchView(viewId, updateHistory = true) {
       return;
     }
 
-    // 3. Guard Manajemen User: HANYA Level 0 aktif dan Kasubbag Perencanaan
+    // 3. Guard Manajemen User & Log Aktivitas: HANYA Level 0 aktif dan Kasubbag Perencanaan
     const canAccessUserMgmt = Boolean(
       user.level === 0 || 
-      (user.level === 1 && (user.username === 'perencanaan' || user.role_id === 'super_admin'))
+      (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin'))
     );
-    if (viewId === 'view-users' && !canAccessUserMgmt) {
-      showToast('Akses ditolak: Menu Manajemen Pengguna hanya untuk Akun Developer (Level 0) dan Kasubbag Perencanaan.', 'warning');
+    if ((viewId === 'view-users' || viewId === 'view-audit') && !canAccessUserMgmt) {
+      showToast('Akses ditolak: Menu ini hanya untuk Akun Developer (Level 0) dan Kasubbag Perencanaan (Rendatin).', 'warning');
       switchView('view-dashboard', updateHistory);
       return;
     }
@@ -1525,6 +1540,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-panduan') { /* static info */ }
   else if (viewId === 'view-monitoring') loadMonitoringReport();
   else if (viewId === 'view-users') renderUsersTable();
+  else if (viewId === 'view-audit') loadAuditLogsView();
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
   else if (viewId === 'view-rekap-perencanaan') loadRekapView('perencanaan');
   else if (viewId === 'view-rekap-pelaksanaan') loadRekapView('pelaksanaan');
@@ -10158,12 +10174,410 @@ function printRekapPdf(mode = 'perencanaan') {
     </html>
   `);
   win.document.close();
+
+  // Catat unduhan PDF Rekap ke Log Aktivitas
+  apiFetch('/api/audit-logs/client-event', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'EXPORT_REKAP_PDF',
+      entity: 'download_requests',
+      entity_id: state.periode?.id || '',
+      new_values: {
+        mode: cleanMode,
+        nama_periode: state.periode?.nama_periode || '',
+        versi_revisi: state.periode?.versi_revisi || '',
+        filter_pic: state.filter_pic || 'SEMUA'
+      },
+      notes: `Cetak / Ekspor PDF ${title} (${state.periode?.nama_periode || ''} - PIC: ${state.filter_pic || 'SEMUA'}).`
+    })
+  }).catch(() => {});
 }
 
 window.loadRekapView = loadRekapView;
 window.switchRekapTab = switchRekapTab;
 window.exportRekapExcel = exportRekapExcel;
 window.printRekapPdf = printRekapPdf;
+
+// ============================================================================
+// MODUL LOG AKTIVITAS & REKAM JEJAK AUDIT (BAB 14 CANON)
+// Hanya dapat diakses oleh Developer (Level 0) & Kasubbag Perencanaan (Rendatin)
+// ============================================================================
+
+AppState.auditState = {
+  category: 'ALL',
+  username: 'ALL',
+  date_start: '',
+  date_end: '',
+  search: '',
+  page: 1,
+  pageSize: 50,
+  total: 0,
+  logs: [],
+  summary: { total: 0, RKB: 0, SIKLUS: 0, MASTER: 0, USER: 0, AUTH: 0, UNDUH: 0 }
+};
+
+const AUDIT_CATEGORY_META = {
+  RKB: { label: '1. RUH Belanja', badgeBg: '#e0f2fe', badgeColor: '#0369a1', icon: '📘' },
+  SIKLUS: { label: '2. Siklus & Revisi', badgeBg: '#f3e8ff', badgeColor: '#6d28d9', icon: '🔄' },
+  MASTER: { label: '3. Referensi & DB', badgeBg: '#dcfce7', badgeColor: '#15803d', icon: '📐' },
+  USER: { label: '4. Manajemen User', badgeBg: '#fef3c7', badgeColor: '#b45309', icon: '👥' },
+  AUTH: { label: '5. Autentikasi', badgeBg: '#fee2e2', badgeColor: '#b91c1c', icon: '🔑' },
+  UNDUH: { label: '6. Unduhan', badgeBg: '#ccfbf1', badgeColor: '#0f766e', icon: '📥' }
+};
+
+const AUDIT_ACTION_LABELS = {
+  COMMIT_RKB_CHANGES: 'Simpan Perubahan RKB (Batch)',
+  CREATE_RKB_ROW: 'Tambah Baris RKB',
+  UPDATE_RKB_ROW: 'Ubah Baris RKB',
+  DELETE_RKB_ROW: 'Hapus Baris RKB',
+  CASCADE_PIC_SUBBAG: 'Ubah PIC Subbag (Cascade)',
+  CASCADE_SASARAN: 'Ubah Sasaran (Cascade)',
+  REORDER_ROW: 'Geser Urutan Baris RKB',
+  CREATE_REVISI_PENGAJUAN: 'Pengajuan Revisi PIC (Tahap 1)',
+  UPDATE_REVISI_TAHAP_2: 'Validasi Rendatin (Tahap 2)',
+  UPDATE_REVISI_TAHAP_3: 'Keputusan Pleno (Tahap 3)',
+  DELETE_REVISI_PENGAJUAN: 'Batal Usulan Revisi',
+  FINALIZE_TAHAP4_KESELURUHAN: 'Pengesahan & Kunci RKB (Tahap 4)',
+  UPDATE_POST_RATIFICATION_LINKS: 'Koreksi Tautan Pasca-Pengesahan',
+  LOCK_PERIODE: 'Kunci Dokumen RKB',
+  UNLOCK_PERIODE: 'Buka Kunci Dokumen RKB',
+  CREATE_PERIODE: 'Buat Siklus RKB Baru',
+  CLONE_PERIODE_REVISION: 'Buka Kertas Kerja Revisi',
+  CREATE_KUANTITAS: 'Tambah Parameter Kuantitas',
+  UPDATE_KUANTITAS: 'Ubah Parameter Kuantitas',
+  CREATE_PASLON: 'Tambah Pasangan Calon',
+  UPDATE_PASLON: 'Ubah Pasangan Calon',
+  DELETE_PASLON: 'Hapus Pasangan Calon',
+  CREATE_KECAMATAN: 'Tambah Kecamatan (PPK)',
+  UPDATE_KECAMATAN: 'Ubah Kecamatan (PPK)',
+  DELETE_KECAMATAN: 'Hapus Kecamatan (PPK)',
+  BULK_IMPORT_KECAMATAN: 'Impor Excel Masal PPK',
+  CREATE_DESA: 'Tambah Desa/TPS (PPS)',
+  UPDATE_DESA: 'Ubah Desa/TPS (PPS)',
+  DELETE_DESA: 'Hapus Desa/TPS (PPS)',
+  BULK_IMPORT_DESA: 'Impor Excel Masal Desa/TPS',
+  CREATE_SBM: 'Tambah Standar Biaya (SBM)',
+  UPDATE_SBM: 'Ubah Standar Biaya (SBM)',
+  DELETE_SBM: 'Hapus Standar Biaya (SBM)',
+  BULK_IMPORT_SBM: 'Impor Excel Masal SBM',
+  CREATE_AKUN_BAS: 'Tambah Akun BAS',
+  UPDATE_AKUN_BAS: 'Ubah Akun BAS',
+  DELETE_AKUN_BAS: 'Hapus Akun BAS',
+  BULK_IMPORT_AKUN_BAS: 'Impor Excel Masal BAS',
+  CREATE_REGULASI_JDIH: 'Tambah Produk Hukum JDIH',
+  UPDATE_REGULASI_JDIH: 'Ubah Produk Hukum JDIH',
+  DELETE_REGULASI_JDIH: 'Hapus Produk Hukum JDIH',
+  UPDATE_SETTINGS: 'Simpan Pengaturan Satker & TTD',
+  CREATE_USER: 'Tambah Akun Pengguna',
+  UPDATE_USER: 'Ubah Akun Pengguna',
+  DELETE_USER: 'Hapus Akun Pengguna',
+  TOGGLE_USER_STATUS: 'Ubah Status Aktif Akun',
+  LOGIN_SUCCESS: 'Login Manual Berhasil',
+  LOGIN_GOOGLE_SUCCESS: 'Login Google Berhasil',
+  LOGIN_FAILED: 'Percobaan Login Gagal',
+  LOGOUT: 'Keluar Sistem (Logout)',
+  SWITCH_ROLE_SIMULATION: 'Simulasi Ganti Peran (Dev)',
+  CREATE_DOWNLOAD_REQUEST: 'Antrean Unduh Laporan',
+  DOWNLOAD_FILE: 'Unduh Berkas Selesai',
+  EXPORT_EXCEL_RKB: 'Unduh Excel RUH Belanja',
+  EXPORT_ZIP_SUBBAG: 'Unduh Paket ZIP 5 Subbag',
+  EXPORT_REKAP_PDF: 'Cetak / Ekspor PDF Rekap'
+};
+
+async function loadAuditLogsView(showFeedback = false) {
+  const st = AppState.auditState;
+  const tbody = document.getElementById('audit-logs-table-body');
+  if (tbody && showFeedback) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding:28px;color:#64748b;">Memuat ulang rekam jejak aktivitas...</td></tr>';
+  }
+
+  try {
+    const offset = (st.page - 1) * st.pageSize;
+    const qs = new URLSearchParams({
+      limit: String(st.pageSize),
+      offset: String(offset),
+      category: st.category || 'ALL',
+      username: st.username || 'ALL',
+      search: st.search || '',
+      date_start: st.date_start || '',
+      date_end: st.date_end || ''
+    });
+
+    const res = await apiFetch(`/api/audit-logs?${qs.toString()}`);
+    st.logs = res.logs || [];
+    st.total = Number(res.total) || 0;
+    st.summary = res.summary || { total: 0, RKB: 0, SIKLUS: 0, MASTER: 0, USER: 0, AUTH: 0, UNDUH: 0 };
+
+    // Update badge di sidebar & pill total
+    setElText('badge-total-audit', st.summary.total || 0);
+    setElText('audit-total-pill', `${(st.summary.total || 0).toLocaleString('id-ID')} Kejadian Tercatat`);
+
+    // Update angka pada 7 kartu kategori
+    setElText('audit-count-ALL', (st.summary.total || 0).toLocaleString('id-ID'));
+    ['RKB', 'SIKLUS', 'MASTER', 'USER', 'AUTH', 'UNDUH'].forEach(cat => {
+      setElText(`audit-count-${cat}`, (st.summary[cat] || 0).toLocaleString('id-ID'));
+    });
+
+    // Populate dropdown filter pengguna
+    const userSel = document.getElementById('audit-filter-user');
+    if (userSel && Array.isArray(res.distinct_users)) {
+      const currentVal = st.username || 'ALL';
+      userSel.innerHTML = '<option value="ALL">-- Semua Pengguna --</option>' +
+        res.distinct_users.map(u => `<option value="${escHtml(u)}" ${u === currentVal ? 'selected' : ''}>${escHtml(u)}</option>`).join('');
+    }
+
+    renderAuditLogsTable();
+    if (showFeedback) {
+      showToast('Log Aktivitas berhasil diperbarui.', 'info');
+    }
+  } catch (err) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger" style="padding:28px;">Gagal memuat Log Aktivitas: ${escHtml(err.message)}</td></tr>`;
+    }
+  }
+}
+
+function setAuditCategoryFilter(cat) {
+  AppState.auditState.category = cat || 'ALL';
+  AppState.auditState.page = 1;
+  document.querySelectorAll('.audit-cat-btn').forEach(btn => {
+    const isAct = btn.getAttribute('data-cat') === AppState.auditState.category;
+    btn.classList.toggle('active', isAct);
+    btn.style.border = isAct ? '2px solid #2563eb' : '1px solid #cbd5e1';
+    btn.style.background = isAct ? '#eff6ff' : '#ffffff';
+  });
+  loadAuditLogsView();
+}
+
+function applyAuditLogFilters() {
+  const st = AppState.auditState;
+  st.username = document.getElementById('audit-filter-user')?.value || 'ALL';
+  st.date_start = document.getElementById('audit-filter-date-start')?.value || '';
+  st.date_end = document.getElementById('audit-filter-date-end')?.value || '';
+  st.search = (document.getElementById('audit-filter-search')?.value || '').trim();
+  st.page = 1;
+  loadAuditLogsView();
+}
+
+function resetAuditLogFilters() {
+  const st = AppState.auditState;
+  st.category = 'ALL';
+  st.username = 'ALL';
+  st.date_start = '';
+  st.date_end = '';
+  st.search = '';
+  st.page = 1;
+
+  const uEl = document.getElementById('audit-filter-user');
+  const dsEl = document.getElementById('audit-filter-date-start');
+  const deEl = document.getElementById('audit-filter-date-end');
+  const sEl = document.getElementById('audit-filter-search');
+  if (uEl) uEl.value = 'ALL';
+  if (dsEl) dsEl.value = '';
+  if (deEl) deEl.value = '';
+  if (sEl) sEl.value = '';
+
+  setAuditCategoryFilter('ALL');
+}
+
+function changeAuditLogPage(delta) {
+  const st = AppState.auditState;
+  const maxPage = Math.max(1, Math.ceil(st.total / st.pageSize));
+  const nextPage = st.page + delta;
+  if (nextPage < 1 || nextPage > maxPage) return;
+  st.page = nextPage;
+  loadAuditLogsView();
+}
+
+function renderAuditLogsTable() {
+  const st = AppState.auditState;
+  const tbody = document.getElementById('audit-logs-table-body');
+  if (!tbody) return;
+
+  const maxPage = Math.max(1, Math.ceil(st.total / st.pageSize));
+  const startIdx = st.total === 0 ? 0 : ((st.page - 1) * st.pageSize) + 1;
+  const endIdx = Math.min(st.total, st.page * st.pageSize);
+
+  setElText('audit-pagination-info', `Menampilkan ${startIdx}–${endIdx} dari ${st.total} aktivitas`);
+  setElText('audit-page-indicator', `Halaman ${st.page} / ${maxPage}`);
+  const prevBtn = document.getElementById('btn-audit-prev');
+  const nextBtn = document.getElementById('btn-audit-next');
+  if (prevBtn) prevBtn.disabled = st.page <= 1;
+  if (nextBtn) nextBtn.disabled = st.page >= maxPage;
+
+  if (!st.logs || st.logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding:32px;color:#64748b;">Tidak ada catatan aktivitas yang sesuai dengan filter saat ini.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = st.logs.map(row => {
+    const catMeta = AUDIT_CATEGORY_META[row.category] || { label: row.category || 'SISTEM', badgeBg: '#f1f5f9', badgeColor: '#334155', icon: '📌' };
+    const actionLabel = AUDIT_ACTION_LABELS[row.action] || row.action;
+    const isFailed = String(row.status || 'SUCCESS').toUpperCase() !== 'SUCCESS';
+    const statusBadge = isFailed
+      ? '<span class="badge badge-danger" style="font-size:10.5px;">GAGAL</span>'
+      : '<span class="badge badge-success" style="font-size:10.5px;">BERHASIL</span>';
+
+    const hasDetail = Boolean(row.old_values || row.new_values);
+    return `
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:11px;color:#334155;white-space:nowrap;">
+          ${escHtml(row.waktu_wib || '-')}
+          ${row.ip_address ? `<div style="font-size:10px;color:#94a3b8;">IP: ${escHtml(row.ip_address)}</div>` : ''}
+        </td>
+        <td>
+          <div style="font-weight:700;color:#0f172a;">${escHtml(row.username || 'anonymous')}</div>
+          <div style="font-size:10.5px;color:#64748b;">${escHtml(row.role_id || '-')}</div>
+        </td>
+        <td class="text-center">
+          <span style="display:inline-flex;align-items:center;gap:4px;background:${catMeta.badgeBg};color:${catMeta.badgeColor};font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:12px;">
+            <span>${catMeta.icon}</span>
+            <span>${escHtml(catMeta.label)}</span>
+          </span>
+        </td>
+        <td>
+          <div style="font-weight:700;color:#1e293b;">${escHtml(actionLabel)}</div>
+          <div style="font-size:10px;font-family:var(--font-mono);color:#64748b;">${escHtml(row.action)}${row.entity_id ? ` #${escHtml(row.entity_id)}` : ''}</div>
+        </td>
+        <td style="line-height:1.45;color:#334155;">
+          ${escHtml(row.notes || '-')}
+        </td>
+        <td class="text-center">${statusBadge}</td>
+        <td class="text-center">
+          <button type="button" class="btn btn-outline-primary btn-xs" onclick="openAuditDetailModal(${Number(row.id)})">
+            🔍 ${hasDetail ? 'Detail' : 'Info'}
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openAuditDetailModal(logId) {
+  const row = (AppState.auditState.logs || []).find(r => Number(r.id) === Number(logId));
+  if (!row) return;
+
+  const modal = document.getElementById('modal-audit-detail');
+  const titleEl = document.getElementById('modal-audit-detail-title');
+  const subEl = document.getElementById('modal-audit-detail-subtitle');
+  const bodyEl = document.getElementById('modal-audit-detail-body');
+  if (!modal || !bodyEl) return;
+
+  const actionLabel = AUDIT_ACTION_LABELS[row.action] || row.action;
+  if (titleEl) titleEl.textContent = `🔍 ${actionLabel}`;
+  if (subEl) subEl.textContent = `Waktu: ${row.waktu_wib || '-'} | Pelaku: ${row.username || '-'} (${row.role_id || '-'}) | Entitas: ${row.entity || '-'}${row.entity_id ? ' #' + row.entity_id : ''}`;
+
+  const oldObj = row.old_values_obj;
+  const newObj = row.new_values_obj;
+
+  let diffSectionHtml = '';
+
+  // Tampilan khusus untuk COMMIT_RKB_CHANGES (Simpan Perubahan RKB Batch)
+  if (row.action === 'COMMIT_RKB_CHANGES' && newObj && typeof newObj === 'object') {
+    const changes = Array.isArray(newObj.changes) ? newObj.changes : [];
+    const paguSemula = Number(oldObj?.pagu_semula ?? 0);
+    const paguMenjadi = Number(newObj?.pagu_menjadi ?? 0);
+    const selisih = Number(newObj?.selisih_pagu ?? (paguMenjadi - paguSemula));
+    const selisihPrefix = selisih > 0 ? '+' : '';
+
+    diffSectionHtml = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:14px;">
+        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;color:#64748b;font-weight:700;">PAGU SEMULA</div>
+          <div style="font-size:15px;font-weight:800;color:#334155;font-family:var(--font-mono);margin-top:2px;">${formatRupiah(paguSemula)}</div>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;color:#1e40af;font-weight:700;">PAGU MENJADI</div>
+          <div style="font-size:15px;font-weight:800;color:#1e3a8a;font-family:var(--font-mono);margin-top:2px;">${formatRupiah(paguMenjadi)}</div>
+        </div>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;color:#166534;font-weight:700;">SELISIH NETTO</div>
+          <div style="font-size:15px;font-weight:800;color:#15803d;font-family:var(--font-mono);margin-top:2px;">${selisihPrefix}${formatRupiah(selisih)}</div>
+          <div style="font-size:11px;color:#475569;margin-top:2px;">
+            +${Number(newObj.added_count || 0)} Baru &bull; ~${Number(newObj.updated_count || 0)} Diubah &bull; -${Number(newObj.deleted_count || 0)} Dihapus
+          </div>
+        </div>
+      </div>
+      ${newObj.catatan_simpan ? `
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#92400e;">
+          <strong>📝 Catatan Penyimpanan:</strong> ${escHtml(newObj.catatan_simpan)}
+        </div>
+      ` : ''}
+      ${changes.length > 0 ? `
+        <div style="font-weight:700;font-size:12px;color:#0f172a;margin-bottom:6px;">📋 Daftar Baris RKB yang Terdampak (${changes.length} baris):</div>
+        <div class="table-responsive" style="max-height:280px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">
+          <table class="table table-bordered table-hover mb-0" style="font-size:11.5px;">
+            <thead style="background:#f1f5f9;">
+              <tr>
+                <th style="width:75px;" class="text-center">Status</th>
+                <th>Uraian Baris</th>
+                <th style="width:75px;" class="text-center">PIC</th>
+                <th>Rincian Perubahan</th>
+                <th style="width:115px;" class="text-right">Semula</th>
+                <th style="width:115px;" class="text-right">Menjadi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${changes.map(c => `
+                <tr>
+                  <td class="text-center"><span class="badge ${c.status === 'BARU' ? 'badge-success' : (c.status === 'DIHAPUS' ? 'badge-danger' : 'badge-warning')}">${escHtml(c.status || '-')}</span></td>
+                  <td><strong>${escHtml(c.kode || '')}</strong> ${escHtml(c.uraian || '')}</td>
+                  <td class="text-center">${escHtml(c.pic_bagian || '-')}</td>
+                  <td style="font-size:11px;color:#475569;">${escHtml(c.detail || '-')}</td>
+                  <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(c.semula_jumlah || 0)}</td>
+                  <td class="text-right" style="font-family:var(--font-mono);font-weight:700;">${formatRupiah(c.menjadi_jumlah || 0)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : ''}
+    `;
+  } else if (oldObj || newObj) {
+    diffSectionHtml = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:12px;">
+          <div style="font-size:11.5px;font-weight:800;color:#475569;margin-bottom:6px;">⬅️ NILAI SEBELUM (SEMULA)</div>
+          <pre style="margin:0;font-size:11.5px;font-family:var(--font-mono);white-space:pre-wrap;word-break:break-word;color:#334155;">${oldObj ? escHtml(JSON.stringify(oldObj, null, 2)) : '(Tidak ada data semula / Entitas baru)'}</pre>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;">
+          <div style="font-size:11.5px;font-weight:800;color:#1e40af;margin-bottom:6px;">➡️ NILAI SESUDAH (MENJADI)</div>
+          <pre style="margin:0;font-size:11.5px;font-family:var(--font-mono);white-space:pre-wrap;word-break:break-word;color:#1e3a8a;">${newObj ? escHtml(JSON.stringify(newObj, null, 2)) : '(Entitas dihapus / Tidak ada nilai baru)'}</pre>
+        </div>
+      </div>
+    `;
+  } else {
+    diffSectionHtml = `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;color:#475569;font-size:12px;">
+        Aktivitas ini telah tercatat secara permanen di dalam log audit sistem.
+      </div>
+    `;
+  }
+
+  bodyEl.innerHTML = `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#1e293b;line-height:1.5;">
+      <strong>Ringkasan Kejadian:</strong><br>
+      ${escHtml(row.notes || '-')}
+    </div>
+    ${diffSectionHtml}
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function closeAuditDetailModal() {
+  const modal = document.getElementById('modal-audit-detail');
+  if (modal) modal.style.display = 'none';
+}
+
+window.loadAuditLogsView = loadAuditLogsView;
+window.setAuditCategoryFilter = setAuditCategoryFilter;
+window.applyAuditLogFilters = applyAuditLogFilters;
+window.resetAuditLogFilters = resetAuditLogFilters;
+window.changeAuditLogPage = changeAuditLogPage;
+window.openAuditDetailModal = openAuditDetailModal;
+window.closeAuditDetailModal = closeAuditDetailModal;
+
 
 
 

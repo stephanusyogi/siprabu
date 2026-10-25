@@ -376,6 +376,15 @@ const server = http.createServer(async (req, res) => {
 
       if (!user) {
         recordFailedLogin(clientIp);
+        recordAuditLog({
+          username: String(username || '').trim().toLowerCase(),
+          role_id: '-',
+          ip: clientIp,
+          action: 'LOGIN_FAILED',
+          entity: 'session',
+          status: 'FAILED',
+          notes: `Percobaan login gagal untuk akun "${String(username || '').trim()}" dari IP ${clientIp}.`
+        });
         return sendJson(res, 401, { error: 'Username atau password salah.' });
       }
 
@@ -387,6 +396,15 @@ const server = http.createServer(async (req, res) => {
       }
 
       const token = createToken(user);
+      recordAuditLog({
+        user,
+        ip: clientIp,
+        action: 'LOGIN_SUCCESS',
+        entity: 'session',
+        entity_id: user.id,
+        new_values: { username: user.username, nama_pejabat: user.nama_pejabat, jabatan: user.jabatan, level: user.level, pic_subbag: user.pic_subbag },
+        notes: `Pengguna "${user.nama_pejabat || user.username}" (${user.username}) berhasil masuk (Login Manual).`
+      });
       return sendJson(res, 200, {
         success: true,
         token,
@@ -470,6 +488,16 @@ const server = http.createServer(async (req, res) => {
         }
 
         const token = createToken(user);
+        const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
+        recordAuditLog({
+          user,
+          ip: clientIp,
+          action: 'LOGIN_GOOGLE_SUCCESS',
+          entity: 'session',
+          entity_id: user.id,
+          new_values: { username: user.username, email, nama_pejabat: user.nama_pejabat, level: user.level },
+          notes: `Pengguna "${user.nama_pejabat || user.username}" (${email}) berhasil masuk via Google Sign-In.`
+        });
         return sendJson(res, 200, {
           success: true,
           token,
@@ -604,7 +632,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
-        const saved = saveUser(body);
+        const saved = saveUser(body, currentUser);
         return sendJson(res, 200, { success: true, user: saved, message: `Akun "${saved.username}" berhasil disimpan.` });
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
@@ -628,7 +656,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
-        const result = deleteUser(targetId, currentUser.id);
+        const result = deleteUser(targetId, currentUser.id, currentUser);
         return sendJson(res, 200, result);
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
@@ -645,11 +673,51 @@ const server = http.createServer(async (req, res) => {
 
       const targetId = Number(toggleUserMatch[1]);
       try {
-        const result = toggleUserStatus(targetId);
+        const result = toggleUserStatus(targetId, currentUser);
         return sendJson(res, 200, result);
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
       }
+    }
+
+    // 3a. LOG AKTIVITAS & REKAM JEJAK AUDIT (HANYA DEVELOPER LEVEL 0 & KASUBAG RENDATIN - BAB 14)
+    if (pathname === '/api/audit-logs' && method === 'GET') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!canManageUsers(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Log Aktivitas hanya dapat diakses oleh Akun Developer (Level 0) dan Kasubbag Perencanaan (Rendatin).' });
+      }
+
+      const result = getAuditLogs({
+        limit: Number(query.limit) || 100,
+        offset: Number(query.offset) || 0,
+        category: query.category || 'ALL',
+        action: query.action || '',
+        entity: query.entity || '',
+        username: query.username || '',
+        search: query.search || '',
+        date_start: query.date_start || '',
+        date_end: query.date_end || '',
+        include_meta: true
+      });
+      return sendJson(res, 200, result);
+    }
+
+    if (pathname === '/api/audit-logs/client-event' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const body = await parseJsonBody(req);
+      const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
+      recordAuditLog({
+        user: currentUser,
+        ip: clientIp,
+        action: String(body.action || 'EXPORT_REKAP').toUpperCase(),
+        entity: String(body.entity || 'download_requests'),
+        entity_id: String(body.entity_id || ''),
+        new_values: body.new_values || null,
+        notes: String(body.notes || 'Ekspor dokumen laporan dari aplikasi.')
+      });
+      return sendJson(res, 200, { success: true });
     }
 
     // 3b. ENDPOINT KHUSUS LEAD DEVELOPER: BLUEPRINT & PRD ARSITEKTUR
@@ -2242,6 +2310,16 @@ const server = http.createServer(async (req, res) => {
       }
 
       updateDownloadRequest(job.id, { downloaded_at: new Date().toISOString() });
+      if (method === 'GET') {
+        recordAuditLog({
+          user: currentUser,
+          action: 'DOWNLOAD_FILE',
+          entity: 'download_requests',
+          entity_id: job.id,
+          new_values: { nama_file: job.nama_file, tipe_unduhan: job.tipe_unduhan, filter_pic: job.filter_pic },
+          notes: `Berkas unduhan "${job.nama_file}" (${job.tipe_unduhan}) berhasil diunduh oleh ${currentUser.username}.`
+        });
+      }
 
       const stat = fs.statSync(job.file_path);
       const isZip = job.tipe_unduhan === 'ZIP_SUBBAGIAN' || job.nama_file.endsWith('.zip');
@@ -2287,6 +2365,17 @@ const server = http.createServer(async (req, res) => {
       const filterSuffix = (query.pic && query.pic !== 'SEMUA' ? `_${query.pic}` : '') + (query.sasaran && query.sasaran !== 'ALL' ? `_${query.sasaran}` : '');
       const filename = `RUH_Belanja_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}${filterSuffix}_${Date.now()}.xlsx`;
 
+      if (method === 'GET') {
+        recordAuditLog({
+          user,
+          action: 'EXPORT_EXCEL_RKB',
+          entity: 'download_requests',
+          entity_id: periodeId,
+          new_values: { filename, periode_id: periodeId, nama_periode: periode.nama_periode, filter_pic: query.pic || 'SEMUA', filter_sasaran: query.sasaran || 'ALL' },
+          notes: `Unduh langsung Excel RUH Belanja "${filename}" (${periode.nama_periode}).`
+        });
+      }
+
       res.writeHead(200, {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
@@ -2328,6 +2417,15 @@ const server = http.createServer(async (req, res) => {
 
       const archiver = require('archiver');
       const filename = `Paket_RUH_5_Subbagian_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.zip`;
+
+      recordAuditLog({
+        user,
+        action: 'EXPORT_ZIP_SUBBAG',
+        entity: 'download_requests',
+        entity_id: periodeId,
+        new_values: { filename, periode_id: periodeId, nama_periode: periode.nama_periode },
+        notes: `Unduh Paket ZIP 5 Subbagian "${filename}" (${periode.nama_periode}).`
+      });
 
       res.writeHead(200, {
         'Content-Type': 'application/zip',

@@ -229,11 +229,16 @@
 ---
 
 ## 14. Audit Log dan Integritas Data
-1. Audit revisi mencatat aktor, waktu, PIC, baris/objek, nilai sebelum dan sesudah, alasan/catatan penyimpanan bila relevan, dan status tahap.
-2. Pada lembar kerja **RUH Belanja RKB**, perubahan baris tidak langsung dicatat satu per satu saat pengetikan/perubahan draf sementara, melainkan dicatat secara bersih saat pengguna menekan **Simpan Perubahan RKB** dan mengonfirmasinya melalui Pop-Up Konfirmasi Simpan (**Batch Commit**).
-3. Audit mencatat pengajuan, validasi, penolakan, persetujuan, pengesahan, perubahan tautan pascapengesahan, pengelolaan pengguna, dan unduhan.
-4. Log proses versi `V1/V2/V3` tetap dapat ditelusuri tanpa memecah RKB aktif menjadi dokumen baru.
-5. Integritas baseline, batas PIC, dan status penguncian wajib diverifikasi pada backend.
+1. **Hak Akses Eksklusif Log Aktivitas:** Menu dan API **Log Aktivitas** hanya dapat diakses oleh **Level 0 (`Developer`)** dan **Kasubag Rendatin (`perencanaan_kasubag` / `super_admin`)**. Seluruh catatan log bersifat **Read-Only Murni (Immutable)** tanpa fitur edit atau hapus di antarmuka.
+2. **Enam Kelompok Cakupan Kejadian:**
+   - **1. Perubahan RUH Belanja (`RKB`):** Penyimpanan batch perubahan RUH Belanja (`COMMIT_RKB_CHANGES`) melalui Pop-Up Konfirmasi Simpan beserta Pagu Semula, Pagu Menjadi, Selisih Netto, Catatan Penyimpanan, dan daftar rincian baris terdampak.
+   - **2. Alur Siklus & Revisi (`SIKLUS`):** Pengajuan Tahap 1, Validasi Tahap 2 (`V1/V2/V3`), Keputusan Pleno Tahap 3, Pengesahan & Kunci Baseline Tahap 4 (`Pra-NPHD`/`NPHD`/`Pasca-NPHD`), serta koreksi tautan dokumen pasca-pengesahan.
+   - **3. Referensi & Database Master (`MASTER`):** Tambah/ubah/hapus dan impor Excel masal pada PPK, PPS/TPS, Paslon, Parameter Kuantitas SSOT, SBM, Akun BAS, Regulasi JDIH, dan Pengaturan Pejabat Satker.
+   - **4. Manajemen Pengguna (`USER`):** Tambah akun, ubah peran/password, aktifkan/nonaktifkan akun (pencabutan sesi), dan hapus akun.
+   - **5. Autentikasi & Sesi (`AUTH`):** Login berhasil (Manual/Google), percobaan login gagal, logout, serta aktivitas dalam mode **Simulasi Ganti Peran** Developer (`[Identitas Asli: emenje | Peran Simulasi: ...]`).
+   - **6. Unduhan & Ekspor (`UNDUH`):** Permintaan antrean unduhan dan ekspor dokumen resmi (Excel RUH Belanja, Paket ZIP 5 Subbagian, serta Excel/PDF Rekap Perencanaan & Pelaksanaan).
+3. Log proses versi `V1/V2/V3` tetap dapat ditelusuri tanpa memecah RKB aktif menjadi dokumen baru.
+4. Integritas baseline, batas PIC, dan status penguncian wajib diverifikasi pada backend.
 
 ---
 

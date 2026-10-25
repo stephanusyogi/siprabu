@@ -329,6 +329,13 @@
             <span class="badge badge-info badge-sm" id="badge-total-users">10</span>
           </button>
 
+          <!-- 7B. LOG AKTIVITAS (HANYA DEVELOPER & KASUBAG RENDATIN) -->
+          <button class="nav-item" data-view="view-audit" onclick="switchView('view-audit')" id="nav-item-audit" style="display: none;">
+            <span class="icon">🛡️</span>
+            <span class="label">Log Aktivitas</span>
+            <span class="badge badge-primary badge-sm" id="badge-total-audit">0</span>
+          </button>
+
           <!-- 8. RUANG PENGEMBANG (HANYA DEVELOPER) -->
           <button class="nav-item" data-view="view-developer" onclick="switchView('view-developer')" id="nav-item-developer" style="display: none; background: rgba(15, 23, 42, 0.05); border-left: 3px solid #0f172a; margin-top: 4px;">
             <span class="icon">🛠️</span>
@@ -2576,6 +2583,143 @@
         </section>
 
         <!-- ================================================================= -->
+        <!-- VIEW: LOG AKTIVITAS & REKAM JEJAK AUDIT (DEV & KASUBAG RENDATIN)   -->
+        <!-- ================================================================= -->
+        <section id="view-audit" class="app-view">
+          <div class="view-header">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>🛡️ IMMUTABLE AUDIT TRAIL &bull; BAB 14 CANON</span>
+              </div>
+              <h2 class="view-title">Log Aktivitas &amp; Rekam Jejak Sistem</h2>
+              <p class="view-desc">
+                Pemantauan terpusat 6 kelompok kejadian: <b>Simpan Perubahan RUH Belanja</b>, <b>Siklus &amp; Revisi 4 Tahap</b>, <b>Referensi &amp; Database</b>, <b>Manajemen Pengguna</b>, <b>Autentikasi &amp; Simulasi Peran</b>, serta <b>Unduhan Dokumen</b>.
+              </p>
+            </div>
+            <div class="header-actions" style="display:flex;gap:8px;align-items:center;">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="loadAuditLogsView(true)">
+                🔄 Segarkan Log
+              </button>
+            </div>
+          </div>
+
+          <!-- NOTICE HAK AKSES EKSKLUSIF & SIFAT IMMUTABLE -->
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:22px;">🔒</span>
+              <div>
+                <strong style="font-size:13px;display:block;color:#1e3a8a;">Akses Eksklusif: Akun Developer (Level 0) &amp; Kasubbag Perencanaan (Rendatin)</strong>
+                <span style="font-size:12px;color:#2563eb;">Seluruh catatan log bersifat <b>Read-Only Murni (Immutable)</b>. Perubahan pada RUH Belanja dicatat secara bersih per komit penyimpanan (Batch Commit) beserta rincian <i>Semula vs Menjadi</i>.</span>
+              </div>
+            </div>
+            <div id="audit-total-pill" style="font-size:12px;font-weight:700;background:#dbeafe;color:#1e3a8a;padding:5px 12px;border-radius:20px;">
+              0 Kejadian Tercatat
+            </div>
+          </div>
+
+          <!-- 7 KARTU FILTER KATEGORI CEPAT -->
+          <div id="audit-category-cards" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:10px;margin-bottom:16px;">
+            <button type="button" class="card p-2 text-left audit-cat-btn active" data-cat="ALL" onclick="setAuditCategoryFilter('ALL')" style="cursor:pointer;border:2px solid #2563eb;background:#eff6ff;border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;color:#1e40af;">📚 SEMUA KEJADIAN</div>
+              <div id="audit-count-ALL" style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">0</div>
+              <div style="font-size:10.5px;color:#64748b;">Seluruh aktivitas sistem</div>
+            </button>
+            <button type="button" class="card p-2 text-left audit-cat-btn" data-cat="RKB" onclick="setAuditCategoryFilter('RKB')" style="cursor:pointer;border:1px solid #cbd5e1;background:#ffffff;border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;color:#0284c7;">📘 1. RUH BELANJA</div>
+              <div id="audit-count-RKB" style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">0</div>
+              <div style="font-size:10.5px;color:#64748b;">Simpan Perubahan RKB</div>
+            </button>
+            <button type="button" class="card p-2 text-left audit-cat-btn" data-cat="SIKLUS" onclick="setAuditCategoryFilter('SIKLUS')" style="cursor:pointer;border:1px solid #cbd5e1;background:#ffffff;border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;color:#7c3aed;">🔄 2. SIKLUS &amp; REVISI</div>
+              <div id="audit-count-SIKLUS" style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">0</div>
+              <div style="font-size:10.5px;color:#64748b;">Tahap 1–4 &amp; Pengesahan</div>
+            </button>
+            <button type="button" class="card p-2 text-left audit-cat-btn" data-cat="MASTER" onclick="setAuditCategoryFilter('MASTER')" style="cursor:pointer;border:1px solid #cbd5e1;background:#ffffff;border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;color:#059669;">📐 3. REFERENSI &amp; DB</div>
+              <div id="audit-count-MASTER" style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">0</div>
+              <div style="font-size:10.5px;color:#64748b;">PPK, PPS, SBM, BAS, SSOT</div>
+            </button>
+            <button type="button" class="card p-2 text-left audit-cat-btn" data-cat="USER" onclick="setAuditCategoryFilter('USER')" style="cursor:pointer;border:1px solid #cbd5e1;background:#ffffff;border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;color:#d97706;">👥 4. MANAJEMEN USER</div>
+              <div id="audit-count-USER" style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">0</div>
+              <div style="font-size:10.5px;color:#64748b;">Akun, Role &amp; Status Aktif</div>
+            </button>
+            <button type="button" class="card p-2 text-left audit-cat-btn" data-cat="AUTH" onclick="setAuditCategoryFilter('AUTH')" style="cursor:pointer;border:1px solid #cbd5e1;background:#ffffff;border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;color:#dc2626;">🔑 5. AUTENTIKASI</div>
+              <div id="audit-count-AUTH" style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">0</div>
+              <div style="font-size:10.5px;color:#64748b;">Login, Logout &amp; Simulasi</div>
+            </button>
+            <button type="button" class="card p-2 text-left audit-cat-btn" data-cat="UNDUH" onclick="setAuditCategoryFilter('UNDUH')" style="cursor:pointer;border:1px solid #cbd5e1;background:#ffffff;border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;color:#0d9488;">📥 6. UNDUHAN</div>
+              <div id="audit-count-UNDUH" style="font-size:18px;font-weight:800;color:#0f172a;margin-top:2px;">0</div>
+              <div style="font-size:10.5px;color:#64748b;">Ekspor Excel, PDF &amp; ZIP</div>
+            </button>
+          </div>
+
+          <!-- TOOLBAR FILTER & PENCARIAN LOG -->
+          <div class="card mb-3" style="padding:14px 16px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;align-items:end;">
+              <div>
+                <label style="font-size:11.5px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Filter Pelaku / Akun:</label>
+                <select id="audit-filter-user" class="input-select input-sm" onchange="applyAuditLogFilters()">
+                  <option value="ALL">-- Semua Pengguna --</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11.5px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Dari Tanggal:</label>
+                <input type="date" id="audit-filter-date-start" class="input-text input-sm" onchange="applyAuditLogFilters()">
+              </div>
+              <div>
+                <label style="font-size:11.5px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Sampai Tanggal:</label>
+                <input type="date" id="audit-filter-date-end" class="input-text input-sm" onchange="applyAuditLogFilters()">
+              </div>
+              <div style="grid-column: span 2;">
+                <label style="font-size:11.5px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Cari Kata Kunci (Uraian, Kode Revisi, Catatan, atau Nilai):</label>
+                <div style="display:flex;gap:8px;">
+                  <input type="text" id="audit-filter-search" class="input-text input-sm" placeholder="Ketik kata kunci aktivitas, PIC, nomor BA, atau uraian baris..." onkeydown="if(event.key==='Enter') applyAuditLogFilters()">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="applyAuditLogFilters()">Cari</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="resetAuditLogFilters()">Reset</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABEL LOG AKTIVITAS -->
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table table-striped table-hover mb-0" style="font-size:12px;">
+                <thead>
+                  <tr style="background:#f8fafc;">
+                    <th style="width:155px;">Waktu (WIB)</th>
+                    <th style="width:175px;">Pelaku &amp; Peran</th>
+                    <th style="width:130px;" class="text-center">Kelompok</th>
+                    <th style="width:185px;">Kejadian / Aksi</th>
+                    <th>Ringkasan Perubahan &amp; Catatan</th>
+                    <th style="width:90px;" class="text-center">Status</th>
+                    <th style="width:95px;" class="text-center">Detail</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-logs-table-body">
+                  <tr>
+                    <td colspan="7" class="text-center" style="padding:30px;color:#64748b;">Memuat rekam jejak aktivitas...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid #e2e8f0;flex-wrap:wrap;gap:10px;">
+              <div id="audit-pagination-info" style="font-size:12px;color:#64748b;font-weight:600;">
+                Menampilkan 0 dari 0 aktivitas
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-audit-prev" onclick="changeAuditLogPage(-1)">&lsaquo; Sebelumnya</button>
+                <span class="badge badge-primary" id="audit-page-indicator" style="padding:5px 12px;font-size:12px;">Halaman 1</span>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-audit-next" onclick="changeAuditLogPage(1)">Berikutnya &rsaquo;</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
         <!-- VIEW: RUANG PENGEMBANG (BLUEPRINT & PRD ARSITEKTUR) - HANYA LEVEL 0 -->
         <!-- ================================================================= -->
         <section id="view-developer" class="app-view">
@@ -4702,7 +4846,28 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.9.7"></script>
+    <!-- ================================================================= -->
+    <!-- MODAL: POP-UP DETAIL LOG AKTIVITAS (SEMULA VS MENJADI)            -->
+    <!-- ================================================================= -->
+    <div id="modal-audit-detail" class="modal-backdrop" style="display: none; z-index: 1095;">
+      <div class="modal-box" style="max-width: 840px; width: 95%;">
+        <div class="modal-header" style="background: #0f172a; color: #ffffff;">
+          <div>
+            <h3 style="margin: 0; font-size: 16px; color: #ffffff;" id="modal-audit-detail-title">🔍 Rincian Rekam Jejak Aktivitas</h3>
+            <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;" id="modal-audit-detail-subtitle">Informasi lengkap nilai Semula vs Menjadi</div>
+          </div>
+          <button type="button" class="btn-close" style="color: #ffffff;" onclick="closeAuditDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-audit-detail-body" style="padding: 18px; max-height: 75vh; overflow-y: auto;">
+          <!-- Rendered dynamically via JS -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeAuditDetailModal()">Tutup</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js?v=3.9.8"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
