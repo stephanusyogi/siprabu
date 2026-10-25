@@ -1,7 +1,7 @@
 {
   "name": "si-prabu",
   "version": "3.0.0",
-  "description": "Sistem Informasi Perencanaan Anggaran dan Biaya Terpadu Satker KPU Kabupaten/Kota",
+  "description": "SI-PRABU — Sistem Perencanaan dan Belanja Terpadu Satker KPU Kabupaten/Kota",
   "main": "server.js",
   "engines": {
     "node": ">=22.0.0"

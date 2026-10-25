@@ -1,7 +1,7 @@
-# SIPRABU — Sistem Informasi Perencanaan & Penganggaran RKB
+# SI-PRABU — Sistem Perencanaan dan Belanja Terpadu
 ### Komisi Pemilihan Umum (KPU) Kabupaten Ngawi
 
-SIPRABU (**Sistem Informasi Perencanaan Anggaran dan Biaya Terpadu**) adalah platform tata kelola penyusunan, revisi, pemantauan, dan pertanggungjawaban Rencana Kebutuhan Biaya (RKB) Dana Hibah Pemilihan Kepala Daerah (Pilkada) dan Pemilu berbasis *Single Source of Truth* (SSOT).
+**SI-PRABU** (**Sistem Perencanaan dan Belanja Terpadu**) adalah platform tata kelola penyusunan, revisi, pemantauan, dan pertanggungjawaban Rencana Kebutuhan Biaya (RKB) Dana Hibah Pemilihan Kepala Daerah (Pilkada) dan Pemilu berbasis *Single Source of Truth* (SSOT).
 
 Aplikasi ini dirancang dengan antarmuka modern yang mengadopsi struktur navigasi lipat hierarkis ala **SAKTI Kemenkeu**, sistem antrean unduhan dokumen asinkron, serta kalkulasi otomatis anggaran belanja riil berjenjang dari tingkat Satker Kabupaten hingga Badan Adhoc (PPK, PPS, dan TPS).
 

@@ -1,5 +1,5 @@
 # 🏛️ BLUEPRINT & PRD INDUK
-## SI PRABU | Sistem Perencanaan dan Revisi Anggaran Berbasis RKB
+## SI-PRABU | Sistem Perencanaan dan Belanja Terpadu
 ### CANON MASTER PENGEMBANGAN SISTEM
 
 - **Lead Developer & System Architect:** `emenje`
@@ -13,7 +13,7 @@
 ## DAFTAR KESEPAKATAN ARSITEKTUR & ATURAN SISTEM
 
 ### [KESEPAKATAN-01] Visi, Ruang Lingkup & Fondasi Modul SI-PRABU
-- **Definisi Aplikasi:** SI-PRABU adalah aplikasi yang dirancang untuk **Perencanaan** dan **Pelaksanaan** Anggaran **Pilkada Serentak Tahun 2029**.
+- **Definisi Aplikasi:** **SI-PRABU** (*Sistem Perencanaan dan Belanja Terpadu*) adalah aplikasi yang dirancang untuk **Perencanaan** dan **Pelaksanaan** Anggaran **Pilkada Serentak Tahun 2029**.
 - **Struktur Modul Perencanaan:** Terdiri dari 2 (dua) fase utama ditambah fase penetapan NPHD:
   1. **Pra-NPHD (Pagu Dinamis):** Plafon/pagu anggaran bersifat dinamis (mengikuti perubahan/akumulasi rincian kebutuhan yang disusun).
   2. **NPHD (Penetapan Pagu Resmi):** Penetapan pagu resmi berdasarkan dokumen NPHD yang ditandatangani.

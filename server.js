@@ -2488,7 +2488,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`================================================================`);
-  console.log(`  SI-PRABU Clean Web Edition v3.0 (KPU Kabupaten Ngawi)`);
+  console.log(`  SI-PRABU v3.0 — Sistem Perencanaan dan Belanja Terpadu`);
+  console.log(`  Satker: KPU Kabupaten Ngawi`);
   console.log(`  Server aktif di port: ${PORT}`);
   console.log(`  URL Lokal: http://localhost:${PORT}`);
   console.log(`  Pengembang Resmi: emenje`);

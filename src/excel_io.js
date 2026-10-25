@@ -315,7 +315,7 @@ function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPi
   const hRow1 = ws.addRow(['[PENANDA RIWAYAT FILE & AUDIT LOG SISTEM - BUKAN MERUPAKAN BAGIAN DOKUMEN RESMI]']);
   const hRow2 = ws.addRow([`Program / Dokumen: ${periode ? periode.nama_periode : 'Pilkada Serentak'} | Versi: ${periode ? (periode.versi_revisi || 'Induk') : '-'} | Status: ${statusLabel}`]);
   const hRow3 = ws.addRow([`Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'} | Tanggal Unduh: ${tanggalUnduh}${hasFilter ? ` | Filter: PIC=${picDisplay}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
-  const hRow4 = ws.addRow(['Sistem Informasi: SI-PRABU Clean Web Edition v3.0 | Pengembang: emenje']);
+  const hRow4 = ws.addRow(['Aplikasi: SI-PRABU (Sistem Perencanaan dan Belanja Terpadu) v3.0 | Pengembang: emenje']);
 
   [hRow1, hRow2, hRow3, hRow4].forEach(hr => {
     const c = hr.getCell(1);
