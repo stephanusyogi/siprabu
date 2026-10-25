@@ -111,7 +111,9 @@ const {
   getOrCreateRevisionCycle,
   getRevisionCycleStatus,
   getRevisiPengajuanHistory,
-  recordAuditLog
+  classifyAuditCategory,
+  recordAuditLog,
+  getAuditLogs
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset, auditRkbIntegrity } = require('./src/calculation');

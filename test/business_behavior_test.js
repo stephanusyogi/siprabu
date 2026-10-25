@@ -850,6 +850,13 @@ async function runBusinessBehaviorTests() {
     'Test 29.3 (Canon Bab 14.2): Mesin Log Aktivitas mengklasifikasikan 6 kelompok kejadian (RKB, SIKLUS, MASTER, USER, AUTH, UNDUH) dan menyajikan data Semula vs Menjadi secara akurat.'
   );
 
+  const serverSourceCode = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert(
+    serverSourceCode.includes('getAuditLogs') &&
+    /const\s*\{[\s\S]*?\bgetAuditLogs\b[\s\S]*?\}\s*=\s*require\(['"]\.\/src\/db['"]\)/.test(serverSourceCode),
+    'Test 29.4 (Canon Bab 14): Modul server.js mengimpor getAuditLogs dari src/db secara utuh untuk melayani endpoint GET /api/audit-logs.'
+  );
+
   // =========================================================================
   // 30. BATCH 7 CANON — GANTI PERAN (SIMULASI): BADGE LOGIN TETAP & FITUR MENYESUAIKAN PERAN (BAB 11)
   // =========================================================================

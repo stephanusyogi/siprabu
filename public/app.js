@@ -1766,6 +1766,17 @@ function renderAllViews() {
   renderSettings();
   renderUsersTable();
   applyRolePermissionsToUI();
+
+  const u = AppState.currentUser;
+  const canAudit = Boolean(
+    u && (
+      u.level === 0 ||
+      (u.level === 1 && (u.username === 'perencanaan' || u.username === 'kasubbag_rendatin' || u.role_id === 'super_admin'))
+    )
+  );
+  if (canAudit && typeof loadAuditLogsView === 'function') {
+    loadAuditLogsView(false);
+  }
 }
 
 // ============================================================================
@@ -10739,17 +10750,75 @@ function openAuditDetailModal(logId) {
       ` : ''}
     `;
   } else if (oldObj || newObj) {
+    const isOldDict = oldObj && typeof oldObj === 'object' && !Array.isArray(oldObj);
+    const isNewDict = newObj && typeof newObj === 'object' && !Array.isArray(newObj);
+    let tableCompareHtml = '';
+
+    if (isOldDict || isNewDict) {
+      const allKeys = Array.from(new Set([
+        ...(isOldDict ? Object.keys(oldObj) : []),
+        ...(isNewDict ? Object.keys(newObj) : [])
+      ]));
+      if (allKeys.length > 0) {
+        const formatVal = (v) => {
+          if (v === undefined || v === null || v === '') return '<span style="color:#94a3b8;font-style:italic;">(kosong)</span>';
+          if (typeof v === 'object') return `<code>${escHtml(JSON.stringify(v))}</code>`;
+          return escHtml(String(v));
+        };
+        tableCompareHtml = `
+          <div style="font-weight:700;font-size:12px;color:#0f172a;margin-bottom:6px;">📊 Tabel Perbandingan Parameter (Semula vs Menjadi):</div>
+          <div class="table-responsive" style="margin-bottom:12px;border:1px solid #e2e8f0;border-radius:6px;">
+            <table class="table table-bordered table-hover mb-0" style="font-size:11.5px;">
+              <thead style="background:#f1f5f9;">
+                <tr>
+                  <th style="width:28%;">Atribut / Field</th>
+                  <th style="width:31%;">⬅️ Nilai Semula</th>
+                  <th style="width:31%;">➡️ Nilai Menjadi</th>
+                  <th style="width:10%;" class="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${allKeys.map(k => {
+                  const vOld = isOldDict ? oldObj[k] : undefined;
+                  const vNew = isNewDict ? newObj[k] : undefined;
+                  const strOld = vOld !== undefined ? JSON.stringify(vOld) : '';
+                  const strNew = vNew !== undefined ? JSON.stringify(vNew) : '';
+                  const isChanged = strOld !== strNew;
+                  return `
+                    <tr style="${isChanged ? 'background:#fffbeb;' : ''}">
+                      <td style="font-family:var(--font-mono);font-weight:700;color:#1e293b;">${escHtml(k)}</td>
+                      <td style="font-family:var(--font-mono);color:#475569;word-break:break-word;">${formatVal(vOld)}</td>
+                      <td style="font-family:var(--font-mono);font-weight:${isChanged ? '700' : '400'};color:${isChanged ? '#1e3a8a' : '#475569'};word-break:break-word;">${formatVal(vNew)}</td>
+                      <td class="text-center">
+                        ${isChanged
+                          ? '<span class="badge badge-warning" style="font-size:10px;">BERUBAH</span>'
+                          : '<span class="badge badge-subtle" style="font-size:10px;">TETAP</span>'}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+    }
+
     diffSectionHtml = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:12px;">
-          <div style="font-size:11.5px;font-weight:800;color:#475569;margin-bottom:6px;">⬅️ NILAI SEBELUM (SEMULA)</div>
-          <pre style="margin:0;font-size:11.5px;font-family:var(--font-mono);white-space:pre-wrap;word-break:break-word;color:#334155;">${oldObj ? escHtml(JSON.stringify(oldObj, null, 2)) : '(Tidak ada data semula / Entitas baru)'}</pre>
+      ${tableCompareHtml}
+      <details style="margin-top:6px;">
+        <summary style="cursor:pointer;font-size:11.5px;font-weight:700;color:#475569;padding:6px 0;">🔎 Lihat Data Mentah JSON (Semula vs Menjadi)</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+          <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:12px;">
+            <div style="font-size:11.5px;font-weight:800;color:#475569;margin-bottom:6px;">⬅️ NILAI SEBELUM (SEMULA)</div>
+            <pre style="margin:0;font-size:11.5px;font-family:var(--font-mono);white-space:pre-wrap;word-break:break-word;color:#334155;">${oldObj ? escHtml(JSON.stringify(oldObj, null, 2)) : '(Tidak ada data semula / Entitas baru)'}</pre>
+          </div>
+          <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;">
+            <div style="font-size:11.5px;font-weight:800;color:#1e40af;margin-bottom:6px;">➡️ NILAI SESUDAH (MENJADI)</div>
+            <pre style="margin:0;font-size:11.5px;font-family:var(--font-mono);white-space:pre-wrap;word-break:break-word;color:#1e3a8a;">${newObj ? escHtml(JSON.stringify(newObj, null, 2)) : '(Entitas dihapus / Tidak ada nilai baru)'}</pre>
+          </div>
         </div>
-        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;">
-          <div style="font-size:11.5px;font-weight:800;color:#1e40af;margin-bottom:6px;">➡️ NILAI SESUDAH (MENJADI)</div>
-          <pre style="margin:0;font-size:11.5px;font-family:var(--font-mono);white-space:pre-wrap;word-break:break-word;color:#1e3a8a;">${newObj ? escHtml(JSON.stringify(newObj, null, 2)) : '(Entitas dihapus / Tidak ada nilai baru)'}</pre>
-        </div>
-      </div>
+      </details>
     `;
   } else {
     diffSectionHtml = `
