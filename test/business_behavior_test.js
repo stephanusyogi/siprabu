@@ -676,6 +676,136 @@ async function runBusinessBehaviorTests() {
     'Test 27.3 (Canon Bab 21.2 & 21.3): Data olahan Rekap Perencanaan (hanya sampai Level 3 / L1-L3) dan Rekap Pelaksanaan (Baseline Terkunci Tahap 4) terhitung secara terpisah dan konsisten.'
   );
 
+  // =========================================================================
+  // 28. BATCH 5 CANON — SIMPAN PERUBAHAN RKB: DRAFT BUFFER, POP-UP PREVIEW & SINKRONISASI REFERENSI (BAB 18.8)
+  // =========================================================================
+  console.log('\n--- [28] Simpan Perubahan RKB: Staged Draft Buffer, Pop-Up Preview & Concurrent Reference Sync (Bab 18.8) ---');
+  const {
+    getMasterReferenceVersion,
+    previewStagedRkbOps,
+    commitStagedRkbOps,
+    saveKuantitas
+  } = require('../src/db');
+
+  const activeCycleForStage = getActiveRevisionCycle();
+  const initialRefSnap = getMasterReferenceVersion();
+  const rowToEditInStage = db.prepare(`
+    SELECT *
+    FROM rab_baris
+    WHERE periode_id = ? AND row_type = 'item'
+    ORDER BY urutan ASC, id ASC
+    LIMIT 1
+  `).get(activeCycleForStage.id);
+
+  const countBeforePreview = db.prepare('SELECT COUNT(*) as c FROM rab_baris WHERE periode_id = ?').get(activeCycleForStage.id).c;
+  const auditCountBeforePreview = db.prepare("SELECT COUNT(*) as c FROM audit_log WHERE action = 'COMMIT_RKB_CHANGES'").get().c;
+
+  const stagedOpsSample = [
+    {
+      type: 'SAVE_ROW',
+      payload: {
+        id: rowToEditInStage.id,
+        row_type: 'item',
+        kode: rowToEditInStage.kode || '-',
+        uraian: `${rowToEditInStage.uraian} [UJI DRAF]`,
+        level_indent: rowToEditInStage.level_indent || 4,
+        vol_satuan: rowToEditInStage.vol_satuan || 'PAKET',
+        harga_satuan: Number(rowToEditInStage.harga_satuan || 50000) + 10000,
+        pic_bagian: rowToEditInStage.pic_bagian || 'KUL',
+        target_scope: rowToEditInStage.target_scope || 'KAB',
+        kode_akun: rowToEditInStage.kode_akun || '521211',
+        catatan_revisi_baris: 'Revisi draf uji coba',
+        f1_val: 2,
+        f1_sat: 'kali'
+      }
+    },
+    {
+      type: 'SAVE_ROW',
+      temp_id: -101,
+      payload: {
+        id: null,
+        row_type: 'item',
+        target_after_id: rowToEditInStage.id,
+        kode: '-',
+        uraian: 'Item Baru Draf Sesi Sementara',
+        level_indent: rowToEditInStage.level_indent || 4,
+        vol_satuan: 'OK',
+        harga_satuan: 75000,
+        pic_bagian: rowToEditInStage.pic_bagian || 'KUL',
+        target_scope: 'KAB',
+        kode_akun: rowToEditInStage.kode_akun || '521211',
+        catatan_revisi_baris: 'Penambahan baris baru via draf',
+        f1_val: 4,
+        f1_sat: 'org'
+      }
+    }
+  ];
+
+  const previewResult = previewStagedRkbOps(activeCycleForStage.id, stagedOpsSample, userL1);
+  const countAfterPreview = db.prepare('SELECT COUNT(*) as c FROM rab_baris WHERE periode_id = ?').get(activeCycleForStage.id).c;
+  const rowStillUnchangedInDb = db.prepare('SELECT uraian FROM rab_baris WHERE id = ?').get(rowToEditInStage.id);
+
+  assert(
+    previewResult &&
+    previewResult.staged_diff &&
+    previewResult.staged_diff.added_count === 1 &&
+    previewResult.staged_diff.updated_count >= 1 &&
+    countAfterPreview === countBeforePreview &&
+    rowStillUnchangedInDb.uraian === rowToEditInStage.uraian,
+    'Test 28.1 (Canon Bab 18.8): Draf perubahan RUH Belanja (Preview Staged SAVEPOINT) menghitung Pagu Semula vs Menjadi secara akurat tanpa mengubah database fisik sebelum dikonfirmasi.'
+  );
+
+  // Simulasikan perubahan referensi bersamaan (Concurrent Reference Change) saat operator sedang mengedit draf
+  const sampleKuantitas = db.prepare('SELECT * FROM master_kuantitas LIMIT 1').get();
+  if (sampleKuantitas) {
+    saveKuantitas({ ...sampleKuantitas, nilai: Number(sampleKuantitas.nilai) + 1 }, userL1);
+  }
+  const refConflictResult = commitStagedRkbOps(
+    activeCycleForStage.id,
+    stagedOpsSample,
+    {
+      expected_reference_version: initialRefSnap.version,
+      acknowledge_reference_change: false,
+      catatan_simpan: 'Uji komit saat referensi berubah'
+    },
+    userL1
+  );
+
+  assert(
+    refConflictResult &&
+    refConflictResult.committed === false &&
+    refConflictResult.reference_changed === true &&
+    refConflictResult.reference_version !== initialRefSnap.version &&
+    refConflictResult.staged_diff &&
+    refConflictResult.staged_diff.added_count === 1,
+    'Test 28.2 (Canon Bab 18.8): Sistem mendeteksi perubahan REFERENSI/DATABASE bersamaan (Concurrent Reference Sync), menahan komit otomatis, dan menyajikan hasil hitung ulang terbaru untuk dikonfirmasi.'
+  );
+
+  // Kembalikan nilai kuantitas dan lakukan komit dengan konfirmasi sinkronisasi referensi
+  if (sampleKuantitas) {
+    saveKuantitas({ ...sampleKuantitas, nilai: Number(sampleKuantitas.nilai) }, userL1);
+  }
+  const commitSuccessResult = commitStagedRkbOps(
+    activeCycleForStage.id,
+    stagedOpsSample,
+    {
+      expected_reference_version: initialRefSnap.version,
+      acknowledge_reference_change: true,
+      catatan_simpan: 'Simpan batch revisi RUH KUL'
+    },
+    userL1
+  );
+  const countAfterCommit = db.prepare('SELECT COUNT(*) as c FROM rab_baris WHERE periode_id = ?').get(activeCycleForStage.id).c;
+  const auditCountAfterCommit = db.prepare("SELECT COUNT(*) as c FROM audit_log WHERE action = 'COMMIT_RKB_CHANGES'").get().c;
+
+  assert(
+    commitSuccessResult &&
+    commitSuccessResult.committed === true &&
+    countAfterCommit === countBeforePreview + 1 &&
+    auditCountAfterCommit === auditCountBeforePreview + 1,
+    'Test 28.3 (Canon Bab 14 & 18.8): Konfirmasi Simpan Perubahan RKB mengeksekusi seluruh draf secara atomik dan mencatat tepat 1 entri bersih COMMIT_RKB_CHANGES pada Audit Log.'
+  );
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');

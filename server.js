@@ -46,6 +46,9 @@ const {
   updateRabBarisPicWithCascade,
   updateRabBarisSasaranWithCascade,
   reorderRow,
+  getMasterReferenceVersion,
+  previewStagedRkbOps,
+  commitStagedRkbOps,
   getUsers,
   getUserById,
   saveUser,
@@ -841,6 +844,7 @@ const server = http.createServer(async (req, res) => {
 
       const compareWith = query.compare_with ? Number(query.compare_with) : null;
       const revision_comparison = getRevisionComparison(periodeId, compareWith, fullResult);
+      const refMeta = getMasterReferenceVersion();
 
       return sendJson(res, 200, {
         periode,
@@ -852,8 +856,123 @@ const server = http.createServer(async (req, res) => {
         is_user_scoped: Boolean(user && user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA'),
         user_pic: (user && user.pic_subbag) || 'SEMUA',
         rows,
-        revision_comparison
+        revision_comparison,
+        reference_version: refMeta.version,
+        reference_summary: refMeta.summary
       });
+    }
+
+    // 10a. STAGED DRAFT BUFFER PREVIEW & BATCH COMMIT RKB (BAB 18.8 CANON)
+    const previewStagedMatch = pathname.match(/^\/api\/rkb\/(\d+)\/preview-staged$/);
+    if (previewStagedMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const periodeId = Number(previewStagedMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+
+      const body = await parseJsonBody(req);
+      const ops = Array.isArray(body.ops) ? body.ops : [];
+      let { pic, target_scope, search, compare_with } = body;
+
+      if (user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        pic = user.pic_subbag;
+      }
+
+      try {
+        const preview = previewStagedRkbOps(periodeId, ops, user);
+        const fullResult = preview.afterDataset;
+        const docSummary = fullResult.summary;
+        const subbagSummaries = docSummary.subbagSummaries || {};
+        const activeSubbag = (pic && pic !== 'SEMUA') ? pic : null;
+        const activeSummary = (activeSubbag && subbagSummaries[activeSubbag])
+          ? subbagSummaries[activeSubbag]
+          : docSummary;
+
+        const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (search && String(search).trim()));
+        let rows, filteredSummary;
+        if (hasFilter) {
+          const pruned = filterAndPruneRkbDataset(fullResult, { pic, target_scope, search });
+          rows = pruned.rows;
+          filteredSummary = pruned.summary;
+        } else {
+          rows = fullResult.rows;
+          filteredSummary = docSummary;
+        }
+
+        const compareWith = compare_with ? Number(compare_with) : null;
+        const revision_comparison = getRevisionComparison(periodeId, compareWith, fullResult);
+
+        return sendJson(res, 200, {
+          ok: true,
+          periode,
+          summary: docSummary,
+          active_summary: activeSummary,
+          subbag_summaries: subbagSummaries,
+          filtered_summary: filteredSummary,
+          scoped_pic: activeSubbag,
+          is_user_scoped: Boolean(user && user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA'),
+          user_pic: (user && user.pic_subbag) || 'SEMUA',
+          rows,
+          revision_comparison,
+          staged_diff: preview.staged_diff,
+          temp_id_map: preview.tempIdMap,
+          last_affected_row_id: preview.lastAffectedRowId,
+          reference_version: preview.reference_version,
+          reference_summary: preview.reference_summary
+        });
+      } catch (err) {
+        const status = err.message.includes('Akses ditolak') || err.message.includes('terkunci') || err.message.includes('TERKUNCI') ? 403 : 400;
+        return sendJson(res, status, { error: err.message });
+      }
+    }
+
+    const commitStagedMatch = pathname.match(/^\/api\/rkb\/(\d+)\/commit-staged$/);
+    if (commitStagedMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const periodeId = Number(commitStagedMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+
+      const body = await parseJsonBody(req);
+      const ops = Array.isArray(body.ops) ? body.ops : [];
+
+      try {
+        const result = commitStagedRkbOps(periodeId, ops, {
+          expected_reference_version: body.expected_reference_version || null,
+          acknowledge_reference_change: Boolean(body.acknowledge_reference_change),
+          catatan_simpan: body.catatan_simpan || ''
+        }, user);
+
+        if (!result.committed && result.reference_changed) {
+          return sendJson(res, 409, {
+            ok: false,
+            committed: false,
+            reference_changed: true,
+            reference_version: result.reference_version,
+            reference_summary: result.reference_summary,
+            staged_diff: result.staged_diff,
+            error: result.message
+          });
+        }
+
+        clearRkbDatasetCache();
+        return sendJson(res, 200, {
+          ok: true,
+          committed: true,
+          reference_version: result.reference_version,
+          reference_summary: result.reference_summary,
+          staged_diff: result.staged_diff,
+          last_affected_row_id: result.lastAffectedRowId,
+          message: result.message
+        });
+      } catch (err) {
+        const status = err.message.includes('Akses ditolak') || err.message.includes('terkunci') || err.message.includes('TERKUNCI') ? 403 : 400;
+        return sendJson(res, status, { error: err.message });
+      }
     }
 
     // 10b. QUICK UPDATE PIC & KODE AKUN (INLINE SPREADSHEET SHORTCUT)

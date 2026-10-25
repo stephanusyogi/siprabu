@@ -5,6 +5,7 @@
  */
 
 const { DatabaseSync } = require('node:sqlite');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const { hashPassword, verifyPassword, sanitizeLogData } = require('./crypto_util');
@@ -1572,7 +1573,8 @@ function getRabRowById(id) {
   return db.prepare('SELECT * FROM rab_baris WHERE id = ?').get(id);
 }
 
-function saveRabRow(row, actorUser = null) {
+function saveRabRow(row, actorUser = null, options = {}) {
+  const { skipTransaction = false, skipAudit = false } = options;
   const targetSubbag = normalizePic(row.pic_bagian || (row.id ? getRabRowById(row.id)?.pic_bagian : 'KUL') || 'KUL');
   checkRowEditPermission(row.periode_id, targetSubbag, actorUser);
 
@@ -1661,15 +1663,17 @@ function saveRabRow(row, actorUser = null) {
       clearRkbDatasetCache(row.periode_id);
     } catch (e) {}
 
-    recordAuditLog({
-      user: actorUser,
-      action: 'UPDATE_RKB_ROW',
-      entity: 'rab_baris',
-      entity_id: row.id,
-      old_values: { uraian: existing.uraian, harga_satuan: existing.harga_satuan, pic: existing.pic_bagian },
-      new_values: { uraian: cleanUraian, harga_satuan: harga, pic: row.pic_bagian || existing.pic_bagian },
-      notes: `Baris RKB [${row.id}] diupdate.`
-    });
+    if (!skipAudit) {
+      recordAuditLog({
+        user: actorUser,
+        action: 'UPDATE_RKB_ROW',
+        entity: 'rab_baris',
+        entity_id: row.id,
+        old_values: { uraian: existing.uraian, harga_satuan: existing.harga_satuan, pic: existing.pic_bagian },
+        new_values: { uraian: cleanUraian, harga_satuan: harga, pic: row.pic_bagian || existing.pic_bagian },
+        notes: `Baris RKB [${row.id}] diupdate.`
+      });
+    }
 
     // Jika baris yang diedit adalah Header dan PIC-nya diubah, lakukan cascade ke seluruh baris anak ("level diatasnya dirubah, level dibawah mengikuti")
     const isHeaderRow = (existing.row_type === 'header' || Number(existing.level_indent) < 4);
@@ -1678,7 +1682,7 @@ function saveRabRow(row, actorUser = null) {
 
     if (isHeaderRow && isPicChanged) {
       try {
-        updateRabBarisPicWithCascade(existing.periode_id, row.id, newPicVal, true, actorUser);
+        updateRabBarisPicWithCascade(existing.periode_id, row.id, newPicVal, true, actorUser, { skipTransaction, skipAudit });
       } catch (cascadeErr) {
         console.warn('[saveRabRow] Cascade PIC notice:', cascadeErr.message);
       }
@@ -1689,7 +1693,7 @@ function saveRabRow(row, actorUser = null) {
 
     if (isHeaderRow && isSasaranChanged) {
       try {
-        updateRabBarisSasaranWithCascade(existing.periode_id, row.id, newSasaranVal, true, actorUser);
+        updateRabBarisSasaranWithCascade(existing.periode_id, row.id, newSasaranVal, true, actorUser, { skipTransaction, skipAudit });
       } catch (cascadeErr) {
         console.warn('[saveRabRow] Cascade Sasaran notice:', cascadeErr.message);
       }
@@ -1699,8 +1703,18 @@ function saveRabRow(row, actorUser = null) {
   } else {
     let urutan = row.urutan;
     if (urutan === undefined || urutan === null) {
-      const maxU = db.prepare('SELECT MAX(urutan) as maxU FROM rab_baris WHERE periode_id = ?').get(row.periode_id)?.maxU || 0;
-      urutan = maxU + 10;
+      if (row.target_before_urutan !== undefined && row.target_before_urutan !== null) {
+        const targetBefore = Number(row.target_before_urutan);
+        db.prepare('UPDATE rab_baris SET urutan = urutan + 1 WHERE periode_id = ? AND urutan >= ?').run(row.periode_id, targetBefore);
+        urutan = targetBefore;
+      } else if (row.target_after_urutan !== undefined && row.target_after_urutan !== null) {
+        const targetAfter = Number(row.target_after_urutan);
+        db.prepare('UPDATE rab_baris SET urutan = urutan + 1 WHERE periode_id = ? AND urutan > ?').run(row.periode_id, targetAfter);
+        urutan = targetAfter + 1;
+      } else {
+        const maxU = db.prepare('SELECT MAX(urutan) as maxU FROM rab_baris WHERE periode_id = ?').get(row.periode_id)?.maxU || 0;
+        urutan = maxU + 10;
+      }
     }
 
     const res = db.prepare(`
@@ -1730,20 +1744,23 @@ function saveRabRow(row, actorUser = null) {
       clearRkbDatasetCache(row.periode_id);
     } catch (e) {}
 
-    recordAuditLog({
-      user: actorUser,
-      action: 'CREATE_RKB_ROW',
-      entity: 'rab_baris',
-      entity_id: res.lastInsertRowid,
-      new_values: { uraian: cleanUraian, harga_satuan: harga, pic: row.pic_bagian },
-      notes: `Baris RKB baru ditambahkan ke periode ${row.periode_id}.`
-    });
+    if (!skipAudit) {
+      recordAuditLog({
+        user: actorUser,
+        action: 'CREATE_RKB_ROW',
+        entity: 'rab_baris',
+        entity_id: res.lastInsertRowid,
+        new_values: { uraian: cleanUraian, harga_satuan: harga, pic: row.pic_bagian },
+        notes: `Baris RKB baru ditambahkan ke periode ${row.periode_id}.`
+      });
+    }
 
     return getRabRowById(res.lastInsertRowid);
   }
 }
 
-function deleteRabRow(id, actorUser = null) {
+function deleteRabRow(id, actorUser = null, options = {}) {
+  const { skipTransaction = false, skipAudit = false } = options;
   const row = getRabRowById(id);
   if (!row) throw new Error('Baris RKB tidak ditemukan.');
 
@@ -1799,14 +1816,14 @@ function deleteRabRow(id, actorUser = null) {
 
   // Hapus seluruh baris terpilih dalam 1 transaksi atomik
   const delStmt = db.prepare('DELETE FROM rab_baris WHERE id = ?');
-  db.exec('BEGIN TRANSACTION');
+  if (!skipTransaction) db.exec('BEGIN TRANSACTION');
   try {
     for (const delId of idsToDelete) {
       delStmt.run(delId);
     }
-    db.exec('COMMIT');
+    if (!skipTransaction) db.exec('COMMIT');
   } catch (err) {
-    db.exec('ROLLBACK');
+    if (!skipTransaction) db.exec('ROLLBACK');
     throw err;
   }
 
@@ -1814,16 +1831,18 @@ function deleteRabRow(id, actorUser = null) {
     clearRkbDatasetCache(row.periode_id);
   } catch (e) {}
 
-  recordAuditLog({
-    user: actorUser,
-    action: 'DELETE_RKB_ROW',
-    entity: 'rab_baris',
-    entity_id: id,
-    old_values: { kode: row.kode, uraian: row.uraian, total: row.harga_satuan, pic: row.pic_bagian },
-    notes: idsToDelete.length > 1
-      ? `Baris RKB [${row.kode || '-'}] ${row.uraian} beserta ${idsToDelete.length - 1} rincian di bawahnya berhasil dihapus (cascade delete: total ${idsToDelete.length} baris).`
-      : `Baris RKB [${row.kode || '-'}] ${row.uraian} dihapus.`
-  });
+  if (!skipAudit) {
+    recordAuditLog({
+      user: actorUser,
+      action: 'DELETE_RKB_ROW',
+      entity: 'rab_baris',
+      entity_id: id,
+      old_values: { kode: row.kode, uraian: row.uraian, total: row.harga_satuan, pic: row.pic_bagian },
+      notes: idsToDelete.length > 1
+        ? `Baris RKB [${row.kode || '-'}] ${row.uraian} beserta ${idsToDelete.length - 1} rincian di bawahnya berhasil dihapus (cascade delete: total ${idsToDelete.length} baris).`
+        : `Baris RKB [${row.kode || '-'}] ${row.uraian} dihapus.`
+    });
+  }
 
   return {
     success: true,
@@ -1846,7 +1865,8 @@ function getRowHierarchyRank(row) {
   return 45;
 }
 
-function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = true, actorUser = null) {
+function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = true, actorUser = null, options = {}) {
+  const { skipTransaction = false } = options;
   const cleanPic = normalizePic(picBagian);
   const targetRow = getRabRowById(rowId);
   if (!targetRow) throw new Error('Baris tidak ditemukan.');
@@ -1891,12 +1911,12 @@ function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = tru
   }
 
   const upd = db.prepare('UPDATE rab_baris SET pic_bagian = ? WHERE id = ?');
-  db.exec('BEGIN TRANSACTION');
+  if (!skipTransaction) db.exec('BEGIN TRANSACTION');
   try {
     idsToUpdate.forEach(id => upd.run(cleanPic, id));
-    db.exec('COMMIT');
+    if (!skipTransaction) db.exec('COMMIT');
   } catch (err) {
-    db.exec('ROLLBACK');
+    if (!skipTransaction) db.exec('ROLLBACK');
     throw err;
   }
 
@@ -1914,7 +1934,8 @@ function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = tru
   };
 }
 
-function updateRabBarisSasaranWithCascade(periodeId, rowId, targetScope, cascade = true, actorUser = null) {
+function updateRabBarisSasaranWithCascade(periodeId, rowId, targetScope, cascade = true, actorUser = null, options = {}) {
+  const { skipTransaction = false } = options;
   const cleanSasaran = String(targetScope || 'KAB').toUpperCase().trim();
   const targetRow = getRabRowById(rowId);
   if (!targetRow) throw new Error('Baris tidak ditemukan.');
@@ -1953,12 +1974,12 @@ function updateRabBarisSasaranWithCascade(periodeId, rowId, targetScope, cascade
   }
 
   const upd = db.prepare('UPDATE rab_baris SET target_scope = ? WHERE id = ?');
-  db.exec('BEGIN TRANSACTION');
+  if (!skipTransaction) db.exec('BEGIN TRANSACTION');
   try {
     idsToUpdate.forEach(id => upd.run(cleanSasaran, id));
-    db.exec('COMMIT');
+    if (!skipTransaction) db.exec('COMMIT');
   } catch (err) {
-    db.exec('ROLLBACK');
+    if (!skipTransaction) db.exec('ROLLBACK');
     throw err;
   }
 
@@ -1989,7 +2010,8 @@ function clearRabRows(periodeId) {
   return { success: true };
 }
 
-function reorderRow(periodeId, rowId, direction, actorUser = null) {
+function reorderRow(periodeId, rowId, direction, actorUser = null, options = {}) {
+  const { skipTransaction = false, skipAudit = false } = options;
   const curItem = getRabRowById(rowId);
   if (!curItem) throw new Error('Baris tidak ditemukan.');
 
@@ -2091,14 +2113,14 @@ function reorderRow(periodeId, rowId, direction, actorUser = null) {
     : [...siblingBlock, ...curBlock];
 
   const updStmt = db.prepare('UPDATE rab_baris SET urutan = ? WHERE id = ?');
-  db.exec('BEGIN TRANSACTION');
+  if (!skipTransaction) db.exec('BEGIN TRANSACTION');
   try {
     for (let i = 0; i < reorderedBlock.length; i++) {
       updStmt.run(existingUrutans[i], reorderedBlock[i].id);
     }
-    db.exec('COMMIT');
+    if (!skipTransaction) db.exec('COMMIT');
   } catch (err) {
-    db.exec('ROLLBACK');
+    if (!skipTransaction) db.exec('ROLLBACK');
     throw err;
   }
 
@@ -2107,15 +2129,392 @@ function reorderRow(periodeId, rowId, direction, actorUser = null) {
     clearRkbDatasetCache(periodeId);
   } catch (e) {}
 
-  recordAuditLog({
-    user: actorUser,
-    action: 'REORDER_ROW',
-    entity: 'rab_baris',
-    entity_id: rowId,
-    notes: `Pengurutan baris [${rowId}] (${curBlock.length} baris) ditukar ke arah ${direction}.`
-  });
+  if (!skipAudit) {
+    recordAuditLog({
+      user: actorUser,
+      action: 'REORDER_ROW',
+      entity: 'rab_baris',
+      entity_id: rowId,
+      notes: `Pengurutan baris [${rowId}] (${curBlock.length} baris) ditukar ke arah ${direction}.`
+    });
+  }
 
   return true;
+}
+
+// ============================================================================
+// STAGED DRAFT BUFFER, REFERENCE SYNC & BATCH COMMIT RKB (BAB 18.8 CANON)
+// ============================================================================
+
+function getMasterReferenceVersion() {
+  try {
+    const desaAgg = db.prepare(`
+      SELECT COUNT(*) as cnt,
+             COALESCE(SUM(tps), 0) as tps,
+             COALESCE(SUM(kotak), 0) as kotak,
+             COALESCE(SUM(pantarlih), 0) as pantarlih,
+             COALESCE(SUM(pemilih), 0) as pemilih
+      FROM master_desa
+    `).get() || {};
+    const kecCnt = db.prepare('SELECT COUNT(*) as cnt FROM master_kecamatan').get()?.cnt || 0;
+    const paslonAgg = db.prepare("SELECT COUNT(*) as cnt, GROUP_CONCAT(keterangan, ',') as ket FROM master_paslon").get() || {};
+    const kuantitasAgg = db.prepare('SELECT COUNT(*) as cnt, COALESCE(SUM(nilai), 0) as sumNilai FROM master_kuantitas').get() || {};
+    const sbmAgg = db.prepare('SELECT COUNT(*) as cnt, COALESCE(SUM(harga_satuan), 0) as sumBesaran FROM master_sbm').get() || {};
+    const akunCnt = db.prepare('SELECT COUNT(*) as cnt FROM master_akun').get()?.cnt || 0;
+
+    const raw = [
+      `kec:${kecCnt}`,
+      `desa:${desaAgg.cnt}:${desaAgg.tps}:${desaAgg.kotak}:${desaAgg.pantarlih}:${desaAgg.pemilih}`,
+      `paslon:${paslonAgg.cnt}:${paslonAgg.ket || ''}`,
+      `kuant:${kuantitasAgg.cnt}:${kuantitasAgg.sumNilai}`,
+      `sbm:${sbmAgg.cnt}:${sbmAgg.sumBesaran}`,
+      `akun:${akunCnt}`
+    ].join('|');
+
+    const hash = crypto.createHash('sha1').update(raw).digest('hex').slice(0, 12);
+    return {
+      version: hash,
+      summary: {
+        kecamatan: Number(kecCnt),
+        desa: Number(desaAgg.cnt || 0),
+        tps: Number(desaAgg.tps || 0),
+        kotak: Number(desaAgg.kotak || 0),
+        pantarlih: Number(desaAgg.pantarlih || 0),
+        pemilih: Number(desaAgg.pemilih || 0),
+        paslon: Number(paslonAgg.cnt || 0),
+        sbm_count: Number(sbmAgg.cnt || 0)
+      }
+    };
+  } catch (e) {
+    return { version: 'default', summary: {} };
+  }
+}
+
+function executeStagedOpsInternal(periodeId, ops = [], actorUser = null) {
+  const { getRkbCalculatedDataset, clearRkbDatasetCache } = require('./calculation');
+  clearRkbDatasetCache(periodeId);
+
+  const beforeDataset = getRkbCalculatedDataset(periodeId);
+  const beforeRowsMap = new Map();
+  (beforeDataset.rows || []).forEach(r => {
+    beforeRowsMap.set(Number(r.id), { ...r });
+  });
+
+  const tempIdMap = {};
+  const resolveId = (rawId) => {
+    if (rawId === undefined || rawId === null || rawId === '') return undefined;
+    const numId = Number(rawId);
+    if (tempIdMap[rawId] !== undefined) return tempIdMap[rawId];
+    if (tempIdMap[numId] !== undefined) return tempIdMap[numId];
+    return numId;
+  };
+
+  let lastAffectedRowId = null;
+
+  for (const op of (ops || [])) {
+    if (!op || !op.type) continue;
+    const type = String(op.type).toUpperCase();
+
+    if (type === 'SAVE_ROW') {
+      const payload = { ...(op.payload || {}) };
+      payload.periode_id = periodeId;
+      if (payload.id !== undefined && payload.id !== null && payload.id !== '') {
+        payload.id = resolveId(payload.id);
+      } else {
+        delete payload.id;
+      }
+      if (payload.parent_rkb_row_id) {
+        payload.parent_rkb_row_id = resolveId(payload.parent_rkb_row_id);
+      }
+      if (actorUser && actorUser.level > 1 && !payload.id && actorUser.pic_subbag && actorUser.pic_subbag !== 'SEMUA') {
+        payload.pic_bagian = actorUser.pic_subbag;
+      }
+      const saved = saveRabRow(payload, actorUser, { skipTransaction: true, skipAudit: true });
+      if (op.temp_id !== undefined && op.temp_id !== null && saved && saved.id) {
+        tempIdMap[op.temp_id] = saved.id;
+      }
+      if (saved && saved.id) {
+        lastAffectedRowId = saved.id;
+      }
+    } else if (type === 'DELETE_ROW') {
+      const targetId = resolveId(op.row_id);
+      if (targetId && getRabRowById(targetId)) {
+        deleteRabRow(targetId, actorUser, { skipTransaction: true, skipAudit: true });
+      }
+    } else if (type === 'REORDER_ROW') {
+      const targetId = resolveId(op.row_id);
+      if (targetId && getRabRowById(targetId)) {
+        reorderRow(periodeId, targetId, op.direction, actorUser, { skipTransaction: true, skipAudit: true });
+        lastAffectedRowId = targetId;
+      }
+    } else if (type === 'QUICK_PIC') {
+      const targetId = resolveId(op.row_id);
+      if (targetId && getRabRowById(targetId)) {
+        updateRabBarisPicWithCascade(periodeId, targetId, op.pic_bagian, op.cascade !== false, actorUser, { skipTransaction: true, skipAudit: true });
+        lastAffectedRowId = targetId;
+      }
+    } else if (type === 'QUICK_SASARAN') {
+      const targetId = resolveId(op.row_id);
+      if (targetId && getRabRowById(targetId)) {
+        updateRabBarisSasaranWithCascade(periodeId, targetId, op.target_scope, op.cascade !== false, actorUser, { skipTransaction: true, skipAudit: true });
+        lastAffectedRowId = targetId;
+      }
+    } else if (type === 'QUICK_AKUN') {
+      const targetId = resolveId(op.row_id);
+      const storedRow = targetId ? getRabRowById(targetId) : null;
+      if (storedRow && storedRow.periode_id === periodeId) {
+        checkRowEditPermission(periodeId, storedRow.pic_bagian, actorUser);
+        db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ? AND periode_id = ?').run(op.kode_akun, targetId, periodeId);
+        lastAffectedRowId = targetId;
+      }
+    } else if (type === 'QUICK_CATATAN') {
+      const targetId = resolveId(op.row_id);
+      const storedRow = targetId ? getRabRowById(targetId) : null;
+      if (storedRow && storedRow.periode_id === periodeId) {
+        checkRowEditPermission(periodeId, storedRow.pic_bagian, actorUser);
+        db.prepare('UPDATE rab_baris SET catatan_revisi_baris = ? WHERE id = ? AND periode_id = ?').run(op.catatan_revisi_baris || '', targetId, periodeId);
+        lastAffectedRowId = targetId;
+      }
+    }
+  }
+
+  clearRkbDatasetCache(periodeId);
+  const afterDataset = getRkbCalculatedDataset(periodeId);
+  const afterRowsMap = new Map();
+  (afterDataset.rows || []).forEach(r => {
+    afterRowsMap.set(Number(r.id), { ...r });
+  });
+
+  // Hitung ringkasan perbedaan antara kondisi DB saat ini (Semula) vs kondisi Staged (Menjadi)
+  const changes = [];
+  let addedCount = 0;
+  let updatedCount = 0;
+  let deletedCount = 0;
+  let reorderedCount = 0;
+
+  for (const [id, afterRow] of afterRowsMap.entries()) {
+    const beforeRow = beforeRowsMap.get(id);
+    if (!beforeRow) {
+      addedCount++;
+      changes.push({
+        id,
+        status: 'BARU',
+        row_type: afterRow.row_type,
+        kode: afterRow.kode || '',
+        uraian: afterRow.uraian || '',
+        pic_bagian: afterRow.pic_bagian || '',
+        target_scope: afterRow.target_scope || 'KAB',
+        kode_akun: afterRow.kode_akun || '',
+        semula_jumlah: 0,
+        menjadi_jumlah: afterRow.is_header ? (afterRow.computed_total || 0) : (afterRow.jumlah || 0),
+        selisih: afterRow.is_header ? 0 : (afterRow.jumlah || 0),
+        detail: afterRow.is_header ? 'Komponen / Header Baru' : `${afterRow.formula_text || '-'} @ Rp ${(afterRow.harga_satuan || 0).toLocaleString('id-ID')}`
+      });
+    } else {
+      const beforeVal = beforeRow.is_header ? 0 : (beforeRow.jumlah || 0);
+      const afterVal = afterRow.is_header ? 0 : (afterRow.jumlah || 0);
+      const isContentChanged = (
+        (beforeRow.uraian || '') !== (afterRow.uraian || '') ||
+        (beforeRow.kode || '') !== (afterRow.kode || '') ||
+        (beforeRow.kode_akun || '') !== (afterRow.kode_akun || '') ||
+        normalizePic(beforeRow.pic_bagian) !== normalizePic(afterRow.pic_bagian) ||
+        String(beforeRow.target_scope || 'KAB').toUpperCase() !== String(afterRow.target_scope || 'KAB').toUpperCase() ||
+        Number(beforeRow.harga_satuan || 0) !== Number(afterRow.harga_satuan || 0) ||
+        Number(beforeRow.vol_total || 0) !== Number(afterRow.vol_total || 0) ||
+        Number(beforeVal) !== Number(afterVal) ||
+        (beforeRow.catatan_revisi_baris || '') !== (afterRow.catatan_revisi_baris || '')
+      );
+      const isOrderChanged = Number(beforeRow.urutan || 0) !== Number(afterRow.urutan || 0);
+
+      if (isContentChanged) {
+        updatedCount++;
+        const diffs = [];
+        if ((beforeRow.uraian || '') !== (afterRow.uraian || '')) diffs.push(`Uraian diubah`);
+        if (normalizePic(beforeRow.pic_bagian) !== normalizePic(afterRow.pic_bagian)) diffs.push(`PIC: ${beforeRow.pic_bagian} → ${afterRow.pic_bagian}`);
+        if (String(beforeRow.target_scope || 'KAB').toUpperCase() !== String(afterRow.target_scope || 'KAB').toUpperCase()) diffs.push(`Sasaran: ${beforeRow.target_scope} → ${afterRow.target_scope}`);
+        if ((beforeRow.kode_akun || '') !== (afterRow.kode_akun || '')) diffs.push(`Akun: ${beforeRow.kode_akun} → ${afterRow.kode_akun}`);
+        if (Number(beforeRow.vol_total || 0) !== Number(afterRow.vol_total || 0)) diffs.push(`Vol: ${beforeRow.vol_total || 0} → ${afterRow.vol_total || 0}`);
+        if (Number(beforeRow.harga_satuan || 0) !== Number(afterRow.harga_satuan || 0)) diffs.push(`Harga: Rp ${(beforeRow.harga_satuan || 0).toLocaleString('id-ID')} → Rp ${(afterRow.harga_satuan || 0).toLocaleString('id-ID')}`);
+        if ((beforeRow.catatan_revisi_baris || '') !== (afterRow.catatan_revisi_baris || '')) diffs.push(`Catatan diperbarui`);
+
+        changes.push({
+          id,
+          status: 'DIUBAH',
+          row_type: afterRow.row_type,
+          kode: afterRow.kode || '',
+          uraian: afterRow.uraian || '',
+          pic_bagian: afterRow.pic_bagian || '',
+          target_scope: afterRow.target_scope || 'KAB',
+          kode_akun: afterRow.kode_akun || '',
+          semula_jumlah: beforeVal,
+          menjadi_jumlah: afterVal,
+          selisih: afterVal - beforeVal,
+          detail: diffs.join(' | ') || 'Perubahan atribut baris'
+        });
+      } else if (isOrderChanged) {
+        reorderedCount++;
+      }
+    }
+  }
+
+  for (const [id, beforeRow] of beforeRowsMap.entries()) {
+    if (!afterRowsMap.has(id)) {
+      deletedCount++;
+      const beforeVal = beforeRow.is_header ? 0 : (beforeRow.jumlah || 0);
+      changes.push({
+        id,
+        status: 'DIHAPUS',
+        row_type: beforeRow.row_type,
+        kode: beforeRow.kode || '',
+        uraian: beforeRow.uraian || '',
+        pic_bagian: beforeRow.pic_bagian || '',
+        target_scope: beforeRow.target_scope || 'KAB',
+        kode_akun: beforeRow.kode_akun || '',
+        semula_jumlah: beforeVal,
+        menjadi_jumlah: 0,
+        selisih: -beforeVal,
+        detail: beforeRow.is_header ? 'Komponen / Header Dihapus' : 'Rincian Belanja Dihapus'
+      });
+    }
+  }
+
+  const paguSemula = beforeDataset.summary?.grandTotal || 0;
+  const paguMenjadi = afterDataset.summary?.grandTotal || 0;
+
+  return {
+    beforeDataset,
+    afterDataset,
+    tempIdMap,
+    lastAffectedRowId,
+    staged_diff: {
+      ops_count: (ops || []).length,
+      added_count: addedCount,
+      updated_count: updatedCount,
+      deleted_count: deletedCount,
+      reordered_count: reorderedCount,
+      pagu_semula: paguSemula,
+      pagu_menjadi: paguMenjadi,
+      selisih_pagu: paguMenjadi - paguSemula,
+      changes
+    }
+  };
+}
+
+function previewStagedRkbOps(periodeId, ops = [], actorUser = null) {
+  const { clearRkbDatasetCache } = require('./calculation');
+  const periode = getPeriodeById(periodeId);
+  if (!periode) throw new Error('Dokumen RKB tidak ditemukan.');
+  if (Number(periode.is_locked) === 1 && (!actorUser || actorUser.level > 0)) {
+    throw new Error('Dokumen RKB berstatus TERKUNCI.');
+  }
+
+  db.exec('SAVEPOINT sp_rkb_staged_preview');
+  try {
+    const res = executeStagedOpsInternal(periodeId, ops, actorUser);
+    const refMeta = getMasterReferenceVersion();
+    db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_preview');
+    db.exec('RELEASE SAVEPOINT sp_rkb_staged_preview');
+    clearRkbDatasetCache(periodeId);
+    return {
+      afterDataset: res.afterDataset,
+      staged_diff: res.staged_diff,
+      tempIdMap: res.tempIdMap,
+      lastAffectedRowId: res.lastAffectedRowId,
+      reference_version: refMeta.version,
+      reference_summary: refMeta.summary
+    };
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_preview');
+      db.exec('RELEASE SAVEPOINT sp_rkb_staged_preview');
+      clearRkbDatasetCache(periodeId);
+    } catch (e) {}
+    throw err;
+  }
+}
+
+function commitStagedRkbOps(periodeId, ops = [], options = {}, actorUser = null) {
+  const { clearRkbDatasetCache } = require('./calculation');
+  const periode = getPeriodeById(periodeId);
+  if (!periode) throw new Error('Dokumen RKB tidak ditemukan.');
+  if (Number(periode.is_locked) === 1 && (!actorUser || actorUser.level > 0)) {
+    throw new Error('Dokumen RKB berstatus TERKUNCI.');
+  }
+  if (!Array.isArray(ops) || ops.length === 0) {
+    throw new Error('Tidak ada perubahan RKB yang perlu disimpan.');
+  }
+
+  const currentRef = getMasterReferenceVersion();
+  const expectedRef = options.expected_reference_version || null;
+  const ackRefChange = Boolean(options.acknowledge_reference_change);
+
+  // Deteksi perubahan referensi bersamaan (Concurrent Reference Change Guard - Bab 18.8)
+  if (expectedRef && expectedRef !== currentRef.version && !ackRefChange) {
+    const preview = previewStagedRkbOps(periodeId, ops, actorUser);
+    return {
+      committed: false,
+      reference_changed: true,
+      reference_version: currentRef.version,
+      reference_summary: currentRef.summary,
+      staged_diff: preview.staged_diff,
+      message: 'Terdeteksi pembaruan pada Data Referensi / Master selama Anda menyusun draf. Angka perhitungan telah disinkronkan dengan referensi terbaru. Silakan periksa ringkasan dan klik Konfirmasi Simpan kembali.'
+    };
+  }
+
+  db.exec('SAVEPOINT sp_rkb_staged_commit');
+  try {
+    const res = executeStagedOpsInternal(periodeId, ops, actorUser);
+    db.exec('RELEASE SAVEPOINT sp_rkb_staged_commit');
+    clearRkbDatasetCache(periodeId);
+
+    const diff = res.staged_diff;
+    const catatanSimpan = (options.catatan_simpan || '').trim();
+    const summaryNotes = [
+      `Simpan Perubahan RKB (${diff.ops_count} aksi: +${diff.added_count} baru, ~${diff.updated_count} diubah, -${diff.deleted_count} dihapus${diff.reordered_count ? `, ↕${diff.reordered_count} urutan` : ''}).`,
+      `Pagu: Rp ${(diff.pagu_semula || 0).toLocaleString('id-ID')} → Rp ${(diff.pagu_menjadi || 0).toLocaleString('id-ID')} (Selisih: ${diff.selisih_pagu >= 0 ? '+' : ''}Rp ${(diff.selisih_pagu || 0).toLocaleString('id-ID')}).`,
+      catatanSimpan ? `Catatan: ${catatanSimpan}` : ''
+    ].filter(Boolean).join(' ');
+
+    recordAuditLog({
+      user: actorUser,
+      action: 'COMMIT_RKB_CHANGES',
+      entity: 'periode_anggaran',
+      entity_id: periodeId,
+      old_values: {
+        pagu_semula: diff.pagu_semula,
+        reference_version: expectedRef || currentRef.version
+      },
+      new_values: {
+        pagu_menjadi: diff.pagu_menjadi,
+        selisih_pagu: diff.selisih_pagu,
+        added_count: diff.added_count,
+        updated_count: diff.updated_count,
+        deleted_count: diff.deleted_count,
+        reordered_count: diff.reordered_count,
+        reference_version: currentRef.version,
+        catatan_simpan: catatanSimpan,
+        changes: (diff.changes || []).slice(0, 50)
+      },
+      notes: summaryNotes
+    });
+
+    return {
+      committed: true,
+      reference_changed: false,
+      reference_version: currentRef.version,
+      reference_summary: currentRef.summary,
+      staged_diff: diff,
+      lastAffectedRowId: res.lastAffectedRowId,
+      message: 'Seluruh perubahan RKB berhasil disimpan ke dalam database.'
+    };
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_commit');
+      db.exec('RELEASE SAVEPOINT sp_rkb_staged_commit');
+      clearRkbDatasetCache(periodeId);
+    } catch (e) {}
+    throw err;
+  }
 }
 
 // ============================================================================
@@ -4593,6 +4992,9 @@ module.exports = {
   updateRabBarisSasaranWithCascade,
   clearRabRows,
   reorderRow,
+  getMasterReferenceVersion,
+  previewStagedRkbOps,
+  commitStagedRkbOps,
   getUsers,
   getUserById,
   saveUser,

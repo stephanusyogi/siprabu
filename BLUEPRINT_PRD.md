@@ -229,10 +229,11 @@
 ---
 
 ## 14. Audit Log dan Integritas Data
-1. Audit revisi mencatat aktor, waktu, PIC, baris/objek, nilai sebelum dan sesudah, alasan bila relevan, dan status tahap.
-2. Audit mencatat pengajuan, validasi, penolakan, persetujuan, pengesahan, perubahan tautan pascapengesahan, pengelolaan pengguna, dan unduhan.
-3. Log proses versi `V1/V2/V3` tetap dapat ditelusuri tanpa memecah RKB aktif menjadi dokumen baru.
-4. Integritas baseline, batas PIC, dan status penguncian wajib diverifikasi pada backend.
+1. Audit revisi mencatat aktor, waktu, PIC, baris/objek, nilai sebelum dan sesudah, alasan/catatan penyimpanan bila relevan, dan status tahap.
+2. Pada lembar kerja **RUH Belanja RKB**, perubahan baris tidak langsung dicatat satu per satu saat pengetikan/perubahan draf sementara, melainkan dicatat secara bersih saat pengguna menekan **Simpan Perubahan RKB** dan mengonfirmasinya melalui Pop-Up Konfirmasi Simpan (**Batch Commit**).
+3. Audit mencatat pengajuan, validasi, penolakan, persetujuan, pengesahan, perubahan tautan pascapengesahan, pengelolaan pengguna, dan unduhan.
+4. Log proses versi `V1/V2/V3` tetap dapat ditelusuri tanpa memecah RKB aktif menjadi dokumen baru.
+5. Integritas baseline, batas PIC, dan status penguncian wajib diverifikasi pada backend.
 
 ---
 
@@ -295,6 +296,15 @@ Distribusi KUL, Rendatin, Teknis, Hukum, dan ParSDM selalu merupakan agregasi la
 
 ### 18.7 Keterkaitan REFERENSI dan DATABASE
 Volume, faktor, dan harga yang wajib mengacu parameter SSOT, DATABASE, SBM, atau BAS harus memiliki relasi sumber yang dapat ditelusuri. Pembaruan nilai mengikuti aturan tahap dan perlindungan baris terkunci pada Bab 7. Peringatan waktu perubahan: Tahap 0 adalah waktu utama; Tahap 1 pengecualian revisi lintas divisi; Tahap 2 sebaiknya tidak mengubah; Tahap 3 untuk kebutuhan penyesuaian pleno; Tahap 4 tidak mengubah baseline disahkan. Pengingat tidak memperluas hak akses.
+
+### 18.8 Penyimpanan Eksplisit Perubahan RUH Belanja (Draft Buffer, Pop-Up Konfirmasi, dan Sinkronisasi Referensi)
+1. **Draf Sesi Sementara (Staged Draft Buffer):** Seluruh aksi perubahan pada lembar kerja **RUH Belanja RKB** (tambah baris rincian/akun/header, ubah rincian/volume/harga, hapus baris, ubah PIC/Sasaran/Akun/Catatan, serta geser urutan naik/turun) ditampung terlebih dahulu sebagai draf sesi di memori (tanpa membebani server atau penyimpanan permanen per ketukan tombol) hingga pengguna menekan tombol **`Simpan Perubahan RKB`**. Pengguna dapat membatalkan langkah terakhir (**Urungkan Terakhir**) atau membuang seluruh draf (**Batal Semua**) sebelum disimpan, dan peramban memberikan peringatan (`beforeunload`) apabila halaman ditutup saat masih ada draf yang belum disimpan.
+2. **Pop-Up Konfirmasi Simpan:** Saat pengguna menekan **`Simpan Perubahan RKB`**, sistem menampilkan **Pop-Up Konfirmasi Simpan** yang memuat:
+   - Ringkasan jumlah perubahan (`+Baris Baru`, `~Baris Diubah`, `-Baris Dihapus`, `↕Geser Urutan`),
+   - Perbandingan dampak anggaran (**Pagu Semula**, **Pagu Menjadi**, dan **Selisih Netto**),
+   - Tabel rincian baris yang terdampak (status, kode, uraian, PIC, nilai semula, nilai menjadi, dan selisih),
+   - Kolom opsional **Catatan Penyimpanan** untuk memperkaya rekam jejak pada **Log Aktivitas**.
+3. **Deteksi dan Sinkronisasi Perubahan Referensi Bersamaan (Concurrent Reference Sync):** Apabila saat pengguna sedang mengedit draf RUH Belanja terdapat perubahan pada data **REFERENSI** atau **DATABASE** (`PPK`, `PPS`, `TPS`, `Paslon`, `Kuantitas`, `SBM`, atau `BAS`) oleh pengguna lain/admin, sistem mendeteksi perubahan sidik jari versi referensi (`reference_version`), secara otomatis menghitung ulang draf RUH menggunakan nilai referensi terbaru, serta menampilkan **Banner Peringatan Sinkronisasi Referensi** di dalam Pop-Up Konfirmasi Simpan agar pengguna meninjau dan menyetujui angka terbaru sebelum komit permanen ke database.
 
 ---
 

@@ -28,7 +28,12 @@ const AppState = {
     sasaran: 'ALL',
     search: ''
   },
-  searchDebounceTimer: null
+  searchDebounceTimer: null,
+  stagedRkbOps: [],
+  stagedDiff: null,
+  initialReferenceVersion: null,
+  latestReferenceVersion: null,
+  referenceChangeAcknowledged: false
 };
 
 // META DATA RESMI 5 SUBBAGIAN PELAKSANA KPU KABUPATEN NGAWI (SESUAI DASHBOARD)
@@ -1239,13 +1244,42 @@ async function loadRkbData() {
     AppState.filters.pic = user.pic_subbag;
   }
 
-  const queryParams = new URLSearchParams();
-  if (AppState.filters.pic !== 'SEMUA') queryParams.append('pic', AppState.filters.pic);
-  if (AppState.filters.sasaran !== 'ALL') queryParams.append('target_scope', AppState.filters.sasaran);
-  if (AppState.filters.search.trim()) queryParams.append('search', AppState.filters.search.trim());
+  if (Array.isArray(AppState.stagedRkbOps) && AppState.stagedRkbOps.length > 0 && !AppState.currentPeriode.is_locked) {
+    const previewRes = await apiFetch(`/api/rkb/${periodeId}/preview-staged`, {
+      method: 'POST',
+      body: JSON.stringify({
+        ops: AppState.stagedRkbOps,
+        pic: AppState.filters.pic,
+        target_scope: AppState.filters.sasaran,
+        search: AppState.filters.search.trim()
+      })
+    });
+    AppState.rkbData = previewRes;
+    AppState.stagedDiff = previewRes.staged_diff || null;
+    if (previewRes.reference_version) {
+      AppState.latestReferenceVersion = previewRes.reference_version;
+      if (!AppState.initialReferenceVersion) {
+        AppState.initialReferenceVersion = previewRes.reference_version;
+      }
+    }
+  } else {
+    const queryParams = new URLSearchParams();
+    if (AppState.filters.pic !== 'SEMUA') queryParams.append('pic', AppState.filters.pic);
+    if (AppState.filters.sasaran !== 'ALL') queryParams.append('target_scope', AppState.filters.sasaran);
+    if (AppState.filters.search.trim()) queryParams.append('search', AppState.filters.search.trim());
 
-  const url = `/api/rkb/${periodeId}?${queryParams.toString()}`;
-  AppState.rkbData = await apiFetch(url);
+    const url = `/api/rkb/${periodeId}?${queryParams.toString()}`;
+    AppState.rkbData = await apiFetch(url);
+    AppState.stagedDiff = null;
+    if (AppState.rkbData && AppState.rkbData.reference_version) {
+      AppState.initialReferenceVersion = AppState.rkbData.reference_version;
+      AppState.latestReferenceVersion = AppState.rkbData.reference_version;
+      AppState.referenceChangeAcknowledged = false;
+    }
+  }
+
+  updateStagedRkbBannerUI();
+
   try {
     AppState.rkbWorkflowData = await apiFetch(`/api/rkb/${periodeId}/usulan-subbag`);
   } catch (err) {
@@ -2947,6 +2981,13 @@ function renderRkbTable() {
     });
   });
 
+  const stagedByRowId = {};
+  if (AppState.stagedDiff && Array.isArray(AppState.stagedDiff.changes)) {
+    for (const ch of AppState.stagedDiff.changes) {
+      if (ch.id) stagedByRowId[ch.id] = ch;
+    }
+  }
+
   let rowsHtml = '';
   for (let idx = 0; idx < rows.length; idx++) {
     const r = rows[idx];
@@ -2963,6 +3004,12 @@ function renderRkbTable() {
       catatan: ''
     };
     const isNewlyAdded = Boolean(hasParentRev && diffInfo && diffInfo.status === 'BARU');
+    const stagedInfo = stagedByRowId[r.id] || null;
+    const stagedBadgeHtml = stagedInfo
+      ? (stagedInfo.status === 'BARU'
+        ? `<span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;font-size:9.5px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:800;" title="Baris baru di keranjang draf (Belum disimpan ke database)">⏳ DRAF BARU</span>`
+        : `<span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;font-size:9.5px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:800;" title="Perubahan belum disimpan ke database (${escHtml(stagedInfo.detail || '')})">⏳ DRAF DIUBAH</span>`)
+      : '';
 
     const toggleChevron = r.has_children
       ? `<button type="button" class="tree-toggle-btn" onclick="toggleTreeNode('${r.tree_id}', event)" title="${isExpanded ? 'Lipat baris ini' : 'Buka cabang ini'}">${isExpanded ? '▾' : '▸'}</button>`
@@ -2996,6 +3043,7 @@ function renderRkbTable() {
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
               <span>${escHtml(r.uraian || '')}</span>
               ${isNewlyAdded ? `<span class="badge badge-purple" style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:600;" title="Baris belanja baru / tambahan">✨ BARU</span>` : ''}
+              ${stagedBadgeHtml}
             </div>
           </td>
           <td class="text-right" style="font-family: var(--font-mono); background: #f8fafc;">
@@ -3073,6 +3121,7 @@ function renderRkbTable() {
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)" title="Klik untuk mengubah Akun Belanja ini">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
               <span>${escHtml(r.uraian || '')}</span>
               ${isNewlyAdded ? `<span class="badge badge-purple" style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:600;" title="Baris belanja baru / tambahan">✨ BARU</span>` : ''}
+              ${stagedBadgeHtml}
             </div>
             ${isItem && r.catatan_revisi_baris ? `<div style="font-size:11px;color:#1e40af;background:#eff6ff;border-left:2px solid #3b82f6;padding:2px 6px;margin:3px 0 0 28px;border-radius:2px;display:inline-block;"><span style="font-weight:600;">Catatan:</span> ${escHtml(r.catatan_revisi_baris)}</div>` : ''}
           </td>
@@ -3273,21 +3322,15 @@ async function submitQuickPic() {
   const rowId = Number(document.getElementById('quick-pic-row-id')?.value);
   const pic = document.getElementById('quick-pic-select')?.value;
   const cascade = Boolean(document.getElementById('quick-pic-cascade')?.checked);
-  const periodeId = AppState.currentPeriode.id;
 
   try {
-    const res = await apiFetch(`/api/rkb/${periodeId}/quick-pic`, {
-      method: 'POST',
-      body: JSON.stringify({ row_id: rowId, pic_bagian: pic, cascade })
-    });
+    await stageRkbOperation({
+      type: 'QUICK_PIC',
+      row_id: rowId,
+      pic_bagian: pic,
+      cascade
+    }, `Perubahan PIC menjadi ${pic} masuk ke draf kerja.`);
     closeQuickPicModal();
-    await loadRkbData();
-    renderAllViews();
-    if (res && res.count > 1) {
-      showToast(`Berhasil mengubah PIC menjadi ${pic} untuk ${res.count} baris secara hierarkis (Top-Down Cascade).`, 'success');
-    } else {
-      showToast(`Berhasil mengubah PIC baris menjadi ${pic}.`, 'success');
-    }
   } catch (err) {
     showToast('Gagal mengubah PIC: ' + err.message, 'error');
   }
@@ -3358,21 +3401,15 @@ async function submitQuickSasaran() {
   const rowId = Number(document.getElementById('quick-sasaran-row-id')?.value);
   const sasaran = document.getElementById('quick-sasaran-select')?.value;
   const cascade = Boolean(document.getElementById('quick-sasaran-cascade')?.checked);
-  const periodeId = AppState.currentPeriode.id;
 
   try {
-    const res = await apiFetch(`/api/rkb/${periodeId}/quick-sasaran`, {
-      method: 'POST',
-      body: JSON.stringify({ row_id: rowId, target_scope: sasaran, cascade })
-    });
+    await stageRkbOperation({
+      type: 'QUICK_SASARAN',
+      row_id: rowId,
+      target_scope: sasaran,
+      cascade
+    }, `Perubahan Sasaran menjadi ${sasaran} masuk ke draf kerja.`);
     closeQuickSasaranModal();
-    await loadRkbData();
-    renderAllViews();
-    if (res && res.count > 1) {
-      showToast(`Berhasil mengubah Sasaran menjadi ${sasaran} untuk ${res.count} baris secara hierarkis (Top-Down Cascade).`, 'success');
-    } else {
-      showToast(`Berhasil mengubah Sasaran baris menjadi ${sasaran}.`, 'success');
-    }
   } catch (err) {
     showToast('Gagal mengubah Sasaran: ' + err.message, 'error');
   }
@@ -3481,16 +3518,14 @@ function closeQuickAkunModal() {
 async function submitQuickAkun() {
   const rowId = Number(document.getElementById('quick-akun-row-id')?.value);
   const akun = document.getElementById('quick-akun-select')?.value;
-  const periodeId = AppState.currentPeriode.id;
 
   try {
-    await apiFetch(`/api/rkb/${periodeId}/quick-akun`, {
-      method: 'POST',
-      body: JSON.stringify({ row_id: rowId, kode_akun: akun })
-    });
+    await stageRkbOperation({
+      type: 'QUICK_AKUN',
+      row_id: rowId,
+      kode_akun: akun
+    }, `Perubahan Kode Akun [${akun}] masuk ke draf kerja.`);
     closeQuickAkunModal();
-    await loadRkbData();
-    renderAllViews();
   } catch (err) {
     alert('Gagal mengubah Akun: ' + err.message);
   }
@@ -3518,16 +3553,14 @@ function closeQuickCatatanModal() {
 async function submitQuickCatatan() {
   const rowId = Number(document.getElementById('quick-catatan-row-id')?.value);
   const catatan = document.getElementById('quick-catatan-input')?.value || '';
-  const periodeId = AppState.currentPeriode.id;
 
   try {
-    await apiFetch(`/api/rkb/${periodeId}/quick-catatan`, {
-      method: 'POST',
-      body: JSON.stringify({ row_id: rowId, catatan_revisi_baris: catatan })
-    });
+    await stageRkbOperation({
+      type: 'QUICK_CATATAN',
+      row_id: rowId,
+      catatan_revisi_baris: catatan
+    }, 'Catatan justifikasi revisi masuk ke draf kerja.');
     closeQuickCatatanModal();
-    await loadRkbData();
-    renderAllViews();
   } catch (err) {
     alert('Gagal menyimpan catatan revisi: ' + err.message);
   }
@@ -3965,14 +3998,13 @@ async function submitRowForm() {
   };
 
   try {
-    const res = await apiFetch(`/api/rkb/${periodeId}/row`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
+    await stageRkbOperation({
+      type: 'SAVE_ROW',
+      payload
+    }, rowId ? 'Perubahan rincian belanja masuk ke draf kerja.' : 'Rincian belanja baru masuk ke draf kerja.');
     closeRowModal();
-    await loadRkbData();
 
-    const savedRowId = res && res.row ? res.row.id : (rowId ? Number(rowId) : null);
+    const savedRowId = AppState.rkbData?.last_affected_row_id || (rowId ? Number(rowId) : null);
     if (savedRowId) {
       expandAncestorsOfRow(savedRowId);
       AppState.selectedRowId = savedRowId;
@@ -3980,8 +4012,6 @@ async function submitRowForm() {
       setTimeout(() => {
         highlightAndScrollToRow(savedRowId);
       }, 150);
-    } else {
-      renderAllViews();
     }
   } catch (err) {
     alert('Gagal menyimpan baris: ' + err.message);
@@ -4021,7 +4051,7 @@ async function deleteRow(rowId, event) {
     }
 
     if (descendantCount > 0) {
-      confirmMsg = `⚠️ PERINGATAN HAPUS BERJENJANG (CASCADE):\n\nMenghapus baris [${targetRow.kode || '-'}] "${targetRow.uraian}" akan OTOMATIS menghapus ${descendantCount} level/rincian di bawahnya.\n\n(Catatan: Level di atas baris ini TIDAK akan terhapus).\n\nApakah Anda yakin ingin melanjutkan penghapusan?`;
+      confirmMsg = `⚠️ PERINGATAN HAPUS BERJENJANG (CASCADE):\n\nMenghapus baris [${targetRow.kode || '-'}] "${targetRow.uraian}" akan OTOMATIS menghapus ${descendantCount} level/rincian di bawahnya.\n\n(Catatan: Level di atas baris ini TIDAK akan terhapus).\n\nApakah Anda yakin ingin melanjutkan penghapusan ke draf?`;
     } else {
       confirmMsg = `Apakah Anda yakin ingin menghapus baris [${targetRow.kode || '-'}] "${targetRow.uraian}"?`;
     }
@@ -4030,14 +4060,12 @@ async function deleteRow(rowId, event) {
   if (!confirm(confirmMsg)) return;
 
   try {
-    const res = await apiFetch(`/api/rkb/row/${rowId}`, { method: 'DELETE' });
-    const count = (res && res.count) || 1;
-    await loadRkbData();
+    await stageRkbOperation({
+      type: 'DELETE_ROW',
+      row_id: Number(rowId)
+    }, 'Penghapusan baris masuk ke draf kerja.');
     AppState.selectedRowId = null;
     renderAllViews();
-    if (typeof showToast === 'function') {
-      showToast(`🗑️ Berhasil menghapus ${count} baris.`);
-    }
   } catch (err) {
     alert('Gagal menghapus baris: ' + err.message);
   }
@@ -4219,21 +4247,19 @@ async function submitAddAkun() {
   };
 
   try {
-    const res = await apiFetch(`/api/rkb/${p.id}/row`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
+    await stageRkbOperation({
+      type: 'SAVE_ROW',
+      payload
+    }, `Akun Belanja [${kodeAkun}] "${uraian}" masuk ke draf kerja.`);
 
     closeAddAkunModal();
-    await loadRkbData();
-    renderAllViews();
 
-    if (res && res.row) {
-      AppState.selectedRowId = res.row.id;
-      const fullRow = AppState.rkbData?.rows.find(r => r.id === res.row.id);
+    const savedId = AppState.rkbData?.last_affected_row_id;
+    if (savedId) {
+      AppState.selectedRowId = savedId;
+      const fullRow = AppState.rkbData?.rows.find(r => r.id === savedId);
       if (fullRow) {
         updateSelectedRowUI();
-        // Expand cabang induk
         let cur = fullRow.parent_tree_id;
         const parentMap = {};
         for (const r of (AppState.rkbData?.rows || [])) parentMap[r.tree_id] = r.parent_tree_id;
@@ -4244,8 +4270,6 @@ async function submitAddAkun() {
         renderRkbTable();
       }
     }
-
-    alert(`✅ Akun Belanja [${kodeAkun}] "${uraian}" berhasil direkam sesuai struktur SAKTI!`);
   } catch (err) {
     alert('Gagal merekam Akun Belanja: ' + err.message);
   }
@@ -4378,16 +4402,14 @@ async function submitAddHeader() {
       catatan_revisi_baris: `Perubahan Header [${kode}] ${uraian}`
     };
     try {
-      await apiFetch(`/api/rkb/${p.id}/row`, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      await stageRkbOperation({
+        type: 'SAVE_ROW',
+        payload
+      }, `Perubahan Header [${kode}] "${uraian}" masuk ke draf kerja.`);
       closeAddHeaderModal();
-      await loadRkbData();
       AppState.selectedRowId = Number(editId);
       renderRkbTable();
       setTimeout(() => highlightAndScrollToRow(Number(editId)), 150);
-      alert(`✅ Teks Header [${kode}] "${uraian}" berhasil disimpan.`);
     } catch (err) {
       alert('Gagal menyimpan perubahan header: ' + err.message);
     }
@@ -4438,15 +4460,15 @@ async function submitAddHeader() {
   };
 
   try {
-    const res = await apiFetch(`/api/rkb/${p.id}/row`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
+    const labelSukses = targetLevel === 5.5 ? `Header Teks [${kode}] "${uraian}"` : `Komponen L${targetLevel} "${uraian}"`;
+    await stageRkbOperation({
+      type: 'SAVE_ROW',
+      payload
+    }, `${labelSukses} masuk ke draf kerja.`);
 
     closeAddHeaderModal();
-    await loadRkbData();
 
-    const savedRowId = res && res.row ? res.row.id : null;
+    const savedRowId = AppState.rkbData?.last_affected_row_id || null;
     if (savedRowId) {
       expandAncestorsOfRow(savedRowId);
       AppState.selectedRowId = savedRowId;
@@ -4454,11 +4476,7 @@ async function submitAddHeader() {
       setTimeout(() => {
         highlightAndScrollToRow(savedRowId);
       }, 150);
-    } else {
-      renderAllViews();
     }
-    const labelSukses = targetLevel === 5.5 ? `Header Teks [${kode}] "${uraian}"` : `Komponen L${targetLevel} "${uraian}"`;
-    alert(`✅ ${labelSukses} berhasil direkam.`);
   } catch (err) {
     alert('Gagal merekam komponen baru: ' + err.message);
   }
@@ -4553,15 +4571,12 @@ async function moveRowOrdering(rowId, direction, event = null) {
   }
 
   try {
-    const res = await apiFetch(`/api/rkb/${p.id}/reorder`, {
-      method: 'POST',
-      body: JSON.stringify({
-        row_id: Number(rowId),
-        direction: direction
-      })
-    });
+    await stageRkbOperation({
+      type: 'REORDER_ROW',
+      row_id: Number(rowId),
+      direction: direction
+    }, `Pergeseran urutan baris (${direction === 'UP' ? 'Naik' : 'Turun'}) masuk ke draf kerja.`);
 
-    await loadRkbData();
     AppState.selectedRowId = Number(rowId);
     renderRkbTable();
     setTimeout(() => {
@@ -4571,6 +4586,264 @@ async function moveRowOrdering(rowId, direction, event = null) {
     alert('Pergeseran urutan tidak dapat dilakukan: ' + err.message);
   }
 }
+
+// ============================================================================
+// STAGED DRAFT BUFFER & POP-UP KONFIRMASI SIMPAN PERUBAHAN RKB (BAB 18.8 CANON)
+// ============================================================================
+
+function updateStagedRkbBannerUI() {
+  const opsCount = Array.isArray(AppState.stagedRkbOps) ? AppState.stagedRkbOps.length : 0;
+  const banner = document.getElementById('rkb-staged-banner');
+  const headerBtn = document.getElementById('btn-header-commit-rkb');
+  const headerBadge = document.getElementById('badge-staged-count-header');
+  const bannerCount = document.getElementById('staged-banner-count');
+  const subtext = document.getElementById('staged-banner-subtext');
+
+  if (opsCount > 0) {
+    if (banner) banner.style.display = 'flex';
+    if (headerBtn) headerBtn.style.display = 'inline-flex';
+    if (headerBadge) headerBadge.textContent = String(opsCount);
+    if (bannerCount) bannerCount.textContent = String(opsCount);
+
+    const diff = AppState.stagedDiff;
+    if (subtext && diff) {
+      const selisihSign = (diff.selisih_pagu || 0) > 0 ? '+' : '';
+      const refChanged = AppState.initialReferenceVersion && AppState.latestReferenceVersion && AppState.initialReferenceVersion !== AppState.latestReferenceVersion;
+      subtext.innerHTML = `
+        <strong>+${diff.added_count || 0} Baru</strong> &bull;
+        <strong>~${diff.updated_count || 0} Diubah</strong> &bull;
+        <strong>-${diff.deleted_count || 0} Dihapus</strong>
+        ${diff.reordered_count ? `&bull; <strong>↕${diff.reordered_count} Urutan</strong>` : ''}
+        &nbsp;|&nbsp; Pagu: <strong>${formatRupiah(diff.pagu_semula || 0)} &rarr; ${formatRupiah(diff.pagu_menjadi || 0)}</strong>
+        (Selisih: <strong style="color:${(diff.selisih_pagu || 0) >= 0 ? '#15803d' : '#b91c1c'};">${selisihSign}${formatRupiah(diff.selisih_pagu || 0)}</strong>)
+        ${refChanged ? `&nbsp; <span class="badge badge-info" style="font-size:10px;">🔄 Referensi Baru Tersinkron</span>` : ''}
+      `;
+    }
+  } else {
+    if (banner) banner.style.display = 'none';
+    if (headerBtn) headerBtn.style.display = 'none';
+  }
+}
+
+async function stageRkbOperation(op, successToastMsg = 'Perubahan masuk ke draf kerja.') {
+  if (!Array.isArray(AppState.stagedRkbOps)) {
+    AppState.stagedRkbOps = [];
+  }
+  AppState.stagedRkbOps.push({
+    ...op,
+    staged_at: Date.now()
+  });
+
+  try {
+    await loadRkbData();
+    renderAllViews();
+    if (typeof showToast === 'function') {
+      showToast(`${successToastMsg} (Klik "💾 Simpan Perubahan RKB" untuk menyimpan permanen)`, 'info');
+    }
+  } catch (err) {
+    AppState.stagedRkbOps.pop();
+    throw err;
+  }
+}
+
+async function undoLastStagedRkbOp() {
+  if (!Array.isArray(AppState.stagedRkbOps) || AppState.stagedRkbOps.length === 0) return;
+  AppState.stagedRkbOps.pop();
+  await loadRkbData();
+  renderAllViews();
+  showToast('1 aksi draf terakhir telah diurungkan.', 'info');
+}
+
+async function discardAllStagedRkbOps(fromModal = false) {
+  if (!Array.isArray(AppState.stagedRkbOps) || AppState.stagedRkbOps.length === 0) return;
+  if (!confirm(`Apakah Anda yakin ingin membatalkan seluruh ${AppState.stagedRkbOps.length} draf perubahan RUH Belanja dan mengembalikan angka ke kondisi terakhir di database?`)) {
+    return;
+  }
+  AppState.stagedRkbOps = [];
+  AppState.stagedDiff = null;
+  AppState.referenceChangeAcknowledged = false;
+  if (fromModal) {
+    closeCommitRkbModal();
+  }
+  await loadRkbData();
+  renderAllViews();
+  showToast('Seluruh draf perubahan berhasil dibatalkan. Data kembali ke kondisi database terakhir.', 'info');
+}
+
+async function openCommitRkbModal() {
+  if (!Array.isArray(AppState.stagedRkbOps) || AppState.stagedRkbOps.length === 0) {
+    showToast('Belum ada perubahan pada RUH Belanja yang perlu disimpan.', 'info');
+    return;
+  }
+
+  // Segarkan preview & cek apakah ada perubahan Referensi/Master di saat bersamaan
+  await loadRkbData();
+  renderCommitRkbModalContent();
+
+  const modal = document.getElementById('modal-commit-rkb');
+  if (modal) modal.style.display = 'flex';
+}
+
+function renderCommitRkbModalContent() {
+  const diff = AppState.stagedDiff || {
+    ops_count: AppState.stagedRkbOps.length,
+    added_count: 0,
+    updated_count: 0,
+    deleted_count: 0,
+    reordered_count: 0,
+    pagu_semula: 0,
+    pagu_menjadi: 0,
+    selisih_pagu: 0,
+    changes: []
+  };
+
+  const refAlert = document.getElementById('commit-rkb-ref-alert');
+  const isRefChanged = Boolean(
+    AppState.initialReferenceVersion &&
+    AppState.latestReferenceVersion &&
+    AppState.initialReferenceVersion !== AppState.latestReferenceVersion
+  );
+
+  if (refAlert) {
+    if (isRefChanged) {
+      refAlert.style.display = 'block';
+      AppState.referenceChangeAcknowledged = true;
+    } else {
+      refAlert.style.display = 'none';
+    }
+  }
+
+  setElText('commit-rkb-pagu-semula', formatRupiah(diff.pagu_semula || 0));
+  setElText('commit-rkb-pagu-menjadi', formatRupiah(diff.pagu_menjadi || 0));
+
+  const selisihEl = document.getElementById('commit-rkb-pagu-selisih');
+  if (selisihEl) {
+    const net = diff.selisih_pagu || 0;
+    selisihEl.textContent = `${net > 0 ? '+' : ''}${formatRupiah(net)}`;
+    selisihEl.style.color = net > 0 ? '#15803d' : (net < 0 ? '#b91c1c' : '#475569');
+  }
+
+  setElText(
+    'commit-rkb-stats-badges',
+    `+${diff.added_count || 0} Baru | ~${diff.updated_count || 0} Diubah | -${diff.deleted_count || 0} Dihapus${diff.reordered_count ? ` | ↕${diff.reordered_count} Urutan` : ''}`
+  );
+
+  const tbody = document.getElementById('commit-rkb-changes-tbody');
+  if (tbody) {
+    const changes = diff.changes || [];
+    if (changes.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center" style="padding: 18px; color: #64748b;">
+            Perubahan urutan baris (${diff.reordered_count || AppState.stagedRkbOps.length} aksi pengurutan) siap disimpan.
+          </td>
+        </tr>
+      `;
+    } else {
+      tbody.innerHTML = changes.map(ch => {
+        let badge = '<span class="badge badge-info" style="font-size:10px;">✏️ DIUBAH</span>';
+        if (ch.status === 'BARU') badge = '<span class="badge badge-success" style="font-size:10px;">➕ BARU</span>';
+        else if (ch.status === 'DIHAPUS') badge = '<span class="badge badge-danger" style="font-size:10px;">🗑️ DIHAPUS</span>';
+
+        return `
+          <tr>
+            <td class="text-center">${badge}</td>
+            <td>
+              <strong>${ch.kode ? `[${escHtml(ch.kode)}] ` : ''}${escHtml(ch.uraian || '-')}</strong>
+            </td>
+            <td class="text-center"><span class="badge badge-subtle">${escHtml(ch.pic_bagian || '-')}</span></td>
+            <td style="font-size: 11px; color: #475569;">${escHtml(ch.detail || '-')}</td>
+            <td class="text-right" style="font-family: var(--font-mono);">${formatRupiah(ch.semula_jumlah || 0)}</td>
+            <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e3a8a;">${formatRupiah(ch.menjadi_jumlah || 0)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+}
+
+function closeCommitRkbModal() {
+  const modal = document.getElementById('modal-commit-rkb');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitCommitRkbChanges() {
+  const p = AppState.currentPeriode;
+  if (!p || !Array.isArray(AppState.stagedRkbOps) || AppState.stagedRkbOps.length === 0) return;
+
+  const btn = document.getElementById('btn-confirm-commit-rkb');
+  const catatan = (document.getElementById('commit-rkb-catatan')?.value || '').trim();
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Menyimpan ke Database...';
+  }
+
+  try {
+    const res = await fetch(`/api/rkb/${p.id}/commit-staged`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {})
+      },
+      body: JSON.stringify({
+        ops: AppState.stagedRkbOps,
+        expected_reference_version: AppState.initialReferenceVersion,
+        acknowledge_reference_change: AppState.referenceChangeAcknowledged,
+        catatan_simpan: catatan
+      })
+    });
+
+    const data = await res.json();
+
+    if (res.status === 409 && data && data.reference_changed) {
+      AppState.latestReferenceVersion = data.reference_version;
+      AppState.stagedDiff = data.staged_diff || AppState.stagedDiff;
+      AppState.referenceChangeAcknowledged = true;
+      renderCommitRkbModalContent();
+      showToast('🔄 Data Referensi/Master baru saja berubah. Angka ringkasan telah disinkronkan, silakan klik Konfirmasi Simpan sekali lagi.', 'warning');
+      return;
+    }
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Gagal menyimpan perubahan RKB.');
+    }
+
+    AppState.stagedRkbOps = [];
+    AppState.stagedDiff = null;
+    AppState.initialReferenceVersion = data.reference_version || null;
+    AppState.latestReferenceVersion = data.reference_version || null;
+    AppState.referenceChangeAcknowledged = false;
+    setElVal('commit-rkb-catatan', '');
+
+    closeCommitRkbModal();
+    await loadPeriodes();
+    await loadRkbData();
+    renderAllViews();
+
+    showToast(data.message || '✅ Seluruh perubahan RKB berhasil disimpan permanen dan tercatat pada Log Aktivitas.', 'success');
+  } catch (err) {
+    alert('Gagal menyimpan perubahan RKB: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '💾 Konfirmasi & Simpan Sekarang';
+    }
+  }
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (Array.isArray(AppState.stagedRkbOps) && AppState.stagedRkbOps.length > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+window.openCommitRkbModal = openCommitRkbModal;
+window.closeCommitRkbModal = closeCommitRkbModal;
+window.submitCommitRkbChanges = submitCommitRkbChanges;
+window.undoLastStagedRkbOp = undoLastStagedRkbOp;
+window.discardAllStagedRkbOps = discardAllStagedRkbOps;
 
 // Expose to window for inline HTML onclick handlers
 window.openAddHeaderModal = openAddHeaderModal;

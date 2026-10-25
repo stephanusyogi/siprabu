@@ -1146,9 +1146,38 @@
               <span id="rkb-header-status-badge" class="badge badge-success" style="font-size: 11px; padding: 3px 8px; font-weight: 700;">🟢 DRAFT AKTIF</span>
               <span id="rkb-header-version-badge" style="font-size: 11.5px; color: #1e40af; background: #eff6ff; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe; font-weight: 600;">Dokumen Induk Baseline</span>
             </div>
-            <div class="header-actions" style="margin: 0;">
+            <div class="header-actions" style="margin: 0; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="btn-header-commit-rkb" class="btn btn-success btn-sm" onclick="openCommitRkbModal()" style="display: none; align-items: center; gap: 6px; font-weight: 700; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);">
+                💾 Simpan Perubahan RKB <span id="badge-staged-count-header" class="badge" style="background:#ffffff; color:#15803d; font-weight:800; font-size:11px; padding:1px 6px; border-radius:999px;">0</span>
+              </button>
               <button class="btn btn-outline-primary btn-sm" onclick="downloadExcel()" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
                 📥 Unduh Excel
+              </button>
+            </div>
+          </div>
+
+          <!-- STICKY STAGED CHANGES BAR (KERANJANG PERUBAHAN RKB BELUM DISIMPAN) -->
+          <div id="rkb-staged-banner" style="display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%); border: 1.5px solid #f59e0b; border-left: 5px solid #d97706; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.14); position: sticky; top: 8px; z-index: 45;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span style="font-size: 18px;">⚠️</span>
+              <div>
+                <div style="font-size: 12.5px; font-weight: 800; color: #92400e;">
+                  DRAF PERUBAHAN RUH BELANJA BELUM DISIMPAN (<span id="staged-banner-count">0</span> Aksi)
+                </div>
+                <div id="staged-banner-subtext" style="font-size: 11.5px; color: #78350f; margin-top: 1px;">
+                  Perubahan masih berada di memori kerja sesi ini dan belum tercatat ke database maupun Log Aktivitas.
+                </div>
+              </div>
+            </div>
+            <div style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="undoLastStagedRkbOp()" style="background: #ffffff; font-size: 11.5px; font-weight: 700; color: #334155; border-color: #cbd5e1;" title="Urungkan 1 aksi perubahan terakhir">
+                ↩️ Urungkan Terakhir
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="discardAllStagedRkbOps()" style="background: #ffffff; font-size: 11.5px; font-weight: 700;" title="Batalkan seluruh draf perubahan yang belum disimpan">
+                🗑️ Batal Semua
+              </button>
+              <button type="button" class="btn btn-sm btn-success" onclick="openCommitRkbModal()" style="font-size: 12px; font-weight: 800; padding: 6px 14px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);">
+                💾 Simpan Perubahan RKB &rarr;
               </button>
             </div>
           </div>
@@ -4587,7 +4616,93 @@
       </div>
     </div>
 
-    <script src="/app.js?v=3.9.6"></script>
+    <!-- ================================================================= -->
+    <!-- MODAL: POP-UP KONFIRMASI SIMPAN PERUBAHAN RKB (BATCH COMMIT)      -->
+    <!-- ================================================================= -->
+    <div id="modal-commit-rkb" class="modal-backdrop" style="display: none; z-index: 1090;">
+      <div class="modal-box" style="max-width: 820px; width: 95%;">
+        <div class="modal-header" style="background: #0f172a; color: #ffffff;">
+          <div>
+            <h3 style="margin: 0; font-size: 16px; color: #ffffff;">💾 Konfirmasi Simpan Perubahan RKB</h3>
+            <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">Periksa ringkasan perubahan anggaran dan sinkronisasi referensi sebelum disimpan permanen ke database.</div>
+          </div>
+          <button type="button" class="btn-close" style="color: #ffffff;" onclick="closeCommitRkbModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 18px; max-height: 75vh; overflow-y: auto;">
+          <!-- Banner Peringatan Perubahan Referensi Bersamaan (Reference Sync) -->
+          <div id="commit-rkb-ref-alert" style="display: none; background: #eff6ff; border: 1.5px solid #3b82f6; border-left: 5px solid #1d4ed8; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; color: #1e3a8a; font-size: 12px; line-height: 1.5;">
+            <div style="font-weight: 800; font-size: 12.5px; margin-bottom: 3px;">🔄 Sinkronisasi Otomatis Data Referensi / Master Terdeteksi</div>
+            <div id="commit-rkb-ref-alert-text">
+              Data Referensi/Master baru saja diperbarui oleh Tim Perencanaan saat Anda menyusun draf. Perhitungan volume dan total pagu di bawah ini telah disesuaikan otomatis dengan nilai referensi terbaru.
+            </div>
+          </div>
+
+          <!-- Ringkasan Anggaran Semula vs Menjadi -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px;">
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px;">
+              <div style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase;">Pagu Sebelum Simpan</div>
+              <div id="commit-rkb-pagu-semula" style="font-size: 15px; font-weight: 800; color: #334155; font-family: var(--font-mono); margin-top: 3px;">Rp 0</div>
+              <div style="font-size: 10.5px; color: #64748b;">Nilai tersimpan di DB saat ini</div>
+            </div>
+            <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 10px 12px;">
+              <div style="font-size: 11px; color: #1e40af; font-weight: 700; text-transform: uppercase;">Pagu Setelah Simpan</div>
+              <div id="commit-rkb-pagu-menjadi" style="font-size: 15px; font-weight: 800; color: #1e3a8a; font-family: var(--font-mono); margin-top: 3px;">Rp 0</div>
+              <div style="font-size: 10.5px; color: #1e40af;">Termasuk referensi terbaru</div>
+            </div>
+            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 10px 12px;">
+              <div style="font-size: 11px; color: #166534; font-weight: 700; text-transform: uppercase;">Selisih Pagu Netto</div>
+              <div id="commit-rkb-pagu-selisih" style="font-size: 15px; font-weight: 800; color: #15803d; font-family: var(--font-mono); margin-top: 3px;">Rp 0</div>
+              <div id="commit-rkb-stats-badges" style="font-size: 11px; color: #334155; margin-top: 3px; font-weight: 600;">-</div>
+            </div>
+          </div>
+
+          <!-- Tabel Rincian Baris yang Berubah -->
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 12px; font-weight: 700; color: #1e293b; display: block; margin-bottom: 6px;">
+              📋 Daftar Rincian Perubahan yang Akan Disimpan:
+            </label>
+            <div class="table-responsive" style="max-height: 240px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <table class="table table-bordered table-hover mb-0" style="font-size: 11.5px;">
+                <thead style="background: #f1f5f9; position: sticky; top: 0; z-index: 2;">
+                  <tr>
+                    <th style="width: 80px;" class="text-center">Status</th>
+                    <th>Baris / Uraian</th>
+                    <th style="width: 75px;" class="text-center">PIC</th>
+                    <th>Rincian Perubahan</th>
+                    <th style="width: 120px;" class="text-right">Semula (Rp)</th>
+                    <th style="width: 120px;" class="text-right">Menjadi (Rp)</th>
+                  </tr>
+                </thead>
+                <tbody id="commit-rkb-changes-tbody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Input Catatan Penyimpanan untuk Log Aktivitas -->
+          <div class="form-group" style="margin-bottom: 4px;">
+            <label for="commit-rkb-catatan" style="font-weight: 700; font-size: 12px; color: #0f172a;">
+              📝 Catatan / Ringkasan Penyimpanan untuk Log Aktivitas (Opsional):
+            </label>
+            <textarea id="commit-rkb-catatan" class="input-text" rows="2" placeholder="Contoh: Penyesuaian volume rapat koordinasi dan penambahan rincian konsumsi pokja..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" class="btn btn-outline-danger btn-sm" onclick="discardAllStagedRkbOps(true)">
+            🗑️ Batalkan Semua Draf
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" onclick="closeCommitRkbModal()">Kembali ke RUH</button>
+            <button type="button" id="btn-confirm-commit-rkb" class="btn btn-success" style="font-weight: 800;" onclick="submitCommitRkbChanges()">
+              💾 Konfirmasi &amp; Simpan Sekarang
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js?v=3.9.7"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
