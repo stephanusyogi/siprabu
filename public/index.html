@@ -215,13 +215,7 @@
                 <span class="badge badge-success badge-sm" id="badge-revisi-aktif">0</span>
               </button>
 
-              <!-- Riwayat Arsip Dokumen Revisi (Locked History) -->
-              <button class="nav-item" data-view="view-revisi-arsip" onclick="switchView('view-revisi-arsip')" id="nav-item-revisi-arsip">
-                <span class="icon">🗄️</span>
-                <span class="label">Riwayat Arsip Revisi (Locked)</span>
-              </button>
-
-              <!-- Pusat Siklus & Induk Baseline (Level 0 & Level 1) -->
+              <!-- Pusat Siklus & Arsip Dokumen Terpadu (Semua Level) -->
               <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" id="nav-item-siklus" style="margin-bottom: 2px;">
                 <span class="icon">🔄</span>
                 <span class="label">Pusat Siklus Dokumen</span>
@@ -505,15 +499,18 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 2: PUSAT SIKLUS & RIWAYAT DOKUMEN -->
+        <!-- VIEW 2: PUSAT SIKLUS & RIWAYAT ARSIP DOKUMEN TERPADU -->
         <!-- ================================================================= -->
         <section id="view-siklus" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Pusat Siklus &amp; Riwayat Dokumen</h2>
-              <p class="view-desc">Kelola siklus hidup dokumen RKB, penetapan status dokumen rujukan induk RKB Pilkada 2024, penguncian baseline, serta penerbitan usulan revisi pergeseran anggaran.</p>
+              <h2 class="view-title">Pusat Siklus Dokumen &amp; Riwayat Arsip Revisi</h2>
+              <p class="view-desc">Kelola siklus hidup dokumen RKB, komparasi pergeseran pagu terhadap rujukan induk, serta arsip permanen dokumen revisi yang telah disahkan beserta tautan bukti fisik (BA Pleno, RKB Final, KAK Gabungan).</p>
             </div>
-            <div class="header-actions">
+            <div class="header-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-outline-primary" onclick="switchView('view-revisi-monitoring')">
+                📊 Buka Monitoring Proses &rarr;
+              </button>
               <button class="btn btn-primary" onclick="openRevisionModal()" id="btn-buat-revisi">
                 ➕ Buat Usulan Revisi Baru
               </button>
@@ -533,7 +530,7 @@
                   <strong id="siklus-nama-dokumen">-</strong>
                 </div>
                 <div class="info-group">
-                  <label>Versi / Dokumen:</label>
+                  <label>Versi &amp; Fase Perencanaan:</label>
                   <span id="siklus-versi-revisi">-</span>
                 </div>
                 <div class="info-group">
@@ -541,7 +538,7 @@
                   <span id="siklus-dasar-pengesahan">-</span>
                 </div>
                 <div class="info-group">
-                  <label>Nomor BA TAPD / Surat:</label>
+                  <label>Nomor BA Pleno / TAPD:</label>
                   <span id="siklus-nomor-ba">-</span>
                 </div>
                 <div class="info-group">
@@ -549,8 +546,11 @@
                   <span id="siklus-tanggal-ba">-</span>
                 </div>
                 <div class="info-group">
-                  <label>Catatan Riwayat:</label>
-                  <span id="siklus-catatan">-</span>
+                  <label>Catatan &amp; Bukti Fisik Arsip:</label>
+                  <div>
+                    <span id="siklus-catatan">-</span>
+                    <div id="siklus-bukti-links" style="margin-top: 4px;"></div>
+                  </div>
                 </div>
               </div>
 
@@ -558,11 +558,11 @@
 
               <div class="lifecycle-actions">
                 <div class="action-desc">
-                  <strong>Otoritas Penguncian &amp; Legalitas (Level 0 &amp; 1):</strong>
-                  <p>Kunci dokumen ini untuk menjadikannya dokumen referensi induk (RKB Pilkada 2024) yang tidak dapat diubah (Read-Only) sebagai rujukan pembanding usulan revisi.</p>
+                  <strong>Otoritas Siklus, Legalitas &amp; Arsip Dokumen:</strong>
+                  <p>Seluruh baseline yang telah disahkan terkunci secara permanen (Read-Only) sebagai rujukan pembanding dan arsip resmi lintas subbagian.</p>
                 </div>
                 <div class="action-buttons" id="lifecycle-action-buttons">
-                  <!-- Populated via JS (Lock, Unlock, Edit Legalitas) -->
+                  <!-- Populated via JS (Lock, Edit Legalitas, Koreksi Tautan, Buka RKB, Unduh Excel) -->
                 </div>
               </div>
             </div>
@@ -601,10 +601,10 @@
             </div>
           </div>
 
-          <!-- DAFTAR DOKUMEN SIKLUS -->
+          <!-- DAFTAR DOKUMEN SIKLUS & ARSIP REVISI TERPADU -->
           <div class="card mt-4">
             <div class="card-header">
-              <h3>Daftar Dokumen Siklus Perencanaan &amp; Revisi</h3>
+              <h3>Daftar Siklus Perencanaan &amp; Riwayat Arsip Dokumen Revisi</h3>
             </div>
             <div class="card-body">
               <div class="table-responsive">
@@ -612,14 +612,14 @@
                   <thead>
                     <tr>
                       <th style="width: 50px;" class="text-center">No</th>
-                      <th>Nama Dokumen RKB</th>
-                      <th>Versi</th>
+                      <th>Nama Dokumen &amp; Bukti Fisik Arsip</th>
+                      <th>Versi &amp; Fase</th>
                       <th>Dasar Dokumen &amp; Legalitas</th>
                       <th>Status Dokumen</th>
                       <th class="text-right">Total Pagu (Rp)</th>
                       <th class="text-right">Selisih vs Baseline</th>
                       <th class="text-right">Item</th>
-                      <th class="text-center" style="width: 270px;">Aksi</th>
+                      <th class="text-center" style="width: 280px;">Aksi</th>
                     </tr>
                   </thead>
                   <tbody id="table-periode-history">
@@ -1135,48 +1135,6 @@
           </div>
         </section>
 
-        <!-- ================================================================= -->
-        <!-- VIEW: RIWAYAT ARSIP REVISI (LOCKED HISTORY / MONITORING MIGRASI)  -->
-        <!-- ================================================================= -->
-        <section id="view-revisi-arsip" class="app-view">
-          <div class="view-header">
-            <div>
-              <h2 class="view-title">Riwayat Arsip Dokumen Revisi (Locked History)</h2>
-              <p class="view-desc">Daftar arsip dokumen RKB yang telah disahkan dan dikunci resmi per revisi. Menjadi rujukan permanen yang transparan baik bagi PIC Subbag maupun Tim Rendatin.</p>
-            </div>
-            <div class="header-actions">
-              <button class="btn btn-outline-primary" onclick="switchView('view-revisi-monitoring')">
-                📊 Buka Monitoring Proses &rarr;
-              </button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-body" style="padding: 0;">
-              <div class="table-responsive">
-                <table class="table table-hover table-bordered mb-0">
-                  <thead style="background: #1e293b; color: #ffffff;">
-                    <tr>
-                      <th style="width: 70px;" class="text-center">Thang</th>
-                      <th style="width: 100px;">Kode Satker</th>
-                      <th>Deskripsi Revisi Dokumen</th>
-                      <th style="width: 80px;" class="text-center">Rev ke</th>
-                      <th style="width: 140px;" class="text-center">Status</th>
-                      <th class="text-right" style="width: 160px;">Total Anggaran (Rp)</th>
-                      <th style="width: 120px;" class="text-center">Tanggal Revisi</th>
-                      <th style="width: 130px;" class="text-center">Tanggal Penetapan</th>
-                      <th style="width: 180px;">Dasar Pengesahan</th>
-                      <th style="width: 120px;" class="text-center">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="table-revisi-arsip-body">
-                    <!-- Populated via JS -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <!-- ================================================================= -->
         <!-- VIEW 3: RUH BELANJA (ACTIVE WORKBENCH) -->

@@ -40,7 +40,7 @@ const SAKTI_CODE_TO_VIEW = {
   5: 'view-revisi-validasi',
   6: 'view-revisi-tahap4',
   7: 'view-revisi-monitoring',
-  8: 'view-revisi-arsip',
+  8: 'view-siklus',
   9: 'view-db-ppk',
   10: 'view-db-pps',
   11: 'view-db-paslon',

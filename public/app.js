@@ -77,7 +77,7 @@ const SAKTI_CODE_TO_VIEW = {
   5: 'view-revisi-validasi',
   6: 'view-revisi-tahap4',
   7: 'view-revisi-monitoring',
-  8: 'view-revisi-arsip',
+  8: 'view-siklus',
   9: 'view-db-ppk',
   10: 'view-db-pps',
   11: 'view-db-paslon',
@@ -802,15 +802,10 @@ function applyRolePermissionsToUI() {
     roleBanner.style.display = 'none';
   }
 
-  // 1. Akses Menu Pusat Siklus & Revisi:
-  // Hanya Level <= 1, Sekretaris KPU, dan Divisi Rendatin
+  // 1. Akses Menu Pusat Siklus Dokumen & Riwayat Arsip Revisi (Bab 5 Canon: Terbuka Read-Only untuk Semua Level, Aksi Manajemen dikunci untuk Level 0/1)
   const navSiklus = document.getElementById('nav-item-siklus') || document.querySelector('button[data-view="view-siklus"]');
-  const canAccessSiklus = (user.level <= 1) || 
-    user.role_id === 'sekretaris' || user.username === 'sekretaris' || user.role_id === 'viewer_sekretaris' ||
-    user.role_id === 'komisioner_rendatin' || user.username === 'divisi_rendatin' || user.username === 'komisioner';
-
   if (navSiklus) {
-    navSiklus.style.display = canAccessSiklus ? 'flex' : 'none';
+    navSiklus.style.display = 'flex';
   }
 
   // 2. Akses Folder Database Master: Level <= 1 (CRUD) + Sekretaris & Divisi Perencanaan (Read-Only) sesuai Bab 5 & Bab 7
@@ -1392,18 +1387,14 @@ function startServerClockTicker() {
 }
 
 function switchView(viewId, updateHistory = true) {
+  // Redirect legacy view-revisi-arsip ke Pusat Siklus Dokumen terpadu (Bab 5 Canon)
+  if (viewId === 'view-revisi-arsip') {
+    viewId = 'view-siklus';
+  }
+
   const user = AppState.currentUser;
   if (user) {
-    // 1. Guard Pusat Siklus: Hanya Level <= 1, Sekretaris KPU, dan Divisi Rendatin
-    const canAccessSiklus = (user.level <= 1) || 
-      user.role_id === 'sekretaris' || user.username === 'sekretaris' || user.role_id === 'viewer_sekretaris' ||
-      user.role_id === 'komisioner_rendatin' || user.username === 'divisi_rendatin' || user.username === 'komisioner';
-
-    if (viewId === 'view-siklus' && !canAccessSiklus) {
-      showToast('Akses ditolak: Menu Pusat Siklus & Revisi hanya dapat diakses oleh Tim Perencanaan, Sekretaris KPU, dan Divisi Rendatin.', 'warning');
-      switchView('view-dashboard', updateHistory);
-      return;
-    }
+    // 1. Pusat Siklus Dokumen & Arsip Revisi terbuka Read-Only untuk semua peran terautentikasi (Bab 5 Canon)
 
     // 2. Guard Database Master: Level <= 1 (CRUD) + Sekretaris & Divisi Perencanaan (Read-Only)
     const isMasterDbView = ['view-db-ppk', 'view-db-pps', 'view-db-paslon', 'view-db-settings', 'view-settings'].includes(viewId);
@@ -1760,11 +1751,30 @@ function renderSiklus() {
   const baselinePagu = baselineItem ? (baselineItem.total_pagu || baselineItem.pagu_nphd || 0) : (p.pagu_nphd || 0);
 
   setElText('siklus-nama-dokumen', p.nama_periode);
-  setElText('siklus-versi-revisi', p.versi_revisi);
+  const versiEl = document.getElementById('siklus-versi-revisi');
+  if (versiEl) {
+    const faseLabel = p.fase_perencanaan || p.tahap_revisi || 'PRA_NPHD';
+    versiEl.innerHTML = `<span class="badge badge-primary">${escHtml(p.versi_revisi || '-')}</span> <span class="badge badge-info" style="margin-left:4px;font-size:10.5px;">${escHtml(faseLabel)}</span>`;
+  }
   setElText('siklus-dasar-pengesahan', p.dasar_pengesahan || 'Kertas Kerja Penyusunan');
   setElText('siklus-nomor-ba', p.nomor_ba_tapd || '-');
   setElText('siklus-tanggal-ba', p.tanggal_ba_tapd || '-');
   setElText('siklus-catatan', p.catatan_revisi || 'Dokumen Rujukan Induk RKB Pilkada 2024 (Baseline)');
+
+  const buktiLinksBox = document.getElementById('siklus-bukti-links');
+  if (buktiLinksBox) {
+    const baLink = p.gdrive_link_pleno || p.file_pendukung_path || '';
+    const rkbLink = p.rkb_final_link || '';
+    const kakLink = p.kak_gabungan_link || '';
+    const linksArr = [
+      baLink ? `<a href="${escHtml(baLink)}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px; color:#2563eb; text-decoration:none; font-weight:600;">📄 BA Pleno</a>` : '',
+      rkbLink ? `<a href="${escHtml(rkbLink)}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px; color:#15803d; text-decoration:none; font-weight:600;">📊 RKB Final</a>` : '',
+      kakLink ? `<a href="${escHtml(kakLink)}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px; color:#7c3aed; text-decoration:none; font-weight:600;">📑 KAK Gabungan</a>` : ''
+    ].filter(Boolean);
+    buktiLinksBox.innerHTML = linksArr.length > 0
+      ? linksArr.join(' &nbsp;&bull;&nbsp; ')
+      : '<span style="font-size:11px; color:#94a3b8;">Belum ada tautan bukti fisik Google Drive</span>';
+  }
 
   const badgeBox = document.getElementById('lifecycle-badge');
   if (badgeBox) {
@@ -1792,6 +1802,12 @@ function renderSiklus() {
   const actionContainer = document.getElementById('lifecycle-action-buttons');
   const user = AppState.currentUser;
   const canManage = user && (user.level === 0 || user.level === 1);
+  const isKasubagRendatin = Boolean(
+    user && (
+      user.level === 0 ||
+      (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin' || user.role_id === 'perencanaan'))
+    )
+  );
 
   const btnBuatRevisi = document.getElementById('btn-buat-revisi');
   if (btnBuatRevisi) {
@@ -1802,10 +1818,9 @@ function renderSiklus() {
     let buttonsHtml = '';
     if (canManage) {
       if (p.is_locked) {
-        const isKasubagRendatin = user.level === 0 || (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin' || user.role_id === 'perencanaan'));
         if (isKasubagRendatin) {
           buttonsHtml += `
-            <button class="btn btn-outline-secondary" onclick="switchView('view-revisi-arsip')">
+            <button class="btn btn-outline-secondary" onclick="openKoreksiTautanPascaPengesahan(${p.id}, event)">
               🔗 Koreksi Tautan Arsip Pasca-Pengesahan
             </button>
           `;
@@ -1911,6 +1926,16 @@ function renderSiklus() {
       const noUrut = idx + 1;
       const nomorBa = (item.nomor_ba_tapd && item.nomor_ba_tapd !== '-') ? item.nomor_ba_tapd : '';
       const tanggalBa = item.tanggal_ba_tapd || '';
+      const faseItem = item.fase_perencanaan || item.tahap_revisi || 'PRA_NPHD';
+
+      const baLink = item.gdrive_link_pleno || item.file_pendukung_path || '';
+      const rkbLink = item.rkb_final_link || '';
+      const kakLink = item.kak_gabungan_link || '';
+      const linksHtml = [
+        baLink ? `<a href="${escHtml(baLink)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#2563eb; text-decoration:none; font-weight:600;">📄 BA Pleno</a>` : '',
+        rkbLink ? `<a href="${escHtml(rkbLink)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#15803d; text-decoration:none; font-weight:600;">📊 RKB Final</a>` : '',
+        kakLink ? `<a href="${escHtml(kakLink)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#7c3aed; text-decoration:none; font-weight:600;">📑 KAK Gabungan</a>` : ''
+      ].filter(Boolean).join(' &bull; ');
 
       return `
         <tr class="${isCurrent ? 'table-row-selected' : ''}" style="cursor: pointer;" onclick="selectPeriode(${item.id})">
@@ -1922,8 +1947,12 @@ function renderSiklus() {
           <td>
             <strong>${escHtml(item.nama_periode)}</strong>
             ${item.catatan_revisi ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">💬 ${escHtml(item.catatan_revisi)}</div>` : ''}
+            ${linksHtml ? `<div style="margin-top:4px;" onclick="event.stopPropagation()">${linksHtml}</div>` : ''}
           </td>
-          <td><span class="badge badge-primary">${escHtml(item.versi_revisi)}</span></td>
+          <td>
+            <span class="badge badge-primary">${escHtml(item.versi_revisi)}</span>
+            <div style="margin-top:3px;"><span class="badge badge-info" style="font-size:9.5px;">${escHtml(faseItem)}</span></div>
+          </td>
           <td>
             <span class="badge" style="background:#eff6ff;color:#1e40af;font-weight:700;border:1px solid #bfdbfe;font-size:11px;">
               📄 ${escHtml(item.dasar_pengesahan || 'Kertas Kerja')}
@@ -1935,7 +1964,7 @@ function renderSiklus() {
           </td>
           <td>
             <span class="badge ${item.is_locked ? 'badge-danger' : 'badge-success'}">
-              ${item.is_locked ? '🔒 Terkunci' : '🟢 Draft Aktif'}
+              ${item.is_locked ? '🔒 Terkunci (Sah)' : '🟢 Draft Aktif'}
             </span>
           </td>
           <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e3a8a;">
@@ -1949,9 +1978,14 @@ function renderSiklus() {
           </td>
           <td class="text-center" onclick="event.stopPropagation()">
             <div style="display:inline-flex;align-items:center;gap:6px;justify-content:center;white-space:nowrap;">
-              ${canManage ? `
+              ${(!item.is_locked && canManage) ? `
                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openEditLegalitasModal(${item.id}, event)" title="Ubah Dasar Pengesahan & Legalitas Dokumen Ini" style="font-size:11px;padding:4px 8px;font-weight:600;">
                   ✏️ Edit Dasar
+                </button>
+              ` : ''}
+              ${(item.is_locked && isKasubagRendatin) ? `
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openKoreksiTautanPascaPengesahan(${item.id}, event)" title="Koreksi Tautan Google Drive Pasca-Pengesahan (Khusus Kasubag Rendatin)" style="font-size:11px;padding:4px 8px;font-weight:600;">
+                  🔗 Tautan
                 </button>
               ` : ''}
               <button type="button" class="btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-outline-primary'}" onclick="selectPeriodeAndSwitch(${item.id})" title="Buka lembar kerja RKB untuk dokumen ini" style="font-size:11px;padding:4px 8px;font-weight:600;">
@@ -9393,8 +9427,8 @@ async function submitPengesahanTahap4Keseluruhan() {
     await loadRkbData();
     renderAllViews();
 
-    // Beralih ke view arsip
-    switchView('view-revisi-arsip');
+    // Beralih ke Pusat Siklus Dokumen & Arsip Revisi terpadu
+    switchView('view-siklus');
   } catch (err) {
     alert('Gagal mengesahkan Tahap 4: ' + err.message);
   } finally {
@@ -9406,103 +9440,31 @@ async function submitPengesahanTahap4Keseluruhan() {
 }
 
 // ----------------------------------------------------------------------------
-// RIWAYAT ARSIP DOKUMEN REVISI (LOCKED HISTORY / MONITORING MIGRASI DATA)
+// RIWAYAT ARSIP DOKUMEN REVISI (DILEBUR KE PUSAT SIKLUS DOKUMEN - BAB 5 CANON)
 // ----------------------------------------------------------------------------
 
 async function loadRevisiArsipTable() {
-  const tableBody = document.getElementById('table-revisi-arsip-body');
-  if (!tableBody) return;
-
-  tableBody.innerHTML = `<tr><td colspan="10" class="text-center" style="padding: 24px; color: #64748b;">Memuat data riwayat arsip dokumen terkunci...</td></tr>`;
-
-  try {
-    const res = await apiFetch('/api/revisi/arsip');
-    const list = res.data || [];
-
-    if (list.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="10" class="text-center" style="padding: 24px; color: #64748b;">Belum ada arsip dokumen revisi yang dikunci secara permanen.</td></tr>`;
-      return;
-    }
-
-    const user = AppState.currentUser;
-    const canCorrectLinks = user && (
-      user.level === 0 ||
-      (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin' || user.role_id === 'perencanaan'))
-    );
-
-    tableBody.innerHTML = list.map(item => {
-      const linksHtml = [
-        item.gdrive_link_pleno ? `<a href="${escHtml(item.gdrive_link_pleno)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#2563eb; text-decoration:none; font-weight:600;">📄 BA Pleno</a>` : '',
-        item.rkb_final_link ? `<a href="${escHtml(item.rkb_final_link)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#15803d; text-decoration:none; font-weight:600;">📊 RKB Final</a>` : '',
-        item.kak_gabungan_link ? `<a href="${escHtml(item.kak_gabungan_link)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#7c3aed; text-decoration:none; font-weight:600;">📑 KAK Gabungan</a>` : ''
-      ].filter(Boolean).join(' &bull; ');
-
-      return `
-        <tr>
-          <td class="text-center" style="font-weight: 700; color: #64748b;">${item.thang || 2029}</td>
-          <td style="font-family: var(--font-mono); font-size: 11.5px; color: #1e40af;">${escHtml(item.kode_satker || '657811')}</td>
-          <td>
-            <div style="font-weight: 700; color: #0f172a;">${escHtml(item.deskripsi || item.nama_periode)}</div>
-            <div style="font-size: 11px; color: #64748b;">${escHtml(item.catatan_revisi || 'Dokumen resmi')}</div>
-            ${linksHtml ? `<div style="margin-top: 3px;">${linksHtml}</div>` : ''}
-          </td>
-          <td class="text-center">
-            <span class="badge badge-primary" style="font-size: 11px;">Rev ${item.revisi_ke ?? 0}</span>
-            <div style="margin-top: 3px;"><span class="badge badge-info" style="font-size: 9.5px;">${escHtml(item.fase_perencanaan || item.tahap_revisi || 'PRA_NPHD')}</span></div>
-          </td>
-          <td class="text-center">
-            <span class="badge badge-success" style="font-size: 11px; padding: 4px 8px;">
-              🔒 ${escHtml(item.status_label || 'TERKUNCI')}
-            </span>
-          </td>
-          <td class="text-right" style="font-family: var(--font-mono); font-weight: 700; color: #1e40af;">
-            ${formatRupiah(item.total_anggaran || 0)}
-          </td>
-          <td class="text-center" style="font-size: 12px; color: #475569;">
-            ${escHtml(item.tanggal_revisi || '-')}
-          </td>
-          <td class="text-center" style="font-size: 12px; font-weight: 600; color: #15803d;">
-            ${escHtml(item.tanggal_penetapan || '-')}
-          </td>
-          <td>
-            <div style="font-size: 11.5px; font-weight: 600; color: #1e293b;">${escHtml(item.dasar_pengesahan || 'BA Pleno Komisioner')}</div>
-            <div style="font-size: 11px; color: #64748b;">No: ${escHtml(item.nomor_ba_tapd || '-')}</div>
-          </td>
-          <td class="text-center">
-            <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-              <button class="btn btn-outline-primary btn-xs" onclick="bukaArsipKertasKerja(${item.id})" title="Buka Kertas Kerja RKB Versi Ini (Read-Only)">
-                📖 Buka
-              </button>
-              <button class="btn btn-outline btn-xs" onclick="downloadArsipExcel(${item.id})" title="Unduh Arsip Excel">
-                📥 Excel
-              </button>
-              ${canCorrectLinks ? `
-                <button class="btn btn-outline btn-xs" onclick="openKoreksiTautanPascaPengesahan(${item.id})" title="Koreksi Tautan Dokumen Pasca-Pengesahan (Khusus Kasubag Rendatin)">
-                  🔗 Tautan
-                </button>
-              ` : ''}
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-  } catch (err) {
-    console.warn('Gagal memuat arsip revisi:', err);
-    tableBody.innerHTML = `<tr><td colspan="10" class="text-center text-danger" style="padding: 24px;">Gagal memuat arsip: ${escHtml(err.message)}</td></tr>`;
-  }
+  renderSiklus();
 }
 
-async function openKoreksiTautanPascaPengesahan(periodeId) {
+async function openKoreksiTautanPascaPengesahan(periodeId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   try {
-    const res = await apiFetch('/api/revisi/arsip');
-    const item = (res.data || []).find(a => Number(a.id) === Number(periodeId));
+    let item = (AppState.periodesList || []).find(a => Number(a.id) === Number(periodeId));
+    if (!item) {
+      const res = await apiFetch('/api/revisi/arsip');
+      item = (res.data || []).find(a => Number(a.id) === Number(periodeId));
+    }
     if (!item) {
       alert('Data arsip tidak ditemukan.');
       return;
     }
 
-    const newBa = prompt('1. Koreksi Tautan Google Drive BA Pleno Bertanda Tangan:', item.gdrive_link_pleno || '');
+    const currentBa = item.gdrive_link_pleno || item.file_pendukung_path || '';
+    const newBa = prompt('1. Koreksi Tautan Google Drive BA Pleno Bertanda Tangan:', currentBa);
     if (newBa === null) return;
     const newRkb = prompt('2. Koreksi Tautan Google Drive RKB Final Bertanda Tangan:', item.rkb_final_link || '');
     if (newRkb === null) return;
@@ -9522,8 +9484,8 @@ async function openKoreksiTautanPascaPengesahan(periodeId) {
     });
 
     showToast(saveRes.message || 'Tautan dokumen arsip berhasil diperbarui.', 'success');
-    await loadRevisiArsipTable();
     await loadPeriodes();
+    renderSiklus();
   } catch (err) {
     alert('Gagal memperbarui tautan pasca-pengesahan: ' + err.message);
   }
