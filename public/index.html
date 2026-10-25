@@ -2775,80 +2775,88 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- MODAL: EDIT / TAMBAH BARIS RKB -->
+    <!-- MODAL: EDIT / TAMBAH BARIS RKB (SAKTI LANDSCAPE MODE)                 -->
     <!-- ===================================================================== -->
     <div id="modal-row" class="modal-backdrop" style="display: none;">
-      <div class="modal-box modal-lg">
-        <div class="modal-header">
-          <h3 id="modal-row-title">Edit Baris Belanja RKB</h3>
-          <button class="btn-close" onclick="closeRowModal()">✕</button>
-        </div>
-        <div class="modal-body">
-          <div id="modal-insertion-context" class="alert-info-box" style="margin-bottom: 12px; font-size: 12px; display: none;"></div>
-          <!-- Banner ajakan rekam Akun BAS jika dibutuhkan -->
-          <div id="modal-suggest-akun-banner" style="background:#eff6ff;border:1px solid #bfdbfe;padding:8px 12px;border-radius:6px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;font-size:12px;">
-            <span style="color:#1e40af;">💡 <em>Perlu membuat <strong>Akun Belanja (BAS - Level 3)</strong> terlebih dahulu sesuai standar SAKTI?</em></span>
-            <button type="button" class="btn btn-xs btn-primary" onclick="switchToAkunModal()" style="font-size:11px;padding:3px 8px;font-weight:700;">🏷️ Rekam Akun BAS</button>
+      <div class="modal-box modal-lg modal-sakti-landscape">
+        <div class="modal-header" style="padding: 12px 20px; background: linear-gradient(90deg, #0f172a 0%, #1e3a8a 100%); color: #ffffff;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="background:rgba(255,255,255,0.15); padding:4px 8px; border-radius:6px; font-size:12px; font-weight:700;">SAKTI RUH</span>
+            <h3 id="modal-row-title" style="color:#ffffff; margin:0; font-size:15px;">Edit Rincian Belanja RKB</h3>
           </div>
+          <button class="btn-close" onclick="closeRowModal()" style="color:#ffffff; opacity:0.85;">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 16px 22px;">
+          <div id="modal-insertion-context" class="alert-info-box" style="margin-bottom: 10px; font-size: 12px; padding: 6px 12px; display: none;"></div>
+          
+          <!-- Baris Kompak: Banner Rekam Akun BAS & Opsi Checkbox Header Teks -->
+          <div class="sakti-modal-top-banners">
+            <div id="modal-suggest-akun-banner" style="background:#eff6ff;border:1px solid #bfdbfe;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11.5px;">
+              <span style="color:#1e40af;">💡 <em>Perlu membuat <strong>Akun Belanja (BAS - Level 3)</strong> baru?</em></span>
+              <button type="button" class="btn btn-xs btn-primary" onclick="switchToAkunModal()" style="font-size:11px;padding:3px 8px;font-weight:700;white-space:nowrap;">🏷️ Rekam Akun BAS</button>
+            </div>
 
-          <!-- Opsi Checkbox: Header Teks / Sub-Header Kelompok Belanja (seperti a. Kantor/Inventaris) -->
-          <div id="modal-is-header-container" style="background:#f0fdf4;border:1px solid #bbf7d0;padding:8px 12px;border-radius:6px;margin-bottom:12px;">
-            <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;color:#166534;font-weight:700;font-size:12px;">
-              <input type="checkbox" id="modal-is-header-checkbox" onchange="toggleModalHeaderMode(this.checked)" style="width:16px;height:16px;accent-color:#16a34a;">
-              <span>📑 Jadikan sebagai <u>Header Teks / Sub-Header Kelompok</u> (seperti <em>a. Kantor/Inventaris</em>, tanpa volume &amp; harga)</span>
-            </label>
+            <div id="modal-is-header-container" style="background:#f0fdf4;border:1px solid #bbf7d0;padding:6px 12px;border-radius:6px;display:flex;align-items:center;">
+              <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;color:#166534;font-weight:700;font-size:11.5px;">
+                <input type="checkbox" id="modal-is-header-checkbox" onchange="toggleModalHeaderMode(this.checked)" style="width:15px;height:15px;accent-color:#16a34a;">
+                <span>📑 Jadikan <u>Header Teks / Sub-Header Kelompok</u> (seperti <em>a. Kantor/Inventaris</em>, tanpa volume &amp; harga)</span>
+              </label>
+            </div>
           </div>
 
           <form id="form-row" onsubmit="event.preventDefault(); submitRowForm();">
             <input type="hidden" id="modal-row-id">
             <input type="hidden" id="modal-row-level" value="4">
             
-            <div class="form-row-grid">
-              <!-- KODE / NO (Tampil saat mode Header Teks aktif) -->
-              <div id="modal-header-kode-group" class="form-group" style="display:none;">
-                <label style="font-weight:700;">Kode / No:</label>
-                <input type="text" id="modal-header-kode-input" class="input-text" placeholder="Misal: a." style="font-family:var(--font-mono);font-weight:700;">
-              </div>
+            <div class="form-row-grid sakti-landscape-grid">
+              <!-- BAGIAN 1: IDENTITAS & KLASIFIKASI BARIS BELANJA -->
+              <div class="sakti-identity-row full-width">
+                <!-- KODE / NO (Tampil saat mode Header Teks aktif) -->
+                <div id="modal-header-kode-group" class="form-group" style="display:none; margin-bottom:0;">
+                  <label style="font-weight:700;">Kode / No:</label>
+                  <input type="text" id="modal-header-kode-input" class="input-text" placeholder="Misal: a." style="font-family:var(--font-mono);font-weight:700;">
+                </div>
 
-              <div class="form-group full-width" id="modal-uraian-group">
-                <label id="modal-uraian-label">Uraian Rincian Belanja:</label>
-                <input type="text" id="modal-uraian" class="input-text" required placeholder="Contoh: -. Konsumsi Rapat Koordinasi">
-              </div>
+                <div class="form-group" id="modal-uraian-group" style="margin-bottom:0;">
+                  <label id="modal-uraian-label">Uraian Rincian Belanja:</label>
+                  <input type="text" id="modal-uraian" class="input-text" required placeholder="Contoh: -. Konsumsi Rapat Koordinasi">
+                </div>
 
-              <div class="form-group">
-                <label>Subbag Pelaksana (PIC):</label>
-                <select id="modal-pic" class="input-select" required>
-                  <option value="KUL">Keuangan, Umum &amp; Logistik (KUL)</option>
-                  <option value="RENDATIN">Perencanaan, Data &amp; Informasi (RENDATIN)</option>
-                  <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
-                  <option value="HUKUM">Hukum (HUKUM)</option>
-                  <option value="PARSDM">Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
-                </select>
-              </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label>Subbag Pelaksana (PIC):</label>
+                  <select id="modal-pic" class="input-select" required>
+                    <option value="KUL">Keuangan, Umum &amp; Logistik (KUL)</option>
+                    <option value="RENDATIN">Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+                    <option value="TEKNIS">Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                    <option value="HUKUM">Hukum (HUKUM)</option>
+                    <option value="PARSDM">Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
+                  </select>
+                </div>
 
-              <div class="form-group">
-                <label>Sasaran Penyelenggara:</label>
-                <select id="modal-sasaran" class="input-select" required>
-                  <option value="KAB">KAB (Kabupaten)</option>
-                  <option value="PPK">PPK (Kecamatan)</option>
-                  <option value="PPS">PPS (Desa / Kelurahan)</option>
-                  <option value="TPS">TPS (KPPS &amp; Linmas)</option>
-                  <option value="PANTARLIH">PANTARLIH</option>
-                  <option value="PESERTA">PESERTA</option>
-                </select>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label>Sasaran Penyelenggara:</label>
+                  <select id="modal-sasaran" class="input-select" required>
+                    <option value="KAB">KAB (Kabupaten)</option>
+                    <option value="PPK">PPK (Kecamatan)</option>
+                    <option value="PPS">PPS (Desa / Kelurahan)</option>
+                    <option value="TPS">TPS (KPPS &amp; Linmas)</option>
+                    <option value="PANTARLIH">PANTARLIH</option>
+                    <option value="PESERTA">PESERTA</option>
+                  </select>
+                </div>
               </div>
 
               <!-- KODE AKUN BAS DENGAN FITUR PENCARIAN & PICKER TABEL DATA -->
-              <div class="form-group full-width">
+              <div class="form-group full-width" style="margin-bottom:4px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                   <label style="margin:0;">Kode Akun Bagan Akun Standar (BAS):</label>
-                  <button type="button" class="btn btn-xs btn-outline" onclick="openAkunPickerModal()" style="font-size:11px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;">
+                  <button type="button" class="btn btn-xs btn-outline" onclick="openAkunPickerModal()" style="font-size:11px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px;">
                     🔍 Buka Tabel Pencarian BAS
                   </button>
                 </div>
                 
                 <div class="akun-picker-control">
-                  <div class="akun-selected-card" id="akun-selected-card" onclick="openAkunPickerModal()" title="Klik untuk mencari atau memilih Kode Akun BAS dari tabel">
+                  <div class="akun-selected-card" id="akun-selected-card" onclick="openAkunPickerModal()" title="Klik untuk mencari atau memilih Kode Akun BAS dari tabel" style="padding:6px 12px;">
                     <div class="akun-badge" id="modal-akun-code-badge">521211</div>
                     <div class="akun-info">
                       <div class="akun-name" id="modal-akun-uraian-display">Belanja Bahan</div>
@@ -2866,91 +2874,101 @@
               </div>
 
               <div id="modal-detail-calc-fields" class="full-width" style="display:contents;">
-                <!-- HARGA SATUAN DENGAN FITUR LOAD SBM LOKAL -->
-                <div class="form-group full-width">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <label style="margin:0;">Harga Satuan (Rp):</label>
-                    <div style="display:flex; gap:6px;">
-                      <button type="button" class="btn btn-xs btn-outline-primary" onclick="openSbmPickerModal()" style="font-size:11px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px; font-weight:600;">
-                        ⚡ Load dari SBM Lokal (51 Standar Tarif)
-                      </button>
+                <!-- ========================================================= -->
+                <!-- BAGIAN 2: FAKTOR MULTIPLIER VOLUME (SEBELUM HARGA SATUAN) -->
+                <!-- ========================================================= -->
+                <div class="factors-section full-width">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <h4 style="margin:0; font-size:13px; color:#1e3a8a;">🧮 Faktor Multiplier Volume (F1 × F2 × F3 × F4 × Basis Pengali)</h4>
+                      <span class="badge-subtle" style="font-size:10.5px; background:#dbeafe; color:#1e40af; padding:2px 7px; border-radius:4px; font-weight:700;">Urutan Standar SAKTI: Volume → Harga Satuan</span>
                     </div>
-                  </div>
-                  <div style="display:flex; gap:8px; align-items:center;">
-                    <div style="flex:1; position:relative;">
-                      <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:700; color:#64748b; font-size:13px;">Rp</span>
-                      <input type="number" id="modal-harga" class="input-text" required min="0" step="100" style="padding-left:38px; font-size:14px; font-weight:700;" oninput="calculateModalTotal()">
-                    </div>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="openSbmPickerModal()" title="Cari di Standar Biaya Masukan (SBM)">
-                      🏷️ Katalog SBM
-                    </button>
+                    <span style="font-size:11px; color:#2563eb; font-weight:600;">🔗 Terhubung Parameter Referensi SSOT</span>
                   </div>
 
-                  <!-- QUICK CHIPS: SBM RELEVAN SESUAI KODE AKUN BAS -->
-                  <div id="modal-sbm-quick-container" class="sbm-quick-container mt-1">
-                    <div style="font-size:10.5px; color:#64748b; display:flex; align-items:center; gap:4px; margin-bottom:4px;">
-                      <span>⚡ <strong>Tarif SBM Cepat Terkait Akun:</strong></span>
-                      <span id="sbm-quick-status" style="font-size:10px; color:#94a3b8;">(Klik chip untuk set harga &amp; satuan)</span>
-                    </div>
-                    <div id="modal-sbm-quick-chips" class="sbm-quick-chips-row">
-                      <!-- Populated dynamically via JS when akun changes -->
-                    </div>
-                  </div>
-                </div>
-
-                <!-- FAKTOR 1 SAMPAI 4 -->
-                <div class="factors-section mt-3">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <h4 style="margin:0;">Faktor Multiplier Volume (F1 x F2 x F3 x F4 x Basis Pengali)</h4>
-                    <span style="font-size:11px; color:#2563eb; font-weight:600;">🔗 Terhubung SSOT</span>
-                  </div>
-                  <div class="factors-grid">
+                  <div class="factors-grid sakti-factors-grid">
+                    <!-- FAKTOR 1 -->
                     <div class="factor-card">
-                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                        <span class="factor-badge" style="margin-bottom:0;">Faktor 1</span>
-                        <span id="modal-f1-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 4px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
+                      <div class="factor-card-header">
+                        <span class="factor-badge">FAKTOR 1 (Utama)</span>
+                        <span id="modal-f1-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 5px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
                       </div>
-                      <select id="modal-f1-var" class="input-select input-sm" style="font-size:11px; padding:2px 4px; height:26px;" onchange="onFactorVarSelectChange(1)">
+                      <select id="modal-f1-var" class="input-select input-sm factor-var-select" onchange="onFactorVarSelectChange(1)" title="Pilih variabel referensi SSOT atau biarkan Manual">
                         <option value="">-- Manual --</option>
                       </select>
-                      <input type="number" id="modal-f1-val" class="input-text input-sm mt-1" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
-                      <input type="text" id="modal-f1-unit" list="datalist-factor-units" class="input-text input-sm mt-1" placeholder="Satuan (cth: Org)" oninput="calculateModalTotal()">
+                      <div class="factor-val-unit-row">
+                        <div class="factor-field-col">
+                          <span class="factor-mini-label">Angka Vol</span>
+                          <input type="number" id="modal-f1-val" class="input-text input-sm factor-val-input" placeholder="0" min="0" step="any" oninput="calculateModalTotal()">
+                        </div>
+                        <div class="factor-field-col">
+                          <span class="factor-mini-label">Satuan</span>
+                          <input type="text" id="modal-f1-unit" list="datalist-factor-units" class="input-text input-sm factor-unit-input" placeholder="Org / Keg" oninput="calculateModalTotal()">
+                        </div>
+                      </div>
                     </div>
 
+                    <!-- FAKTOR 2 -->
                     <div class="factor-card">
-                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                        <span class="factor-badge" style="margin-bottom:0;">Faktor 2</span>
-                        <span id="modal-f2-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 4px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
+                      <div class="factor-card-header">
+                        <span class="factor-badge">FAKTOR 2 (Pengali)</span>
+                        <span id="modal-f2-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 5px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
                       </div>
-                      <select id="modal-f2-var" class="input-select input-sm" style="font-size:11px; padding:2px 4px; height:26px;" onchange="onFactorVarSelectChange(2)">
+                      <select id="modal-f2-var" class="input-select input-sm factor-var-select" onchange="onFactorVarSelectChange(2)" title="Pilih variabel referensi SSOT atau biarkan Manual">
                         <option value="">-- Manual --</option>
                       </select>
-                      <input type="number" id="modal-f2-val" class="input-text input-sm mt-1" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
-                      <input type="text" id="modal-f2-unit" list="datalist-factor-units" class="input-text input-sm mt-1" placeholder="Satuan (cth: Bln / Keg)" oninput="calculateModalTotal()">
+                      <div class="factor-val-unit-row">
+                        <div class="factor-field-col">
+                          <span class="factor-mini-label">Angka Vol</span>
+                          <input type="number" id="modal-f2-val" class="input-text input-sm factor-val-input" placeholder="-" min="0" step="any" oninput="calculateModalTotal()">
+                        </div>
+                        <div class="factor-field-col">
+                          <span class="factor-mini-label">Satuan</span>
+                          <input type="text" id="modal-f2-unit" list="datalist-factor-units" class="input-text input-sm factor-unit-input" placeholder="Bln / Keg" oninput="calculateModalTotal()">
+                        </div>
+                      </div>
                     </div>
 
+                    <!-- FAKTOR 3 -->
                     <div class="factor-card">
-                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                        <span class="factor-badge" style="margin-bottom:0;">Faktor 3</span>
-                        <span id="modal-f3-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 4px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
+                      <div class="factor-card-header">
+                        <span class="factor-badge">FAKTOR 3 (Frekuensi)</span>
+                        <span id="modal-f3-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 5px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
                       </div>
-                      <select id="modal-f3-var" class="input-select input-sm" style="font-size:11px; padding:2px 4px; height:26px;" onchange="onFactorVarSelectChange(3)">
+                      <select id="modal-f3-var" class="input-select input-sm factor-var-select" onchange="onFactorVarSelectChange(3)" title="Pilih variabel referensi SSOT atau biarkan Manual">
                         <option value="">-- Manual --</option>
                       </select>
-                      <input type="number" id="modal-f3-val" class="input-text input-sm mt-1" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
-                      <input type="text" id="modal-f3-unit" list="datalist-factor-units" class="input-text input-sm mt-1" placeholder="Satuan (cth: Hari)" oninput="calculateModalTotal()">
+                      <div class="factor-val-unit-row">
+                        <div class="factor-field-col">
+                          <span class="factor-mini-label">Angka Vol</span>
+                          <input type="number" id="modal-f3-val" class="input-text input-sm factor-val-input" placeholder="-" min="0" step="any" oninput="calculateModalTotal()">
+                        </div>
+                        <div class="factor-field-col">
+                          <span class="factor-mini-label">Satuan</span>
+                          <input type="text" id="modal-f3-unit" list="datalist-factor-units" class="input-text input-sm factor-unit-input" placeholder="Hari / Kali" oninput="calculateModalTotal()">
+                        </div>
+                      </div>
                     </div>
 
+                    <!-- FAKTOR 4 -->
                     <div class="factor-card">
-                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                        <span class="factor-badge" style="margin-bottom:0;">Faktor 4</span>
-                        <span id="modal-f4-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 4px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
+                      <div class="factor-card-header">
+                        <span class="factor-badge">FAKTOR 4 (Tambahan)</span>
+                        <span id="modal-f4-var-badge" class="badge-subtle" style="display:none; font-size:9.5px; padding:1px 5px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:3px; font-weight:700;">SSOT</span>
                       </div>
-                      <select id="modal-f4-var" class="input-select input-sm" style="font-size:11px; padding:2px 4px; height:26px;" onchange="onFactorVarSelectChange(4)">
+                      <select id="modal-f4-var" class="input-select input-sm factor-var-select" onchange="onFactorVarSelectChange(4)" title="Pilih variabel referensi SSOT atau biarkan Manual">
                         <option value="">-- Manual --</option>
                       </select>
-                      <input type="number" id="modal-f4-val" class="input-text input-sm mt-1" placeholder="Vol" min="0" step="any" oninput="calculateModalTotal()">
-                      <input type="text" id="modal-f4-unit" list="datalist-factor-units" class="input-text input-sm mt-1" placeholder="Satuan (cth: Kali)" oninput="calculateModalTotal()">
+                      <div class="factor-val-unit-row">
+                        <div class="factor-field-col">
+                          <span class="factor-mini-label">Angka Vol</span>
+                          <input type="number" id="modal-f4-val" class="input-text input-sm factor-val-input" placeholder="-" min="0" step="any" oninput="calculateModalTotal()">
+                        </div>
+                        <div class="factor-field-col">
+                          <span class="factor-mini-label">Satuan</span>
+                          <input type="text" id="modal-f4-unit" list="datalist-factor-units" class="input-text input-sm factor-unit-input" placeholder="Kali / Set" oninput="calculateModalTotal()">
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -2974,11 +2992,11 @@
                     <option value="Buku">Buku / Eks</option>
                   </datalist>
 
-                  <div class="form-row-grid mt-2">
-                    <div class="form-group">
-                      <label>Basis Pengali (Wilayah / Kuantitas):</label>
+                  <div class="form-row-grid mt-2" style="margin-top:10px; gap:14px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label>Basis Pengali Otomatis (Wilayah / Kuantitas):</label>
                       <select id="modal-basis-pengali" class="input-select" onchange="calculateModalTotal()">
-                        <option value="NONE">NONE (Tanpa Pengali Khusus / Manual)</option>
+                        <option value="NONE">NONE (Tanpa Pengali Khusus / Manual dari F1–F4)</option>
                         <option value="PPK">PPK — 19 Kecamatan</option>
                         <option value="PPS">PPS — 217 Desa / Kelurahan</option>
                         <option value="TPS_RKB">TPS_RKB — 1.371 TPS (Pagu NPHD)</option>
@@ -2986,96 +3004,139 @@
                       </select>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="margin-bottom:0;">
                       <label style="display:flex; justify-content:space-between; align-items:center;">
-                        <span>Satuan Total Volume:</span>
+                        <span>Satuan Total Volume (Output Kolom Vol):</span>
                         <span id="badge-satuan-selected" class="badge-subtle" style="font-size:10.5px; font-weight:700; color:var(--accent);">Paket</span>
                       </label>
-                      <select id="modal-satuan-vol-select" class="input-select" onchange="onSatuanVolSelectChange(this.value)">
-                        <optgroup label="Standar Anggaran &amp; Honorarium">
-                          <option value="Paket">Paket</option>
-                          <option value="Keg">Keg (Kegiatan)</option>
-                          <option value="OK">OK (Orang / Kali)</option>
-                          <option value="OB">OB (Orang / Bulan)</option>
-                          <option value="OH">OH (Orang / Hari)</option>
-                          <option value="OP">OP (Orang / Paket)</option>
-                          <option value="OJ">OJ (Orang / Jam)</option>
-                        </optgroup>
-                        <optgroup label="Barang &amp; Percetakan">
-                          <option value="Rim">Rim</option>
-                          <option value="Lembar">Lembar</option>
-                          <option value="Buah">Buah</option>
-                          <option value="Unit">Unit</option>
-                          <option value="Set">Set</option>
-                          <option value="Buku">Buku</option>
-                          <option value="Eks">Eks (Eksemplar)</option>
-                          <option value="Kotak">Kotak / Dus</option>
-                        </optgroup>
-                        <optgroup label="Waktu &amp; Operasional">
-                          <option value="Bulan">Bulan</option>
-                          <option value="Hari">Hari</option>
-                          <option value="Kali">Kali</option>
-                          <option value="Tahun">Tahun</option>
-                          <option value="Porsi">Porsi</option>
-                          <option value="m2">m2 (Meter Persegi)</option>
-                        </optgroup>
-                        <option value="__CUSTOM__">➕ Ketik Satuan Kustom Lainnya...</option>
-                      </select>
-                      <input type="text" id="modal-satuan-vol-custom" class="input-text mt-1" style="display:none;" placeholder="Ketik satuan kustom (misal: botol, keping, liter)..." oninput="onSatuanVolCustomInput(this.value)">
+                      <div style="display:flex; gap:8px;">
+                        <select id="modal-satuan-vol-select" class="input-select" onchange="onSatuanVolSelectChange(this.value)" style="flex:1;">
+                          <optgroup label="Standar Anggaran &amp; Honorarium">
+                            <option value="Paket">Paket</option>
+                            <option value="Keg">Keg (Kegiatan)</option>
+                            <option value="OK">OK (Orang / Kali)</option>
+                            <option value="OB">OB (Orang / Bulan)</option>
+                            <option value="OH">OH (Orang / Hari)</option>
+                            <option value="OP">OP (Orang / Paket)</option>
+                            <option value="OJ">OJ (Orang / Jam)</option>
+                          </optgroup>
+                          <optgroup label="Barang &amp; Percetakan">
+                            <option value="Rim">Rim</option>
+                            <option value="Lembar">Lembar</option>
+                            <option value="Buah">Buah</option>
+                            <option value="Unit">Unit</option>
+                            <option value="Set">Set</option>
+                            <option value="Buku">Buku</option>
+                            <option value="Eks">Eks (Eksemplar)</option>
+                            <option value="Kotak">Kotak / Dus</option>
+                          </optgroup>
+                          <optgroup label="Waktu &amp; Operasional">
+                            <option value="Bulan">Bulan</option>
+                            <option value="Hari">Hari</option>
+                            <option value="Kali">Kali</option>
+                            <option value="Tahun">Tahun</option>
+                            <option value="Porsi">Porsi</option>
+                            <option value="m2">m2 (Meter Persegi)</option>
+                          </optgroup>
+                          <option value="__CUSTOM__">➕ Ketik Satuan Kustom Lainnya...</option>
+                        </select>
+                        <input type="text" id="modal-satuan-vol-custom" class="input-text" style="display:none; flex:1;" placeholder="Ketik satuan kustom (cth: botol, liter)..." oninput="onSatuanVolCustomInput(this.value)">
+                      </div>
                       <!-- Hidden input to store true value for payload and calculation -->
                       <input type="hidden" id="modal-satuan-vol" value="Paket">
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- CATATAN / ALASAN PERUBAHAN (JUSTIFIKASI REVISI) -->
-              <div class="form-group full-width mt-2">
-                <label style="display:flex; justify-content:space-between; align-items:center;">
-                  <span>📝 Catatan / Alasan Perubahan (Justifikasi Revisi):</span>
-                  <span style="font-size:11px; color:#64748b; font-weight:normal;">Alasan pergeseran / perubahan rincian belanja</span>
-                </label>
-                <textarea id="modal-catatan-revisi" class="input-textarea" rows="2" placeholder="Contoh: Pergeseran anggaran untuk menutupi kebutuhan operasional logistik berdasarkan BA TAPD..."></textarea>
-              </div>
+                <!-- ========================================================= -->
+                <!-- BAGIAN 3: HARGA SATUAN (Rp) & TARIF SBM CEPAT             -->
+                <!-- ========================================================= -->
+                <div class="sakti-harga-sbm-section full-width">
+                  <div class="sakti-harga-input-col">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                      <label style="margin:0; font-size:12.5px; font-weight:700; color:#0f172a;">💰 Harga Satuan (Rp):</label>
+                      <button type="button" class="btn btn-xs btn-outline-primary" onclick="openSbmPickerModal()" style="font-size:11px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px; font-weight:600;">
+                        ⚡ Load dari SBM Lokal (51 Standar Tarif)
+                      </button>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                      <div style="flex:1; position:relative;">
+                        <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:800; color:#1e40af; font-size:13.5px;">Rp</span>
+                        <input type="number" id="modal-harga" class="input-text" required min="0" step="100" style="padding-left:38px; font-size:15px; font-weight:800; font-family:var(--font-mono); color:#0f172a; height:38px;" oninput="calculateModalTotal()">
+                      </div>
+                      <button type="button" class="btn btn-sm btn-secondary" onclick="openSbmPickerModal()" title="Cari di Standar Biaya Masukan (SBM)" style="height:38px; padding:0 12px; white-space:nowrap;">
+                        🏷️ Katalog SBM
+                      </button>
+                    </div>
+                  </div>
 
-              <!-- PILIHAN POSISI SISIP (ORDERING) -->
-              <div id="modal-row-pos-container" class="form-group full-width mt-2" style="background:#eff6ff;border:1px solid #bfdbfe;padding:10px 12px;border-radius:6px;display:none;">
-                <label style="font-size: 12px; font-weight: 700; color: #1e40af; margin-bottom: 6px; display: block;">
-                  Posisi Penempatan Baris (Ordering):
-                </label>
-                <div style="display:flex;gap:16px;">
-                  <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:#1e3a8a; margin:0;">
-                    <input type="radio" name="modal-row-pos-choice" value="after" checked>
-                    <span><strong>Tepat Sesudah Baris Aktif</strong></span>
-                  </label>
-                  <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:#1e3a8a; margin:0;">
-                    <input type="radio" name="modal-row-pos-choice" value="before">
-                    <span><strong>Tepat Sebelum Baris Aktif</strong></span>
-                  </label>
+                  <!-- QUICK CHIPS: SBM RELEVAN SESUAI KODE AKUN BAS -->
+                  <div id="modal-sbm-quick-container" class="sbm-quick-container sakti-sbm-quick-col">
+                    <div style="font-size:11px; color:#475569; display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:5px;">
+                      <span>⚡ <strong>Tarif SBM Cepat Terkait Akun:</strong></span>
+                      <span id="sbm-quick-status" style="font-size:10px; color:#64748b;">(Klik chip untuk otomatis mengisi Harga &amp; Satuan)</span>
+                    </div>
+                    <div id="modal-sbm-quick-chips" class="sbm-quick-chips-row">
+                      <!-- Populated dynamically via JS when akun changes -->
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <!-- PREVIEW PERHITUNGAN MODAL -->
-              <div id="modal-calc-preview-card" class="calc-preview-card mt-3">
-                <div class="calc-line">
-                  <span>Rumus Perhitungan:</span>
-                  <strong id="modal-preview-formula">-</strong>
+              <!-- ========================================================= -->
+              <!-- BAGIAN 4: CATATAN REVISI & LIVE PREVIEW KALKULASI         -->
+              <!-- ========================================================= -->
+              <div class="sakti-bottom-summary-grid full-width">
+                <div class="sakti-bottom-left-col">
+                  <!-- CATATAN / ALASAN PERUBAHAN (JUSTIFIKASI REVISI) -->
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:flex; justify-content:space-between; align-items:center;">
+                      <span>📝 Catatan / Alasan Perubahan (Justifikasi Revisi):</span>
+                      <span style="font-size:11px; color:#64748b; font-weight:normal;">Alasan pergeseran / perubahan rincian belanja</span>
+                    </label>
+                    <textarea id="modal-catatan-revisi" class="input-textarea" rows="2" placeholder="Contoh: Pergeseran anggaran untuk menutupi kebutuhan operasional logistik berdasarkan BA TAPD..."></textarea>
+                  </div>
+
+                  <!-- PILIHAN POSISI SISIP (ORDERING) -->
+                  <div id="modal-row-pos-container" class="form-group" style="background:#eff6ff;border:1px solid #bfdbfe;padding:8px 12px;border-radius:6px;margin-top:8px;margin-bottom:0;display:none;">
+                    <label style="font-size: 11.5px; font-weight: 700; color: #1e40af; margin-bottom: 4px; display: block;">
+                      Posisi Penempatan Baris (Ordering):
+                    </label>
+                    <div style="display:flex;gap:16px;">
+                      <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:#1e3a8a; margin:0;">
+                        <input type="radio" name="modal-row-pos-choice" value="after" checked>
+                        <span><strong>Tepat Sesudah Baris Aktif</strong></span>
+                      </label>
+                      <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; color:#1e3a8a; margin:0;">
+                        <input type="radio" name="modal-row-pos-choice" value="before">
+                        <span><strong>Tepat Sebelum Baris Aktif</strong></span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
-                <div class="calc-line">
-                  <span>Total Volume:</span>
-                  <strong id="modal-preview-volume">0</strong>
-                </div>
-                <div class="calc-line total-line">
-                  <span>Total Anggaran:</span>
-                  <strong id="modal-preview-total">Rp 0</strong>
+
+                <!-- PREVIEW PERHITUNGAN MODAL -->
+                <div id="modal-calc-preview-card" class="calc-preview-card sakti-calc-preview-box">
+                  <div class="calc-line">
+                    <span>Rumus Perhitungan:</span>
+                    <strong id="modal-preview-formula" style="font-family:var(--font-mono); color:#1e293b;">-</strong>
+                  </div>
+                  <div class="calc-line">
+                    <span>Total Volume × Harga Satuan:</span>
+                    <strong id="modal-preview-volume" style="font-family:var(--font-mono); color:#0f172a;">0</strong>
+                  </div>
+                  <div class="calc-line total-line">
+                    <span>Total Anggaran Baris:</span>
+                    <strong id="modal-preview-total" style="font-family:var(--font-mono); font-size:16px; font-weight:800;">Rp 0</strong>
+                  </div>
                 </div>
               </div>
             </div>
           </form>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" style="padding: 12px 22px;">
           <button class="btn btn-secondary" onclick="closeRowModal()">Batal</button>
-          <button class="btn btn-primary" onclick="submitRowForm()">Simpan Baris Belanja</button>
+          <button class="btn btn-primary" onclick="submitRowForm()" style="padding: 8px 20px; font-weight: 700;">💾 Simpan Baris Belanja</button>
         </div>
       </div>
     </div>

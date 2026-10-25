@@ -954,7 +954,8 @@ tr.rkb-row-lvl-4:hover {
   margin-bottom: 12px;
 }
 
-.form-group.full-width {
+.form-group.full-width,
+.full-width {
   grid-column: 1 / -1;
 }
 
@@ -964,65 +965,221 @@ tr.rkb-row-lvl-4:hover {
   color: var(--text-main);
 }
 
-/* FACTORS SECTION IN MODAL */
+/* ========================================================================= */
+/* SAKTI LANDSCAPE MODE: MODAL EDIT / TAMBAH RINCIAN BELANJA RKB             */
+/* ========================================================================= */
+.modal-box.modal-sakti-landscape {
+  max-width: 1120px;
+  width: 92vw;
+  max-height: 94vh;
+}
+
+.sakti-modal-top-banners {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sakti-landscape-grid {
+  gap: 10px;
+}
+
+.sakti-identity-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.sakti-identity-row > #modal-header-kode-group {
+  flex: 0 0 110px;
+}
+
+.sakti-identity-row > #modal-uraian-group {
+  flex: 2.2 1 320px;
+}
+
+.sakti-identity-row > .form-group:not(#modal-header-kode-group):not(#modal-uraian-group) {
+  flex: 1 1 200px;
+}
+
+/* FACTORS SECTION IN MODAL (BEFORE HARGA SATUAN) */
 .factors-section {
   background-color: #f8fafc;
-  border: 1px solid var(--border-color);
+  border: 1.5px solid #cbd5e1;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px 14px;
 }
 
 .factors-section h4 {
   font-size: 13px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: var(--primary);
 }
 
 .factors-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 12px;
 }
 
 .factor-card {
   background: #ffffff;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 9px 10px;
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.factor-card:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14);
+}
+
+.factor-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .factor-badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #1e3a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0;
+}
+
+.factor-var-select {
+  font-size: 11.5px !important;
+  padding: 4px 8px !important;
+  height: 30px !important;
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.factor-val-unit-row {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 6px;
+  align-items: end;
+}
+
+.factor-field-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.factor-mini-label {
   font-size: 10px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #64748b;
   text-transform: uppercase;
-  margin-bottom: 4px;
+}
+
+.factor-val-input {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px !important;
+  height: 32px !important;
+  padding: 4px 8px !important;
+  color: #0f172a;
+}
+
+.factor-unit-input {
+  font-weight: 600;
+  font-size: 12.5px !important;
+  height: 32px !important;
+  padding: 4px 8px !important;
+  color: #1e293b;
+}
+
+/* HARGA SATUAN & SBM SECTION (AFTER FAKTOR MULTIPLIER) */
+.sakti-harga-sbm-section {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 14px;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.sakti-harga-input-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.sakti-sbm-quick-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0 !important;
+  min-width: 0;
+}
+
+/* BOTTOM SUMMARY GRID: CATATAN REVISI + LIVE PREVIEW */
+.sakti-bottom-summary-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.sakti-bottom-left-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .calc-preview-card {
   background-color: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 6px;
+  border: 1.5px solid #93c5fd;
+  border-radius: 8px;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: center;
+  gap: 7px;
   font-size: 13px;
 }
 
 .calc-line {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 10px;
 }
 
 .calc-line.total-line {
   border-top: 1px solid #bfdbfe;
-  padding-top: 6px;
+  padding-top: 7px;
   font-size: 15px;
   color: var(--accent);
+}
+
+@media (max-width: 960px) {
+  .sakti-modal-top-banners,
+  .sakti-harga-sbm-section,
+  .sakti-bottom-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .factors-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* PUSAT SIKLUS CARD */

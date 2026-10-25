@@ -4166,8 +4166,9 @@ function calculateModalTotal() {
   const harga = Number(hargaRaw) || 0;
   const totalAnggaran = totalVol * harga;
 
+  const satuanVol = (document.getElementById('modal-satuan-vol')?.value || '').trim();
   setElText('modal-preview-formula', parts.join(' x ') || '-');
-  setElText('modal-preview-volume', formatNumber(totalVol) + ' ' + (document.getElementById('modal-satuan-vol')?.value || ''));
+  setElText('modal-preview-volume', `${formatNumber(totalVol)} ${satuanVol} × ${formatRupiah(harga)}`.trim());
   setElText('modal-preview-total', formatRupiah(totalAnggaran));
 }
 
@@ -4775,7 +4776,7 @@ function toggleModalHeaderMode(isHeader) {
   } else {
     if (kodeGroup) kodeGroup.style.display = 'none';
     if (calcFields) calcFields.style.display = 'contents';
-    if (previewCard) previewCard.style.display = 'block';
+    if (previewCard) previewCard.style.display = 'flex';
     if (uraianLabel) uraianLabel.innerText = 'Uraian Rincian Belanja:';
     if (uraianInput) uraianInput.placeholder = 'Contoh: -. Konsumsi Rapat Koordinasi';
     if (hargaInput) hargaInput.setAttribute('required', 'required');
