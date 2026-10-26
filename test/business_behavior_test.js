@@ -902,6 +902,22 @@ async function runBusinessBehaviorTests() {
     'Test 30.2 (Canon Bab 11.5 & Bab 14): Saat Developer melakukan Simulasi Ganti Peran atau aksi dalam mode simulasi, Pelaku (username) tercatat sebagai Developer (emenje) dengan keterangan peran simulasi (developer [simulasi:...]).'
   );
 
+  // =========================================================================
+  // 31. PEMISAHAN MENU REGULASI & SUB-MENU PANDUAN (PERENCANAAN VS PELAKSANAAN)
+  // =========================================================================
+  console.log('\n--- [31] Struktur Panduan Perencanaan & Pelaksanaan + Menu Mandiri Regulasi (Bab 23) ---');
+  const { SAKTI_VIEW_CODES: routeViewCodes } = require('../src/route_token');
+  assert(
+    routeViewCodes['view-panduan'] === 17 && routeViewCodes['view-panduan-pelaksanaan'] === 24,
+    'Test 31.1: Route code terdaftar untuk view-panduan (17) dan view-panduan-pelaksanaan (24).'
+  );
+  const tokenPanduanPelaksanaan = generateSaktiRouteToken('view-panduan-pelaksanaan', false);
+  const parsedPanduanPelaksanaan = parseSaktiRouteToken(tokenPanduanPelaksanaan);
+  assert(
+    parsedPanduanPelaksanaan && parsedPanduanPelaksanaan.viewId === 'view-panduan-pelaksanaan',
+    'Test 31.2: Token enkripsi SAKTI 43-karakter untuk view-panduan-pelaksanaan dapat di-encode dan di-decode dengan akurat.'
+  );
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');

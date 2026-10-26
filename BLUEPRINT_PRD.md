@@ -374,3 +374,19 @@ Susunan blok penandatangan mengikuti konteks/tahapan dokumen yang dicetak atau d
 - Blok penandatangan pada keluaran Excel harus sesuai konteks dokumen dan konsisten saat dicetak.
 - Jangan otomatis menambahkan seluruh penandatangan pleno ke dokumen pengusulan, pelaporan, atau arsip lembaga: untuk konteks tersebut **hanya Ketua KPU**.
 - Identitas/jabatan dan format visual rinci mengikuti data serta format resmi yang disetujui, tanpa mengarang nama atau jabatan individu.
+
+---
+
+## 23. Struktur Menu Panduan Aplikasi (Perencanaan & Pelaksanaan) dan Pemisahan Regulasi
+1. **Menu Mandiri `📜 Regulasi & Dasar Hukum` (`view-db-regulasi`):**
+   - Dipisahkan dari folder `📁 Panduan` menjadi menu tingkat utama (*top-level menu*) di Sidebar agar pengguna dapat langsung merujuk regulasi pendukung (PKPU, KPT, PMK, NPHD) kapan saja, baik saat menyusun perencanaan maupun saat verifikasi pelaksanaan/pembayaran.
+2. **Folder `📁 Panduan` Fokus 100% pada Panduan Penggunaan Aplikasi (`#folder-panduan`):**
+   - Terdiri atas 2 sub-menu terpisah sesuai fase siklus anggaran:
+     - **`📖 Panduan Perencanaan` (`view-panduan`):** Fokus murni pada alur penyusunan RKB, aturan edit RUH (Faktor 1–4 sebelum Harga Satuan), pengajuan revisi 3 tautan dokumen, validasi Tahap 2–3, pengesahan Tahap 4, dan pembacaan Rekap Perencanaan. Point 7 lama tentang Rekap Pelaksanaan telah dipindahkan sepenuhnya dari halaman ini.
+     - **`💳 Panduan Pelaksanaan` (`view-panduan-pelaksanaan`):** Fokus pada penggunaan Rekap Pelaksanaan (berbasis RKB Sah Terakhir / Baseline Tahap 4) serta matriks kewenangan eksekusi & pembayaran.
+3. **Isolasi Panduan Ketat Sesuai Hak Akses (*Strict Role-Based Guide Isolation* — Skalabel Level 0 s.d. Level 6):**
+   - Sub-menu dan isi konten panduan difilter secara otomatis dan ketat mengikuti hak akses pengguna (`canAccessModulPerencanaan` & `canAccessModulPelaksanaan` serta `renderPanduanByRole`):
+     - **Level 2 (PIC Subbagian):** Hanya melihat sub-menu dan konten `📖 Panduan Perencanaan` khusus Level 2 PIC (tanpa sub-menu atau pembahasan Rekap Pelaksanaan).
+     - **Viewer Divisi (Level 3 tanpa akses Pelaksanaan):** Hanya melihat sub-menu dan konten `📖 Panduan Perencanaan` khusus Viewer.
+     - **Ketua KPU, Sekretaris KPU (KPA), Level 1 (Rendatin), & Level 0 (Developer):** Melihat `📖 Panduan Perencanaan` (lengkap dengan panduan Validasi/Pleno/Tahap 4 & SSOT) serta `💳 Panduan Pelaksanaan`.
+     - **Pengembangan Level 4, Level 5, dan Level 6 (PPK, PPSPM, Bendahara, Verifikator SPJ, Pelaksana Teknis/Adhoc):** Secara otomatis mendapatkan akses ke `💳 Panduan Pelaksanaan` sesuai cakupan otoritas eksekusi dan pembayarannya.

@@ -30,7 +30,8 @@ const SAKTI_VIEW_CODES = {
   'view-developer': 20,
   'view-rekap-perencanaan': 21,
   'view-rekap-pelaksanaan': 22,
-  'view-audit': 23
+  'view-audit': 23,
+  'view-panduan-pelaksanaan': 24
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -56,7 +57,8 @@ const SAKTI_CODE_TO_VIEW = {
   20: 'view-developer',
   21: 'view-rekap-perencanaan',
   22: 'view-rekap-pelaksanaan',
-  23: 'view-audit'
+  23: 'view-audit',
+  24: 'view-panduan-pelaksanaan'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -74,10 +76,11 @@ const SAKTI_VIEW_TITLES = {
   'view-db-kuantitas': 'Master Database Kuantitas',
   'view-db-sbm': 'Master Standar Biaya Masukan (SBM)',
   'view-db-bas': 'Master Bagan Akun Standar (BAS)',
-  'view-db-regulasi': 'Database Regulasi & Keputusan KPU',
+  'view-db-regulasi': 'Regulasi & Dasar Hukum',
   'view-db-settings': 'Pengaturan Sistem & Parameter',
   'view-settings': 'Pengaturan Sistem & Parameter',
-  'view-panduan': 'Panduan Teknis & Penggunaan',
+  'view-panduan': 'Panduan Perencanaan Anggaran',
+  'view-panduan-pelaksanaan': 'Panduan Pelaksanaan & Pembayaran',
   'view-monitoring': 'Executive Real-Time Monitoring',
   'view-users': 'Manajemen Pengguna & Otoritas',
   'view-developer': 'Ruang Pengembang & Blueprint PRD',

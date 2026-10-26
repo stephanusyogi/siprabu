@@ -72,7 +72,8 @@ const SAKTI_VIEW_CODES = {
   'view-developer': 20,
   'view-rekap-perencanaan': 21,
   'view-rekap-pelaksanaan': 22,
-  'view-audit': 23
+  'view-audit': 23,
+  'view-panduan-pelaksanaan': 24
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -98,7 +99,8 @@ const SAKTI_CODE_TO_VIEW = {
   20: 'view-developer',
   21: 'view-rekap-perencanaan',
   22: 'view-rekap-pelaksanaan',
-  23: 'view-audit'
+  23: 'view-audit',
+  24: 'view-panduan-pelaksanaan'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -116,10 +118,11 @@ const SAKTI_VIEW_TITLES = {
   'view-db-kuantitas': 'Master Database Kuantitas',
   'view-db-sbm': 'Master Standar Biaya Masukan (SBM)',
   'view-db-bas': 'Master Bagan Akun Standar (BAS)',
-  'view-db-regulasi': 'Database Regulasi & Keputusan KPU',
+  'view-db-regulasi': 'Regulasi & Dasar Hukum KPU',
   'view-db-settings': 'Pengaturan Sistem & Parameter',
   'view-settings': 'Pengaturan Sistem & Parameter',
-  'view-panduan': 'Panduan Teknis & Penggunaan',
+  'view-panduan': 'Panduan Perencanaan Anggaran',
+  'view-panduan-pelaksanaan': 'Panduan Pelaksanaan & Pembayaran Anggaran',
   'view-monitoring': 'Executive Real-Time Monitoring',
   'view-users': 'Manajemen Pengguna & Otoritas',
   'view-developer': 'Ruang Pengembang & Blueprint PRD',
@@ -937,15 +940,154 @@ function applyRolePermissionsToUI() {
     navDev.style.display = isActiveDeveloperUser(user) ? 'flex' : 'none';
   }
 
-  // f. Menu Rekap Pelaksanaan (Bab 21.4 Canon): Dikunci khusus untuk Ketua KPU, Sekretaris KPU, dan Level 1 (serta Level 0)
+  // f. Menu Rekap Pelaksanaan & Panduan Pelaksanaan (Bab 21.4 Canon + Skalabilitas Level 4-6):
+  // Dikunci khusus sesuai hak akses: Ketua KPU, Sekretaris KPU, Level 1 (Rendatin), Level 0 (Developer), serta Level 4-6 (Eksekusi/Pembayaran)
+  const canPelaksanaan = canAccessModulPelaksanaan(user);
+  const canPerencanaan = canAccessModulPerencanaan(user);
+
   const navRekapPelaksanaan = document.getElementById('nav-item-rekap-pelaksanaan');
+  if (navRekapPelaksanaan) {
+    navRekapPelaksanaan.style.display = canPelaksanaan ? 'flex' : 'none';
+  }
+
+  const navPanduanPerencanaan = document.getElementById('nav-item-panduan-perencanaan');
+  if (navPanduanPerencanaan) {
+    navPanduanPerencanaan.style.display = canPerencanaan ? 'flex' : 'none';
+  }
+
+  const navPanduanPelaksanaan = document.getElementById('nav-item-panduan-pelaksanaan');
+  if (navPanduanPelaksanaan) {
+    navPanduanPelaksanaan.style.display = canPelaksanaan ? 'flex' : 'none';
+  }
+
+  const folderPanduan = document.getElementById('folder-panduan');
+  if (folderPanduan) {
+    folderPanduan.style.display = (canPerencanaan || canPelaksanaan) ? 'block' : 'none';
+  }
+
+  // g. Filter konten Panduan secara ketat sesuai level & hak akses peran aktif
+  renderPanduanByRole(user);
+}
+
+/**
+ * Menentukan apakah pengguna memiliki hak akses ke Modul Perencanaan (dan Panduan Perencanaan).
+ * Mencakup Level 0 (Developer), Level 1 (Rendatin), Level 2 (PIC Subbag), dan Level 3 (Viewer/Pimpinan).
+ * Untuk Level 4-6 (khusus Pelaksanaan/Pembayaran murni), hanya aktif jika diberi flag akses perencanaan.
+ */
+function canAccessModulPerencanaan(user = AppState.currentUser) {
+  if (!user) return false;
+  const lvl = Number(user.level);
+  if (lvl <= 3) return true;
+  const roleLow = (user.role_id || '').toLowerCase();
+  return roleLow.includes('perencanaan') || Boolean(user.can_access_perencanaan);
+}
+
+/**
+ * Menentukan apakah pengguna memiliki hak akses ke Modul Pelaksanaan / Pembayaran
+ * (Rekap Pelaksanaan Baseline Sah Tahap 4 & Panduan Pelaksanaan).
+ * Ketat sesuai hak akses:
+ * - Level 0 (Developer) & Level 1 (Rendatin)
+ * - Ketua KPU & Sekretaris KPU (KPA)
+ * - Level 4, 5, 6 (PPK, PPSPM, Bendahara, Verifikator SPJ, Operator Pelaksanaan/Adhoc)
+ * - TIDAK terbuka untuk Level 2 (PIC Subbag Perencanaan) maupun Viewer Divisi biasa.
+ */
+function canAccessModulPelaksanaan(user = AppState.currentUser) {
+  if (!user) return false;
+  const lvl = Number(user.level);
   const roleLow = (user.role_id || '').toLowerCase();
   const unameLow = (user.username || '').toLowerCase();
-  const canAccessRekapPelaksanaan = user.level <= 1 ||
+  if (lvl <= 1) return true;
+  if (
     roleLow === 'ketua_kpu' || unameLow === 'ketua' || unameLow === 'ketua_kpu' ||
-    roleLow === 'sekretaris' || unameLow === 'sekretaris' || roleLow === 'viewer_sekretaris';
-  if (navRekapPelaksanaan) {
-    navRekapPelaksanaan.style.display = canAccessRekapPelaksanaan ? 'flex' : 'none';
+    roleLow === 'sekretaris' || unameLow === 'sekretaris' || roleLow === 'viewer_sekretaris'
+  ) {
+    return true;
+  }
+  if (lvl >= 4) return true;
+  return false;
+}
+
+/**
+ * Menyaring dan menyesuaikan konten di dalam #view-panduan (Panduan Perencanaan)
+ * dan #view-panduan-pelaksanaan (Panduan Pelaksanaan) secara KETAT sesuai peran/level user.
+ */
+function renderPanduanByRole(user = AppState.currentUser) {
+  if (!user) return;
+  const lvl = Number(user.level);
+  const pic = user.pic_subbag || 'SEMUA';
+  const roleLow = (user.role_id || '').toLowerCase();
+  const unameLow = (user.username || '').toLowerCase();
+  const isPimpinanPelaksanaan = (
+    roleLow === 'ketua_kpu' || unameLow === 'ketua' || unameLow === 'ketua_kpu' ||
+    roleLow === 'sekretaris' || unameLow === 'sekretaris' || roleLow === 'viewer_sekretaris'
+  );
+
+  // Tentukan cakupan blok panduan perencanaan yang boleh tampil untuk user ini
+  const showLevel1Pimpinan = (lvl <= 1 || isPimpinanPelaksanaan);
+  const showLevel2 = (lvl === 2 || lvl <= 1);
+  const showViewer = (lvl === 3 || lvl <= 1);
+
+  document.querySelectorAll('#view-panduan [data-panduan-scope]').forEach(el => {
+    const scope = el.getAttribute('data-panduan-scope');
+    let visible = true;
+    if (scope === 'level1_pimpinan') visible = showLevel1Pimpinan;
+    else if (scope === 'level2') visible = showLevel2;
+    else if (scope === 'viewer') visible = showViewer;
+    el.style.display = visible ? '' : 'none';
+  });
+
+  // Sesuaikan badge, deskripsi, dan tautan unduhan dokumen pada Panduan Perencanaan
+  const badgePerencanaan = document.getElementById('panduan-perencanaan-role-badge');
+  const descPerencanaan = document.getElementById('panduan-perencanaan-desc');
+  const docLinkPerencanaan = document.getElementById('panduan-perencanaan-doc-link');
+
+  if (lvl === 2) {
+    if (badgePerencanaan) {
+      badgePerencanaan.textContent = `📖 PANDUAN PERENCANAAN • KHUSUS LEVEL 2 (PIC ${pic})`;
+    }
+    if (descPerencanaan) {
+      descPerencanaan.innerHTML = `<strong>Khusus Pengguna Level 2 (PIC Subbagian ${escHtml(pic)})</strong> &mdash; Panduan praktis penyusunan RKB, pengajuan revisi 3 dokumen, dan pembacaan Rekap Perencanaan sesuai kewenangan subbagian Anda.`;
+    }
+    if (docLinkPerencanaan) {
+      docLinkPerencanaan.href = '/assets/Panduan_Si_Prabu_Level_2_dan_Viewer.docx';
+      docLinkPerencanaan.setAttribute('download', 'Panduan_Si_Prabu_Level_2_dan_Viewer.docx');
+    }
+  } else if (lvl === 3 && !isPimpinanPelaksanaan) {
+    if (badgePerencanaan) {
+      badgePerencanaan.textContent = `📖 PANDUAN PERENCANAAN • KHUSUS VIEWER (${pic})`;
+    }
+    if (descPerencanaan) {
+      descPerencanaan.innerHTML = `<strong>Khusus Pengguna Viewer (Lihat-Saja &mdash; Cakupan ${escHtml(pic)})</strong> &mdash; Panduan membaca data perencanaan, memantau progres revisi, dan mengunduh laporan sesuai cakupan divisi/akun Anda.`;
+    }
+    if (docLinkPerencanaan) {
+      docLinkPerencanaan.href = '/assets/Panduan_Si_Prabu_Level_2_dan_Viewer.docx';
+      docLinkPerencanaan.setAttribute('download', 'Panduan_Si_Prabu_Level_2_dan_Viewer.docx');
+    }
+  } else {
+    if (badgePerencanaan) {
+      badgePerencanaan.textContent = `📖 PANDUAN PERENCANAAN • OTORITAS PERENCANAAN & PIMPINAN`;
+    }
+    if (descPerencanaan) {
+      descPerencanaan.innerHTML = `<strong>Panduan Lengkap Modul Perencanaan SI-PRABU</strong> &mdash; Mencakup tata kelola SSOT/SBM/BAS, penyusunan RUH Belanja, validasi usulan revisi (Tahap 1–3), hingga Pengesahan BA Pleno (Tahap 4).`;
+    }
+    if (docLinkPerencanaan) {
+      docLinkPerencanaan.href = '/assets/Panduan_Pengguna_Si_Prabu.docx';
+      docLinkPerencanaan.setAttribute('download', 'Panduan_Pengguna_Si_Prabu.docx');
+    }
+  }
+
+  // Sesuaikan badge & deskripsi pada Panduan Pelaksanaan (mendukung Level 0/1/Pimpinan hingga Level 4-6)
+  const badgePelaksanaan = document.getElementById('panduan-pelaksanaan-role-badge');
+  const descPelaksanaan = document.getElementById('panduan-pelaksanaan-desc');
+  if (badgePelaksanaan) {
+    if (lvl >= 4) {
+      badgePelaksanaan.textContent = `💳 PANDUAN PELAKSANAAN & PEMBAYARAN • LEVEL ${lvl}`;
+    } else {
+      badgePelaksanaan.textContent = `💳 MODUL PELAKSANAAN & PEMBAYARAN • BASELINE SAH TAHAP 4`;
+    }
+  }
+  if (descPelaksanaan) {
+    descPelaksanaan.innerHTML = `<strong>Khusus Otoritas Pelaksanaan (${escHtml(user.nama_pejabat || user.username)})</strong> &mdash; Panduan penggunaan Rekap Pelaksanaan berbasis RKB Sah Terakhir (Tahap 4) serta matriks kewenangan eksekusi &amp; pembayaran.`;
   }
 }
 
@@ -1695,6 +1837,18 @@ function switchView(viewId, updateHistory = true) {
       switchView('view-revisi-monitoring', updateHistory);
       return;
     }
+    // d. Guard Modul Pelaksanaan (Rekap Pelaksanaan & Panduan Pelaksanaan): Ketat sesuai hak akses
+    if ((viewId === 'view-rekap-pelaksanaan' || viewId === 'view-panduan-pelaksanaan') && !canAccessModulPelaksanaan(user)) {
+      showToast('Akses ditolak: Modul & Panduan Pelaksanaan hanya tersedia sesuai kewenangan peran Pelaksanaan/Pimpinan.', 'warning');
+      switchView(viewId === 'view-panduan-pelaksanaan' ? 'view-panduan' : 'view-rekap-perencanaan', updateHistory);
+      return;
+    }
+    // e. Guard Panduan Perencanaan: Ketat sesuai hak akses Modul Perencanaan
+    if (viewId === 'view-panduan' && !canAccessModulPerencanaan(user)) {
+      showToast('Akses ditolak: Panduan Perencanaan hanya untuk peran Modul Perencanaan.', 'warning');
+      switchView('view-panduan-pelaksanaan', updateHistory);
+      return;
+    }
   }
 
   AppState.activeView = viewId;
@@ -1742,7 +1896,8 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-db-bas') { renderDbBas(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-regulasi') { renderDbRegulasi(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-settings' || viewId === 'view-settings') { renderSettings(); renderContextualMasterReminderBanner(viewId); }
-  else if (viewId === 'view-panduan') { /* static info */ }
+  else if (viewId === 'view-panduan') { renderPanduanByRole(); }
+  else if (viewId === 'view-panduan-pelaksanaan') { renderPanduanByRole(); }
   else if (viewId === 'view-monitoring') loadMonitoringReport();
   else if (viewId === 'view-users') renderUsersTable();
   else if (viewId === 'view-audit') loadAuditLogsView();
