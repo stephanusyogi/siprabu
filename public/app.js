@@ -3428,7 +3428,7 @@ function renderRkbTable() {
       rowsHtml += `
         <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id}, event)">
           <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
-          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.kode || ''}</td>
+          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.is_akun_row ? '' : (r.kode || '')}</td>
           <td class="col-uraian" style="padding-left: ${r.effective_indent || 0}px;">
             <div style="display: flex; align-items: center; gap: 4px;">
               ${toggleChevron}
@@ -3506,7 +3506,7 @@ function renderRkbTable() {
       rowsHtml += `
         <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id}, event)">
           <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
-          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.kode || ''}</td>
+          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.is_akun_row ? '' : (r.kode || '')}</td>
           <td class="col-uraian" style="padding-left: ${r.effective_indent || 0}px;">
             <div style="display: flex; align-items: center; gap: 4px;">
               ${toggleChevron}
