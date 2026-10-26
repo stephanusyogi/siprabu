@@ -656,9 +656,17 @@ function initDb() {
     }
   } catch (e) {}
 
-  // Pastikan kotak di master_desa sinkron dengan tps jika masih 0
+  // Pastikan kotak di master_desa sinkron dengan tps jika masih 0, serta bulatkan angka pemilih/tps/pantarlih/kotak tanpa desimal (koma)
   try {
     db.prepare('UPDATE master_desa SET kotak = tps WHERE kotak IS NULL OR kotak = 0').run();
+    db.prepare(`
+      UPDATE master_desa
+      SET pemilih = CAST(ROUND(COALESCE(pemilih, 0)) AS INTEGER),
+          tps = CAST(ROUND(COALESCE(tps, 0)) AS INTEGER),
+          pantarlih = CAST(ROUND(COALESCE(pantarlih, 0)) AS INTEGER),
+          kotak = CAST(ROUND(COALESCE(kotak, tps, 0)) AS INTEGER),
+          rohaniwan = CAST(ROUND(COALESCE(rohaniwan, 1)) AS INTEGER)
+    `).run();
   } catch (e) {}
 
   // Selaraskan siklus RKB operasional (Hanya 2 RKB: Fondasi Sah dan Usulan 1 Draft Aktif)
@@ -3139,11 +3147,11 @@ function syncPrimaryKuantitas() {
       FROM master_desa
     `).get() || {};
 
-    const livePantarlih = Number(agg.sumPantarlih) || 0;
-    const liveDesa = Number(agg.jmlDesa) || 0;
-    const liveTps = Number(agg.sumTps) || 0;
-    const liveKotak = Number(agg.sumKotak) || liveTps;
-    const livePemilih = Number(agg.sumPemilih) || 0;
+    const livePantarlih = Math.round(Number(agg.sumPantarlih) || 0);
+    const liveDesa = Math.round(Number(agg.jmlDesa) || 0);
+    const liveTps = Math.round(Number(agg.sumTps) || 0);
+    const liveKotak = Math.round(Number(agg.sumKotak) || liveTps);
+    const livePemilih = Math.round(Number(agg.sumPemilih) || 0);
     const liveKec = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_kecamatan').get()?.cnt) || 0;
     const livePaslon = Number(db.prepare('SELECT COUNT(*) as cnt FROM master_paslon').get()?.cnt) || 0;
     const livePaslonParpol = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Parpol'").get()?.cnt) || 0;
@@ -3511,11 +3519,11 @@ function saveDesa(data, actorUser = null) {
   const cleanNama = (data.nama || '').trim();
   const kecId = Number(data.kecamatan_id);
   const noUrut = data.no_urut ? Number(data.no_urut) : null;
-  const tps = parseIndonesianNumber(data.tps) || 0;
-  const kotak = parseIndonesianNumber(data.kotak) !== null ? parseIndonesianNumber(data.kotak) : tps;
-  const pantarlih = parseIndonesianNumber(data.pantarlih) !== null ? parseIndonesianNumber(data.pantarlih) : (tps * 2);
-  const pemilih = parseIndonesianNumber(data.pemilih) !== null ? parseIndonesianNumber(data.pemilih) : 0;
-  const rohaniwan = parseIndonesianNumber(data.rohaniwan) !== null ? parseIndonesianNumber(data.rohaniwan) : 1;
+  const tps = Math.round(parseIndonesianNumber(data.tps) || 0);
+  const kotak = parseIndonesianNumber(data.kotak) !== null ? Math.round(parseIndonesianNumber(data.kotak)) : tps;
+  const pantarlih = parseIndonesianNumber(data.pantarlih) !== null ? Math.round(parseIndonesianNumber(data.pantarlih)) : (tps * 2);
+  const pemilih = parseIndonesianNumber(data.pemilih) !== null ? Math.round(parseIndonesianNumber(data.pemilih)) : 0;
+  const rohaniwan = parseIndonesianNumber(data.rohaniwan) !== null ? Math.round(parseIndonesianNumber(data.rohaniwan)) : 1;
   const ketua = (data.ketua_nama || '').trim();
   const sekretaris = (data.sekretaris_nama || '').trim();
   const nip = (data.sekretaris_nip || '').trim();
@@ -3629,16 +3637,17 @@ function bulkUpsertDesa(items, options = {}) {
       continue;
     }
 
-    const tps = parseIndonesianNumber(item.tps);
-    if (tps === null) {
+    const rawTpsParsed = parseIndonesianNumber(item.tps);
+    if (rawTpsParsed === null) {
       errors.push({ baris: rowNum, nama: cleanNama, error: `Jumlah TPS "${item.tps}" tidak valid.` });
       continue;
     }
+    const tps = Math.round(rawTpsParsed);
 
-    const kotak = parseIndonesianNumber(item.kotak) !== null ? parseIndonesianNumber(item.kotak) : tps;
-    const pantarlih = parseIndonesianNumber(item.pantarlih) !== null ? parseIndonesianNumber(item.pantarlih) : (tps * 2);
-    const pemilih = parseIndonesianNumber(item.pemilih) !== null ? parseIndonesianNumber(item.pemilih) : 0;
-    const rohaniwan = parseIndonesianNumber(item.rohaniwan) !== null ? parseIndonesianNumber(item.rohaniwan) : 1;
+    const kotak = parseIndonesianNumber(item.kotak) !== null ? Math.round(parseIndonesianNumber(item.kotak)) : tps;
+    const pantarlih = parseIndonesianNumber(item.pantarlih) !== null ? Math.round(parseIndonesianNumber(item.pantarlih)) : (tps * 2);
+    const pemilih = parseIndonesianNumber(item.pemilih) !== null ? Math.round(parseIndonesianNumber(item.pemilih)) : 0;
+    const rohaniwan = parseIndonesianNumber(item.rohaniwan) !== null ? Math.round(parseIndonesianNumber(item.rohaniwan)) : 1;
 
     let targetId = item.id ? checkByIdStmt.get(item.id)?.id : null;
     if (!targetId) {

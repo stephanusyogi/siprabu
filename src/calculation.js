@@ -42,10 +42,10 @@ function getWilayahData() {
   for (const d of desaList) {
     let custom = {};
     try { custom = JSON.parse(d.custom_vars || '{}'); } catch (e) { custom = {}; }
-    const tpsCount = Number(d.tps) || 0;
-    const kotakCount = d.kotak !== null && d.kotak !== undefined ? (Number(d.kotak) || 0) : tpsCount;
-    const pantarlihCount = Number(d.pantarlih) || (tpsCount > 0 ? tpsCount * 2 : 0);
-    const pemilihCount = Number(d.pemilih) || 0;
+    const tpsCount = Math.round(Number(d.tps) || 0);
+    const kotakCount = d.kotak !== null && d.kotak !== undefined ? Math.round(Number(d.kotak) || 0) : tpsCount;
+    const pantarlihCount = Math.round(Number(d.pantarlih) || (tpsCount > 0 ? tpsCount * 2 : 0));
+    const pemilihCount = Math.round(Number(d.pemilih) || 0);
 
     totalKotak += kotakCount;
     totalPemilih += pemilihCount;
@@ -113,11 +113,11 @@ function getKuantitasMap() {
     `).get() || {};
   } catch (e) {}
 
-  const livePantarlih = agg.sumPantarlih !== null && agg.sumPantarlih !== undefined ? Number(agg.sumPantarlih) : 0;
-  const liveDesa = agg.jmlDesa !== null && agg.jmlDesa !== undefined ? Number(agg.jmlDesa) : 0;
-  const liveTps = agg.sumTps !== null && agg.sumTps !== undefined ? Number(agg.sumTps) : 0;
-  const liveKotak = agg.sumKotak !== null && agg.sumKotak !== undefined ? Number(agg.sumKotak) : liveTps;
-  const livePemilih = agg.sumPemilih !== null && agg.sumPemilih !== undefined ? Number(agg.sumPemilih) : 0;
+  const livePantarlih = agg.sumPantarlih !== null && agg.sumPantarlih !== undefined ? Math.round(Number(agg.sumPantarlih)) : 0;
+  const liveDesa = agg.jmlDesa !== null && agg.jmlDesa !== undefined ? Math.round(Number(agg.jmlDesa)) : 0;
+  const liveTps = agg.sumTps !== null && agg.sumTps !== undefined ? Math.round(Number(agg.sumTps)) : 0;
+  const liveKotak = agg.sumKotak !== null && agg.sumKotak !== undefined ? Math.round(Number(agg.sumKotak)) : liveTps;
+  const livePemilih = agg.sumPemilih !== null && agg.sumPemilih !== undefined ? Math.round(Number(agg.sumPemilih)) : 0;
   
   let liveKec = 0;
   try {
@@ -341,9 +341,15 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
         const m = kuantitasMap[cleanKey] || kuantitasMap[varCode];
         unitLabel = m.satuan || varCode;
       }
+      if (cleanKey === 'dpt' || cleanKey === 'pemilih_dpt' || unitLower === 'pemilih') {
+        vNum = Math.round(Number(vNum) || 0);
+      }
     } else {
       const parsed = parseIndonesianNumber(fs.val);
       vNum = parsed !== null ? parsed : 0;
+      if (unitLower === 'pemilih') {
+        vNum = Math.round(Number(vNum) || 0);
+      }
     }
 
     // Jika nilai faktor adalah 0, perkalian harus menjadi 0 (jangan diabaikan!)

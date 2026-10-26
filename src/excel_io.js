@@ -2420,8 +2420,8 @@ async function exportDesaToExcelBuffer() {
   ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1E3A8A' } };
 
   ws.mergeCells('A2:N2');
-  const totalTps = desas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
-  const totalDpt = desas.reduce((a, b) => a + (Number(b.pemilih) || 0), 0);
+  const totalTps = desas.reduce((a, b) => a + Math.round(Number(b.tps) || 0), 0);
+  const totalDpt = desas.reduce((a, b) => a + Math.round(Number(b.pemilih) || 0), 0);
   ws.getCell('A2').value = `Basis Data Wilayah & Badan Adhoc PPS se-Kabupaten Ngawi (Total: ${desas.length} Desa/Kelurahan, ${totalTps} TPS, ${totalDpt} Pemilih DPT)`;
   ws.getCell('A2').font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF475569' } };
 
@@ -2472,11 +2472,11 @@ async function exportDesaToExcelBuffer() {
       d.kecamatan_id,
       d.kecamatan_nama || '',
       d.nama || '',
-      Number(d.tps) || 0,
-      Number(d.pantarlih) || 0,
-      Number(d.pemilih) || 0,
-      Number(d.kotak) || Number(d.tps) || 0,
-      Number(d.rohaniwan) || 1,
+      Math.round(Number(d.tps) || 0),
+      Math.round(Number(d.pantarlih) || 0),
+      Math.round(Number(d.pemilih) || 0),
+      Math.round(Number(d.kotak) || Number(d.tps) || 0),
+      Math.round(Number(d.rohaniwan) || 1),
       d.ketua_nama || '',
       d.sekretaris_nama || '',
       d.sekretaris_nip || ''
@@ -2612,22 +2612,27 @@ function parseDesaExcelBuffer(buffer) {
     }
 
     const rawTps = colMap.tps !== -1 ? row[colMap.tps] : 0;
-    const tpsVal = parseIndonesianNumber(rawTps, { defaultValue: 0 });
+    const rawTpsParsed = parseIndonesianNumber(rawTps, { defaultValue: 0 });
+    const tpsVal = rawTpsParsed !== null && !isNaN(rawTpsParsed) ? Math.round(rawTpsParsed) : null;
     if (tpsVal === null || isNaN(tpsVal) || tpsVal < 0) {
       errors.push({ baris: r + 1, error: `Jumlah TPS tidak valid: "${rawTps}" pada Desa "${namaVal}"` });
     }
 
     const rawPantarlih = colMap.pantarlih !== -1 ? row[colMap.pantarlih] : 0;
-    const pantarlihVal = parseIndonesianNumber(rawPantarlih, { defaultValue: 0 });
+    const rawPanParsed = parseIndonesianNumber(rawPantarlih, { defaultValue: 0 });
+    const pantarlihVal = rawPanParsed !== null && !isNaN(rawPanParsed) ? Math.round(rawPanParsed) : 0;
 
     const rawPemilih = colMap.pemilih !== -1 ? row[colMap.pemilih] : 0;
-    const pemilihVal = parseIndonesianNumber(rawPemilih, { defaultValue: 0 });
+    const rawPemParsed = parseIndonesianNumber(rawPemilih, { defaultValue: 0 });
+    const pemilihVal = rawPemParsed !== null && !isNaN(rawPemParsed) ? Math.round(rawPemParsed) : 0;
 
     const rawKotak = colMap.kotak !== -1 ? row[colMap.kotak] : tpsVal;
-    const kotakVal = parseIndonesianNumber(rawKotak, { defaultValue: (tpsVal || 0) });
+    const rawKotakParsed = parseIndonesianNumber(rawKotak, { defaultValue: (tpsVal || 0) });
+    const kotakVal = rawKotakParsed !== null && !isNaN(rawKotakParsed) ? Math.round(rawKotakParsed) : (tpsVal || 0);
 
     const rawRohaniwan = colMap.rohaniwan !== -1 ? row[colMap.rohaniwan] : 1;
-    const rohaniwanVal = parseIndonesianNumber(rawRohaniwan, { defaultValue: 1 });
+    const rawRohParsed = parseIndonesianNumber(rawRohaniwan, { defaultValue: 1 });
+    const rohaniwanVal = rawRohParsed !== null && !isNaN(rawRohParsed) ? Math.round(rawRohParsed) : 1;
 
     const ketuaVal = colMap.ketua_nama !== -1 ? String(row[colMap.ketua_nama] || '').trim() : '';
     const sekVal = colMap.sekretaris_nama !== -1 ? String(row[colMap.sekretaris_nama] || '').trim() : '';

@@ -971,6 +971,18 @@ async function runBusinessBehaviorTests() {
     'Test 32.3: Fungsi getAuthToken() terdefinisi dengan benar di public/app.js untuk mendukung penyimpanan draf RKB (commit-staged).'
   );
 
+  // 32.4: Verifikasi inputan data pemilih pada Master Desa selalu bilangan bulat (tanpa koma/desimal)
+  const { saveDesa: saveDesaFn } = require('../src/db');
+  const sampleDesa = db.prepare('SELECT * FROM master_desa WHERE id = 1').get();
+  const origPemilih = sampleDesa.pemilih;
+  saveDesaFn({ ...sampleDesa, pemilih: '3070,65' }, userDev);
+  const afterDesa = db.prepare('SELECT * FROM master_desa WHERE id = 1').get();
+  assert(
+    Number.isInteger(Number(afterDesa.pemilih)) && Number(afterDesa.pemilih) === 3071,
+    'Test 32.4: Inputan data pemilih dibulatkan menjadi bilangan bulat utuh tanpa angka di belakang koma.'
+  );
+  saveDesaFn({ ...sampleDesa, pemilih: origPemilih }, userDev);
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');

@@ -4552,19 +4552,19 @@
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
               <div class="form-group">
                 <label style="font-size: 11px; font-weight: 700; color: #0284c7;">Jumlah TPS:</label>
-                <input type="number" id="desa-tps" class="input-text" required min="1" value="5" style="text-align: center; font-weight: 700;">
+                <input type="number" id="desa-tps" class="input-text" required min="1" step="1" value="5" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="text-align: center; font-weight: 700;">
               </div>
               <div class="form-group">
                 <label style="font-size: 11px; font-weight: 700; color: #059669;">Pantarlih:</label>
-                <input type="number" id="desa-pantarlih" class="input-text" required min="1" value="10" style="text-align: center; font-weight: 700;">
+                <input type="number" id="desa-pantarlih" class="input-text" required min="1" step="1" value="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="text-align: center; font-weight: 700;">
               </div>
               <div class="form-group">
                 <label style="font-size: 11px; font-weight: 700; color: #7c3aed;">Pemilih (DPT):</label>
-                <input type="number" id="desa-pemilih" class="input-text" required min="0" value="2500" style="text-align: center; font-weight: 700;">
+                <input type="number" id="desa-pemilih" class="input-text" required min="0" step="1" value="2500" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="text-align: center; font-weight: 700;">
               </div>
               <div class="form-group">
                 <label style="font-size: 11px; font-weight: 700; color: #475569;">Kotak Suara:</label>
-                <input type="number" id="desa-kotak" class="input-text" min="0" value="5" style="text-align: center;">
+                <input type="number" id="desa-kotak" class="input-text" min="0" step="1" value="5" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="text-align: center;">
               </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -4584,7 +4584,7 @@
               </div>
               <div class="form-group">
                 <label style="font-weight: 700;">Rohaniwan:</label>
-                <input type="number" id="desa-rohaniwan" class="input-text" min="1" value="1" style="text-align: center;">
+                <input type="number" id="desa-rohaniwan" class="input-text" min="1" step="1" value="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="text-align: center;">
               </div>
             </div>
           </form>
@@ -5308,7 +5308,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=4.0.1"></script>
+    <script src="/app.js?v=4.0.2"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

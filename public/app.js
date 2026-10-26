@@ -4112,6 +4112,13 @@ function openRowModal(rowId, event) {
       }
     }
     setElVal(`modal-f${i}-var`, fVar);
+    if (fVar === 'dpt' || fVar === 'pemilih_dpt' || fUnit === 'pemilih') {
+      const kItem = (AppState.masters?.kuantitas || []).find(k => k.kode === 'dpt' || k.kode === 'pemilih_dpt');
+      const rawPemVal = (fVar && kItem) ? kItem.nilai : row[`f${i}_val`];
+      if (rawPemVal !== null && rawPemVal !== undefined && rawPemVal !== '') {
+        setElVal(`modal-f${i}-val`, Math.round(Number(rawPemVal) || 0));
+      }
+    }
     const badge = document.getElementById(`modal-f${i}-var-badge`);
     if (badge) badge.style.display = fVar ? 'inline-block' : 'none';
   }
@@ -4279,7 +4286,12 @@ function calculateModalTotal() {
       continue;
     }
     activeFactors++;
-    const num = Number(f.el.value);
+    const isPemilihFactor = String(f.unit || '').trim().toLowerCase() === 'pemilih' || f.varCode === 'dpt' || f.varCode === 'pemilih_dpt';
+    if (isPemilihFactor && f.el.value.includes('.')) {
+      f.el.value = String(Math.round(Number(f.el.value) || 0));
+    }
+    const rawNum = Number(f.el.value);
+    const num = isPemilihFactor ? Math.round(rawNum || 0) : rawNum;
     if (num === 0) {
       hasExplicitZero = true;
       baseFactor = 0;
@@ -6468,9 +6480,9 @@ function renderDbPps() {
 
   // Update summary strip
   const totalDesa = desas.length;
-  const totalTps = desas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
-  const totalPemilih = desas.reduce((a, b) => a + (Number(b.pemilih) || 0), 0);
-  const totalPantarlih = desas.reduce((a, b) => a + (Number(b.pantarlih) || 0), 0);
+  const totalTps = desas.reduce((a, b) => a + Math.round(Number(b.tps) || 0), 0);
+  const totalPemilih = desas.reduce((a, b) => a + Math.round(Number(b.pemilih) || 0), 0);
+  const totalPantarlih = desas.reduce((a, b) => a + Math.round(Number(b.pantarlih) || 0), 0);
 
   const elTotalDesa = document.getElementById('pps-stat-total-desa');
   const elTotalTps = document.getElementById('pps-stat-total-tps');
@@ -6528,11 +6540,11 @@ function filterDbPps() {
       <td class="text-center">${idx + 1}</td>
       <td><strong>${escapeHtml(kecMap[d.kecamatan_id] || '-')}</strong></td>
       <td><strong>${escapeHtml(d.nama)}</strong></td>
-      <td class="text-center"><span class="badge badge-primary">${formatNumber(d.tps)} TPS</span></td>
-      <td class="text-center" style="font-weight: 600; color: #059669;">${formatNumber(d.pantarlih)}</td>
-      <td class="text-right" style="font-weight: 700; color: #7c3aed; font-family: var(--font-mono);">${formatNumber(d.pemilih || 0)}</td>
-      <td class="text-center">${formatNumber(d.kotak || d.tps)}</td>
-      <td class="text-center">${formatNumber(d.rohaniwan || 1)}</td>
+      <td class="text-center"><span class="badge badge-primary">${formatNumber(Math.round(Number(d.tps) || 0))} TPS</span></td>
+      <td class="text-center" style="font-weight: 600; color: #059669;">${formatNumber(Math.round(Number(d.pantarlih) || 0))}</td>
+      <td class="text-right" style="font-weight: 700; color: #7c3aed; font-family: var(--font-mono);">${formatNumber(Math.round(Number(d.pemilih) || 0))}</td>
+      <td class="text-center">${formatNumber(Math.round(Number(d.kotak || d.tps) || 0))}</td>
+      <td class="text-center">${formatNumber(Math.round(Number(d.rohaniwan) || 1))}</td>
       <td>${escapeHtml(d.ketua_nama || '-')}</td>
       <td>${escapeHtml(d.sekretaris_nama || '-')}</td>
       <td style="font-family: var(--font-mono); font-size: 11px;">${escapeHtml(d.sekretaris_nip || '-')}</td>
@@ -6561,14 +6573,15 @@ function openModalDesa(id = null) {
   if (id && AppState.masters?.desas) {
     const d = AppState.masters.desas.find(item => item.id === Number(id));
     if (d) {
+      const cleanTps = Math.round(Number(d.tps) || 1);
       setElVal('desa-kecamatan-id', d.kecamatan_id);
       setElVal('desa-no-urut', d.no_urut || 1);
       setElVal('desa-nama', d.nama || '');
-      setElVal('desa-tps', d.tps || 1);
-      setElVal('desa-pantarlih', d.pantarlih || (d.tps * 2));
-      setElVal('desa-pemilih', d.pemilih || 0);
-      setElVal('desa-kotak', d.kotak || d.tps);
-      setElVal('desa-rohaniwan', d.rohaniwan || 1);
+      setElVal('desa-tps', cleanTps);
+      setElVal('desa-pantarlih', Math.round(Number(d.pantarlih) || (cleanTps * 2)));
+      setElVal('desa-pemilih', Math.round(Number(d.pemilih) || 0));
+      setElVal('desa-kotak', Math.round(Number(d.kotak || cleanTps) || cleanTps));
+      setElVal('desa-rohaniwan', Math.round(Number(d.rohaniwan) || 1));
       setElVal('desa-ketua', d.ketua_nama || '');
       setElVal('desa-sekretaris', d.sekretaris_nama || '');
       setElVal('desa-sekretaris-nip', d.sekretaris_nip || '');
@@ -6587,11 +6600,11 @@ async function submitModalDesa() {
   const kecamatan_id = document.getElementById('desa-kecamatan-id')?.value;
   const no_urut = document.getElementById('desa-no-urut')?.value;
   const nama = document.getElementById('desa-nama')?.value;
-  const tps = document.getElementById('desa-tps')?.value;
-  const pantarlih = document.getElementById('desa-pantarlih')?.value;
-  const pemilih = document.getElementById('desa-pemilih')?.value;
-  const kotak = document.getElementById('desa-kotak')?.value;
-  const rohaniwan = document.getElementById('desa-rohaniwan')?.value;
+  const tps = Math.round(Number(document.getElementById('desa-tps')?.value) || 0);
+  const pantarlih = Math.round(Number(document.getElementById('desa-pantarlih')?.value) || 0);
+  const pemilih = Math.round(Number(document.getElementById('desa-pemilih')?.value) || 0);
+  const kotak = Math.round(Number(document.getElementById('desa-kotak')?.value) || tps);
+  const rohaniwan = Math.round(Number(document.getElementById('desa-rohaniwan')?.value) || 1);
   const ketua_nama = document.getElementById('desa-ketua')?.value;
   const sekretaris_nama = document.getElementById('desa-sekretaris')?.value;
   const sekretaris_nip = document.getElementById('desa-sekretaris-nip')?.value;
@@ -6854,9 +6867,9 @@ function renderDbKuantitas() {
 
   const totalKec = kecamatans.length;
   const totalDesa = desas.length;
-  const totalTps = desas.reduce((a, b) => a + (Number(b.tps) || 0), 0);
-  const totalPemilih = desas.reduce((a, b) => a + (Number(b.pemilih) || 0), 0);
-  const totalPantarlih = desas.reduce((a, b) => a + (Number(b.pantarlih) || 0), 0);
+  const totalTps = desas.reduce((a, b) => a + Math.round(Number(b.tps) || 0), 0);
+  const totalPemilih = desas.reduce((a, b) => a + Math.round(Number(b.pemilih) || 0), 0);
+  const totalPantarlih = desas.reduce((a, b) => a + Math.round(Number(b.pantarlih) || 0), 0);
   const totalPaslon = (paslons || []).length;
 
   setElText('kuantitas-stat-kec', totalKec);
