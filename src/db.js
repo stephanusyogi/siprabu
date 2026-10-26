@@ -2057,14 +2057,36 @@ function deleteRabRow(id, actorUser = null, options = {}) {
 }
 
 function getRowHierarchyRank(row) {
-  if (!row || row.row_type !== 'header') return 99;
+  if (!row || (row.row_type !== 'header' && !row.is_header)) return 99;
   const lvl = Number(row.level_indent ?? 2);
+  const kode = String(row.kode || '').trim();
+  const uraian = String(row.uraian || '').trim();
   if (lvl === 0) return 10;
   if (lvl === 1) return 20;
   if (lvl === 2) return 30;
-  if (lvl >= 21 && lvl <= 29) return 40 + (lvl - 20);
+  if (lvl === 21) {
+    if (!kode && /^-\s/.test(uraian)) return 42;
+    return 41;
+  }
+  if (lvl === 22) {
+    const isNumbered = /^\d+[\)\.]/.test(kode) || /^\d+[\)\.]/.test(uraian);
+    if (isNumbered) return 42;
+    const isGroupParent = /^(dengan\s|ditingkat\s|pembentukan\s|pelantikan|pergantian\s+antar\s+waktu|penerimaan\s+dan\s+penelitian|penelitian\s+hasil\s+perbaikan|penelitian\s+persyaratan|perbaikan\s+syarat)/i.test(uraian);
+    if (isGroupParent) return 41.5;
+    return 42.5;
+  }
+  if (lvl === 23) return 43;
+  if (lvl === 24) return 44;
+  if (lvl >= 25 && lvl <= 29) return 40 + (lvl - 20);
   if (lvl === 3) return 50;
-  if (lvl === 4 || lvl === 41) return 61;
+  if (lvl === 4 || lvl === 41) {
+    if (/^[a-z][\.,]?$/i.test(kode)) {
+      if (/^dalam\s+rangka/i.test(uraian)) return 60.5;
+      return 41;
+    }
+    if (/^\d+[\)\.]?$/.test(kode)) return 60.2;
+    return 61;
+  }
   if (lvl === 42) return 62;
   return 45;
 }
@@ -2941,6 +2963,7 @@ function authenticateGoogleUser(googleProfile) {
 // ============================================================================
 
 function getMasters() {
+  syncPrimaryKuantitas();
   const settingsRows = db.prepare('SELECT key, value FROM settings_satker').all();
   const settings = {};
   settingsRows.forEach(r => { settings[r.key] = r.value; });
@@ -3076,6 +3099,8 @@ function updateSettings(settingsObj, actorUser = null) {
     throw err;
   }
 
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
@@ -3124,6 +3149,10 @@ function syncPrimaryKuantitas() {
     const livePaslonParpol = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Parpol'").get()?.cnt) || 0;
     const livePaslonPerseorangan = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Perseorangan'").get()?.cnt) || 0;
 
+    const liveKomisioner = Number(db.prepare("SELECT nilai FROM master_kuantitas WHERE kode = 'komisioner'").get()?.nilai) || 0;
+    const liveSekretariat = Number(db.prepare("SELECT nilai FROM master_kuantitas WHERE kode = 'sekretariat_kpu'").get()?.nilai) || 0;
+    const liveKpuAll = liveKomisioner + liveSekretariat;
+
     const upd = db.prepare('UPDATE master_kuantitas SET nilai = ? WHERE kode = ?');
     const updWithKet = db.prepare('UPDATE master_kuantitas SET nilai = ?, keterangan = ? WHERE kode = ?');
 
@@ -3137,6 +3166,7 @@ function syncPrimaryKuantitas() {
     updWithKet.run(livePaslonParpol, `Bakal Pasangan Calon Jalur Parpol (Otomatis dari Master Paslon Parameter Jalur Parpol: ${livePaslonParpol} Paslon)`, 'paslon_parpol');
     updWithKet.run(livePaslonPerseorangan, `Bakal Pasangan Calon Jalur Perseorangan (Otomatis dari Master Paslon Parameter Jalur Perseorangan: ${livePaslonPerseorangan} Paslon)`, 'paslon_perseorangan');
     updWithKet.run(livePaslon, `Total Bakal Pasangan Calon (Otomatis dari Master Paslon: ${livePaslonParpol} Jalur Parpol + ${livePaslonPerseorangan} Jalur Perseorangan = ${livePaslon} Paslon)`, 'paslon');
+    updWithKet.run(liveKpuAll, `${liveKomisioner} Komisioner + ${liveSekretariat} Sekretariat = ${liveKpuAll} Org`, 'kpu_all');
 
     upd.run(liveTps * 1, 'kpps_ketua');
     upd.run(liveTps * 6, 'kpps_anggota');
@@ -3163,6 +3193,7 @@ function syncPrimaryKuantitas() {
 }
 
 function getKuantitasList() {
+  syncPrimaryKuantitas();
   return db.prepare('SELECT * FROM master_kuantitas ORDER BY id').all();
 }
 
@@ -3201,6 +3232,8 @@ function saveKuantitas(data, actorUser = null) {
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(kode, nama, satuan, nilai, kategori, keterangan);
   }
+
+  syncPrimaryKuantitas();
 
   try {
     const { clearRkbDatasetCache } = require('./calculation');
@@ -3252,6 +3285,8 @@ function savePaslon(data, actorUser = null) {
   }
 
   syncPrimaryKuantitas();
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
@@ -3271,6 +3306,8 @@ function savePaslon(data, actorUser = null) {
 function deletePaslon(id, actorUser = null) {
   db.prepare('DELETE FROM master_paslon WHERE id = ?').run(id);
   syncPrimaryKuantitas();
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
@@ -3317,6 +3354,8 @@ function saveKecamatan(data, actorUser = null) {
   }
 
   syncPrimaryKuantitas();
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
@@ -3337,6 +3376,8 @@ function saveKecamatan(data, actorUser = null) {
 function deleteKecamatan(id, actorUser = null) {
   db.prepare('DELETE FROM master_kecamatan WHERE id = ?').run(id);
   syncPrimaryKuantitas();
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
@@ -3431,6 +3472,8 @@ function bulkUpsertKecamatan(items, options = {}) {
   }
 
   syncPrimaryKuantitas();
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
@@ -3494,6 +3537,8 @@ function saveDesa(data, actorUser = null) {
   }
 
   syncPrimaryKuantitas();
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
@@ -3514,6 +3559,8 @@ function saveDesa(data, actorUser = null) {
 function deleteDesa(id, actorUser = null) {
   db.prepare('DELETE FROM master_desa WHERE id = ?').run(id);
   syncPrimaryKuantitas();
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();
@@ -3648,6 +3695,8 @@ function bulkUpsertDesa(items, options = {}) {
   }
 
   syncPrimaryKuantitas();
+  syncPrimaryKuantitas();
+
   try {
     const { clearRkbDatasetCache } = require('./calculation');
     clearRkbDatasetCache();

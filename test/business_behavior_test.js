@@ -918,6 +918,59 @@ async function runBusinessBehaviorTests() {
     'Test 31.2: Token enkripsi SAKTI 43-karakter untuk view-panduan-pelaksanaan dapat di-encode dan di-decode dengan akurat.'
   );
 
+  // =========================================================================
+  // 32. ROLLUP SUBTOTAL HIERARKI LEVEL 4, RUMUS @KPU_ALL DINAMIS, & GETAUTHTOKEN
+  // =========================================================================
+  console.log('\n--- [32] Rollup Subtotal Hierarki Level 4, Rumus Agregat @kpu_all & getAuthToken ---');
+  const {
+    getKuantitasMap: fetchKuantitasMap,
+    clearRkbDatasetCache: flushCalcCache,
+    getRkbCalculatedDataset: fetchCalcDataset
+  } = require('../src/calculation');
+
+  // 32.1: Verifikasi rollup subtotal bertingkat pada Bagian 15 (Rapat Kerja dan Supervisi -> a. -> Dengan KPU Kab/Kota -> 1) Rapat Kerja Relawan Demokrasi)
+  flushCalcCache();
+  const activeCalc = fetchCalcDataset(1);
+  const row15 = activeCalc.rows.find(r => r.kode === '15' && (r.uraian || '').includes('Rapat Kerja dan Supervisi'));
+  const row15a = activeCalc.rows.find(r => r.kode === 'a.' && (r.uraian || '').includes('Rapat Kerja') && r.urutan > row15.urutan);
+  const row15Kpu = activeCalc.rows.find(r => (r.uraian || '').includes('Dengan KPU Kabupaten/Kota') && r.urutan > row15.urutan);
+  const row15Relasi = activeCalc.rows.find(r => r.kode === '1)' && (r.uraian || '').includes('Rapat Kerja Relawan Demokrasi') && r.urutan > row15.urutan);
+  const row15Pokja = activeCalc.rows.find(r => r.kode === '2)' && (r.uraian || '').includes('Rapat Pokja (Makan & Snack)') && r.urutan > row15.urutan);
+
+  assert(
+    row15 && row15a && row15Kpu && row15Relasi && row15Pokja &&
+    row15Relasi.computed_total === 27850000 &&
+    row15Pokja.computed_total === 53625000 &&
+    row15Kpu.computed_total === (row15Relasi.computed_total + row15Pokja.computed_total) &&
+    row15a.computed_total > row15Kpu.computed_total &&
+    row15.computed_total > row15a.computed_total &&
+    row15Relasi.has_children === true &&
+    row15Kpu.has_children === true &&
+    row15a.has_children === true,
+    'Test 32.1: Seluruh sub-level di dalam Level 4 (1) -> Dengan KPU... -> a. -> 15) menghitung subtotal rollup secara akurat dan memiliki has_children = true.'
+  );
+
+  // 32.2: Verifikasi rumus otomatis @kpu_all = @komisioner + @sekretariat_kpu saat @sekretariat_kpu diubah ke 30
+  const sekrRow = db.prepare("SELECT * FROM master_kuantitas WHERE kode = 'sekretariat_kpu'").get();
+  const updatedKuantitasList = saveKuantitas({ id: sekrRow.id, nilai: 30 }, userDev);
+  const kpuAllAfter30 = updatedKuantitasList.find(k => k.kode === 'kpu_all');
+  const kMapAfter30 = fetchKuantitasMap();
+  assert(
+    kpuAllAfter30 && Number(kpuAllAfter30.nilai) === 35 &&
+    kpuAllAfter30.keterangan.includes('5 Komisioner + 30 Sekretariat = 35') &&
+    kMapAfter30.kpu_all && Number(kMapAfter30.kpu_all.nilai) === 35,
+    'Test 32.2: Mengubah @sekretariat_kpu menjadi 30 otomatis memperbarui @kpu_all menjadi 35 beserta keterangannya di DB dan getKuantitasMap().'
+  );
+  // Kembalikan ke nilai semula (35)
+  saveKuantitas({ id: sekrRow.id, nilai: 35 }, userDev);
+
+  // 32.3: Verifikasi definisi getAuthToken pada public/app.js
+  const appJsContent = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  assert(
+    appJsContent.includes('function getAuthToken()') && appJsContent.includes('window.getAuthToken = getAuthToken'),
+    'Test 32.3: Fungsi getAuthToken() terdefinisi dengan benar di public/app.js untuk mendukung penyimpanan draf RKB (commit-staged).'
+  );
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');

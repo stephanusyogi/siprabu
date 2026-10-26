@@ -371,8 +371,13 @@ function showToast(message, type = 'info', duration = 3500) {
 }
 window.showToast = showToast;
 
+function getAuthToken() {
+  return localStorage.getItem('siprabu_token') || '';
+}
+window.getAuthToken = getAuthToken;
+
 async function apiFetch(endpoint, options = {}) {
-  const token = localStorage.getItem('siprabu_token');
+  const token = getAuthToken();
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})

@@ -135,6 +135,14 @@ function getKuantitasMap() {
 
   const map = {};
   for (const k of list) {
+    map[k.kode] = k;
+  }
+
+  const liveKomisioner = map.komisioner && map.komisioner.nilai !== undefined ? (Number(map.komisioner.nilai) || 0) : 5;
+  const liveSekretariat = map.sekretariat_kpu && map.sekretariat_kpu.nilai !== undefined ? (Number(map.sekretariat_kpu.nilai) || 0) : 35;
+  const liveKpuAll = liveKomisioner + liveSekretariat;
+
+  for (const k of list) {
     if (k.kode === 'pantarlih') {
       k.nilai = livePantarlih;
     } else if (k.kode === 'tps_rkb') {
@@ -153,6 +161,9 @@ function getKuantitasMap() {
       k.nilai = livePaslonParpol;
     } else if (k.kode === 'paslon_perseorangan') {
       k.nilai = livePaslonPerseorangan;
+    } else if (k.kode === 'kpu_all') {
+      k.nilai = liveKpuAll;
+      k.keterangan = `${liveKomisioner} Komisioner + ${liveSekretariat} Sekretariat = ${liveKpuAll} Org`;
     } else if (k.kode === 'kpps_ketua') {
       k.nilai = liveTps * 1;
     } else if (k.kode === 'kpps_anggota') {
@@ -169,11 +180,23 @@ function getKuantitasMap() {
       k.nilai = liveKec * 4;
     } else if (k.kode === 'ppk_komisioner') {
       k.nilai = liveKec * 5;
+    } else if (k.kode === 'ppk_sekretaris') {
+      k.nilai = liveKec * 1;
+    } else if (k.kode === 'ppk_staf') {
+      k.nilai = liveKec * 2;
+    } else if (k.kode === 'ppk_sekretariat') {
+      k.nilai = liveKec * 3;
     } else if (k.kode === 'pps_ketua') {
       k.nilai = liveDesa * 1;
     } else if (k.kode === 'pps_anggota') {
       k.nilai = liveDesa * 2;
     } else if (k.kode === 'pps_komisioner') {
+      k.nilai = liveDesa * 3;
+    } else if (k.kode === 'pps_sekretaris') {
+      k.nilai = liveDesa * 1;
+    } else if (k.kode === 'pps_staf') {
+      k.nilai = liveDesa * 2;
+    } else if (k.kode === 'pps_sekretariat') {
       k.nilai = liveDesa * 3;
     }
     map[k.kode] = k;
@@ -399,19 +422,146 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
 }
 
 /**
- * Menghitung tingkat hierarki (rank) untuk nesting & rollup
+ * Menghitung tingkat hierarki (rank) untuk nesting & rollup secara presisi sesuai struktur level RKB
  */
 function getHierarchyRank(row) {
-  if (!row || row.row_type !== 'header') return 99;
+  if (!row || (row.row_type !== 'header' && !row.is_header)) return 99;
   const lvl = Number(row.level_indent ?? 2);
-  if (lvl === 0) return 10;                     // Level 0 (Grand Title: A, B)
-  if (lvl === 1) return 20;                     // Level 1 (Tahapan/Operasional: I, II)
-  if (lvl === 2) return 30;                     // Level 2 (Kegiatan 1..28)
-  if (lvl >= 21 && lvl <= 29) return 40 + (lvl - 20); // Level 4 (4.1..4.9)
-  if (lvl === 3) return 50;                     // Akun Belanja (5xxxxx)
-  if (lvl === 4 || lvl === 41) return 61;       // Header 1 di bawah Akun
+  const kode = String(row.kode || '').trim();
+  const uraian = String(row.uraian || '').trim();
+  if (lvl === 0) return 10;                     // Level 1 (Grand Title: A, B)
+  if (lvl === 1) return 20;                     // Level 2 (Tahapan/Operasional: I, II)
+  if (lvl === 2) return 30;                     // Level 3 (Kegiatan 1..28)
+  if (lvl === 21) {
+    if (!kode && /^-\s/.test(uraian)) return 42;
+    return 41;                                  // Level 4.1 (a., b., c.)
+  }
+  if (lvl === 22) {
+    const isNumbered = /^\d+[\)\.]/.test(kode) || /^\d+[\)\.]/.test(uraian);
+    if (isNumbered) return 42;                  // Level 4.2 (1), 2), 3))
+    const isGroupParent = /^(dengan\s|ditingkat\s|pembentukan\s|pelantikan|pergantian\s+antar\s+waktu|penerimaan\s+dan\s+penelitian|penelitian\s+hasil\s+perbaikan|penelitian\s+persyaratan|perbaikan\s+syarat)/i.test(uraian);
+    if (isGroupParent) return 41.5;             // Group Induk di bawah a./b. yang membawahi 1), 2)
+    return 42.5;                                // Sub-grup di bawah 1), 2)
+  }
+  if (lvl === 23) return 43;                    // Level 4.3 (a), b))
+  if (lvl === 24) return 44;                    // Level 4.4 (b.1., -. Rapat)
+  if (lvl >= 25 && lvl <= 29) return 40 + (lvl - 20);
+  if (lvl === 3) return 50;                     // Level 5 (Akun Belanja 5xxxxx)
+  if (lvl === 4 || lvl === 41) {
+    if (/^[a-z][\.,]?$/i.test(kode)) {
+      if (/^dalam\s+rangka/i.test(uraian)) return 60.5;
+      return 41;
+    }
+    if (/^\d+[\)\.]?$/.test(kode)) return 60.2;
+    return 61;                                  // Header Teks di bawah Akun
+  }
   if (lvl === 42) return 62;                    // Sub-Header di bawah Header 1
   return 45;
+}
+
+function getTreeLevelFromRank(rank, isHeader) {
+  if (!isHeader || rank >= 99) return 6;
+  if (rank === 10) return 1;
+  if (rank === 20) return 2;
+  if (rank === 30) return 3;
+  if (rank > 30 && rank < 50) return 4;
+  if (rank === 50) return 5;
+  return 5.5;
+}
+
+function getEffectiveIndentFromRank(rank, isHeader, depth = 0) {
+  if (rank === 10) return 6;
+  if (rank === 20) return 16;
+  if (rank === 30) return 26;
+  if (rank === 41) return 38;
+  if (rank === 41.5) return 48;
+  if (rank === 42) return 58;
+  if (rank === 42.5) return 68;
+  if (rank >= 43 && rank < 50) return 76;
+  if (rank === 50) return Math.max(44, depth * 12 + 10);
+  if (rank > 50 && rank < 99) return Math.max(56, depth * 12 + 14);
+  return Math.max(58, depth * 12 + 16);
+}
+
+/**
+ * Menyusun struktur pohon (tree_id, parent_tree_id, tree_level, effective_indent)
+ * menggunakan Dynamic Rank Stack dan menghitung rollup subtotal vertikal ke seluruh level induk.
+ */
+function buildHierarchyTreeAndRollup(processedRows) {
+  const headerStack = [];
+  const allRowsWithTree = processedRows.map((r, idx) => {
+    const isHeader = Boolean(r.is_header || r.row_type === 'header');
+    const rank = isHeader ? getHierarchyRank(r) : 99;
+    const treeId = `row_${r.id || idx}`;
+
+    while (headerStack.length > 0 && headerStack[headerStack.length - 1].rank >= rank) {
+      headerStack.pop();
+    }
+
+    const parentEntry = headerStack.length > 0 ? headerStack[headerStack.length - 1] : null;
+    const parentTreeId = parentEntry ? parentEntry.treeId : null;
+    const depth = headerStack.length;
+
+    if (isHeader) {
+      headerStack.push({ treeId, rank });
+    }
+
+    const treeLevel = getTreeLevelFromRank(rank, isHeader);
+    const effectiveIndent = getEffectiveIndentFromRank(rank, isHeader, depth);
+    const lvlNum = Number(r.level_indent);
+
+    return {
+      ...r,
+      is_header: isHeader,
+      hierarchy_rank: rank,
+      tree_id: treeId,
+      parent_tree_id: parentTreeId,
+      tree_level: treeLevel,
+      effective_indent: effectiveIndent,
+      is_akun_row: isHeader && lvlNum === 3,
+      is_sub_header: isHeader && (lvlNum === 41 || lvlNum === 42)
+    };
+  });
+
+  const rowByTreeId = {};
+  allRowsWithTree.forEach(r => { rowByTreeId[r.tree_id] = r; });
+
+  const totalsByTreeId = {};
+  allRowsWithTree.forEach(r => {
+    if (!r.is_header) {
+      const itemTotal = Number(r.computed_total) || 0;
+      let cur = r.parent_tree_id;
+      while (cur && rowByTreeId[cur]) {
+        totalsByTreeId[cur] = (totalsByTreeId[cur] || 0) + itemTotal;
+        cur = rowByTreeId[cur].parent_tree_id;
+      }
+    }
+  });
+
+  const finalRows = allRowsWithTree.map(r => {
+    if (r.is_header) {
+      const tot = totalsByTreeId[r.tree_id] || 0;
+      return {
+        ...r,
+        computed_total: tot,
+        jumlah: tot
+      };
+    }
+    return r;
+  });
+
+  const childCountMap = {};
+  for (const r of finalRows) {
+    if (r.parent_tree_id) {
+      childCountMap[r.parent_tree_id] = (childCountMap[r.parent_tree_id] || 0) + 1;
+    }
+  }
+  for (const r of finalRows) {
+    r.child_count = childCountMap[r.tree_id] || 0;
+    r.has_children = r.child_count > 0;
+  }
+
+  return finalRows;
 }
 
 /**
@@ -497,71 +647,8 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
     };
   });
 
-  // 2. Tentukan tree_id dan parent_tree_id
-  let curL0 = null, curL1 = null, curL2 = null, curL3 = null, curH1 = null;
-  const allRowsWithTree = processedRows.map((r, idx) => {
-    let treeId = `row_${r.id || idx}`;
-    let parentTreeId = null;
-
-    if (r.is_header) {
-      const rank = r.hierarchy_rank;
-      if (rank === 10) { curL0 = treeId; curL1 = null; curL2 = null; curL3 = null; curH1 = null; parentTreeId = null; }
-      else if (rank === 20) { curL1 = treeId; curL2 = null; curL3 = null; curH1 = null; parentTreeId = curL0; }
-      else if (rank === 30) { curL2 = treeId; curL3 = null; curH1 = null; parentTreeId = curL1 || curL0; }
-      else if (rank === 50) { curL3 = treeId; curH1 = null; parentTreeId = curL2 || curL1 || curL0; }
-      else if (rank === 61) { curH1 = treeId; parentTreeId = curL3 || curL2 || curL1 || curL0; }
-      else if (rank === 62) { parentTreeId = curH1 || curL3 || curL2 || curL1 || curL0; }
-      else { parentTreeId = curL2 || curL1 || curL0; }
-    } else {
-      parentTreeId = curH1 || curL3 || curL2 || curL1 || curL0;
-    }
-
-    return {
-      ...r,
-      tree_id: treeId,
-      parent_tree_id: parentTreeId
-    };
-  });
-
-  // 3. Rollup vertikal
-  const rowByTreeId = {};
-  allRowsWithTree.forEach(r => { rowByTreeId[r.tree_id] = r; });
-
-  const totalsByTreeId = {};
-  allRowsWithTree.forEach(r => {
-    if (!r.is_header) {
-      let cur = r.parent_tree_id;
-      while (cur && rowByTreeId[cur]) {
-        totalsByTreeId[cur] = (totalsByTreeId[cur] || 0) + r.computed_total;
-        cur = rowByTreeId[cur].parent_tree_id;
-      }
-    }
-  });
-
-  // Pasang computed_total pada baris header
-  const finalRows = allRowsWithTree.map(r => {
-    if (r.is_header) {
-      const tot = totalsByTreeId[r.tree_id] || 0;
-      return {
-        ...r,
-        computed_total: tot,
-        jumlah: tot
-      };
-    }
-    return r;
-  });
-
-  // Hitung jumlah anak (child_count)
-  const childCountMap = {};
-  for (const r of finalRows) {
-    if (r.parent_tree_id) {
-      childCountMap[r.parent_tree_id] = (childCountMap[r.parent_tree_id] || 0) + 1;
-    }
-  }
-  for (const r of finalRows) {
-    r.child_count = childCountMap[r.tree_id] || 0;
-    r.has_children = r.child_count > 0;
-  }
+  // 2 & 3. Bangun pohon hierarki berbasis stack rank & hitung rollup vertikal ke setiap level induk
+  const finalRows = buildHierarchyTreeAndRollup(processedRows);
 
   // Hitung metrik Banner Dashboard
   const tahapanTotal = finalRows
@@ -639,7 +726,7 @@ function getRkbCalculatedDataset(periodeId) {
       const snap = JSON.parse(snapRow.snapshot_data);
       if (snap && snap.rows && snap.summary) {
         const result = {
-          rows: snap.rows,
+          rows: buildHierarchyTreeAndRollup(snap.rows),
           summary: snap.summary,
           is_snapshot: true,
           snapshot_meta: snap.meta || {}
