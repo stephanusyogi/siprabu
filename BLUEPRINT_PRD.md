@@ -390,3 +390,40 @@ Susunan blok penandatangan mengikuti konteks/tahapan dokumen yang dicetak atau d
      - **Viewer Divisi (Level 3 tanpa akses Pelaksanaan):** Hanya melihat sub-menu dan konten `📖 Panduan Perencanaan` khusus Viewer.
      - **Ketua KPU, Sekretaris KPU (KPA), Level 1 (Rendatin), & Level 0 (Developer):** Melihat `📖 Panduan Perencanaan` (lengkap dengan panduan Validasi/Pleno/Tahap 4 & SSOT) serta `💳 Panduan Pelaksanaan`.
      - **Pengembangan Level 4, Level 5, dan Level 6 (PPK, PPSPM, Bendahara, Verifikator SPJ, Pelaksana Teknis/Adhoc):** Secara otomatis mendapatkan akses ke `💳 Panduan Pelaksanaan` sesuai cakupan otoritas eksekusi dan pembayarannya.
+
+---
+
+## 24. Arsitektur Smart Reactive Reference-to-RKB Linking (SSOT)
+Setiap perubahan angka pada menu **REFERENSI / DATABASE** (`Master Desa & TPS`, `Master Kecamatan (PPK)`, `Master Pasangan Calon`, dan `Parameter Kuantitas & Koefisien SSOT`) secara otomatis dan seketika (*reactive*) memperbarui seluruh baris rincian belanja (`rab_baris`) yang terkait pada dokumen RKB aktif (`is_locked = 0`), sementara dokumen RKB historis yang telah dikunci (`is_locked = 1`) tetap terjaga utuh melalui mekanisme *snapshot*.
+
+### 24.1 Alur Sinkronisasi Reaktif Otomatis (`syncPrimaryKuantitas` -> `syncRkbReferenceLinks`)
+1. **Trigger Otomatis dari Seluruh Titik Perubahan Referensi:**
+   - Pembaruan, penambahan, penghapusan, atau impor Excel pada **Master Desa & TPS** (`saveDesa`, `deleteDesa`, `bulkUpsertDesa`) — bilangan Pemilih/DPT selalu dibulatkan menjadi bilangan bulat utuh (`Math.round`) tanpa angka desimal di belakang koma.
+   - Pembaruan pada **Master Kecamatan / PPK** (`saveKecamatan`, `deleteKecamatan`, `bulkUpsertKecamatan`).
+   - Pembaruan pada **Master Pasangan Calon** (`savePaslon`, `deletePaslon`).
+   - Pembaruan pada **Parameter Kuantitas & Koefisien SSOT** (`saveKuantitas`), termasuk perubahan formasi personil TPS, masa kerja badan adhoc, jumlah Parpol, maupun jumlah personil Sekretariat/Komisioner KPU.
+   - Pembukaan siklus revisi baru (`clonePeriodeToRevision`).
+2. **Agregasi Otomatis Parameter Turunan di `master_kuantitas` & `getKuantitasMap()`:**
+   - `@tps_rkb` = $\sum \text{TPS seluruh Desa/Kelurahan}$ (`master_desa.tps`).
+   - `@kotak_rkb` = $\sum \text{Kotak Suara seluruh Desa/Kelurahan}$ (`master_desa.kotak`).
+   - `@pantarlih` = $\sum \text{Pantarlih seluruh Desa/Kelurahan}$ (`master_desa.pantarlih`).
+   - `@dpt` / `@pemilih_dpt` = $\sum \text{Pemilih seluruh Desa/Kelurahan}$ (`master_desa.pemilih`, bilangan bulat).
+   - `@desa_pps` = Jumlah Desa/Kelurahan (`COUNT(master_desa)`).
+   - `@kec_ppk` = Jumlah Kecamatan (`COUNT(master_kecamatan)`).
+   - `@kpu_all` = `@komisioner` + `@sekretariat_kpu` (beserta pembaruan otomatis teks keterangan komposisi).
+   - `@kpps_all` = `@kpps_ketua_tps` (`1`) + `@kpps_anggota_tps` (`6`) + `@linmas_per_tps` (`2`) = `9 Org/TPS`.
+   - `@kpps_ketua` = `@tps_rkb` $\times$ `@kpps_ketua_tps`; `@kpps_anggota` = `@tps_rkb` $\times$ `@kpps_anggota_tps`; `@linmas_tps` = `@tps_rkb` $\times$ `@linmas_per_tps`; `@petugas_tps` = `@tps_rkb` $\times$ `@kpps_all`.
+
+### 24.2 Matriks Pengikatan Otomatis (*Smart Auto-Binding*) ke Baris RKB (`rab_baris`)
+| Kelompok Belanja RKB | Pengikatan Faktor (`f1_var`..`f4_var`) & `basis_pengali` | Perilaku Saat Referensi Berubah |
+| :--- | :--- | :--- |
+| **Honorarium KPPS & Linmas Tingkat TPS** (`3 KPPS > 521213`: `a. Ketua`, `b. Anggota`, `c. Linmas`) | `F1 = @kpps_ketua_tps` / `@kpps_anggota_tps` / `@linmas_per_tps` (`Org`), `F2 = @masa_kerja_kpps` (`Bulan`), `F3 = @tps_rkb` (`TPS`), `basis_pengali = FIXED` | Otomatis berubah saat jumlah **TPS** di Master Desa berubah, saat formasi **Ketua/Anggota KPPS atau Linmas per TPS** diubah, atau saat **Masa Kerja KPPS** diubah. |
+| **Honorarium Pantarlih / PPDP** (`4 PPDP > 521213 > Honor Pantarlih`) | `F1 = @masa_kerja_pantarlih` (`Bulan`), `F2 = @pantarlih` (`Org`), `basis_pengali = FIXED`, `target_scope = PANTARLIH` | Otomatis berubah saat jumlah **Pantarlih** di Master Desa berubah atau saat **Masa Kerja Pantarlih** diubah. |
+| **Perlengkapan & Konsumsi PPDP / Pantarlih** (Kaos Coklit PPDP, Konsumsi Pleno DPS/DPTb PPDP, Rapid Test Snack PPDP) | `F1 = @pantarlih` (`Org`), `F2 = 1 Buah / 1 Keg`, `basis_pengali = FIXED`, `target_scope = PANTARLIH` | Otomatis mengikuti jumlah **Pantarlih** terbaru (bukan lagi tertukar dengan angka TPS). |
+| **Kebutuhan Per-Petugas TPS** (APD Masker/Face Shield, Vitamin/Suplemen, Rapid Test, & Konsumsi 9 Petugas TPS) | `F1 = @kpps_all` (`Org`), `basis_pengali = TPS_RKB` | Otomatis mengalikan formasi petugas per TPS (`@kpps_all`) dengan jumlah seluruh TPS (`@tps_rkb`). |
+| **Bimtek, Formulir, & Logistik Berbasis TPS** (`basis_pengali = TPS_RKB` atau faktor bersatuan `TPS` dengan nilai $\ge 100$) | `f_var = @tps_rkb` dan/atau `basis_pengali = TPS_RKB` | Seluruh 108+ baris logistik, formulir, bimtek, dan pembuatan TPS otomatis berubah mengikuti `@tps_rkb`. Baris kunjungan sampel kecil (`< 100 TPS`, misal `5 TPS` Forkopimda) dilindungi agar tetap sesuai angka sampel. |
+| **Distribusi Logistik Kotak Suara** (Faktor bersatuan `Kotak` dengan nilai $\ge 100$) | `f_var = @kotak_rkb` | Otomatis mengikuti jumlah **Kotak Suara** (`@kotak_rkb`), sedangkan satuan `kotak` bernilai kecil (`< 100`, misal kotak masker medis) dilindungi agar tidak berubah menjadi jumlah kotak suara. |
+| **Honorarium & Operasional PPK / PPS** | `basis_pengali = PPK` / `PPS`, `f_var = @masa_kerja_ppk` / `@masa_kerja_pps`, `f_var = @ppk_all` / `@pps_all` | Otomatis mengikuti jumlah Kecamatan (`@kec_ppk`), jumlah Desa (`@desa_pps`), masa kerja, dan formasi personil PPK/PPS. |
+| **Surat Suara, Alat Bantu, & Logistik Pemilih (DPT)** | `f_var = @dpt` | Otomatis mengikuti total **Pemilih (DPT)** terbaru dari Master Desa tanpa angka desimal. |
+| **Fasilitasi Paslon, Parpol, & Personil KPU Kab.** | `f_var = @paslon`, `@paslon_parpol`, `@paslon_perseorangan`, `@parpol`, `@komisioner`, `@sekretariat_kpu`, `@kpu_all` | Otomatis mengikuti perubahan pada Master Pasangan Calon dan Parameter Kuantitas SSOT. |
+| **Pembersihan Label Pengali Ganda pada Baris `FIXED`** | `if (basis !== 'NONE' && basis !== 'FIXED')` | Mencegah munculnya duplikasi teks `x 1 TPS` atau `x 1 Kotak` pada pratinjau formula baris yang sudah menggunakan `@tps_rkb` atau `@kotak_rkb` di Faktor F1–F4. |

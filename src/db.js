@@ -1743,6 +1743,8 @@ function clonePeriodeToRevision(sourcePeriodeId, {
       idMap[r.id] = res.lastInsertRowid;
     }
 
+    syncRkbReferenceLinks(newPeriode.id);
+
     if (!insideTransaction) db.exec('COMMIT');
   } catch (err) {
     if (!insideTransaction) db.exec('ROLLBACK');
@@ -3157,16 +3159,35 @@ function syncPrimaryKuantitas() {
     const livePaslonParpol = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Parpol'").get()?.cnt) || 0;
     const livePaslonPerseorangan = Number(db.prepare("SELECT COUNT(*) as cnt FROM master_paslon WHERE keterangan = 'Jalur Perseorangan'").get()?.cnt) || 0;
 
+    // Pastikan parameter SSOT kotak_rkb dan formasi per-TPS tersedia di master_kuantitas
+    const ensureKuantitasParam = (kode, nama, satuan, defaultNilai, kategori, keterangan) => {
+      const existing = db.prepare('SELECT id, nilai FROM master_kuantitas WHERE kode = ?').get(kode);
+      if (!existing) {
+        db.prepare(`
+          INSERT INTO master_kuantitas (kode, nama, satuan, nilai, kategori, keterangan)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(kode, nama, satuan, defaultNilai, kategori, keterangan);
+        return defaultNilai;
+      }
+      return Number(existing.nilai);
+    };
+
+    ensureKuantitasParam('kotak_rkb', 'Jumlah Kotak Suara RKB', 'Kotak', liveKotak, 'WILAYAH', 'Total Kotak Suara se-Kabupaten (Otomatis dari Master Desa & TPS)');
+    const kppsKetuaPerTps = ensureKuantitasParam('kpps_ketua_tps', 'Formasi Ketua KPPS per TPS', 'Org', 1, 'PERSONIL', 'Jumlah Ketua KPPS di setiap TPS (Default: 1 Org/TPS)');
+    const kppsAnggotaPerTps = ensureKuantitasParam('kpps_anggota_tps', 'Formasi Anggota KPPS per TPS', 'Org', 6, 'PERSONIL', 'Jumlah Anggota KPPS di setiap TPS (Default: 6 Org/TPS)');
+    const linmasPerTps = ensureKuantitasParam('linmas_per_tps', 'Formasi Linmas / Ketertiban per TPS', 'Org', 2, 'PERSONIL', 'Jumlah Petugas Ketertiban (Linmas) di setiap TPS (Default: 2 Org/TPS)');
+
     const liveKomisioner = Number(db.prepare("SELECT nilai FROM master_kuantitas WHERE kode = 'komisioner'").get()?.nilai) || 0;
     const liveSekretariat = Number(db.prepare("SELECT nilai FROM master_kuantitas WHERE kode = 'sekretariat_kpu'").get()?.nilai) || 0;
     const liveKpuAll = liveKomisioner + liveSekretariat;
+    const liveKppsAllPerTps = kppsKetuaPerTps + kppsAnggotaPerTps + linmasPerTps;
 
     const upd = db.prepare('UPDATE master_kuantitas SET nilai = ? WHERE kode = ?');
     const updWithKet = db.prepare('UPDATE master_kuantitas SET nilai = ?, keterangan = ? WHERE kode = ?');
 
     upd.run(livePantarlih, 'pantarlih');
     upd.run(liveTps, 'tps_rkb');
-    upd.run(liveKotak, 'kotak_rkb');
+    updWithKet.run(liveKotak, `Total Kotak Suara se-Kabupaten (Otomatis dari Master Desa & TPS: ${liveKotak.toLocaleString('id-ID')} Kotak)`, 'kotak_rkb');
     upd.run(liveDesa, 'desa_pps');
     upd.run(liveKec, 'kec_ppk');
     upd.run(livePemilih, 'pemilih_dpt');
@@ -3176,11 +3197,11 @@ function syncPrimaryKuantitas() {
     updWithKet.run(livePaslon, `Total Bakal Pasangan Calon (Otomatis dari Master Paslon: ${livePaslonParpol} Jalur Parpol + ${livePaslonPerseorangan} Jalur Perseorangan = ${livePaslon} Paslon)`, 'paslon');
     updWithKet.run(liveKpuAll, `${liveKomisioner} Komisioner + ${liveSekretariat} Sekretariat = ${liveKpuAll} Org`, 'kpu_all');
 
-    upd.run(liveTps * 1, 'kpps_ketua');
-    upd.run(liveTps * 6, 'kpps_anggota');
-    upd.run(liveTps * 7, 'kpps_all');
-    upd.run(liveTps * 2, 'linmas_tps');
-    upd.run(liveTps * 9, 'petugas_tps');
+    updWithKet.run(liveKppsAllPerTps, `${kppsKetuaPerTps} Ketua + ${kppsAnggotaPerTps} Anggota + ${linmasPerTps} Linmas = ${liveKppsAllPerTps} Org/TPS`, 'kpps_all');
+    updWithKet.run(liveTps * kppsKetuaPerTps, `${kppsKetuaPerTps} Org × ${liveTps.toLocaleString('id-ID')} TPS = ${(liveTps * kppsKetuaPerTps).toLocaleString('id-ID')} Org`, 'kpps_ketua');
+    updWithKet.run(liveTps * kppsAnggotaPerTps, `${kppsAnggotaPerTps} Org × ${liveTps.toLocaleString('id-ID')} TPS = ${(liveTps * kppsAnggotaPerTps).toLocaleString('id-ID')} Org`, 'kpps_anggota');
+    updWithKet.run(liveTps * linmasPerTps, `${linmasPerTps} Org × ${liveTps.toLocaleString('id-ID')} TPS = ${(liveTps * linmasPerTps).toLocaleString('id-ID')} Org`, 'linmas_tps');
+    updWithKet.run(liveTps * liveKppsAllPerTps, `${liveKppsAllPerTps} Org × ${liveTps.toLocaleString('id-ID')} TPS = ${(liveTps * liveKppsAllPerTps).toLocaleString('id-ID')} Org`, 'petugas_tps');
 
     upd.run(liveKec * 1, 'ppk_ketua');
     upd.run(liveKec * 4, 'ppk_anggota');
@@ -3195,8 +3216,268 @@ function syncPrimaryKuantitas() {
     upd.run(liveDesa * 1, 'pps_sekretaris');
     upd.run(liveDesa * 2, 'pps_staf');
     upd.run(liveDesa * 3, 'pps_sekretariat');
+
+    syncRkbReferenceLinks();
   } catch (e) {
     console.warn('[SYNC-KUANTITAS] Peringatan sinkronisasi kuantitas:', e.message);
+  }
+}
+
+/**
+ * Sinkronisasi Otomatis Seluruh Link RKB terhadap Variabel Referensi SSOT
+ * Memastikan setiap baris RKB pada dokumen draf aktif (is_locked = 0) yang berkaitan dengan
+ * TPS, Kotak Suara, Pantarlih/PPDP, Penyelenggara Tingkat TPS (KPPS & Linmas), PPK, PPS,
+ * Pemilih (DPT), Paslon, Parpol, dan Personil KPU selalu terikat ke @var SSOT dan memperbarui
+ * nilai f1_val..f4_val secara reaktif setiap kali data Referensi berubah.
+ */
+function syncRkbReferenceLinks(targetPeriodeId = null) {
+  try {
+    const kuantitasRows = db.prepare('SELECT kode, nilai, satuan FROM master_kuantitas').all();
+    const kMap = {};
+    for (const k of kuantitasRows) {
+      kMap[String(k.kode || '').trim().toLowerCase()] = Number(k.nilai) || 0;
+    }
+
+    const liveTps = kMap.tps_rkb || 0;
+    const liveKotak = kMap.kotak_rkb || liveTps;
+    const livePantarlih = kMap.pantarlih || 0;
+    const livePemilih = kMap.dpt || kMap.pemilih_dpt || 0;
+    const kppsKetuaPerTps = kMap.kpps_ketua_tps ?? 1;
+    const kppsAnggotaPerTps = kMap.kpps_anggota_tps ?? 6;
+    const linmasPerTps = kMap.linmas_per_tps ?? 2;
+    const kppsAllPerTps = kMap.kpps_all ?? (kppsKetuaPerTps + kppsAnggotaPerTps + linmasPerTps);
+    const masaKerjaKpps = kMap.masa_kerja_kpps ?? 1;
+    const masaKerjaPantarlih = kMap.masa_kerja_pantarlih ?? 1;
+    const masaKerjaPpk = kMap.masa_kerja_ppk ?? 8;
+    const masaKerjaPps = kMap.masa_kerja_pps ?? 8;
+    const ppkAllPerKec = kMap.ppk_all ?? 8;
+    const ppsAllPerDesa = kMap.pps_all ?? 6;
+
+    const periods = targetPeriodeId
+      ? db.prepare('SELECT id FROM periode_anggaran WHERE id = ? AND is_locked = 0').all(Number(targetPeriodeId))
+      : db.prepare('SELECT id FROM periode_anggaran WHERE is_locked = 0').all();
+
+    if (!periods.length) return;
+
+    const updRowStmt = db.prepare(`
+      UPDATE rab_baris
+      SET f1_val = ?, f1_unit = ?, f1_var = ?,
+          f2_val = ?, f2_unit = ?, f2_var = ?,
+          f3_val = ?, f3_unit = ?, f3_var = ?,
+          f4_val = ?, f4_unit = ?, f4_var = ?,
+          basis_pengali = ?, label_pengali_kab = ?, target_scope = ?
+      WHERE id = ?
+    `);
+
+    for (const p of periods) {
+      const rows = db.prepare(`
+        SELECT id, urutan, row_type, level_indent, kode, uraian, kode_akun,
+               f1_val, f1_unit, f1_var,
+               f2_val, f2_unit, f2_var,
+               f3_val, f3_unit, f3_var,
+               f4_val, f4_unit, f4_var,
+               basis_pengali, label_pengali_kab, target_scope
+        FROM rab_baris
+        WHERE periode_id = ?
+        ORDER BY urutan ASC, id ASC
+      `).all(p.id);
+
+      let currentL2Uraian = '';
+      let currentL41Uraian = '';
+
+      for (const r of rows) {
+        if (r.row_type === 'header') {
+          if (Number(r.level_indent) === 2) {
+            currentL2Uraian = String(r.uraian || '').trim();
+            currentL41Uraian = '';
+          } else if (Number(r.level_indent) === 41 || Number(r.level_indent) === 21) {
+            currentL41Uraian = String(r.uraian || '').trim();
+          }
+          continue;
+        }
+
+        let f1_val = r.f1_val, f1_unit = r.f1_unit || '', f1_var = r.f1_var || '';
+        let f2_val = r.f2_val, f2_unit = r.f2_unit || '', f2_var = r.f2_var || '';
+        let f3_val = r.f3_val, f3_unit = r.f3_unit || '', f3_var = r.f3_var || '';
+        let f4_val = r.f4_val, f4_unit = r.f4_unit || '', f4_var = r.f4_var || '';
+        let basis_pengali = r.basis_pengali || 'FIXED';
+        let label_pengali_kab = r.label_pengali_kab || '';
+        let target_scope = r.target_scope || 'KAB';
+
+        const uraianClean = String(r.uraian || '').trim();
+        const uraianLower = uraianClean.toLowerCase();
+        const l2Lower = currentL2Uraian.toLowerCase();
+        const l41Lower = currentL41Uraian.toLowerCase();
+
+        // 1. Honorarium Penyelenggara Tingkat TPS (3 KPPS > 521213: a. Ketua, b. Anggota, c. Linmas)
+        if (String(r.kode_akun || '') === '521213' && l2Lower === 'kpps' && target_scope === 'TPS') {
+          if (uraianLower.includes('ketua')) {
+            f1_var = 'kpps_ketua_tps'; f1_val = kppsKetuaPerTps; f1_unit = f1_unit || 'Org';
+            f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
+            f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
+            basis_pengali = 'FIXED'; label_pengali_kab = '';
+          } else if (uraianLower.includes('anggota')) {
+            f1_var = 'kpps_anggota_tps'; f1_val = kppsAnggotaPerTps; f1_unit = f1_unit || 'Org';
+            f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
+            f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
+            basis_pengali = 'FIXED'; label_pengali_kab = '';
+          } else if (uraianLower.includes('linmas')) {
+            f1_var = 'linmas_per_tps'; f1_val = linmasPerTps; f1_unit = f1_unit || 'Org';
+            f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
+            f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
+            basis_pengali = 'FIXED'; label_pengali_kab = '';
+          }
+        }
+
+        // 2. Honorarium Pantarlih / PPDP (4 PPDP > Honor Pantarlih)
+        if (uraianLower === 'honor pantarlih' || (String(r.kode_akun || '') === '521213' && l2Lower.includes('ppdp') && uraianLower.includes('pantarlih'))) {
+          f1_var = 'masa_kerja_pantarlih'; f1_val = masaKerjaPantarlih; f1_unit = 'Bulan';
+          f2_var = 'pantarlih'; f2_val = livePantarlih; f2_unit = 'Org';
+          f3_val = null; f3_unit = ''; f3_var = '';
+          basis_pengali = 'FIXED'; label_pengali_kab = ''; target_scope = 'PANTARLIH';
+        }
+
+        // 3. Perlengkapan & Konsumsi PPDP / Pantarlih (Kaos Coklit PPDP, Konsumsi Pleno DPS/DPTb PPDP, Rapid Test Snack PPDP)
+        if (target_scope === 'PANTARLIH' && uraianLower === '-. ppdp') {
+          if (String(f2_unit).toLowerCase() === 'buah' || String(f3_unit).toLowerCase() === 'tps') {
+            // Gerakan Coklit Serentak - Kaos PPDP: @pantarlih Org x 1 Buah
+            f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
+            f2_var = ''; f2_val = 1; f2_unit = 'Buah';
+            f3_val = null; f3_unit = ''; f3_var = '';
+            basis_pengali = 'FIXED'; label_pengali_kab = '';
+          } else if (String(f2_unit).toLowerCase() === 'tps' || f1_var === 'pantarlih') {
+            // Rapat Pleno DPS / DPTb - Konsumsi PPDP: @pantarlih Org x 1 Keg
+            f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
+            f2_var = ''; f2_val = 1; f2_unit = 'Keg';
+            f3_val = null; f3_unit = ''; f3_var = '';
+            basis_pengali = 'FIXED'; label_pengali_kab = '';
+          }
+        }
+        if (l2Lower.includes('kesehatan') && (l41Lower === 'ppdp' || r.urutan === 1661) && uraianLower === '-. snack' && (basis_pengali === 'TPS_RKB' || f1_var === 'pantarlih')) {
+          f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
+          f2_var = ''; f2_val = 1; f2_unit = 'Keg';
+          basis_pengali = 'FIXED'; label_pengali_kab = ''; target_scope = 'PANTARLIH';
+        }
+
+        // 4. Kebutuhan Per-Petugas TPS (9 Org/TPS = @kpps_all) pada APD, Suplemen, Rapid Test, & Konsumsi KPPS
+        if (basis_pengali === 'TPS_RKB' && String(f1_unit).toLowerCase() === 'org' && (f1_var === 'kpps_all' || (!f1_var && Number(f1_val) === 9))) {
+          f1_var = 'kpps_all';
+          f1_val = kppsAllPerTps;
+        }
+
+        // 5. Honorarium PPK & PPS (Masa Kerja PPK & Masa Kerja PPS)
+        if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPK' && target_scope === 'PPK') {
+          if (/^(bulan|bln)$/i.test(String(f2_unit).trim())) {
+            f2_var = 'masa_kerja_ppk'; f2_val = masaKerjaPpk;
+          } else if (/^(bulan|bln)$/i.test(String(f3_unit).trim())) {
+            f3_var = 'masa_kerja_ppk'; f3_val = masaKerjaPpk;
+          }
+        }
+        if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPS' && target_scope === 'PPS') {
+          if (/^(bulan|bln)$/i.test(String(f2_unit).trim())) {
+            f2_var = 'masa_kerja_pps'; f2_val = masaKerjaPps;
+          } else if (/^(bulan|bln)$/i.test(String(f3_unit).trim())) {
+            f3_var = 'masa_kerja_pps'; f3_val = masaKerjaPps;
+          }
+        }
+
+        // 6. Baris Operasional/Bimtek/APD PPK (8 Org/Kec = @ppk_all) & PPS (6 Org/Desa = @pps_all)
+        if (basis_pengali === 'PPK') {
+          if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'ppk_all' || (!f1_var && Number(f1_val) === 8))) {
+            f1_var = 'ppk_all'; f1_val = ppkAllPerKec;
+          }
+          if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'ppk_all' || (!f2_var && Number(f2_val) === 8))) {
+            f2_var = 'ppk_all'; f2_val = ppkAllPerKec;
+          }
+        }
+        if (basis_pengali === 'PPS') {
+          if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'pps_all' || (!f1_var && Number(f1_val) === 6))) {
+            f1_var = 'pps_all'; f1_val = ppsAllPerDesa;
+          }
+          if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'pps_all' || (!f2_var && Number(f2_val) === 6))) {
+            f2_var = 'pps_all'; f2_val = ppsAllPerDesa;
+          }
+        }
+
+        // 7. Auto-bind setiap faktor F1..F4 untuk satuan TPS (>=100), Kotak (>=100), Kec (>=15), Desa (>=100), Pemilih, Paslon, Parpol, Komisioner, KPU All (40 Org), Sekretariat KPU (35 Org)
+        const fVals = [f1_val, f2_val, f3_val, f4_val];
+        const fUnits = [f1_unit, f2_unit, f3_unit, f3_unit !== undefined ? f4_unit : ''];
+        const fVars = [f1_var, f2_var, f3_var, f4_var];
+
+        for (let i = 0; i < 4; i++) {
+          const uLow = String(fUnits[i] || '').trim().toLowerCase();
+          const vNum = Number(fVals[i]);
+          let vCode = String(fVars[i] || '').trim();
+
+          if (!vCode) {
+            if (uLow === 'tps' && vNum >= 100) {
+              vCode = 'tps_rkb';
+            } else if (uLow === 'kotak' && vNum >= 100) {
+              vCode = 'kotak_rkb';
+            } else if ((uLow === 'kec' || uLow === 'kecamatan') && vNum >= 15) {
+              vCode = 'kec_ppk';
+            } else if ((uLow === 'desa' || uLow === 'kelurahan') && vNum >= 100) {
+              vCode = 'desa_pps';
+            } else if (uLow === 'pemilih') {
+              vCode = 'dpt';
+            } else if (uLow === 'paslon') {
+              if (uraianLower.includes('perseorangan')) vCode = 'paslon_perseorangan';
+              else if (uraianLower.includes('jalur parpol') || uraianLower.includes('paslon parpol')) vCode = 'paslon_parpol';
+              else vCode = 'paslon';
+            } else if (uLow === 'parpol' || uLow === 'partai' || uLow.includes('parpol')) {
+              vCode = 'parpol';
+            } else if (uLow === 'komisioner') {
+              vCode = 'komisioner';
+            } else if ((uLow === 'org' || uLow === 'orang') && target_scope === 'KAB' && basis_pengali === 'FIXED') {
+              if (vNum === 40 && (uraianLower.includes('kpu') || uraianLower.includes('komisioner dan staf') || l41Lower.includes('kpu') || l2Lower.includes('administrasi') || l2Lower.includes('logistik') || l2Lower.includes('pemungutan') || l2Lower.includes('kesehatan'))) {
+                vCode = 'kpu_all';
+              } else if (vNum === 35 && (uraianLower.includes('sekretariat') || uraianLower.includes('kesekretariatan') || l41Lower.includes('lembur'))) {
+                vCode = 'sekretariat_kpu';
+              }
+            }
+          }
+
+          if (vCode && vCode !== 'MANUAL' && vCode !== 'FIXED') {
+            const cleanVar = vCode.replace(/^@/, '').toLowerCase();
+            fVars[i] = cleanVar;
+            if (kMap[cleanVar] !== undefined) {
+              fVals[i] = kMap[cleanVar];
+            }
+          }
+        }
+
+        [f1_val, f2_val, f3_val, f4_val] = fVals;
+        [f1_var, f2_var, f3_var, f4_var] = fVars;
+
+        // Bersihkan duplikasi label_pengali_kab pada baris FIXED
+        if (basis_pengali === 'FIXED' && /^(tps|kotak)$/i.test(String(label_pengali_kab).trim())) {
+          label_pengali_kab = '';
+        }
+
+        const isChanged = (
+          f1_val !== r.f1_val || f1_unit !== (r.f1_unit || '') || f1_var !== (r.f1_var || '') ||
+          f2_val !== r.f2_val || f2_unit !== (r.f2_unit || '') || f2_var !== (r.f2_var || '') ||
+          f3_val !== r.f3_val || f3_unit !== (r.f3_unit || '') || f3_var !== (r.f3_var || '') ||
+          f4_val !== r.f4_val || f4_unit !== (r.f4_unit || '') || f4_var !== (r.f4_var || '') ||
+          basis_pengali !== (r.basis_pengali || 'FIXED') ||
+          label_pengali_kab !== (r.label_pengali_kab || '') ||
+          target_scope !== (r.target_scope || 'KAB')
+        );
+
+        if (isChanged) {
+          updRowStmt.run(
+            f1_val, f1_unit, f1_var,
+            f2_val, f2_unit, f2_var,
+            f3_val, f3_unit, f3_var,
+            f4_val, f4_unit, f4_var,
+            basis_pengali, label_pengali_kab, target_scope,
+            r.id
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[SYNC-RKB-LINKS] Peringatan sinkronisasi link RKB:', err.message);
   }
 }
 
@@ -5306,6 +5587,7 @@ module.exports = {
   getMasters,
   updateSettings,
   syncPrimaryKuantitas,
+  syncRkbReferenceLinks,
   getKuantitasList,
   getKuantitasById,
   saveKuantitas,

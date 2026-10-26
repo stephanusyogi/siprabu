@@ -22,6 +22,15 @@ function getWilayahData() {
   `).all();
 
   const desaByKec = {};
+  const kRows = db.prepare("SELECT kode, nilai FROM master_kuantitas WHERE kode IN ('kpps_ketua_tps', 'kpps_anggota_tps', 'linmas_per_tps')").all();
+  const kForm = {};
+  for (const kr of kRows) kForm[kr.kode] = Number(kr.nilai);
+  const kppsKetuaPerTps = Number.isFinite(kForm.kpps_ketua_tps) ? kForm.kpps_ketua_tps : 1;
+  const kppsAnggotaPerTps = Number.isFinite(kForm.kpps_anggota_tps) ? kForm.kpps_anggota_tps : 6;
+  const linmasPerTps = Number.isFinite(kForm.linmas_per_tps) ? kForm.linmas_per_tps : 2;
+  const kppsOnlyPerTps = kppsKetuaPerTps + kppsAnggotaPerTps;
+  const petugasAllPerTps = kppsOnlyPerTps + linmasPerTps;
+
   const kabVars = {
     ketua_kpps: 0,
     anggota_kpps: 0,
@@ -58,11 +67,11 @@ function getWilayahData() {
       pemilih: pemilihCount,
       rohaniwan: Number(d.rohaniwan) || 0,
       ...custom,
-      ketua_kpps: tpsCount * 1,
-      anggota_kpps: tpsCount * 6,
-      kpps: tpsCount * 7,
-      linmas: tpsCount * 2,
-      petugas_tps: tpsCount * 9
+      ketua_kpps: tpsCount * kppsKetuaPerTps,
+      anggota_kpps: tpsCount * kppsAnggotaPerTps,
+      kpps: tpsCount * kppsOnlyPerTps,
+      linmas: tpsCount * linmasPerTps,
+      petugas_tps: tpsCount * petugasAllPerTps
     };
 
     for (const v of variabels) {
@@ -141,6 +150,10 @@ function getKuantitasMap() {
   const liveKomisioner = map.komisioner && map.komisioner.nilai !== undefined ? (Number(map.komisioner.nilai) || 0) : 5;
   const liveSekretariat = map.sekretariat_kpu && map.sekretariat_kpu.nilai !== undefined ? (Number(map.sekretariat_kpu.nilai) || 0) : 35;
   const liveKpuAll = liveKomisioner + liveSekretariat;
+  const kppsKetuaPerTps = map.kpps_ketua_tps && map.kpps_ketua_tps.nilai !== undefined ? (Number(map.kpps_ketua_tps.nilai) || 0) : 1;
+  const kppsAnggotaPerTps = map.kpps_anggota_tps && map.kpps_anggota_tps.nilai !== undefined ? (Number(map.kpps_anggota_tps.nilai) || 0) : 6;
+  const linmasPerTps = map.linmas_per_tps && map.linmas_per_tps.nilai !== undefined ? (Number(map.linmas_per_tps.nilai) || 0) : 2;
+  const kppsAllPerTps = kppsKetuaPerTps + kppsAnggotaPerTps + linmasPerTps;
 
   for (const k of list) {
     if (k.kode === 'pantarlih') {
@@ -165,15 +178,15 @@ function getKuantitasMap() {
       k.nilai = liveKpuAll;
       k.keterangan = `${liveKomisioner} Komisioner + ${liveSekretariat} Sekretariat = ${liveKpuAll} Org`;
     } else if (k.kode === 'kpps_ketua') {
-      k.nilai = liveTps * 1;
+      k.nilai = liveTps * kppsKetuaPerTps;
     } else if (k.kode === 'kpps_anggota') {
-      k.nilai = liveTps * 6;
+      k.nilai = liveTps * kppsAnggotaPerTps;
     } else if (k.kode === 'linmas_tps') {
-      k.nilai = liveTps * 2;
+      k.nilai = liveTps * linmasPerTps;
     } else if (k.kode === 'petugas_tps') {
-      k.nilai = liveTps * 9;
+      k.nilai = liveTps * kppsAllPerTps;
     } else if (k.kode === 'kpps_all') {
-      k.nilai = liveTps * 7;
+      k.nilai = kppsAllPerTps;
     } else if (k.kode === 'ppk_ketua') {
       k.nilai = liveKec * 1;
     } else if (k.kode === 'ppk_anggota') {
@@ -203,6 +216,18 @@ function getKuantitasMap() {
   }
   if (!map.bakal_paslon && map.paslon) {
     map.bakal_paslon = map.paslon;
+  }
+  if (!map.kotak_rkb) {
+    map.kotak_rkb = { kode: 'kotak_rkb', nama: 'Jumlah Kotak Suara Kabupaten', nilai: liveKotak, satuan: 'Kotak' };
+  }
+  if (!map.kpps_ketua_tps) {
+    map.kpps_ketua_tps = { kode: 'kpps_ketua_tps', nama: 'Ketua KPPS per TPS', nilai: kppsKetuaPerTps, satuan: 'Org' };
+  }
+  if (!map.kpps_anggota_tps) {
+    map.kpps_anggota_tps = { kode: 'kpps_anggota_tps', nama: 'Anggota KPPS per TPS', nilai: kppsAnggotaPerTps, satuan: 'Org' };
+  }
+  if (!map.linmas_per_tps) {
+    map.linmas_per_tps = { kode: 'linmas_per_tps', nama: 'Petugas Ketertiban (Linmas) per TPS', nilai: linmasPerTps, satuan: 'Org' };
   }
   return map;
 }
@@ -304,6 +329,7 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
 
     // AUTO-BINDING CERDAS: Jika baris belum memiliki varCode eksplisit di database, cocokkan secara cerdas dengan satuan atau uraian
     if (!varCode) {
+      const rawNum = Number(parseIndonesianNumber(fs.val) || 0);
       if (unitLower === 'paslon') {
         const uLower = String(r.uraian || '').toLowerCase();
         if (uLower.includes('perseorangan')) {
@@ -319,6 +345,12 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
         varCode = 'komisioner';
       } else if (unitLower === 'pemilih') {
         varCode = 'dpt';
+      } else if (unitLower === 'tps' && rawNum >= 100) {
+        varCode = 'tps_rkb';
+      } else if (unitLower === 'kotak' && rawNum >= 100) {
+        varCode = 'kotak_rkb';
+      } else if (unitLower === 'pantarlih' || unitLower === 'ppdp') {
+        varCode = 'pantarlih';
       }
     }
 
@@ -407,7 +439,7 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
   }
 
   const label = isAdhoc ? (r.label_pengali_adhoc || r.label_pengali_kab || '') : (r.label_pengali_kab || '');
-  if (basis && basis !== 'NONE' && (label || basis !== 'FIXED')) {
+  if (basis && basis !== 'NONE' && basis !== 'FIXED') {
     parts.push(`${Number(mult).toLocaleString('id-ID')} ${label}`.trim());
   }
 

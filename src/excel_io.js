@@ -1533,12 +1533,19 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     const hRow1 = wsRekapEksekutif.addRow(['No', 'Tingkatan Sasaran Anggaran', 'Entitas Unit / Wilayah Sasaran', 'Pagu Anggaran (Rp)', 'Porsi (%)', 'Ruang Lingkup Kegiatan & Keterangan Belanja']);
     applyPresentationHeader(hRow1, 6);
 
+    const wilSummary = getWilayahData();
+    const jmlKec = wilSummary.jumlah_ppk || 19;
+    const jmlDesa = wilSummary.jumlah_pps || 217;
+    const jmlTps = wilSummary.jumlah_tps || 1393;
+    const jmlPantarlih = wilSummary.jumlah_pantarlih || 2784;
+    const jmlPetugasTps = (wilSummary.vars && wilSummary.vars.petugas_tps) ? wilSummary.vars.petugas_tps : (jmlTps * 9);
+
     const dataSasaran = [
       { title: 'Tingkat Satker Kabupaten (KPU Kab. Ngawi)', entitas: '1 Satker KPU Kab. Ngawi', val: sas.KAB || 0, desc: 'Pengadaan logistik utama (surat suara, kotak, bilik), bimtek komprehensif, sosialisasi sentral, advokasi sengketa hukum, dan operasional satker' },
-      { title: 'Tingkat Kecamatan (PPK)', entitas: '19 Kantor PPK se-Kabupaten', val: sas.PPK || 0, desc: 'Operasional kesekretariatan 19 PPK, belanja ATK, konsumsi rapat kerja/pleno, dan dukungan administrasi rekapitulasi tingkat kecamatan' },
-      { title: 'Tingkat Desa / Kelurahan (PPS)', entitas: '217 Kantor PPS se-Kabupaten', val: sas.PPS || 0, desc: 'Operasional sekretariat 217 PPS, pengumuman DPS/DPT, distribusi logistik desa, dan honorarium 5 bulan PPS se-Kabupaten Ngawi' },
-      { title: 'Petugas Pemutakhiran Data Pemilih (Pantarlih)', entitas: '2.537 Petugas Lapangan', val: sas.PANTARLIH || 0, desc: 'Perlengkapan coklit door-to-door, dokumen kerja sensus pemilih, dan supervisi pemutakhiran data pemilih berkelanjutan' },
-      { title: 'Tingkat Tempat Pemungutan Suara (TPS)', entitas: '1.371 TPS (12.339 Petugas)', val: sas.TPS || 0, desc: 'Honorarium KPPS (7 org) dan Petugas Ketertiban Linmas (2 org) per TPS, operasional KPPS, serta pembuatan tenda TPS' }
+      { title: 'Tingkat Kecamatan (PPK)', entitas: `${Number(jmlKec).toLocaleString('id-ID')} Kantor PPK se-Kabupaten`, val: sas.PPK || 0, desc: `Operasional kesekretariatan ${Number(jmlKec).toLocaleString('id-ID')} PPK, belanja ATK, konsumsi rapat kerja/pleno, dan dukungan administrasi rekapitulasi tingkat kecamatan` },
+      { title: 'Tingkat Desa / Kelurahan (PPS)', entitas: `${Number(jmlDesa).toLocaleString('id-ID')} Kantor PPS se-Kabupaten`, val: sas.PPS || 0, desc: `Operasional sekretariat ${Number(jmlDesa).toLocaleString('id-ID')} PPS, pengumuman DPS/DPT, distribusi logistik desa, dan honorarium PPS se-Kabupaten Ngawi` },
+      { title: 'Petugas Pemutakhiran Data Pemilih (Pantarlih)', entitas: `${Number(jmlPantarlih).toLocaleString('id-ID')} Petugas Lapangan`, val: sas.PANTARLIH || 0, desc: 'Perlengkapan coklit door-to-door, dokumen kerja sensus pemilih, dan supervisi pemutakhiran data pemilih berkelanjutan' },
+      { title: 'Tingkat Tempat Pemungutan Suara (TPS)', entitas: `${Number(jmlTps).toLocaleString('id-ID')} TPS (${Number(jmlPetugasTps).toLocaleString('id-ID')} Petugas)`, val: sas.TPS || 0, desc: 'Honorarium KPPS dan Petugas Ketertiban Linmas per TPS, operasional KPPS, serta pembuatan tenda TPS' }
     ];
 
     dataSasaran.forEach((d, idx) => {

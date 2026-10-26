@@ -3596,12 +3596,22 @@ function openResumeSasaranModal() {
   const sas = summary.bySasaran || {};
   const total = Number(summary.grandTotal) || 0;
 
+  const kecCount = (AppState.masters?.kecamatans || []).length || 19;
+  const desas = AppState.masters?.desas || [];
+  const desaCount = desas.length || 217;
+  const tpsCount = desas.reduce((acc, d) => acc + Math.round(Number(d.tps) || 0), 0) || 1393;
+  const pantarlihCount = desas.reduce((acc, d) => acc + Math.round(Number(d.pantarlih) || 0), 0) || 2784;
+  const kMap = {};
+  (AppState.masters?.kuantitas || []).forEach(k => { kMap[String(k.kode || '').toLowerCase()] = Number(k.nilai); });
+  const kppsOrgPerTps = (Number.isFinite(kMap.kpps_ketua_tps) ? kMap.kpps_ketua_tps : 1) + (Number.isFinite(kMap.kpps_anggota_tps) ? kMap.kpps_anggota_tps : 6);
+  const linmasOrgPerTps = Number.isFinite(kMap.linmas_per_tps) ? kMap.linmas_per_tps : 2;
+
   const dataSasaran = [
     { title: '🏢 1. KPU Kabupaten', scope: 'KAB', entitas: 'Satker KPU Kab. Ngawi', val: sas.KAB || 0, desc: 'Operasional satker, logistik sentral, bimtek, sosialisasi, advokasi hukum' },
-    { title: '🏛️ 2. PPK (19 Kecamatan)', scope: 'PPK', entitas: '19 Kecamatan', val: sas.PPK || 0, desc: 'Operasional sekretariat PPK, honorarium PPK & sekretariat 19 kecamatan' },
-    { title: '🏘️ 3. PPS Murni (217 Desa)', scope: 'PPS', entitas: '217 Desa / Kelurahan', val: sas.PPS || 0, desc: 'Operasional sekretariat PPS, honorarium PPS & sekretariat 217 desa' },
-    { title: '📋 4. Pantarlih / PPDP', scope: 'PANTARLIH', entitas: '2.537 Petugas', val: sas.PANTARLIH || 0, desc: 'Honorarium petugas pemutakhiran data pemilih (di bawah koordinasi PPS)' },
-    { title: '🗳️ 5. TPS (KPPS + Linmas)', scope: 'TPS', entitas: '1.371 TPS', val: sas.TPS || 0, desc: 'Honorarium KPPS (7 org) dan Linmas (2 org) per TPS se-Kabupaten Ngawi' },
+    { title: `🏛️ 2. PPK (${formatNumber(kecCount)} Kecamatan)`, scope: 'PPK', entitas: `${formatNumber(kecCount)} Kecamatan`, val: sas.PPK || 0, desc: `Operasional sekretariat PPK, honorarium PPK & sekretariat ${formatNumber(kecCount)} kecamatan` },
+    { title: `🏘️ 3. PPS Murni (${formatNumber(desaCount)} Desa)`, scope: 'PPS', entitas: `${formatNumber(desaCount)} Desa / Kelurahan`, val: sas.PPS || 0, desc: `Operasional sekretariat PPS, honorarium PPS & sekretariat ${formatNumber(desaCount)} desa` },
+    { title: '📋 4. Pantarlih / PPDP', scope: 'PANTARLIH', entitas: `${formatNumber(pantarlihCount)} Petugas`, val: sas.PANTARLIH || 0, desc: 'Honorarium petugas pemutakhiran data pemilih (di bawah koordinasi PPS)' },
+    { title: '🗳️ 5. TPS (KPPS + Linmas)', scope: 'TPS', entitas: `${formatNumber(tpsCount)} TPS`, val: sas.TPS || 0, desc: `Honorarium KPPS (${kppsOrgPerTps} org) dan Linmas (${linmasOrgPerTps} org) per TPS se-Kabupaten Ngawi` },
     { title: '🎯 6. Peserta Pemilihan', scope: 'PESERTA', entitas: 'Paslon & Parpol', val: sas.PESERTA || 0, desc: 'Bahan kampanye, alat peraga kampanye (APK), fasilitasi debat paslon, audit KAP' }
   ];
 
@@ -3964,7 +3974,7 @@ async function submitQuickCatatan() {
 
 function populateFactorVarSelects() {
   const kuantitasList = AppState.masters?.kuantitas || [];
-  const primaryCodes = ['parpol', 'paslon', 'bakal_paslon', 'paslon_perseorangan', 'komisioner', 'tps_rkb', 'kotak_rkb', 'kec_ppk', 'desa_pps', 'dpt', 'sekretariat_kpu'];
+  const primaryCodes = ['parpol', 'paslon', 'bakal_paslon', 'paslon_parpol', 'paslon_perseorangan', 'komisioner', 'tps_rkb', 'kotak_rkb', 'kec_ppk', 'desa_pps', 'dpt', 'sekretariat_kpu', 'kpu_all'];
   
   const primaryItems = [];
   const adhocItems = [];
@@ -3974,7 +3984,7 @@ function populateFactorVarSelects() {
     const code = String(k.kode || '').toLowerCase();
     if (primaryCodes.includes(code)) {
       primaryItems.push(k);
-    } else if (code.startsWith('ppk_') || code.startsWith('pps_') || code.startsWith('kpps_') || code === 'pantarlih' || code === 'linmas_tps' || code === 'petugas_tps') {
+    } else if (code.startsWith('ppk_') || code.startsWith('pps_') || code.startsWith('kpps_') || code.startsWith('masa_kerja_') || code === 'pantarlih' || code === 'linmas_per_tps' || code === 'linmas_tps' || code === 'petugas_tps') {
       adhocItems.push(k);
     } else {
       otherItems.push(k);
@@ -4097,6 +4107,7 @@ function openRowModal(rowId, event) {
   for (let i = 1; i <= 4; i++) {
     let fVar = (row[`f${i}_var`] || '').trim();
     const fUnit = (row[`f${i}_unit`] || '').trim().toLowerCase();
+    const rawValNum = Number(row[`f${i}_val`] || 0);
     if (!fVar) {
       if (fUnit === 'paslon') {
         const uLower = String(row.uraian || '').toLowerCase();
@@ -4109,12 +4120,26 @@ function openRowModal(rowId, event) {
         fVar = 'komisioner';
       } else if (fUnit === 'pemilih') {
         fVar = 'dpt';
+      } else if (fUnit === 'tps' && rawValNum >= 100) {
+        fVar = 'tps_rkb';
+      } else if (fUnit === 'kotak' && rawValNum >= 100) {
+        fVar = 'kotak_rkb';
+      } else if (fUnit === 'pantarlih' || fUnit === 'ppdp') {
+        fVar = 'pantarlih';
       }
     }
     setElVal(`modal-f${i}-var`, fVar);
-    if (fVar === 'dpt' || fVar === 'pemilih_dpt' || fUnit === 'pemilih') {
-      const kItem = (AppState.masters?.kuantitas || []).find(k => k.kode === 'dpt' || k.kode === 'pemilih_dpt');
-      const rawPemVal = (fVar && kItem) ? kItem.nilai : row[`f${i}_val`];
+    if (fVar && fVar !== 'MANUAL' && fVar !== 'FIXED') {
+      const cleanVar = fVar.replace(/^@/, '').toLowerCase();
+      const kItem = (AppState.masters?.kuantitas || []).find(k => String(k.kode || '').toLowerCase() === cleanVar || (cleanVar === 'dpt' && k.kode === 'pemilih_dpt'));
+      if (kItem && kItem.nilai !== null && kItem.nilai !== undefined) {
+        const liveVal = (cleanVar === 'dpt' || cleanVar === 'pemilih_dpt' || fUnit === 'pemilih')
+          ? Math.round(Number(kItem.nilai) || 0)
+          : kItem.nilai;
+        setElVal(`modal-f${i}-val`, liveVal);
+      }
+    } else if (fUnit === 'pemilih') {
+      const rawPemVal = row[`f${i}_val`];
       if (rawPemVal !== null && rawPemVal !== undefined && rawPemVal !== '') {
         setElVal(`modal-f${i}-val`, Math.round(Number(rawPemVal) || 0));
       }
@@ -6882,7 +6907,7 @@ function renderDbKuantitas() {
   const tbody = document.getElementById('table-db-kuantitas');
   if (!tbody) return;
 
-  const reactiveDesa = ['tps_rkb', 'pemilih_dpt', 'dpt', 'pantarlih', 'desa_pps'];
+  const reactiveDesa = ['tps_rkb', 'kotak_rkb', 'pemilih_dpt', 'dpt', 'pantarlih', 'desa_pps'];
   const reactivePpk = ['kec_ppk'];
   const reactivePaslon = ['paslon', 'paslon_parpol', 'paslon_perseorangan', 'bakal_paslon'];
   const formulaKeys = [

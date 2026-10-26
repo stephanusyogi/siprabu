@@ -983,6 +983,85 @@ async function runBusinessBehaviorTests() {
   );
   saveDesaFn({ ...sampleDesa, pemilih: origPemilih }, userDev);
 
+  // =========================================================================
+  // 33. REACTIVE SSOT REFERENCE-TO-RKB AUTO-SYNC (TPS, PANTARLIH, PENYELENGGARA TPS & KOTAK)
+  // =========================================================================
+  console.log('\n--- [33] Reactive SSOT Reference-to-RKB Auto-Sync (TPS, Pantarlih, Penyelenggara TPS & Kotak) ---');
+  const { getOrCreateRevisionCycle: ensureActiveCycle } = require('../src/db');
+  const activeCycle33 = ensureActiveCycle();
+  const desaTarget = db.prepare('SELECT * FROM master_desa WHERE id = 1').get();
+  const origTps33 = Number(desaTarget.tps);
+  const origPantarlih33 = Number(desaTarget.pantarlih);
+  const origKotak33 = Number(desaTarget.kotak);
+
+  const sumBefore33 = db.prepare('SELECT SUM(tps) as tps, SUM(pantarlih) as pantarlih, SUM(kotak) as kotak FROM master_desa').get();
+  const expectedTpsPlus10 = Number(sumBefore33.tps) + 10;
+  const expectedPantarlihPlus20 = Number(sumBefore33.pantarlih) + 20;
+  const expectedKotakPlus10 = Number(sumBefore33.kotak) + 10;
+
+  // Ubah TPS (+10), Pantarlih (+20), dan Kotak (+10) pada Desa 1
+  saveDesaFn({
+    ...desaTarget,
+    tps: origTps33 + 10,
+    pantarlih: origPantarlih33 + 20,
+    kotak: origKotak33 + 10
+  }, userDev);
+  flushCalcCache();
+
+  const dsAfterDesaChange = fetchCalcDataset(activeCycle33.id);
+  const rowKetuaKpps = dsAfterDesaChange.rows.find(r => r.kode_akun === '521213' && r.target_scope === 'TPS' && (r.uraian || '').toLowerCase().includes('ketua'));
+  const rowAnggotaKpps = dsAfterDesaChange.rows.find(r => r.kode_akun === '521213' && r.target_scope === 'TPS' && (r.uraian || '').toLowerCase().includes('anggota'));
+  const rowLinmasTps = dsAfterDesaChange.rows.find(r => r.kode_akun === '521213' && r.target_scope === 'TPS' && (r.uraian || '').toLowerCase().includes('linmas'));
+  const rowKaosPpdp = dsAfterDesaChange.rows.find(r => r.f1_var === 'pantarlih' && (r.f2_unit || '').toLowerCase() === 'buah');
+  const rowKonsumsiPpdp = dsAfterDesaChange.rows.find(r => r.f1_var === 'pantarlih' && (r.f2_unit || '').toLowerCase() === 'keg' && Number(r.harga_satuan) > 0);
+  const rowKotakDist = dsAfterDesaChange.rows.find(r => r.f2_var === 'kotak_rkb');
+  const rowSample5Tps = dsAfterDesaChange.rows.find(r => Number(r.f2_val) === 5 && (r.f2_unit || '').toLowerCase() === 'tps');
+
+  assert(
+    rowKetuaKpps && Number(rowKetuaKpps.f3_val) === expectedTpsPlus10 && rowKetuaKpps.computed_total === (1 * 1 * expectedTpsPlus10 * 900000) &&
+    rowAnggotaKpps && Number(rowAnggotaKpps.f3_val) === expectedTpsPlus10 && rowAnggotaKpps.computed_total === (6 * 1 * expectedTpsPlus10 * 850000) &&
+    rowLinmasTps && Number(rowLinmasTps.f3_val) === expectedTpsPlus10 && rowLinmasTps.computed_total === (2 * 1 * expectedTpsPlus10 * 650000),
+    'Test 33.1: Perubahan angka TPS pada Master Desa otomatis mengubah faktor TPS dan total anggaran Honorarium Ketua KPPS, Anggota KPPS, dan Linmas di RKB.'
+  );
+
+  assert(
+    rowKaosPpdp && Number(rowKaosPpdp.f1_val) === expectedPantarlihPlus20 && rowKaosPpdp.computed_total === (expectedPantarlihPlus20 * 1 * 110000) &&
+    rowKonsumsiPpdp && Number(rowKonsumsiPpdp.f1_val) === expectedPantarlihPlus20 && rowKonsumsiPpdp.computed_total === (expectedPantarlihPlus20 * 1 * 10000),
+    'Test 33.2: Perubahan jumlah Pantarlih pada Master Desa otomatis mengubah perlengkapan (Kaos Coklit) dan konsumsi rapat pleno PPDP/Pantarlih di RKB.'
+  );
+
+  assert(
+    rowKotakDist && Number(rowKotakDist.f2_val) === expectedKotakPlus10 &&
+    rowSample5Tps && Number(rowSample5Tps.f2_val) === 5,
+    'Test 33.3: Perubahan jumlah Kotak Suara otomatis memperbarui baris distribusi kotak (@kotak_rkb), sedangkan baris sampel kunjungan (5 TPS) tetap terlindungi.'
+  );
+
+  // Uji perubahan formasi penyelenggara tingkat TPS (@kpps_anggota_tps dari 6 menjadi 7)
+  const kppsAnggotaParam = db.prepare("SELECT * FROM master_kuantitas WHERE kode = 'kpps_anggota_tps'").get();
+  saveKuantitas({ id: kppsAnggotaParam.id, nilai: 7 }, userDev);
+  flushCalcCache();
+
+  const dsAfterFormationChange = fetchCalcDataset(activeCycle33.id);
+  const rowAnggotaKpps7 = dsAfterFormationChange.rows.find(r => r.kode_akun === '521213' && r.target_scope === 'TPS' && (r.uraian || '').toLowerCase().includes('anggota'));
+  const rowApdMaskerKpps = dsAfterFormationChange.rows.find(r => r.f1_var === 'kpps_all' && (r.uraian || '').toLowerCase().includes('masker'));
+  assert(
+    rowAnggotaKpps7 && Number(rowAnggotaKpps7.f1_val) === 7 && rowAnggotaKpps7.computed_total === (7 * 1 * expectedTpsPlus10 * 850000) &&
+    rowApdMaskerKpps && Number(rowApdMaskpsVal(rowApdMaskerKpps)) === 10,
+    'Test 33.4: Perubahan formasi Anggota KPPS per TPS (@kpps_anggota_tps: 6 -> 7) otomatis memperbarui Honorarium Anggota KPPS (7 Org) dan kebutuhan per-petugas TPS (@kpps_all: 9 -> 10 Org/TPS).'
+  );
+
+  function rowApdMaskpsVal(r) { return r ? r.f1_val : 0; }
+
+  // Kembalikan data Desa 1 dan @kpps_anggota_tps ke nilai semula
+  saveKuantitas({ id: kppsAnggotaParam.id, nilai: 6 }, userDev);
+  saveDesaFn({
+    ...desaTarget,
+    tps: origTps33,
+    pantarlih: origPantarlih33,
+    kotak: origKotak33
+  }, userDev);
+  flushCalcCache();
+
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);
   console.log('================================================================\n');
