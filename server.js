@@ -2496,3 +2496,15 @@ server.listen(PORT, () => {
   console.log(`  Pengembang Resmi: emenje`);
   console.log(`================================================================`);
 });
+
+function gracefulShutdown(signal) {
+  try {
+    if (typeof db.checkpointAndSyncDatabase === 'function') {
+      db.checkpointAndSyncDatabase('TRUNCATE');
+    }
+  } catch (e) {}
+  if (signal) process.exit(0);
+}
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('exit', () => gracefulShutdown(null));

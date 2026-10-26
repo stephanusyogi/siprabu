@@ -21,17 +21,44 @@ const DB_PATH = process.env.SIPRABU_DB_PATH || path.join(DATA_DIR, 'hibah_kpu.sq
 const BACKUP_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.bak');
 const TEMPLATE_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.template');
 
-// Jika file database belum ada, pulihkan dari template atau backup
-if (!fs.existsSync(DB_PATH)) {
-  if (fs.existsSync(BACKUP_PATH)) {
-    try { fs.copyFileSync(BACKUP_PATH, DB_PATH); } catch (e) {}
-  } else if (fs.existsSync(TEMPLATE_PATH)) {
+// Bersihkan file backup 0-byte jika ada agar tidak merusak pemulihan
+if (fs.existsSync(BACKUP_PATH)) {
+  try {
+    if (fs.statSync(BACKUP_PATH).size === 0) fs.unlinkSync(BACKUP_PATH);
+  } catch (e) {}
+}
+
+// Jika file database belum ada (misal saat container hosting baru menyala), pulihkan dari template atau backup
+if (!fs.existsSync(DB_PATH) || (fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size === 0)) {
+  if (fs.existsSync(TEMPLATE_PATH) && fs.statSync(TEMPLATE_PATH).size > 0) {
     try { fs.copyFileSync(TEMPLATE_PATH, DB_PATH); } catch (e) {}
+  } else if (fs.existsSync(BACKUP_PATH) && fs.statSync(BACKUP_PATH).size > 0) {
+    try { fs.copyFileSync(BACKUP_PATH, DB_PATH); } catch (e) {}
   }
 }
 
 const db = new DatabaseSync(DB_PATH);
 module.exports.db = db;
+
+/**
+ * Flush WAL ke file utama hibah_kpu.sqlite dan sinkronkan ke hibah_kpu.sqlite.template & backup
+ * menjamin Durability (D dalam ACID) penuh serta kesamaan struktur/data antara Localhost & Hosting.
+ */
+function checkpointAndSyncDatabase(mode = 'PASSIVE') {
+  try {
+    const cleanMode = ['PASSIVE', 'FULL', 'RESTART', 'TRUNCATE'].includes(String(mode).toUpperCase())
+      ? String(mode).toUpperCase()
+      : 'PASSIVE';
+    db.exec(`PRAGMA wal_checkpoint(${cleanMode});`);
+    if (!process.env.SIPRABU_DB_PATH && fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size > 0) {
+      try { fs.copyFileSync(DB_PATH, TEMPLATE_PATH); } catch (e) {}
+      try { fs.copyFileSync(DB_PATH, BACKUP_PATH); } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('[DB-CHECKPOINT] Peringatan saat checkpoint WAL:', e.message);
+  }
+}
+module.exports.checkpointAndSyncDatabase = checkpointAndSyncDatabase;
 
 // Helper safe add column
 function safeAddColumn(table, colDef) {
@@ -358,6 +385,7 @@ function getAuditLogs({
 function initDb() {
   db.exec(`
     PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = FULL;
     PRAGMA foreign_keys = ON;
   `);
 
@@ -816,61 +844,67 @@ function alignOperationalRkbCycles() {
       console.warn('[MIGRATION] Gagal normalisasi parameter Jalur Paslon:', e.message);
     }
 
-    // 4. Hubungkan variabel SSOT pada baris belanja draft aktif yang satuannya paslon
-    const draftPeriods = db.prepare('SELECT id FROM periode_anggaran WHERE is_locked = 0').all();
-    for (const dp of draftPeriods) {
-      db.prepare("UPDATE rab_baris SET f1_var = 'paslon' WHERE periode_id = ? AND f1_var = 'bakal_paslon'").run(dp.id);
-      db.prepare("UPDATE rab_baris SET f2_var = 'paslon' WHERE periode_id = ? AND f2_var = 'bakal_paslon'").run(dp.id);
-      db.prepare("UPDATE rab_baris SET f3_var = 'paslon' WHERE periode_id = ? AND f3_var = 'bakal_paslon'").run(dp.id);
-      db.prepare("UPDATE rab_baris SET f4_var = 'paslon' WHERE periode_id = ? AND f4_var = 'bakal_paslon'").run(dp.id);
+    // 4 & 5. Migrasi satu-kali (One-Time Seed) untuk variabel Paslon & PIC default PPK/PPS
+    // Dijaga dengan flag persisten agar saat server restart TIDAK menimpa hasil edit manual pengguna.
+    const alignedFlag = db.prepare("SELECT value FROM settings_satker WHERE key = 'operational_cycle_aligned_v1'").get();
+    if (!alignedFlag || alignedFlag.value !== '1') {
+      const draftPeriods = db.prepare('SELECT id FROM periode_anggaran WHERE is_locked = 0').all();
+      for (const dp of draftPeriods) {
+        db.prepare("UPDATE rab_baris SET f1_var = 'paslon' WHERE periode_id = ? AND f1_var = 'bakal_paslon'").run(dp.id);
+        db.prepare("UPDATE rab_baris SET f2_var = 'paslon' WHERE periode_id = ? AND f2_var = 'bakal_paslon'").run(dp.id);
+        db.prepare("UPDATE rab_baris SET f3_var = 'paslon' WHERE periode_id = ? AND f3_var = 'bakal_paslon'").run(dp.id);
+        db.prepare("UPDATE rab_baris SET f4_var = 'paslon' WHERE periode_id = ? AND f4_var = 'bakal_paslon'").run(dp.id);
 
-      const paslonRows = db.prepare(`
-        SELECT id, uraian, f1_unit, f1_var, f2_unit, f2_var, f3_unit, f3_var, f4_unit, f4_var
-        FROM rab_baris
-        WHERE periode_id = ? AND (
-          LOWER(f1_unit) = 'paslon' OR LOWER(f2_unit) = 'paslon' OR LOWER(f3_unit) = 'paslon' OR LOWER(f4_unit) = 'paslon'
-        )
-      `).all(dp.id);
+        const paslonRows = db.prepare(`
+          SELECT id, uraian, f1_unit, f1_var, f2_unit, f2_var, f3_unit, f3_var, f4_unit, f4_var
+          FROM rab_baris
+          WHERE periode_id = ? AND (
+            LOWER(f1_unit) = 'paslon' OR LOWER(f2_unit) = 'paslon' OR LOWER(f3_unit) = 'paslon' OR LOWER(f4_unit) = 'paslon'
+          )
+        `).all(dp.id);
 
-      for (const pr of paslonRows) {
-        const uLower = String(pr.uraian || '').toLowerCase();
-        let targetVar = 'paslon';
-        if (uLower.includes('perseorangan')) targetVar = 'paslon_perseorangan';
-        else if (uLower.includes('jalur parpol') || uLower.includes('paslon parpol')) targetVar = 'paslon_parpol';
+        for (const pr of paslonRows) {
+          const uLower = String(pr.uraian || '').toLowerCase();
+          let targetVar = 'paslon';
+          if (uLower.includes('perseorangan')) targetVar = 'paslon_perseorangan';
+          else if (uLower.includes('jalur parpol') || uLower.includes('paslon parpol')) targetVar = 'paslon_parpol';
 
-        const updates = [];
-        const params = [];
-        for (let i = 1; i <= 4; i++) {
-          if (String(pr[`f${i}_unit`] || '').toLowerCase() === 'paslon' && !pr[`f${i}_var`]) {
-            updates.push(`f${i}_var = ?`);
-            params.push(targetVar);
+          const updates = [];
+          const params = [];
+          for (let i = 1; i <= 4; i++) {
+            if (String(pr[`f${i}_unit`] || '').toLowerCase() === 'paslon' && !pr[`f${i}_var`]) {
+              updates.push(`f${i}_var = ?`);
+              params.push(targetVar);
+            }
+          }
+          if (updates.length > 0) {
+            params.push(pr.id);
+            db.prepare(`UPDATE rab_baris SET ${updates.join(', ')} WHERE id = ?`).run(...params);
           }
         }
-        if (updates.length > 0) {
-          params.push(pr.id);
-          db.prepare(`UPDATE rab_baris SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-        }
-      }
 
-      // 5. Selaraskan baris anak di bawah PPK dan PPS agar selalu seragam mengikuti PIC PARSDM
-      try {
-        const ppkRow = db.prepare(`
-          SELECT id, pic_bagian FROM rab_baris
-          WHERE periode_id = ? AND kode = '1' AND uraian LIKE '%PPK%' AND (row_type = 'header' OR level_indent = 2)
-        `).get(dp.id);
-        if (ppkRow) {
-          updateRabBarisPicWithCascade(dp.id, ppkRow.id, 'PARSDM', true);
+        try {
+          const ppkRow = db.prepare(`
+            SELECT id, pic_bagian FROM rab_baris
+            WHERE periode_id = ? AND kode = '1' AND uraian LIKE '%PPK%' AND (row_type = 'header' OR level_indent = 2)
+          `).get(dp.id);
+          if (ppkRow) {
+            updateRabBarisPicWithCascade(dp.id, ppkRow.id, 'PARSDM', true);
+          }
+          const ppsRow = db.prepare(`
+            SELECT id, pic_bagian FROM rab_baris
+            WHERE periode_id = ? AND kode = '2' AND uraian = 'PPS' AND (row_type = 'header' OR level_indent = 2)
+          `).get(dp.id);
+          if (ppsRow) {
+            updateRabBarisPicWithCascade(dp.id, ppsRow.id, 'PARSDM', true);
+          }
+        } catch (e) {
+          console.warn('[MIGRATION] Gagal sinkronisasi baris turunan PPK/PPS:', e.message);
         }
-        const ppsRow = db.prepare(`
-          SELECT id, pic_bagian FROM rab_baris
-          WHERE periode_id = ? AND kode = '2' AND uraian = 'PPS' AND (row_type = 'header' OR level_indent = 2)
-        `).get(dp.id);
-        if (ppsRow) {
-          updateRabBarisPicWithCascade(dp.id, ppsRow.id, 'PARSDM', true);
-        }
-      } catch (e) {
-        console.warn('[MIGRATION] Gagal sinkronisasi baris turunan PPK/PPS:', e.message);
       }
+      try {
+        db.prepare("INSERT OR REPLACE INTO settings_satker (key, value) VALUES ('operational_cycle_aligned_v1', '1')").run();
+      } catch (e) {}
     }
 
     // 6. Sinkronkan kuantitas primer SSOT (termasuk Jalur Parpol & Jalur Perseorangan dari Master Paslon)
@@ -1743,7 +1777,7 @@ function clonePeriodeToRevision(sourcePeriodeId, {
       idMap[r.id] = res.lastInsertRowid;
     }
 
-    syncRkbReferenceLinks(newPeriode.id);
+    syncRkbReferenceLinks(newPeriode.id, true);
 
     if (!insideTransaction) db.exec('COMMIT');
   } catch (err) {
@@ -3010,7 +3044,10 @@ function commitStagedRkbOps(periodeId, ops = [], options = {}, actorUser = null)
       notes: summaryNotes
     });
 
-    // Sinkronkan otomatis ke template & berkas database resmi siprabu_siap_phpmyadmin.sql (jika bukan mode unit test)
+    // Flush WAL & sinkronkan langsung ke template/backup (ACID Durability)
+    checkpointAndSyncDatabase('PASSIVE');
+
+    // Sinkronkan otomatis ke berkas SQL ekspor siprabu_siap_phpmyadmin.sql (jika bukan mode unit test)
     if (!process.env.SIPRABU_DB_PATH) {
       setImmediate(() => {
         try {
@@ -3522,13 +3559,16 @@ function syncPrimaryKuantitas() {
  * Pemilih (DPT), Paslon, Parpol, dan Personil KPU selalu terikat ke @var SSOT dan memperbarui
  * nilai f1_val..f4_val secara reaktif setiap kali data Referensi berubah.
  */
-function syncRkbReferenceLinks(targetPeriodeId = null) {
+function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = false) {
   try {
     const kuantitasRows = db.prepare('SELECT kode, nilai, satuan FROM master_kuantitas').all();
     const kMap = {};
     for (const k of kuantitasRows) {
       kMap[String(k.kode || '').trim().toLowerCase()] = Number(k.nilai) || 0;
     }
+
+    const seededFlag = db.prepare("SELECT value FROM settings_satker WHERE key = 'ssot_initial_links_seeded_v1'").get();
+    const runHeuristics = Boolean(forceInitialHeuristics || !seededFlag || seededFlag.value !== '1');
 
     const liveTps = kMap.tps_rkb || 0;
     const liveKotak = kMap.kotak_rkb || liveTps;
@@ -3601,103 +3641,103 @@ function syncRkbReferenceLinks(targetPeriodeId = null) {
         const l2Lower = currentL2Uraian.toLowerCase();
         const l41Lower = currentL41Uraian.toLowerCase();
 
-        // 1. Honorarium Penyelenggara Tingkat TPS (3 KPPS > 521213: a. Ketua, b. Anggota, c. Linmas)
-        if (String(r.kode_akun || '') === '521213' && l2Lower === 'kpps' && target_scope === 'TPS') {
-          if (uraianLower.includes('ketua')) {
-            f1_var = 'kpps_ketua_tps'; f1_val = kppsKetuaPerTps; f1_unit = f1_unit || 'Org';
-            f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
-            f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
-            basis_pengali = 'FIXED'; label_pengali_kab = '';
-          } else if (uraianLower.includes('anggota')) {
-            f1_var = 'kpps_anggota_tps'; f1_val = kppsAnggotaPerTps; f1_unit = f1_unit || 'Org';
-            f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
-            f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
-            basis_pengali = 'FIXED'; label_pengali_kab = '';
-          } else if (uraianLower.includes('linmas')) {
-            f1_var = 'linmas_per_tps'; f1_val = linmasPerTps; f1_unit = f1_unit || 'Org';
-            f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
-            f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
-            basis_pengali = 'FIXED'; label_pengali_kab = '';
+        if (runHeuristics) {
+          // 1. Honorarium Penyelenggara Tingkat TPS (3 KPPS > 521213: a. Ketua, b. Anggota, c. Linmas)
+          if (String(r.kode_akun || '') === '521213' && l2Lower === 'kpps' && target_scope === 'TPS') {
+            if (uraianLower.includes('ketua')) {
+              f1_var = 'kpps_ketua_tps'; f1_val = kppsKetuaPerTps; f1_unit = f1_unit || 'Org';
+              f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
+              f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
+              basis_pengali = 'FIXED'; label_pengali_kab = '';
+            } else if (uraianLower.includes('anggota')) {
+              f1_var = 'kpps_anggota_tps'; f1_val = kppsAnggotaPerTps; f1_unit = f1_unit || 'Org';
+              f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
+              f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
+              basis_pengali = 'FIXED'; label_pengali_kab = '';
+            } else if (uraianLower.includes('linmas')) {
+              f1_var = 'linmas_per_tps'; f1_val = linmasPerTps; f1_unit = f1_unit || 'Org';
+              f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
+              f3_var = 'tps_rkb'; f3_val = liveTps; f3_unit = f3_unit || 'TPS';
+              basis_pengali = 'FIXED'; label_pengali_kab = '';
+            }
           }
-        }
 
-        // 2. Honorarium Pantarlih / PPDP (4 PPDP > Honor Pantarlih)
-        if (uraianLower === 'honor pantarlih' || (String(r.kode_akun || '') === '521213' && l2Lower.includes('ppdp') && uraianLower.includes('pantarlih'))) {
-          f1_var = 'masa_kerja_pantarlih'; f1_val = masaKerjaPantarlih; f1_unit = 'Bulan';
-          f2_var = 'pantarlih'; f2_val = livePantarlih; f2_unit = 'Org';
-          f3_val = null; f3_unit = ''; f3_var = '';
-          basis_pengali = 'FIXED'; label_pengali_kab = ''; target_scope = 'PANTARLIH';
-        }
-
-        // 3. Perlengkapan & Konsumsi PPDP / Pantarlih (Kaos Coklit PPDP, Konsumsi Pleno DPS/DPTb PPDP, Rapid Test Snack PPDP)
-        if (target_scope === 'PANTARLIH' && uraianLower === '-. ppdp') {
-          if (String(f2_unit).toLowerCase() === 'buah' || String(f3_unit).toLowerCase() === 'tps') {
-            // Gerakan Coklit Serentak - Kaos PPDP: @pantarlih Org x 1 Buah
-            f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
-            f2_var = ''; f2_val = 1; f2_unit = 'Buah';
+          // 2. Honorarium Pantarlih / PPDP (4 PPDP > Honor Pantarlih)
+          if (uraianLower === 'honor pantarlih' || (String(r.kode_akun || '') === '521213' && l2Lower.includes('ppdp') && uraianLower.includes('pantarlih'))) {
+            f1_var = 'masa_kerja_pantarlih'; f1_val = masaKerjaPantarlih; f1_unit = 'Bulan';
+            f2_var = 'pantarlih'; f2_val = livePantarlih; f2_unit = 'Org';
             f3_val = null; f3_unit = ''; f3_var = '';
-            basis_pengali = 'FIXED'; label_pengali_kab = '';
-          } else if (String(f2_unit).toLowerCase() === 'tps' || f1_var === 'pantarlih') {
-            // Rapat Pleno DPS / DPTb - Konsumsi PPDP: @pantarlih Org x 1 Keg
+            basis_pengali = 'FIXED'; label_pengali_kab = ''; target_scope = 'PANTARLIH';
+          }
+
+          // 3. Perlengkapan & Konsumsi PPDP / Pantarlih (Kaos Coklit PPDP, Konsumsi Pleno DPS/DPTb PPDP, Rapid Test Snack PPDP)
+          if (target_scope === 'PANTARLIH' && uraianLower === '-. ppdp') {
+            if (String(f2_unit).toLowerCase() === 'buah' || String(f3_unit).toLowerCase() === 'tps') {
+              f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
+              f2_var = ''; f2_val = 1; f2_unit = 'Buah';
+              f3_val = null; f3_unit = ''; f3_var = '';
+              basis_pengali = 'FIXED'; label_pengali_kab = '';
+            } else if (String(f2_unit).toLowerCase() === 'tps' || f1_var === 'pantarlih') {
+              f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
+              f2_var = ''; f2_val = 1; f2_unit = 'Keg';
+              f3_val = null; f3_unit = ''; f3_var = '';
+              basis_pengali = 'FIXED'; label_pengali_kab = '';
+            }
+          }
+          if (l2Lower.includes('kesehatan') && (l41Lower === 'ppdp' || r.urutan === 1661) && uraianLower === '-. snack' && (basis_pengali === 'TPS_RKB' || f1_var === 'pantarlih')) {
             f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
             f2_var = ''; f2_val = 1; f2_unit = 'Keg';
-            f3_val = null; f3_unit = ''; f3_var = '';
-            basis_pengali = 'FIXED'; label_pengali_kab = '';
+            basis_pengali = 'FIXED'; label_pengali_kab = ''; target_scope = 'PANTARLIH';
           }
-        }
-        if (l2Lower.includes('kesehatan') && (l41Lower === 'ppdp' || r.urutan === 1661) && uraianLower === '-. snack' && (basis_pengali === 'TPS_RKB' || f1_var === 'pantarlih')) {
-          f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
-          f2_var = ''; f2_val = 1; f2_unit = 'Keg';
-          basis_pengali = 'FIXED'; label_pengali_kab = ''; target_scope = 'PANTARLIH';
-        }
 
-        // 4. Kebutuhan Per-Petugas TPS (9 Org/TPS = @kpps_all) pada APD, Suplemen, Rapid Test, & Konsumsi KPPS
-        if (basis_pengali === 'TPS_RKB' || f3_var === 'tps_rkb' || target_scope === 'TPS') {
-          if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'kpps_all' || (!f1_var && Number(f1_val) === 9))) {
-            f1_var = 'kpps_all';
-            f1_val = kppsAllPerTps;
+          // 4. Kebutuhan Per-Petugas TPS (9 Org/TPS = @kpps_all) pada APD, Suplemen, Rapid Test, & Konsumsi KPPS
+          if (basis_pengali === 'TPS_RKB' || f3_var === 'tps_rkb' || target_scope === 'TPS') {
+            if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'kpps_all' || (!f1_var && Number(f1_val) === 9))) {
+              f1_var = 'kpps_all';
+              f1_val = kppsAllPerTps;
+            }
+            if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'kpps_all' || (!f2_var && Number(f2_val) === 9))) {
+              f2_var = 'kpps_all';
+              f2_val = kppsAllPerTps;
+            }
           }
-          if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'kpps_all' || (!f2_var && Number(f2_val) === 9))) {
-            f2_var = 'kpps_all';
-            f2_val = kppsAllPerTps;
-          }
-        }
 
-        // 5. Honorarium PPK & PPS (Masa Kerja PPK & Masa Kerja PPS)
-        if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPK' && target_scope === 'PPK') {
-          if (/^(bulan|bln)$/i.test(String(f2_unit).trim())) {
-            f2_var = 'masa_kerja_ppk'; f2_val = masaKerjaPpk;
-          } else if (/^(bulan|bln)$/i.test(String(f3_unit).trim())) {
-            f3_var = 'masa_kerja_ppk'; f3_val = masaKerjaPpk;
+          // 5. Honorarium PPK & PPS (Masa Kerja PPK & Masa Kerja PPS)
+          if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPK' && target_scope === 'PPK') {
+            if (/^(bulan|bln)$/i.test(String(f2_unit).trim())) {
+              f2_var = 'masa_kerja_ppk'; f2_val = masaKerjaPpk;
+            } else if (/^(bulan|bln)$/i.test(String(f3_unit).trim())) {
+              f3_var = 'masa_kerja_ppk'; f3_val = masaKerjaPpk;
+            }
           }
-        }
-        if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPS' && target_scope === 'PPS') {
-          if (/^(bulan|bln)$/i.test(String(f2_unit).trim())) {
-            f2_var = 'masa_kerja_pps'; f2_val = masaKerjaPps;
-          } else if (/^(bulan|bln)$/i.test(String(f3_unit).trim())) {
-            f3_var = 'masa_kerja_pps'; f3_val = masaKerjaPps;
+          if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPS' && target_scope === 'PPS') {
+            if (/^(bulan|bln)$/i.test(String(f2_unit).trim())) {
+              f2_var = 'masa_kerja_pps'; f2_val = masaKerjaPps;
+            } else if (/^(bulan|bln)$/i.test(String(f3_unit).trim())) {
+              f3_var = 'masa_kerja_pps'; f3_val = masaKerjaPps;
+            }
           }
-        }
 
-        // 6. Baris Operasional/Bimtek/APD PPK (8 Org/Kec = @ppk_all) & PPS (6 Org/Desa = @pps_all)
-        if (basis_pengali === 'PPK') {
-          if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'ppk_all' || (!f1_var && Number(f1_val) === 8))) {
-            f1_var = 'ppk_all'; f1_val = ppkAllPerKec;
+          // 6. Baris Operasional/Bimtek/APD PPK (8 Org/Kec = @ppk_all) & PPS (6 Org/Desa = @pps_all)
+          if (basis_pengali === 'PPK') {
+            if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'ppk_all' || (!f1_var && Number(f1_val) === 8))) {
+              f1_var = 'ppk_all'; f1_val = ppkAllPerKec;
+            }
+            if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'ppk_all' || (!f2_var && Number(f2_val) === 8))) {
+              f2_var = 'ppk_all'; f2_val = ppkAllPerKec;
+            }
           }
-          if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'ppk_all' || (!f2_var && Number(f2_val) === 8))) {
-            f2_var = 'ppk_all'; f2_val = ppkAllPerKec;
-          }
-        }
-        if (basis_pengali === 'PPS') {
-          if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'pps_all' || (!f1_var && Number(f1_val) === 6))) {
-            f1_var = 'pps_all'; f1_val = ppsAllPerDesa;
-          }
-          if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'pps_all' || (!f2_var && Number(f2_val) === 6))) {
-            f2_var = 'pps_all'; f2_val = ppsAllPerDesa;
+          if (basis_pengali === 'PPS') {
+            if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'pps_all' || (!f1_var && Number(f1_val) === 6))) {
+              f1_var = 'pps_all'; f1_val = ppsAllPerDesa;
+            }
+            if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'pps_all' || (!f2_var && Number(f2_val) === 6))) {
+              f2_var = 'pps_all'; f2_val = ppsAllPerDesa;
+            }
           }
         }
 
-        // 7. Auto-bind setiap faktor F1..F4 untuk satuan TPS (>=100), Kotak (>=100), Kec (>=15), Desa (>=100), Pemilih, Paslon, Parpol, Komisioner, KPU All (40 Org), Sekretariat KPU (35 Org)
+        // 7. Sinkronisasi nilai F1..F4 yang terikat ke @var SSOT
         const fVals = [f1_val, f2_val, f3_val, f4_val];
         const fUnits = [f1_unit, f2_unit, f3_unit, f3_unit !== undefined ? f4_unit : ''];
         const fVars = [f1_var, f2_var, f3_var, f4_var];
@@ -3707,7 +3747,7 @@ function syncRkbReferenceLinks(targetPeriodeId = null) {
           const vNum = Number(fVals[i]);
           let vCode = String(fVars[i] || '').trim();
 
-          if (!vCode) {
+          if (!vCode && runHeuristics) {
             if (uLow === 'tps' && vNum >= 100) {
               vCode = 'tps_rkb';
             } else if (uLow === 'kotak' && vNum >= 100) {
@@ -3749,8 +3789,8 @@ function syncRkbReferenceLinks(targetPeriodeId = null) {
         [f1_val, f2_val, f3_val, f4_val] = fVals;
         [f1_var, f2_var, f3_var, f4_var] = fVars;
 
-        // Bersihkan duplikasi label_pengali_kab pada baris FIXED
-        if (basis_pengali === 'FIXED' && /^(tps|kotak)$/i.test(String(label_pengali_kab).trim())) {
+        // Bersihkan duplikasi label_pengali_kab pada baris FIXED (hanya saat inisialisasi awal)
+        if (runHeuristics && basis_pengali === 'FIXED' && /^(tps|kotak)$/i.test(String(label_pengali_kab).trim())) {
           label_pengali_kab = '';
         }
 
@@ -3775,6 +3815,12 @@ function syncRkbReferenceLinks(targetPeriodeId = null) {
           );
         }
       }
+    }
+
+    if (runHeuristics && !targetPeriodeId) {
+      try {
+        db.prepare("INSERT OR REPLACE INTO settings_satker (key, value) VALUES ('ssot_initial_links_seeded_v1', '1')").run();
+      } catch (e) {}
     }
   } catch (err) {
     console.warn('[SYNC-RKB-LINKS] Peringatan sinkronisasi link RKB:', err.message);
@@ -5942,5 +5988,6 @@ module.exports = {
   checkRowEditPermission,
   logRevisiHistory,
   getRevisiPengajuanHistory,
-  getRevisionCycleStatus
+  getRevisionCycleStatus,
+  checkpointAndSyncDatabase
 };
