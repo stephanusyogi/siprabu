@@ -81,15 +81,8 @@ console.log('\nCycle Status:', {
   siap_pengesahan: cycle.siap_pengesahan
 });
 
-// 4. Sync to template and Office Database
+// 4. Sync to template database
 const srcDb = path.join(__dirname, '../data/hibah_kpu.sqlite');
 const templateDb = path.join(__dirname, '../data/hibah_kpu.sqlite.template');
 fs.copyFileSync(srcDb, templateDb);
 console.log('\nUpdated template database at:', templateDb);
-
-const officeDir = 'D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\Database';
-const officeDb = path.join(officeDir, 'hibah_kpu.sqlite');
-if (fs.existsSync(officeDir)) {
-  fs.copyFileSync(srcDb, officeDb);
-  console.log('Synced to Office Database at:', officeDb);
-}

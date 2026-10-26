@@ -41,8 +41,8 @@ const db = new DatabaseSync(DB_PATH);
 module.exports.db = db;
 
 /**
- * Flush WAL ke file utama hibah_kpu.sqlite dan sinkronkan ke hibah_kpu.sqlite.template & backup
- * menjamin Durability (D dalam ACID) penuh serta kesamaan struktur/data antara Localhost & Hosting.
+ * Flush WAL ke file utama hibah_kpu.sqlite dan cadangkan ke hibah_kpu.sqlite.bak
+ * menjamin Durability (D dalam ACID) penuh tanpa kerja dua arah.
  */
 function checkpointAndSyncDatabase(mode = 'PASSIVE') {
   try {
@@ -51,7 +51,6 @@ function checkpointAndSyncDatabase(mode = 'PASSIVE') {
       : 'PASSIVE';
     db.exec(`PRAGMA wal_checkpoint(${cleanMode});`);
     if (!process.env.SIPRABU_DB_PATH && fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size > 0) {
-      try { fs.copyFileSync(DB_PATH, TEMPLATE_PATH); } catch (e) {}
       try { fs.copyFileSync(DB_PATH, BACKUP_PATH); } catch (e) {}
     }
   } catch (e) {
@@ -3044,21 +3043,8 @@ function commitStagedRkbOps(periodeId, ops = [], options = {}, actorUser = null)
       notes: summaryNotes
     });
 
-    // Flush WAL & sinkronkan langsung ke template/backup (ACID Durability)
+    // Flush WAL & cadangkan langsung (ACID Durability)
     checkpointAndSyncDatabase('PASSIVE');
-
-    // Sinkronkan otomatis ke berkas SQL ekspor siprabu_siap_phpmyadmin.sql (jika bukan mode unit test)
-    if (!process.env.SIPRABU_DB_PATH) {
-      setImmediate(() => {
-        try {
-          const { execFile } = require('child_process');
-          const scriptPath = path.resolve(__dirname, '..', 'scripts', 'export_sqlite_to_mysql.js');
-          if (fs.existsSync(scriptPath)) {
-            execFile(process.execPath, [scriptPath], { windowsHide: true }, () => {});
-          }
-        } catch (e) {}
-      });
-    }
 
     return {
       committed: true,
