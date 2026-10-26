@@ -3907,7 +3907,8 @@
 
           <div class="form-group">
             <label>Pilih Sasaran Baru:</label>
-            <select id="quick-sasaran-select" class="input-select" style="font-weight: 600; font-size: 13.5px;">
+            <select id="quick-sasaran-select" class="input-select" style="font-weight: 600; font-size: 13.5px;" onchange="onQuickSasaranSelectChange()">
+              <option value="NONE" id="quick-sasaran-opt-none">🚫 Kosongkan / Multi-Sasaran (Hapus Label Sasaran pada Header Ini)</option>
               <option value="KAB">🏢 KAB — KPU Kabupaten Ngawi</option>
               <option value="PPK">🏛️ PPK — Panitia Pemilihan Kecamatan (19 Kec)</option>
               <option value="PPS">🏘️ PPS — Panitia Pemungutan Suara (217 Desa)</option>
@@ -3931,9 +3932,16 @@
             💡 <strong>Pewarisan Satu Arah:</strong> Mengubah Sasaran pada rincian belanja ini <u>hanya berlaku untuk baris ini saja</u> dan tidak mengubah baris induk di atasnya.
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary btn-sm" onclick="closeQuickSasaranModal()">Batal</button>
-          <button class="btn btn-primary btn-sm" onclick="submitQuickSasaran()">💾 Simpan Perubahan Sasaran</button>
+        <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <button type="button" id="btn-clear-sasaran-header" class="btn btn-outline-danger btn-sm" onclick="clearHeaderSasaran()" style="display:none; font-weight:700;" title="Hapus / kosongkan label Sasaran pada baris Header ini tanpa mengubah sasaran rincian di bawahnya">
+              🗑️ Hapus Sasaran Header Ini
+            </button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="closeQuickSasaranModal()">Batal</button>
+            <button class="btn btn-primary btn-sm" onclick="submitQuickSasaran()">💾 Simpan Perubahan Sasaran</button>
+          </div>
         </div>
       </div>
     </div>
@@ -5468,7 +5476,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=4.0.7"></script>
+    <script src="/app.js?v=4.0.8"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

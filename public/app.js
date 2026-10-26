@@ -3142,13 +3142,16 @@ function updateSelectedRowUI() {
           </button>
         `;
       } else if (treeLvl === 5.5) {
-        // L5.5 (Header Teks / Sub-Header): Tambah Detail (L6) di bawahnya + Tambah Header Teks Sejajar + Ubah Teks + Hapus
+        // L5.5 (Header Kelompok >): Tambah Detail (L6) di bawahnya + Tambah Header Teks Sejajar + Rekam Akun BAS + Ubah Teks + Hapus
         btns += `
           <button class="btn btn-success btn-sm" onclick="openAddRowModalWithParent(${row.id})" style="font-weight:700;" title="Tambah Rincian Belanja di bawah kelompok teks ini">
             ➕ Tambah Detail Belanja (L6)
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(5.5, ${row.id})" style="font-weight:700;" title="Tambah Header Teks Sejajar (misal: b. Kendaraan Dinas)">
-            📑 Tambah Header Teks Sejajar
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(5.5, ${row.id})" style="font-weight:700;" title="Tambah Header Kelompok Sejajar (misal: > Konsumsi)">
+            📑 Tambah Header Kelompok
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;" title="Rekam Akun Belanja BAS baru">
+            🏷️ Rekam Akun BAS (L5)
           </button>
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
@@ -3158,10 +3161,13 @@ function updateSelectedRowUI() {
           </button>
         `;
       } else if (treeLvl === 6) {
-        // L6: Tambah L6 (Detail Sejajar) + Ubah + Hapus
+        // L6: Tambah L6 (Detail Sejajar) + Rekam Akun BAS (L5) + Ubah + Hapus
         btns += `
           <button class="btn btn-success btn-sm" onclick="openAddRowModal()" style="font-weight:700;" title="Tambah Rincian Belanja baru sejajar dengan baris ini">
             ➕ Tambah Detail Sejajar (L6)
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:600;" title="Rekam Akun Belanja BAS baru setelah rincian ini">
+            🏷️ Rekam Akun BAS (L5)
           </button>
           <button class="btn btn-primary btn-sm" onclick="openRowModal(${row.id}, event)" style="font-weight:600;" title="Ubah Rincian Belanja ini">
             ✏️ Ubah Rincian
@@ -3424,8 +3430,10 @@ function renderRkbTable() {
     const picChip = `<span class="pic-chip pic-${pic}" onclick="openQuickPicModal(${r.id}, event)" title="Klik untuk mengubah Subbagian PIC baris ini">${pic}</span>`;
     const showPic = lvl >= 2 || isItem;
 
-    const targetSas = (r.target_scope || 'KAB').toUpperCase();
-    const sasChip = `<span class="scope-chip scope-${targetSas}" onclick="openQuickSasaranModal(${r.id}, event)" style="cursor:pointer;" title="Klik untuk mengubah Sasaran Anggaran (Mendukung Top-Down Cascade)">${targetSas}</span>`;
+    const targetSas = (r.effective_target_scope || r.target_scope || (r.is_header ? 'NONE' : 'KAB')).toUpperCase();
+    const sasChip = (r.is_header && (targetSas === 'NONE' || targetSas === 'ALL'))
+      ? `<span onclick="openQuickSasaranModal(${r.id}, event)" style="cursor:pointer;font-size:11px;color:#94a3b8;padding:1px 7px;border:1px dashed #cbd5e1;border-radius:4px;display:inline-block;" title="Multi-Sasaran / Mengikuti rincian di bawahnya. Klik untuk mengatur Sasaran">-</span>`
+      : `<span class="scope-chip scope-${targetSas}" onclick="openQuickSasaranModal(${r.id}, event)" style="cursor:pointer;" title="Klik untuk mengubah atau menghapus Sasaran Anggaran (Mendukung Top-Down Cascade)">${targetSas}</span>`;
     const showSas = lvl >= 2 || isItem;
 
     const canEdit = checkCanEditRow(user, r, isLocked);
@@ -3801,10 +3809,16 @@ function openQuickSasaranModal(rowId, event) {
   const row = (AppState.rkbData?.rows || []).find(r => r.id === rowId);
   if (!row) return;
 
-  setElVal('quick-sasaran-row-id', row.id);
-  setElVal('quick-sasaran-select', (row.target_scope || 'KAB').toUpperCase());
-
   const isHeader = Boolean(row.is_header);
+  const optNone = document.getElementById('quick-sasaran-opt-none');
+  const btnClear = document.getElementById('btn-clear-sasaran-header');
+  if (optNone) optNone.style.display = isHeader ? 'block' : 'none';
+  if (btnClear) btnClear.style.display = isHeader ? 'inline-flex' : 'none';
+
+  setElVal('quick-sasaran-row-id', row.id);
+  const curSas = (row.effective_target_scope || row.target_scope || (isHeader ? 'NONE' : 'KAB')).toUpperCase();
+  setElVal('quick-sasaran-select', (curSas === 'ALL' || curSas === 'NONE') ? (isHeader ? 'NONE' : 'KAB') : curSas);
+
   const lvl = Number(row.level_indent);
   const uraianEl = document.getElementById('quick-sasaran-uraian');
   const badgeEl = document.getElementById('quick-sasaran-level-badge');
@@ -3815,8 +3829,9 @@ function openQuickSasaranModal(rowId, event) {
 
   let lvlName = 'Rincian Belanja (Item Level 6)';
   if (lvl === 2) lvlName = 'Kegiatan (Level 3)';
-  else if (lvl >= 21 && lvl <= 25) lvlName = 'Sub-Kegiatan (Level 4)';
+  else if (lvl >= 21 && lvl <= 25) lvlName = `Sub-Kegiatan (Level 4 — L4-${lvl - 20})`;
   else if (lvl === 3) lvlName = 'Akun Belanja 6-Digit BAS (Level 5)';
+  else if (lvl === 41 || lvl === 42) lvlName = 'Header Kelompok (Level 6 Header)';
 
   if (badgeEl) {
     badgeEl.innerHTML = `<span class="badge ${isHeader ? 'badge-primary' : 'badge-subtle'}" style="font-size:11px; padding:3px 8px;">${lvlName}</span>`;
@@ -3839,17 +3854,65 @@ function openQuickSasaranModal(rowId, event) {
     }
     if (cascadeBox) cascadeBox.style.display = 'block';
     if (itemHint) itemHint.style.display = 'none';
-    if (cascadeCheck) cascadeCheck.checked = true;
+    const isClearing = document.getElementById('quick-sasaran-select')?.value === 'NONE';
+    if (cascadeCheck) {
+      cascadeCheck.checked = !isClearing;
+      cascadeCheck.disabled = isClearing;
+    }
     if (cascadeDesc) {
-      cascadeDesc.textContent = `Akan memperbarui ${childCount} baris turunan di bawah induk ini secara serentak.`;
+      cascadeDesc.textContent = isClearing
+        ? 'Hanya menghapus/mengosongkan label Sasaran pada baris Header ini (tidak mengubah rincian belanja di bawahnya).'
+        : `Akan memperbarui ${childCount} baris turunan di bawah induk ini secara serentak.`;
     }
   } else {
     if (cascadeBox) cascadeBox.style.display = 'none';
     if (itemHint) itemHint.style.display = 'block';
-    if (cascadeCheck) cascadeCheck.checked = false;
+    if (cascadeCheck) {
+      cascadeCheck.checked = false;
+      cascadeCheck.disabled = false;
+    }
   }
 
   document.getElementById('modal-quick-sasaran').style.display = 'flex';
+}
+
+function onQuickSasaranSelectChange() {
+  const val = document.getElementById('quick-sasaran-select')?.value;
+  const cascadeCheck = document.getElementById('quick-sasaran-cascade');
+  const cascadeDesc = document.getElementById('quick-sasaran-cascade-desc');
+  if (val === 'NONE') {
+    if (cascadeCheck) {
+      cascadeCheck.checked = false;
+      cascadeCheck.disabled = true;
+    }
+    if (cascadeDesc) {
+      cascadeDesc.textContent = 'Hanya menghapus/mengosongkan label Sasaran pada baris Header ini (tidak mengubah rincian belanja di bawahnya).';
+    }
+  } else {
+    if (cascadeCheck) {
+      cascadeCheck.disabled = false;
+      cascadeCheck.checked = true;
+    }
+    if (cascadeDesc) {
+      cascadeDesc.textContent = 'Seluruh anak baris di bawah induk ini akan otomatis mengikuti Sasaran baru.';
+    }
+  }
+}
+
+async function clearHeaderSasaran() {
+  const rowId = Number(document.getElementById('quick-sasaran-row-id')?.value);
+  if (!rowId) return;
+  try {
+    await stageRkbOperation({
+      type: 'QUICK_SASARAN',
+      row_id: rowId,
+      target_scope: 'NONE',
+      cascade: false
+    }, 'Label Sasaran pada baris Header berhasil dihapus/dikosongkan.');
+    closeQuickSasaranModal();
+  } catch (err) {
+    showToast('Gagal menghapus Sasaran Header: ' + err.message, 'error');
+  }
 }
 
 function closeQuickSasaranModal() {
@@ -3860,7 +3923,8 @@ function closeQuickSasaranModal() {
 async function submitQuickSasaran() {
   const rowId = Number(document.getElementById('quick-sasaran-row-id')?.value);
   const sasaran = document.getElementById('quick-sasaran-select')?.value;
-  const cascade = Boolean(document.getElementById('quick-sasaran-cascade')?.checked);
+  const isClearing = sasaran === 'NONE';
+  const cascade = isClearing ? false : Boolean(document.getElementById('quick-sasaran-cascade')?.checked);
 
   try {
     await stageRkbOperation({
@@ -3868,12 +3932,14 @@ async function submitQuickSasaran() {
       row_id: rowId,
       target_scope: sasaran,
       cascade
-    }, `Perubahan Sasaran menjadi ${sasaran} masuk ke draf kerja.`);
+    }, isClearing ? 'Label Sasaran pada baris Header dikosongkan.' : `Perubahan Sasaran menjadi ${sasaran} masuk ke draf kerja.`);
     closeQuickSasaranModal();
   } catch (err) {
     showToast('Gagal mengubah Sasaran: ' + err.message, 'error');
   }
 }
+window.onQuickSasaranSelectChange = onQuickSasaranSelectChange;
+window.clearHeaderSasaran = clearHeaderSasaran;
 
 async function openAuditIntegritasModal() {
   const periodeId = AppState.currentPeriode?.id || 1;

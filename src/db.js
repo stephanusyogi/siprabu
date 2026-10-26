@@ -2180,7 +2180,7 @@ function updateRabBarisSasaranWithCascade(periodeId, rowId, targetScope, cascade
 
   const isHeader = (targetRow.row_type === 'header' || Number(targetRow.level_indent) < 4);
 
-  if (!cascade || !isHeader) {
+  if (!cascade || !isHeader || cleanSasaran === 'NONE' || cleanSasaran === 'ALL') {
     db.prepare('UPDATE rab_baris SET target_scope = ? WHERE id = ?').run(cleanSasaran, rowId);
     try {
       const { clearRkbDatasetCache } = require('./calculation');

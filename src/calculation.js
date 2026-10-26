@@ -540,7 +540,13 @@ function buildHierarchyTreeAndRollup(processedRows) {
   const headerStack = [];
   const allRowsWithTree = processedRows.map((r, idx) => {
     const isHeader = Boolean(r.is_header || r.row_type === 'header');
-    const rank = isHeader ? getHierarchyRank(r) : 99;
+    let rank = isHeader ? getHierarchyRank(r) : 99;
+    const lvlNum = Number(r.level_indent);
+    // Jika Header Kelompok (lvl 41/42) berada langsung di bawah Akun (rank 50) yang dibuat setelah Level 3 (tanpa L4 di atasnya),
+    // pastikan rank berada di bawah Akun (60.1) agar Akun menghitung subtotal seluruh kelompok di bawahnya (Contoh: Kegiatan 24 Santunan)
+    if (isHeader && (lvlNum === 41 || lvlNum === 42) && rank < 50 && headerStack.some(h => h.rank === 50) && !headerStack.some(h => h.rank > 30 && h.rank < 50)) {
+      rank = 60.1;
+    }
     const treeId = `row_${r.id || idx}`;
 
     while (headerStack.length > 0 && headerStack[headerStack.length - 1].rank >= rank) {
@@ -558,7 +564,6 @@ function buildHierarchyTreeAndRollup(processedRows) {
     if (isHeader) {
       headerStack.push({ treeId, rank, indent: effectiveIndent });
     }
-    const lvlNum = Number(r.level_indent);
 
     return {
       ...r,
@@ -577,12 +582,18 @@ function buildHierarchyTreeAndRollup(processedRows) {
   allRowsWithTree.forEach(r => { rowByTreeId[r.tree_id] = r; });
 
   const totalsByTreeId = {};
+  const scopesByTreeId = {};
   allRowsWithTree.forEach(r => {
     if (!r.is_header) {
       const itemTotal = Number(r.computed_total) || 0;
+      const itemScope = String(r.target_scope || 'KAB').toUpperCase().trim();
       let cur = r.parent_tree_id;
       while (cur && rowByTreeId[cur]) {
         totalsByTreeId[cur] = (totalsByTreeId[cur] || 0) + itemTotal;
+        if (itemScope && itemScope !== 'ALL' && itemScope !== 'NONE') {
+          if (!scopesByTreeId[cur]) scopesByTreeId[cur] = new Set();
+          scopesByTreeId[cur].add(itemScope);
+        }
         cur = rowByTreeId[cur].parent_tree_id;
       }
     }
@@ -591,13 +602,32 @@ function buildHierarchyTreeAndRollup(processedRows) {
   const finalRows = allRowsWithTree.map(r => {
     if (r.is_header) {
       const tot = totalsByTreeId[r.tree_id] || 0;
+      const childScopesSet = scopesByTreeId[r.tree_id] || new Set();
+      const childScopes = Array.from(childScopesSet);
+      const rawScope = String(r.target_scope || 'ALL').toUpperCase().trim();
+
+      let effectiveScope = rawScope;
+      if (rawScope === 'NONE') {
+        effectiveScope = 'NONE';
+      } else if (rawScope === 'ALL') {
+        effectiveScope = childScopes.length === 1 ? childScopes[0] : 'NONE';
+      } else if (childScopes.length > 0 && !childScopesSet.has(rawScope)) {
+        // Jika pada Header terlanjur tertulis KAB (atau sasaran lain) padahal di rincian bawahnya tidak ada sasaran tersebut sama sekali:
+        effectiveScope = childScopes.length === 1 ? childScopes[0] : 'NONE';
+      }
+
       return {
         ...r,
+        effective_target_scope: effectiveScope,
+        child_scopes: childScopes,
         computed_total: tot,
         jumlah: tot
       };
     }
-    return r;
+    return {
+      ...r,
+      effective_target_scope: String(r.target_scope || 'KAB').toUpperCase().trim()
+    };
   });
 
   const childCountMap = {};
