@@ -3002,13 +3002,16 @@ function updateSelectedRowUI() {
     treeLvl = 5.5;
   }
 
+  const curLvlIndent = Number(row.level_indent);
+  const curL4Lapis = (curLvlIndent >= 21 && curLvlIndent <= 25) ? (curLvlIndent - 20) : 1;
+
   const lvlBadges = {
     1: '<span class="badge" style="background:#fef3c7;color:#92400e;font-weight:800;border:1px solid #fde68a;font-size:10.5px;">L1 (Bagian)</span>',
     2: '<span class="badge" style="background:#fed7aa;color:#9a3412;font-weight:800;border:1px solid #fdba74;font-size:10.5px;">L2 (Tahapan)</span>',
     3: '<span class="badge" style="background:#fef08a;color:#854d0e;font-weight:800;border:1px solid #fde047;font-size:10.5px;">L3 (Kegiatan)</span>',
-    4: '<span class="badge" style="background:#e0e7ff;color:#3730a3;font-weight:800;border:1px solid #c7d2fe;font-size:10.5px;">L4 (Sub-Komp)</span>',
+    4: `<span class="badge" style="background:#e0e7ff;color:#3730a3;font-weight:800;border:1px solid #c7d2fe;font-size:10.5px;">L4-${curL4Lapis} (Sub-Komp Lapis ${curL4Lapis})</span>`,
     5: '<span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:800;border:1px solid #bae6fd;font-size:10.5px;">L5 (Akun BAS)</span>',
-    5.5: '<span class="badge" style="background:#ecfdf5;color:#047857;font-weight:800;border:1px solid #a7f3d0;font-size:10.5px;">📑 Header Teks</span>',
+    5.5: '<span class="badge" style="background:#ecfdf5;color:#047857;font-weight:800;border:1px solid #a7f3d0;font-size:10.5px;">📑 Header Kelompok (>)</span>',
     6: '<span class="badge" style="background:#f1f5f9;color:#334155;font-weight:800;border:1px solid #cbd5e1;font-size:10.5px;">L6 (Detail)</span>'
   };
   const badgeHtml = lvlBadges[treeLvl] || `<span class="badge">Level ${treeLvl}</span>`;
@@ -3078,13 +3081,16 @@ function updateSelectedRowUI() {
           </button>
         `;
       } else if (treeLvl === 3) {
-        // L3: Tambah L3 (Setingkat) + Tambah L4 (Sub-Level) + Ubah Teks + Hapus
+        // L3: Tambah L3 (Setingkat) + Tambah L4-1 (Sub-Level) + Rekam Akun BAS (L5) + Ubah Teks + Hapus
         btns += `
           <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(3, ${row.id})" style="font-weight:600;" title="Tambah Kegiatan baru sejajar dengan baris ini">
             ➕ Tambah Kegiatan (L3)
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:700;" title="Tambah Sub-Komponen baru di bawah Kegiatan ini">
-            📂 Tambah Sub-Komp (L4)
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id}, 21)" style="font-weight:700;" title="Tambah Sub-Komponen Lapis 1 (L4-1: a., b.) di bawah Kegiatan ini">
+            📂 Tambah Sub-Komp (L4-1)
+          </button>
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:700;" title="Rekam Akun Belanja (BAS 6-Digit) langsung di bawah Kegiatan ini">
+            🏷️ Rekam Akun BAS (L5)
           </button>
           <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
             ✏️ Ubah Teks
@@ -3094,19 +3100,26 @@ function updateSelectedRowUI() {
           </button>
         `;
       } else if (treeLvl === 4) {
-        // L4: Tambah L4 (Setingkat) + Tambah L5 (Akun BAS) + Ubah Teks + Hapus
-        btns += `
-          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id})" style="font-weight:600;" title="Tambah Sub-Komponen baru sejajar dengan baris ini">
-            ➕ Tambah Sub-Komp (L4)
+        // L4 (Lapis 1..5): Tambah Sejajar (L4-k) + Tambah Turunan Anak (L4-(k+1) s.d. L4-5) + Rekam Akun BAS (L5) + Ubah Teks/Lapis + Hapus
+        const effIndent = (curLvlIndent >= 21 && curLvlIndent <= 25) ? curLvlIndent : 21;
+        const childLapisBtn = curL4Lapis < 5 ? `
+          <button class="btn btn-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id}, ${effIndent + 1})" style="font-weight:700;" title="Tambah Sub-Komponen Turunan Anak (L4-${curL4Lapis + 1}) di bawah baris ini">
+            📂 Tambah Turunan (L4-${curL4Lapis + 1})
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:700;" title="Rekam Akun Belanja (BAS 6-Digit) di bawah Sub-Komponen ini">
+        ` : '';
+        btns += `
+          <button class="btn btn-outline-primary btn-sm" onclick="openAddHeaderModal(4, ${row.id}, ${effIndent})" style="font-weight:600;" title="Tambah Sub-Komponen baru sejajar pada Lapis L4-${curL4Lapis}">
+            ➕ Tambah Sejajar (L4-${curL4Lapis})
+          </button>
+          ${childLapisBtn}
+          <button class="btn btn-success btn-sm" onclick="openAddAkunModal(${row.id})" style="font-weight:700;" title="Rekam Akun Belanja (BAS 6-Digit) di bawah L4-${curL4Lapis} ini">
             🏷️ Rekam Akun BAS (L5)
           </button>
-          <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode atau Uraian Teks">
-            ✏️ Ubah Teks
+          <button class="btn btn-outline-primary btn-sm" onclick="openEditHeaderModal(${row.id}, event)" style="font-weight:600;" title="Ubah Kode, Uraian Teks, atau Lapis L4-1..L4-5">
+            ✏️ Ubah L4-${curL4Lapis}
           </button>
           <button class="btn btn-danger btn-sm" onclick="deleteRow(${row.id}, event)" style="font-weight:700;" title="Hapus Sub-Komponen ini beserta seluruh level di bawahnya">
-            🗑️ Hapus Sub-Komp (L4)
+            🗑️ Hapus
           </button>
         `;
       } else if (treeLvl === 5) {
@@ -4756,7 +4769,7 @@ async function submitAddAkun() {
 // MODAL: REKAM STRUKTUR HIERARKI KOMPONEN (L1 - L4)
 // ============================================================================
 
-function openAddHeaderModal(targetLevel, refRowId = null) {
+function openAddHeaderModal(targetLevel, refRowId = null, explicitLevelIndent = null) {
   const p = AppState.currentPeriode;
   if (!p) return;
   if (p.is_locked) {
@@ -4779,18 +4792,20 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
 
   const lapisBox = document.getElementById('add-header-lapis-container');
   const lapisSelect = document.getElementById('add-header-level-indent');
+  let chosenIndent = 21;
   if (lapisBox) {
     if (targetLevel === 4 || targetLevel === 5.5) {
       lapisBox.style.display = 'block';
-      if (lapisSelect) {
-        if (targetLevel === 5.5) {
-          lapisSelect.value = '41';
-        } else if (refRow && refRow.level_indent >= 21 && refRow.level_indent <= 25) {
-          lapisSelect.value = String(refRow.level_indent);
-        } else {
-          lapisSelect.value = '21';
-        }
+      if (targetLevel === 5.5) {
+        chosenIndent = 41;
+      } else if (explicitLevelIndent && explicitLevelIndent >= 21 && explicitLevelIndent <= 25) {
+        chosenIndent = Number(explicitLevelIndent);
+      } else if (refRow && refRow.level_indent >= 21 && refRow.level_indent <= 25) {
+        chosenIndent = Number(refRow.level_indent);
+      } else {
+        chosenIndent = 21;
       }
+      if (lapisSelect) lapisSelect.value = String(chosenIndent);
     } else {
       lapisBox.style.display = 'none';
     }
@@ -4800,7 +4815,7 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
     1: { title: 'Rekam Bagian Utama (L1)', subtitle: 'Tingkat Tertinggi Pengelompokan Anggaran (Contoh: A, B)', defaultKode: '', uraianPlaceholder: 'Contoh: TAHAPAN PEMILIHAN' },
     2: { title: 'Rekam Tahapan Program (L2)', subtitle: 'Tahapan Operasional Anggaran (Contoh: I, II, III)', defaultKode: '', uraianPlaceholder: 'Contoh: I. TAHAPAN PERSIAPAN' },
     3: { title: 'Rekam Kegiatan / Komponen (L3)', subtitle: '28 Komponen Kegiatan Anggaran (Contoh: 29, 30)', defaultKode: '', uraianPlaceholder: 'Contoh: Pelaksanaan Pemungutan dan Penghitungan Suara' },
-    4: { title: 'Rekam Sub-Komponen (L4 — Lapis 1 s.d. Lapis 5)', subtitle: 'Daftar Isi Level 4 di atas Akun: L4 Lapis 1 (a.) → Lapis 2 (1)) → Lapis 3 (a)) → Lapis 4 ((1)) → Lapis 5 ((a))', defaultKode: '', uraianPlaceholder: 'Contoh: Sosialisasi Tatap Muka / Dilaksanakan KPU Kabupaten' },
+    4: { title: `Rekam Sub-Komponen (L4-${chosenIndent >= 21 && chosenIndent <= 25 ? (chosenIndent - 20) : 1})`, subtitle: 'Daftar Isi Level 4 di atas Akun: L4-1 (a.) → L4-2 (1)) → L4-3 (a)) → L4-4 ((1)) → L4-5 ((a))', defaultKode: '', uraianPlaceholder: 'Contoh: Sosialisasi Tatap Muka / Dilaksanakan KPU Kabupaten' },
     5.5: { title: 'Rekam Header Kelompok di Bawah Akun (>)', subtitle: 'Kelompok Rincian di bawah Kode Akun 52xxxx (Contoh: > Konsumsi, > Souvenir)', defaultKode: '>', uraianPlaceholder: 'Contoh: Konsumsi, Souvenir, atau Kantor/Inventaris' }
   };
 
@@ -4821,6 +4836,9 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
       const l3Rows = (AppState.rkbData?.rows || []).filter(r => r.level_indent === 2 && /^\d+$/.test(r.kode));
       const maxK = l3Rows.reduce((max, r) => Math.max(max, parseInt(r.kode, 10)), 28);
       kodeInput.value = String(maxK + 1);
+    } else if (targetLevel === 4) {
+      const defaultL4Prefixes = { 21: 'a.', 22: '1)', 23: 'a)', 24: '(1)', 25: '(a)' };
+      kodeInput.value = defaultL4Prefixes[chosenIndent] || '';
     } else if (targetLevel === 5.5) {
       kodeInput.value = '>';
     }
@@ -4928,7 +4946,8 @@ async function submitAddHeader() {
       const allRows = AppState.rkbData?.rows || [];
       const targetIdx = allRows.findIndex(r => r.id === refRow.id);
       let lastChildU = refRow.urutan;
-      const refRank = refRow.hierarchy_rank || (refRow.level_indent === 0 ? 10 : (refRow.level_indent === 1 ? 20 : (refRow.level_indent === 2 ? 30 : 41)));
+      const refLvl = Number(refRow.level_indent);
+      const refRank = refRow.hierarchy_rank || (refLvl === 0 ? 10 : (refLvl === 1 ? 20 : (refLvl === 2 ? 30 : (refLvl >= 21 && refLvl <= 25 ? 40 + (refLvl - 20) : 41))));
       for (let i = targetIdx + 1; i < allRows.length; i++) {
         const r = allRows[i];
         if (r.is_header && (r.hierarchy_rank || 99) <= refRank) break;
