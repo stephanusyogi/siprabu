@@ -993,18 +993,22 @@ async function runBusinessBehaviorTests() {
   const origTps33 = Number(desaTarget.tps);
   const origPantarlih33 = Number(desaTarget.pantarlih);
   const origKotak33 = Number(desaTarget.kotak);
+  const origPemilih33 = Number(desaTarget.pemilih);
 
-  const sumBefore33 = db.prepare('SELECT SUM(tps) as tps, SUM(pantarlih) as pantarlih, SUM(kotak) as kotak FROM master_desa').get();
+  const sumBefore33 = db.prepare('SELECT SUM(tps) as tps, SUM(pantarlih) as pantarlih, SUM(kotak) as kotak, SUM(pemilih) as pemilih FROM master_desa').get();
   const expectedTpsPlus10 = Number(sumBefore33.tps) + 10;
   const expectedPantarlihPlus20 = Number(sumBefore33.pantarlih) + 20;
   const expectedKotakPlus10 = Number(sumBefore33.kotak) + 10;
+  const expectedPemilihPlus1000 = Math.round(Number(sumBefore33.pemilih) + 1000);
+  const expectedSuratSuara = Math.round(expectedPemilihPlus1000 * 1.025);
 
-  // Ubah TPS (+10), Pantarlih (+20), dan Kotak (+10) pada Desa 1
+  // Ubah TPS (+10), Pantarlih (+20), Kotak (+10), dan Pemilih (+1000) pada Desa 1
   saveDesaFn({
     ...desaTarget,
     tps: origTps33 + 10,
     pantarlih: origPantarlih33 + 20,
-    kotak: origKotak33 + 10
+    kotak: origKotak33 + 10,
+    pemilih: origPemilih33 + 1000
   }, userDev);
   flushCalcCache();
 
@@ -1016,6 +1020,8 @@ async function runBusinessBehaviorTests() {
   const rowKonsumsiPpdp = dsAfterDesaChange.rows.find(r => r.f1_var === 'pantarlih' && (r.f2_unit || '').toLowerCase() === 'keg' && Number(r.harga_satuan) > 0);
   const rowKotakDist = dsAfterDesaChange.rows.find(r => r.f2_var === 'kotak_rkb');
   const rowSample5Tps = dsAfterDesaChange.rows.find(r => Number(r.f2_val) === 5 && (r.f2_unit || '').toLowerCase() === 'tps');
+  const rowCetakSuratSuara = dsAfterDesaChange.rows.find(r => r.f1_var === 'surat_suara' && (r.uraian || '').toLowerCase().includes('cetak surat suara'));
+  const rowSortirSuratSuara = dsAfterDesaChange.rows.find(r => r.f1_var === 'surat_suara' && (r.uraian || '').toLowerCase().includes('sortir dan lipat surat suara'));
 
   assert(
     rowKetuaKpps && Number(rowKetuaKpps.f3_val) === expectedTpsPlus10 && rowKetuaKpps.computed_total === (1 * 1 * expectedTpsPlus10 * 900000) &&
@@ -1034,6 +1040,12 @@ async function runBusinessBehaviorTests() {
     rowKotakDist && Number(rowKotakDist.f2_val) === expectedKotakPlus10 &&
     rowSample5Tps && Number(rowSample5Tps.f2_val) === 5,
     'Test 33.3: Perubahan jumlah Kotak Suara otomatis memperbarui baris distribusi kotak (@kotak_rkb), sedangkan baris sampel kunjungan (5 TPS) tetap terlindungi.'
+  );
+
+  assert(
+    rowCetakSuratSuara && Number(rowCetakSuratSuara.f1_val) === expectedSuratSuara && rowCetakSuratSuara.computed_total === (expectedSuratSuara * 500) &&
+    rowSortirSuratSuara && Number(rowSortirSuratSuara.f1_val) === expectedSuratSuara && rowSortirSuratSuara.computed_total === (expectedSuratSuara * 214),
+    'Test 33.5: Perubahan jumlah Pemilih (DPT) otomatis menghitung ulang @surat_suara (DPT + 2,5%) dan memperbarui baris Cetak Surat Suara serta Sortir & Lipat Surat Suara di RKB.'
   );
 
   // Uji perubahan formasi penyelenggara tingkat TPS (@kpps_anggota_tps dari 6 menjadi 7)
@@ -1058,7 +1070,8 @@ async function runBusinessBehaviorTests() {
     ...desaTarget,
     tps: origTps33,
     pantarlih: origPantarlih33,
-    kotak: origKotak33
+    kotak: origKotak33,
+    pemilih: origPemilih33
   }, userDev);
   flushCalcCache();
 

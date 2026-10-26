@@ -3974,7 +3974,7 @@ async function submitQuickCatatan() {
 
 function populateFactorVarSelects() {
   const kuantitasList = AppState.masters?.kuantitas || [];
-  const primaryCodes = ['parpol', 'paslon', 'bakal_paslon', 'paslon_parpol', 'paslon_perseorangan', 'komisioner', 'tps_rkb', 'kotak_rkb', 'kec_ppk', 'desa_pps', 'dpt', 'sekretariat_kpu', 'kpu_all'];
+  const primaryCodes = ['parpol', 'paslon', 'bakal_paslon', 'paslon_parpol', 'paslon_perseorangan', 'komisioner', 'tps_rkb', 'kotak_rkb', 'kec_ppk', 'desa_pps', 'dpt', 'surat_suara', 'sekretariat_kpu', 'kpu_all'];
   
   const primaryItems = [];
   const adhocItems = [];
@@ -4120,6 +4120,8 @@ function openRowModal(rowId, event) {
         fVar = 'komisioner';
       } else if (fUnit === 'pemilih') {
         fVar = 'dpt';
+      } else if (fUnit === 'lembar ss' || ((fUnit === 'lembar' || fUnit.includes('lembar')) && rawValNum >= 100000 && String(row.uraian || '').toLowerCase().includes('surat suara'))) {
+        fVar = 'surat_suara';
       } else if (fUnit === 'tps' && rawValNum >= 100) {
         fVar = 'tps_rkb';
       } else if (fUnit === 'kotak' && rawValNum >= 100) {
@@ -4133,7 +4135,7 @@ function openRowModal(rowId, event) {
       const cleanVar = fVar.replace(/^@/, '').toLowerCase();
       const kItem = (AppState.masters?.kuantitas || []).find(k => String(k.kode || '').toLowerCase() === cleanVar || (cleanVar === 'dpt' && k.kode === 'pemilih_dpt'));
       if (kItem && kItem.nilai !== null && kItem.nilai !== undefined) {
-        const liveVal = (cleanVar === 'dpt' || cleanVar === 'pemilih_dpt' || fUnit === 'pemilih')
+        const liveVal = (cleanVar === 'dpt' || cleanVar === 'pemilih_dpt' || cleanVar === 'surat_suara' || fUnit === 'pemilih')
           ? Math.round(Number(kItem.nilai) || 0)
           : kItem.nilai;
         setElVal(`modal-f${i}-val`, liveVal);
@@ -6914,7 +6916,7 @@ function renderDbKuantitas() {
     'kpps_ketua', 'kpps_anggota', 'linmas_tps', 'petugas_tps', 'kpps_all',
     'ppk_ketua', 'ppk_anggota', 'ppk_komisioner', 'ppk_sekretaris', 'ppk_staf', 'ppk_sekretariat',
     'pps_ketua', 'pps_anggota', 'pps_komisioner', 'pps_sekretaris', 'pps_staf', 'pps_sekretariat',
-    'kpu_all'
+    'kpu_all', 'surat_suara'
   ];
 
   tbody.innerHTML = kuantitas.map(q => {

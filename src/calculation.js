@@ -168,6 +168,10 @@ function getKuantitasMap() {
       k.nilai = liveKec;
     } else if (k.kode === 'pemilih_dpt' || k.kode === 'dpt') {
       k.nilai = livePemilih;
+    } else if (k.kode === 'surat_suara') {
+      const liveSuratSuara = Math.round(livePemilih * 1.025);
+      k.nilai = liveSuratSuara;
+      k.keterangan = `Otomatis: Jumlah Pemilih DPT (${livePemilih.toLocaleString('id-ID')}) + Cadangan 2,5% = ${liveSuratSuara.toLocaleString('id-ID')} Lembar`;
     } else if (k.kode === 'paslon' || k.kode === 'bakal_paslon') {
       k.nilai = livePaslon;
     } else if (k.kode === 'paslon_parpol') {
@@ -219,6 +223,9 @@ function getKuantitasMap() {
   }
   if (!map.kotak_rkb) {
     map.kotak_rkb = { kode: 'kotak_rkb', nama: 'Jumlah Kotak Suara Kabupaten', nilai: liveKotak, satuan: 'Kotak' };
+  }
+  if (!map.surat_suara) {
+    map.surat_suara = { kode: 'surat_suara', nama: 'Kebutuhan Surat Suara (DPT + 2,5%)', nilai: Math.round(livePemilih * 1.025), satuan: 'Lembar' };
   }
   if (!map.kpps_ketua_tps) {
     map.kpps_ketua_tps = { kode: 'kpps_ketua_tps', nama: 'Ketua KPPS per TPS', nilai: kppsKetuaPerTps, satuan: 'Org' };
@@ -345,6 +352,8 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
         varCode = 'komisioner';
       } else if (unitLower === 'pemilih') {
         varCode = 'dpt';
+      } else if (unitLower === 'lembar ss' || ((unitLower === 'lembar' || unitLower.includes('lembar')) && rawNum >= 100000 && String(r.uraian || '').toLowerCase().includes('surat suara'))) {
+        varCode = 'surat_suara';
       } else if (unitLower === 'tps' && rawNum >= 100) {
         varCode = 'tps_rkb';
       } else if (unitLower === 'kotak' && rawNum >= 100) {
@@ -373,7 +382,7 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
         const m = kuantitasMap[cleanKey] || kuantitasMap[varCode];
         unitLabel = m.satuan || varCode;
       }
-      if (cleanKey === 'dpt' || cleanKey === 'pemilih_dpt' || unitLower === 'pemilih') {
+      if (cleanKey === 'dpt' || cleanKey === 'pemilih_dpt' || cleanKey === 'surat_suara' || unitLower === 'pemilih') {
         vNum = Math.round(Number(vNum) || 0);
       }
     } else {

@@ -408,6 +408,7 @@ Setiap perubahan angka pada menu **REFERENSI / DATABASE** (`Master Desa & TPS`, 
    - `@kotak_rkb` = $\sum \text{Kotak Suara seluruh Desa/Kelurahan}$ (`master_desa.kotak`).
    - `@pantarlih` = $\sum \text{Pantarlih seluruh Desa/Kelurahan}$ (`master_desa.pantarlih`).
    - `@dpt` / `@pemilih_dpt` = $\sum \text{Pemilih seluruh Desa/Kelurahan}$ (`master_desa.pemilih`, bilangan bulat).
+   - `@surat_suara` = $\text{round}(\text{DPT} \times 1{,}025)$ (`Jumlah Pemilih (DPT) + Cadangan 2,5%`, dibulatkan menjadi bilangan bulat Lembar).
    - `@desa_pps` = Jumlah Desa/Kelurahan (`COUNT(master_desa)`).
    - `@kec_ppk` = Jumlah Kecamatan (`COUNT(master_kecamatan)`).
    - `@kpu_all` = `@komisioner` + `@sekretariat_kpu` (beserta pembaruan otomatis teks keterangan komposisi).
@@ -424,6 +425,6 @@ Setiap perubahan angka pada menu **REFERENSI / DATABASE** (`Master Desa & TPS`, 
 | **Bimtek, Formulir, & Logistik Berbasis TPS** (`basis_pengali = TPS_RKB` atau faktor bersatuan `TPS` dengan nilai $\ge 100$) | `f_var = @tps_rkb` dan/atau `basis_pengali = TPS_RKB` | Seluruh 108+ baris logistik, formulir, bimtek, dan pembuatan TPS otomatis berubah mengikuti `@tps_rkb`. Baris kunjungan sampel kecil (`< 100 TPS`, misal `5 TPS` Forkopimda) dilindungi agar tetap sesuai angka sampel. |
 | **Distribusi Logistik Kotak Suara** (Faktor bersatuan `Kotak` dengan nilai $\ge 100$) | `f_var = @kotak_rkb` | Otomatis mengikuti jumlah **Kotak Suara** (`@kotak_rkb`), sedangkan satuan `kotak` bernilai kecil (`< 100`, misal kotak masker medis) dilindungi agar tidak berubah menjadi jumlah kotak suara. |
 | **Honorarium & Operasional PPK / PPS** | `basis_pengali = PPK` / `PPS`, `f_var = @masa_kerja_ppk` / `@masa_kerja_pps`, `f_var = @ppk_all` / `@pps_all` | Otomatis mengikuti jumlah Kecamatan (`@kec_ppk`), jumlah Desa (`@desa_pps`), masa kerja, dan formasi personil PPK/PPS. |
-| **Surat Suara, Alat Bantu, & Logistik Pemilih (DPT)** | `f_var = @dpt` | Otomatis mengikuti total **Pemilih (DPT)** terbaru dari Master Desa tanpa angka desimal. |
+| **Surat Suara, Alat Bantu, & Logistik Pemilih (DPT)** | `f_var = @dpt` (Formulir C.Pemberitahuan) & `f_var = @surat_suara` (Cetak Surat Suara + 2,5% & Sortir/Lipat Surat Suara) | Otomatis mengikuti total **Pemilih (DPT)** terbaru (`@dpt`) serta kalkulasi otomatis **`@surat_suara = DPT + 2,5%`** tanpa angka desimal. |
 | **Fasilitasi Paslon, Parpol, & Personil KPU Kab.** | `f_var = @paslon`, `@paslon_parpol`, `@paslon_perseorangan`, `@parpol`, `@komisioner`, `@sekretariat_kpu`, `@kpu_all` | Otomatis mengikuti perubahan pada Master Pasangan Calon dan Parameter Kuantitas SSOT. |
 | **Pembersihan Label Pengali Ganda pada Baris `FIXED`** | `if (basis !== 'NONE' && basis !== 'FIXED')` | Mencegah munculnya duplikasi teks `x 1 TPS` atau `x 1 Kotak` pada pratinjau formula baris yang sudah menggunakan `@tps_rkb` atau `@kotak_rkb` di Faktor F1–F4. |
