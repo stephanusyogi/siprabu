@@ -44,7 +44,10 @@ if (!isMainThread) {
     // 4. Escape kata kunci reservasi MySQL `key` (terutama tabel settings_satker)
     s = s.replace(/(\b(?:WHERE|SET|SELECT|AND|OR|,|\()\s*)key(\s*(?:=|<|>|IN|LIKE|,|\)))/gi, '$1`key`$2');
 
-    // 5. Translasi DDL SQLite -> MySQL
+    // 5. Translasi sintaks fungsi agregasi SQLite -> MySQL
+    s = s.replace(/GROUP_CONCAT\(([^,]+),\s*['"]([^'"]+)['"]\)/gi, "GROUP_CONCAT($1 SEPARATOR '$2')");
+
+    // 6. Translasi DDL SQLite -> MySQL
     if (/CREATE\s+TABLE/i.test(s)) {
       s = s.replace(/INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT/gi, 'INT NOT NULL AUTO_INCREMENT PRIMARY KEY');
       s = s.replace(/AUTOINCREMENT/gi, 'AUTO_INCREMENT');
