@@ -1602,9 +1602,44 @@ async function loadPeriodes() {
   }
 }
 
+function saveStagedOpsToStorage(periodeId, ops) {
+  if (!periodeId) return;
+  try {
+    if (Array.isArray(ops) && ops.length > 0) {
+      localStorage.setItem(`siprabu_staged_rkb_ops_${periodeId}`, JSON.stringify(ops));
+    } else {
+      localStorage.removeItem(`siprabu_staged_rkb_ops_${periodeId}`);
+    }
+  } catch (e) {}
+}
+
+function loadStagedOpsFromStorage(periodeId) {
+  if (!periodeId) return [];
+  try {
+    const raw = localStorage.getItem(`siprabu_staged_rkb_ops_${periodeId}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
 async function loadRkbData() {
   if (!AppState.currentPeriode) return;
   const periodeId = AppState.currentPeriode.id;
+
+  if (AppState.stagedPeriodeId !== periodeId) {
+    AppState.stagedPeriodeId = periodeId;
+    if (!Array.isArray(AppState.stagedRkbOps) || AppState.stagedRkbOps.length === 0) {
+      AppState.stagedRkbOps = loadStagedOpsFromStorage(periodeId);
+    }
+  } else if (!Array.isArray(AppState.stagedRkbOps) || AppState.stagedRkbOps.length === 0) {
+    const stored = loadStagedOpsFromStorage(periodeId);
+    if (stored.length > 0) {
+      AppState.stagedRkbOps = stored;
+    }
+  }
 
   const user = AppState.currentUser;
   if (user && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
@@ -1623,6 +1658,13 @@ async function loadRkbData() {
     });
     AppState.rkbData = previewRes;
     AppState.stagedDiff = previewRes.staged_diff || null;
+    AppState.rowIdToTempId = {};
+    if (previewRes.temp_id_map && typeof previewRes.temp_id_map === 'object') {
+      for (const [tId, sqlId] of Object.entries(previewRes.temp_id_map)) {
+        AppState.rowIdToTempId[Number(sqlId)] = tId;
+        AppState.rowIdToTempId[String(sqlId)] = tId;
+      }
+    }
     if (previewRes.reference_version) {
       AppState.latestReferenceVersion = previewRes.reference_version;
       if (!AppState.initialReferenceVersion) {
@@ -1630,6 +1672,7 @@ async function loadRkbData() {
       }
     }
   } else {
+    AppState.rowIdToTempId = {};
     const queryParams = new URLSearchParams();
     if (AppState.filters.pic !== 'SEMUA') queryParams.append('pic', AppState.filters.pic);
     if (AppState.filters.sasaran !== 'ALL') queryParams.append('target_scope', AppState.filters.sasaran);
@@ -4528,10 +4571,14 @@ async function submitRowForm() {
 
   let targetBeforeUrutan = undefined;
   let targetAfterUrutan = undefined;
+  let anchorRowId = undefined;
+  let anchorMode = undefined;
   if (!rowId && AppState.selectedRowId) {
     const selectedRow = AppState.rkbData?.rows.find(r => r.id === AppState.selectedRowId);
     if (selectedRow) {
       const posChoice = document.querySelector('input[name="modal-row-pos-choice"]:checked')?.value || 'after';
+      anchorRowId = selectedRow.id;
+      anchorMode = posChoice === 'before' ? 'before' : 'after';
       if (posChoice === 'before') {
         targetBeforeUrutan = selectedRow.urutan;
       } else {
@@ -4545,9 +4592,11 @@ async function submitRowForm() {
 
   const payload = {
     id: rowId ? Number(rowId) : undefined,
+    anchor_row_id: anchorRowId,
+    anchor_mode: anchorMode,
     target_before_urutan: targetBeforeUrutan,
     target_after_urutan: targetAfterUrutan,
-    urutan: AppState.activeEditingRow ? AppState.activeEditingRow.urutan : undefined,
+    ensure_akun_header: !isHeaderMode,
     kode: isHeaderMode ? headerKode : (AppState.activeEditingRow ? AppState.activeEditingRow.kode : ''),
     row_type: isHeaderMode ? 'header' : (AppState.activeEditingRow ? AppState.activeEditingRow.row_type : 'item'),
     level_indent: isHeaderMode ? 41 : (AppState.activeEditingRow ? AppState.activeEditingRow.level_indent : 4),
@@ -4698,20 +4747,34 @@ function openAddAkunModal(targetRowId = null, event = null) {
     // Default PIC mewarisi dari targetRow
     setElVal('add-akun-pic', targetRow.pic_bagian || 'PARSDM');
     
-    // Cek apakah targetRow memiliki rincian belanja langsung di bawahnya
+    // Cek apakah targetRow atau kelompoknya memiliki rincian / sub-header di bawahnya yang belum dinaungi L5 Akun
     const allRows = AppState.rkbData?.rows || [];
     const targetIdx = allRows.findIndex(r => r.id === targetRow.id);
-    let hasDirectItems = false;
-    if (targetIdx !== -1 && targetIdx < allRows.length - 1) {
-      const nextRow = allRows[targetIdx + 1];
-      if (nextRow && !nextRow.is_header) {
-        hasDirectItems = true;
+    let hasWrappableChildren = false;
+    let detectedAkunCode = targetRow.kode_akun || '';
+
+    if (!targetRow.is_header || Number(targetRow.level_indent) === 41 || Number(targetRow.level_indent) === 42) {
+      hasWrappableChildren = true;
+    } else if (targetIdx !== -1 && targetIdx < allRows.length - 1 && Number(targetRow.level_indent) !== 3) {
+      const targetRank = targetRow.hierarchy_rank || (targetRow.level_indent === 2 ? 30 : 45);
+      for (let i = targetIdx + 1; i < allRows.length; i++) {
+        const r = allRows[i];
+        if (r.is_header && Number(r.level_indent) <= 2 && (r.hierarchy_rank || 99) <= targetRank) break;
+        if (r.is_header && Number(r.level_indent) === 3) break;
+        if (!r.is_header || Number(r.level_indent) >= 21) {
+          hasWrappableChildren = true;
+          if (!detectedAkunCode && r.kode_akun) detectedAkunCode = r.kode_akun;
+        }
       }
+    }
+
+    if (detectedAkunCode && akunSelect) {
+      akunSelect.value = detectedAkunCode;
     }
 
     if (posBox) {
       posBox.style.display = 'block';
-      const defVal = (targetRow.level_indent === 3) ? 'after_children' : (hasDirectItems ? 'wrap_children' : 'after_children');
+      const defVal = (targetRow.level_indent === 3) ? 'after_children' : (hasWrappableChildren ? 'wrap_children' : 'after_children');
       const rBtn = document.querySelector(`input[name="add-akun-pos-choice"][value="${defVal}"]`);
       if (rBtn) rBtn.checked = true;
     }
@@ -4787,8 +4850,8 @@ async function submitAddAkun() {
 
   let targetBeforeUrutan = undefined;
   let targetAfterUrutan = undefined;
+  const posChoice = document.querySelector('input[name="add-akun-pos-choice"]:checked')?.value || 'after_children';
   if (targetRow) {
-    const posChoice = document.querySelector('input[name="add-akun-pos-choice"]:checked')?.value || 'after_children';
     if (posChoice === 'before') {
       targetBeforeUrutan = targetRow.urutan;
     } else if (posChoice === 'after_children' || targetRow.level_indent === 3) {
@@ -4803,7 +4866,7 @@ async function submitAddAkun() {
       }
       targetAfterUrutan = lastChildU;
     } else {
-      // wrap_children: sisipkan tepat di bawah targetRow (urutan targetRow)
+      // wrap_children: sisipkan tepat di bawah induk struktural (melingkupi rincian yang ada)
       targetAfterUrutan = targetRow.urutan;
     }
   }
@@ -4817,6 +4880,9 @@ async function submitAddAkun() {
     pic_bagian: pic,
     target_scope: sasaran,
     harga_satuan: 0,
+    anchor_row_id: targetRow ? targetRow.id : undefined,
+    anchor_mode: posChoice,
+    wrap_children: posChoice === 'wrap_children',
     target_before_urutan: targetBeforeUrutan,
     target_after_urutan: targetAfterUrutan,
     catatan_revisi_baris: 'Rekam Akun Belanja (BAS)'
@@ -5063,6 +5129,8 @@ async function submitAddHeader() {
     pic_bagian: pic,
     target_scope: 'KAB',
     harga_satuan: 0,
+    anchor_row_id: refRow ? refRow.id : undefined,
+    anchor_mode: posChoice === 'before' ? 'before' : 'after_children',
     target_before_urutan: targetBeforeUrutan,
     target_after_urutan: targetAfterUrutan,
     catatan_revisi_baris: targetLevel === 5.5 ? `Penambahan Header Teks [${kode}] ${uraian}` : `Penambahan Struktur Header L${targetLevel}`
@@ -5335,10 +5403,39 @@ async function stageRkbOperation(op, successToastMsg = 'Perubahan masuk ke draf 
   if (!Array.isArray(AppState.stagedRkbOps)) {
     AppState.stagedRkbOps = [];
   }
-  AppState.stagedRkbOps.push({
-    ...op,
-    staged_at: Date.now()
-  });
+
+  const mapTempId = (rawId) => {
+    if (rawId === undefined || rawId === null || rawId === '') return rawId;
+    if (AppState.rowIdToTempId && AppState.rowIdToTempId[rawId] !== undefined) {
+      return AppState.rowIdToTempId[rawId];
+    }
+    return rawId;
+  };
+
+  const normalizedOp = { ...op, staged_at: Date.now() };
+  if (normalizedOp.row_id !== undefined) {
+    normalizedOp.row_id = mapTempId(normalizedOp.row_id);
+  }
+  if (normalizedOp.payload && typeof normalizedOp.payload === 'object') {
+    const p = { ...normalizedOp.payload };
+    if (p.id !== undefined && p.id !== null && p.id !== '') {
+      p.id = mapTempId(p.id);
+    } else if (String(normalizedOp.type || '').toUpperCase() === 'SAVE_ROW' && !normalizedOp.temp_id) {
+      normalizedOp.temp_id = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    }
+    if (p.anchor_row_id !== undefined) {
+      p.anchor_row_id = mapTempId(p.anchor_row_id);
+    }
+    if (p.parent_rkb_row_id !== undefined) {
+      p.parent_rkb_row_id = mapTempId(p.parent_rkb_row_id);
+    }
+    normalizedOp.payload = p;
+  }
+
+  AppState.stagedRkbOps.push(normalizedOp);
+  if (AppState.currentPeriode) {
+    saveStagedOpsToStorage(AppState.currentPeriode.id, AppState.stagedRkbOps);
+  }
 
   try {
     await loadRkbData();
@@ -5348,6 +5445,9 @@ async function stageRkbOperation(op, successToastMsg = 'Perubahan masuk ke draf 
     }
   } catch (err) {
     AppState.stagedRkbOps.pop();
+    if (AppState.currentPeriode) {
+      saveStagedOpsToStorage(AppState.currentPeriode.id, AppState.stagedRkbOps);
+    }
     throw err;
   }
 }
@@ -5355,6 +5455,9 @@ async function stageRkbOperation(op, successToastMsg = 'Perubahan masuk ke draf 
 async function undoLastStagedRkbOp() {
   if (!Array.isArray(AppState.stagedRkbOps) || AppState.stagedRkbOps.length === 0) return;
   AppState.stagedRkbOps.pop();
+  if (AppState.currentPeriode) {
+    saveStagedOpsToStorage(AppState.currentPeriode.id, AppState.stagedRkbOps);
+  }
   await loadRkbData();
   renderAllViews();
   showToast('1 aksi draf terakhir telah diurungkan.', 'info');
@@ -5368,6 +5471,9 @@ async function discardAllStagedRkbOps(fromModal = false) {
   AppState.stagedRkbOps = [];
   AppState.stagedDiff = null;
   AppState.referenceChangeAcknowledged = false;
+  if (AppState.currentPeriode) {
+    saveStagedOpsToStorage(AppState.currentPeriode.id, []);
+  }
   if (fromModal) {
     closeCommitRkbModal();
   }
@@ -5520,6 +5626,7 @@ async function submitCommitRkbChanges() {
     AppState.initialReferenceVersion = data.reference_version || null;
     AppState.latestReferenceVersion = data.reference_version || null;
     AppState.referenceChangeAcknowledged = false;
+    saveStagedOpsToStorage(p.id, []);
     setElVal('commit-rkb-catatan', '');
 
     closeCommitRkbModal();

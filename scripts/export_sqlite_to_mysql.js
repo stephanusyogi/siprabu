@@ -156,5 +156,15 @@ SET FOREIGN_KEY_CHECKS = 1;
 `;
 
 fs.writeFileSync(outPath, sqlOutput, 'utf8');
+const externalDbDir = 'D:/OFFICE/2026/Aplikasi/Si Prabu/Database';
+if (fs.existsSync(externalDbDir)) {
+  try {
+    fs.writeFileSync(path.join(externalDbDir, 'siprabu_siap_phpmyadmin.sql'), sqlOutput, 'utf8');
+  } catch (e) {}
+}
+const templatePath = path.resolve(__dirname, '../data/hibah_kpu.sqlite.template');
+try {
+  fs.copyFileSync(dbPath, templatePath);
+} catch (e) {}
 console.log('Successfully generated MySQL dump at:', outPath);
 console.log('File size:', (fs.statSync(outPath).size / (1024 * 1024)).toFixed(2), 'MB');

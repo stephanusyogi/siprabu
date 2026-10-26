@@ -542,10 +542,33 @@ function buildHierarchyTreeAndRollup(processedRows) {
     const isHeader = Boolean(r.is_header || r.row_type === 'header');
     let rank = isHeader ? getHierarchyRank(r) : 99;
     const lvlNum = Number(r.level_indent);
-    // Jika Header Kelompok (lvl 41/42) berada langsung di bawah Akun (rank 50) yang dibuat setelah Level 3 (tanpa L4 di atasnya),
-    // pastikan rank berada di bawah Akun (60.1) agar Akun menghitung subtotal seluruh kelompok di bawahnya (Contoh: Kegiatan 24 Santunan)
-    if (isHeader && (lvlNum === 41 || lvlNum === 42) && rank < 50 && headerStack.some(h => h.rank === 50) && !headerStack.some(h => h.rank > 30 && h.rank < 50)) {
-      rank = 60.1;
+    // Jika sub-header (lvl 21..29 atau 4/41/42) berada di bawah Akun (rank 50)
+    // dan tidak memiliki baris Akun (lvl 3) tersendiri sebelum rincian belanjanya,
+    // maka sub-header tersebut adalah kelompok rincian DI DALAM Akun tersebut (rank 60 + (rank - 40))
+    // agar Akun otomatis melingkupi & menghitung subtotal seluruh rincian di bawahnya (Contoh: Kegiatan 3, 24, 26, 27)
+    if (isHeader && rank > 30 && rank < 50 && headerStack.some(h => h.rank === 50)) {
+      const preAkunEntries = headerStack.filter(h => h.rank < 50);
+      const topPreAkunRank = preAkunEntries.length > 0 ? preAkunEntries[preAkunEntries.length - 1].rank : 30;
+      if (rank > topPreAkunRank) {
+        let hasOwnChildAkun = false;
+        for (let j = idx + 1; j < processedRows.length; j++) {
+          const nxt = processedRows[j];
+          const nxtIsHeader = Boolean(nxt.is_header || nxt.row_type === 'header');
+          if (!nxtIsHeader) {
+            hasOwnChildAkun = false;
+            break;
+          }
+          if (Number(nxt.level_indent) === 3) {
+            hasOwnChildAkun = true;
+            break;
+          }
+          const nxtBaseRank = getHierarchyRank(nxt);
+          if (nxtBaseRank <= rank) break;
+        }
+        if (!hasOwnChildAkun) {
+          rank = 60 + (rank - 40);
+        }
+      }
     }
     const treeId = `row_${r.id || idx}`;
 
@@ -878,12 +901,21 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
   let totalItems = 0;
 
   rows.forEach(r => {
-    if (r.is_header) return;
-
     let rPic = (r.pic_bagian || 'KUL').toUpperCase();
     if (rPic === 'PERENCANAAN') rPic = 'RENDATIN';
     if (rPic === 'KEUANGAN') rPic = 'KUL';
     if (rPic === 'PARMAS') rPic = 'PARSDM';
+
+    if (r.is_header) {
+      // Pertahankan header daun (baru direkam / belum memiliki rincian anak) yang cocok dengan filter agar tidak hilang dari tampilan
+      if (!r.has_children) {
+        if (filterPic && rPic !== filterPic) return;
+        if (filterSasaran && (r.target_scope || '').toUpperCase() !== 'ALL' && (r.target_scope || '').toUpperCase() !== filterSasaran) return;
+        if (searchQ && !rowOrAncestorMatchesSearch(r, searchQ)) return;
+        matchingRowIds.add(r.id);
+      }
+      return;
+    }
 
     if (filterPic && rPic !== filterPic) return;
     if (filterSasaran && (r.target_scope || '').toUpperCase() !== filterSasaran) return;

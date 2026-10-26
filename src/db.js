@@ -1787,20 +1787,188 @@ function getRabRowById(id) {
   return db.prepare('SELECT * FROM rab_baris WHERE id = ?').get(id);
 }
 
+function ensureAccountHeaderForItem(periodeId, itemRowId, kodeAkun) {
+  if (!periodeId || !itemRowId || !kodeAkun) return null;
+  const cleanKodeAkun = String(kodeAkun).trim();
+  if (!cleanKodeAkun) return null;
+
+  const allRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
+  const itemIdx = allRows.findIndex(r => r.id === Number(itemRowId));
+  if (itemIdx === -1) return null;
+  const itemRow = allRows[itemIdx];
+
+  const akunInfo = db.prepare('SELECT kode, uraian FROM master_akun WHERE kode = ?').get(cleanKodeAkun);
+  const akunUraian = akunInfo ? akunInfo.uraian : `Belanja ${cleanKodeAkun}`;
+
+  // Cari induk struktural (L3 lvl<=2, L4 lvl 21..29, atau L5 Akun lvl=3) di atas item ini
+  let nearestL3 = null;
+  let nearestL4 = null;
+  let enclosingAkun = null;
+
+  for (let i = itemIdx - 1; i >= 0; i--) {
+    const r = allRows[i];
+    if (r.row_type !== 'header') continue;
+    const lvl = Number(r.level_indent);
+    if (lvl === 3) {
+      if (!nearestL4) {
+        enclosingAkun = r;
+        break;
+      }
+      // Jika ada L4/sub-header di antara L5 dan item, cek apakah L4 tersebut punya L5 sendiri
+      let l4HasOwnAkun = false;
+      const l4Idx = allRows.findIndex(x => x.id === nearestL4.id);
+      for (let j = l4Idx + 1; j <= itemIdx; j++) {
+        if (allRows[j].row_type === 'header' && Number(allRows[j].level_indent) === 3) {
+          l4HasOwnAkun = true;
+          break;
+        }
+      }
+      if (!l4HasOwnAkun) {
+        enclosingAkun = r;
+        break;
+      }
+    } else if (lvl >= 21 && lvl <= 29) {
+      if (!nearestL4) nearestL4 = r;
+    } else if (lvl <= 2) {
+      nearestL3 = r;
+      break;
+    }
+  }
+
+  if (enclosingAkun) {
+    // Jika sudah ada baris L5 Akun di atasnya dan kode akunnya berbeda, sinkronkan L5 Akun tersebut
+    if (String(enclosingAkun.kode || '').trim() !== cleanKodeAkun) {
+      const akunIdx = allRows.findIndex(r => r.id === enclosingAkun.id);
+      const akunParentRank = nearestL4 ? getRowHierarchyRank(nearestL4) : (nearestL3 ? getRowHierarchyRank(nearestL3) : 30);
+      db.prepare('UPDATE rab_baris SET kode = ?, kode_akun = ?, uraian = ? WHERE id = ?').run(
+        cleanKodeAkun, cleanKodeAkun, akunUraian, enclosingAkun.id
+      );
+      for (let j = akunIdx + 1; j < allRows.length; j++) {
+        const child = allRows[j];
+        if (child.row_type === 'header') {
+          if (Number(child.level_indent) === 3) break;
+          if (getRowHierarchyRank(child) <= akunParentRank) break;
+        }
+        db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(cleanKodeAkun, child.id);
+      }
+    }
+    return enclosingAkun.id;
+  }
+
+  // Belum ada baris L5 Akun yang menaungi rincian ini!
+  // Cek apakah seluruh Kegiatan L3 belum memiliki baris L5 Akun sama sekali
+  let anchorHeader = nearestL4 || nearestL3;
+  if (nearestL3) {
+    const l3Idx = allRows.findIndex(r => r.id === nearestL3.id);
+    const l3Rank = getRowHierarchyRank(nearestL3);
+    let l3HasAnyAkun = false;
+    for (let j = l3Idx + 1; j < allRows.length; j++) {
+      const child = allRows[j];
+      if (child.row_type === 'header') {
+        if (Number(child.level_indent) === 3) {
+          l3HasAnyAkun = true;
+          break;
+        }
+        if (getRowHierarchyRank(child) <= l3Rank && Number(child.level_indent) <= 2) break;
+      }
+    }
+    if (!l3HasAnyAkun) {
+      anchorHeader = nearestL3;
+    }
+  }
+
+  const targetAfterUrutan = anchorHeader ? Number(anchorHeader.urutan) : Math.max(0, Number(itemRow.urutan) - 1);
+  db.prepare('UPDATE rab_baris SET urutan = urutan + 1 WHERE periode_id = ? AND urutan > ?').run(periodeId, targetAfterUrutan);
+
+  const insertRes = db.prepare(`
+    INSERT INTO rab_baris (
+      periode_id, urutan, row_type, kode, uraian, level_indent, target_scope, kode_akun,
+      basis_pengali, harga_satuan, pic_bagian, sifat_biaya, jenis_biaya, blokir_rm, selalu_tampil_print, catatan_revisi_baris
+    ) VALUES (?, ?, 'header', ?, ?, 3, 'ALL', ?, 'NONE', 0, ?, 'NON_OPERASIONAL', 'LANGSUNG', 0, 1, ?)
+  `).run(
+    periodeId,
+    targetAfterUrutan + 1,
+    cleanKodeAkun,
+    akunUraian,
+    cleanKodeAkun,
+    itemRow.pic_bagian || (anchorHeader ? anchorHeader.pic_bagian : 'KUL') || 'KUL',
+    `Rekam otomatis Akun BAS [${cleanKodeAkun}] menaungi rincian belanja`
+  );
+
+  // Sinkronkan kode_akun seluruh rincian di bawah anchorHeader yang dinaungi
+  if (anchorHeader) {
+    const updatedRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
+    const newAkunIdx = updatedRows.findIndex(r => r.id === Number(insertRes.lastInsertRowid));
+    const anchorRank = getRowHierarchyRank(anchorHeader);
+    if (newAkunIdx !== -1) {
+      for (let j = newAkunIdx + 1; j < updatedRows.length; j++) {
+        const child = updatedRows[j];
+        if (child.row_type === 'header') {
+          if (Number(child.level_indent) === 3) break;
+          if (getRowHierarchyRank(child) <= anchorRank && Number(child.level_indent) <= 2) break;
+          if (anchorRank > 30 && getRowHierarchyRank(child) <= anchorRank) break;
+        }
+        db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(cleanKodeAkun, child.id);
+      }
+    }
+  }
+
+  return Number(insertRes.lastInsertRowid);
+}
+
 function saveRabRow(row, actorUser = null, options = {}) {
   const { skipTransaction = false, skipAudit = false } = options;
-  const targetSubbag = normalizePic(row.pic_bagian || (row.id ? getRabRowById(row.id)?.pic_bagian : 'KUL') || 'KUL');
+  const existingForCheck = row.id ? getRabRowById(row.id) : null;
+  const targetSubbag = normalizePic(row.pic_bagian || (existingForCheck ? existingForCheck.pic_bagian : 'KUL') || 'KUL');
   checkRowEditPermission(row.periode_id, targetSubbag, actorUser);
 
   const cleanUraian = (row.uraian || '').trim();
   if (!cleanUraian) throw new Error('Uraian rincian belanja tidak boleh kosong.');
 
-  const isHeader = row.row_type === 'header' || Number(row.level_indent) < 4;
-  const f1 = isHeader ? null : parseIndonesianNumber(row.f1_val);
-  const f2 = isHeader ? null : parseIndonesianNumber(row.f2_val);
-  const f3 = isHeader ? null : parseIndonesianNumber(row.f3_val);
-  const f4 = isHeader ? null : parseIndonesianNumber(row.f4_val);
-  const harga = isHeader ? 0 : (parseIndonesianNumber(row.harga_satuan) || 0);
+  // Jika menambah L5 Akun (level_indent === 3) dengan mode wrap_children dan di posisi induk sudah ada L5 Akun, gunakan update
+  if (!row.id && Number(row.level_indent) === 3 && (row.anchor_mode === 'wrap_children' || row.wrap_children) && row.anchor_row_id) {
+    const anchorRow = getRabRowById(Number(row.anchor_row_id));
+    if (anchorRow && anchorRow.periode_id === row.periode_id) {
+      const allRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(row.periode_id);
+      const anchorIdx = allRows.findIndex(r => r.id === anchorRow.id);
+      if (anchorIdx !== -1) {
+        if (Number(anchorRow.level_indent) === 3 && anchorRow.row_type === 'header') {
+          row.id = anchorRow.id;
+        } else if (anchorRow.row_type === 'header' && getRowHierarchyRank(anchorRow) < 50) {
+          const nextRow = allRows[anchorIdx + 1];
+          if (nextRow && nextRow.row_type === 'header' && Number(nextRow.level_indent) === 3) {
+            row.id = nextRow.id;
+          }
+        } else {
+          // anchorRow adalah L6 item atau L6-H sub-header: cari induk L3/L4/L5 di atasnya
+          for (let i = anchorIdx - 1; i >= 0; i--) {
+            const r = allRows[i];
+            if (r.row_type !== 'header') continue;
+            const lvl = Number(r.level_indent);
+            if (lvl === 3) {
+              row.id = r.id;
+              break;
+            }
+            if (lvl <= 2 || (lvl >= 21 && lvl <= 29)) {
+              row.anchor_row_id = r.id;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const existing = row.id ? getRabRowById(row.id) : null;
+  const effectiveRowType = row.row_type || (existing ? existing.row_type : (Number(row.level_indent) < 4 ? 'header' : 'item'));
+  const effectiveLevelIndent = row.level_indent !== undefined ? Number(row.level_indent) : (existing ? Number(existing.level_indent) : 4);
+  const isHeader = effectiveRowType === 'header' || effectiveLevelIndent < 4;
+
+  const f1 = isHeader ? null : (row.f1_val !== undefined ? parseIndonesianNumber(row.f1_val) : (existing ? existing.f1_val : null));
+  const f2 = isHeader ? null : (row.f2_val !== undefined ? parseIndonesianNumber(row.f2_val) : (existing ? existing.f2_val : null));
+  const f3 = isHeader ? null : (row.f3_val !== undefined ? parseIndonesianNumber(row.f3_val) : (existing ? existing.f3_val : null));
+  const f4 = isHeader ? null : (row.f4_val !== undefined ? parseIndonesianNumber(row.f4_val) : (existing ? existing.f4_val : null));
+  const harga = isHeader ? 0 : (row.harga_satuan !== undefined ? (parseIndonesianNumber(row.harga_satuan) || 0) : (existing ? (Number(existing.harga_satuan) || 0) : 0));
 
   if (!isHeader) {
     if ((f1 !== null && f1 < 0) || (f2 !== null && f2 < 0) || (f3 !== null && f3 < 0) || (f4 !== null && f4 < 0)) {
@@ -1812,7 +1980,6 @@ function saveRabRow(row, actorUser = null, options = {}) {
   }
 
   if (row.id) {
-    const existing = getRabRowById(row.id);
     if (!existing) throw new Error('Baris yang akan diedit tidak ditemukan.');
 
     if (existing.pic_bagian && normalizePic(existing.pic_bagian) !== targetSubbag) {
@@ -1847,20 +2014,28 @@ function saveRabRow(row, actorUser = null, options = {}) {
       WHERE id = ?
     `).run(
       row.urutan !== undefined ? row.urutan : existing.urutan,
-      row.row_type || existing.row_type,
+      effectiveRowType,
       row.kode !== undefined ? row.kode : existing.kode,
       cleanUraian,
-      row.level_indent !== undefined ? row.level_indent : existing.level_indent,
+      effectiveLevelIndent,
       row.target_scope || existing.target_scope,
       row.kode_akun || existing.kode_akun,
-      f1, row.f1_unit || '', row.f1_var || '',
-      f2, row.f2_unit || '', row.f2_var || '',
-      f3, row.f3_unit || '', row.f3_var || '',
-      f4, row.f4_unit || '', row.f4_var || '',
-      row.basis_pengali || 'NONE',
-      row.label_pengali_kab || '',
-      row.label_pengali_adhoc || '',
-      row.satuan_vol || '',
+      f1,
+      isHeader ? '' : (row.f1_unit !== undefined ? row.f1_unit : (existing.f1_unit || '')),
+      isHeader ? '' : (row.f1_var !== undefined ? row.f1_var : (existing.f1_var || '')),
+      f2,
+      isHeader ? '' : (row.f2_unit !== undefined ? row.f2_unit : (existing.f2_unit || '')),
+      isHeader ? '' : (row.f2_var !== undefined ? row.f2_var : (existing.f2_var || '')),
+      f3,
+      isHeader ? '' : (row.f3_unit !== undefined ? row.f3_unit : (existing.f3_unit || '')),
+      isHeader ? '' : (row.f3_var !== undefined ? row.f3_var : (existing.f3_var || '')),
+      f4,
+      isHeader ? '' : (row.f4_unit !== undefined ? row.f4_unit : (existing.f4_unit || '')),
+      isHeader ? '' : (row.f4_var !== undefined ? row.f4_var : (existing.f4_var || '')),
+      isHeader ? 'NONE' : (row.basis_pengali !== undefined ? row.basis_pengali : (existing.basis_pengali || 'NONE')),
+      isHeader ? '' : (row.label_pengali_kab !== undefined ? row.label_pengali_kab : (existing.label_pengali_kab || '')),
+      isHeader ? '' : (row.label_pengali_adhoc !== undefined ? row.label_pengali_adhoc : (existing.label_pengali_adhoc || '')),
+      isHeader ? '' : (row.satuan_vol !== undefined ? row.satuan_vol : (existing.satuan_vol || '')),
       harga,
       row.pic_bagian || existing.pic_bagian,
       row.sifat_biaya || existing.sifat_biaya,
@@ -1871,6 +2046,36 @@ function saveRabRow(row, actorUser = null, options = {}) {
       row.catatan_revisi_baris !== undefined ? row.catatan_revisi_baris : existing.catatan_revisi_baris,
       row.id
     );
+
+    // Jika baris L5 Akun diupdate, sinkronkan kode_akun seluruh rincian yang dinaunginya
+    if (isHeader && effectiveLevelIndent === 3 && (row.kode_akun || row.kode)) {
+      const targetAkun = String(row.kode_akun || row.kode).trim();
+      const allRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(row.periode_id);
+      const curIdx = allRows.findIndex(r => r.id === Number(row.id));
+      if (curIdx !== -1) {
+        let parentRank = 30;
+        for (let i = curIdx - 1; i >= 0; i--) {
+          if (allRows[i].row_type === 'header' && getRowHierarchyRank(allRows[i]) < 50) {
+            parentRank = getRowHierarchyRank(allRows[i]);
+            break;
+          }
+        }
+        for (let j = curIdx + 1; j < allRows.length; j++) {
+          const child = allRows[j];
+          if (child.row_type === 'header') {
+            if (Number(child.level_indent) === 3) break;
+            if (getRowHierarchyRank(child) <= parentRank && Number(child.level_indent) <= 2) break;
+            if (parentRank > 30 && getRowHierarchyRank(child) <= parentRank) break;
+          }
+          db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(targetAkun, child.id);
+        }
+      }
+    }
+
+    // Jika baris rincian belanja (L6) diedit dan diminta memastikan L5 Akun tersedia di atasnya
+    if (!isHeader && row.ensure_akun_header) {
+      ensureAccountHeaderForItem(row.periode_id, row.id, row.kode_akun || existing.kode_akun || '521211');
+    }
 
     try {
       const { clearRkbDatasetCache } = require('./calculation');
@@ -1890,7 +2095,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
     }
 
     // Jika baris yang diedit adalah Header dan PIC-nya diubah, lakukan cascade ke seluruh baris anak ("level diatasnya dirubah, level dibawah mengikuti")
-    const isHeaderRow = (existing.row_type === 'header' || Number(existing.level_indent) < 4);
+    const isHeaderRow = isHeader;
     const newPicVal = row.pic_bagian ? normalizePic(row.pic_bagian) : existing.pic_bagian;
     const isPicChanged = newPicVal && existing.pic_bagian && newPicVal !== normalizePic(existing.pic_bagian);
 
@@ -1916,13 +2121,46 @@ function saveRabRow(row, actorUser = null, options = {}) {
     return getRabRowById(row.id);
   } else {
     let urutan = row.urutan;
+    let resolvedBeforeUrutan = row.target_before_urutan;
+    let resolvedAfterUrutan = row.target_after_urutan;
+
+    // Resolusi posisi dinamis dari anchor_row_id atau target_after_id pada saat eksekusi transaksi
+    const anchorId = row.anchor_row_id || row.target_after_id;
+    if (anchorId) {
+      const anchorRow = getRabRowById(Number(anchorId));
+      if (anchorRow && anchorRow.periode_id === row.periode_id) {
+        const mode = row.anchor_mode || (row.target_after_id ? 'after' : 'after_children');
+        const allRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(row.periode_id);
+        const anchorIdx = allRows.findIndex(r => r.id === anchorRow.id);
+        if (mode === 'before') {
+          resolvedBeforeUrutan = anchorRow.urutan;
+          resolvedAfterUrutan = undefined;
+        } else if (mode === 'wrap_children' || mode === 'after') {
+          resolvedAfterUrutan = anchorRow.urutan;
+          resolvedBeforeUrutan = undefined;
+        } else if (mode === 'after_children' && anchorIdx !== -1) {
+          let lastChildU = anchorRow.urutan;
+          const anchorRank = getRowHierarchyRank(anchorRow);
+          if (anchorRow.row_type === 'header' || anchorRank < 99) {
+            for (let i = anchorIdx + 1; i < allRows.length; i++) {
+              const r = allRows[i];
+              if (r.row_type === 'header' && getRowHierarchyRank(r) <= anchorRank) break;
+              lastChildU = r.urutan;
+            }
+          }
+          resolvedAfterUrutan = lastChildU;
+          resolvedBeforeUrutan = undefined;
+        }
+      }
+    }
+
     if (urutan === undefined || urutan === null) {
-      if (row.target_before_urutan !== undefined && row.target_before_urutan !== null) {
-        const targetBefore = Number(row.target_before_urutan);
+      if (resolvedBeforeUrutan !== undefined && resolvedBeforeUrutan !== null) {
+        const targetBefore = Number(resolvedBeforeUrutan);
         db.prepare('UPDATE rab_baris SET urutan = urutan + 1 WHERE periode_id = ? AND urutan >= ?').run(row.periode_id, targetBefore);
         urutan = targetBefore;
-      } else if (row.target_after_urutan !== undefined && row.target_after_urutan !== null) {
-        const targetAfter = Number(row.target_after_urutan);
+      } else if (resolvedAfterUrutan !== undefined && resolvedAfterUrutan !== null) {
+        const targetAfter = Number(resolvedAfterUrutan);
         db.prepare('UPDATE rab_baris SET urutan = urutan + 1 WHERE periode_id = ? AND urutan > ?').run(row.periode_id, targetAfter);
         urutan = targetAfter + 1;
       } else {
@@ -1946,12 +2184,44 @@ function saveRabRow(row, actorUser = null, options = {}) {
         ?
       )
     `).run(
-      row.periode_id, urutan, row.row_type || (isHeader ? 'header' : 'item'), row.kode || '', cleanUraian, row.level_indent !== undefined ? row.level_indent : (isHeader ? 2 : 4), row.target_scope || 'KAB', row.kode_akun || '521211',
+      row.periode_id, urutan, effectiveRowType, row.kode || '', cleanUraian, effectiveLevelIndent, row.target_scope || 'KAB', row.kode_akun || '521211',
       f1, row.f1_unit || '', row.f1_var || '', f2, row.f2_unit || '', row.f2_var || '', f3, row.f3_unit || '', row.f3_var || '', f4, row.f4_unit || '', row.f4_var || '',
-      row.basis_pengali || 'NONE', row.label_pengali_kab || '', row.label_pengali_adhoc || '', row.satuan_vol || '', harga,
+      row.basis_pengali || 'NONE', row.label_pengali_kab || '', row.label_pengali_adhoc || '', row.satuan_vol || row.vol_satuan || '', harga,
       row.pic_bagian || 'KUL', row.sifat_biaya || 'NON_OPERASIONAL', row.jenis_biaya || 'LANGSUNG', row.blokir_rm || 0, row.selalu_tampil_print || 0, row.parent_rkb_row_id || null,
       row.catatan_revisi_baris || ''
     );
+
+    const insertedId = Number(res.lastInsertRowid);
+
+    // Jika baris baru adalah L5 Akun (level_indent === 3) yang menaungi rincian di bawahnya, otomatis ikat kode_akun rincian di bawahnya
+    if (isHeader && effectiveLevelIndent === 3 && (row.anchor_mode === 'wrap_children' || row.wrap_children)) {
+      const targetAkun = String(row.kode_akun || row.kode || '521211').trim();
+      const allRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(row.periode_id);
+      const curIdx = allRows.findIndex(r => r.id === insertedId);
+      if (curIdx !== -1) {
+        let parentRank = 30;
+        for (let i = curIdx - 1; i >= 0; i--) {
+          if (allRows[i].row_type === 'header' && getRowHierarchyRank(allRows[i]) < 50) {
+            parentRank = getRowHierarchyRank(allRows[i]);
+            break;
+          }
+        }
+        for (let j = curIdx + 1; j < allRows.length; j++) {
+          const child = allRows[j];
+          if (child.row_type === 'header') {
+            if (Number(child.level_indent) === 3) break;
+            if (getRowHierarchyRank(child) <= parentRank && Number(child.level_indent) <= 2) break;
+            if (parentRank > 30 && getRowHierarchyRank(child) <= parentRank) break;
+          }
+          db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(targetAkun, child.id);
+        }
+      }
+    }
+
+    // Jika baris baru adalah rincian belanja (L6) dan diminta memastikan L5 Akun tersedia di atasnya
+    if (!isHeader && row.ensure_akun_header) {
+      ensureAccountHeaderForItem(row.periode_id, insertedId, row.kode_akun || '521211');
+    }
 
     try {
       const { clearRkbDatasetCache } = require('./calculation');
@@ -1963,13 +2233,13 @@ function saveRabRow(row, actorUser = null, options = {}) {
         user: actorUser,
         action: 'CREATE_RKB_ROW',
         entity: 'rab_baris',
-        entity_id: res.lastInsertRowid,
+        entity_id: insertedId,
         new_values: { uraian: cleanUraian, harga_satuan: harga, pic: row.pic_bagian },
         notes: `Baris RKB baru ditambahkan ke periode ${row.periode_id}.`
       });
     }
 
-    return getRabRowById(res.lastInsertRowid);
+    return getRabRowById(insertedId);
   }
 }
 
@@ -2462,6 +2732,12 @@ function executeStagedOpsInternal(periodeId, ops = [], actorUser = null) {
       if (payload.parent_rkb_row_id) {
         payload.parent_rkb_row_id = resolveId(payload.parent_rkb_row_id);
       }
+      if (payload.anchor_row_id) {
+        payload.anchor_row_id = resolveId(payload.anchor_row_id);
+      }
+      if (payload.target_after_id) {
+        payload.target_after_id = resolveId(payload.target_after_id);
+      }
       if (actorUser && actorUser.level > 1 && !payload.id && actorUser.pic_subbag && actorUser.pic_subbag !== 'SEMUA') {
         payload.pic_bagian = actorUser.pic_subbag;
       }
@@ -2733,6 +3009,19 @@ function commitStagedRkbOps(periodeId, ops = [], options = {}, actorUser = null)
       },
       notes: summaryNotes
     });
+
+    // Sinkronkan otomatis ke template & berkas database resmi siprabu_siap_phpmyadmin.sql (jika bukan mode unit test)
+    if (!process.env.SIPRABU_DB_PATH) {
+      setImmediate(() => {
+        try {
+          const { execFile } = require('child_process');
+          const scriptPath = path.resolve(__dirname, '..', 'scripts', 'export_sqlite_to_mysql.js');
+          if (fs.existsSync(scriptPath)) {
+            execFile(process.execPath, [scriptPath], { windowsHide: true }, () => {});
+          }
+        } catch (e) {}
+      });
+    }
 
     return {
       committed: true,
