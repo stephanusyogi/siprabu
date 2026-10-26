@@ -8,6 +8,7 @@ const { DatabaseSync } = require('node:sqlite');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { hashPassword, verifyPassword, sanitizeLogData } = require('./crypto_util');
 const { parseIndonesianNumber } = require('./number_util');
 const { validateUserCoherence, normalizePic } = require('./auth');
@@ -17,20 +18,38 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+// Direktori persisten di luar folder Git (aman dari reset saat Hostinger Git Auto-Deploy)
+const PERSISTENT_DIR = path.join(os.homedir(), '.siprabu_persistent_data');
+try {
+  if (!fs.existsSync(PERSISTENT_DIR)) {
+    fs.mkdirSync(PERSISTENT_DIR, { recursive: true });
+  }
+} catch (e) {}
+
 const DB_PATH = process.env.SIPRABU_DB_PATH || path.join(DATA_DIR, 'hibah_kpu.sqlite');
 const BACKUP_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.bak');
 const TEMPLATE_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.template');
+const PERSISTENT_DB_PATH = path.join(PERSISTENT_DIR, 'hibah_kpu.sqlite');
 
-// Bersihkan file backup 0-byte jika ada agar tidak merusak pemulihan
-if (fs.existsSync(BACKUP_PATH)) {
-  try {
-    if (fs.statSync(BACKUP_PATH).size === 0) fs.unlinkSync(BACKUP_PATH);
-  } catch (e) {}
+// Bersihkan file backup/persisten 0-byte jika ada agar tidak merusak pemulihan
+for (const p of [BACKUP_PATH, PERSISTENT_DB_PATH]) {
+  if (fs.existsSync(p)) {
+    try {
+      if (fs.statSync(p).size === 0) fs.unlinkSync(p);
+    } catch (e) {}
+  }
 }
 
-// Jika file database belum ada (misal saat container hosting baru menyala), pulihkan dari template atau backup
+// Jika file database belum ada (misal saat Hostinger Git Auto-Deploy membuat folder rilis baru):
+// 1. Utamakan pulihkan dari PERSISTENT_DB_PATH (di home dir server, di luar folder Git) agar data online TIDAK PERNAH TER-RESET!
+// 2. Jika belum pernah ada di PERSISTENT_DB_PATH, baru salin dari TEMPLATE_PATH atau BACKUP_PATH.
 if (!fs.existsSync(DB_PATH) || (fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size === 0)) {
-  if (fs.existsSync(TEMPLATE_PATH) && fs.statSync(TEMPLATE_PATH).size > 0) {
+  if (!process.env.SIPRABU_DB_PATH && fs.existsSync(PERSISTENT_DB_PATH) && fs.statSync(PERSISTENT_DB_PATH).size > 0) {
+    try {
+      fs.copyFileSync(PERSISTENT_DB_PATH, DB_PATH);
+      console.log('[DB-INIT] Memulihkan database aktif dari penyimpanan persisten server:', PERSISTENT_DB_PATH);
+    } catch (e) {}
+  } else if (fs.existsSync(TEMPLATE_PATH) && fs.statSync(TEMPLATE_PATH).size > 0) {
     try { fs.copyFileSync(TEMPLATE_PATH, DB_PATH); } catch (e) {}
   } else if (fs.existsSync(BACKUP_PATH) && fs.statSync(BACKUP_PATH).size > 0) {
     try { fs.copyFileSync(BACKUP_PATH, DB_PATH); } catch (e) {}
@@ -41,8 +60,8 @@ const db = new DatabaseSync(DB_PATH);
 module.exports.db = db;
 
 /**
- * Flush WAL ke file utama hibah_kpu.sqlite dan cadangkan ke hibah_kpu.sqlite.bak
- * menjamin Durability (D dalam ACID) penuh tanpa kerja dua arah.
+ * Flush WAL ke file utama hibah_kpu.sqlite dan cadangkan ke PERSISTENT_DB_PATH & hibah_kpu.sqlite.bak
+ * menjamin Durability (D dalam ACID) penuh serta kebal dari reset saat Git redeploy di Hosting.
  */
 function checkpointAndSyncDatabase(mode = 'PASSIVE') {
   try {
@@ -52,6 +71,7 @@ function checkpointAndSyncDatabase(mode = 'PASSIVE') {
     db.exec(`PRAGMA wal_checkpoint(${cleanMode});`);
     if (!process.env.SIPRABU_DB_PATH && fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size > 0) {
       try { fs.copyFileSync(DB_PATH, BACKUP_PATH); } catch (e) {}
+      try { fs.copyFileSync(DB_PATH, PERSISTENT_DB_PATH); } catch (e) {}
     }
   } catch (e) {
     console.warn('[DB-CHECKPOINT] Peringatan saat checkpoint WAL:', e.message);
@@ -249,6 +269,11 @@ function recordAuditLog({
       status,
       finalNotes
     );
+    // Pastikan setiap mutasi data langsung di-checkpoint ke penyimpanan persisten
+    const cat = classifyAuditCategory(action, resolvedEntity);
+    if (['RKB', 'MASTER', 'SIKLUS', 'USER'].includes(cat)) {
+      checkpointAndSyncDatabase('PASSIVE');
+    }
   } catch (err) {
     console.warn('[AUDIT] Gagal mencatat log audit:', err.message);
   }

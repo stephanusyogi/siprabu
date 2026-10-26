@@ -744,7 +744,30 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { success: true });
     }
 
-    // 3b. ENDPOINT KHUSUS LEAD DEVELOPER: BLUEPRINT & PRD ARSITEKTUR
+    // 3b. ENDPOINT KHUSUS LEAD DEVELOPER: BLUEPRINT & PRD ARSITEKTUR + SINKRONISASI DB
+    if (pathname === '/api/developer/export-sqlite' && method === 'GET') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!isDeveloperUser(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Lead Developer (Level 0) yang diizinkan mengunduh snapshot SQLite.' });
+      }
+      try {
+        if (typeof db.checkpointAndSyncDatabase === 'function') {
+          db.checkpointAndSyncDatabase('TRUNCATE');
+        }
+        const sqlitePath = path.resolve(__dirname, 'data', 'hibah_kpu.sqlite');
+        const buf = fs.readFileSync(sqlitePath);
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': 'attachment; filename="hibah_kpu.sqlite"',
+          'Content-Length': buf.length
+        });
+        return res.end(buf);
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Gagal mengekspor database SQLite: ' + err.message });
+      }
+    }
+
     if (pathname === '/api/developer/blueprint' && method === 'GET') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
