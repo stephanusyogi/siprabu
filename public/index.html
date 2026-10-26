@@ -2265,6 +2265,141 @@
             </div>
           </div>
 
+          <!-- PETA HIERARKI, PENOMORAN & STANDAR PENULISAN RKB BERBASIS SAKTI (L1 s.d. L6 — 5 LAPIS LEVEL 4) -->
+          <div class="card p-3 mb-4" style="border-top: 4px solid #0f766e; background: #ffffff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+              <h3 style="font-size: 15.5px; font-weight: 800; color: #0f766e; margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span>📐 Peta Hierarki, Penomoran &amp; Standar Penulisan RKB Berbasis SAKTI (L1 s.d. L6 &mdash; Maksimal 5 Lapis Anak Level 4)</span>
+              </h3>
+              <span style="background:#ccfbf1; color:#115e59; font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px;">DISIPLIN POHON RKKS SAKTI (BAB 25 PRD)</span>
+            </div>
+            <p style="font-size: 12.5px; color: #334155; line-height: 1.55; margin-bottom: 12px;">
+              Untuk menjamin ketepatan <em>rollup</em> subtotal di setiap induk dan konsistensi dengan cara kerja <strong>RKKS SAKTI</strong>, penulisan struktur RKB di SI-PRABU wajib mengikuti urutan level satu arah dari atas ke bawah (tidak boleh bolak-balik / <em>zig-zag</em> antara Sub-Komponen dan Kode Akun):
+            </p>
+            <div class="table-responsive" style="margin-bottom: 12px;">
+              <table class="table table-bordered table-hover" style="font-size: 12px; margin-bottom: 0;">
+                <thead>
+                  <tr style="background: #f0fdfa; color: #0f766e;">
+                    <th style="width: 115px;">Level RKB</th>
+                    <th style="width: 135px;">Padanan SAKTI</th>
+                    <th style="width: 115px;">Format Kode</th>
+                    <th>Peran Hierarki &amp; Contoh Penulisan</th>
+                    <th style="width: 90px; text-align:center;">Kode Sistem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Level 1 (L1)</strong></td>
+                    <td>Program</td>
+                    <td><code>A</code>, <code>B</code></td>
+                    <td><strong>Kelompok Besar Anggaran:</strong> <code>A. KEBUTUHAN BARANG DAN JASA</code> / <code>B. HONORARIUM</code></td>
+                    <td style="text-align:center;"><code>lvl: 0</code></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Level 2 (L2)</strong></td>
+                    <td>Kegiatan / KRO</td>
+                    <td><code>I.</code>, <code>II.</code></td>
+                    <td><strong>Bagian / Tahapan:</strong> <code>I. TAHAPAN PERSIAPAN DAN PELAKSANAAN</code> / <code>II. OPERASIONAL KANTOR</code></td>
+                    <td style="text-align:center;"><code>lvl: 1</code></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Level 3 (L3)</strong></td>
+                    <td>Rincian Output (RO)</td>
+                    <td><code>1</code> s.d. <code>28</code></td>
+                    <td><strong>Kegiatan Utama:</strong> Contoh: <code>4. Sosialisasi/Penyuluhan/Bimbingan Teknis</code> atau <code>20. Pelayanan Administrasi Perkantoran</code></td>
+                    <td style="text-align:center;"><code>lvl: 2</code></td>
+                  </tr>
+                  <tr style="background: #fffbeb;">
+                    <td><strong>Level 4.1</strong> <em>(Lapis 1)</em></td>
+                    <td>Komponen</td>
+                    <td><strong><code>a.</code>, <code>b.</code>, <code>c.</code></strong></td>
+                    <td><strong>Metode / Komponen Utama:</strong> Contoh: <code>a. Sosialisasi/Penyuluhan/Bimtek</code>, <code>b. Relawan Demokrasi</code> (atau <code>a. KPU Kab</code>, <code>b. PPK</code>, <code>c. PPS</code>)</td>
+                    <td style="text-align:center;"><code>lvl: 21</code></td>
+                  </tr>
+                  <tr style="background: #f0fdf4;">
+                    <td><strong>Level 4.2</strong> <em>(Lapis 2)</em></td>
+                    <td>Sub-Komponen</td>
+                    <td><strong><code>1)</code>, <code>2)</code>, <code>3)</code></strong></td>
+                    <td><strong>Bentuk Kegiatan / Sub-Komponen:</strong> Contoh: <code>1) Sosialisasi Tatap Muka</code>, <code>2) Pemasangan Alat Peraga</code>, <code>1) Alat Tulis Kantor (ATK)</code></td>
+                    <td style="text-align:center;"><code>lvl: 22</code></td>
+                  </tr>
+                  <tr style="background: #f0f9ff;">
+                    <td><strong>Level 4.3</strong> <em>(Lapis 3)</em></td>
+                    <td>Sub-Subkomponen 1</td>
+                    <td><strong><code>a)</code>, <code>b)</code>, <code>c)</code></strong></td>
+                    <td><strong>Pelaksana / Sasaran / Sub-Bentuk (Opsional):</strong> Contoh: <code>a) Dilaksanakan KPU Kabupaten</code>, <code>b) Dilaksanakan PPK</code>, <code>c) Dilaksanakan PPS</code></td>
+                    <td style="text-align:center;"><code>lvl: 23</code></td>
+                  </tr>
+                  <tr style="background: #f8fafc;">
+                    <td><strong>Level 4.4</strong> <em>(Lapis 4)</em></td>
+                    <td>Sub-Subkomponen 2</td>
+                    <td><strong><code>(1)</code>, <code>(2)</code>, <code>(3)</code></strong></td>
+                    <td><strong>Segmen Sasaran / Aktivitas (Opsional):</strong> Contoh: <code>(1) Tokoh Agama, Parpol, Ormas</code>, <code>(2) Pemilih Pemula</code>, <code>(3) Pemilih Perempuan</code></td>
+                    <td style="text-align:center;"><code>lvl: 24</code></td>
+                  </tr>
+                  <tr style="background: #f8fafc;">
+                    <td><strong>Level 4.5</strong> <em>(Lapis 5)</em></td>
+                    <td>Sub-Subkomponen 3</td>
+                    <td><strong><code>(a)</code>, <code>(b)</code>, <code>(c)</code></strong></td>
+                    <td><strong>Sub-Segmen / Tahap Rapat (Opsional):</strong> Contoh: <code>(a) Rapat Persiapan</code>, <code>(b) Rapat Penjurian</code></td>
+                    <td style="text-align:center;"><code>lvl: 25</code></td>
+                  </tr>
+                  <tr style="background: #eef2ff; font-weight: 600;">
+                    <td><strong>Level 5 (L5)</strong></td>
+                    <td><strong>Akun (BAS 6 Digit)</strong></td>
+                    <td><strong><code>52xxxx</code></strong></td>
+                    <td><strong>PAGAR PEMBATAS AKUN:</strong> <code>521211 Belanja Bahan</code>, <code>524114 Belanja Paket Meeting</code>, dll. <em>(Selalu di bawah ujung terakhir Level 4)</em></td>
+                    <td style="text-align:center;"><code>lvl: 3</code></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Level 6 Header</strong></td>
+                    <td>Header Detil (<code>&gt;</code>)</td>
+                    <td><strong><code>&gt;</code></strong></td>
+                    <td><strong>Kelompok Rincian di Bawah Akun (Opsional):</strong> Contoh: <code>&gt; Konsumsi</code> atau <code>&gt; Souvenir</code> untuk mengelompokkan item sejenis di dalam 1 Akun</td>
+                    <td style="text-align:center;"><code>lvl: 41</code></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Level 6 Item (L6)</strong></td>
+                    <td>Detil Belanja (<code>-</code>)</td>
+                    <td><strong><code>-.</code></strong></td>
+                    <td><strong>Detil Rincian Belanja (Item):</strong> Baris rincian akhir yang memiliki rumus <code>Faktor (F1–F4) &times; Pengali &times; Harga Satuan = Jumlah Anggaran</code></td>
+                    <td style="text-align:center;"><code>lvl: 4 (item)</code></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 12px;">
+              <div style="background: #f0fdfa; border: 1px solid #99f6e4; border-left: 4px solid #0d9488; padding: 10px 12px; border-radius: 6px; font-size: 12px; color: #134e4a; line-height: 1.55;">
+                <strong>✅ 1. Aturan Pagar Akun (Anti Zig-Zag):</strong><br>
+                Seluruh penomoran struktur kegiatan (<code>a.</code> &rarr; <code>1)</code> &rarr; <code>a)</code> &rarr; <code>(1)</code> &rarr; <code>(a)</code>) <strong>wajib berada di ATAS Kode Akun (<code>52xxxx</code>)</strong>. Di bawah Kode Akun (<code>52xxxx</code>) hanya boleh ada Kelompok Rincian (<code>&gt;</code>) atau Detil Belanja (<code>-.</code>).
+              </div>
+              <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; padding: 10px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; line-height: 1.55;">
+                <strong>✅ 2. Fleksibilitas 1 s.d. 5 Anak Level 4:</strong><br>
+                Kegiatan sederhana tidak wajib memakai ke-5 lapis Level 4. Jika kegiatan cukup berhenti di <code>Level 4.1 (a.)</code> atau <code>Level 4.2 (1))</code>, langsung tempatkan <code>Level 5 (Akun 52xxxx)</code> di bawahnya; mesin otomatis menyesuaikan penjumlahan ke induk di atasnya.
+              </div>
+              <div style="background: #fefce8; border: 1px solid #fde047; border-left: 4px solid #ca8a04; padding: 10px 12px; border-radius: 6px; font-size: 12px; color: #713f12; line-height: 1.55;">
+                <strong>✅ 3. Akurasi Penjumlahan Vertikal &amp; Horizontal:</strong><br>
+                Setiap baris Detil (<code>item</code>) menyimpan identitas <code>kode_akun</code>. Baik penjumlahan vertikal (<em>rollup</em> ke induk) maupun rekapitulasi horizontal per Akun BAS dihitung langsung dari baris <code>item</code> tanpa risiko <em>double-counting</em>.
+              </div>
+            </div>
+            <div style="background: #0f172a; color: #f8fafc; padding: 12px 14px; border-radius: 8px; font-family: var(--font-mono, monospace); font-size: 11.5px; line-height: 1.6; overflow-x: auto;">
+              <div style="color: #fde047; font-weight: 800; margin-bottom: 4px; font-family: var(--font-sans, sans-serif); font-size: 12px;">📌 Contoh Baku Penulisan Pohon Hierarki Kegiatan Kompleks (Kegiatan 4: Sosialisasi — 5 Lapis Level 4):</div>
+              <div>L3 &nbsp;&nbsp;[<strong>4</strong>] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sosialisasi/Penyuluhan/Bimbingan Teknis</div>
+              <div>&nbsp;├─ L4.1 [<strong>a.</strong>] &nbsp;&nbsp;&nbsp;&nbsp;Sosialisasi/Penyuluhan/Bimbingan Teknis <em>(Metode 1)</em></div>
+              <div>&nbsp;│ &nbsp;&nbsp;├─ L4.2 [<strong>1)</strong>] &nbsp;&nbsp;&nbsp;&nbsp;Sosialisasi Tatap Muka</div>
+              <div>&nbsp;│ &nbsp;&nbsp;│ &nbsp;&nbsp;├─ L4.3 [<strong>a)</strong>] &nbsp;&nbsp;&nbsp;&nbsp;Dilaksanakan KPU Kabupaten &rarr; L5 [<strong>521211</strong> / <strong>522151</strong> / <strong>524114</strong>] &rarr; L6 [<strong>-.</strong>] Detil Belanja</div>
+              <div>&nbsp;│ &nbsp;&nbsp;│ &nbsp;&nbsp;├─ L4.3 [<strong>b)</strong>] &nbsp;&nbsp;&nbsp;&nbsp;Dilaksanakan PPK &rarr; L5 [<strong>521211</strong>] &rarr; L6 [<strong>-.</strong>] Konsumsi &amp; ATK PPK</div>
+              <div>&nbsp;│ &nbsp;&nbsp;│ &nbsp;&nbsp;└─ L4.3 [<strong>c)</strong>] &nbsp;&nbsp;&nbsp;&nbsp;Dilaksanakan PPS &rarr; L5 [<strong>521211</strong>] &rarr; L6 [<strong>-.</strong>] Konsumsi &amp; Spanduk PPS</div>
+              <div>&nbsp;│ &nbsp;&nbsp;├─ L4.2 [<strong>4)</strong>] &nbsp;&nbsp;&nbsp;&nbsp;Pendidikan Pemilih kepada Masyarakat &rarr; L4.3 [<strong>a)</strong>] Dilaksanakan KPU Kabupaten</div>
+              <div>&nbsp;│ &nbsp;&nbsp;│ &nbsp;&nbsp;├─ L4.4 [<strong>(1)</strong>] &nbsp;&nbsp;&nbsp;Tokoh Agama, Parpol, Ormas &rarr; L5 [<strong>521211</strong> / <strong>522151</strong> / <strong>524114</strong>] &rarr; L6 [<strong>-.</strong>]</div>
+              <div>&nbsp;│ &nbsp;&nbsp;│ &nbsp;&nbsp;└─ L4.4 [<strong>(2)</strong>] &nbsp;&nbsp;&nbsp;Pemilih Pemula &rarr; L5 [<strong>521211</strong> / <strong>522151</strong> / <strong>524114</strong>] &rarr; L6 [<strong>-.</strong>]</div>
+              <div>&nbsp;│ &nbsp;&nbsp;└─ L4.2 [<strong>9)</strong>] &nbsp;&nbsp;&nbsp;&nbsp;Lomba Selfie di TPS &rarr; L4.3 [<strong>a)</strong>] Dilaksanakan KPU Kabupaten &rarr; L4.4 [<strong>(1)</strong>] Persiapan &amp; Penjurian</div>
+              <div>&nbsp;│ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ L4.5 [<strong>(a)</strong>] &nbsp;&nbsp;&nbsp;Rapat Persiapan &rarr; L5 [<strong>521211</strong>] &rarr; L6 [<strong>-.</strong>] Konsumsi Rapat</div>
+              <div>&nbsp;│ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ L4.5 [<strong>(b)</strong>] &nbsp;&nbsp;&nbsp;Rapat Penjurian &rarr; L5 [<strong>521211</strong> / <strong>522151</strong>] &rarr; L6 [<strong>-.</strong>]</div>
+              <div>&nbsp;└─ L4.1 [<strong>b.</strong>] &nbsp;&nbsp;&nbsp;&nbsp;Relawan Demokrasi <em>(Metode 2)</em> &rarr; L4.2 [<strong>1)</strong>] Pembentukan &amp; Kegiatan &rarr; L5 [<strong>521211</strong> / <strong>521213</strong>]</div>
+            </div>
+          </div>
+
           <!-- KHUSUS LEVEL 1 / PIMPINAN / DEVELOPER: PANDUAN VALIDASI, PLENO, PENGESAHAN TAHAP 4 & MASTER SSOT -->
           <div data-panduan-scope="level1_pimpinan" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 16px;">
             <div class="card p-3" style="border-top: 3px solid #0284c7;">
@@ -2388,7 +2523,7 @@
                 <li>Pilih atau pastikan <strong>PIC subbagian</strong> yang menjadi kewenangan Anda. Gunakan pencarian kode/uraian dan filter bila diperlukan.</li>
                 <li>Buka cabang baris <strong>L1–L6</strong> untuk melihat induk dan rincian belanja.</li>
                 <li>Isi atau koreksi rincian yang diperbolehkan: <strong>uraian, faktor/pengali (F1–F4), volume, satuan, harga satuan, PIC, dan sasaran</strong>. Periksa jumlah anggaran yang dihitung sistem.</li>
-                <li>Jika perlu menambah baris, pilih induk/level yang tepat. Penambahan mengikuti hierarki; misalnya <strong>L4</strong> dapat menambah <strong>L4 sejajar</strong> atau <strong>L5 di bawahnya</strong>.</li>
+                <li>Jika perlu menambah baris, ikuti disiplin Pohon Hierarki SAKTI (<strong>Level 4 memiliki maksimal 5 lapis: <code>4.1 a.</code> &rarr; <code>4.2 1)</code> &rarr; <code>4.3 a)</code> &rarr; <code>4.4 (1)</code> &rarr; <code>4.5 (a)</code> di ATAS <code>Level 5 Akun 52xxxx</code></strong>).</li>
                 <li>Sebelum menghapus baris induk, baca konfirmasi: <strong>semua anak di bawah induk tersebut ikut terhapus</strong>.</li>
                 <li>Klik tombol <strong>Simpan Perubahan RKB</strong> untuk menyimpan draf ke database, lalu periksa kembali total dan data PIC sebelum mengajukan revisi.</li>
               </ol>
@@ -5308,7 +5443,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=4.0.3"></script>
+    <script src="/app.js?v=4.0.4"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

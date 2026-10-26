@@ -4736,8 +4736,8 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
     1: { title: 'Rekam Bagian Utama (L1)', subtitle: 'Tingkat Tertinggi Pengelompokan Anggaran (Contoh: A, B)', defaultKode: '', uraianPlaceholder: 'Contoh: TAHAPAN PEMILIHAN' },
     2: { title: 'Rekam Tahapan Program (L2)', subtitle: 'Tahapan Operasional Anggaran (Contoh: I, II, III)', defaultKode: '', uraianPlaceholder: 'Contoh: I. TAHAPAN PERSIAPAN' },
     3: { title: 'Rekam Kegiatan / Komponen (L3)', subtitle: '28 Komponen Kegiatan Anggaran (Contoh: 29, 30)', defaultKode: '', uraianPlaceholder: 'Contoh: Pelaksanaan Pemungutan dan Penghitungan Suara' },
-    4: { title: 'Rekam Sub-Komponen (L4)', subtitle: 'Rincian Sub-Komponen Kegiatan (Contoh: 4.1, 4.2)', defaultKode: '', uraianPlaceholder: 'Contoh: Sub-Kegiatan Logistik dan Distribusi' },
-    5.5: { title: 'Rekam Header Teks / Sub-Header Kelompok', subtitle: 'Teks Pengelompokan Rincian di bawah Akun (Contoh: a., b., c., Paket 1)', defaultKode: '', uraianPlaceholder: 'Contoh: Kantor/Inventaris, Kendaraan Dinas, atau Konsumsi Panitia' }
+    4: { title: 'Rekam Sub-Komponen (L4 — Maks. 5 Lapis)', subtitle: 'Struktur Level 4 di atas Akun: L4.1 (a.) → L4.2 (1)) → L4.3 (a)) → L4.4 ((1)) → L4.5 ((a))', defaultKode: '', uraianPlaceholder: 'Contoh: Sosialisasi Tatap Muka / Dilaksanakan KPU Kabupaten' },
+    5.5: { title: 'Rekam Header Kelompok di Bawah Akun (>)', subtitle: 'Kelompok Rincian di bawah Kode Akun 52xxxx (Contoh: > Konsumsi, > Souvenir)', defaultKode: '', uraianPlaceholder: 'Contoh: Konsumsi, Souvenir, atau Kantor/Inventaris' }
   };
 
   const cfg = levelConfigs[targetLevel] || { title: 'Rekam Komponen Baru', subtitle: '', defaultKode: '', uraianPlaceholder: '' };
@@ -8269,7 +8269,7 @@ async function loadDeveloperBlueprint() {
   container.innerHTML = '<div style="text-align: center; padding: 30px; color: #64748b;"><span>Memuat dokumen Blueprint &amp; PRD dari server...</span></div>';
 
   try {
-    const res = await apiFetch('/api/developer/blueprint');
+    const res = await apiFetch('/api/developer/blueprint?_t=' + Date.now());
     if (res && res.success) {
       currentBlueprintRawContent = res.content || '';
       if (textarea) textarea.value = currentBlueprintRawContent;

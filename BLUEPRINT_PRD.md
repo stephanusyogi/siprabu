@@ -273,16 +273,21 @@
 ### 18.1 Sumber data, tampilan dan struktur
 RUH menampilkan satu RKB aktif, hierarki L1–L6, kode, uraian komponen/akun/rincian, PIC Subbag, Sasaran, rincian perhitungan (faktor × pengali), volume, satuan, harga satuan, jumlah anggaran, dan aksi baris. Navigasi yang terlihat mencakup pencarian uraian/kode, filter subbagian, sasaran, level, cakupan baris, ekspansi/kolaps cabang, pilihan baris aktif, Sanding, Resume, Audit Integritas, dan Unduh Excel. Fungsi detail tombol yang belum disepakati tidak boleh direkayasa.
 
-#### Skema Penomoran Hierarki RKB (L1–L6)
+#### Skema Penomoran Hierarki RKB (L1–L6 — Maksimal 5 Lapis Anak Level 4)
 
 | Level | Sebutan Hierarki | Format Penomoran / Kode | Contoh pada RKB KPU Ngawi |
 | :--- | :--- | :--- | :--- |
 | **L1** | Bagian Utama (Grand Title) | Huruf Kapital (`A, B`) | `A. KEBUTUHAN BARANG DAN JASA`<br>`B. HONORARIUM POKJA DAN PENYELENGGARA` |
-| **L2** | Kelompok Tahapan | Angka Romawi (`I, II`) | `I. TAHAPAN PERSIAPAN DAN PELAKSANAAN`<br>`II. OPERASIONAL DAN ADMINISTRASI KANTOR` |
-| **L3** | Tahapan / Kegiatan | Angka Biasa (`1 s.d 28`) | `1. Perencanaan Program dan Anggaran`<br>`5. Pembentukan dan Pembubaran PPK, PPS, KPPS`<br>`18. Pemeliharaan` |
-| **L4** | Sub-Tahapan / Komponen | Desimal (`4.1, 4.2, ...`) atau Strip (`-`) | `4.1. Sosialisasi Pemilih Pemula`<br>`4.2. Bimbingan Teknis Sirekap` |
-| **L5** | Akun Belanja (BAS) | Kode 6 Digit (`[521211]`) | `[521211] Belanja Bahan`<br>`[521213] Honor Output Kegiatan`<br>`[524111] Belanja Perjalanan Dinas Biasa` |
-| **L6** | Detail Item Belanja | Uraian Item (Rumus Multi-Faktor) | `-. Konsumsi Rapat (15 Org x 5 Keg x Rp 65.000 = Rp 4.875.000)` |
+| **L2** | Kelompok Tahapan | Angka Romawi (`I., II.`) | `I. TAHAPAN PERSIAPAN DAN PELAKSANAAN`<br>`II. OPERASIONAL DAN ADMINISTRASI KANTOR` |
+| **L3** | Tahapan / Kegiatan (RO SAKTI) | Angka Biasa (`1 s.d. 28`) | `4. Sosialisasi/Penyuluhan/Bimbingan Teknis`<br>`20. Pelayanan Administrasi Perkantoran` |
+| **L4.1** *(Lapis 1)* | Metode / Komponen Utama | Huruf Kecil Titik (`a., b., c.`) | `a. Sosialisasi/Penyuluhan/Bimtek`<br>`b. Relawan Demokrasi` (atau `a. KPU Kab`, `b. PPK`, `c. PPS`) |
+| **L4.2** *(Lapis 2)* | Bentuk Kegiatan / Sub-Komponen | Angka Kurung Tutup (`1), 2), 3)`) | `1) Sosialisasi Tatap Muka`<br>`2) Pemasangan Alat Peraga Sosialisasi`<br>`1) Alat Tulis Kantor (ATK)` |
+| **L4.3** *(Lapis 3)* | Pelaksana / Sasaran / Sub-Bentuk | Huruf Kecil Kurung Tutup (`a), b), c)`) | `a) Dilaksanakan KPU Kabupaten`<br>`b) Dilaksanakan PPK`<br>`c) Dilaksanakan PPS` |
+| **L4.4** *(Lapis 4)* | Segmen Sasaran / Aktivitas | Angka Kurung Penuh (`(1), (2), (3)`) | `(1) Tokoh Agama, Parpol, Ormas`<br>`(2) Pemilih Pemula`<br>`(3) Pemilih Perempuan` |
+| **L4.5** *(Lapis 5)* | Sub-Segmen / Tahap Rapat | Huruf Kecil Kurung Penuh (`(a), (b), (c)`) | `(a) Rapat Persiapan`<br>`(b) Rapat Penjurian` |
+| **L5** | **Akun Belanja (BAS — Pagar Akun)** | Kode 6 Digit (`52xxxx`) | `[521211] Belanja Bahan`<br>`[524114] Belanja Perjalanan Dinas Paket Meeting Dalam Kota` |
+| **L6 Header** | Kelompok Rincian di Bawah Akun | Tanda Kurung Sudut (`>`) | `> Konsumsi`<br>`> Souvenir` |
+| **L6 Item** | Detail Item Belanja | Strip Titik (`-.`) + Rumus Faktor | `-. Konsumsi Rapat (15 Org x 5 Keg x Rp 65.000 = Rp 4.875.000)` |
 
 ### 18.2 Penambahan baris berdasarkan baris aktif
 Baris aktif `L1` mengaktifkan penambahan `L1/L2`; `L2` → `L2/L3`; `L3` → `L3/L4`; `L4` → `L4/L5`; `L5` → `L5/L6`; `L6` → `L6` saja. Penambahan level sama menciptakan sibling, satu level di bawah menciptakan child. Baris baru wajib terhubung pada parent yang sah dan berada pada cabang yang benar.
@@ -428,3 +433,67 @@ Setiap perubahan angka pada menu **REFERENSI / DATABASE** (`Master Desa & TPS`, 
 | **Surat Suara, Alat Bantu, & Logistik Pemilih (DPT)** | `f_var = @dpt` (Formulir C.Pemberitahuan) & `f_var = @surat_suara` (Cetak Surat Suara + 2,5% & Sortir/Lipat Surat Suara) | Otomatis mengikuti total **Pemilih (DPT)** terbaru (`@dpt`) serta kalkulasi otomatis **`@surat_suara = DPT + 2,5%`** tanpa angka desimal. |
 | **Fasilitasi Paslon, Parpol, & Personil KPU Kab.** | `f_var = @paslon`, `@paslon_parpol`, `@paslon_perseorangan`, `@parpol`, `@komisioner`, `@sekretariat_kpu`, `@kpu_all` | Otomatis mengikuti perubahan pada Master Pasangan Calon dan Parameter Kuantitas SSOT. |
 | **Pembersihan Label Pengali Ganda pada Baris `FIXED`** | `if (basis !== 'NONE' && basis !== 'FIXED')` | Mencegah munculnya duplikasi teks `x 1 TPS` atau `x 1 Kotak` pada pratinjau formula baris yang sudah menggunakan `@tps_rkb` atau `@kotak_rkb` di Faktor F1–F4. |
+
+---
+
+## 25. Standar Sistematisasi Hierarki & Penomoran RKB Berbasis SAKTI (L1–L6 & Maksimal 5 Lapis Anak Level 4)
+Merujuk pada disiplin pohon hierarki (*strict tree hierarchy*) pada output **RKKS SAKTI** (`Program -> Kegiatan/KRO -> RO -> Komponen -> Sub-Komponen -> Akun -> Header Detil -> Detil Belanja`), struktur RKB Hibah di SI-PRABU menerapkan arsitektur hierarki satu arah (**Opsi A — Pagar Pembatas Akun**) dengan ketentuan baku sebagai berikut:
+
+### 25.1 Anatomi Pemetaan Level RKB SI-PRABU terhadap RKKS SAKTI (`master_penomoran` & `getHierarchyRank`)
+| Level RKB | Padanan RKKS SAKTI | `level_indent` | `Rank` Mesin | Format Penomoran | Peran & Contoh Penulisan |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **Level 1 (`L1`)** | Program (`076.01.CQ`) | `0` | `10` | **`A`, `B`** | **Kelompok Besar Anggaran:** `A. KEBUTUHAN BARANG DAN JASA` / `B. HONORARIUM` |
+| **Level 2 (`L2`)** | Kegiatan / KRO (`6709.QGE`) | `1` | `20` | **`I.`, `II.`** | **Bagian / Tahapan:** `I. TAHAPAN PERSIAPAN DAN PELAKSANAAN` / `II. OPERASIONAL KANTOR` |
+| **Level 3 (`L3`)** | Rincian Output / RO (`001`) | `2` | `30` | **`1` s.d. `28`** | **Kegiatan Utama:** `4. Sosialisasi/Penyuluhan/Bimbingan Teknis`, `20. Pelayanan Administrasi Perkantoran` |
+| **Level 4.1** *(Lapis 1)* | Komponen (`051` / `052`) | `21` | `41` | **`a.`, `b.`, `c.`** | **Metode / Komponen Utama:** `a. Sosialisasi/Penyuluhan/Bimtek`, `b. Relawan Demokrasi` (atau `a. KPU Kab`, `b. PPK`, `c. PPS`, `d. KPPS`) |
+| **Level 4.2** *(Lapis 2)* | Sub-Komponen (`A`, `B`, `C`) | `22` | `42` | **`1)`, `2)`, `3)`** | **Bentuk Kegiatan / Sub-Komponen:** `1) Sosialisasi Tatap Muka`, `2) Pemasangan Alat Peraga`, `1) Alat Tulis Kantor (ATK)` |
+| **Level 4.3** *(Lapis 3)* | Sub-Subkomponen Lapis 1 | `23` | `43` | **`a)`, `b)`, `c)`** | **Pelaksana / Sasaran / Sub-Bentuk (Opsional):** `a) Dilaksanakan KPU Kabupaten`, `b) Dilaksanakan PPK`, `c) Dilaksanakan PPS` |
+| **Level 4.4** *(Lapis 4)* | Sub-Subkomponen Lapis 2 | `24` | `44` | **`(1)`, `(2)`, `(3)`** | **Segmen Sasaran / Aktivitas (Opsional):** `(1) Tokoh Agama, Parpol, Ormas`, `(2) Pemilih Pemula`, `(3) Pemilih Perempuan` |
+| **Level 4.5** *(Lapis 5)* | Sub-Subkomponen Lapis 3 | `25` | `45` | **`(a)`, `(b)`, `(c)`** | **Sub-Segmen / Tahap Rapat (Opsional):** `(a) Rapat Persiapan`, `(b) Rapat Penjurian` |
+| **Level 5 (`L5`)** | **Akun BAS 6-Digit** | **`3`** | **`50`** | **`52xxxx`** | **PAGAR PEMBATAS AKUN:** `521211 Belanja Bahan`, `524114 Belanja Paket Meeting`, dll. |
+| **Level 6 Header** | Header Kelompok (`>`) | `41` | `61` | **`>`** | **Kelompok Rincian di Bawah Akun (Opsional):** `> Konsumsi`, `> Souvenir` |
+| **Level 6 Item (`L6`)** | Detil Belanja (`-`) | `4` (`item`) | `99` | **`-.`** | **Detil Rincian Belanja:** Baris item pemilik formula `F1..F4 x Pengali x Harga Satuan = Jumlah` |
+
+### 25.2 Tiga Hukum Emas Sistematisasi Hierarki & Kalkulasi RKB
+1. **Hukum Pagar Pembatas Akun (`Rank 50` — Anti Zig-Zag):**
+   - Seluruh struktur organisasi dan penomoran kegiatan (`Level 4.1` s.d. `Level 4.5`: `a.` $\rightarrow$ `1)` $\rightarrow$ `a)` $\rightarrow$ `(1)` $\rightarrow$ `(a)`) **wajib ditempatkan di ATAS baris Kode Akun (`52xxxx`)**.
+   - Di bawah baris Kode Akun (`52xxxx`, `Rank 50`), hanya boleh terdapat **Header Kelompok (`>`, `Rank 61`)** atau **Detil Rincian Belanja (`-.`, `Rank 99`)**. Dilarang menempatkan nomor Sub-Komponen baru di bawah Akun yang diikuti oleh Akun lain agar tidak terjadi penyedotan (*mis-nesting*) subtotal ke dalam cabang sebelumnya.
+2. **Fleksibilitas Kedalaman Level 4 (1 s.d. 5 Anak Level):**
+   - Suatu kegiatan tidak diwajibkan menggunakan kelima lapis Level 4 secara penuh. Kegiatan sederhana dapat berhenti di `Level 4.1 (a.)` atau `Level 4.2 (1))` dan langsung diikuti oleh `Level 5 (Akun 52xxxx)`.
+   - Karena `Level 5 (Akun)` memiliki `Rank 50` (lebih besar dari `41..45`), mesin `getHierarchyRank()` secara otomatis mengikat baris Akun sebagai anak dari lapis Level 4 terakhir yang berada tepat di atasnya.
+3. **Independensi Kalkulasi Vertikal (*Rollup*) dan Horizontal (*Rekap Akun BAS*):**
+   - **Penjumlahan Vertikal (*Top-Down Rollup*):** Setiap baris induk (`L1` s.d. `L5` dan `Header >`) menghitung subtotalnya secara murni dari akumulasi baris `item` (`row_type = 'item'`) yang berada di dalam cabangnya.
+   - **Penjumlahan Horizontal (*Rekapitulasi per Akun BAS*):** Setiap baris `item` menyimpan atribut `kode_akun` 6-digit di database (`rab_baris.kode_akun`), sehingga rekapitulasi pagu per Akun Belanja selalu dihitung dari `SUM(jumlah) WHERE row_type = 'item' GROUP BY kode_akun` tanpa risiko penjumlahan ganda (*double-counting*).
+
+### 25.3 Contoh Baku Penerapan 5 Lapis Level 4 pada Kegiatan Kompleks (Kegiatan 4: Sosialisasi)
+```text
+L3   [4]       Sosialisasi/Penyuluhan/Bimbingan Teknis
+ ├─ L4.1 [a.]      Sosialisasi/Penyuluhan/Bimbingan Teknis (Metode 1)
+ │   ├─ L4.2 [1)]      Sosialisasi Tatap Muka
+ │   │   ├─ L4.3 [a)]      Dilaksanakan KPU Kabupaten
+ │   │   │   ├─ L5 [521211]    Belanja Bahan
+ │   │   │   │   └─ L6 [-.]        Spanduk, ATK, Penggandaan
+ │   │   │   ├─ L5 [522151]    Belanja Jasa Profesi (Narasumber)
+ │   │   │   └─ L5 [524114]    Belanja Paket Meeting Dalam Kota
+ │   │   ├─ L4.3 [b)]      Dilaksanakan PPK
+ │   │   │   └─ L5 [521211]    Belanja Bahan -> [-.] Konsumsi & ATK PPK
+ │   │   └─ L4.3 [c)]      Dilaksanakan PPS
+ │   │       └─ L5 [521211]    Belanja Bahan -> [-.] Konsumsi & Spanduk PPS
+ │   ├─ L4.2 [4)]      Pendidikan Pemilih kepada Masyarakat
+ │   │   └─ L4.3 [a)]      Dilaksanakan KPU Kabupaten
+ │   │       ├─ L4.4 [(1)]     Perundang-undangan dgn Tokoh Agama, Parpol, Ormas
+ │   │       │   ├─ L5 [521211]    Belanja Bahan
+ │   │       │   ├─ L5 [522151]    Belanja Jasa Profesi
+ │   │       │   └─ L5 [524114]    Belanja Paket Meeting
+ │   │       └─ L4.4 [(2)]     Pemilih Pemula -> L5 [521211 / 522151 / 524114]
+ │   └─ L4.2 [9)]      Lomba Selfie di TPS
+ │       └─ L4.3 [a)]      Dilaksanakan KPU Kabupaten
+ │           ├─ L4.4 [(1)]     Persiapan dan Penjurian Lomba
+ │           │   ├─ L4.5 [(a)]     Rapat Persiapan -> L5 [521211] -> [-.] Konsumsi
+ │           │   └─ L4.5 [(b)]     Rapat Penjurian -> L5 [521211 / 522151]
+ │           └─ L4.4 [(2)]     Hadiah Pemenang Lomba -> L5 [522191]
+ └─ L4.1 [b.]      Relawan Demokrasi (Metode 2)
+     └─ L4.2 [1)]      Pembentukan dan Kegiatan Relawan Demokrasi -> L5 [521211 / 521213]
+```
+
+
