@@ -11,7 +11,8 @@
     "dev": "node --watch server.js",
     "test": "node test/comprehensive_test.js && node test/business_behavior_test.js",
     "backup": "node scripts/backup.js",
-    "reset-admin": "node scripts/reset_admin.js"
+    "reset-admin": "node scripts/reset_admin.js",
+    "export-mysql": "node scripts/export_sqlite_to_mysql.js"
   },
   "author": "emenje",
   "license": "ISC",

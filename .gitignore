@@ -24,3 +24,4 @@ public/dev-tools.js
 
 temp/
 scratch/
+*.sql
