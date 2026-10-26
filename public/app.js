@@ -2878,7 +2878,7 @@ function onFilterPerubahanChange() {
 }
 
 function selectRow(rowId, event) {
-  if (event && event.target && (event.target.closest('button') || event.target.closest('.pic-chip') || event.target.closest('.akun-badge-inline'))) {
+  if (event && event.target && (event.target.closest('button') || event.target.closest('.pic-chip') || event.target.closest('.akun-badge-inline') || event.target.closest('.l4-lapis-badge'))) {
     return;
   }
 
@@ -3417,6 +3417,40 @@ function renderRkbTable() {
 
     const canEdit = checkCanEditRow(user, r, isLocked);
 
+    const rawKode = String(r.kode || '').trim();
+    const rawUraian = String(r.uraian || '').trim();
+    const isTopLvlKode = r.is_header && (lvl === 0 || lvl === 1 || lvl === 2);
+    const kodeColPad = lvl === 0 ? '6px' : (lvl === 1 ? '20px' : '34px');
+    const kodeColColor = lvl === 1 ? '#1e3a8a' : '#0f172a';
+    const kodeCellDisplay = isTopLvlKode ? escHtml(rawKode) : '';
+
+    const showInlineKode = r.is_header && !isTopLvlKode && !r.is_akun_row && rawKode && rawKode !== '-' && !rawUraian.startsWith(rawKode);
+    const inlineKodeHtml = showInlineKode
+      ? `<span style="font-family:var(--font-mono);font-weight:800;margin-right:3px;">${escHtml(rawKode)}</span>`
+      : '';
+
+    let uraianTextStyle = '';
+    let l4BadgeHtml = '';
+    if (r.is_header && lvl >= 21 && lvl <= 25) {
+      const lapisIdx = lvl - 20;
+      const l4Styles = {
+        21: { text: 'font-weight:700;color:#1e3a8a;font-size:13px;', badge: 'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;' },
+        22: { text: 'font-weight:600;color:#0f766e;font-size:12.6px;', badge: 'background:#ccfbf1;color:#115e59;border:1px solid #5eead4;' },
+        23: { text: 'font-weight:600;color:#4338ca;font-size:12.4px;', badge: 'background:#e0e7ff;color:#3730a3;border:1px solid #a5b4fc;' },
+        24: { text: 'font-weight:500;color:#b45309;font-size:12.2px;', badge: 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;' },
+        25: { text: 'font-weight:500;font-style:italic;color:#334155;font-size:12px;', badge: 'background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;' }
+      };
+      const st = l4Styles[lvl] || l4Styles[21];
+      uraianTextStyle = st.text;
+      if (canEdit && !isLocked) {
+        l4BadgeHtml = `<span class="l4-lapis-badge" onclick="openEditHeaderModal(${r.id}, event)" style="${st.badge}font-family:var(--font-mono);font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px;cursor:pointer;margin-left:4px;white-space:nowrap;" title="Klik untuk mengubah Lapis Level 4 (L4-1 s.d. L4-5) atau Kode/Uraian">L4-${lapisIdx}</span>`;
+      } else {
+        l4BadgeHtml = `<span style="${st.badge}font-family:var(--font-mono);font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px;margin-left:4px;white-space:nowrap;">L4-${lapisIdx}</span>`;
+      }
+    } else if (r.is_sub_header) {
+      uraianTextStyle = 'font-weight:600;color:#0369a1;font-size:12.2px;';
+    }
+
     if (isSanding) {
 
       let badgeClass = 'diff-tetap';
@@ -3428,12 +3462,13 @@ function renderRkbTable() {
       rowsHtml += `
         <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id}, event)">
           <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
-          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.is_akun_row ? '' : (r.kode || '')}</td>
+          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 800; text-align: left; padding-left: ${kodeColPad}; color: ${kodeColColor};">${kodeCellDisplay}</td>
           <td class="col-uraian" style="padding-left: ${r.effective_indent || 0}px;">
             <div style="display: flex; align-items: center; gap: 4px;">
               ${toggleChevron}
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
-              <span>${escHtml(r.uraian || '')}</span>
+              <span style="${uraianTextStyle}">${inlineKodeHtml}${escHtml(r.uraian || '')}</span>
+              ${l4BadgeHtml}
               ${isNewlyAdded ? `<span class="badge badge-purple" style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:600;" title="Baris belanja baru / tambahan">✨ BARU</span>` : ''}
               ${stagedBadgeHtml}
             </div>
@@ -3475,7 +3510,7 @@ function renderRkbTable() {
           : (r.is_akun_row ? `openQuickAkunModal(${r.id}, event)` : `openEditHeaderModal(${r.id}, event)`);
         const editTitle = isItem
           ? 'Edit Rincian Belanja'
-          : (r.is_akun_row ? 'Ubah Akun Belanja (BAS)' : 'Ubah Teks Header ini');
+          : (r.is_akun_row ? 'Ubah Akun Belanja (BAS)' : 'Ubah Level Hierarki / Kode / Teks Header ini');
         const delTitle = isItem
           ? 'Hapus Baris Rincian Belanja ini'
           : `Hapus [${r.kode || '-'}] ${escHtml(r.uraian || '')} (beserta seluruh level di bawahnya)`;
@@ -3483,8 +3518,17 @@ function renderRkbTable() {
         const disableUp = bounds.isFirst ? 'disabled style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;opacity:0.35;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;"';
         const disableDown = bounds.isLast ? 'disabled style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;opacity:0.35;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;"';
 
+        const isL4Row = r.is_header && lvl >= 21 && lvl <= 25;
+        const disableOutdent = lvl <= 21 ? 'disabled style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;opacity:0.3;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;color:#0f766e;"';
+        const disableIndent = lvl >= 25 ? 'disabled style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;opacity:0.3;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;color:#0f766e;"';
+        const l4ShiftButtons = isL4Row ? `
+          <button type="button" class="btn btn-xs btn-outline-secondary" onclick="shiftHeaderLevel(${r.id}, -1, event)" title="${lvl <= 21 ? 'Sudah di L4 Lapis 1 (paling kiri)' : 'Majukan ke kiri 1 lapis (L4-' + (lvl - 20) + ' → L4-' + (lvl - 21) + ')'}" ${disableOutdent}>◀</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary" onclick="shiftHeaderLevel(${r.id}, 1, event)" title="${lvl >= 25 ? 'Sudah di L4 Lapis 5 (maksimal)' : 'Jorokkan ke dalam 1 lapis (L4-' + (lvl - 20) + ' → L4-' + (lvl - 19) + ')'}" ${disableIndent}>▶</button>
+        ` : '';
+
         aksiHtml = `
           <div style="display:inline-flex;align-items:center;gap:2px;white-space:nowrap;">
+            ${l4ShiftButtons}
             <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveRowOrdering(${r.id}, 'UP', event)" title="${bounds.isFirst ? 'Sudah berada di urutan paling atas grup induknya' : 'Geser Naik (1 posisi dalam grup induk)'}" ${disableUp}>
               ▲
             </button>
@@ -3506,12 +3550,13 @@ function renderRkbTable() {
       rowsHtml += `
         <tr id="row-${r.id}" class="${r.is_header ? 'rkb-row-lvl-' + lvl : ''} ${isSelected ? 'table-row-selected' : ''}" onclick="selectRow(${r.id}, event)">
           <td class="col-no text-center" style="font-family: var(--font-mono); font-size: 11px;">${r.urutan || (idx + 1)}</td>
-          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 700;">${r.is_akun_row ? '' : (r.kode || '')}</td>
+          <td class="col-kode" style="font-family: var(--font-mono); font-weight: 800; text-align: left; padding-left: ${kodeColPad}; color: ${kodeColColor};">${kodeCellDisplay}</td>
           <td class="col-uraian" style="padding-left: ${r.effective_indent || 0}px;">
             <div style="display: flex; align-items: center; gap: 4px;">
               ${toggleChevron}
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)" title="Klik untuk mengubah Akun Belanja ini">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
-              <span>${escHtml(r.uraian || '')}</span>
+              <span style="${uraianTextStyle}">${inlineKodeHtml}${escHtml(r.uraian || '')}</span>
+              ${l4BadgeHtml}
               ${isNewlyAdded ? `<span class="badge badge-purple" style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:600;" title="Baris belanja baru / tambahan">✨ BARU</span>` : ''}
               ${stagedBadgeHtml}
             </div>
@@ -4732,12 +4777,31 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
   const posBox = document.getElementById('add-header-pos-container');
   if (posBox) posBox.style.display = 'block';
 
+  const lapisBox = document.getElementById('add-header-lapis-container');
+  const lapisSelect = document.getElementById('add-header-level-indent');
+  if (lapisBox) {
+    if (targetLevel === 4 || targetLevel === 5.5) {
+      lapisBox.style.display = 'block';
+      if (lapisSelect) {
+        if (targetLevel === 5.5) {
+          lapisSelect.value = '41';
+        } else if (refRow && refRow.level_indent >= 21 && refRow.level_indent <= 25) {
+          lapisSelect.value = String(refRow.level_indent);
+        } else {
+          lapisSelect.value = '21';
+        }
+      }
+    } else {
+      lapisBox.style.display = 'none';
+    }
+  }
+
   const levelConfigs = {
     1: { title: 'Rekam Bagian Utama (L1)', subtitle: 'Tingkat Tertinggi Pengelompokan Anggaran (Contoh: A, B)', defaultKode: '', uraianPlaceholder: 'Contoh: TAHAPAN PEMILIHAN' },
     2: { title: 'Rekam Tahapan Program (L2)', subtitle: 'Tahapan Operasional Anggaran (Contoh: I, II, III)', defaultKode: '', uraianPlaceholder: 'Contoh: I. TAHAPAN PERSIAPAN' },
     3: { title: 'Rekam Kegiatan / Komponen (L3)', subtitle: '28 Komponen Kegiatan Anggaran (Contoh: 29, 30)', defaultKode: '', uraianPlaceholder: 'Contoh: Pelaksanaan Pemungutan dan Penghitungan Suara' },
-    4: { title: 'Rekam Sub-Komponen (L4 — Maks. 5 Lapis)', subtitle: 'Struktur Level 4 di atas Akun: L4.1 (a.) → L4.2 (1)) → L4.3 (a)) → L4.4 ((1)) → L4.5 ((a))', defaultKode: '', uraianPlaceholder: 'Contoh: Sosialisasi Tatap Muka / Dilaksanakan KPU Kabupaten' },
-    5.5: { title: 'Rekam Header Kelompok di Bawah Akun (>)', subtitle: 'Kelompok Rincian di bawah Kode Akun 52xxxx (Contoh: > Konsumsi, > Souvenir)', defaultKode: '', uraianPlaceholder: 'Contoh: Konsumsi, Souvenir, atau Kantor/Inventaris' }
+    4: { title: 'Rekam Sub-Komponen (L4 — Lapis 1 s.d. Lapis 5)', subtitle: 'Daftar Isi Level 4 di atas Akun: L4 Lapis 1 (a.) → Lapis 2 (1)) → Lapis 3 (a)) → Lapis 4 ((1)) → Lapis 5 ((a))', defaultKode: '', uraianPlaceholder: 'Contoh: Sosialisasi Tatap Muka / Dilaksanakan KPU Kabupaten' },
+    5.5: { title: 'Rekam Header Kelompok di Bawah Akun (>)', subtitle: 'Kelompok Rincian di bawah Kode Akun 52xxxx (Contoh: > Konsumsi, > Souvenir)', defaultKode: '>', uraianPlaceholder: 'Contoh: Konsumsi, Souvenir, atau Kantor/Inventaris' }
   };
 
   const cfg = levelConfigs[targetLevel] || { title: 'Rekam Komponen Baru', subtitle: '', defaultKode: '', uraianPlaceholder: '' };
@@ -4758,17 +4822,7 @@ function openAddHeaderModal(targetLevel, refRowId = null) {
       const maxK = l3Rows.reduce((max, r) => Math.max(max, parseInt(r.kode, 10)), 28);
       kodeInput.value = String(maxK + 1);
     } else if (targetLevel === 5.5) {
-      if (refRow && (refRow.level_indent === 41 || refRow.is_sub_header)) {
-        const curK = (refRow.kode || '').trim().replace('.', '').toLowerCase();
-        if (curK && curK.length === 1 && curK >= 'a' && curK < 'z') {
-          const nextChar = String.fromCharCode(curK.charCodeAt(0) + 1);
-          kodeInput.value = nextChar + '.';
-        } else {
-          kodeInput.value = 'b.';
-        }
-      } else {
-        kodeInput.value = 'a.';
-      }
+      kodeInput.value = '>';
     }
   }
 
@@ -4826,18 +4880,25 @@ async function submitAddHeader() {
 
   // Jika mode edit baris yang sudah ada
   if (editId) {
+    const existingRow = AppState.rkbData?.rows.find(r => r.id === Number(editId));
+    const lapisBox = document.getElementById('add-header-lapis-container');
+    const selectedLvlIndent = (lapisBox && lapisBox.style.display !== 'none')
+      ? Number(document.getElementById('add-header-level-indent')?.value || (existingRow ? existingRow.level_indent : 21))
+      : (existingRow ? existingRow.level_indent : undefined);
+
     const payload = {
       id: Number(editId),
       kode: kode,
       uraian: uraian,
+      level_indent: selectedLvlIndent,
       pic_bagian: pic,
-      catatan_revisi_baris: `Perubahan Header [${kode}] ${uraian}`
+      catatan_revisi_baris: `Perubahan Header [${kode || '-'}] ${uraian}`
     };
     try {
       await stageRkbOperation({
         type: 'SAVE_ROW',
         payload
-      }, `Perubahan Header [${kode}] "${uraian}" masuk ke draf kerja.`);
+      }, `Perubahan Header [${kode || '-'}] "${uraian}" masuk ke draf kerja.`);
       closeAddHeaderModal();
       AppState.selectedRowId = Number(editId);
       renderRkbTable();
@@ -4852,8 +4913,10 @@ async function submitAddHeader() {
   if (targetLevel === 1) levelIndent = 0;
   else if (targetLevel === 2) levelIndent = 1;
   else if (targetLevel === 3) levelIndent = 2;
-  else if (targetLevel === 4) levelIndent = 21;
-  else if (targetLevel === 5.5) levelIndent = 41;
+  else if (targetLevel === 4 || targetLevel === 5.5) {
+    const selVal = Number(document.getElementById('add-header-level-indent')?.value || 0);
+    levelIndent = selVal > 0 ? selVal : (targetLevel === 5.5 ? 41 : 21);
+  }
 
   let targetBeforeUrutan = undefined;
   let targetAfterUrutan = undefined;
@@ -4935,8 +4998,22 @@ function openEditHeaderModal(rowId, event) {
   setElVal('add-header-level', row.level_indent === 41 || row.level_indent === 42 ? 5.5 : (row.tree_level || 2));
   setElVal('add-header-parent-id', row.parent_rkb_row_id || '');
 
-  setElText('modal-header-title-text', `Ubah Teks Header [${row.kode || ''}]`);
-  setElText('modal-header-subtitle', 'Sunting Kode dan Uraian Teks Pengelompok');
+  setElText('modal-header-title-text', `Ubah Komponen / Header [${row.kode || '-'}]`);
+  setElText('modal-header-subtitle', 'Sunting Posisi Lapis Level 4 (L4-1 s.d. L4-5), Kode, dan Uraian');
+
+  const lapisBox = document.getElementById('add-header-lapis-container');
+  const lapisSelect = document.getElementById('add-header-level-indent');
+  if (lapisBox) {
+    const lvlNum = Number(row.level_indent);
+    if ((lvlNum >= 21 && lvlNum <= 25) || lvlNum === 41 || lvlNum === 42) {
+      lapisBox.style.display = 'block';
+      if (lapisSelect) {
+        lapisSelect.value = String(lvlNum === 42 ? 41 : lvlNum);
+      }
+    } else {
+      lapisBox.style.display = 'none';
+    }
+  }
 
   setElVal('add-header-kode', row.kode || '');
   setElVal('add-header-uraian', row.uraian || '');
@@ -4944,7 +5021,7 @@ function openEditHeaderModal(rowId, event) {
 
   const ctxBox = document.getElementById('add-header-context-box');
   if (ctxBox) {
-    ctxBox.innerHTML = `✏️ <strong>Mengubah Header Teks:</strong> Baris <strong>[No: ${row.urutan}] [${row.kode || '-'}] ${escHtml(row.uraian || '')}</strong>`;
+    ctxBox.innerHTML = `✏️ <strong>Mengubah Header:</strong> Baris <strong>[No: ${row.urutan}] [${row.kode || '-'}] ${escHtml(row.uraian || '')}</strong>`;
   }
 
   const posBox = document.getElementById('add-header-pos-container');
@@ -4955,6 +5032,65 @@ function openEditHeaderModal(rowId, event) {
     document.getElementById('add-header-uraian')?.focus();
   }, 100);
 }
+
+function setQuickHeaderKode(kodeVal, levelIndentVal) {
+  const kodeInput = document.getElementById('add-header-kode');
+  if (kodeInput) kodeInput.value = kodeVal;
+  if (levelIndentVal) {
+    const sel = document.getElementById('add-header-level-indent');
+    if (sel) sel.value = String(levelIndentVal);
+  }
+}
+
+function onChangeHeaderLevelIndent(val) {
+  const numVal = Number(val);
+  const kodeInput = document.getElementById('add-header-kode');
+  if (!kodeInput) return;
+  if (numVal === 41 && !kodeInput.value.trim()) {
+    kodeInput.value = '>';
+  }
+}
+
+async function shiftHeaderLevel(rowId, delta, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const p = AppState.currentPeriode;
+  if (!p) return;
+  const user = AppState.currentUser;
+  if (p.is_locked && (!user || user.level > 0)) {
+    alert('Dokumen berstatus terkunci.');
+    return;
+  }
+  const row = AppState.rkbData?.rows.find(r => r.id === Number(rowId));
+  if (!row) return;
+  const curLvl = Number(row.level_indent);
+  if (curLvl < 21 || curLvl > 25) return;
+  const nextLvl = Math.max(21, Math.min(25, curLvl + delta));
+  if (nextLvl === curLvl) return;
+
+  try {
+    await stageRkbOperation({
+      type: 'SAVE_ROW',
+      payload: {
+        id: row.id,
+        kode: row.kode || '',
+        uraian: row.uraian || '',
+        level_indent: nextLvl,
+        pic_bagian: row.pic_bagian || 'PARSDM',
+        catatan_revisi_baris: `Geser Lapis Hierarki L4-${curLvl - 20} → L4-${nextLvl - 20}`
+      }
+    }, `Baris "${row.uraian}" digeser ke L4 Lapis ${nextLvl - 20}.`);
+    AppState.selectedRowId = row.id;
+    renderRkbTable();
+  } catch (err) {
+    alert('Gagal menggeser level hierarki: ' + err.message);
+  }
+}
+window.setQuickHeaderKode = setQuickHeaderKode;
+window.onChangeHeaderLevelIndent = onChangeHeaderLevelIndent;
+window.shiftHeaderLevel = shiftHeaderLevel;
 
 function toggleModalHeaderMode(isHeader) {
   const kodeGroup = document.getElementById('modal-header-kode-group');

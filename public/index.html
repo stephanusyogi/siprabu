@@ -4141,10 +4141,35 @@
             <!-- Context info populated via JS -->
           </div>
 
+          <!-- Pilihan Lapis Hierarki Level 4 (L4-1 s.d. L4-5) -->
+          <div id="add-header-lapis-container" class="form-group" style="margin-bottom: 12px; padding: 10px 12px; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px; display: none;">
+            <label style="font-weight: 800; font-size: 12px; color: #0f766e; margin-bottom: 6px; display: block;">
+              📐 Pilih Posisi Lapis Hierarki (Daftar Isi Level 4):
+            </label>
+            <select id="add-header-level-indent" class="input-select" style="font-weight: 700; font-size: 12.5px;" onchange="onChangeHeaderLevelIndent(this.value)">
+              <option value="21">L4 Lapis 1 (lvl 21) — Komponen / Metode Utama (Contoh: a., b., c.)</option>
+              <option value="22">L4 Lapis 2 (lvl 22) — Sub-Komponen / Bentuk Kegiatan (Contoh: 1), 2), 3))</option>
+              <option value="23">L4 Lapis 3 (lvl 23) — Pelaksana / Sasaran / Sub-Bentuk (Contoh: a), b), c))</option>
+              <option value="24">L4 Lapis 4 (lvl 24) — Segmen Sasaran / Aktivitas (Contoh: (1), (2), (3))</option>
+              <option value="25">L4 Lapis 5 (lvl 25) — Tahap / Sub-Segmen (Contoh: (a), (b), (c))</option>
+              <option value="41">L6 Header (lvl 41) — Kelompok Rincian di Bawah Akun (Contoh: &gt;)</option>
+            </select>
+            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 6px;">
+              <span style="font-size: 11px; color: #0f766e; font-weight: 600;">Isi Cepat Kode:</span>
+              <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size:10.5px;padding:1px 6px;" onclick="setQuickHeaderKode('a.', 21)">a.</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size:10.5px;padding:1px 6px;" onclick="setQuickHeaderKode('1)', 22)">1)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size:10.5px;padding:1px 6px;" onclick="setQuickHeaderKode('a)', 23)">a)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size:10.5px;padding:1px 6px;" onclick="setQuickHeaderKode('(1)', 24)">(1)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size:10.5px;padding:1px 6px;" onclick="setQuickHeaderKode('(a)', 25)">(a)</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size:10.5px;padding:1px 6px;" onclick="setQuickHeaderKode('>', 41)">&gt;</button>
+              <button type="button" class="btn btn-xs btn-outline-danger" style="font-size:10.5px;padding:1px 6px;" onclick="setQuickHeaderKode('', null)">Tanpa Nomor</button>
+            </div>
+          </div>
+
           <div class="form-row-grid" style="display:grid; grid-template-columns: 110px 1fr; gap:12px;">
             <div class="form-group">
               <label style="font-weight:700;">Kode / No:</label>
-              <input type="text" id="add-header-kode" class="input-text" placeholder="Misal: 29" style="font-family:var(--font-mono);font-weight:700;">
+              <input type="text" id="add-header-kode" class="input-text" placeholder="Misal: a. / 1)" style="font-family:var(--font-mono);font-weight:700;">
             </div>
 
             <div class="form-group">
@@ -5443,7 +5468,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=4.0.5"></script>
+    <script src="/app.js?v=4.0.6"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

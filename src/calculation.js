@@ -477,32 +477,33 @@ function getHierarchyRank(row) {
   const kode = String(row.kode || '').trim();
   const uraian = String(row.uraian || '').trim();
   if (lvl === 0) return 10;                     // Level 1 (Grand Title: A, B)
-  if (lvl === 1) return 20;                     // Level 2 (Tahapan/Operasional: I, II)
+  if (lvl === 1) return 20;                     // Level 2 (Tahapan/Operasional: I., II.)
   if (lvl === 2) return 30;                     // Level 3 (Kegiatan 1..28)
   if (lvl === 21) {
     if (!kode && /^-\s/.test(uraian)) return 42;
-    return 41;                                  // Level 4.1 (a., b., c.)
+    return 41;                                  // Level 4 Lapis 1 (a., b., c.)
   }
   if (lvl === 22) {
     const isNumbered = /^\d+[\)\.]/.test(kode) || /^\d+[\)\.]/.test(uraian);
-    if (isNumbered) return 42;                  // Level 4.2 (1), 2), 3))
+    if (isNumbered) return 42;                  // Level 4 Lapis 2 (1), 2), 3))
     const isGroupParent = /^(dengan\s|ditingkat\s|pembentukan\s|pelantikan|pergantian\s+antar\s+waktu|penerimaan\s+dan\s+penelitian|penelitian\s+hasil\s+perbaikan|penelitian\s+persyaratan|perbaikan\s+syarat)/i.test(uraian);
-    if (isGroupParent) return 41.5;             // Group Induk di bawah a./b. yang membawahi 1), 2)
-    return 42.5;                                // Sub-grup di bawah 1), 2)
+    if (isGroupParent) return 41.5;
+    if (!kode) return 42.5;
+    return 42;
   }
-  if (lvl === 23) return 43;                    // Level 4.3 (a), b))
-  if (lvl === 24) return 44;                    // Level 4.4 (b.1., -. Rapat)
-  if (lvl >= 25 && lvl <= 29) return 40 + (lvl - 20);
-  if (lvl === 3) return 50;                     // Level 5 (Akun Belanja 5xxxxx)
+  if (lvl === 23) return 43;                    // Level 4 Lapis 3 (a), b), c))
+  if (lvl === 24) return 44;                    // Level 4 Lapis 4 ((1), (2), (3))
+  if (lvl >= 25 && lvl <= 29) return 40 + (lvl - 20); // Level 4 Lapis 5 ((a), (b), (c))
+  if (lvl === 3) return 50;                     // Level 5 (Akun Belanja 52xxxx)
   if (lvl === 4 || lvl === 41) {
     if (/^[a-z][\.,]?$/i.test(kode)) {
       if (/^dalam\s+rangka/i.test(uraian)) return 60.5;
       return 41;
     }
     if (/^\d+[\)\.]?$/.test(kode)) return 60.2;
-    return 61;                                  // Header Teks di bawah Akun
+    return 61;                                  // Header Kelompok di bawah Akun (>)
   }
-  if (lvl === 42) return 62;                    // Sub-Header di bawah Header 1
+  if (lvl === 42) return 62;                    // Sub-Header di bawah Header Kelompok
   return 45;
 }
 
@@ -516,18 +517,19 @@ function getTreeLevelFromRank(rank, isHeader) {
   return 5.5;
 }
 
-function getEffectiveIndentFromRank(rank, isHeader, depth = 0) {
+function getEffectiveIndentFromRank(rank, isHeader, depth = 0, parentIndent = null) {
   if (rank === 10) return 6;
-  if (rank === 20) return 16;
-  if (rank === 30) return 26;
-  if (rank === 41) return 38;
-  if (rank === 41.5) return 48;
-  if (rank === 42) return 58;
-  if (rank === 42.5) return 68;
-  if (rank >= 43 && rank < 50) return 76;
-  if (rank === 50) return Math.max(44, depth * 12 + 10);
-  if (rank > 50 && rank < 99) return Math.max(56, depth * 12 + 14);
-  return Math.max(58, depth * 12 + 16);
+  if (rank === 20) return 22;
+  if (rank === 30) return 38;
+  if (rank === 41) return 64;
+  if (rank === 41.5) return 78;
+  if (rank === 42 || rank === 42.5) return 90;
+  if (rank === 43) return 116;
+  if (rank === 44) return 142;
+  if (rank >= 45 && rank < 50) return 168;
+  if (rank === 50) return parentIndent !== null ? parentIndent + 26 : Math.max(90, depth * 24 + 14);
+  if (rank > 50 && rank < 99) return parentIndent !== null ? parentIndent + 26 : Math.max(116, depth * 24 + 14);
+  return parentIndent !== null ? parentIndent + 26 : Math.max(116, depth * 24 + 14);
 }
 
 /**
@@ -547,14 +549,15 @@ function buildHierarchyTreeAndRollup(processedRows) {
 
     const parentEntry = headerStack.length > 0 ? headerStack[headerStack.length - 1] : null;
     const parentTreeId = parentEntry ? parentEntry.treeId : null;
+    const parentIndent = parentEntry ? parentEntry.indent : null;
     const depth = headerStack.length;
 
-    if (isHeader) {
-      headerStack.push({ treeId, rank });
-    }
-
     const treeLevel = getTreeLevelFromRank(rank, isHeader);
-    const effectiveIndent = getEffectiveIndentFromRank(rank, isHeader, depth);
+    const effectiveIndent = getEffectiveIndentFromRank(rank, isHeader, depth, parentIndent);
+
+    if (isHeader) {
+      headerStack.push({ treeId, rank, indent: effectiveIndent });
+    }
     const lvlNum = Number(r.level_indent);
 
     return {
