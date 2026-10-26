@@ -3174,7 +3174,7 @@ function syncPrimaryKuantitas() {
     };
 
     ensureKuantitasParam('kotak_rkb', 'Jumlah Kotak Suara RKB', 'Kotak', liveKotak, 'WILAYAH', 'Total Kotak Suara se-Kabupaten (Otomatis dari Master Desa & TPS)');
-    ensureKuantitasParam('surat_suara', 'Kebutuhan Surat Suara (DPT + 2,5%)', 'Lembar', liveSuratSuara, 'LOGISTIK', `Otomatis: Jumlah Pemilih DPT (${livePemilih.toLocaleString('id-ID')}) + Cadangan 2,5% = ${liveSuratSuara.toLocaleString('id-ID')} Lembar`);
+    ensureKuantitasParam('surat_suara', 'Kebutuhan Surat Suara (DPT + 2,5%)', 'Lembar', liveSuratSuara, 'LOGISTIK', `@dpt (${livePemilih.toLocaleString('id-ID')}) + 2,5% = ${liveSuratSuara.toLocaleString('id-ID')} Lembar`);
     const kppsKetuaPerTps = ensureKuantitasParam('kpps_ketua_tps', 'Formasi Ketua KPPS per TPS', 'Org', 1, 'PERSONIL', 'Jumlah Ketua KPPS di setiap TPS (Default: 1 Org/TPS)');
     const kppsAnggotaPerTps = ensureKuantitasParam('kpps_anggota_tps', 'Formasi Anggota KPPS per TPS', 'Org', 6, 'PERSONIL', 'Jumlah Anggota KPPS di setiap TPS (Default: 6 Org/TPS)');
     const linmasPerTps = ensureKuantitasParam('linmas_per_tps', 'Formasi Linmas / Ketertiban per TPS', 'Org', 2, 'PERSONIL', 'Jumlah Petugas Ketertiban (Linmas) di setiap TPS (Default: 2 Org/TPS)');
@@ -3194,7 +3194,7 @@ function syncPrimaryKuantitas() {
     upd.run(liveKec, 'kec_ppk');
     upd.run(livePemilih, 'pemilih_dpt');
     upd.run(livePemilih, 'dpt');
-    updWithKet.run(liveSuratSuara, `Otomatis: Jumlah Pemilih DPT (${livePemilih.toLocaleString('id-ID')}) + Cadangan 2,5% = ${liveSuratSuara.toLocaleString('id-ID')} Lembar`, 'surat_suara');
+    updWithKet.run(liveSuratSuara, `@dpt (${livePemilih.toLocaleString('id-ID')}) + 2,5% = ${liveSuratSuara.toLocaleString('id-ID')} Lembar`, 'surat_suara');
     updWithKet.run(livePaslonParpol, `Bakal Pasangan Calon Jalur Parpol (Otomatis dari Master Paslon Parameter Jalur Parpol: ${livePaslonParpol} Paslon)`, 'paslon_parpol');
     updWithKet.run(livePaslonPerseorangan, `Bakal Pasangan Calon Jalur Perseorangan (Otomatis dari Master Paslon Parameter Jalur Perseorangan: ${livePaslonPerseorangan} Paslon)`, 'paslon_perseorangan');
     updWithKet.run(livePaslon, `Total Bakal Pasangan Calon (Otomatis dari Master Paslon: ${livePaslonParpol} Jalur Parpol + ${livePaslonPerseorangan} Jalur Perseorangan = ${livePaslon} Paslon)`, 'paslon');

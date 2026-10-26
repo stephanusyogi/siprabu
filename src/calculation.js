@@ -171,7 +171,7 @@ function getKuantitasMap() {
     } else if (k.kode === 'surat_suara') {
       const liveSuratSuara = Math.round(livePemilih * 1.025);
       k.nilai = liveSuratSuara;
-      k.keterangan = `Otomatis: Jumlah Pemilih DPT (${livePemilih.toLocaleString('id-ID')}) + Cadangan 2,5% = ${liveSuratSuara.toLocaleString('id-ID')} Lembar`;
+      k.keterangan = `@dpt (${livePemilih.toLocaleString('id-ID')}) + 2,5% = ${liveSuratSuara.toLocaleString('id-ID')} Lembar`;
     } else if (k.kode === 'paslon' || k.kode === 'bakal_paslon') {
       k.nilai = livePaslon;
     } else if (k.kode === 'paslon_parpol') {

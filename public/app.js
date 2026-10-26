@@ -6940,6 +6940,9 @@ function renderDbKuantitas() {
       actionBtn = isLevel1 
         ? `<button type="button" class="btn btn-xs btn-outline-primary" onclick="navigateToMaster('view-db-paslon')" title="Ubah data di Master Pasangan Calon"><i class="fas fa-external-link-alt"></i> Buka Master</button>`
         : `<span class="badge badge-secondary" style="font-size:11px;">Master Primer</span>`;
+    } else if (q.kode === 'surat_suara') {
+      sourceBadge = '<span class="badge badge-secondary" style="font-size:11px;">Sumber: @dpt + 2,5%</span>';
+      actionBtn = `<span class="badge badge-secondary" style="font-size:11px; font-weight: 600;" title="Dihitung otomatis oleh rumus @dpt + 2,5%"><i class="fas fa-calculator"></i> ∑ Rumus</span>`;
     } else if (formulaKeys.includes(q.kode)) {
       sourceBadge = '<span class="badge badge-secondary" style="font-size:11px;">Formula Agregat Otomatis</span>';
       actionBtn = `<span class="badge badge-secondary" style="font-size:11px; font-weight: 600;" title="Dihitung otomatis oleh formula"><i class="fas fa-calculator"></i> ∑ Rumus</span>`;
