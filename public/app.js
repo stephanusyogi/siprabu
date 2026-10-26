@@ -3450,26 +3450,45 @@ function renderRkbTable() {
       ? `<span style="font-family:var(--font-mono);font-weight:800;margin-right:3px;">${escHtml(rawKode)}</span>`
       : '';
 
-    let uraianTextStyle = '';
+    const effRank = Number(r.hierarchy_rank || (r.is_header ? (lvl === 0 ? 10 : (lvl === 1 ? 20 : (lvl === 2 ? 30 : (lvl === 3 ? 50 : 41)))) : 99));
+    let effLvlKey = 'L6';
+    if (!r.is_header || effRank >= 99) effLvlKey = 'L6';
+    else if (effRank === 10) effLvlKey = 'L1';
+    else if (effRank === 20) effLvlKey = 'L2';
+    else if (effRank === 30) effLvlKey = 'L3';
+    else if (effRank === 41) effLvlKey = 'L4-1';
+    else if (effRank > 41 && effRank <= 42.5) effLvlKey = 'L4-2';
+    else if (effRank === 43) effLvlKey = 'L4-3';
+    else if (effRank === 44) effLvlKey = 'L4-4';
+    else if (effRank >= 45 && effRank < 50) effLvlKey = 'L4-5';
+    else if (effRank === 50) effLvlKey = 'L5';
+    else effLvlKey = 'L6-H';
+
+    const levelStyleCatalog = {
+      'L1':   { text: 'font-weight:800;color:#0f172a;font-size:13.5px;text-transform:uppercase;', badge: 'background:#fef3c7;color:#92400e;border:1px solid #fde68a;', click: 'header' },
+      'L2':   { text: 'font-weight:800;color:#1e3a8a;font-size:13.2px;', badge: 'background:#fed7aa;color:#9a3412;border:1px solid #fdba74;', click: 'header' },
+      'L3':   { text: 'font-weight:700;color:#0f172a;font-size:13px;', badge: 'background:#fef08a;color:#854d0e;border:1px solid #fde047;', click: 'header' },
+      'L4-1': { text: 'font-weight:700;color:#1e3a8a;font-size:13px;', badge: 'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;', click: 'header' },
+      'L4-2': { text: 'font-weight:600;color:#0f766e;font-size:12.6px;', badge: 'background:#ccfbf1;color:#115e59;border:1px solid #5eead4;', click: 'header' },
+      'L4-3': { text: 'font-weight:600;color:#4338ca;font-size:12.4px;', badge: 'background:#e0e7ff;color:#3730a3;border:1px solid #a5b4fc;', click: 'header' },
+      'L4-4': { text: 'font-weight:500;color:#b45309;font-size:12.2px;', badge: 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;', click: 'header' },
+      'L4-5': { text: 'font-weight:500;font-style:italic;color:#334155;font-size:12px;', badge: 'background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;', click: 'header' },
+      'L5':   { text: 'font-weight:700;color:#1e40af;font-size:12.6px;text-decoration:underline;', badge: 'background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;', click: 'akun' },
+      'L6-H': { text: 'font-weight:600;font-style:italic;color:#0369a1;font-size:12.3px;', badge: 'background:#ecfdf5;color:#047857;border:1px solid #6ee7b7;', click: 'header' },
+      'L6':   { text: 'font-weight:400;color:#0f172a;font-size:12.5px;', badge: 'background:#f8fafc;color:#64748b;border:1px solid #cbd5e1;', click: 'header' }
+    };
+
+    const st = levelStyleCatalog[effLvlKey] || levelStyleCatalog['L6'];
+    const uraianTextStyle = st.text;
     let l4BadgeHtml = '';
-    if (r.is_header && lvl >= 21 && lvl <= 25) {
-      const lapisIdx = lvl - 20;
-      const l4Styles = {
-        21: { text: 'font-weight:700;color:#1e3a8a;font-size:13px;', badge: 'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;' },
-        22: { text: 'font-weight:600;color:#0f766e;font-size:12.6px;', badge: 'background:#ccfbf1;color:#115e59;border:1px solid #5eead4;' },
-        23: { text: 'font-weight:600;color:#4338ca;font-size:12.4px;', badge: 'background:#e0e7ff;color:#3730a3;border:1px solid #a5b4fc;' },
-        24: { text: 'font-weight:500;color:#b45309;font-size:12.2px;', badge: 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;' },
-        25: { text: 'font-weight:500;font-style:italic;color:#334155;font-size:12px;', badge: 'background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;' }
-      };
-      const st = l4Styles[lvl] || l4Styles[21];
-      uraianTextStyle = st.text;
-      if (canEdit && !isLocked) {
-        l4BadgeHtml = `<span class="l4-lapis-badge" onclick="openEditHeaderModal(${r.id}, event)" style="${st.badge}font-family:var(--font-mono);font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px;cursor:pointer;margin-left:4px;white-space:nowrap;" title="Klik untuk mengubah Lapis Level 4 (L4-1 s.d. L4-5) atau Kode/Uraian">L4-${lapisIdx}</span>`;
-      } else {
-        l4BadgeHtml = `<span style="${st.badge}font-family:var(--font-mono);font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px;margin-left:4px;white-space:nowrap;">L4-${lapisIdx}</span>`;
-      }
-    } else if (r.is_sub_header) {
-      uraianTextStyle = 'font-weight:600;color:#0369a1;font-size:12.2px;';
+    if (canEdit && !isLocked) {
+      const badgeAction = st.click === 'akun' ? `openQuickAkunModal(${r.id}, event)` : `openEditHeaderModal(${r.id}, event)`;
+      const badgeTitle = st.click === 'akun'
+        ? `Penanda Level [${effLvlKey}]. Klik untuk mengubah Akun Belanja BAS`
+        : `Penanda Level [${effLvlKey}]. Klik untuk mengubah/menyamakan Level Hierarki, Kode, atau Uraian baris ini`;
+      l4BadgeHtml = `<span class="l4-lapis-badge" onclick="${badgeAction}" style="${st.badge}font-family:var(--font-mono);font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px;cursor:pointer;margin-left:4px;white-space:nowrap;" title="${badgeTitle}">${effLvlKey}</span>`;
+    } else {
+      l4BadgeHtml = `<span style="${st.badge}font-family:var(--font-mono);font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px;margin-left:4px;white-space:nowrap;" title="Penanda Level [${effLvlKey}]">${effLvlKey}</span>`;
     }
 
     if (isSanding) {
@@ -3539,12 +3558,13 @@ function renderRkbTable() {
         const disableUp = bounds.isFirst ? 'disabled style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;opacity:0.35;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;"';
         const disableDown = bounds.isLast ? 'disabled style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;opacity:0.35;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;"';
 
-        const isL4Row = r.is_header && lvl >= 21 && lvl <= 25;
-        const disableOutdent = lvl <= 21 ? 'disabled style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;opacity:0.3;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;color:#0f766e;"';
-        const disableIndent = lvl >= 25 ? 'disabled style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;opacity:0.3;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;color:#0f766e;"';
-        const l4ShiftButtons = isL4Row ? `
-          <button type="button" class="btn btn-xs btn-outline-secondary" onclick="shiftHeaderLevel(${r.id}, -1, event)" title="${lvl <= 21 ? 'Sudah di L4 Lapis 1 (paling kiri)' : 'Majukan ke kiri 1 lapis (L4-' + (lvl - 20) + ' → L4-' + (lvl - 21) + ')'}" ${disableOutdent}>◀</button>
-          <button type="button" class="btn btn-xs btn-outline-secondary" onclick="shiftHeaderLevel(${r.id}, 1, event)" title="${lvl >= 25 ? 'Sudah di L4 Lapis 5 (maksimal)' : 'Jorokkan ke dalam 1 lapis (L4-' + (lvl - 20) + ' → L4-' + (lvl - 19) + ')'}" ${disableIndent}>▶</button>
+        const isShiftableRow = r.is_header && ((lvl >= 21 && lvl <= 25) || lvl === 41 || lvl === 42);
+        const effL4Num = effLvlKey === 'L4-1' ? 21 : (effLvlKey === 'L4-2' ? 22 : (effLvlKey === 'L4-3' ? 23 : (effLvlKey === 'L4-4' ? 24 : (effLvlKey === 'L4-5' ? 25 : 25))));
+        const disableOutdent = effL4Num <= 21 && effLvlKey !== 'L6-H' ? 'disabled style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;opacity:0.3;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;color:#0f766e;"';
+        const disableIndent = effL4Num >= 25 && effLvlKey !== 'L6-H' ? 'disabled style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;opacity:0.3;cursor:not-allowed;"' : 'style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;color:#0f766e;"';
+        const l4ShiftButtons = isShiftableRow ? `
+          <button type="button" class="btn btn-xs btn-outline-secondary" onclick="shiftHeaderLevel(${r.id}, -1, event)" title="Majukan ke kiri 1 lapis (Outdent)" ${disableOutdent}>◀</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary" onclick="shiftHeaderLevel(${r.id}, 1, event)" title="Jorokkan ke dalam 1 lapis (Indent)" ${disableIndent}>▶</button>
         ` : '';
 
         aksiHtml = `
@@ -4970,19 +4990,28 @@ async function submitAddHeader() {
       ? Number(document.getElementById('add-header-level-indent')?.value || (existingRow ? existingRow.level_indent : 21))
       : (existingRow ? existingRow.level_indent : undefined);
 
+    const isConvertingToItem = selectedLvlIndent === 4;
+    let finalKode = kode;
+    let finalUraian = uraian;
+    if (isConvertingToItem && finalKode && !finalUraian.startsWith(finalKode)) {
+      finalUraian = `${finalKode} ${finalUraian}`.trim();
+      finalKode = '';
+    }
+
     const payload = {
       id: Number(editId),
-      kode: kode,
-      uraian: uraian,
+      row_type: isConvertingToItem ? 'item' : 'header',
+      kode: finalKode,
+      uraian: finalUraian,
       level_indent: selectedLvlIndent,
       pic_bagian: pic,
-      catatan_revisi_baris: `Perubahan Header [${kode || '-'}] ${uraian}`
+      catatan_revisi_baris: `Perubahan Level/Teks [${finalKode || '-'}] ${finalUraian}`
     };
     try {
       await stageRkbOperation({
         type: 'SAVE_ROW',
         payload
-      }, `Perubahan Header [${kode || '-'}] "${uraian}" masuk ke draf kerja.`);
+      }, `Perubahan Level & Teks "${finalUraian}" masuk ke draf kerja.`);
       closeAddHeaderModal();
       AppState.selectedRowId = Number(editId);
       renderRkbTable();
@@ -5090,10 +5119,29 @@ function openEditHeaderModal(rowId, event) {
   const lapisSelect = document.getElementById('add-header-level-indent');
   if (lapisBox) {
     const lvlNum = Number(row.level_indent);
-    if ((lvlNum >= 21 && lvlNum <= 25) || lvlNum === 41 || lvlNum === 42) {
+    const rankNum = Number(row.hierarchy_rank || 41);
+    if (!row.is_header || lvlNum === 2 || (lvlNum >= 21 && lvlNum <= 25) || lvlNum === 41 || lvlNum === 42 || lvlNum === 4) {
       lapisBox.style.display = 'block';
       if (lapisSelect) {
-        lapisSelect.value = String(lvlNum === 42 ? 41 : lvlNum);
+        if (!row.is_header) {
+          lapisSelect.value = '4';
+        } else if (lvlNum === 2) {
+          lapisSelect.value = '2';
+        } else if (lvlNum >= 21 && lvlNum <= 25) {
+          lapisSelect.value = String(lvlNum);
+        } else if (rankNum === 41) {
+          lapisSelect.value = '21';
+        } else if (rankNum > 41 && rankNum <= 42.5) {
+          lapisSelect.value = '22';
+        } else if (rankNum === 43) {
+          lapisSelect.value = '23';
+        } else if (rankNum === 44) {
+          lapisSelect.value = '24';
+        } else if (rankNum >= 45 && rankNum < 50) {
+          lapisSelect.value = '25';
+        } else {
+          lapisSelect.value = '41';
+        }
       }
     } else {
       lapisBox.style.display = 'none';
@@ -5151,8 +5199,13 @@ async function shiftHeaderLevel(rowId, delta, event) {
   const row = AppState.rkbData?.rows.find(r => r.id === Number(rowId));
   if (!row) return;
   const curLvl = Number(row.level_indent);
-  if (curLvl < 21 || curLvl > 25) return;
-  const nextLvl = Math.max(21, Math.min(25, curLvl + delta));
+  const rankNum = Number(row.hierarchy_rank || 41);
+  let baseL4 = curLvl;
+  if (curLvl === 41 || curLvl === 42) {
+    baseL4 = rankNum === 41 ? 21 : (rankNum <= 42.5 ? 22 : (rankNum === 43 ? 23 : (rankNum === 44 ? 24 : 25)));
+  }
+  if (baseL4 < 21 || baseL4 > 25) return;
+  const nextLvl = Math.max(21, Math.min(25, baseL4 + delta));
   if (nextLvl === curLvl) return;
 
   try {
