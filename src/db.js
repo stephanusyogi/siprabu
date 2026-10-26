@@ -3360,9 +3360,15 @@ function syncRkbReferenceLinks(targetPeriodeId = null) {
         }
 
         // 4. Kebutuhan Per-Petugas TPS (9 Org/TPS = @kpps_all) pada APD, Suplemen, Rapid Test, & Konsumsi KPPS
-        if (basis_pengali === 'TPS_RKB' && String(f1_unit).toLowerCase() === 'org' && (f1_var === 'kpps_all' || (!f1_var && Number(f1_val) === 9))) {
-          f1_var = 'kpps_all';
-          f1_val = kppsAllPerTps;
+        if (basis_pengali === 'TPS_RKB' || f3_var === 'tps_rkb' || target_scope === 'TPS') {
+          if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'kpps_all' || (!f1_var && Number(f1_val) === 9))) {
+            f1_var = 'kpps_all';
+            f1_val = kppsAllPerTps;
+          }
+          if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'kpps_all' || (!f2_var && Number(f2_val) === 9))) {
+            f2_var = 'kpps_all';
+            f2_val = kppsAllPerTps;
+          }
         }
 
         // 5. Honorarium PPK & PPS (Masa Kerja PPK & Masa Kerja PPS)
