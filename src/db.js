@@ -40,23 +40,39 @@ for (const p of [BACKUP_PATH, PERSISTENT_DB_PATH]) {
   }
 }
 
-// Jika file database belum ada (misal saat Hostinger Git Auto-Deploy membuat folder rilis baru):
-// 1. Utamakan pulihkan dari PERSISTENT_DB_PATH (di home dir server, di luar folder Git) agar data online TIDAK PERNAH TER-RESET!
-// 2. Jika belum pernah ada di PERSISTENT_DB_PATH, baru salin dari TEMPLATE_PATH atau BACKUP_PATH.
-if (!fs.existsSync(DB_PATH) || (fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size === 0)) {
-  if (!process.env.SIPRABU_DB_PATH && fs.existsSync(PERSISTENT_DB_PATH) && fs.statSync(PERSISTENT_DB_PATH).size > 0) {
-    try {
-      fs.copyFileSync(PERSISTENT_DB_PATH, DB_PATH);
-      console.log('[DB-INIT] Memulihkan database aktif dari penyimpanan persisten server:', PERSISTENT_DB_PATH);
-    } catch (e) {}
-  } else if (fs.existsSync(TEMPLATE_PATH) && fs.statSync(TEMPLATE_PATH).size > 0) {
-    try { fs.copyFileSync(TEMPLATE_PATH, DB_PATH); } catch (e) {}
-  } else if (fs.existsSync(BACKUP_PATH) && fs.statSync(BACKUP_PATH).size > 0) {
-    try { fs.copyFileSync(BACKUP_PATH, DB_PATH); } catch (e) {}
+const USE_MYSQL = process.env.DB_TYPE === 'mysql';
+let db;
+
+if (USE_MYSQL) {
+  const { createMySQLDatabaseSync } = require('./mysql_sync');
+  db = createMySQLDatabaseSync({
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: Number(process.env.DB_PORT) || 3306,
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'siprabu_root_pass',
+    database: process.env.DB_NAME || 'siprabu_db'
+  });
+  console.log(`[DB-ENGINE] Berjalan pada Full MySQL Database: ${process.env.DB_NAME || 'siprabu_db'} (${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || 3306})`);
+} else {
+  // Jika file database belum ada (misal saat Hostinger Git Auto-Deploy membuat folder rilis baru):
+  // 1. Utamakan pulihkan dari PERSISTENT_DB_PATH (di home dir server, di luar folder Git) agar data online TIDAK PERNAH TER-RESET!
+  // 2. Jika belum pernah ada di PERSISTENT_DB_PATH, baru salin dari TEMPLATE_PATH atau BACKUP_PATH.
+  if (!fs.existsSync(DB_PATH) || (fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size === 0)) {
+    if (!process.env.SIPRABU_DB_PATH && fs.existsSync(PERSISTENT_DB_PATH) && fs.statSync(PERSISTENT_DB_PATH).size > 0) {
+      try {
+        fs.copyFileSync(PERSISTENT_DB_PATH, DB_PATH);
+        console.log('[DB-INIT] Memulihkan database aktif dari penyimpanan persisten server:', PERSISTENT_DB_PATH);
+      } catch (e) {}
+    } else if (fs.existsSync(TEMPLATE_PATH) && fs.statSync(TEMPLATE_PATH).size > 0) {
+      try { fs.copyFileSync(TEMPLATE_PATH, DB_PATH); } catch (e) {}
+    } else if (fs.existsSync(BACKUP_PATH) && fs.statSync(BACKUP_PATH).size > 0) {
+      try { fs.copyFileSync(BACKUP_PATH, DB_PATH); } catch (e) {}
+    }
   }
+
+  db = new DatabaseSync(DB_PATH);
 }
 
-const db = new DatabaseSync(DB_PATH);
 module.exports.db = db;
 
 /**
@@ -64,6 +80,7 @@ module.exports.db = db;
  * menjamin Durability (D dalam ACID) penuh serta kebal dari reset saat Git redeploy di Hosting.
  */
 function checkpointAndSyncDatabase(mode = 'PASSIVE') {
+  if (USE_MYSQL) return;
   try {
     const cleanMode = ['PASSIVE', 'FULL', 'RESTART', 'TRUNCATE'].includes(String(mode).toUpperCase())
       ? String(mode).toUpperCase()
