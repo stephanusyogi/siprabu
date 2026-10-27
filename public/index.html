@@ -1227,6 +1227,13 @@
                 <option value="PESERTA">Peserta</option>
               </select>
 
+              <!-- Filter Sumber Dana (Cost Sharing APBD) -->
+              <select id="filter-cost-sharing" class="input-select" onchange="applyRkbFilters()" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 165px; font-weight: 600;" title="Saring berdasarkan Sumber Dana (APBD Kabupaten / Provinsi)">
+                <option value="ALL">-- Semua Sumber Dana --</option>
+                <option value="KABUPATEN">🏛️ APBD Kab (Murni)</option>
+                <option value="PROVINSI">🏢 APBD Prov (Sharing)</option>
+              </select>
+
               <!-- Lipatan Hierarki Dropdown -->
               <select id="selectTreeExpandLevel" class="input-select" onchange="setTreeExpandLevel(Number(this.value))" style="height: 32px; font-size: 12px; padding: 2px 8px; border-radius: 6px; width: 135px; font-weight: 600; background: #f8fafc;" title="Tingkat Lipatan Hierarki Belanja">
                 <option value="0">📁 Lipat Semua</option>
@@ -3302,6 +3309,14 @@
                     <option value="PESERTA">PESERTA</option>
                   </select>
                 </div>
+
+                <!-- Sumber Dana Cost Sharing -->
+                <div class="form-group full-width" style="margin-top:6px; margin-bottom:0;">
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; font-weight: 600; color: #1e293b; background: #f0f9ff; border: 1px solid #bae6fd; padding: 7px 10px; border-radius: 6px;">
+                    <input type="checkbox" id="modal-cost-sharing-prov" style="width: 17px; height: 17px; cursor: pointer; accent-color: #0284c7;">
+                    <span>🏢 <strong>Beban APBD Provinsi</strong> <small style="color: #0369a1; font-weight: 400;">(Centang jika dibiayai APBD Provinsi, tidak dicentang = APBD Kabupaten)</small></span>
+                  </label>
+                </div>
               </div>
 
               <!-- KODE AKUN BAS DENGAN FITUR PENCARIAN & PICKER TABEL DATA -->
@@ -3947,6 +3962,74 @@
     </div>
 
     <!-- ===================================================================== -->
+    <!-- MODAL: ATUR SUMBER DANA COST SHARING CEPAT (APBD KAB VS PROV)         -->
+    <!-- ===================================================================== -->
+    <div id="modal-quick-cost-sharing" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 480px;">
+        <div class="modal-header">
+          <div>
+            <h3 style="margin: 0; font-size: 15px;">🏛️ Atur Sumber Dana Belanja</h3>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+              Pemisahan pembiayaan APBD Kabupaten Ngawi vs APBD Provinsi Jawa Timur
+            </div>
+          </div>
+          <button class="btn-close" onclick="closeQuickCostSharingModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="quick-cost-sharing-row-id">
+          <div id="quick-cost-sharing-level-badge" style="margin-bottom: 6px;"></div>
+          <p id="quick-cost-sharing-uraian" style="font-size: 13px; font-weight: 600; color: #1e293b; margin-bottom: 12px; line-height: 1.4;"></p>
+
+          <div class="form-group">
+            <label style="font-weight: 700; margin-bottom: 6px; display: block;">Pilih Pembebanan Anggaran:</label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc;" id="label-choice-kab">
+                <input type="radio" name="quick-cost-sharing-choice" value="KABUPATEN" style="accent-color: #0284c7; width: 17px; height: 17px;" checked onchange="onQuickCostSharingChoiceChange()">
+                <div>
+                  <div style="font-weight: 700; font-size: 13px; color: #0f172a;">🏛️ APBD Kabupaten (Default)</div>
+                  <div style="font-size: 11px; color: #64748b;">Beban murni hibah APBD Pemkab Ngawi (NPHD)</div>
+                </div>
+              </label>
+
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 12px; border: 1px solid #7dd3fc; border-radius: 6px; background: #f0f9ff;" id="label-choice-prov">
+                <input type="radio" name="quick-cost-sharing-choice" value="PROVINSI" style="accent-color: #0284c7; width: 17px; height: 17px;" onchange="onQuickCostSharingChoiceChange()">
+                <div>
+                  <div style="font-weight: 700; font-size: 13px; color: #0369a1;">🏢 APBD Provinsi (Sharing Jatim)</div>
+                  <div style="font-size: 11px; color: #0284c7;">Beban sharing pendanaan bersama Pemprov Jawa Timur</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div id="quick-cost-sharing-cascade-box" style="margin-top: 12px; padding: 10px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; display: none;">
+            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin: 0; font-size: 12.5px; font-weight: 700; color: #1e40af;">
+              <input type="checkbox" id="quick-cost-sharing-cascade" checked style="margin-top: 2px; accent-color: #0284c7;">
+              <span>Terapkan ke seluruh baris turunan di bawahnya (Cascade Down)</span>
+            </label>
+            <div id="quick-cost-sharing-cascade-desc" style="font-size: 11px; color: #2563eb; margin-top: 4px; margin-left: 22px; line-height: 1.35;">
+              Seluruh rincian belanja di bawah induk ini otomatis mengikuti sumber dana yang dipilih.
+            </div>
+          </div>
+
+          <div id="quick-cost-sharing-item-hint" style="margin-top: 10px; font-size: 11.5px; color: #475569; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 8px 10px; border-radius: 6px; display: none;">
+            💡 <strong>Rincian Tunggal:</strong> Mengubah sumber dana pada rincian belanja ini <u>hanya berlaku untuk baris ini saja</u> dan tidak mengubah baris induk di atasnya.
+          </div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <button type="button" id="btn-clear-cost-sharing-header" class="btn btn-outline-secondary btn-sm" onclick="clearHeaderCostSharing()" style="font-weight:700;" title="Kembalikan sumber dana baris ini ke default APBD Kabupaten">
+              ⚪ Kosongkan / Reset ke APBD Kab
+            </button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="closeQuickCostSharingModal()">Batal</button>
+            <button class="btn btn-primary btn-sm" onclick="submitQuickCostSharing()">💾 Simpan Sumber Dana</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
     <!-- MODAL: AUDIT INTEGRITAS DATA RKB PRA-OPERASIONAL (BAB 19 CANON)       -->
     <!-- ===================================================================== -->
     <div id="modal-audit-integritas" class="modal-backdrop" style="display: none; z-index: 1085;">
@@ -4197,6 +4280,19 @@
               <option value="HUKUM">Hukum (HUKUM)</option>
               <option value="PARSDM" selected>Partisipasi Masyarakat &amp; SDM (PARSDM)</option>
             </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; font-weight: 600; color: #1e293b; background: #f0f9ff; border: 1px solid #bae6fd; padding: 8px 10px; border-radius: 6px;">
+              <input type="checkbox" id="add-header-cost-sharing-prov" style="width: 17px; height: 17px; cursor: pointer; accent-color: #0284c7;">
+              <span>🏢 <strong>Beban APBD Provinsi</strong> <small style="color: #0369a1; font-weight: 400;">(Centang jika dibiayai APBD Prov, tidak dicentang = APBD Kab)</small></span>
+            </label>
+            <div id="add-header-cost-cascade-box" style="margin-top: 4px; margin-left: 2px;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11.5px; color: #0369a1;">
+                <input type="checkbox" id="add-header-cost-cascade" checked style="accent-color: #0284c7;">
+                <span>Terapkan perubahan sumber dana ini ke seluruh rincian anak di bawahnya</span>
+              </label>
+            </div>
           </div>
 
           <!-- Pilihan Posisi Penempatan Ordering -->

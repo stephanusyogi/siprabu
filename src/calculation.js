@@ -676,6 +676,7 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
   const bySubbag = { KUL: 0, RENDATIN: 0, TEKNIS: 0, HUKUM: 0, PARSDM: 0 };
   const byAkun = {};
   const bySasaran = { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 };
+  const byCostSharing = { KABUPATEN: 0, PROVINSI: 0 };
 
   const subbagSummaries = {
     KUL: { pic: 'KUL', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { KUL: 0 } },
@@ -691,6 +692,7 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
     if (!isItem) {
       return {
         ...r,
+        cost_sharing: (r.cost_sharing || 'KABUPATEN').toUpperCase() === 'PROVINSI' ? 'PROVINSI' : 'KABUPATEN',
         is_header: true,
         hierarchy_rank: getHierarchyRank(r),
         computed_volume: null,
@@ -705,6 +707,9 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
     const calc = computeRowFactors(r, 'KAB');
     totalItems++;
     grandTotal += calc.total_anggaran;
+
+    const rowCost = (r.cost_sharing || 'KABUPATEN').toUpperCase() === 'PROVINSI' ? 'PROVINSI' : 'KABUPATEN';
+    byCostSharing[rowCost] = (byCostSharing[rowCost] || 0) + calc.total_anggaran;
 
     // Normalisasi PIC
     let pic = (r.pic_bagian || 'KUL').toUpperCase();
@@ -738,6 +743,7 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
 
     return {
       ...r,
+      cost_sharing: rowCost,
       is_header: false,
       hierarchy_rank: 99,
       computed_volume: calc.volume,
@@ -784,6 +790,7 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
       bySubbag,
       byAkun,
       bySasaran,
+      byCostSharing,
       subbagSummaries,
       banner: {
         totalPagu: grandTotal,
@@ -851,23 +858,24 @@ function getRkbCalculatedDataset(periodeId) {
 }
 
 /**
- * Memfilter dataset RKB secara presisi berdasarkan PIC, Sasaran, dan Pencarian.
+ * Memfilter dataset RKB secara presisi berdasarkan PIC, Sasaran, Sumber Dana (Cost Sharing), dan Pencarian.
  * Hanya menyertakan item yang cocok dan header yang memiliki anak item yang cocok (ancestor inclusion).
  * Header yang kosong (0 rupiah / tidak memiliki item untuk PIC terkait) otomatis dipangkas (pruned).
  */
-function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = 'ALL', search = '' } = {}) {
+function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = 'ALL', cost_sharing = 'ALL', search = '' } = {}) {
   let filterPic = (pic && pic !== 'SEMUA') ? pic.toUpperCase() : null;
   if (filterPic === 'PERENCANAAN') filterPic = 'RENDATIN';
   if (filterPic === 'KEUANGAN') filterPic = 'KUL';
   if (filterPic === 'PARMAS') filterPic = 'PARSDM';
 
   const filterSasaran = (target_scope && target_scope !== 'ALL') ? target_scope.toUpperCase() : null;
+  const filterCostSharing = (cost_sharing && cost_sharing !== 'ALL') ? cost_sharing.toUpperCase() : null;
   const searchQ = (search && search.trim()) ? search.trim().toLowerCase() : null;
 
   const { rows, summary: docSummary } = fullDataset;
 
   // Jika tidak ada filter apa pun, kembalikan salinan aman dataset asli
-  if (!filterPic && !filterSasaran && !searchQ) {
+  if (!filterPic && !filterSasaran && !filterCostSharing && !searchQ) {
     return {
       rows: [...rows],
       summary: { ...docSummary }
@@ -897,6 +905,7 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
   const summaryBySubbag = { KUL: 0, RENDATIN: 0, TEKNIS: 0, HUKUM: 0, PARSDM: 0 };
   const summaryByAkun = {};
   const summaryBySasaran = { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 };
+  const summaryByCostSharing = { KABUPATEN: 0, PROVINSI: 0 };
   let grandTotal = 0;
   let totalItems = 0;
 
@@ -906,11 +915,14 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
     if (rPic === 'KEUANGAN') rPic = 'KUL';
     if (rPic === 'PARMAS') rPic = 'PARSDM';
 
+    const rCost = (r.cost_sharing || 'KABUPATEN').toUpperCase();
+
     if (r.is_header) {
       // Pertahankan header daun (baru direkam / belum memiliki rincian anak) yang cocok dengan filter agar tidak hilang dari tampilan
       if (!r.has_children) {
         if (filterPic && rPic !== filterPic) return;
         if (filterSasaran && (r.target_scope || '').toUpperCase() !== 'ALL' && (r.target_scope || '').toUpperCase() !== filterSasaran) return;
+        if (filterCostSharing && rCost !== filterCostSharing) return;
         if (searchQ && !rowOrAncestorMatchesSearch(r, searchQ)) return;
         matchingRowIds.add(r.id);
       }
@@ -919,6 +931,7 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
 
     if (filterPic && rPic !== filterPic) return;
     if (filterSasaran && (r.target_scope || '').toUpperCase() !== filterSasaran) return;
+    if (filterCostSharing && rCost !== filterCostSharing) return;
     if (searchQ && !rowOrAncestorMatchesSearch(r, searchQ)) return;
 
     matchingRowIds.add(r.id);
@@ -933,6 +946,9 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
 
     const sas = (r.target_scope || 'KAB').toUpperCase();
     summaryBySasaran[sas] = (summaryBySasaran[sas] || 0) + tot;
+
+    const costKey = rCost === 'PROVINSI' ? 'PROVINSI' : 'KABUPATEN';
+    summaryByCostSharing[costKey] = (summaryByCostSharing[costKey] || 0) + tot;
   });
 
   // Himpun tree_id dari seluruh item yang cocok dan seluruh leluhur (ancestor)-nya
@@ -989,7 +1005,8 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
     totalRows: prunedRows.length,
     bySubbag: summaryBySubbag,
     byAkun: summaryByAkun,
-    bySasaran: summaryBySasaran
+    bySasaran: summaryBySasaran,
+    byCostSharing: summaryByCostSharing
   };
 
   return { rows: prunedRows, summary: filteredSummary };

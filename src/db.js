@@ -50,6 +50,8 @@ function getSqliteDatabaseSync() {
   return DatabaseSync;
 }
 
+const DB_PATH = process.env.SIPRABU_DB_PATH || path.join(DATA_DIR, 'hibah_kpu.sqlite');
+
 if (USE_MYSQL) {
   const { createMySQLDatabaseSync } = require('./mysql_sync');
   db = createMySQLDatabaseSync({
@@ -61,7 +63,6 @@ if (USE_MYSQL) {
   });
   console.log(`[DB-ENGINE] Berjalan pada Full MySQL Database: ${process.env.DB_NAME || 'siprabu_db'} (${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || 3306})`);
 } else {
-  const DB_PATH = process.env.SIPRABU_DB_PATH || path.join(DATA_DIR, 'hibah_kpu.sqlite');
   const SqliteDB = getSqliteDatabaseSync();
   db = new SqliteDB(DB_PATH);
   console.log(`[DB-ENGINE] Mode Fallback / Pengujian SQLite Terisolasi Aktif: ${DB_PATH}`);
@@ -2052,7 +2053,8 @@ function saveRabRow(row, actorUser = null, options = {}) {
         blokir_rm = ?,
         selalu_tampil_print = ?,
         parent_rkb_row_id = ?,
-        catatan_revisi_baris = ?
+        catatan_revisi_baris = ?,
+        cost_sharing = ?
       WHERE id = ?
     `).run(
       row.urutan !== undefined ? row.urutan : existing.urutan,
@@ -2086,6 +2088,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
       row.selalu_tampil_print !== undefined ? row.selalu_tampil_print : existing.selalu_tampil_print,
       row.parent_rkb_row_id !== undefined ? row.parent_rkb_row_id : existing.parent_rkb_row_id,
       row.catatan_revisi_baris !== undefined ? row.catatan_revisi_baris : existing.catatan_revisi_baris,
+      row.cost_sharing !== undefined ? (String(row.cost_sharing).toUpperCase().trim() === 'PROVINSI' ? 'PROVINSI' : 'KABUPATEN') : (existing.cost_sharing || 'KABUPATEN'),
       row.id
     );
 
@@ -2167,6 +2170,17 @@ function saveRabRow(row, actorUser = null, options = {}) {
       }
     }
 
+    const newCostSharingVal = row.cost_sharing ? (String(row.cost_sharing).toUpperCase().trim() === 'PROVINSI' ? 'PROVINSI' : 'KABUPATEN') : existing.cost_sharing;
+    const isCostSharingChanged = newCostSharingVal && existing.cost_sharing && newCostSharingVal !== String(existing.cost_sharing).toUpperCase().trim();
+
+    if (isHeaderRow && isCostSharingChanged) {
+      try {
+        updateRabBarisCostSharingWithCascade(existing.periode_id, row.id, newCostSharingVal, true, actorUser, { skipTransaction, skipAudit });
+      } catch (cascadeErr) {
+        console.warn('[saveRabRow] Cascade Cost Sharing notice:', cascadeErr.message);
+      }
+    }
+
     bumpRkbVersion(existing.periode_id);
     return getRabRowById(row.id);
   } else {
@@ -2225,20 +2239,21 @@ function saveRabRow(row, actorUser = null, options = {}) {
         f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var,
         basis_pengali, label_pengali_kab, label_pengali_adhoc, satuan_vol, harga_satuan,
         pic_bagian, sifat_biaya, jenis_biaya, blokir_rm, selalu_tampil_print, parent_rkb_row_id,
-        catatan_revisi_baris
+        catatan_revisi_baris, cost_sharing
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
-        ?
+        ?, ?
       )
     `).run(
       row.periode_id, urutan, effectiveRowType, row.kode || '', cleanUraian, effectiveLevelIndent, row.target_scope || 'KAB', row.kode_akun || '521211',
       f1, row.f1_unit || '', row.f1_var || '', f2, row.f2_unit || '', row.f2_var || '', f3, row.f3_unit || '', row.f3_var || '', f4, row.f4_unit || '', row.f4_var || '',
       row.basis_pengali || 'NONE', row.label_pengali_kab || '', row.label_pengali_adhoc || '', row.satuan_vol || row.vol_satuan || '', harga,
       row.pic_bagian || 'KUL', row.sifat_biaya || 'NON_OPERASIONAL', row.jenis_biaya || 'LANGSUNG', row.blokir_rm || 0, row.selalu_tampil_print || 0, row.parent_rkb_row_id || null,
-      row.catatan_revisi_baris || ''
+      row.catatan_revisi_baris || '',
+      (row.cost_sharing && String(row.cost_sharing).toUpperCase().trim() === 'PROVINSI') ? 'PROVINSI' : 'KABUPATEN'
     );
 
     const insertedId = Number(res.lastInsertRowid);
@@ -2576,6 +2591,76 @@ function updateRabBarisSasaranWithCascade(periodeId, rowId, targetScope, cascade
   };
 }
 
+function updateRabBarisCostSharingWithCascade(periodeId, rowId, costSharing, cascade = true, actorUser = null, options = {}) {
+  const { skipTransaction = false } = options;
+  const cleanCost = (String(costSharing || '').toUpperCase().trim() === 'PROVINSI') ? 'PROVINSI' : 'KABUPATEN';
+  const targetRow = getRabRowById(rowId);
+  if (!targetRow) throw new Error('Baris tidak ditemukan.');
+
+  checkRowEditPermission(periodeId, targetRow.pic_bagian, actorUser);
+
+  const isHeader = (targetRow.row_type === 'header' || Number(targetRow.level_indent) < 4);
+
+  if (!cascade || !isHeader) {
+    db.prepare('UPDATE rab_baris SET cost_sharing = ? WHERE id = ?').run(cleanCost, rowId);
+    try {
+      const { clearRkbDatasetCache } = require('./calculation');
+      if (typeof clearRkbDatasetCache === 'function') clearRkbDatasetCache(periodeId);
+    } catch (e) {}
+    return {
+      success: true,
+      updatedCount: 1,
+      count: 1,
+      updatedIds: [Number(rowId)],
+      cost_sharing: cleanCost
+    };
+  }
+
+  const allRows = db.prepare('SELECT id, urutan, kode, uraian, row_type, level_indent, pic_bagian, target_scope, cost_sharing FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
+  const targetIdx = allRows.findIndex(r => r.id === Number(rowId));
+  if (targetIdx === -1) throw new Error('Baris tidak ditemukan dalam periode ini.');
+
+  const targetRank = getRowHierarchyRank(targetRow);
+  const idsToUpdate = [Number(targetRow.id)];
+
+  for (let i = targetIdx + 1; i < allRows.length; i++) {
+    const child = allRows[i];
+    const rRank = getRowHierarchyRank(child);
+    if (rRank <= targetRank) break;
+    if (!canCascadeModifyChildRow(periodeId, child, actorUser)) {
+      continue;
+    }
+    if (actorUser) {
+      checkRowEditPermission(periodeId, child.pic_bagian, actorUser);
+    }
+    idsToUpdate.push(Number(child.id));
+  }
+
+  const upd = db.prepare('UPDATE rab_baris SET cost_sharing = ? WHERE id = ?');
+  if (!skipTransaction) db.exec('BEGIN TRANSACTION');
+  try {
+    idsToUpdate.forEach(id => upd.run(cleanCost, id));
+    if (!skipTransaction) db.exec('COMMIT');
+  } catch (err) {
+    if (!skipTransaction) db.exec('ROLLBACK');
+    throw err;
+  }
+
+  try {
+    const { clearRkbDatasetCache } = require('./calculation');
+    if (typeof clearRkbDatasetCache === 'function') clearRkbDatasetCache(periodeId);
+  } catch (e) {}
+
+  bumpRkbVersion(periodeId);
+  return {
+    success: true,
+    updatedCount: idsToUpdate.length,
+    count: idsToUpdate.length,
+    updatedIds: idsToUpdate,
+    cost_sharing: cleanCost
+  };
+}
+
 function clearRabRows(periodeId) {
   const p = getPeriodeById(periodeId);
   if (p && Number(p.is_locked) === 1) {
@@ -2883,6 +2968,12 @@ function executeStagedOpsInternal(periodeId, ops = [], actorUser = null) {
       const targetId = resolveId(op.row_id);
       if (targetId && getRabRowById(targetId)) {
         updateRabBarisSasaranWithCascade(periodeId, targetId, op.target_scope, op.cascade !== false, actorUser, { skipTransaction: true, skipAudit: true });
+        lastAffectedRowId = targetId;
+      }
+    } else if (type === 'QUICK_COST_SHARING') {
+      const targetId = resolveId(op.row_id);
+      if (targetId && getRabRowById(targetId)) {
+        updateRabBarisCostSharingWithCascade(periodeId, targetId, op.cost_sharing, op.cascade !== false, actorUser, { skipTransaction: true, skipAudit: true });
         lastAffectedRowId = targetId;
       }
     } else if (type === 'QUICK_AKUN') {
@@ -6114,6 +6205,7 @@ module.exports = {
   deleteRabRow,
   updateRabBarisPicWithCascade,
   updateRabBarisSasaranWithCascade,
+  updateRabBarisCostSharingWithCascade,
   canCascadeModifyChildRow,
   clearRabRows,
   reorderRow,

@@ -47,6 +47,7 @@ const {
   deleteRabRow,
   updateRabBarisPicWithCascade,
   updateRabBarisSasaranWithCascade,
+  updateRabBarisCostSharingWithCascade,
   reorderRow,
   getMasterReferenceVersion,
   previewStagedRkbOps,
@@ -1132,7 +1133,7 @@ const server = http.createServer(async (req, res) => {
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
 
       const periodeId = Number(rkbMatch[1]);
-      let { pic, target_scope, search } = query;
+      let { pic, target_scope, cost_sharing, search } = query;
       
       if (user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
         // Enforce subbag scoping: User hanya melihat subbag yang ditugaskan
@@ -1156,11 +1157,11 @@ const server = http.createServer(async (req, res) => {
         : docSummary;
 
       // 3. Filter & Prune baris untuk lembar kerja workbench secara presisi (buang header kosong / bukan PIC)
-      const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (search && search.trim()));
+      const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (cost_sharing && cost_sharing !== 'ALL') || (search && search.trim()));
       let rows, filteredSummary;
 
       if (hasFilter) {
-        const pruned = filterAndPruneRkbDataset(fullResult, { pic, target_scope, search });
+        const pruned = filterAndPruneRkbDataset(fullResult, { pic, target_scope, cost_sharing, search });
         rows = pruned.rows;
         filteredSummary = pruned.summary;
       } else {
@@ -1225,7 +1226,7 @@ const server = http.createServer(async (req, res) => {
 
       const body = await parseJsonBody(req);
       const ops = Array.isArray(body.ops) ? body.ops : [];
-      let { pic, target_scope, search, compare_with } = body;
+      let { pic, target_scope, cost_sharing, search, compare_with } = body;
 
       if (user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
         pic = user.pic_subbag;
@@ -1241,10 +1242,10 @@ const server = http.createServer(async (req, res) => {
           ? subbagSummaries[activeSubbag]
           : docSummary;
 
-        const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (search && String(search).trim()));
+        const hasFilter = Boolean((pic && pic !== 'SEMUA') || (target_scope && target_scope !== 'ALL') || (cost_sharing && cost_sharing !== 'ALL') || (search && String(search).trim()));
         let rows, filteredSummary;
         if (hasFilter) {
-          const pruned = filterAndPruneRkbDataset(fullResult, { pic, target_scope, search });
+          const pruned = filterAndPruneRkbDataset(fullResult, { pic, target_scope, cost_sharing, search });
           rows = pruned.rows;
           filteredSummary = pruned.summary;
         } else {
@@ -1427,6 +1428,40 @@ const server = http.createServer(async (req, res) => {
           count: result.count,
           updatedIds: result.updatedIds,
           target_scope: result.target_scope
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    const quickCostSharingMatch = pathname.match(/^\/api\/rkb\/(\d+)\/quick-cost-sharing$/);
+    if (quickCostSharingMatch && method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      const periodeId = Number(quickCostSharingMatch[1]);
+      const periode = getPeriodeById(periodeId);
+      if (!periode) return sendJson(res, 404, { error: 'Dokumen RKB tidak ditemukan.' });
+      if (Number(periode.is_locked) === 1) return sendJson(res, 403, { error: 'Dokumen berstatus terkunci.' });
+
+      const body = await parseJsonBody(req);
+      const { row_id, cost_sharing, cascade } = body;
+      const storedRow = getRabRowById(Number(row_id));
+      if (!storedRow || storedRow.periode_id !== periodeId) {
+        return sendJson(res, 404, { error: 'Baris RKB tidak ditemukan pada periode ini.' });
+      }
+      if (!canEditRow(user, storedRow, periode.is_locked)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Anda tidak berwenang mengedit baris ini.' });
+      }
+
+      try {
+        const result = updateRabBarisCostSharingWithCascade(periodeId, Number(row_id), cost_sharing, cascade !== false, user);
+        clearRkbDatasetCache();
+        return sendJson(res, 200, {
+          ok: true,
+          message: `Sumber dana berhasil diperbarui (${result.count} baris terupdate).`,
+          count: result.count,
+          updatedIds: result.updatedIds,
+          cost_sharing: result.cost_sharing
         });
       } catch (err) {
         return sendJson(res, 400, { error: err.message });

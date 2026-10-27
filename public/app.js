@@ -26,6 +26,7 @@ const AppState = {
   filters: {
     pic: 'SEMUA',
     sasaran: 'ALL',
+    cost_sharing: 'ALL',
     search: ''
   },
   searchDebounceTimer: null,
@@ -1654,6 +1655,7 @@ async function loadRkbData() {
         ops: AppState.stagedRkbOps,
         pic: AppState.filters.pic,
         target_scope: AppState.filters.sasaran,
+        cost_sharing: AppState.filters.cost_sharing || 'ALL',
         search: AppState.filters.search.trim()
       })
     });
@@ -1680,6 +1682,7 @@ async function loadRkbData() {
     const queryParams = new URLSearchParams();
     if (AppState.filters.pic !== 'SEMUA') queryParams.append('pic', AppState.filters.pic);
     if (AppState.filters.sasaran !== 'ALL') queryParams.append('target_scope', AppState.filters.sasaran);
+    if (AppState.filters.cost_sharing && AppState.filters.cost_sharing !== 'ALL') queryParams.append('cost_sharing', AppState.filters.cost_sharing);
     if (AppState.filters.search.trim()) queryParams.append('search', AppState.filters.search.trim());
 
     const url = `/api/rkb/${periodeId}?${queryParams.toString()}`;
@@ -3509,6 +3512,11 @@ function renderRkbTable() {
       : `<span class="scope-chip scope-${targetSas}" onclick="openQuickSasaranModal(${r.id}, event)" style="cursor:pointer;" title="Klik untuk mengubah atau menghapus Sasaran Anggaran (Mendukung Top-Down Cascade)">${targetSas}</span>`;
     const showSas = lvl >= 2 || isItem;
 
+    const isProv = (r.cost_sharing || 'KABUPATEN').toUpperCase() === 'PROVINSI';
+    const costChip = isProv
+      ? `<span class="badge-cost-prov" onclick="openQuickCostSharingModal(${r.id}, event)" style="cursor:pointer;background:#0284c7;color:#ffffff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:6px;display:inline-block;letter-spacing:0.3px;vertical-align:middle;box-shadow:0 1px 2px rgba(2,132,199,0.25);" title="Sumber Dana: APBD Provinsi (Sharing Jatim). Klik untuk mengubah/mengosongkan">PROV</span>`
+      : '';
+
     const canEdit = checkCanEditRow(user, r, isLocked);
 
     const rawKode = String(r.kode || '').trim();
@@ -3582,6 +3590,7 @@ function renderRkbTable() {
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
               <span style="${uraianTextStyle}">${inlineKodeHtml}${escHtml(r.uraian || '')}</span>
               ${l4BadgeHtml}
+              ${costChip}
               ${isNewlyAdded ? `<span class="badge badge-purple" style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:600;" title="Baris belanja baru / tambahan">✨ BARU</span>` : ''}
               ${stagedBadgeHtml}
             </div>
@@ -3649,6 +3658,9 @@ function renderRkbTable() {
             <button type="button" class="btn btn-xs btn-outline-secondary" onclick="moveRowOrdering(${r.id}, 'DOWN', event)" title="${bounds.isLast ? 'Sudah berada di urutan paling bawah grup induknya' : 'Geser Turun (1 posisi dalam grup induk)'}" ${disableDown}>
               ▼
             </button>
+            <button type="button" class="btn btn-xs btn-outline-info" onclick="openQuickCostSharingModal(${r.id}, event)" title="Atur Sumber Dana Belanja (APBD Kabupaten / Provinsi)" style="font-size:10px;padding:2px 4px;line-height:1;border-radius:3px;font-weight:700;color:#0284c7;border-color:#bae6fd;">
+              🏛️
+            </button>
             <button type="button" class="btn btn-xs btn-primary" onclick="${editFn}" title="${editTitle}" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;margin-left:2px;">
               ✏️
             </button>
@@ -3671,6 +3683,7 @@ function renderRkbTable() {
               ${r.is_akun_row ? `<span class="akun-badge-inline" onclick="openQuickAkunModal(${r.id}, event)" title="Klik untuk mengubah Akun Belanja ini">[${r.kode_akun || r.kode || '521211'}]</span>` : ''}
               <span style="${uraianTextStyle}">${inlineKodeHtml}${escHtml(r.uraian || '')}</span>
               ${l4BadgeHtml}
+              ${costChip}
               ${isNewlyAdded ? `<span class="badge badge-purple" style="font-size:10px;margin-left:6px;padding:1px 6px;border-radius:4px;font-weight:600;" title="Baris belanja baru / tambahan">✨ BARU</span>` : ''}
               ${stagedBadgeHtml}
             </div>
@@ -3734,6 +3747,7 @@ function applyRkbFilters() {
     AppState.filters.pic = document.getElementById('filter-pic')?.value || 'SEMUA';
   }
   AppState.filters.sasaran = document.getElementById('filter-sasaran')?.value || 'ALL';
+  AppState.filters.cost_sharing = document.getElementById('filter-cost-sharing')?.value || 'ALL';
   loadRkbData().then(() => renderRkbTable());
 }
 
@@ -4034,6 +4048,121 @@ async function submitQuickSasaran() {
 window.onQuickSasaranSelectChange = onQuickSasaranSelectChange;
 window.clearHeaderSasaran = clearHeaderSasaran;
 
+// ============================================================================
+// QUICK COST SHARING (SUMBER DANA APBD KAB VS PROV)
+// ============================================================================
+
+function openQuickCostSharingModal(rowId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const row = (AppState.rkbData?.rows || []).find(r => r.id === rowId);
+  if (!row) return;
+
+  const isHeader = Boolean(row.is_header);
+  document.getElementById('quick-cost-sharing-row-id').value = row.id;
+
+  const effRank = Number(row.hierarchy_rank || (row.is_header ? (row.level_indent === 0 ? 10 : (row.level_indent === 1 ? 20 : (row.level_indent === 2 ? 30 : 41))) : 99));
+  let lvlLabel = isHeader ? `HEADER L${effRank < 20 ? 1 : (effRank < 30 ? 2 : (effRank < 40 ? 3 : (effRank < 50 ? 4 : 5)))}` : 'RINCIAN BELANJA (L6)';
+  document.getElementById('quick-cost-sharing-level-badge').innerHTML = `<span class="badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-weight:700;font-size:11px;padding:2px 8px;border-radius:4px;">${lvlLabel}</span>`;
+
+  document.getElementById('quick-cost-sharing-uraian').textContent = `[${row.kode || '-'}] ${row.uraian || ''}`;
+
+  const curCost = (row.cost_sharing || 'KABUPATEN').toUpperCase();
+  const radKab = document.querySelector('input[name="quick-cost-sharing-choice"][value="KABUPATEN"]');
+  const radProv = document.querySelector('input[name="quick-cost-sharing-choice"][value="PROVINSI"]');
+  if (curCost === 'PROVINSI') {
+    if (radProv) radProv.checked = true;
+  } else {
+    if (radKab) radKab.checked = true;
+  }
+  onQuickCostSharingChoiceChange();
+
+  const cascadeBox = document.getElementById('quick-cost-sharing-cascade-box');
+  const itemHint = document.getElementById('quick-cost-sharing-item-hint');
+  const btnClear = document.getElementById('btn-clear-cost-sharing-header');
+
+  if (isHeader) {
+    if (cascadeBox) cascadeBox.style.display = 'block';
+    if (itemHint) itemHint.style.display = 'none';
+    if (btnClear) btnClear.style.display = 'inline-flex';
+    const cascadeCheck = document.getElementById('quick-cost-sharing-cascade');
+    if (cascadeCheck) {
+      cascadeCheck.checked = true;
+      cascadeCheck.disabled = false;
+    }
+  } else {
+    if (cascadeBox) cascadeBox.style.display = 'none';
+    if (itemHint) itemHint.style.display = 'block';
+    if (btnClear) btnClear.style.display = 'none';
+  }
+
+  document.getElementById('modal-quick-cost-sharing').style.display = 'flex';
+}
+
+function closeQuickCostSharingModal() {
+  const m = document.getElementById('modal-quick-cost-sharing');
+  if (m) m.style.display = 'none';
+}
+
+function onQuickCostSharingChoiceChange() {
+  const choice = document.querySelector('input[name="quick-cost-sharing-choice"]:checked')?.value || 'KABUPATEN';
+  const labelKab = document.getElementById('label-choice-kab');
+  const labelProv = document.getElementById('label-choice-prov');
+  if (choice === 'PROVINSI') {
+    if (labelProv) { labelProv.style.background = '#e0f2fe'; labelProv.style.borderColor = '#0284c7'; }
+    if (labelKab) { labelKab.style.background = '#f8fafc'; labelKab.style.borderColor = '#cbd5e1'; }
+  } else {
+    if (labelKab) { labelKab.style.background = '#f0fdf4'; labelKab.style.borderColor = '#86efac'; }
+    if (labelProv) { labelProv.style.background = '#f8fafc'; labelProv.style.borderColor = '#cbd5e1'; }
+  }
+}
+
+async function clearHeaderCostSharing() {
+  const rowId = Number(document.getElementById('quick-cost-sharing-row-id')?.value);
+  if (!rowId) return;
+  const isHeader = Boolean(document.getElementById('quick-cost-sharing-cascade-box')?.style.display !== 'none');
+  const cascade = isHeader ? Boolean(document.getElementById('quick-cost-sharing-cascade')?.checked) : false;
+  try {
+    await stageRkbOperation({
+      type: 'QUICK_COST_SHARING',
+      row_id: rowId,
+      cost_sharing: 'KABUPATEN',
+      cascade
+    }, 'Sumber dana baris dikembalikan ke APBD Kabupaten (Default).');
+    closeQuickCostSharingModal();
+  } catch (err) {
+    showToast('Gagal mereset sumber dana: ' + err.message, 'error');
+  }
+}
+
+async function submitQuickCostSharing() {
+  const rowId = Number(document.getElementById('quick-cost-sharing-row-id')?.value);
+  if (!rowId) return;
+  const choice = document.querySelector('input[name="quick-cost-sharing-choice"]:checked')?.value || 'KABUPATEN';
+  const isHeader = Boolean(document.getElementById('quick-cost-sharing-cascade-box')?.style.display !== 'none');
+  const cascade = isHeader ? Boolean(document.getElementById('quick-cost-sharing-cascade')?.checked) : false;
+
+  try {
+    await stageRkbOperation({
+      type: 'QUICK_COST_SHARING',
+      row_id: rowId,
+      cost_sharing: choice,
+      cascade
+    }, `Sumber dana berhasil diatur ke ${choice === 'PROVINSI' ? 'APBD Provinsi' : 'APBD Kabupaten'}.`);
+    closeQuickCostSharingModal();
+  } catch (err) {
+    showToast('Gagal mengubah sumber dana: ' + err.message, 'error');
+  }
+}
+
+window.openQuickCostSharingModal = openQuickCostSharingModal;
+window.closeQuickCostSharingModal = closeQuickCostSharingModal;
+window.onQuickCostSharingChoiceChange = onQuickCostSharingChoiceChange;
+window.clearHeaderCostSharing = clearHeaderCostSharing;
+window.submitQuickCostSharing = submitQuickCostSharing;
+
 async function openAuditIntegritasModal() {
   const periodeId = AppState.currentPeriode?.id || 1;
   const modal = document.getElementById('modal-audit-integritas');
@@ -4299,6 +4428,9 @@ function openRowModal(rowId, event) {
 
   setElVal('modal-sasaran', row.target_scope || 'KAB');
 
+  const costChk = document.getElementById('modal-cost-sharing-prov');
+  if (costChk) costChk.checked = ((row.cost_sharing || 'KABUPATEN').toUpperCase() === 'PROVINSI');
+
   const akunSelect = document.getElementById('modal-akun');
   if (akunSelect && AppState.masters && AppState.masters.akuns) {
     akunSelect.innerHTML = AppState.masters.akuns.map(a => `
@@ -4424,6 +4556,8 @@ function openAddRowModal() {
     if (picSelect) picSelect.disabled = isUserScoped;
 
     setElVal('modal-sasaran', selectedRow.target_scope || 'KAB');
+    const costChk = document.getElementById('modal-cost-sharing-prov');
+    if (costChk) costChk.checked = Boolean((selectedRow.cost_sharing || '').toUpperCase() === 'PROVINSI');
     if (ctxAlert) {
       ctxAlert.style.display = 'block';
       const labelDesc = selectedRow.uraian ? selectedRow.uraian : (selectedRow.kode || 'Baris');
@@ -4633,6 +4767,7 @@ async function submitRowForm() {
     uraian: uraian,
     pic_bagian: document.getElementById('modal-pic')?.value || 'KUL',
     target_scope: document.getElementById('modal-sasaran')?.value || 'KAB',
+    cost_sharing: document.getElementById('modal-cost-sharing-prov')?.checked ? 'PROVINSI' : 'KABUPATEN',
     kode_akun: document.getElementById('modal-akun')?.value || '521211',
     harga_satuan: isHeaderMode ? 0 : (Number(document.getElementById('modal-harga')?.value) || 0),
     f1_val: isHeaderMode ? null : (document.getElementById('modal-f1-val')?.value ? Number(document.getElementById('modal-f1-val').value) : null),
@@ -5047,6 +5182,11 @@ function openAddHeaderModal(targetLevel, refRowId = null, explicitLevelIndent = 
   const radioAfter = document.querySelector('input[name="add-header-pos-choice"][value="after"]');
   if (radioAfter) radioAfter.checked = true;
 
+  const costChk = document.getElementById('add-header-cost-sharing-prov');
+  if (costChk) costChk.checked = Boolean(refRow && (refRow.cost_sharing || '').toUpperCase() === 'PROVINSI');
+  const cascadeChk = document.getElementById('add-header-cost-cascade');
+  if (cascadeChk) cascadeChk.checked = true;
+
   document.getElementById('modal-add-header').style.display = 'flex';
   setTimeout(() => {
     document.getElementById('add-header-uraian')?.focus();
@@ -5094,6 +5234,10 @@ async function submitAddHeader() {
       finalKode = '';
     }
 
+    const isProv = Boolean(document.getElementById('add-header-cost-sharing-prov')?.checked);
+    const costSharingVal = isProv ? 'PROVINSI' : 'KABUPATEN';
+    const doCascade = Boolean(document.getElementById('add-header-cost-cascade')?.checked);
+
     const payload = {
       id: Number(editId),
       row_type: isConvertingToItem ? 'item' : 'header',
@@ -5101,6 +5245,7 @@ async function submitAddHeader() {
       uraian: finalUraian,
       level_indent: selectedLvlIndent,
       pic_bagian: pic,
+      cost_sharing: costSharingVal,
       catatan_revisi_baris: `Perubahan Level/Teks [${finalKode || '-'}] ${finalUraian}`
     };
     try {
@@ -5108,6 +5253,14 @@ async function submitAddHeader() {
         type: 'SAVE_ROW',
         payload
       }, `Perubahan Level & Teks "${finalUraian}" masuk ke draf kerja.`);
+      if (doCascade) {
+        await stageRkbOperation({
+          type: 'QUICK_COST_SHARING',
+          row_id: Number(editId),
+          cost_sharing: costSharingVal,
+          cascade: true
+        }, `Sumber dana baris & turunannya disinkronkan ke ${costSharingVal}.`);
+      }
       closeAddHeaderModal();
       AppState.selectedRowId = Number(editId);
       renderRkbTable();
@@ -5158,6 +5311,7 @@ async function submitAddHeader() {
     kode_akun: kodeAkun,
     pic_bagian: pic,
     target_scope: 'KAB',
+    cost_sharing: document.getElementById('add-header-cost-sharing-prov')?.checked ? 'PROVINSI' : 'KABUPATEN',
     harga_satuan: 0,
     anchor_row_id: refRow ? refRow.id : undefined,
     anchor_mode: posChoice === 'before' ? 'before' : 'after_children',
@@ -5249,6 +5403,11 @@ function openEditHeaderModal(rowId, event) {
   setElVal('add-header-kode', row.kode || '');
   setElVal('add-header-uraian', row.uraian || '');
   setElVal('add-header-pic', row.pic_bagian || 'KUL');
+
+  const costChk = document.getElementById('add-header-cost-sharing-prov');
+  if (costChk) costChk.checked = ((row.cost_sharing || 'KABUPATEN').toUpperCase() === 'PROVINSI');
+  const cascadeChk = document.getElementById('add-header-cost-cascade');
+  if (cascadeChk) cascadeChk.checked = true;
 
   const ctxBox = document.getElementById('add-header-context-box');
   if (ctxBox) {
