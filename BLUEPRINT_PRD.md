@@ -2,9 +2,16 @@
 ## SI-PRABU | Sistem Perencanaan dan Belanja Terpadu
 ### CANON MASTER PENGEMBANGAN SISTEM
 
-- **Lead Developer & System Architect:** `emenje`
+- **Tata Kelola 2 Kontributor Utama:**
+  1. **`emenje`:** Pengembang Utama & Perancang Sistem Kerja (*System Architect & Business Logic Lead* — fokus pada alur perencanaan anggaran, pembagian tugas PIC subbagian, validasi bertingkat, penyesuaian regulasi Pilkada, dan antarmuka pengguna).
+  2. **`Stephanus Yogi`:** Administrator Basis Data (*Database Administrator* — fokus pada integritas skema database, pemeliharaan tabel, dan server MySQL phpMyAdmin Hostinger).
 - **Repositori Resmi:** https://github.com/stephanusyogi/siprabu (Branch: `main`)
-- **Status Dokumen:** Dokumen Induk Tunggal (Single Source of Truth / SSOT) • 24 Oktober 2026 • Kompilasi Kesepakatan Konseptual & Implementasi Terverifikasi
+- **Basis Data Sah Terpusat (Production SSOT):** MySQL / MariaDB via phpMyAdmin Hostinger (`siprabu_db`)
+- **Status Dokumen:** Dokumen Induk Tunggal (Single Source of Truth / SSOT) • 27 Oktober 2026 • Kompilasi Kesepakatan Konseptual & Implementasi Terverifikasi
+- **Protokol Kerja Terpadu (Zero-Friction Workflow):**
+  1. Setiap awal sesi pengembangan, sistem dan asisten AI otomatis melakukan sinkronisasi dengan database phpMyAdmin dan memvalidasi integritas sebelum memulai pekerjaan baru.
+  2. Pengembang (`emenje`) berfokus penuh pada penyempurnaan sistem kerja dan alur bisnis anggaran tanpa dibebani perintah teknis database manual.
+  3. Setiap deploy fitur baru ke hosting dijamin aman dan tidak akan mereset data operasional di phpMyAdmin.
 
 > Dokumen ini merangkum keputusan Pengembang (`emenje`) dan AI. Ketentuan yang belum disepakati tidak boleh dianggap sebagai izin implementasi atau perubahan aturan bisnis.
 
@@ -136,8 +143,8 @@
 ---
 
 ## 8. PANDUAN dan Menu Mandiri
-1. **PANDUAN** hanya berisi **Regulasi & Dasar Hukum** dan **Panduan Penggunaan Sistem**. Seluruh pengguna dapat membaca; **Level 0** dan **Level 1** mengelola konten.
-2. **Monitoring Unduhan**, **Manajemen User**, serta **Blueprint & PRD (DEV)** adalah menu mandiri pada navigasi utama, bukan submenu PANDUAN.
+1. **PANDUAN** terbagi menjadi 3 menu navigasi mandiri terpisah: **Panduan Perencanaan**, **Panduan Pelaksanaan**, dan **Regulasi & Dasar Hukum** (Bab 23). Seluruh pengguna dapat membaca; **Level 0** dan **Level 1** berwenang mengelola konten.
+2. **Monitoring Unduhan**, **Manajemen User**, **Log Aktivitas**, serta **Blueprint & PRD (DEV)** adalah menu mandiri pada navigasi utama, bukan submenu PANDUAN.
 
 ---
 
@@ -165,6 +172,7 @@
 | Fitur | Kewenangan Canon |
 | :--- | :--- |
 | **Manajemen User** | **Level 0** dan **Kasubag Rendatin** saja; kewenangan Rendatin ini melekat pada jabatan Kasubag, bukan seluruh akun divisi. |
+| **Log Aktivitas** | **Level 0** dan **Kasubag Rendatin** saja (Bab 14.1). |
 | **Blueprint & PRD (DEV)** | **Level 0** saja. |
 | **Ganti Peran untuk uji** | **Level 0** saja. |
 | **Validasi Tahap 2 dan 3** | **Level 1**. |
@@ -279,7 +287,7 @@ Mesin audit secara otomatis mengklasifikasikan setiap peristiwa ke dalam salah s
    - Tabel `audit_log` **TIDAK** mencatat transaksi sementara ini baris-per-baris agar basis data audit tetap bersih, rapi, dan memiliki arti akuntansi yang utuh.
 2. **Pengeksekusian Bersih (Single Atomic Batch Commit):**
    - Ketika pengguna menekan tombol **Simpan Perubahan RKB**, modal Pop-Up Pratinjau menyajikan selisih netto anggaran semula vs menjadi dan meminta masukan Catatan Justifikasi.
-   - Setelah pengguna mengklik **Konfirmasi Simpan**, seluruh operasi dieksekusi dalam satu transaksi atomik database (`SAVEPOINT sp_rkb_staged_commit`).
+   - Setelah pengguna mengklik **Konfirmasi Simpan**, seluruh operasi dieksekusi dalam satu transaksi atomik database (`BEGIN TRANSACTION / COMMIT` dengan penanganan savepoint).
    - Tepat **satu entri audit** berkode `COMMIT_RKB_CHANGES` dicatat secara permanen, mendokumentasikan dampak agregat dari seluruh draf yang disetujui.
 
 ### 14.4 Audit Trail pada Simulasi Ganti Peran Pengembang (Bab 11.5 Canon)
@@ -391,6 +399,10 @@ Volume, faktor, dan harga yang wajib mengacu parameter SSOT, DATABASE, SBM, atau
    - Tabel rincian baris yang terdampak (status, kode, uraian, PIC, nilai semula, nilai menjadi, dan selisih),
    - Kolom opsional **Catatan Penyimpanan** untuk memperkaya rekam jejak pada **Log Aktivitas**.
 3. **Deteksi dan Sinkronisasi Perubahan Referensi Bersamaan (Concurrent Reference Sync):** Apabila saat pengguna sedang mengedit draf RUH Belanja terdapat perubahan pada data **REFERENSI** atau **DATABASE** (`PPK`, `PPS`, `TPS`, `Paslon`, `Kuantitas`, `SBM`, atau `BAS`) oleh pengguna lain/admin, sistem mendeteksi perubahan sidik jari versi referensi (`reference_version`), secara otomatis menghitung ulang draf RUH menggunakan nilai referensi terbaru, serta menampilkan **Banner Peringatan Sinkronisasi Referensi** di dalam Pop-Up Konfirmasi Simpan agar pengguna meninjau dan menyetujui angka terbaru sebelum komit permanen ke database.
+4. **Pencegahan Tabrakan Perubahan Data (Optimistic Concurrency Control — OCC):**
+   - Saat pengguna membuka lembar kerja RKB, sistem merekam sidik jari versi dokumen aktif di server (`rkb_version`).
+   - Apabila saat pengguna sedang menyusun draf terdapat operator lain yang telah menyimpan perubahan terlebih dahulu, server menolak penyimpanan (HTTP 409 Conflict) dengan status `rkb_conflict: true`.
+   - Draf pengguna di browser tidak hilang; sistem meminta pengguna meninjau atau memuat ulang data terbaru guna mencegah risiko tumpang tindih data (*lost updates*).
 
 ---
 
