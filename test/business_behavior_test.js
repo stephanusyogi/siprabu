@@ -22,6 +22,7 @@ for (const ext of ['', '-wal', '-shm']) {
 
 fs.copyFileSync(PROD_DB_PATH, TEST_DB_PATH);
 process.env.SIPRABU_DB_PATH = TEST_DB_PATH;
+process.env.DB_TYPE = 'sqlite';
 
 console.log('================================================================');
 console.log('  SIPRABU 25 BUSINESS BEHAVIOR ACCEPTANCE TEST SUITE');

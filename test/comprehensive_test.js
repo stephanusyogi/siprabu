@@ -22,6 +22,7 @@ for (const ext of ['', '-wal', '-shm']) {
 // Salin database produksi saat ini ke database uji terisolasi
 fs.copyFileSync(PROD_DB_PATH, TEST_DB_PATH);
 process.env.SIPRABU_DB_PATH = TEST_DB_PATH;
+process.env.DB_TYPE = 'sqlite';
 
 console.log('================================================================');
 console.log('  SI-PRABU COMPREHENSIVE TEST SUITE (ISOLATED DATABASE)');

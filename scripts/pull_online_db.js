@@ -1,7 +1,7 @@
 /**
  * Skrip Sinkronisasi Satu Arah (Hosting -> GitHub Repository / Lokal)
  * Menarik database aktif dari https://siprabu.kpungawi.com dan menyimpannya
- * langsung ke data/hibah_kpu.sqlite & data/hibah_kpu.sqlite.template di Lokal.
+ * langsung ke berkas SQL dump siap-pakai phpMyAdmin (siprabu_siap_phpmyadmin.sql).
  */
 const fs = require('fs');
 const path = require('path');
@@ -12,6 +12,8 @@ const { getUsers } = require('../src/db');
 
 const ONLINE_BASE_URL = process.env.SIPRABU_ONLINE_URL || 'https://siprabu.kpungawi.com';
 const DATA_DIR = path.resolve(__dirname, '..', 'data');
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+const MYSQL_DUMP_PATH = path.resolve(__dirname, '..', 'siprabu_siap_phpmyadmin.sql');
 const DB_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite');
 const TEMPLATE_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.template');
 const BACKUP_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.bak');
@@ -33,34 +35,54 @@ async function pullOnlineDb() {
 
   console.log(`[SYNC] Menghubungi server produksi: ${ONLINE_BASE_URL} ...`);
   try {
+    // 1. Prioritaskan penarikan SQL Dump MySQL / phpMyAdmin
+    const expMysqlRes = await fetch(`${ONLINE_BASE_URL}/api/developer/export-mysql`, { headers, signal: AbortSignal.timeout(15000) });
+
+    if (expMysqlRes.ok) {
+      const text = await expMysqlRes.text();
+      if (text.length > 1000 && text.includes('INSERT INTO')) {
+        fs.writeFileSync(MYSQL_DUMP_PATH, text, 'utf8');
+        if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+        fs.writeFileSync(path.join(BACKUP_DIR, 'siprabu_online_latest.sql'), text, 'utf8');
+        console.log(`[SYNC] Berhasil menarik Full MySQL Dump (${(text.length / (1024 * 1024)).toFixed(2)} MB) dari ${ONLINE_BASE_URL}!`);
+        console.log(`[SYNC] Berkas siap diimpor ke phpMyAdmin: ${MYSQL_DUMP_PATH}`);
+        return;
+      }
+    }
+
+    // 2. Fallback jika server online masih berada di versi lama yang hanya menyediakan endpoint export-sqlite
     const expRes = await fetch(`${ONLINE_BASE_URL}/api/developer/export-sqlite`, { headers, signal: AbortSignal.timeout(10000) });
 
-    if (expRes.ok && (expRes.headers.get('content-type') || '').includes('application/octet-stream')) {
-      const arrBuf = await expRes.arrayBuffer();
-      const buf = Buffer.from(arrBuf);
-      if (buf.length < 100000) {
-        throw new Error(`Ukuran file terlalu kecil (${buf.length} bytes), batal menimpa.`);
+    if (expRes.ok) {
+      const cType = expRes.headers.get('content-type') || '';
+      if (cType.includes('application/sql') || cType.includes('text/plain')) {
+        const text = await expRes.text();
+        fs.writeFileSync(MYSQL_DUMP_PATH, text, 'utf8');
+        console.log(`[SYNC] Berhasil menarik MySQL Dump dari ${ONLINE_BASE_URL}! Disimpan ke ${MYSQL_DUMP_PATH}`);
+        return;
       }
-      fs.writeFileSync(DB_PATH, buf);
-      fs.writeFileSync(TEMPLATE_PATH, buf);
-      fs.writeFileSync(BACKUP_PATH, buf);
-      console.log(`[SYNC] Berhasil menarik database SQLite utuh (${(buf.length / (1024 * 1024)).toFixed(2)} MB) dari ${ONLINE_BASE_URL}!`);
-      return;
+
+      if (cType.includes('application/octet-stream')) {
+        const arrBuf = await expRes.arrayBuffer();
+        const buf = Buffer.from(arrBuf);
+        if (buf.length >= 100000) {
+          fs.writeFileSync(DB_PATH, buf);
+          fs.writeFileSync(TEMPLATE_PATH, buf);
+          fs.writeFileSync(BACKUP_PATH, buf);
+          console.log(`[SYNC] Berhasil menarik arsip database legacy (${(buf.length / (1024 * 1024)).toFixed(2)} MB) dari ${ONLINE_BASE_URL}!`);
+          return;
+        }
+      }
     }
 
     if (expRes.status === 401 || expRes.status === 403) {
-      console.log('[SYNC] Server online memerlukan otorisasi terbaru. Memverifikasi integritas database lokal...');
+      console.log('[SYNC] Server online memerlukan otorisasi terbaru.');
     }
   } catch (err) {
     console.warn('[SYNC WARNING] Tidak dapat terhubung ke server online:', err.message);
   }
 
-  // Fallback: pastikan template & backup lokal tetap sinkron
-  if (fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size > 0) {
-    fs.copyFileSync(DB_PATH, TEMPLATE_PATH);
-    fs.copyFileSync(DB_PATH, BACKUP_PATH);
-    console.log('[SYNC] Database lokal (hibah_kpu.sqlite) siap dan terverifikasi utuh.');
-  }
+  console.log('[SYNC] Database lokal siap.');
 }
 
 pullOnlineDb().catch(err => {

@@ -37,7 +37,7 @@ if (!isMainThread) {
     s = s.replace(/INSERT\s+OR\s+IGNORE\s+INTO/gi, 'INSERT IGNORE INTO');
 
     // 3. Translasi Transaksi & Pengamanan Savepoint pada Connection Pool
-    if (/^BEGIN(\s+TRANSACTION)?\s*;?$/i.test(s)) {
+    if (/^BEGIN(\s+(TRANSACTION|IMMEDIATE|EXCLUSIVE|DEFERRED))?\s*;?$/i.test(s)) {
       return 'START TRANSACTION;';
     }
     if (/^\s*(SAVEPOINT|RELEASE\s+SAVEPOINT|ROLLBACK\s+TO\s+SAVEPOINT)\b/i.test(s)) {
@@ -47,8 +47,10 @@ if (!isMainThread) {
     // 4. Escape kata kunci reservasi MySQL `key` (terutama tabel settings_satker)
     s = s.replace(/(\b(?:WHERE|SET|SELECT|AND|OR|,|\()\s*)key(\s*(?:=|<|>|IN|LIKE|,|\)))/gi, '$1`key`$2');
 
-    // 5. Translasi sintaks fungsi agregasi SQLite -> MySQL
+    // 5. Translasi sintaks fungsi agregasi & waktu SQLite -> MySQL
     s = s.replace(/GROUP_CONCAT\(([^,]+),\s*['"]([^'"]+)['"]\)/gi, "GROUP_CONCAT($1 SEPARATOR '$2')");
+    s = s.replace(/datetime\('now'\)/gi, 'NOW()');
+    s = s.replace(/date\('now'\)/gi, 'CURDATE()');
 
     // 6. Translasi DDL SQLite -> MySQL
     if (/CREATE\s+TABLE/i.test(s)) {
@@ -73,6 +75,7 @@ if (!isMainThread) {
       connectionLimit: 15,
       queueLimit: 0,
       multipleStatements: true,
+      charset: 'utf8mb4',
       supportBigNumbers: true,
       bigNumberStrings: false,
       dateStrings: true

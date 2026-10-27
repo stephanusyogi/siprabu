@@ -754,7 +754,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 3b. ENDPOINT KHUSUS LEAD DEVELOPER: BLUEPRINT & PRD ARSITEKTUR + SINKRONISASI DB
-    if (pathname === '/api/developer/export-sqlite' && method === 'GET') {
+    if ((pathname === '/api/developer/export-mysql' || pathname === '/api/developer/export-db' || pathname === '/api/developer/export-sqlite') && method === 'GET') {
       const syncKey = req.headers['x-sync-key'] || req.headers['x-developer-key'];
       const validSyncKey = process.env.SIPRABU_SYNC_KEY || 'siprabu_sync_kpu_ngawi_2026_emenje';
       const isSyncKeyValid = Boolean(syncKey && syncKey === validSyncKey);
@@ -764,13 +764,27 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 401, { error: 'Silakan login terlebih dahulu atau gunakan Sync Key pengembang yang valid.' });
       }
       try {
-        // 1. Paksa flush WAL agar 100% transaksi online detik terakhir dilebur ke file fisik
+        const { USE_MYSQL } = require('./src/db');
+        const { generateMySQLDump } = require('./src/backup');
+
+        // Jika engine MySQL aktif atau endpoint export-mysql/export-db diminta:
+        if (USE_MYSQL || pathname === '/api/developer/export-mysql' || pathname === '/api/developer/export-db') {
+          const sqlDump = generateMySQLDump(db);
+          const buf = Buffer.from(sqlDump, 'utf8');
+          res.writeHead(200, {
+            'Content-Type': 'application/sql',
+            'Content-Disposition': 'attachment; filename="siprabu_dump.sql"',
+            'Content-Length': buf.length
+          });
+          return res.end(buf);
+        }
+
+        // Fallback SQLite lama (hanya jika mode sqlite aktif):
         if (typeof checkpointAndSyncDatabase === 'function') {
           checkpointAndSyncDatabase('TRUNCATE');
         } else if (db && typeof db.exec === 'function') {
           try { db.exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch (e) {}
         }
-
         const persistentPath = path.join(os.homedir(), '.siprabu_persistent_data', 'hibah_kpu.sqlite');
         const defaultSqlitePath = path.resolve(__dirname, 'data', 'hibah_kpu.sqlite');
         
@@ -808,7 +822,7 @@ const server = http.createServer(async (req, res) => {
         });
         return res.end(buf);
       } catch (err) {
-        return sendJson(res, 500, { error: 'Gagal mengekspor database SQLite: ' + err.message });
+        return sendJson(res, 500, { error: 'Gagal mengekspor database: ' + err.message });
       }
     }
 

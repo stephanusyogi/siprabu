@@ -315,14 +315,18 @@ Mesin audit secara otomatis mengklasifikasikan setiap peristiwa ke dalam salah s
    - Setiap pengiriman simpan draf (`/api/rkb/:id/commit-staged` atau `/row`) wajib menyertakan `expected_rkb_version`.
    - Apabila terdapat pengguna lain yang telah menyimpan perubahan terlebih dahulu sehingga versi dokumen di server telah berubah, penyimpanan dari halaman lama akan ditolak dengan status **HTTP 409 Conflict** (`rkb_conflict: true`), mencegah risiko tumpang tindih atau hilangnya data perubahan pengguna lain (*lost updates*).
 
-### 14.7 Arsitektur Basis Data Ganda (Dual-Engine: MySQL Produksi phpMyAdmin & SQLite Offline)
-1. **Standar Produksi Online (Fullpoint MySQL phpMyAdmin):**
-   - Lingkungan server produksi (`siprabu.kpungawi.com`) secara default berjalan dengan engine **MySQL / MariaDB** (`DB_TYPE=mysql`), di mana seluruh kueri database dieksekusi langsung ke database MySQL yang terkelola pada phpMyAdmin Hostinger melalui bridge tersinkronisasi `src/mysql_sync.js`.
-   - Menjamin integritas multi-koneksi konkuren, durabilitas data lintas deploy git, dan kemudahan administrasi langsung oleh Pengembang melalui antarmuka phpMyAdmin.
-2. **Mode Cadangan Lokal / Portabel (SQLite Fallback):**
-   - Apabila variabel `DB_TYPE` tidak disetel atau disetel `sqlite`, sistem otomatis menggunakan engine lokal terisolasi `node:sqlite` (`data/hibah_kpu.sqlite`), berguna untuk pengujian unit otomatis, demo offline, atau paket desktop mandiri tanpa prasyarat instalasi server MySQL.
-3. **Kompatibilitas Sintaks Lintas Engine:**
-   - Bridge `mysql_sync.js` secara otomatis mentranslasikan kueri dialek SQLite (`INSERT OR REPLACE`, `INSERT OR IGNORE`, `PRAGMA`, `GROUP_CONCAT`, dan isolasi `SAVEPOINT` pada connection pool) ke padanan standar MySQL 8.0/MariaDB tanpa memerlukan perombakan kode logika bisnis.
+### 14.7 Arsitektur Basis Data Utama: Fullpoint MySQL & phpMyAdmin (Single Source of Truth)
+1. **Standar Tunggal Operasional (Fullpoint MySQL phpMyAdmin):**
+   - Seluruh lingkungan server produksi (`siprabu.kpungawi.com`) dan lingkungan pengembang lokal secara default berjalan penuh (*exclusive fullpoint*) dengan engine **MySQL 8.0 / MariaDB** (`DB_TYPE=mysql`) yang terkelola langsung pada phpMyAdmin (`siprabu_db`).
+   - Seluruh transaksi, perhitungan kalkulasi anggaran, audit logging, perizinan, dan sesi beroperasi langsung pada MySQL melalui driver bridge tersinkronisasi `src/mysql_sync.js`.
+2. **Status Arsip File SQLite Lokal (`data/`):**
+   - File basis data SQLite lama (`hibah_kpu.sqlite`, `.template`, `.bak`) yang berada di folder `data/` dibiarkan utuh di tempatnya sebagai arsip statis/legacy historis.
+   - Tidak ada lagi proses aktif runtime aplikasi yang membaca, menulis, atau memutasi file SQLite lokal tersebut.
+3. **Ekspor & Pencadangan Berbasis MySQL Dump:**
+   - Modul pencadangan (`src/backup.js`) dan utilitas CLI (`npm run backup`) secara langsung mengekstrak SQL Dump murni berstandar phpMyAdmin (`.sql`).
+   - Endpoint sinkronisasi pengembang (`/api/developer/export-mysql` & `/api/developer/export-db`) menyajikan dump data hidup langsung dari MySQL, sehingga sinkronisasi satu arah (`pull_online_db.js`) selalu menghasilkan data termutakhir yang siap diimpor ke phpMyAdmin.
+4. **Kompatibilitas Sintaks Driver:**
+   - Bridge `mysql_sync.js` secara otomatis mentranslasikan kueri dialek SQLite (`INSERT OR REPLACE`, `INSERT OR IGNORE`, `PRAGMA`, `GROUP_CONCAT`, `datetime('now')` -> `NOW()`, dan isolasi `SAVEPOINT` pada connection pool) ke padanan standar MySQL 8.0/MariaDB tanpa memerlukan perombakan kode logika bisnis.
 
 ---
 

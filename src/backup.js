@@ -1,12 +1,19 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
- * Modul Backup & Pemulihan SQLite Konsisten (WAL Checkpoint & Integrity Verification)
- * Pengembang: emenje
+ * Modul Backup & Pemulihan Database: Fullpoint MySQL & phpMyAdmin Dump
+ * Pengembang: emenje & Stephanus Yogi
  */
 
-const { DatabaseSync } = require('node:sqlite');
 const fs = require('fs');
 const path = require('path');
+
+let DatabaseSync = null;
+function getSqliteDatabaseSync() {
+  if (!DatabaseSync) {
+    DatabaseSync = require('node:sqlite').DatabaseSync;
+  }
+  return DatabaseSync;
+}
 
 const DATA_DIR = path.resolve(__dirname, '..', 'data');
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
@@ -42,7 +49,94 @@ function getJakartaTimestamp() {
 }
 
 /**
- * Membuat backup SQLite yang konsisten (WAL flushed via checkpoint TRUNCATE)
+ * Menghasilkan SQL Dump standar MySQL / phpMyAdmin secara utuh dari koneksi database aktif
+ */
+function generateMySQLDump(dbInstance) {
+  let dump = `-- ============================================================================
+-- SI-PRABU MySQL / phpMyAdmin Full Database Dump
+-- Diekspor: ${new Date().toISOString()} (WIB: ${new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'full', timeStyle: 'long' }).format(new Date())})
+-- Kompatibel Penuh: MySQL 5.7+ / MySQL 8.0+ / MariaDB / phpMyAdmin
+-- ============================================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET AUTOCOMMIT = 0;
+START TRANSACTION;
+SET time_zone = "+07:00";
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;\n\n`;
+
+  let tableRows = [];
+  try {
+    tableRows = dbInstance.prepare("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'").all();
+  } catch (e) {
+    try {
+      tableRows = dbInstance.prepare("SELECT table_name AS tbl FROM information_schema.tables WHERE table_schema = DATABASE()").all();
+    } catch (e2) {}
+  }
+
+  const tableNames = tableRows.map(r => {
+    const vals = Object.values(r);
+    return vals[0];
+  }).filter(Boolean);
+
+  for (const table of tableNames) {
+    dump += `-- --------------------------------------------------------\n`;
+    dump += `-- Struktur dari tabel \`${table}\`\n`;
+    dump += `-- --------------------------------------------------------\n\n`;
+    dump += `DROP TABLE IF EXISTS \`${table}\`;\n`;
+
+    try {
+      const createRes = dbInstance.prepare(`SHOW CREATE TABLE \`${table}\``).get();
+      if (createRes) {
+        const createSql = createRes['Create Table'] || Object.values(createRes)[1] || '';
+        dump += `${createSql};\n\n`;
+      }
+    } catch (e) {}
+
+    try {
+      const rows = dbInstance.prepare(`SELECT * FROM \`${table}\``).all();
+      if (rows && rows.length > 0) {
+        dump += `-- Data isi tabel \`${table}\`\n`;
+        const colNames = Object.keys(rows[0]);
+        const colsEscaped = colNames.map(c => `\`${c}\``).join(', ');
+
+        const CHUNK_SIZE = 100;
+        for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+          const chunk = rows.slice(i, i + CHUNK_SIZE);
+          const valuesList = chunk.map(row => {
+            const vals = colNames.map(col => {
+              const val = row[col];
+              if (val === null || val === undefined) return 'NULL';
+              if (typeof val === 'number') return String(val);
+              if (typeof val === 'boolean') return val ? '1' : '0';
+              const escaped = String(val)
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n')
+                .replace(/\0/g, '\\0');
+              return `'${escaped}'`;
+            });
+            return `(${vals.join(', ')})`;
+          });
+          dump += `INSERT INTO \`${table}\` (${colsEscaped}) VALUES\n${valuesList.join(',\n')};\n\n`;
+        }
+      }
+    } catch (e) {
+      dump += `-- Catatan: Gagal mengekstrak data untuk tabel \`${table}\`: ${e.message}\n\n`;
+    }
+  }
+
+  dump += `COMMIT;\nSET FOREIGN_KEY_CHECKS = 1;\n`;
+  return dump;
+}
+
+/**
+ * Membuat backup database (Dump SQL untuk MySQL/phpMyAdmin, atau VACUUM snapshot jika SQLite mode)
  */
 function createDatabaseBackup(dbInstanceOrOptions = null, label = 'auto', dbPath = DEFAULT_DB_PATH, retention = DEFAULT_RETENTION_COUNT) {
   ensureBackupDir();
@@ -61,11 +155,44 @@ function createDatabaseBackup(dbInstanceOrOptions = null, label = 'auto', dbPath
     dbInstance = dbInstanceOrOptions;
   }
 
+  const isMySQL = (process.env.DB_TYPE !== 'sqlite') && (!dbInstance || dbInstance.constructor.name === 'MySQLDatabaseSync');
   const safeLabel = String(finalLabel).replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  if (isMySQL) {
+    const filename = `siprabu_mysql_${getJakartaTimestamp()}_${safeLabel}.sql`;
+    const targetPath = path.join(BACKUP_DIR, filename);
+
+    if (!dbInstance) {
+      const { db } = require('./db');
+      dbInstance = db;
+    }
+
+    const dumpContent = generateMySQLDump(dbInstance);
+    fs.writeFileSync(targetPath, dumpContent, 'utf8');
+
+    const stats = fs.statSync(targetPath);
+    if (stats.size < 100) {
+      if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath);
+      throw new Error('Hasil dump MySQL kosong atau terlalu kecil.');
+    }
+
+    applyBackupRetention(finalRetention);
+
+    return {
+      success: true,
+      engine: 'mysql',
+      filename,
+      backupPath: targetPath,
+      integrity: 'ok',
+      sizeBytes: stats.size,
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  // Fallback pengujian SQLite
   const filename = `hibah_kpu_${getJakartaTimestamp()}_${safeLabel}.sqlite`;
   const targetPath = path.join(BACKUP_DIR, filename);
 
-  // 1 & 2. Buat snapshot konsisten menggunakan VACUUM INTO (transaksional penuh & membawa seluruh transaksi WAL terbaru)
   let usedVacuum = false;
   if (dbInstance && typeof dbInstance.exec === 'function') {
     try {
@@ -81,7 +208,8 @@ function createDatabaseBackup(dbInstanceOrOptions = null, label = 'auto', dbPath
   if (!usedVacuum) {
     if (fs.existsSync(finalDbPath)) {
       try {
-        const tempDb = new DatabaseSync(finalDbPath);
+        const SqliteDB = getSqliteDatabaseSync();
+        const tempDb = new SqliteDB(finalDbPath);
         tempDb.prepare('PRAGMA wal_checkpoint(TRUNCATE);').all();
         const escapedPath = targetPath.replace(/'/g, "''");
         try {
@@ -93,15 +221,15 @@ function createDatabaseBackup(dbInstanceOrOptions = null, label = 'auto', dbPath
         console.warn('[BACKUP] Peringatan saat temp checkpoint:', e.message);
       }
     }
-    if (!usedVacuum) {
+    if (!usedVacuum && fs.existsSync(finalDbPath)) {
       fs.copyFileSync(finalDbPath, targetPath);
     }
   }
 
-  // 3. Verifikasi integritas backup
   let isOk = false;
   try {
-    const verifyDb = new DatabaseSync(targetPath);
+    const SqliteDB = getSqliteDatabaseSync();
+    const verifyDb = new SqliteDB(targetPath);
     const result = verifyDb.prepare('PRAGMA integrity_check;').all();
     verifyDb.close();
     isOk = Array.isArray(result) && result.length > 0 && result[0].integrity_check === 'ok';
@@ -115,12 +243,12 @@ function createDatabaseBackup(dbInstanceOrOptions = null, label = 'auto', dbPath
     throw new Error('Verifikasi integritas backup gagal: PRAGMA integrity_check tidak menghasilkan "ok".');
   }
 
-  // 4. Terapkan retensi backup (bersihkan backup lama berlebih)
   applyBackupRetention(finalRetention);
 
   const stats = fs.statSync(targetPath);
   return {
     success: true,
+    engine: 'sqlite',
     filename,
     backupPath: targetPath,
     integrity: isOk ? 'ok' : 'failed',
@@ -130,18 +258,18 @@ function createDatabaseBackup(dbInstanceOrOptions = null, label = 'auto', dbPath
 }
 
 /**
- * Hapus backup lama jika melebihi batas retensi
+ * Hapus backup lama jika melebihi batas retensi (.sql dan .sqlite)
  */
 function applyBackupRetention(keepCount = DEFAULT_RETENTION_COUNT) {
   ensureBackupDir();
   try {
     const files = fs.readdirSync(BACKUP_DIR)
-      .filter(f => f.startsWith('hibah_kpu_') && f.endsWith('.sqlite'))
+      .filter(f => f.endsWith('.sql') || f.endsWith('.sqlite'))
       .map(f => {
         const fullPath = path.join(BACKUP_DIR, f);
         return { name: f, path: fullPath, mtime: fs.statSync(fullPath).mtimeMs };
       })
-      .sort((a, b) => b.mtime - a.mtime); // Teranyar duluan
+      .sort((a, b) => b.mtime - a.mtime);
 
     if (files.length > keepCount) {
       const toDelete = files.slice(keepCount);
@@ -157,17 +285,18 @@ function applyBackupRetention(keepCount = DEFAULT_RETENTION_COUNT) {
 }
 
 /**
- * Daftar backup yang tersedia
+ * Daftar backup yang tersedia (.sql dan .sqlite)
  */
 function listBackups() {
   ensureBackupDir();
   const files = fs.readdirSync(BACKUP_DIR)
-    .filter(f => f.endsWith('.sqlite'))
+    .filter(f => f.endsWith('.sql') || f.endsWith('.sqlite'))
     .map(f => {
       const fullPath = path.join(BACKUP_DIR, f);
       const stat = fs.statSync(fullPath);
       return {
         filename: f,
+        type: f.endsWith('.sql') ? 'MySQL Dump' : 'SQLite Archive',
         path: fullPath,
         sizeBytes: stat.size,
         modifiedAt: new Date(stat.mtimeMs).toISOString()
@@ -178,15 +307,15 @@ function listBackups() {
 }
 
 /**
- * Pulihkan database dari file backup
+ * Pulihkan database SQLite dari file backup (khusus pengujian legacy)
  */
 function restoreBackup(backupFilePath, targetDbPath = DEFAULT_DB_PATH) {
   if (!fs.existsSync(backupFilePath)) {
     throw new Error(`File backup tidak ditemukan: ${backupFilePath}`);
   }
 
-  // Verifikasi integritas sebelum pemulihan
-  const verifyDb = new DatabaseSync(backupFilePath);
+  const SqliteDB = getSqliteDatabaseSync();
+  const verifyDb = new SqliteDB(backupFilePath);
   const result = verifyDb.prepare('PRAGMA integrity_check;').all();
   verifyDb.close();
 
@@ -194,7 +323,6 @@ function restoreBackup(backupFilePath, targetDbPath = DEFAULT_DB_PATH) {
     throw new Error('File backup corrupt / tidak lolos PRAGMA integrity_check.');
   }
 
-  // Jika target sedang ada, buat backup darurat dulu
   if (fs.existsSync(targetDbPath)) {
     const emergencyPath = `${targetDbPath}.emergency_bak`;
     try { fs.copyFileSync(targetDbPath, emergencyPath); } catch (e) {}
@@ -207,7 +335,8 @@ function restoreBackup(backupFilePath, targetDbPath = DEFAULT_DB_PATH) {
 function verifyDatabaseIntegrity(dbPath) {
   if (!fs.existsSync(dbPath)) return { integrity: 'not_found' };
   try {
-    const verifyDb = new DatabaseSync(dbPath);
+    const SqliteDB = getSqliteDatabaseSync();
+    const verifyDb = new SqliteDB(dbPath);
     const result = verifyDb.prepare('PRAGMA integrity_check;').all();
     verifyDb.close();
     const isOk = Array.isArray(result) && result.length > 0 && result[0].integrity_check === 'ok';
@@ -220,6 +349,7 @@ function verifyDatabaseIntegrity(dbPath) {
 module.exports = {
   createDatabaseBackup,
   createBackup: createDatabaseBackup,
+  generateMySQLDump,
   verifyDatabaseIntegrity,
   listBackups,
   restoreBackup,

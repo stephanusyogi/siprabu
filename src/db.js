@@ -1,10 +1,9 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
- * Modul Database SQLite Terpadu (DatabaseSync built-in Node.js v22+)
- * Pengembang: emenje
+ * Modul Database Utama: Fullpoint MySQL & phpMyAdmin
+ * Pengembang: emenje & Stephanus Yogi
  */
 
-const { DatabaseSync } = require('node:sqlite');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -18,30 +17,38 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Direktori persisten di luar folder Git (aman dari reset saat Hostinger Git Auto-Deploy)
-const PERSISTENT_DIR = path.join(os.homedir(), '.siprabu_persistent_data');
-try {
-  if (!fs.existsSync(PERSISTENT_DIR)) {
-    fs.mkdirSync(PERSISTENT_DIR, { recursive: true });
-  }
-} catch (e) {}
-
-const DB_PATH = process.env.SIPRABU_DB_PATH || path.join(DATA_DIR, 'hibah_kpu.sqlite');
-const BACKUP_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.bak');
-const TEMPLATE_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.template');
-const PERSISTENT_DB_PATH = path.join(PERSISTENT_DIR, 'hibah_kpu.sqlite');
-
-// Bersihkan file backup/persisten 0-byte jika ada agar tidak merusak pemulihan
-for (const p of [BACKUP_PATH, PERSISTENT_DB_PATH]) {
-  if (fs.existsSync(p)) {
-    try {
-      if (fs.statSync(p).size === 0) fs.unlinkSync(p);
-    } catch (e) {}
-  }
+// Muat .env otomatis jika ada agar CLI & script mandiri mengenali konfigurasi MySQL
+const envPath = path.resolve(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  try {
+    const envLines = fs.readFileSync(envPath, 'utf8').split('\n');
+    for (const line of envLines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const idx = trimmed.indexOf('=');
+      if (idx > 0) {
+        const k = trimmed.substring(0, idx).trim();
+        const v = trimmed.substring(idx + 1).trim();
+        if (process.env[k] === undefined) {
+          process.env[k] = v;
+        }
+      }
+    }
+  } catch (e) {}
 }
 
-const USE_MYSQL = process.env.DB_TYPE === 'mysql';
+// Standar Utama: Fullpoint MySQL & phpMyAdmin (SSOT)
+// SQLite hanya dimuat secara lazy jika DB_TYPE disetel eksplisit ke 'sqlite' untuk unit test terisolasi
+const USE_MYSQL = process.env.DB_TYPE !== 'sqlite';
 let db;
+let DatabaseSync = null;
+
+function getSqliteDatabaseSync() {
+  if (!DatabaseSync) {
+    DatabaseSync = require('node:sqlite').DatabaseSync;
+  }
+  return DatabaseSync;
+}
 
 if (USE_MYSQL) {
   const { createMySQLDatabaseSync } = require('./mysql_sync');
@@ -54,26 +61,14 @@ if (USE_MYSQL) {
   });
   console.log(`[DB-ENGINE] Berjalan pada Full MySQL Database: ${process.env.DB_NAME || 'siprabu_db'} (${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || 3306})`);
 } else {
-  // Jika file database belum ada (misal saat Hostinger Git Auto-Deploy membuat folder rilis baru):
-  // 1. Utamakan pulihkan dari PERSISTENT_DB_PATH (di home dir server, di luar folder Git) agar data online TIDAK PERNAH TER-RESET!
-  // 2. Jika belum pernah ada di PERSISTENT_DB_PATH, baru salin dari TEMPLATE_PATH atau BACKUP_PATH.
-  if (!fs.existsSync(DB_PATH) || (fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size === 0)) {
-    if (!process.env.SIPRABU_DB_PATH && fs.existsSync(PERSISTENT_DB_PATH) && fs.statSync(PERSISTENT_DB_PATH).size > 0) {
-      try {
-        fs.copyFileSync(PERSISTENT_DB_PATH, DB_PATH);
-        console.log('[DB-INIT] Memulihkan database aktif dari penyimpanan persisten server:', PERSISTENT_DB_PATH);
-      } catch (e) {}
-    } else if (fs.existsSync(TEMPLATE_PATH) && fs.statSync(TEMPLATE_PATH).size > 0) {
-      try { fs.copyFileSync(TEMPLATE_PATH, DB_PATH); } catch (e) {}
-    } else if (fs.existsSync(BACKUP_PATH) && fs.statSync(BACKUP_PATH).size > 0) {
-      try { fs.copyFileSync(BACKUP_PATH, DB_PATH); } catch (e) {}
-    }
-  }
-
-  db = new DatabaseSync(DB_PATH);
+  const DB_PATH = process.env.SIPRABU_DB_PATH || path.join(DATA_DIR, 'hibah_kpu.sqlite');
+  const SqliteDB = getSqliteDatabaseSync();
+  db = new SqliteDB(DB_PATH);
+  console.log(`[DB-ENGINE] Mode Fallback / Pengujian SQLite Terisolasi Aktif: ${DB_PATH}`);
 }
 
 module.exports.db = db;
+module.exports.USE_MYSQL = USE_MYSQL;
 
 /**
  * Flush WAL ke file utama hibah_kpu.sqlite dan cadangkan ke PERSISTENT_DB_PATH & hibah_kpu.sqlite.bak
@@ -425,11 +420,15 @@ function getAuditLogs({
 
 // Inisialisasi DB & Migrasi Skema
 function initDb() {
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA synchronous = FULL;
-    PRAGMA foreign_keys = ON;
-  `);
+  if (!USE_MYSQL) {
+    try {
+      db.exec(`
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = FULL;
+        PRAGMA foreign_keys = ON;
+      `);
+    } catch (e) {}
+  }
 
   safeAddColumn('satker_users', 'token_version INTEGER DEFAULT 1');
   safeAddColumn('satker_users', 'email TEXT');
@@ -6135,5 +6134,6 @@ module.exports = {
   logRevisiHistory,
   getRevisiPengajuanHistory,
   getRevisionCycleStatus,
-  checkpointAndSyncDatabase
+  checkpointAndSyncDatabase,
+  USE_MYSQL
 };

@@ -1,7 +1,7 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
- * CLI Utilitas Backup & Integrity Check Database SQLite
- * Pengembang: emenje
+ * CLI Utilitas Backup Database (MySQL phpMyAdmin Dump / SQL Backup)
+ * Pengembang: emenje & Stephanus Yogi
  * 
  * Penggunaan:
  *   node scripts/backup.js [label]
@@ -23,13 +23,15 @@ async function main() {
   const label = args[0] || 'manual_cli';
   console.log(`Membuat backup database dengan label "${label}"...`);
   const res = createDatabaseBackup(db, label);
-  console.log('Backup berhasil dibuat dan lolos uji integritas (PRAGMA integrity_check):');
+  console.log(`Backup berhasil dibuat (Engine: ${res.engine.toUpperCase()}):`);
   console.log(`- File : ${res.filename}`);
   console.log(`- Path : ${res.backupPath}`);
   console.log(`- Size : ${(res.sizeBytes / 1024).toFixed(2)} KB`);
 }
 
-main().catch(err => {
+main().then(() => {
+  process.exit(0);
+}).catch(err => {
   console.error('Gagal membuat backup:', err.message);
   process.exit(1);
 });
