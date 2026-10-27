@@ -826,6 +826,143 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    // 3b-2. ENDPOINT KHUSUS LEAD DEVELOPER: RESTORASI FORENSIK BARIS BELANJA
+    if (pathname === '/api/developer/restore-lost-rows' && method === 'POST') {
+      const syncKey = req.headers['x-sync-key'] || req.headers['x-developer-key'];
+      const validSyncKey = process.env.SIPRABU_SYNC_KEY || 'siprabu_sync_kpu_ngawi_2026_emenje';
+      const isSyncKeyValid = Boolean(syncKey && syncKey === validSyncKey);
+
+      const currentUser = getUserFromReq(req);
+      if (!isSyncKeyValid && (!currentUser || !isDeveloperUser(currentUser))) {
+        return sendJson(res, 401, { error: 'Silakan login terlebih dahulu atau gunakan Sync Key pengembang yang valid.' });
+      }
+
+      try {
+        const body = await parseJsonBody(req);
+        const rowsToRestore = Array.isArray(body?.rows) ? body.rows : null;
+        if (!rowsToRestore || rowsToRestore.length === 0) {
+          return sendJson(res, 400, { error: 'Daftar baris untuk direstorasi tidak boleh kosong.' });
+        }
+
+        const periodeId = Number(body.periode_id) || 1000003;
+        let insertedCount = 0;
+        let skippedCount = 0;
+
+        for (const r of rowsToRestore) {
+          const exists = db.prepare('SELECT id FROM rab_baris WHERE id = ? AND periode_id = ?').get(r.id, periodeId);
+          if (exists) {
+            skippedCount++;
+            continue;
+          }
+
+          db.prepare(`
+            INSERT INTO rab_baris (
+              id, periode_id, urutan, row_type, kode, uraian, level_indent, target_scope, kode_akun,
+              f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var,
+              basis_pengali, label_pengali_kab, label_pengali_adhoc, satuan_vol, harga_satuan,
+              pic_bagian, sifat_biaya, jenis_biaya, blokir_rm, selalu_tampil_print, parent_rkb_row_id,
+              catatan_realisasi, semula_row_id, semula_vol, semula_rincian, semula_satuan, semula_harga, semula_jumlah,
+              catatan_revisi_baris, cost_sharing
+            ) VALUES (
+              ?, ?, ?, ?, ?, ?, ?, ?, ?,
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+              ?, ?, ?, ?, ?,
+              ?, ?, ?, ?, ?, ?,
+              ?, ?, ?, ?, ?, ?, ?,
+              ?, ?
+            )
+          `).run(
+            r.id,
+            periodeId,
+            r.urutan,
+            r.row_type,
+            r.kode || '',
+            r.uraian || '',
+            r.level_indent !== undefined ? Number(r.level_indent) : 4,
+            r.target_scope || 'ALL',
+            r.kode_akun || null,
+            r.f1_val !== undefined ? r.f1_val : null,
+            r.f1_unit || '',
+            r.f1_var || '',
+            r.f2_val !== undefined ? r.f2_val : null,
+            r.f2_unit || '',
+            r.f2_var || '',
+            r.f3_val !== undefined ? r.f3_val : null,
+            r.f3_unit || '',
+            r.f3_var || '',
+            r.f4_val !== undefined ? r.f4_val : null,
+            r.f4_unit || '',
+            r.f4_var || '',
+            r.basis_pengali || 'FIXED',
+            r.label_pengali_kab || '',
+            r.label_pengali_adhoc || '',
+            r.satuan_vol || '',
+            Number(r.harga_satuan) || 0,
+            r.pic_bagian || 'PARSDM',
+            r.sifat_biaya || 'UTAMA',
+            r.jenis_biaya || 'OPERASIONAL',
+            Number(r.blokir_rm) || 0,
+            r.selalu_tampil_print !== undefined ? Number(r.selalu_tampil_print) : 1,
+            r.parent_rkb_row_id || null,
+            r.catatan_realisasi || '',
+            r.semula_row_id || null,
+            r.semula_vol !== undefined ? r.semula_vol : null,
+            r.semula_rincian !== undefined ? r.semula_rincian : null,
+            r.semula_satuan !== undefined ? r.semula_satuan : null,
+            r.semula_harga !== undefined ? r.semula_harga : null,
+            r.semula_jumlah !== undefined ? r.semula_jumlah : null,
+            r.catatan_revisi_baris || '',
+            r.cost_sharing || 'KABUPATEN'
+          );
+          insertedCount++;
+        }
+
+        // Re-index urutan secara rapi
+        const allRows = db.prepare('SELECT id FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
+        const updateUrutan = db.prepare('UPDATE rab_baris SET urutan = ? WHERE id = ?');
+        for (let i = 0; i < allRows.length; i++) {
+          updateUrutan.run(i + 1, allRows[i].id);
+        }
+
+        let newGrandTotal = 0;
+        try {
+          const { clearRkbDatasetCache, getRkbCalculatedDataset } = require('./src/calculation');
+          clearRkbDatasetCache(periodeId);
+          const afterCalc = getRkbCalculatedDataset(periodeId);
+          newGrandTotal = afterCalc.summary?.grandTotal || 0;
+        } catch (e) {}
+
+        if (typeof checkpointAndSyncDatabase === 'function') {
+          checkpointAndSyncDatabase('TRUNCATE');
+        }
+
+        recordAuditLog({
+          username: 'emenje',
+          role_id: 'developer',
+          ip: '127.0.0.1',
+          action: 'RESTORE_RKB_ROWS',
+          entity: 'periode_anggaran',
+          entity_id: periodeId,
+          new_values: {
+            restored_count: insertedCount,
+            grand_total: newGrandTotal
+          },
+          notes: `Restorasi Forensik: ${insertedCount} baris belanja PARSDM yang terhapus pada insiden Log #45 berhasil dipulihkan. Pagu pulih: Rp ${(newGrandTotal || 0).toLocaleString('id-ID')}.`
+        });
+
+        return sendJson(res, 200, {
+          success: true,
+          restored_count: insertedCount,
+          skipped_count: skippedCount,
+          total_rows: allRows.length,
+          grand_total: newGrandTotal,
+          message: `Berhasil memulihkan ${insertedCount} baris belanja. Pagu kembali menjadi Rp ${(newGrandTotal || 0).toLocaleString('id-ID')}.`
+        });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Gagal merestorasi baris belanja: ' + err.message });
+      }
+    }
+
     if (pathname === '/api/developer/blueprint' && method === 'GET') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });

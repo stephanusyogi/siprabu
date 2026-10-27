@@ -5614,6 +5614,17 @@ async function submitCommitRkbChanges() {
   const p = AppState.currentPeriode;
   if (!p || !Array.isArray(AppState.stagedRkbOps) || AppState.stagedRkbOps.length === 0) return;
 
+  const diff = AppState.stagedDiff;
+  if (diff && diff.deleted_count > 0) {
+    const totalDeletedNominal = (diff.changes || [])
+      .filter(c => c.status === 'DIHAPUS')
+      .reduce((sum, c) => sum + (c.semula_jumlah || 0), 0);
+    const delMsg = `⚠️ PERINGATAN PENGHAPUSAN BARIS ANGGARAN!\n\nDraf Anda memuat ${diff.deleted_count} baris belanja yang akan DIHAPUS PERMANEN dari database (Perkiraan nilai: ${formatRupiah(totalDeletedNominal)}).\n\nApakah Anda benar-benar yakin ingin melanjutkan penyimpanan?`;
+    if (!confirm(delMsg)) {
+      return;
+    }
+  }
+
   const btn = document.getElementById('btn-confirm-commit-rkb');
   const catatan = (document.getElementById('commit-rkb-catatan')?.value || '').trim();
 
