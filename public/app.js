@@ -5406,7 +5406,7 @@ function updateStagedRkbBannerUI() {
   }
 }
 
-async function stageRkbOperation(op, successToastMsg = 'Perubahan berhasil disimpan.') {
+async function stageRkbOperation(op, successToastMsg = 'Perubahan masuk ke draf kerja.') {
   if (!Array.isArray(AppState.stagedRkbOps)) {
     AppState.stagedRkbOps = [];
   }
@@ -5446,65 +5446,10 @@ async function stageRkbOperation(op, successToastMsg = 'Perubahan berhasil disim
   }
 
   try {
-    // Auto-Commit ACID langsung ke database SQLite agar setiap aksi edit langsung tersimpan permanen
-    if (p && !p.is_locked) {
-      const cleanNote = String(successToastMsg || '')
-        .replace(/\s*masuk ke draf kerja\.?/i, '')
-        .trim();
-      const commitRes = await fetch(`/api/rkb/${p.id}/commit-staged`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {})
-        },
-        body: JSON.stringify({
-          ops: AppState.stagedRkbOps,
-          expected_reference_version: AppState.initialReferenceVersion,
-          expected_rkb_version: AppState.rkbVersion,
-          acknowledge_reference_change: true,
-          catatan_simpan: cleanNote || 'Auto-Save ACID Perubahan RKB'
-        })
-      });
-
-      const commitData = await commitRes.json();
-      if (commitRes.status === 409 && commitData && commitData.rkb_conflict) {
-        AppState.rkbVersion = commitData.current_rkb_version;
-        showToast('⚠️ Data RKB telah diperbarui oleh pengguna lain. Memuat ulang data terbaru...', 'warning');
-        await loadRkbData();
-        renderAllViews();
-        return;
-      }
-      if (!commitRes.ok) {
-        throw new Error(commitData.error || 'Gagal menyimpan perubahan ke database.');
-      }
-
-      AppState.stagedRkbOps = [];
-      AppState.stagedDiff = null;
-      AppState.rowIdToTempId = {};
-      AppState.initialReferenceVersion = commitData.reference_version || null;
-      AppState.latestReferenceVersion = commitData.reference_version || null;
-      if (commitData.rkb_version) {
-        AppState.rkbVersion = commitData.rkb_version;
-      }
-      AppState.referenceChangeAcknowledged = false;
-      saveStagedOpsToStorage(p.id, []);
-
-      await loadPeriodes();
-      await loadRkbData();
-      if (commitData.lastAffectedRowId && AppState.rkbData) {
-        AppState.rkbData.last_affected_row_id = commitData.lastAffectedRowId;
-      }
-      renderAllViews();
-      if (typeof showToast === 'function') {
-        showToast(`✅ ${cleanNote || 'Perubahan'} tersimpan permanen ke database (ACID).`, 'success');
-      }
-      return;
-    }
-
     await loadRkbData();
     renderAllViews();
     if (typeof showToast === 'function') {
-      showToast(`${successToastMsg}`, 'info');
+      showToast(`${successToastMsg} (Klik "💾 Simpan Perubahan RKB" untuk menyimpan permanen)`, 'info');
     }
   } catch (err) {
     AppState.stagedRkbOps.pop();
