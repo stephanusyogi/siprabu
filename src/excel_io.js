@@ -7,7 +7,7 @@
 const ExcelJS = require('exceljs');
 const XLSX = require('xlsx');
 const { db, getRabRows, getPeriodeById, getMasters, getKecamatans } = require('./db');
-const { calculateRkbDataset, getCachedRkbDataset, getRevisionComparison } = require('./calculation');
+const { calculateRkbDataset, getCachedRkbDataset, getRevisionComparison, getWilayahData } = require('./calculation');
 const { parseIndonesianNumber } = require('./number_util');
 
 const SUBBAG_LABEL_MAP = {
@@ -413,12 +413,13 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     else statusLabel = `TERKUNCI PASCA-NPHD (${periode.dasar_pengesahan || 'BA TAPD'})`;
   }
 
+  const opt = options || {};
   // Filter Baris jika parameter pic atau sasaran aktif
-  let filterPic = options.pic && options.pic !== 'SEMUA' ? options.pic.toUpperCase() : null;
+  let filterPic = opt.pic && opt.pic !== 'SEMUA' ? opt.pic.toUpperCase() : null;
   if (filterPic === 'PERENCANAAN') filterPic = 'RENDATIN';
   if (filterPic === 'KEUANGAN') filterPic = 'KUL';
   if (filterPic === 'PARMAS') filterPic = 'PARSDM';
-  const filterSasaran = options.sasaran && options.sasaran !== 'ALL' ? options.sasaran.toUpperCase() : null;
+  const filterSasaran = opt.sasaran && opt.sasaran !== 'ALL' ? opt.sasaran.toUpperCase() : null;
   const hasFilter = Boolean(filterPic || filterSasaran);
   const isPicDownload = Boolean(filterPic);
 
