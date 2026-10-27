@@ -49,6 +49,8 @@ const {
   getMasterReferenceVersion,
   previewStagedRkbOps,
   commitStagedRkbOps,
+  getRkbVersion,
+  bumpRkbVersion,
   getUsers,
   getUserById,
   saveUser,
@@ -517,9 +519,16 @@ const server = http.createServer(async (req, res) => {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
 
-      // HANYA DEVELOPER (LEVEL 0 ATAU SESI ASAL DEVELOPER) YANG BISA GANTI PERAN
-      const isDeveloper = Boolean(currentUser.level === 0 || currentUser.role_id === 'developer' || currentUser.is_developer === true || currentUser.username === 'emenje');
-      if (!isDeveloper) {
+      // HANYA DEVELOPER (LEVEL 0 MURNI ATAU SESI SIMULASI DARI ORIGINAL_DEV_ID LEVEL 0) YANG BISA GANTI PERAN
+      const isDirectDev = Number(currentUser.level) === 0 && (currentUser.role_id === 'developer' || currentUser.username === 'emenje');
+      let origDevRow = null;
+      if (currentUser.is_developer === true && currentUser.original_dev_id) {
+        origDevRow = db.prepare('SELECT id, username, nama_pejabat, avatar_url, level, role_id FROM satker_users WHERE id = ? AND is_active = 1 AND level = 0').get(currentUser.original_dev_id);
+      } else if (isDirectDev) {
+        origDevRow = db.prepare('SELECT id, username, nama_pejabat, avatar_url, level, role_id FROM satker_users WHERE id = ? AND is_active = 1 AND level = 0').get(currentUser.id);
+      }
+
+      if (!origDevRow) {
         return sendJson(res, 403, { error: 'Akses ditolak. Fitur ganti peran bebas hanya diizinkan untuk Akun Pengembang (Level 0).' });
       }
 
@@ -528,12 +537,10 @@ const server = http.createServer(async (req, res) => {
       if (!targetUser) return sendJson(res, 404, { error: 'Pengguna target tidak ditemukan atau dinonaktifkan.' });
 
       // Tetap sematkan is_developer: true dan simpan identitas asal developer (tidak memperpanjang batas waktu mutlak 8 jam)
-      const originalDevId = currentUser.original_dev_id || currentUser.id;
-      const origDevRow = db.prepare('SELECT id, username, nama_pejabat, avatar_url FROM satker_users WHERE id = ?').get(originalDevId)
-        || db.prepare('SELECT id, username, nama_pejabat, avatar_url FROM satker_users WHERE username = ?').get('emenje');
-      const originalDevUsername = currentUser.original_dev_username || (origDevRow ? origDevRow.username : 'emenje');
-      const originalDevNama = origDevRow ? origDevRow.nama_pejabat : 'emenje (Pengembang)';
-      const originalDevAvatar = origDevRow ? (origDevRow.avatar_url || '') : '';
+      const originalDevId = origDevRow.id;
+      const originalDevUsername = origDevRow.username || 'emenje';
+      const originalDevNama = origDevRow.nama_pejabat || 'emenje (Pengembang)';
+      const originalDevAvatar = origDevRow.avatar_url || '';
 
       const token = createToken({
         ...targetUser,
@@ -823,8 +830,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/periodes' && method === 'GET') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      const rawPeriodes = getPeriodeList();
-      const periodes = rawPeriodes.filter(p => p.id !== 1000004 && !String(p.nama_periode || '').includes('Revisi 2') && p.versi_revisi !== 'Revisi 2');
+      const periodes = getPeriodeList();
       for (const p of periodes) {
         const data = getCachedRkbDataset(p.id);
         p.total_pagu = data.summary.grandTotal;
@@ -958,14 +964,38 @@ const server = http.createServer(async (req, res) => {
       }
 
       const compareWith = query.compare_with ? Number(query.compare_with) : null;
-      const revision_comparison = getRevisionComparison(periodeId, compareWith, fullResult);
+      let revision_comparison = getRevisionComparison(periodeId, compareWith, fullResult);
       const refMeta = getMasterReferenceVersion();
+      const rkbVersion = getRkbVersion(periodeId);
+
+      const isLevel2PicScoped = Boolean(user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA');
+      let outSummary = docSummary;
+      let outSubbagSummaries = subbagSummaries;
+
+      if (isLevel2PicScoped) {
+        // Temuan 7: Jangan bocorkan ringkasan nominal lintas PIC kepada pengguna level 2
+        outSummary = activeSummary;
+        outSubbagSummaries = { [user.pic_subbag]: subbagSummaries[user.pic_subbag] || activeSummary };
+        if (revision_comparison && Array.isArray(revision_comparison.log_detail)) {
+          const scopedLogs = revision_comparison.log_detail.filter(
+            d => (d.pic_bagian || '').toUpperCase() === user.pic_subbag.toUpperCase()
+          );
+          revision_comparison = {
+            ...revision_comparison,
+            log_detail: scopedLogs,
+            summary: {
+              ...(revision_comparison.summary || {}),
+              items_count: scopedLogs.length
+            }
+          };
+        }
+      }
 
       return sendJson(res, 200, {
         periode,
-        summary: docSummary,
+        summary: outSummary,
         active_summary: activeSummary,
-        subbag_summaries: subbagSummaries,
+        subbag_summaries: outSubbagSummaries,
         filtered_summary: filteredSummary,
         scoped_pic: activeSubbag,
         is_user_scoped: Boolean(user && user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA'),
@@ -973,7 +1003,8 @@ const server = http.createServer(async (req, res) => {
         rows,
         revision_comparison,
         reference_version: refMeta.version,
-        reference_summary: refMeta.summary
+        reference_summary: refMeta.summary,
+        rkb_version: rkbVersion
       });
     }
 
@@ -1017,14 +1048,39 @@ const server = http.createServer(async (req, res) => {
         }
 
         const compareWith = compare_with ? Number(compare_with) : null;
-        const revision_comparison = getRevisionComparison(periodeId, compareWith, fullResult);
+        let revision_comparison = getRevisionComparison(periodeId, compareWith, fullResult);
+
+        const isLevel2PicScoped = Boolean(user && user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA');
+        let outSummary = docSummary;
+        let outSubbagSummaries = subbagSummaries;
+
+        if (isLevel2PicScoped) {
+          // Temuan 7: Jangan bocorkan ringkasan nominal lintas PIC kepada pengguna level 2
+          outSummary = activeSummary;
+          outSubbagSummaries = { [user.pic_subbag]: subbagSummaries[user.pic_subbag] || activeSummary };
+          if (revision_comparison && Array.isArray(revision_comparison.log_detail)) {
+            const scopedLogs = revision_comparison.log_detail.filter(
+              d => (d.pic_bagian || '').toUpperCase() === user.pic_subbag.toUpperCase()
+            );
+            revision_comparison = {
+              ...revision_comparison,
+              log_detail: scopedLogs,
+              summary: {
+                ...(revision_comparison.summary || {}),
+                items_count: scopedLogs.length
+              }
+            };
+          }
+        }
+
+        const rkbVersion = getRkbVersion(periodeId);
 
         return sendJson(res, 200, {
           ok: true,
           periode,
-          summary: docSummary,
+          summary: outSummary,
           active_summary: activeSummary,
-          subbag_summaries: subbagSummaries,
+          subbag_summaries: outSubbagSummaries,
           filtered_summary: filteredSummary,
           scoped_pic: activeSubbag,
           is_user_scoped: Boolean(user && user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA'),
@@ -1035,7 +1091,8 @@ const server = http.createServer(async (req, res) => {
           temp_id_map: preview.tempIdMap,
           last_affected_row_id: preview.lastAffectedRowId,
           reference_version: preview.reference_version,
-          reference_summary: preview.reference_summary
+          reference_summary: preview.reference_summary,
+          rkb_version: rkbVersion
         });
       } catch (err) {
         const status = err.message.includes('Akses ditolak') || err.message.includes('terkunci') || err.message.includes('TERKUNCI') ? 403 : 400;
@@ -1059,6 +1116,8 @@ const server = http.createServer(async (req, res) => {
         const result = commitStagedRkbOps(periodeId, ops, {
           expected_reference_version: body.expected_reference_version || null,
           acknowledge_reference_change: Boolean(body.acknowledge_reference_change),
+          expected_rkb_version: body.expected_rkb_version || null,
+          force_overwrite: Boolean(body.force_overwrite),
           catatan_simpan: body.catatan_simpan || ''
         }, user);
 
@@ -1074,12 +1133,24 @@ const server = http.createServer(async (req, res) => {
           });
         }
 
+        if (!result.committed && result.rkb_conflict) {
+          return sendJson(res, 409, {
+            ok: false,
+            committed: false,
+            rkb_conflict: true,
+            current_rkb_version: result.current_rkb_version,
+            staged_diff: result.staged_diff,
+            error: result.message
+          });
+        }
+
         clearRkbDatasetCache();
         return sendJson(res, 200, {
           ok: true,
           committed: true,
           reference_version: result.reference_version,
           reference_summary: result.reference_summary,
+          rkb_version: result.rkb_version || getRkbVersion(periodeId),
           staged_diff: result.staged_diff,
           last_affected_row_id: result.lastAffectedRowId,
           message: result.message
@@ -1251,7 +1322,11 @@ const server = http.createServer(async (req, res) => {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       const periodeId = Number(resumeSasaranMatch[1]);
-      const rawRows = getRabRows(periodeId);
+      let rawRows = getRabRows(periodeId);
+      if (user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        // Temuan 7: Scoping resume-sasaran khusus untuk subbag pengguna
+        rawRows = rawRows.filter(r => (r.pic_bagian || '').toUpperCase() === user.pic_subbag.toUpperCase());
+      }
       const { summary } = calculateRkbDataset(rawRows);
       return sendJson(res, 200, { ok: true, resume: summary });
     }
@@ -1503,7 +1578,7 @@ const server = http.createServer(async (req, res) => {
           is_locked: targetPeriode.is_locked
         },
         summary: activeData.summary,
-        doc_summary: fullDataset.summary,
+        doc_summary: canViewAll ? fullDataset.summary : activeData.summary,
         kegiatan_rows: kegiatanRows,
         akun_map: akunMap
       });
@@ -1785,11 +1860,26 @@ const server = http.createServer(async (req, res) => {
         harga_menjadi: d.menjadi_harga || 0
       }));
 
+      let matriksSummary = comparison.summary;
+      if (filterPic && filterPic !== 'SEMUA') {
+        const semulaTotal = details.reduce((sum, d) => sum + (Number(d.semula_jumlah) || 0), 0);
+        const menjadiTotal = details.reduce((sum, d) => sum + (Number(d.menjadi_jumlah) || 0), 0);
+        matriksSummary = {
+          total_semula: semulaTotal,
+          total_menjadi: menjadiTotal,
+          net_diff: menjadiTotal - semulaTotal,
+          items_count: details.length,
+          tambah_count: details.filter(d => d.status === 'TAMBAH').length,
+          ubah_count: details.filter(d => d.status === 'BERUBAH').length,
+          hapus_count: details.filter(d => d.status === 'HAPUS').length
+        };
+      }
+
       return sendJson(res, 200, {
         has_parent: comparison.has_parent,
         parent_periode: comparison.parent_periode,
         filter_subbag: filterPic || 'SEMUA',
-        summary: comparison.summary,
+        summary: matriksSummary,
         rows: mappedRows,
         details: mappedRows
       });
@@ -1833,10 +1923,20 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
-        const saved = saveRabRow(row, user);
+        const saved = saveRabRow(row, user, {
+          expected_rkb_version: row.expected_rkb_version || null,
+          force_overwrite: Boolean(row.force_overwrite)
+        });
         clearRkbDatasetCache();
-        return sendJson(res, 200, { success: true, row: saved });
+        return sendJson(res, 200, { success: true, row: saved, rkb_version: getRkbVersion(periodeId) });
       } catch (err) {
+        if (err.rkb_conflict || err.statusCode === 409) {
+          return sendJson(res, 409, {
+            error: err.message,
+            rkb_conflict: true,
+            current_rkb_version: err.current_rkb_version || getRkbVersion(periodeId)
+          });
+        }
         const status = err.message.includes('Akses ditolak') || err.message.includes('terkunci') ? 403 : 400;
         return sendJson(res, status, { error: err.message });
       }

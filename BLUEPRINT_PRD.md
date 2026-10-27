@@ -229,16 +229,92 @@
 ---
 
 ## 14. Audit Log dan Integritas Data
-1. **Hak Akses Eksklusif Log Aktivitas:** Menu dan API **Log Aktivitas** hanya dapat diakses oleh **Level 0 (`Developer`)** dan **Kasubag Rendatin (`perencanaan_kasubag` / `super_admin`)**. Seluruh catatan log bersifat **Read-Only Murni (Immutable)** tanpa fitur edit atau hapus di antarmuka.
-2. **Enam Kelompok Cakupan Kejadian:**
-   - **1. Perubahan RUH Belanja (`RKB`):** Penyimpanan batch perubahan RUH Belanja (`COMMIT_RKB_CHANGES`) melalui Pop-Up Konfirmasi Simpan beserta Pagu Semula, Pagu Menjadi, Selisih Netto, Catatan Penyimpanan, dan daftar rincian baris terdampak.
-   - **2. Alur Siklus & Revisi (`SIKLUS`):** Pengajuan Tahap 1, Validasi Tahap 2 (`V1/V2/V3`), Keputusan Pleno Tahap 3, Pengesahan & Kunci Baseline Tahap 4 (`Pra-NPHD`/`NPHD`/`Pasca-NPHD`), serta koreksi tautan dokumen pasca-pengesahan.
-   - **3. Referensi & Database Master (`MASTER`):** Tambah/ubah/hapus dan impor Excel masal pada PPK, PPS/TPS, Paslon, Parameter Kuantitas SSOT, SBM, Akun BAS, Regulasi JDIH, dan Pengaturan Pejabat Satker.
-   - **4. Manajemen Pengguna (`USER`):** Tambah akun, ubah peran/password, aktifkan/nonaktifkan akun (pencabutan sesi), dan hapus akun.
-   - **5. Autentikasi & Sesi (`AUTH`):** Login berhasil (Manual/Google), percobaan login gagal, logout, serta aktivitas dalam mode **Simulasi Ganti Peran** Developer (`[Identitas Asli: emenje | Peran Simulasi: ...]`).
-   - **6. Unduhan & Ekspor (`UNDUH`):** Permintaan antrean unduhan dan ekspor dokumen resmi (Excel RUH Belanja, Paket ZIP 5 Subbagian, serta Excel/PDF Rekap Perencanaan & Pelaksanaan).
-3. Log proses versi `V1/V2/V3` tetap dapat ditelusuri tanpa memecah RKB aktif menjadi dokumen baru.
-4. Integritas baseline, batas PIC, dan status penguncian wajib diverifikasi pada backend.
+
+Sistem Audit Log SI-PRABU dirancang sebagai fondasi transparansi hukum, akuntabilitas anggaran, dan keandalan data transaksi hibah Pilkada. Seluruh aktivitas pengelolaan dokumen, perubahan belanja, validasi siklus, pemutakhiran master, serta akses pengguna dicatat secara sistematis dan tidak dapat diubah (*immutable*).
+
+1. **Prinsip Dasar Audit Trail:** Setiap entri audit wajib merekam 7 elemen kunci:
+   - **Aktor:** ID pengguna, username asli, nama pejabat, jabatan, dan peran operasional.
+   - **Waktu:** Timestamp presisi tinggi WIB (*Waktu Indonesia Barat*) berstandar SAKTI Kemenkeu.
+   - **PIC Subbagian:** Subbagian pelaksana yang berwenang atas data yang terdampak (`KUL`, `RENDATIN`, `TEKNIS`, `HUKUM`, `PARSDM`, atau `SEMUA`).
+   - **Entitas & ID:** Nama tabel atau objek data beserta identitas baris terkait (`periode_anggaran`, `rab_baris`, `master_sbm`, dll).
+   - **Nilai Semula vs Menjadi:** Struktur perbandingan data sebelum (*old values*) dan sesudah (*new values*) aksi dilakukan dalam bentuk JSON terstruktur.
+   - **Catatan / Justifikasi:** Alasan perubahan yang dicantumkan oleh pengguna saat konfirmasi simpan atau penolakan/pengembalian usulan.
+   - **Status Siklus:** Fase dan tahap siklus perencanaan saat aksi dilakukan.
+2. Pada lembar kerja **RUH Belanja RKB**, perubahan baris tidak langsung dicatat satu per satu saat pengetikan/perubahan draf sementara di browser, melainkan dicatat secara bersih saat pengguna menekan **Simpan Perubahan RKB** dan mengonfirmasinya melalui Pop-Up Konfirmasi Simpan (**Batch Commit** — Bab 18.8 Canon).
+3. Audit mencatat pengajuan, validasi, penolakan, persetujuan pleno, pengesahan, perubahan tautan pascapengesahan, pengelolaan pengguna, dan antrean unduhan.
+4. Log proses versi `V1/V2/V3` tetap dapat ditelusuri secara historis pada Pusat Siklus tanpa memecah RKB aktif menjadi dokumen baru.
+5. Integritas baseline, batas PIC, kontrol konkurensi optimistik (*Optimistic Concurrency Control*), dan status penguncian wajib diverifikasi secara ketat pada backend.
+
+### 14.1 Hak Akses Eksklusif dan Kekekalan Log Aktivitas (Immutability)
+- **Otorisasi Terbatas:** Menu antarmuka dan endpoint API **Log Aktivitas** (`GET /api/audit-logs`, `view-audit`) dibatasi secara eksklusif hanya untuk:
+  1. **Level 0 (`Lead Developer / Architect` — `emenje`)**
+  2. **Kasubag Rendatin (`perencanaan_kasubag` / Level 1 `super_admin`)**
+- **Penolakan Hak Akses:** Staf Rendatin (Level 1 staf), Operator Subbagian (Level 2), dan Akun Pimpinan/Komisioner (Level 3) ditolak tegas untuk mengakses Log Aktivitas demi kerahasiaan jejak digital dan kepatuhan audit internal.
+- **Kekekalan Log (Immutability):** Catatan log bersifat *Read-Only Murni*. Tidak ada antarmuka, API, atau tombol untuk mengubah (*update*) maupun menghapus (*delete*) log audit yang telah tercatat.
+
+### 14.2 Enam Kelompok Cakupan Kejadian (`RKB`, `SIKLUS`, `MASTER`, `USER`, `AUTH`, `UNDUH`)
+Mesin audit secara otomatis mengklasifikasikan setiap peristiwa ke dalam salah satu dari 6 kategori resmi:
+1. **Perubahan RUH Belanja (`RKB`):**
+   - Aksi: `COMMIT_RKB_CHANGES`, `CREATE_RKB_ROW`, `UPDATE_RKB_ROW`, `DELETE_RKB_ROW`, `REORDER_RKB_ROW`, `QUICK_UPDATE_PIC`, `QUICK_UPDATE_SASARAN`, `QUICK_UPDATE_CATATAN`.
+   - Data Tercatat: Pagu Semula, Pagu Menjadi, Selisih Netto Anggaran, Ringkasan Aksi (jumlah baris ditambah, diubah, dihapus, digeser), Catatan Simpan Pengguna, serta daftar rincian belanja terdampak.
+2. **Alur Siklus & Revisi (`SIKLUS`):**
+   - Aksi: `SUBMIT_REVISI_TAHAP1`, `VALIDATE_REVISI_TAHAP2`, `REJECT_REVISI_TAHAP2`, `PLENO_SETUJU_TAHAP3`, `PLENO_TOLAK_TAHAP3`, `FINALIZE_TAHAP4_KESELURUHAN`, `KOREKSI_LINK_PASCAPENGESAHAN`.
+   - Data Tercatat: Nomor/Tanggal Surat Pengajuan, Kode Revisi, Catatan Pleno, Nomor/Tanggal Berita Acara, Fase Perencanaan (`Pra-NPHD`/`NPHD`/`Pasca-NPHD`), dan pembaruan tautan berkas resmi (RKB Final, KAK, GDrive Pleno).
+3. **Referensi & Database Master (`MASTER`):**
+   - Aksi: Tambah/ubah/hapus dan impor massal Excel pada Kecamatan, Desa/TPS (`BULK_IMPORT_DESA`), Paslon (`UPDATE_PASLON`), Parameter Kuantitas SSOT (`UPDATE_KUANTITAS`), Standar Biaya Masukan SBM (`UPDATE_SBM`), Akun Bagan Akun Standar (`UPDATE_AKUN`), Regulasi JDIH (`SAVE_REGULASI`), dan Pengaturan Pejabat Satker (`UPDATE_SETTINGS`).
+   - Data Tercatat: Nilai parameter semula vs menjadi, dampak perhitungan terhadap rumus turunan RKB, serta volume impor data.
+4. **Manajemen Pengguna (`USER`):**
+   - Aksi: `CREATE_USER`, `UPDATE_USER`, `TOGGLE_USER_STATUS`, `DELETE_USER`, `RESET_PASSWORD`.
+   - Data Tercatat: Username, nama pejabat, jabatan, wewenang PIC subbagian, perubahan level RBAC, dan kenaikan `token_version` untuk pencabutan sesi aktif.
+5. **Autentikasi & Sesi (`AUTH`):**
+   - Aksi: `LOGIN_SUCCESS` (Login Sandi / Google OAuth), `LOGIN_FAILED`, `LOGOUT`, `SWITCH_ROLE_SIMULATION`, `SESSION_REVOCATION`.
+   - Data Tercatat: Alamat IP, identitas perangkat, waktu login/logout, serta penanda sesi simulator peran pengembang.
+6. **Unduhan & Ekspor Dokumen (`UNDUH`):**
+   - Aksi: `CREATE_DOWNLOAD_REQUEST`, `DOWNLOAD_FILE_ACCESSED`, `CLEANUP_EXPIRED_DOWNLOADS`.
+   - Data Tercatat: Jenis dokumen yang diekspor (Excel RUH Belanja Subbag, Rekap Perencanaan, Rekap Pelaksanaan, Paket ZIP 5 Subbag), parameter filter, waktu kedaluwarsa file (1 jam), dan penghapusan fisik file kedaluwarsa.
+
+### 14.3 Arsitektur Penyimpanan RUH Belanja & Batch Commit (Bab 18.8 Canon)
+1. **Penampungan Draf Sementara (Staged Draft Buffer):**
+   - Saat pengguna melakukan penambahan, penyuntingan angka, atau penggeseran baris di RUH Belanja, seluruh operasi ditampung secara sementara di memori browser/sesi (`AppState.stagedRkbOps`).
+   - Tabel `audit_log` **TIDAK** mencatat transaksi sementara ini baris-per-baris agar basis data audit tetap bersih, rapi, dan memiliki arti akuntansi yang utuh.
+2. **Pengeksekusian Bersih (Single Atomic Batch Commit):**
+   - Ketika pengguna menekan tombol **Simpan Perubahan RKB**, modal Pop-Up Pratinjau menyajikan selisih netto anggaran semula vs menjadi dan meminta masukan Catatan Justifikasi.
+   - Setelah pengguna mengklik **Konfirmasi Simpan**, seluruh operasi dieksekusi dalam satu transaksi atomik database (`SAVEPOINT sp_rkb_staged_commit`).
+   - Tepat **satu entri audit** berkode `COMMIT_RKB_CHANGES` dicatat secara permanen, mendokumentasikan dampak agregat dari seluruh draf yang disetujui.
+
+### 14.4 Audit Trail pada Simulasi Ganti Peran Pengembang (Bab 11.5 Canon)
+1. **Non-Repudiation (Anti-Pengelakan Identitas):**
+   - Ketika Lead Developer (`emenje` / Level 0) menggunakan fitur **Simulasi Ganti Peran** (misalnya menyamar sebagai Operator KUL atau Kasubag Rendatin untuk keperluan *Quality Control*), sistem **TIDAK PERNAH** mencatat transaksi dengan identitas palsu operator tersebut.
+2. **Format Pencatatan Spesifik:**
+   - Field `user_id` dan `username` pada `audit_log` tetap mencatat identitas akun pengembang asli (`emenje`).
+   - Keterangan peran pada log mencantumkan atribut simulasi secara transparan:
+     `developer [simulasi: operator | PIC: KUL]`
+   - Dengan mekanisme ini, seluruh rekam jejak pengembang saat pengujian sistem dapat diaudit dengan jelas dan tidak mencemari riwayat kerja riil operator satker.
+
+### 14.5 Mekanisme Immutability & Kebijakan Startup Nol-Destruktif
+1. **Larangan Kueri Destruktif pada Startup:**
+   - Rutinitas penyelarasan awal server (*server startup initialization*) dilarang keras memuat perintah:
+     `DELETE FROM audit_log`, `DELETE FROM audit_log_perubahan`, atau `TRUNCATE TABLE audit_log`.
+2. **Perlindungan Siklus Hidup Database:**
+   - Skrip migrasi dan penyesuaian operasional (`alignOperationalRkbCycles`) dipagari penuh dengan flag konfigurasi persisten `operational_cycle_aligned_v1` pada tabel `settings_satker`.
+   - Tindakan migrasi satu-kali (*one-time seed*) tidak akan pernah dieksekusi ulang saat server mengalami restart, *git deploy*, atau *power cycle*, sehingga integritas riwayat log, nomor BA pengesahan, dan dokumen yang telah dikunci dijamin abadi.
+
+### 14.6 Verifikasi Integritas Backend & Optimistic Concurrency Control (OCC)
+1. **Verifikasi Backend Tanpa Kompromi:**
+   - Validasi hak akses, isolasi subbagian (Pagar PIC), status penguncian dokumen (`is_locked = 1`), serta validasi harga/volume negatif divalidasi pada lapisan logika backend (`src/db.js` dan `server.js`), bukan hanya pada lapisan UI/antarmuka.
+2. **Optimistic Concurrency Control (OCC — Temuan 8):**
+   - Setiap dokumen RKB memiliki penanda versi aktif (`rkb_version`) yang dihitung secara dinamis dari hash kondisi baris dan pencacah revisi.
+   - Setiap pengiriman simpan draf (`/api/rkb/:id/commit-staged` atau `/row`) wajib menyertakan `expected_rkb_version`.
+   - Apabila terdapat pengguna lain yang telah menyimpan perubahan terlebih dahulu sehingga versi dokumen di server telah berubah, penyimpanan dari halaman lama akan ditolak dengan status **HTTP 409 Conflict** (`rkb_conflict: true`), mencegah risiko tumpang tindih atau hilangnya data perubahan pengguna lain (*lost updates*).
+
+### 14.7 Arsitektur Basis Data Ganda (Dual-Engine: MySQL Produksi phpMyAdmin & SQLite Offline)
+1. **Standar Produksi Online (Fullpoint MySQL phpMyAdmin):**
+   - Lingkungan server produksi (`siprabu.kpungawi.com`) secara default berjalan dengan engine **MySQL / MariaDB** (`DB_TYPE=mysql`), di mana seluruh kueri database dieksekusi langsung ke database MySQL yang terkelola pada phpMyAdmin Hostinger melalui bridge tersinkronisasi `src/mysql_sync.js`.
+   - Menjamin integritas multi-koneksi konkuren, durabilitas data lintas deploy git, dan kemudahan administrasi langsung oleh Pengembang melalui antarmuka phpMyAdmin.
+2. **Mode Cadangan Lokal / Portabel (SQLite Fallback):**
+   - Apabila variabel `DB_TYPE` tidak disetel atau disetel `sqlite`, sistem otomatis menggunakan engine lokal terisolasi `node:sqlite` (`data/hibah_kpu.sqlite`), berguna untuk pengujian unit otomatis, demo offline, atau paket desktop mandiri tanpa prasyarat instalasi server MySQL.
+3. **Kompatibilitas Sintaks Lintas Engine:**
+   - Bridge `mysql_sync.js` secara otomatis mentranslasikan kueri dialek SQLite (`INSERT OR REPLACE`, `INSERT OR IGNORE`, `PRAGMA`, `GROUP_CONCAT`, dan isolasi `SAVEPOINT` pada connection pool) ke padanan standar MySQL 8.0/MariaDB tanpa memerlukan perombakan kode logika bisnis.
 
 ---
 

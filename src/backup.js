@@ -61,33 +61,42 @@ function createDatabaseBackup(dbInstanceOrOptions = null, label = 'auto', dbPath
     dbInstance = dbInstanceOrOptions;
   }
 
-  // 1. Flush WAL jika database instance aktif diberikan
-  if (dbInstance && typeof dbInstance.prepare === 'function') {
-    try {
-      dbInstance.prepare('PRAGMA wal_checkpoint(TRUNCATE);').all();
-    } catch (e) {
-      console.warn('[BACKUP] Peringatan saat flush WAL:', e.message);
-    }
-  } else if (fs.existsSync(finalDbPath)) {
-    try {
-      const tempDb = new DatabaseSync(finalDbPath);
-      tempDb.prepare('PRAGMA wal_checkpoint(TRUNCATE);').all();
-      tempDb.close();
-    } catch (e) {
-      console.warn('[BACKUP] Peringatan saat temp checkpoint:', e.message);
-    }
-  }
-
-  if (!fs.existsSync(finalDbPath)) {
-    throw new Error(`File database sumber tidak ditemukan di ${finalDbPath}`);
-  }
-
   const safeLabel = String(finalLabel).replace(/[^a-zA-Z0-9_-]/g, '_');
   const filename = `hibah_kpu_${getJakartaTimestamp()}_${safeLabel}.sqlite`;
   const targetPath = path.join(BACKUP_DIR, filename);
 
-  // 2. Salin database
-  fs.copyFileSync(finalDbPath, targetPath);
+  // 1 & 2. Buat snapshot konsisten menggunakan VACUUM INTO (transaksional penuh & membawa seluruh transaksi WAL terbaru)
+  let usedVacuum = false;
+  if (dbInstance && typeof dbInstance.exec === 'function') {
+    try {
+      dbInstance.prepare('PRAGMA wal_checkpoint(TRUNCATE);').all();
+      const escapedPath = targetPath.replace(/'/g, "''");
+      dbInstance.exec(`VACUUM INTO '${escapedPath}'`);
+      usedVacuum = true;
+    } catch (e) {
+      console.warn('[BACKUP] VACUUM INTO pada db aktif gagal, beralih ke metode temp checkpoint:', e.message);
+    }
+  }
+
+  if (!usedVacuum) {
+    if (fs.existsSync(finalDbPath)) {
+      try {
+        const tempDb = new DatabaseSync(finalDbPath);
+        tempDb.prepare('PRAGMA wal_checkpoint(TRUNCATE);').all();
+        const escapedPath = targetPath.replace(/'/g, "''");
+        try {
+          tempDb.exec(`VACUUM INTO '${escapedPath}'`);
+          usedVacuum = true;
+        } catch (_) {}
+        tempDb.close();
+      } catch (e) {
+        console.warn('[BACKUP] Peringatan saat temp checkpoint:', e.message);
+      }
+    }
+    if (!usedVacuum) {
+      fs.copyFileSync(finalDbPath, targetPath);
+    }
+  }
 
   // 3. Verifikasi integritas backup
   let isOk = false;

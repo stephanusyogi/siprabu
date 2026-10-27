@@ -36,9 +36,12 @@ if (!isMainThread) {
     s = s.replace(/INSERT\s+OR\s+REPLACE\s+INTO/gi, 'REPLACE INTO');
     s = s.replace(/INSERT\s+OR\s+IGNORE\s+INTO/gi, 'INSERT IGNORE INTO');
 
-    // 3. Translasi Transaksi
+    // 3. Translasi Transaksi & Pengamanan Savepoint pada Connection Pool
     if (/^BEGIN(\s+TRANSACTION)?\s*;?$/i.test(s)) {
       return 'START TRANSACTION;';
+    }
+    if (/^\s*(SAVEPOINT|RELEASE\s+SAVEPOINT|ROLLBACK\s+TO\s+SAVEPOINT)\b/i.test(s)) {
+      return '/* SAVEPOINT IGNORED */';
     }
 
     // 4. Escape kata kunci reservasi MySQL `key` (terutama tabel settings_satker)
@@ -83,7 +86,7 @@ if (!isMainThread) {
       const translated = translateSql(sql);
 
       try {
-        if (translated === '/* PRAGMA IGNORED */') {
+        if (translated === '/* PRAGMA IGNORED */' || translated === '/* SAVEPOINT IGNORED */') {
           const payload = v8.serialize({ success: true, result: [] });
           payload.copy(dataBuf, 4);
           dataBuf.writeInt32LE(payload.length, 0);

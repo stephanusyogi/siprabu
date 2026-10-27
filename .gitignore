@@ -2,6 +2,9 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+.env
+.env.local
+.env.production
 # Database SQLite produksi (agar data server tidak tertimpa/hilang saat git pull)
 data/*.sqlite
 data/*.sqlite-journal

@@ -89,6 +89,7 @@ function checkpointAndSyncDatabase(mode = 'PASSIVE') {
     if (!process.env.SIPRABU_DB_PATH && fs.existsSync(DB_PATH) && fs.statSync(DB_PATH).size > 0) {
       try { fs.copyFileSync(DB_PATH, BACKUP_PATH); } catch (e) {}
       try { fs.copyFileSync(DB_PATH, PERSISTENT_DB_PATH); } catch (e) {}
+      try { fs.copyFileSync(DB_PATH, TEMPLATE_PATH); } catch (e) {}
     }
   } catch (e) {
     console.warn('[DB-CHECKPOINT] Peringatan saat checkpoint WAL:', e.message);
@@ -751,144 +752,65 @@ function initDb() {
  */
 function alignOperationalRkbCycles() {
   try {
-    // 1. Hapus draf/arsip prematur Revisi 2 (id = 1000004 atau nama memuat Revisi 2)
-    const premature = db.prepare(`
-      SELECT id FROM periode_anggaran
-      WHERE id = 1000004 OR nama_periode LIKE '%Revisi 2%' OR versi_revisi = 'Revisi 2'
-    `).all();
-    for (const p of premature) {
-      db.prepare('DELETE FROM rab_baris WHERE periode_id = ?').run(p.id);
-      db.prepare('DELETE FROM subbag_usulan_revisi WHERE periode_id = ?').run(p.id);
-      db.prepare('DELETE FROM periode_snapshot WHERE periode_id = ?').run(p.id);
-      db.prepare('DELETE FROM revisi_pengajuan WHERE periode_id = ?').run(p.id);
-      db.prepare('DELETE FROM periode_anggaran WHERE id = ?').run(p.id);
-      console.log(`[STARTUP MIGRATION] Menghapus siklus prematur periode_id=${p.id}`);
-    }
-
-    // 2. Pastikan Usulan 1 (Periode 1000003) berstatus DRAFT AKTIF (is_locked = 0)
-    const p3 = db.prepare('SELECT id, is_locked FROM periode_anggaran WHERE id = 1000003').get();
-    if (p3) {
-      if (p3.is_locked === 1) {
-        db.prepare(`
-          UPDATE periode_anggaran
-          SET is_locked = 0, locked_at = '', nomor_ba_tapd = '', tanggal_ba_tapd = '',
-              dasar_pengesahan = 'Kertas Kerja Penyusunan'
-          WHERE id = 1000003
-        `).run();
-        console.log('[STARTUP MIGRATION] Membuka kunci Periode 1000003 menjadi DRAFT AKTIF');
-      }
-      // Hapus snapshot untuk 1000003 jika ada agar perhitungannya dinamis
-      db.prepare('DELETE FROM periode_snapshot WHERE periode_id = 1000003').run();
-    }
-
-    // 2b. Bersihkan riwayat revisi dummy/sampel awal agar tabel Monitoring Siklus Proses Revisi bersih (0 riwayat dummy)
-    db.prepare(`
-      DELETE FROM revisi_pengajuan
-      WHERE kode_revisi IN ('2026.657811.001', '2026.657811.002')
-         OR nomor_surat IN ('01/KU.01.1-SD/3521/2024', '05/PP.01.2-SD/3521/2026')
-    `).run();
-    db.prepare('DELETE FROM revisi_pengajuan_log WHERE pengajuan_id NOT IN (SELECT id FROM revisi_pengajuan)').run();
-    db.prepare(`
-      DELETE FROM subbag_usulan_revisi
-      WHERE gdrive_link LIKE '%test-subbag%' OR updated_at = '2026-10-21 20:27:35'
-    `).run();
-
-    // 2c. Bersihkan catatan_revisi simulasi pada periode_anggaran & log simulasi lama
-    db.prepare(`
-      UPDATE periode_anggaran
-      SET catatan_revisi = ''
-      WHERE id = 1000003 AND catatan_revisi LIKE '%2026.657811.002%'
-    `).run();
-    db.prepare(`
-      UPDATE periode_anggaran
-      SET nomor_ba_tapd = '', tanggal_ba_tapd = ''
-      WHERE id = 1 AND tanggal_ba_tapd = '2023-11-10'
-    `).run();
-    try {
-      db.prepare(`
-        DELETE FROM audit_log_perubahan
-        WHERE waktu_perubahan LIKE '2024-05-02%'
-           OR waktu_perubahan LIKE '2026-10-17%'
-           OR waktu_perubahan LIKE '2026-10-19%'
-           OR waktu_perubahan LIKE '2026-10-22%'
-      `).run();
-    } catch (e) {}
-    try {
-      db.prepare(`
-        DELETE FROM audit_log
-        WHERE waktu_wib LIKE '2026-10-22%'
-      `).run();
-    } catch (e) {}
-    try {
-      const rkbHistCount = db.prepare('SELECT COUNT(*) as c FROM rkb_revisi_history').get();
-      if (rkbHistCount && rkbHistCount.c > 1) {
-        db.prepare('DELETE FROM rkb_revisi_history').run();
-        db.prepare(`
-          INSERT INTO rkb_revisi_history (id, folder_no, nama_folder, tanggal, total_pagu, tps, keterangan)
-          VALUES (1, 1, 'RKB Pilkada 2024', '2024', 49999999000, 1374, 'Baseline anggaran sebelum perencanaan Pilkada 2029')
-        `).run();
-      }
-    } catch (e) {}
-
-    // 3. Pastikan RKB Awal (Periode 1) berstatus Terkunci sebagai Fondasi Sah dengan Pagu Rp 49.999.999.000
-    db.prepare(`
-      UPDATE periode_anggaran
-      SET is_locked = 1, pagu_nphd = 49999999000
-      WHERE id = 1 AND (is_locked != 1 OR pagu_nphd != 49999999000 OR pagu_nphd IS NULL)
-    `).run();
-
-    // 3b. Normalisasi parameter Keterangan pada Master Paslon menjadi 'Jalur Parpol' atau 'Jalur Perseorangan'
-    try {
-      const allPaslons = db.prepare('SELECT id, partai_pengusung, keterangan FROM master_paslon').all();
-      const updPaslon = db.prepare('UPDATE master_paslon SET keterangan = ?, partai_pengusung = ? WHERE id = ?');
-      for (const p of allPaslons) {
-        const normKet = normalizeJalurPaslon(p.keterangan, p.partai_pengusung);
-        let normPartai = p.partai_pengusung || '';
-        if (normKet === 'Jalur Parpol' && normPartai === 'Koalisi Parpol Non-Parlemen / Independen') {
-          normPartai = 'Koalisi Parpol Non-Parlemen';
-        }
-        if (p.keterangan !== normKet || p.partai_pengusung !== normPartai) {
-          updPaslon.run(normKet, normPartai, p.id);
-        }
-      }
-
-      // Selaraskan 3 baris parameter Paslon pada master_kuantitas (ID 6, 7, 8) sesuai Master Paslon:
-      // ID 6: @paslon_parpol (Bakal Paslon Jalur Parpol = 4)
-      // ID 7: @paslon_perseorangan (Bakal Paslon Jalur Perseorangan = 1)
-      // ID 8: @paslon (Total Bakal Pasangan Calon = 5)
-      db.prepare("DELETE FROM master_kuantitas WHERE id > 10 AND kode IN ('paslon_parpol', 'bakal_paslon')").run();
-      db.prepare(`
-        UPDATE master_kuantitas
-        SET kode = 'paslon_parpol',
-            nama = 'Bakal Paslon Jalur Parpol',
-            satuan = 'Paslon',
-            kategori = 'PESERTA'
-        WHERE id = 6
-      `).run();
-      db.prepare(`
-        UPDATE master_kuantitas
-        SET kode = 'paslon_perseorangan',
-            nama = 'Bakal Paslon Jalur Perseorangan',
-            satuan = 'Paslon',
-            kategori = 'PESERTA'
-        WHERE id = 7
-      `).run();
-      db.prepare(`
-        UPDATE master_kuantitas
-        SET kode = 'paslon',
-            nama = 'Total Bakal Pasangan Calon (Paslon)',
-            satuan = 'Paslon',
-            kategori = 'PESERTA'
-        WHERE id = 8
-      `).run();
-    } catch (e) {
-      console.warn('[MIGRATION] Gagal normalisasi parameter Jalur Paslon:', e.message);
-    }
-
-    // 4 & 5. Migrasi satu-kali (One-Time Seed) untuk variabel Paslon & PIC default PPK/PPS
-    // Dijaga dengan flag persisten agar saat server restart TIDAK menimpa hasil edit manual pengguna.
+    // 1. Migrasi satu-kali (One-Time Seed) untuk struktur siklus awal, variabel Paslon & PIC default PPK/PPS.
+    // Dijaga penuh dengan flag persisten 'operational_cycle_aligned_v1' agar saat server restart:
+    // - TIDAK PERNAH menghapus siklus Revisi 2 atau revisi berikutnya
+    // - TIDAK PERNAH membuka kembali kunci periode yang sudah disahkan pada Tahap 4
+    // - TIDAK PERNAH mengosongkan nomor/tanggal BA
+    // - TIDAK PERNAH menghapus audit_log atau audit_log_perubahan (Audit Log bersifat Immutable sesuai Bab 14 Canon)
     const alignedFlag = db.prepare("SELECT value FROM settings_satker WHERE key = 'operational_cycle_aligned_v1'").get();
     if (!alignedFlag || alignedFlag.value !== '1') {
+      // Pastikan RKB Awal (Periode 1) berstatus Terkunci sebagai Fondasi Sah dengan Pagu Rp 49.999.999.000
+      db.prepare(`
+        UPDATE periode_anggaran
+        SET is_locked = 1, pagu_nphd = 49999999000
+        WHERE id = 1 AND (is_locked != 1 OR pagu_nphd != 49999999000 OR pagu_nphd IS NULL)
+      `).run();
+
+      // Normalisasi parameter Keterangan pada Master Paslon menjadi 'Jalur Parpol' atau 'Jalur Perseorangan'
+      try {
+        const allPaslons = db.prepare('SELECT id, partai_pengusung, keterangan FROM master_paslon').all();
+        const updPaslon = db.prepare('UPDATE master_paslon SET keterangan = ?, partai_pengusung = ? WHERE id = ?');
+        for (const p of allPaslons) {
+          const normKet = normalizeJalurPaslon(p.keterangan, p.partai_pengusung);
+          let normPartai = p.partai_pengusung || '';
+          if (normKet === 'Jalur Parpol' && normPartai === 'Koalisi Parpol Non-Parlemen / Independen') {
+            normPartai = 'Koalisi Parpol Non-Parlemen';
+          }
+          if (p.keterangan !== normKet || p.partai_pengusung !== normPartai) {
+            updPaslon.run(normKet, normPartai, p.id);
+          }
+        }
+
+        db.prepare("DELETE FROM master_kuantitas WHERE id > 10 AND kode IN ('paslon_parpol', 'bakal_paslon')").run();
+        db.prepare(`
+          UPDATE master_kuantitas
+          SET kode = 'paslon_parpol',
+              nama = 'Bakal Paslon Jalur Parpol',
+              satuan = 'Paslon',
+              kategori = 'PESERTA'
+          WHERE id = 6
+        `).run();
+        db.prepare(`
+          UPDATE master_kuantitas
+          SET kode = 'paslon_perseorangan',
+              nama = 'Bakal Paslon Jalur Perseorangan',
+              satuan = 'Paslon',
+              kategori = 'PESERTA'
+          WHERE id = 7
+        `).run();
+        db.prepare(`
+          UPDATE master_kuantitas
+          SET kode = 'paslon',
+              nama = 'Total Bakal Pasangan Calon (Paslon)',
+              satuan = 'Paslon',
+              kategori = 'PESERTA'
+          WHERE id = 8
+        `).run();
+      } catch (e) {
+        console.warn('[MIGRATION] Gagal normalisasi parameter Jalur Paslon:', e.message);
+      }
+
       const draftPeriods = db.prepare('SELECT id FROM periode_anggaran WHERE is_locked = 0').all();
       for (const dp of draftPeriods) {
         db.prepare("UPDATE rab_baris SET f1_var = 'paslon' WHERE periode_id = ? AND f1_var = 'bakal_paslon'").run(dp.id);
@@ -948,10 +870,10 @@ function alignOperationalRkbCycles() {
       } catch (e) {}
     }
 
-    // 6. Sinkronkan kuantitas primer SSOT (termasuk Jalur Parpol & Jalur Perseorangan dari Master Paslon)
+    // 2. Sinkronkan kuantitas primer SSOT (termasuk Jalur Parpol & Jalur Perseorangan dari Master Paslon)
     syncPrimaryKuantitas();
 
-    // 7. Pastikan NIP Bendahara Pengeluaran pada settings_satker sinkron dengan bp_nip jika masih kosong
+    // 3. Pastikan NIP Bendahara Pengeluaran pada settings_satker sinkron dengan bp_nip jika masih kosong
     try {
       db.prepare(`
         UPDATE settings_satker
@@ -1348,7 +1270,6 @@ function getPeriodeList() {
       COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id AND row_type != 'header'), 0) as total_items,
       COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id), 0) as total_baris
     FROM periode_anggaran p
-    WHERE p.id != 1000004 AND p.nama_periode NOT LIKE '%Revisi 2%' AND p.versi_revisi != 'Revisi 2'
     ORDER BY p.id ASC
   `).all();
   return periodes;
@@ -1365,12 +1286,12 @@ function getPeriodeById(id) {
 
 function getActivePeriode() {
   // RKB Aktif adalah versi RKB yang BELUM dikunci (is_locked = 0)
-  let p = db.prepare("SELECT * FROM periode_anggaran WHERE tipe_dokumen = 'RKB' AND is_locked = 0 AND id != 1000004 AND nama_periode NOT LIKE '%Revisi 2%' ORDER BY id DESC LIMIT 1").get();
+  let p = db.prepare("SELECT * FROM periode_anggaran WHERE tipe_dokumen = 'RKB' AND is_locked = 0 ORDER BY id DESC LIMIT 1").get();
   if (!p) {
-    p = db.prepare("SELECT * FROM periode_anggaran WHERE tipe_dokumen = 'RKB' AND is_locked = 1 AND id != 1000004 AND nama_periode NOT LIKE '%Revisi 2%' ORDER BY revisi_ke DESC, id DESC LIMIT 1").get();
+    p = db.prepare("SELECT * FROM periode_anggaran WHERE tipe_dokumen = 'RKB' AND is_locked = 1 ORDER BY revisi_ke DESC, id DESC LIMIT 1").get();
   }
   if (!p) {
-    p = db.prepare("SELECT * FROM periode_anggaran WHERE id != 1000004 AND nama_periode NOT LIKE '%Revisi 2%' ORDER BY id DESC LIMIT 1").get();
+    p = db.prepare('SELECT * FROM periode_anggaran ORDER BY id DESC LIMIT 1').get();
   }
   if (p) {
     return getPeriodeById(p.id);
@@ -1862,7 +1783,35 @@ function getRabRowById(id) {
   return db.prepare('SELECT * FROM rab_baris WHERE id = ?').get(id);
 }
 
-function ensureAccountHeaderForItem(periodeId, itemRowId, kodeAkun) {
+/**
+ * Helper untuk memeriksa apakah baris anak boleh ikut diperbarui secara cascade oleh actorUser
+ */
+function canCascadeModifyChildRow(periodeId, childRow, actorUser = null) {
+  if (!childRow) return false;
+  const childPic = normalizePic(childRow.pic_bagian || 'KUL');
+  const proposal = db.prepare('SELECT status_tahap FROM revisi_pengajuan WHERE periode_id = ? AND subbag = ?').get(periodeId, childPic);
+  const isChildSubbagLocked = Boolean(proposal && ['DIAJUKAN', 'MENUNGGU_PLENO', 'ACC_PLENO', 'SELESAI'].includes(proposal.status_tahap));
+
+  // Jika aktor adalah Operator Level 2: DILARANG menyentuh baris milik subbagian lain atau subbagian yang sudah diajukan/terkunci
+  if (actorUser && Number(actorUser.level) > 1) {
+    const actorPic = normalizePic(actorUser.pic_subbag);
+    if (actorPic !== 'SEMUA' && actorPic !== childPic) {
+      return false;
+    }
+    if (isChildSubbagLocked) {
+      return false;
+    }
+    return true;
+  }
+
+  // Bahkan untuk Level 1 / sistem: saat propagasi otomatis kode akun L5, jangan mengubah baris subbagian yang sudah diajukan/terkunci tanpa izin eksplisit
+  if (isChildSubbagLocked && (!actorUser || Number(actorUser.level) > 1)) {
+    return false;
+  }
+  return true;
+}
+
+function ensureAccountHeaderForItem(periodeId, itemRowId, kodeAkun, actorUser = null) {
   if (!periodeId || !itemRowId || !kodeAkun) return null;
   const cleanKodeAkun = String(kodeAkun).trim();
   if (!cleanKodeAkun) return null;
@@ -1911,20 +1860,24 @@ function ensureAccountHeaderForItem(periodeId, itemRowId, kodeAkun) {
   }
 
   if (enclosingAkun) {
-    // Jika sudah ada baris L5 Akun di atasnya dan kode akunnya berbeda, sinkronkan L5 Akun tersebut
+    // Jika sudah ada baris L5 Akun di atasnya dan kode akunnya berbeda, sinkronkan L5 Akun tersebut hanya untuk baris yang berhak diubah
     if (String(enclosingAkun.kode || '').trim() !== cleanKodeAkun) {
       const akunIdx = allRows.findIndex(r => r.id === enclosingAkun.id);
       const akunParentRank = nearestL4 ? getRowHierarchyRank(nearestL4) : (nearestL3 ? getRowHierarchyRank(nearestL3) : 30);
-      db.prepare('UPDATE rab_baris SET kode = ?, kode_akun = ?, uraian = ? WHERE id = ?').run(
-        cleanKodeAkun, cleanKodeAkun, akunUraian, enclosingAkun.id
-      );
+      if (canCascadeModifyChildRow(periodeId, enclosingAkun, actorUser)) {
+        db.prepare('UPDATE rab_baris SET kode = ?, kode_akun = ?, uraian = ? WHERE id = ?').run(
+          cleanKodeAkun, cleanKodeAkun, akunUraian, enclosingAkun.id
+        );
+      }
       for (let j = akunIdx + 1; j < allRows.length; j++) {
         const child = allRows[j];
         if (child.row_type === 'header') {
           if (Number(child.level_indent) === 3) break;
           if (getRowHierarchyRank(child) <= akunParentRank) break;
         }
-        db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(cleanKodeAkun, child.id);
+        if (canCascadeModifyChildRow(periodeId, child, actorUser)) {
+          db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(cleanKodeAkun, child.id);
+        }
       }
     }
     return enclosingAkun.id;
@@ -1970,7 +1923,7 @@ function ensureAccountHeaderForItem(periodeId, itemRowId, kodeAkun) {
     `Rekam otomatis Akun BAS [${cleanKodeAkun}] menaungi rincian belanja`
   );
 
-  // Sinkronkan kode_akun seluruh rincian di bawah anchorHeader yang dinaungi
+  // Sinkronkan kode_akun seluruh rincian di bawah anchorHeader yang dinaungi dan berhak diubah
   if (anchorHeader) {
     const updatedRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(periodeId);
     const newAkunIdx = updatedRows.findIndex(r => r.id === Number(insertRes.lastInsertRowid));
@@ -1983,7 +1936,9 @@ function ensureAccountHeaderForItem(periodeId, itemRowId, kodeAkun) {
           if (getRowHierarchyRank(child) <= anchorRank && Number(child.level_indent) <= 2) break;
           if (anchorRank > 30 && getRowHierarchyRank(child) <= anchorRank) break;
         }
-        db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(cleanKodeAkun, child.id);
+        if (canCascadeModifyChildRow(periodeId, child, actorUser)) {
+          db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(cleanKodeAkun, child.id);
+        }
       }
     }
   }
@@ -1999,6 +1954,19 @@ function saveRabRow(row, actorUser = null, options = {}) {
 
   const cleanUraian = (row.uraian || '').trim();
   if (!cleanUraian) throw new Error('Uraian rincian belanja tidak boleh kosong.');
+
+  const expectedRkbVer = options.expected_rkb_version || row.expected_rkb_version || null;
+  const forceOverwrite = Boolean(options.force_overwrite || row.force_overwrite);
+  if (expectedRkbVer && !forceOverwrite) {
+    const curVer = getRkbVersion(row.periode_id);
+    if (expectedRkbVer !== curVer) {
+      const err = new Error('Terdeteksi Konflik Perubahan: Data RKB telah diperbarui oleh pengguna lain sejak halaman ini dibuka. Muat ulang halaman terlebih dahulu.');
+      err.statusCode = 409;
+      err.rkb_conflict = true;
+      err.current_rkb_version = curVer;
+      throw err;
+    }
+  }
 
   // Jika menambah L5 Akun (level_indent === 3) dengan mode wrap_children dan di posisi induk sudah ada L5 Akun, gunakan update
   if (!row.id && Number(row.level_indent) === 3 && (row.anchor_mode === 'wrap_children' || row.wrap_children) && row.anchor_row_id) {
@@ -2122,7 +2090,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
       row.id
     );
 
-    // Jika baris L5 Akun diupdate, sinkronkan kode_akun seluruh rincian yang dinaunginya
+    // Jika baris L5 Akun diupdate, sinkronkan kode_akun seluruh rincian yang dinaunginya (hanya yang berhak diubah oleh actorUser)
     if (isHeader && effectiveLevelIndent === 3 && (row.kode_akun || row.kode)) {
       const targetAkun = String(row.kode_akun || row.kode).trim();
       const allRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(row.periode_id);
@@ -2135,6 +2103,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
             break;
           }
         }
+        const childrenToSync = [];
         for (let j = curIdx + 1; j < allRows.length; j++) {
           const child = allRows[j];
           if (child.row_type === 'header') {
@@ -2142,6 +2111,12 @@ function saveRabRow(row, actorUser = null, options = {}) {
             if (getRowHierarchyRank(child) <= parentRank && Number(child.level_indent) <= 2) break;
             if (parentRank > 30 && getRowHierarchyRank(child) <= parentRank) break;
           }
+          if (canCascadeModifyChildRow(row.periode_id, child, actorUser)) {
+            childrenToSync.push(child);
+          }
+        }
+        for (const child of childrenToSync) {
+          checkRowEditPermission(row.periode_id, child.pic_bagian, actorUser);
           db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(targetAkun, child.id);
         }
       }
@@ -2149,7 +2124,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
 
     // Jika baris rincian belanja (L6) diedit dan diminta memastikan L5 Akun tersedia di atasnya
     if (!isHeader && row.ensure_akun_header) {
-      ensureAccountHeaderForItem(row.periode_id, row.id, row.kode_akun || existing.kode_akun || '521211');
+      ensureAccountHeaderForItem(row.periode_id, row.id, row.kode_akun || existing.kode_akun || '521211', actorUser);
     }
 
     try {
@@ -2193,6 +2168,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
       }
     }
 
+    bumpRkbVersion(existing.periode_id);
     return getRabRowById(row.id);
   } else {
     let urutan = row.urutan;
@@ -2268,7 +2244,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
 
     const insertedId = Number(res.lastInsertRowid);
 
-    // Jika baris baru adalah L5 Akun (level_indent === 3) yang menaungi rincian di bawahnya, otomatis ikat kode_akun rincian di bawahnya
+    // Jika baris baru adalah L5 Akun (level_indent === 3) yang menaungi rincian di bawahnya, otomatis ikat kode_akun rincian di bawahnya yang berhak diubah
     if (isHeader && effectiveLevelIndent === 3 && (row.anchor_mode === 'wrap_children' || row.wrap_children)) {
       const targetAkun = String(row.kode_akun || row.kode || '521211').trim();
       const allRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(row.periode_id);
@@ -2281,6 +2257,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
             break;
           }
         }
+        const childrenToSync = [];
         for (let j = curIdx + 1; j < allRows.length; j++) {
           const child = allRows[j];
           if (child.row_type === 'header') {
@@ -2288,6 +2265,12 @@ function saveRabRow(row, actorUser = null, options = {}) {
             if (getRowHierarchyRank(child) <= parentRank && Number(child.level_indent) <= 2) break;
             if (parentRank > 30 && getRowHierarchyRank(child) <= parentRank) break;
           }
+          if (canCascadeModifyChildRow(row.periode_id, child, actorUser)) {
+            childrenToSync.push(child);
+          }
+        }
+        for (const child of childrenToSync) {
+          checkRowEditPermission(row.periode_id, child.pic_bagian, actorUser);
           db.prepare('UPDATE rab_baris SET kode_akun = ? WHERE id = ?').run(targetAkun, child.id);
         }
       }
@@ -2295,7 +2278,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
 
     // Jika baris baru adalah rincian belanja (L6) dan diminta memastikan L5 Akun tersedia di atasnya
     if (!isHeader && row.ensure_akun_header) {
-      ensureAccountHeaderForItem(row.periode_id, insertedId, row.kode_akun || '521211');
+      ensureAccountHeaderForItem(row.periode_id, insertedId, row.kode_akun || '521211', actorUser);
     }
 
     try {
@@ -2314,6 +2297,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
       });
     }
 
+    bumpRkbVersion(row.periode_id);
     return getRabRowById(insertedId);
   }
 }
@@ -2403,6 +2387,7 @@ function deleteRabRow(id, actorUser = null, options = {}) {
     });
   }
 
+  bumpRkbVersion(row.periode_id);
   return {
     success: true,
     count: idsToDelete.length,
@@ -2488,6 +2473,12 @@ function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = tru
     const child = allRows[i];
     const rRank = getRowHierarchyRank(child);
     if (rRank <= targetRank) break; // Berhenti jika mencapai header setara atau lebih tinggi
+    if (actorUser && Number(actorUser.level) > 1 && !canCascadeModifyChildRow(periodeId, child, actorUser)) {
+      continue;
+    }
+    if (actorUser) {
+      checkRowEditPermission(periodeId, child.pic_bagian, actorUser);
+    }
     idsToUpdate.push(Number(child.id));
   }
 
@@ -2506,6 +2497,7 @@ function updateRabBarisPicWithCascade(periodeId, rowId, picBagian, cascade = tru
     if (typeof clearRkbDatasetCache === 'function') clearRkbDatasetCache(periodeId);
   } catch (e) {}
 
+  bumpRkbVersion(periodeId);
   return {
     success: true,
     updatedCount: idsToUpdate.length,
@@ -2551,6 +2543,12 @@ function updateRabBarisSasaranWithCascade(periodeId, rowId, targetScope, cascade
     const child = allRows[i];
     const rRank = getRowHierarchyRank(child);
     if (rRank <= targetRank) break;
+    if (!canCascadeModifyChildRow(periodeId, child, actorUser)) {
+      continue;
+    }
+    if (actorUser) {
+      checkRowEditPermission(periodeId, child.pic_bagian, actorUser);
+    }
     idsToUpdate.push(Number(child.id));
   }
 
@@ -2569,6 +2567,7 @@ function updateRabBarisSasaranWithCascade(periodeId, rowId, targetScope, cascade
     if (typeof clearRkbDatasetCache === 'function') clearRkbDatasetCache(periodeId);
   } catch (e) {}
 
+  bumpRkbVersion(periodeId);
   return {
     success: true,
     updatedCount: idsToUpdate.length,
@@ -2768,6 +2767,47 @@ function getMasterReferenceVersion() {
     };
   } catch (e) {
     return { version: 'default', summary: {} };
+  }
+}
+
+function getRkbVersion(periodeId) {
+  try {
+    const row = db.prepare(`
+      SELECT 
+        COUNT(*) AS c,
+        COALESCE(MAX(id), 0) AS max_id,
+        COALESCE(SUM(urutan), 0) AS sum_urutan,
+        COALESCE(SUM(harga_satuan), 0) AS sum_harga,
+        COALESCE(SUM(COALESCE(f1_val, 0) + COALESCE(f2_val, 0) + COALESCE(f3_val, 0) + COALESCE(f4_val, 0)), 0) AS sum_vol,
+        COALESCE(SUM(length(uraian)), 0) AS sum_len
+      FROM rab_baris
+      WHERE periode_id = ?
+    `).get(Number(periodeId)) || {};
+    
+    const p = db.prepare('SELECT is_locked, revisi_ke FROM periode_anggaran WHERE id = ?').get(Number(periodeId));
+    const sRow = db.prepare("SELECT value FROM settings_satker WHERE key = ?").get(`rkb_ver_${periodeId}`);
+    const vCounter = (sRow && sRow.value) ? sRow.value : '0';
+    const raw = `${periodeId}:${row.c || 0}:${row.max_id || 0}:${row.sum_urutan || 0}:${row.sum_harga || 0}:${row.sum_vol || 0}:${row.sum_len || 0}:${p ? p.is_locked : 0}:${p ? p.revisi_ke : 0}:${vCounter}`;
+    return crypto.createHash('sha1').update(raw).digest('hex').slice(0, 16);
+  } catch (e) {
+    return 'v0_default';
+  }
+}
+
+function bumpRkbVersion(periodeId) {
+  try {
+    const key = `rkb_ver_${periodeId}`;
+    const sRow = db.prepare("SELECT value FROM settings_satker WHERE key = ?").get(key);
+    const cur = sRow ? Number(sRow.value) : 0;
+    const next = (Number.isFinite(cur) ? cur : 0) + 1;
+    try {
+      db.prepare("REPLACE INTO settings_satker (key, value) VALUES (?, ?)").run(key, String(next));
+    } catch (e) {
+      db.prepare("INSERT OR REPLACE INTO settings_satker (key, value) VALUES (?, ?)").run(key, String(next));
+    }
+    return next;
+  } catch (e) {
+    return 1;
   }
 }
 
@@ -2995,12 +3035,33 @@ function previewStagedRkbOps(periodeId, ops = [], actorUser = null) {
     throw new Error('Dokumen RKB berstatus TERKUNCI.');
   }
 
-  db.exec('SAVEPOINT sp_rkb_staged_preview');
+  let inTx = false;
+  try {
+    db.exec('BEGIN TRANSACTION');
+    inTx = true;
+  } catch (e) {
+    try {
+      db.exec('BEGIN');
+      inTx = true;
+    } catch (e2) {}
+  }
+
+  let hasSavepoint = false;
+  try {
+    db.exec('SAVEPOINT sp_rkb_staged_preview');
+    hasSavepoint = true;
+  } catch (e) {}
+
   try {
     const res = executeStagedOpsInternal(periodeId, ops, actorUser);
     const refMeta = getMasterReferenceVersion();
-    db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_preview');
-    db.exec('RELEASE SAVEPOINT sp_rkb_staged_preview');
+    if (hasSavepoint) {
+      try { db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_preview'); } catch (e) {}
+      try { db.exec('RELEASE SAVEPOINT sp_rkb_staged_preview'); } catch (e) {}
+    }
+    if (inTx) {
+      try { db.exec('ROLLBACK'); } catch (e) {}
+    }
     clearRkbDatasetCache(periodeId);
     return {
       afterDataset: res.afterDataset,
@@ -3008,14 +3069,18 @@ function previewStagedRkbOps(periodeId, ops = [], actorUser = null) {
       tempIdMap: res.tempIdMap,
       lastAffectedRowId: res.lastAffectedRowId,
       reference_version: refMeta.version,
-      reference_summary: refMeta.summary
+      reference_summary: refMeta.summary,
+      rkb_version: getRkbVersion(periodeId)
     };
   } catch (err) {
-    try {
-      db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_preview');
-      db.exec('RELEASE SAVEPOINT sp_rkb_staged_preview');
-      clearRkbDatasetCache(periodeId);
-    } catch (e) {}
+    if (hasSavepoint) {
+      try { db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_preview'); } catch (e) {}
+      try { db.exec('RELEASE SAVEPOINT sp_rkb_staged_preview'); } catch (e) {}
+    }
+    if (inTx) {
+      try { db.exec('ROLLBACK'); } catch (e) {}
+    }
+    clearRkbDatasetCache(periodeId);
     throw err;
   }
 }
@@ -3048,10 +3113,53 @@ function commitStagedRkbOps(periodeId, ops = [], options = {}, actorUser = null)
     };
   }
 
-  db.exec('SAVEPOINT sp_rkb_staged_commit');
+  // Deteksi konflik tumpang tindih dokumen RKB (Optimistic Concurrency Control - Temuan 8)
+  const currentRkbVer = getRkbVersion(periodeId);
+  const expectedRkbVer = options.expected_rkb_version || null;
+  const forceOverwrite = Boolean(options.force_overwrite);
+
+  if (expectedRkbVer && expectedRkbVer !== currentRkbVer && !forceOverwrite) {
+    const preview = previewStagedRkbOps(periodeId, ops, actorUser);
+    return {
+      committed: false,
+      rkb_conflict: true,
+      current_rkb_version: currentRkbVer,
+      staged_diff: preview.staged_diff,
+      message: 'Terdeteksi Konflik Perubahan: Data RKB telah diperbarui oleh pengguna lain sejak halaman ini dibuka. Muat ulang halaman untuk memuat perubahan terbaru atau simpan paksa untuk menimpa.'
+    };
+  }
+
+  let inTx = false;
+  try {
+    db.exec('BEGIN TRANSACTION');
+    inTx = true;
+  } catch (e) {
+    try {
+      db.exec('BEGIN');
+      inTx = true;
+    } catch (e2) {}
+  }
+
+  let hasSavepoint = false;
+  try {
+    db.exec('SAVEPOINT sp_rkb_staged_commit');
+    hasSavepoint = true;
+  } catch (e) {}
+
   try {
     const res = executeStagedOpsInternal(periodeId, ops, actorUser);
-    db.exec('RELEASE SAVEPOINT sp_rkb_staged_commit');
+    if (hasSavepoint) {
+      try {
+        db.exec('RELEASE SAVEPOINT sp_rkb_staged_commit');
+      } catch (e) {
+        // Abaikan jika database engine (seperti MySQL autocommit) sudah merilis savepoint otomatis
+      }
+    }
+    if (inTx) {
+      try {
+        db.exec('COMMIT');
+      } catch (e) {}
+    }
     clearRkbDatasetCache(periodeId);
 
     const diff = res.staged_diff;
@@ -3088,21 +3196,28 @@ function commitStagedRkbOps(periodeId, ops = [], options = {}, actorUser = null)
     // Flush WAL & cadangkan langsung (ACID Durability)
     checkpointAndSyncDatabase('PASSIVE');
 
+    bumpRkbVersion(periodeId);
+    const newRkbVer = getRkbVersion(periodeId);
+
     return {
       committed: true,
       reference_changed: false,
       reference_version: currentRef.version,
       reference_summary: currentRef.summary,
+      rkb_version: newRkbVer,
       staged_diff: diff,
       lastAffectedRowId: res.lastAffectedRowId,
       message: 'Seluruh perubahan RKB berhasil disimpan ke dalam database.'
     };
   } catch (err) {
-    try {
-      db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_commit');
-      db.exec('RELEASE SAVEPOINT sp_rkb_staged_commit');
-      clearRkbDatasetCache(periodeId);
-    } catch (e) {}
+    if (hasSavepoint) {
+      try { db.exec('ROLLBACK TO SAVEPOINT sp_rkb_staged_commit'); } catch (e) {}
+      try { db.exec('RELEASE SAVEPOINT sp_rkb_staged_commit'); } catch (e) {}
+    }
+    if (inTx) {
+      try { db.exec('ROLLBACK'); } catch (e) {}
+    }
+    clearRkbDatasetCache(periodeId);
     throw err;
   }
 }
@@ -5946,9 +6061,12 @@ module.exports = {
   deleteRabRow,
   updateRabBarisPicWithCascade,
   updateRabBarisSasaranWithCascade,
+  canCascadeModifyChildRow,
   clearRabRows,
   reorderRow,
   getMasterReferenceVersion,
+  getRkbVersion,
+  bumpRkbVersion,
   previewStagedRkbOps,
   commitStagedRkbOps,
   getUsers,

@@ -7,28 +7,47 @@
 const crypto = require('node:crypto');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const DATA_DIR = path.resolve(__dirname, '..', 'data');
+const PERSISTENT_DIR = path.join(os.homedir(), '.siprabu_persistent_data');
 const SECRET_FILE = path.join(DATA_DIR, '.session_secret');
+const PERSISTENT_SECRET_FILE = path.join(PERSISTENT_DIR, '.session_secret');
+const PUBLIC_PLACEHOLDER_SECRETS = new Set([
+  'siprabu_kpu_ngawi_secret_key_2026',
+  'changeme',
+  'default_secret'
+]);
 
 /**
  * Mendapatkan kunci rahasia HMAC untuk sesi.
- * Mengambil dari process.env.SESSION_SECRET atau file rahasia lokal terproteksi (tanpa kunci bawaan statis).
+ * Mengambil dari process.env.SESSION_SECRET (jika bukan placeholder publik) atau file rahasia persisten/lokal terproteksi.
  */
 function getSecretKey() {
-  if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim().length >= 16) {
-    return process.env.SESSION_SECRET.trim();
+  const envSecret = (process.env.SESSION_SECRET || '').trim();
+  if (envSecret && envSecret.length >= 32 && !PUBLIC_PLACEHOLDER_SECRETS.has(envSecret)) {
+    return envSecret;
   }
 
-  try {
-    if (fs.existsSync(SECRET_FILE)) {
-      const key = fs.readFileSync(SECRET_FILE, 'utf8').trim();
-      if (key && key.length >= 32) return key;
-    }
-  } catch (e) {}
+  for (const file of [PERSISTENT_SECRET_FILE, SECRET_FILE]) {
+    try {
+      if (fs.existsSync(file)) {
+        const key = fs.readFileSync(file, 'utf8').trim();
+        if (key && key.length >= 32 && !PUBLIC_PLACEHOLDER_SECRETS.has(key)) {
+          return key;
+        }
+      }
+    } catch (e) {}
+  }
 
-  // Generate kunci acak kriptografis 32-byte (256-bit)
+  // Generate kunci acak kriptografis 32-byte (256-bit / 64 hex chars)
   const newSecret = crypto.randomBytes(32).toString('hex');
+  try {
+    if (!fs.existsSync(PERSISTENT_DIR)) {
+      fs.mkdirSync(PERSISTENT_DIR, { recursive: true });
+    }
+    fs.writeFileSync(PERSISTENT_SECRET_FILE, newSecret, { mode: 0o600 });
+  } catch (e) {}
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -89,13 +108,13 @@ function normalizePic(pic) {
  */
 function createToken(user, originalDevUser = null, options = {}) {
   const secretKey = getSecretKey();
-  const isDev = Boolean(
-    user.is_developer || 
-    user.level === 0 || 
-    user.role_id === 'developer' || 
-    user.username === 'emenje' ||
-    (originalDevUser && (originalDevUser.level === 0 || originalDevUser.username === 'emenje'))
+  // Hanya akun Level 0 murni (atau sesi simulasi yang berasal dari akun Level 0 terverifikasi) yang boleh menyandang flag is_developer
+  const isDirectLevel0 = Number(user.level) === 0 && (user.role_id === 'developer' || user.username === 'emenje');
+  const isSimulatedFromDev = Boolean(
+    (originalDevUser && Number(originalDevUser.level) === 0 && (originalDevUser.role_id === 'developer' || originalDevUser.username === 'emenje')) ||
+    (user.is_developer === true && user.original_dev_id)
   );
+  const isDev = Boolean(isDirectLevel0 || isSimulatedFromDev);
 
   const now = Date.now();
   const iat = (options.preserveIat && Number.isFinite(Number(options.preserveIat))) ? Number(options.preserveIat) : now;
@@ -202,13 +221,13 @@ function verifyToken(token, dbInstance = null, options = {}) {
         return null;
       }
 
-      // Jika sesi ini berasal dari peran hasil switch pengembang, verifikasi akun pengembang asal
+      // Jika sesi ini berasal dari peran hasil switch pengembang, verifikasi akun pengembang asal wajib Level 0
       let origDev = null;
       if (payload.original_dev_id && payload.is_developer) {
         origDev = dbInstance.prepare(`
-          SELECT id, username, nama_pejabat, avatar_url, is_active, token_version
+          SELECT id, username, nama_pejabat, role_id, level, avatar_url, is_active, token_version
           FROM satker_users
-          WHERE id = ? AND is_active = 1
+          WHERE id = ? AND is_active = 1 AND level = 0
         `).get(payload.original_dev_id);
 
         if (!origDev) return null;
@@ -216,6 +235,9 @@ function verifyToken(token, dbInstance = null, options = {}) {
         if (payload.dev_token_version !== undefined && devVer !== Number(payload.dev_token_version)) {
           return null;
         }
+      } else if (payload.is_developer && Number(dbUser.level) !== 0) {
+        // Cegah eskalasi hak akses: jika bukan sesi simulasi dari original_dev_id Level 0 dan dbUser bukan Level 0, cabut is_developer
+        payload.is_developer = false;
       }
 
       return {
@@ -310,13 +332,17 @@ function canManageLifecycle(user) {
  */
 function canManageUsers(user) {
   if (!user) return false;
-  if (user.level === 0 || user.role_id === 'developer' || user.username === 'emenje') return true;
-  return Boolean(
-    user.username === 'perencanaan' ||
-    user.username === 'kasubbag_rendatin' ||
-    user.username === 'kasubag_rendatin' ||
-    (user.level === 1 && (user.role_id === 'super_admin' || user.role_id === 'perencanaan_kasubag'))
-  );
+  if (Number(user.level) === 0 && (user.role_id === 'developer' || user.username === 'emenje')) return true;
+  if (Number(user.level) === 1) {
+    return Boolean(
+      user.username === 'perencanaan' ||
+      user.username === 'kasubbag_rendatin' ||
+      user.username === 'kasubag_rendatin' ||
+      user.role_id === 'super_admin' ||
+      user.role_id === 'perencanaan_kasubag'
+    );
+  }
+  return false;
 }
 
 /**
@@ -324,7 +350,7 @@ function canManageUsers(user) {
  */
 function validateUserCoherence(userData, isCreating = false) {
   const level = Number(userData.level);
-  const roleId = String(userData.role_id || '').toLowerCase();
+  const roleId = String(userData.role_id || '').trim().toLowerCase();
   const pic = normalizePic(userData.pic_subbag);
 
   if (Number.isNaN(level) || level < 0 || level > 3) {
@@ -335,14 +361,33 @@ function validateUserCoherence(userData, isCreating = false) {
     return { valid: false, error: 'Pengguna Level 0 wajib memiliki role developer.' };
   }
 
-  if (level === 1 && !['super_admin', 'perencanaan'].includes(roleId)) {
-    return { valid: false, error: 'Pengguna Level 1 wajib memiliki role super_admin atau perencanaan.' };
+  // Blokir tegas role 'developer' atau 'super_admin' pada akun selain level yang berhak (mencegah privilege escalation L2 -> L0)
+  if (level !== 0 && roleId === 'developer') {
+    return { valid: false, error: 'Role developer hanya diizinkan untuk akun Level 0 (Lead Developer).' };
+  }
+
+  if (level === 1 && !['super_admin', 'perencanaan', 'perencanaan_kasubag', 'admin_perencanaan'].includes(roleId)) {
+    return { valid: false, error: 'Pengguna Level 1 wajib memiliki role super_admin, perencanaan, atau admin_perencanaan.' };
+  }
+
+  if (level > 1 && ['super_admin', 'perencanaan', 'perencanaan_kasubag', 'admin_perencanaan'].includes(roleId)) {
+    return { valid: false, error: `Role ${roleId} hanya diizinkan untuk akun Level 1 (Perencanaan).` };
   }
 
   if (level === 2) {
     const validPics = ['RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM', 'KUL'];
     if (!validPics.includes(pic)) {
       return { valid: false, error: `PIC Subbag untuk Level 2 harus salah satu dari: ${validPics.join(', ')}.` };
+    }
+    const validL2Roles = ['op_kul', 'op_teknis', 'op_hukum', 'op_parmas', 'op_parsdm', 'op_perencanaan', 'op_rendatin', 'operator'];
+    if (!validL2Roles.includes(roleId)) {
+      return { valid: false, error: `Role untuk Operator Level 2 harus salah satu dari: ${validL2Roles.join(', ')}.` };
+    }
+  }
+
+  if (level === 3) {
+    if (roleId.startsWith('op_') || roleId === 'operator') {
+      return { valid: false, error: 'Akun Level 3 (Viewer / Komisioner / Sekretaris) tidak boleh menggunakan role Operator.' };
     }
   }
 

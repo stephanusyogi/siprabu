@@ -33,7 +33,8 @@ const AppState = {
   stagedDiff: null,
   initialReferenceVersion: null,
   latestReferenceVersion: null,
-  referenceChangeAcknowledged: false
+  referenceChangeAcknowledged: false,
+  rkbVersion: null
 };
 
 // META DATA RESMI 5 SUBBAGIAN PELAKSANA KPU KABUPATEN NGAWI (SESUAI DASHBOARD)
@@ -1671,6 +1672,9 @@ async function loadRkbData() {
         AppState.initialReferenceVersion = previewRes.reference_version;
       }
     }
+    if (previewRes.rkb_version) {
+      AppState.rkbVersion = previewRes.rkb_version;
+    }
   } else {
     AppState.rowIdToTempId = {};
     const queryParams = new URLSearchParams();
@@ -1685,6 +1689,9 @@ async function loadRkbData() {
       AppState.initialReferenceVersion = AppState.rkbData.reference_version;
       AppState.latestReferenceVersion = AppState.rkbData.reference_version;
       AppState.referenceChangeAcknowledged = false;
+    }
+    if (AppState.rkbData && AppState.rkbData.rkb_version) {
+      AppState.rkbVersion = AppState.rkbData.rkb_version;
     }
   }
 
@@ -5453,12 +5460,20 @@ async function stageRkbOperation(op, successToastMsg = 'Perubahan berhasil disim
         body: JSON.stringify({
           ops: AppState.stagedRkbOps,
           expected_reference_version: AppState.initialReferenceVersion,
+          expected_rkb_version: AppState.rkbVersion,
           acknowledge_reference_change: true,
           catatan_simpan: cleanNote || 'Auto-Save ACID Perubahan RKB'
         })
       });
 
       const commitData = await commitRes.json();
+      if (commitRes.status === 409 && commitData && commitData.rkb_conflict) {
+        AppState.rkbVersion = commitData.current_rkb_version;
+        showToast('⚠️ Data RKB telah diperbarui oleh pengguna lain. Memuat ulang data terbaru...', 'warning');
+        await loadRkbData();
+        renderAllViews();
+        return;
+      }
       if (!commitRes.ok) {
         throw new Error(commitData.error || 'Gagal menyimpan perubahan ke database.');
       }
@@ -5468,6 +5483,9 @@ async function stageRkbOperation(op, successToastMsg = 'Perubahan berhasil disim
       AppState.rowIdToTempId = {};
       AppState.initialReferenceVersion = commitData.reference_version || null;
       AppState.latestReferenceVersion = commitData.reference_version || null;
+      if (commitData.rkb_version) {
+        AppState.rkbVersion = commitData.rkb_version;
+      }
       AppState.referenceChangeAcknowledged = false;
       saveStagedOpsToStorage(p.id, []);
 
@@ -5646,6 +5664,7 @@ async function submitCommitRkbChanges() {
       body: JSON.stringify({
         ops: AppState.stagedRkbOps,
         expected_reference_version: AppState.initialReferenceVersion,
+        expected_rkb_version: AppState.rkbVersion,
         acknowledge_reference_change: AppState.referenceChangeAcknowledged,
         catatan_simpan: catatan
       })
@@ -5662,6 +5681,59 @@ async function submitCommitRkbChanges() {
       return;
     }
 
+    if (res.status === 409 && data && data.rkb_conflict) {
+      AppState.rkbVersion = data.current_rkb_version;
+      if (typeof Swal !== 'undefined') {
+        const result = await Swal.fire({
+          title: 'Konflik Perubahan RKB',
+          text: data.error || 'Data RKB telah diperbarui oleh pengguna lain sejak halaman ini dibuka. Muat ulang halaman untuk memuat perubahan terbaru atau simpan paksa untuk menimpa?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'Tetap Simpan (Timpa)',
+          cancelButtonText: 'Batal & Muat Ulang'
+        });
+        if (result.isConfirmed) {
+          const forceRes = await fetch(`/api/rkb/${p.id}/commit-staged`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {})
+            },
+            body: JSON.stringify({
+              ops: AppState.stagedRkbOps,
+              expected_reference_version: AppState.initialReferenceVersion,
+              expected_rkb_version: AppState.rkbVersion,
+              force_overwrite: true,
+              acknowledge_reference_change: true,
+              catatan_simpan: catatan
+            })
+          });
+          const forceData = await forceRes.json();
+          if (forceRes.ok) {
+            AppState.stagedRkbOps = [];
+            AppState.stagedDiff = null;
+            AppState.rkbVersion = forceData.rkb_version || null;
+            closeCommitRkbModal();
+            await loadPeriodes();
+            await loadRkbData();
+            renderAllViews();
+            showToast('✅ Perubahan berhasil disimpan paksa ke database.', 'success');
+            return;
+          }
+        } else {
+          closeCommitRkbModal();
+          await loadRkbData();
+          renderAllViews();
+          return;
+        }
+      } else {
+        alert(data.error);
+        return;
+      }
+    }
+
     if (!res.ok) {
       throw new Error(data.error || 'Gagal menyimpan perubahan RKB.');
     }
@@ -5671,6 +5743,9 @@ async function submitCommitRkbChanges() {
     AppState.initialReferenceVersion = data.reference_version || null;
     AppState.latestReferenceVersion = data.reference_version || null;
     AppState.referenceChangeAcknowledged = false;
+    if (data.rkb_version) {
+      AppState.rkbVersion = data.rkb_version;
+    }
     saveStagedOpsToStorage(p.id, []);
     setElVal('commit-rkb-catatan', '');
 
