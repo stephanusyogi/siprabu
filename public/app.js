@@ -1759,8 +1759,20 @@ function updateContextNavbar() {
 
 function toggleSidebarFolder(folderId, event) {
   if (event) event.stopPropagation();
-  const el = document.getElementById(folderId);
-  if (el) el.classList.toggle('collapsed');
+  const target = document.getElementById(folderId);
+  if (!target) return;
+
+  const isCurrentlyOpen = !target.classList.contains('collapsed');
+
+  // Duplikasi Cara Kerja SAKTI Kemenkeu: Tutup SEMUA modul folder lainnya
+  document.querySelectorAll('#sidebar-nav-menu .sakti-tree-group').forEach(group => {
+    group.classList.add('collapsed');
+  });
+
+  // Jika folder yang diklik sebelumnya tertutup, maka sekarang dibuka
+  if (!isCurrentlyOpen) {
+    target.classList.remove('collapsed');
+  }
 }
 
 function toggleSidebarCollapse() {
@@ -1908,12 +1920,23 @@ function switchView(viewId, updateHistory = true) {
 
   AppState.activeView = viewId;
   document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+  let activeParentGroup = null;
   document.querySelectorAll('.nav-item').forEach(btn => {
     const isActive = btn.getAttribute('data-view') === viewId;
     btn.classList.toggle('active', isActive);
     if (isActive) {
-      const parentGroup = btn.closest('.sakti-tree-group');
-      if (parentGroup) parentGroup.classList.remove('collapsed');
+      activeParentGroup = btn.closest('.sakti-tree-group');
+    }
+  });
+
+  // Duplikasi Cara Kerja SAKTI Kemenkeu:
+  // Jika target view berada di dalam modul folder, buka folder tersebut dan tutup folder lain.
+  // Jika target view adalah menu mandiri (Beranda, Manajemen User, Log, dll), tutup SEMUA folder.
+  document.querySelectorAll('#sidebar-nav-menu .sakti-tree-group').forEach(group => {
+    if (activeParentGroup && group === activeParentGroup) {
+      group.classList.remove('collapsed');
+    } else {
+      group.classList.add('collapsed');
     }
   });
 

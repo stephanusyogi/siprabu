@@ -32,6 +32,7 @@ if (fs.existsSync(envPath)) {
 
 const {
   db,
+  checkpointAndSyncDatabase,
   getPeriodeList,
   getPeriodeById,
   getActivePeriode,
@@ -763,19 +764,47 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 401, { error: 'Silakan login terlebih dahulu atau gunakan Sync Key pengembang yang valid.' });
       }
       try {
-        if (typeof db.checkpointAndSyncDatabase === 'function') {
-          db.checkpointAndSyncDatabase('TRUNCATE');
+        // 1. Paksa flush WAL agar 100% transaksi online detik terakhir dilebur ke file fisik
+        if (typeof checkpointAndSyncDatabase === 'function') {
+          checkpointAndSyncDatabase('TRUNCATE');
+        } else if (db && typeof db.exec === 'function') {
+          try { db.exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch (e) {}
         }
+
         const persistentPath = path.join(os.homedir(), '.siprabu_persistent_data', 'hibah_kpu.sqlite');
         const defaultSqlitePath = path.resolve(__dirname, 'data', 'hibah_kpu.sqlite');
-        const sqlitePath = (fs.existsSync(persistentPath) && fs.statSync(persistentPath).size > 0)
-          ? persistentPath
-          : defaultSqlitePath;
+        
+        // Utamakan file data aktif yang baru saja di-flush WAL
+        let sqlitePath = defaultSqlitePath;
+        if (fs.existsSync(defaultSqlitePath) && fs.statSync(defaultSqlitePath).size > 0) {
+          sqlitePath = defaultSqlitePath;
+          // Sinkronkan ke persistentPath cadangan
+          if (fs.existsSync(path.dirname(persistentPath))) {
+            try { fs.copyFileSync(defaultSqlitePath, persistentPath); } catch (e) {}
+          }
+        } else if (fs.existsSync(persistentPath) && fs.statSync(persistentPath).size > 0) {
+          sqlitePath = persistentPath;
+        }
+
         const buf = fs.readFileSync(sqlitePath);
+
+        // 2. Hitung SHA-256 Checksum & Ambil Metadata Transaksi Terakhir
+        const sha256 = crypto.createHash('sha256').update(buf).digest('hex');
+        let lastAudit = null;
+        let tablesCount = 30;
+        try {
+          lastAudit = db.prepare('SELECT id, created_at, action_type, actor_username FROM audit_log ORDER BY id DESC LIMIT 1').get();
+          tablesCount = db.prepare("SELECT COUNT(*) as c FROM sqlite_master WHERE type='table'").get()?.c || 30;
+        } catch (e) {}
+
         res.writeHead(200, {
           'Content-Type': 'application/octet-stream',
           'Content-Disposition': 'attachment; filename="hibah_kpu.sqlite"',
-          'Content-Length': buf.length
+          'Content-Length': buf.length,
+          'x-db-sha256': sha256,
+          'x-db-last-audit-id': String(lastAudit?.id || 0),
+          'x-db-last-audit-time': String(lastAudit?.created_at || ''),
+          'x-db-tables-count': String(tablesCount)
         });
         return res.end(buf);
       } catch (err) {
@@ -2646,8 +2675,8 @@ server.listen(PORT, () => {
 
 function gracefulShutdown(signal) {
   try {
-    if (typeof db.checkpointAndSyncDatabase === 'function') {
-      db.checkpointAndSyncDatabase('TRUNCATE');
+    if (typeof checkpointAndSyncDatabase === 'function') {
+      checkpointAndSyncDatabase('TRUNCATE');
     }
   } catch (e) {}
   if (signal) process.exit(0);
