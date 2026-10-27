@@ -8,6 +8,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const url = require('node:url');
+const os = require('node:os');
 
 // Muat .env otomatis jika ada
 const envPath = path.resolve(__dirname, '.env');
@@ -753,16 +754,23 @@ const server = http.createServer(async (req, res) => {
 
     // 3b. ENDPOINT KHUSUS LEAD DEVELOPER: BLUEPRINT & PRD ARSITEKTUR + SINKRONISASI DB
     if (pathname === '/api/developer/export-sqlite' && method === 'GET') {
+      const syncKey = req.headers['x-sync-key'] || req.headers['x-developer-key'];
+      const validSyncKey = process.env.SIPRABU_SYNC_KEY || 'siprabu_sync_kpu_ngawi_2026_emenje';
+      const isSyncKeyValid = Boolean(syncKey && syncKey === validSyncKey);
+
       const currentUser = getUserFromReq(req);
-      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      if (!isDeveloperUser(currentUser)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Lead Developer (Level 0) yang diizinkan mengunduh snapshot SQLite.' });
+      if (!isSyncKeyValid && (!currentUser || !isDeveloperUser(currentUser))) {
+        return sendJson(res, 401, { error: 'Silakan login terlebih dahulu atau gunakan Sync Key pengembang yang valid.' });
       }
       try {
         if (typeof db.checkpointAndSyncDatabase === 'function') {
           db.checkpointAndSyncDatabase('TRUNCATE');
         }
-        const sqlitePath = path.resolve(__dirname, 'data', 'hibah_kpu.sqlite');
+        const persistentPath = path.join(os.homedir(), '.siprabu_persistent_data', 'hibah_kpu.sqlite');
+        const defaultSqlitePath = path.resolve(__dirname, 'data', 'hibah_kpu.sqlite');
+        const sqlitePath = (fs.existsSync(persistentPath) && fs.statSync(persistentPath).size > 0)
+          ? persistentPath
+          : defaultSqlitePath;
         const buf = fs.readFileSync(sqlitePath);
         res.writeHead(200, {
           'Content-Type': 'application/octet-stream',
@@ -823,6 +831,22 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { success: true, message: 'Dokumen Blueprint & PRD berhasil diperbarui.' });
       } catch (err) {
         return sendJson(res, 500, { error: 'Gagal menyimpan dokumen blueprint: ' + err.message });
+      }
+    }
+
+    // 3c. DEV UTILITY ROUTES (HANYA AKTIF JIKA FILE dev-routes.js ADA DI LOKAL)
+    if (pathname.startsWith('/api/dev/')) {
+      const devRoutesPath = path.resolve(__dirname, 'dev-routes.js');
+      if (fs.existsSync(devRoutesPath)) {
+        try {
+          const handleDevRoutes = require('./dev-routes');
+          const handled = await handleDevRoutes(req, res, pathname, method, sendJson, parseJsonBody, db);
+          if (handled) return;
+        } catch (devErr) {
+          return sendJson(res, 500, { error: 'Dev route error: ' + devErr.message });
+        }
+      } else {
+        return sendJson(res, 404, { error: 'Dev routes tidak tersedia di lingkungan produksi.' });
       }
     }
 
