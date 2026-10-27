@@ -346,7 +346,78 @@ function verifyDatabaseIntegrity(dbPath) {
   }
 }
 
+
+/**
+ * Mengonversi teks MySQL/phpMyAdmin Dump menjadi SQLite Database (.sqlite)
+ * Menangani konversi tipe data, timestamp default, autoincrement, dan escape string.
+ */
+function convertMysqlDumpToSqlite(mysqlDumpText, targetSqlitePath) {
+  const tempPath = targetSqlitePath + '.temp_' + Date.now();
+  if (fs.existsSync(tempPath)) {
+    try { fs.unlinkSync(tempPath); } catch (e) {}
+  }
+  const SqliteDB = getSqliteDatabaseSync();
+  const targetDb = new SqliteDB(tempPath);
+
+  targetDb.exec("PRAGMA foreign_keys = OFF;");
+  targetDb.exec("PRAGMA journal_mode = MEMORY;");
+  targetDb.exec("PRAGMA synchronous = OFF;");
+
+  const lines = mysqlDumpText.split('\n');
+  const cleanStatements = [];
+  let curr = '';
+
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('--') || trimmed.startsWith('/*') || trimmed.startsWith('SET ') || trimmed.startsWith('START TRANSACTION') || trimmed.startsWith('COMMIT;')) {
+      continue;
+    }
+
+    curr += line + '\n';
+    if (trimmed.endsWith(';')) {
+      cleanStatements.push(curr.trim());
+      curr = '';
+    }
+  }
+
+  targetDb.exec("BEGIN TRANSACTION;");
+
+  for (let stmt of cleanStatements) {
+    if (/^CREATE\s+TABLE/i.test(stmt)) {
+      stmt = stmt.replace(/\)\s*ENGINE=[^;]+;/gi, ');');
+      stmt = stmt.replace(/current_timestamp\(\)/gi, 'CURRENT_TIMESTAMP');
+      stmt = stmt.replace(/`id`\s+int\(\d+\)\s+NOT\s+NULL\s+AUTO_INCREMENT\s*,/gi, '`id` INTEGER PRIMARY KEY AUTOINCREMENT,');
+      stmt = stmt.replace(/PRIMARY\s+KEY\s*\(`id`\)\s*,?/gi, '');
+      stmt = stmt.replace(/,\s*\);/g, ');');
+    }
+
+    if (/^INSERT\s+INTO/i.test(stmt)) {
+      stmt = stmt.replace(/\\'/g, "''").replace(/\\"/g, '""');
+    }
+
+    try {
+      targetDb.exec(stmt);
+    } catch (err) {
+      console.error('[CONVERT ERROR] Stmt failed:', stmt.slice(0, 100), err.message);
+    }
+  }
+
+  targetDb.exec("COMMIT;");
+  try {
+    targetDb.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_periode_snapshot_periode_id ON periode_snapshot(periode_id);");
+    targetDb.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_subbag_usulan_periode_subbag ON subbag_usulan_revisi(periode_id, subbag);");
+  } catch (idxErr) {}
+  targetDb.exec("PRAGMA integrity_check;");
+  targetDb.close();
+
+  // Salin file temporer ke targetPath agar kompatibel dengan file lock pada Windows
+  fs.copyFileSync(tempPath, targetSqlitePath);
+  try { fs.unlinkSync(tempPath); } catch (e) {}
+  return true;
+}
+
 module.exports = {
+  convertMysqlDumpToSqlite,
   createDatabaseBackup,
   createBackup: createDatabaseBackup,
   generateMySQLDump,

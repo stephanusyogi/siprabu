@@ -3750,7 +3750,7 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
                f2_val, f2_unit, f2_var,
                f3_val, f3_unit, f3_var,
                f4_val, f4_unit, f4_var,
-               basis_pengali, label_pengali_kab, target_scope
+               basis_pengali, label_pengali_kab, target_scope, satuan_vol
         FROM rab_baris
         WHERE periode_id = ?
         ORDER BY urutan ASC, id ASC
@@ -3814,12 +3814,12 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
 
           // 3. Perlengkapan & Konsumsi PPDP / Pantarlih (Kaos Coklit PPDP, Konsumsi Pleno DPS/DPTb PPDP, Rapid Test Snack PPDP)
           if (target_scope === 'PANTARLIH' && uraianLower === '-. ppdp') {
-            if (String(f2_unit).toLowerCase() === 'buah' || String(f3_unit).toLowerCase() === 'tps') {
+            if (String(f2_unit).toLowerCase() === 'buah' || String(f3_unit).toLowerCase() === 'tps' || String(r.satuan_vol || '').toLowerCase() === 'buah') {
               f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
               f2_var = ''; f2_val = 1; f2_unit = 'Buah';
               f3_val = null; f3_unit = ''; f3_var = '';
               basis_pengali = 'FIXED'; label_pengali_kab = '';
-            } else if (String(f2_unit).toLowerCase() === 'tps' || f1_var === 'pantarlih') {
+            } else {
               f1_var = 'pantarlih'; f1_val = livePantarlih; f1_unit = 'Org';
               f2_var = ''; f2_val = 1; f2_unit = 'Keg';
               f3_val = null; f3_unit = ''; f3_var = '';
@@ -3834,47 +3834,73 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
 
           // 4. Kebutuhan Per-Petugas TPS (9 Org/TPS = @kpps_all) pada APD, Suplemen, Rapid Test, & Konsumsi KPPS
           if (basis_pengali === 'TPS_RKB' || f3_var === 'tps_rkb' || target_scope === 'TPS') {
-            if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'kpps_all' || (!f1_var && Number(f1_val) === 9))) {
+            const u1 = String(f1_unit || '').trim().toLowerCase();
+            const cleanF1Var = String(f1_var || '').trim();
+            if ((!u1 || u1 === '0' || /^(org|orang)$/i.test(u1)) && (cleanF1Var === 'kpps_all' || ((!cleanF1Var || cleanF1Var === '0') && (Number(f1_val) === 9 || Number(f1_val) === kppsAllPerTps)))) {
               f1_var = 'kpps_all';
               f1_val = kppsAllPerTps;
+              if (!u1 || u1 === '0') f1_unit = 'Org';
             }
-            if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'kpps_all' || (!f2_var && Number(f2_val) === 9))) {
+            const u2 = String(f2_unit || '').trim().toLowerCase();
+            const cleanF2Var = String(f2_var || '').trim();
+            if ((!u2 || u2 === '0' || /^(org|orang)$/i.test(u2)) && (cleanF2Var === 'kpps_all' || ((!cleanF2Var || cleanF2Var === '0') && (Number(f2_val) === 9 || Number(f2_val) === kppsAllPerTps)))) {
               f2_var = 'kpps_all';
               f2_val = kppsAllPerTps;
+              if (!u2 || u2 === '0') f2_unit = 'Org';
             }
           }
 
           // 5. Honorarium PPK & PPS (Masa Kerja PPK & Masa Kerja PPS)
           if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPK' && target_scope === 'PPK') {
-            if (/^(bulan|bln)$/i.test(String(f2_unit).trim())) {
+            const u2 = String(f2_unit || '').trim().toLowerCase();
+            const u3 = String(f3_unit || '').trim().toLowerCase();
+            if (!u2 || u2 === '0' || /^(bulan|bln)$/i.test(u2)) {
               f2_var = 'masa_kerja_ppk'; f2_val = masaKerjaPpk;
-            } else if (/^(bulan|bln)$/i.test(String(f3_unit).trim())) {
+              if (!u2 || u2 === '0') f2_unit = 'Bulan';
+            } else if (!u3 || u3 === '0' || /^(bulan|bln)$/i.test(u3)) {
               f3_var = 'masa_kerja_ppk'; f3_val = masaKerjaPpk;
+              if (!u3 || u3 === '0') f3_unit = 'Bulan';
             }
           }
           if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPS' && target_scope === 'PPS') {
-            if (/^(bulan|bln)$/i.test(String(f2_unit).trim())) {
+            const u2 = String(f2_unit || '').trim().toLowerCase();
+            const u3 = String(f3_unit || '').trim().toLowerCase();
+            if (!u2 || u2 === '0' || /^(bulan|bln)$/i.test(u2)) {
               f2_var = 'masa_kerja_pps'; f2_val = masaKerjaPps;
-            } else if (/^(bulan|bln)$/i.test(String(f3_unit).trim())) {
+              if (!u2 || u2 === '0') f2_unit = 'Bulan';
+            } else if (!u3 || u3 === '0' || /^(bulan|bln)$/i.test(u3)) {
               f3_var = 'masa_kerja_pps'; f3_val = masaKerjaPps;
+              if (!u3 || u3 === '0') f3_unit = 'Bulan';
             }
           }
 
           // 6. Baris Operasional/Bimtek/APD PPK (8 Org/Kec = @ppk_all) & PPS (6 Org/Desa = @pps_all)
           if (basis_pengali === 'PPK') {
-            if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'ppk_all' || (!f1_var && Number(f1_val) === 8))) {
+            const u1 = String(f1_unit || '').trim().toLowerCase();
+            const cleanF1Var = String(f1_var || '').trim();
+            if ((!u1 || u1 === '0' || /^(org|orang)$/i.test(u1)) && (cleanF1Var === 'ppk_all' || ((!cleanF1Var || cleanF1Var === '0') && Number(f1_val) === 8))) {
               f1_var = 'ppk_all'; f1_val = ppkAllPerKec;
+              if (!u1 || u1 === '0') f1_unit = 'Org';
             }
-            if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'ppk_all' || (!f2_var && Number(f2_val) === 8))) {
+            const u2 = String(f2_unit || '').trim().toLowerCase();
+            const cleanF2Var = String(f2_var || '').trim();
+            if ((!u2 || u2 === '0' || /^(org|orang)$/i.test(u2)) && (cleanF2Var === 'ppk_all' || ((!cleanF2Var || cleanF2Var === '0') && Number(f2_val) === 8))) {
               f2_var = 'ppk_all'; f2_val = ppkAllPerKec;
+              if (!u2 || u2 === '0') f2_unit = 'Org';
             }
           }
           if (basis_pengali === 'PPS') {
-            if (/^(org|orang)$/i.test(String(f1_unit).trim()) && (f1_var === 'pps_all' || (!f1_var && Number(f1_val) === 6))) {
+            const u1 = String(f1_unit || '').trim().toLowerCase();
+            const cleanF1Var = String(f1_var || '').trim();
+            if ((!u1 || u1 === '0' || /^(org|orang)$/i.test(u1)) && (cleanF1Var === 'pps_all' || ((!cleanF1Var || cleanF1Var === '0') && Number(f1_val) === 6))) {
               f1_var = 'pps_all'; f1_val = ppsAllPerDesa;
+              if (!u1 || u1 === '0') f1_unit = 'Org';
             }
-            if (/^(org|orang)$/i.test(String(f2_unit).trim()) && (f2_var === 'pps_all' || (!f2_var && Number(f2_val) === 6))) {
+            const u2 = String(f2_unit || '').trim().toLowerCase();
+            const cleanF2Var = String(f2_var || '').trim();
+            if ((!u2 || u2 === '0' || /^(org|orang)$/i.test(u2)) && (cleanF2Var === 'pps_all' || ((!cleanF2Var || cleanF2Var === '0') && Number(f2_val) === 6))) {
               f2_var = 'pps_all'; f2_val = ppsAllPerDesa;
+              if (!u2 || u2 === '0') f2_unit = 'Org';
             }
           }
         }
@@ -3885,23 +3911,32 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
         const fVars = [f1_var, f2_var, f3_var, f4_var];
 
         for (let i = 0; i < 4; i++) {
-          const uLow = String(fUnits[i] || '').trim().toLowerCase();
+          let uLow = String(fUnits[i] || '').trim().toLowerCase();
+          if (uLow === '0') uLow = '';
           const vNum = Number(fVals[i]);
           let vCode = String(fVars[i] || '').trim();
+          if (vCode === '0') vCode = '';
 
           if (!vCode && runHeuristics) {
-            if (uLow === 'tps' && vNum >= 100) {
+            const satVolLow = String(r.satuan_vol || '').trim().toLowerCase();
+            if ((uLow === 'tps' || satVolLow === 'tps') && vNum >= 100) {
               vCode = 'tps_rkb';
-            } else if (uLow === 'kotak' && vNum >= 100) {
+              if (!uLow) fUnits[i] = 'TPS';
+            } else if ((uLow === 'kotak' || satVolLow === 'kotak' || uraianLower.includes('pengangkutan logistik')) && vNum >= 100) {
               vCode = 'kotak_rkb';
-            } else if ((uLow === 'kec' || uLow === 'kecamatan') && vNum >= 15) {
+              if (!uLow) fUnits[i] = 'Kotak';
+            } else if ((uLow === 'kec' || uLow === 'kecamatan' || satVolLow === 'kec' || satVolLow === 'kecamatan') && vNum >= 15) {
               vCode = 'kec_ppk';
-            } else if ((uLow === 'desa' || uLow === 'kelurahan') && vNum >= 100) {
+              if (!uLow) fUnits[i] = 'Kec';
+            } else if ((uLow === 'desa' || uLow === 'kelurahan' || satVolLow === 'desa' || satVolLow === 'kelurahan') && vNum >= 100) {
               vCode = 'desa_pps';
-            } else if (uLow === 'pemilih') {
+              if (!uLow) fUnits[i] = 'Desa';
+            } else if (uLow === 'pemilih' || satVolLow === 'pemilih') {
               vCode = 'dpt';
-            } else if (uLow === 'lembar ss' || ((uLow === 'lembar' || uLow.includes('lembar')) && vNum >= 100000 && uraianLower.includes('surat suara'))) {
+              if (!uLow) fUnits[i] = 'Pemilih';
+            } else if (uLow === 'lembar ss' || ((uLow === 'lembar' || satVolLow === 'lembar' || uLow.includes('lembar')) && vNum >= 100000 && (uraianLower.includes('surat suara') || uraianLower.includes('sortir')))) {
               vCode = 'surat_suara';
+              if (!uLow) fUnits[i] = 'Lembar';
             } else if (uLow === 'paslon') {
               if (uraianLower.includes('perseorangan')) vCode = 'paslon_perseorangan';
               else if (uraianLower.includes('jalur parpol') || uraianLower.includes('paslon parpol')) vCode = 'paslon_parpol';
@@ -3929,6 +3964,7 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
         }
 
         [f1_val, f2_val, f3_val, f4_val] = fVals;
+        [f1_unit, f2_unit, f3_unit, f4_unit] = fUnits;
         [f1_var, f2_var, f3_var, f4_var] = fVars;
 
         // Bersihkan duplikasi label_pengali_kab pada baris FIXED (hanya saat inisialisasi awal)

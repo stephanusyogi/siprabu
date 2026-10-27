@@ -1,14 +1,15 @@
 /**
  * Skrip Sinkronisasi Satu Arah (Hosting -> GitHub Repository / Lokal)
  * Menarik database aktif dari https://siprabu.kpungawi.com dan menyimpannya
- * langsung ke berkas SQL dump siap-pakai phpMyAdmin (siprabu_siap_phpmyadmin.sql).
+ * langsung ke berkas SQL dump siap-pakai phpMyAdmin (siprabu_siap_phpmyadmin.sql)
+ * serta mengimpor dan menyelaraskan seluruh data RKB Aktif ke SQLite lokal (data/hibah_kpu.sqlite).
  */
 const fs = require('fs');
 const path = require('path');
 
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'siprabu_kpu_ngawi_secret_key_2026';
 const { createToken } = require('../src/auth');
-const { getUsers } = require('../src/db');
+const { convertMysqlDumpToSqlite } = require('../src/backup');
 
 const ONLINE_BASE_URL = process.env.SIPRABU_ONLINE_URL || 'https://siprabu.kpungawi.com';
 const DATA_DIR = path.resolve(__dirname, '..', 'data');
@@ -20,7 +21,7 @@ const BACKUP_PATH = path.join(DATA_DIR, 'hibah_kpu.sqlite.bak');
 const SYNC_KEY = process.env.SIPRABU_SYNC_KEY || 'siprabu_sync_kpu_ngawi_2026_emenje';
 
 async function pullOnlineDb() {
-  const devUser = getUsers().find(u => u.username === 'emenje') || {
+  const devUser = {
     id: 10,
     username: 'emenje',
     role_id: 'developer',
@@ -36,7 +37,7 @@ async function pullOnlineDb() {
   console.log(`[SYNC] Menghubungi server produksi: ${ONLINE_BASE_URL} ...`);
   try {
     // 1. Prioritaskan penarikan SQL Dump MySQL / phpMyAdmin
-    const expMysqlRes = await fetch(`${ONLINE_BASE_URL}/api/developer/export-mysql`, { headers, signal: AbortSignal.timeout(15000) });
+    const expMysqlRes = await fetch(`${ONLINE_BASE_URL}/api/developer/export-mysql`, { headers, signal: AbortSignal.timeout(30000) });
 
     if (expMysqlRes.ok) {
       const text = await expMysqlRes.text();
@@ -46,12 +47,23 @@ async function pullOnlineDb() {
         fs.writeFileSync(path.join(BACKUP_DIR, 'siprabu_online_latest.sql'), text, 'utf8');
         console.log(`[SYNC] Berhasil menarik Full MySQL Dump (${(text.length / (1024 * 1024)).toFixed(2)} MB) dari ${ONLINE_BASE_URL}!`);
         console.log(`[SYNC] Berkas siap diimpor ke phpMyAdmin: ${MYSQL_DUMP_PATH}`);
+
+        // Konversi dan impor penuh seluruh tabel (termasuk RKB Aktif) ke database SQLite lokal
+        console.log('[SYNC] Menyelaraskan seluruh data ke SQLite lokal...');
+        convertMysqlDumpToSqlite(text, DB_PATH);
+        fs.copyFileSync(DB_PATH, TEMPLATE_PATH);
+        fs.copyFileSync(DB_PATH, BACKUP_PATH);
+
+        const { getRkbCalculatedDataset, clearRkbDatasetCache } = require('../src/calculation');
+        clearRkbDatasetCache();
+        const calc = getRkbCalculatedDataset(1000003);
+        console.log(`[SYNC] SQLite lokal berhasil diperbarui! RKB Aktif: ${calc.rows.length} baris, Pagu: Rp ${calc.summary.grandTotal.toLocaleString('id-ID')}`);
         return;
       }
     }
 
     // 2. Fallback jika server online masih berada di versi lama yang hanya menyediakan endpoint export-sqlite
-    const expRes = await fetch(`${ONLINE_BASE_URL}/api/developer/export-sqlite`, { headers, signal: AbortSignal.timeout(10000) });
+    const expRes = await fetch(`${ONLINE_BASE_URL}/api/developer/export-sqlite`, { headers, signal: AbortSignal.timeout(30000) });
 
     if (expRes.ok) {
       const cType = expRes.headers.get('content-type') || '';
@@ -59,6 +71,13 @@ async function pullOnlineDb() {
         const text = await expRes.text();
         fs.writeFileSync(MYSQL_DUMP_PATH, text, 'utf8');
         console.log(`[SYNC] Berhasil menarik MySQL Dump dari ${ONLINE_BASE_URL}! Disimpan ke ${MYSQL_DUMP_PATH}`);
+
+        convertMysqlDumpToSqlite(text, DB_PATH);
+        fs.copyFileSync(DB_PATH, TEMPLATE_PATH);
+        fs.copyFileSync(DB_PATH, BACKUP_PATH);
+        clearRkbDatasetCache();
+        const calc = getRkbCalculatedDataset(1000003);
+        console.log(`[SYNC] SQLite lokal berhasil diperbarui! RKB Aktif: ${calc.rows.length} baris, Pagu: Rp ${calc.summary.grandTotal.toLocaleString('id-ID')}`);
         return;
       }
 
@@ -69,6 +88,7 @@ async function pullOnlineDb() {
           fs.writeFileSync(DB_PATH, buf);
           fs.writeFileSync(TEMPLATE_PATH, buf);
           fs.writeFileSync(BACKUP_PATH, buf);
+          clearRkbDatasetCache();
           console.log(`[SYNC] Berhasil menarik arsip database legacy (${(buf.length / (1024 * 1024)).toFixed(2)} MB) dari ${ONLINE_BASE_URL}!`);
           return;
         }

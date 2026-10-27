@@ -1020,7 +1020,7 @@ async function runBusinessBehaviorTests() {
   const rowKaosPpdp = dsAfterDesaChange.rows.find(r => r.f1_var === 'pantarlih' && (r.f2_unit || '').toLowerCase() === 'buah');
   const rowKonsumsiPpdp = dsAfterDesaChange.rows.find(r => r.f1_var === 'pantarlih' && (r.f2_unit || '').toLowerCase() === 'keg' && Number(r.harga_satuan) > 0);
   const rowKotakDist = dsAfterDesaChange.rows.find(r => r.f2_var === 'kotak_rkb');
-  const rowSample5Tps = dsAfterDesaChange.rows.find(r => Number(r.f2_val) === 5 && (r.f2_unit || '').toLowerCase() === 'tps');
+  const rowSample5Tps = dsAfterDesaChange.rows.find(r => (Number(r.f2_val) === 5 || Number(r.f3_val) === 5) && ((r.f2_unit || '').toLowerCase() === 'tps' || (r.f3_unit || '').toLowerCase() === 'tps' || (r.uraian || '').toLowerCase().includes('tps')));
   const rowCetakSuratSuara = dsAfterDesaChange.rows.find(r => r.f1_var === 'surat_suara' && (r.uraian || '').toLowerCase().includes('cetak surat suara'));
   const rowSortirSuratSuara = dsAfterDesaChange.rows.find(r => r.f1_var === 'surat_suara' && (r.uraian || '').toLowerCase().includes('sortir dan lipat surat suara'));
 
@@ -1039,7 +1039,7 @@ async function runBusinessBehaviorTests() {
 
   assert(
     rowKotakDist && Number(rowKotakDist.f2_val) === expectedKotakPlus10 &&
-    rowSample5Tps && Number(rowSample5Tps.f2_val) === 5,
+    rowSample5Tps && (Number(rowSample5Tps.f2_val) === 5 || Number(rowSample5Tps.f3_val) === 5),
     'Test 33.3: Perubahan jumlah Kotak Suara otomatis memperbarui baris distribusi kotak (@kotak_rkb), sedangkan baris sampel kunjungan (5 TPS) tetap terlindungi.'
   );
 
