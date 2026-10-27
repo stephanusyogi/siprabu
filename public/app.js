@@ -6562,7 +6562,9 @@ async function loadMonitoringReport() {
 
   const tbody = document.getElementById('monitoring-table-body');
   try {
-    monitoringData = await apiFetch(`/api/download-requests?${params.toString()}`);
+    const raw = await apiFetch(`/api/download-requests?${params.toString()}`);
+    // Sesuai arahan: data yang Gagal dan Kadaluarsa otomatis disaring keluar dari datatabel
+    monitoringData = (Array.isArray(raw) ? raw : []).filter(d => d.status !== 'GAGAL' && d.status !== 'KADALUARSA');
     renderMonitoringTable();
 
     // Cek jika ada yang masih berstatus DIPROSES, lakukan auto-poll
@@ -6583,10 +6585,13 @@ function renderMonitoringTable() {
   const tbody = document.getElementById('monitoring-table-body');
   if (!tbody) return;
 
-  const countBadge = document.getElementById('badge-monitoring-count');
-  if (countBadge) countBadge.textContent = monitoringData.filter(d => d.status === 'SELESAI').length;
+  // Pastikan data yang Gagal dan Kadaluarsa otomatis hilang dari datatabel
+  const activeItems = (monitoringData || []).filter(d => d.status !== 'GAGAL' && d.status !== 'KADALUARSA');
 
-  const totalItems = monitoringData.length;
+  const countBadge = document.getElementById('badge-monitoring-count');
+  if (countBadge) countBadge.textContent = activeItems.filter(d => d.status === 'SELESAI').length;
+
+  const totalItems = activeItems.length;
   const labelCount = document.getElementById('monitoring-count-label');
   if (labelCount) labelCount.textContent = `Menampilkan ${totalItems} data`;
 
@@ -6595,9 +6600,9 @@ function renderMonitoringTable() {
       <tr>
         <td colspan="4" class="text-center" style="padding: 48px 20px; color: #64748b; background: #fafafa;">
           <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
-          <div style="font-weight: 700; font-size: 13.5px; color: #1e293b;">Belum Ada Riwayat Unduhan</div>
+          <div style="font-weight: 700; font-size: 13.5px; color: #1e293b;">Belum Ada Riwayat Unduhan Aktif</div>
           <div style="font-size: 12px; color: #64748b; margin-top: 4px; max-width: 420px; margin-left: auto; margin-right: auto; line-height: 1.5;">
-            Data Anda bersih. Anda belum pernah melakukan permintaan unduh berkas laporan. Setiap berkas yang Anda unduh nantinya hanya dapat dilihat oleh akun Anda sendiri.
+            Berkas unduhan aktif tersedia selama 1 jam sejak selesai dibuat. Berkas yang gagal atau telah kedaluwarsa otomatis dibersihkan dari tampilan datatabel.
           </div>
         </td>
       </tr>
@@ -6606,7 +6611,7 @@ function renderMonitoringTable() {
   }
 
   const startIdx = (monitoringCurrentPage - 1) * MONITORING_PER_PAGE;
-  const pageData = monitoringData.slice(startIdx, startIdx + MONITORING_PER_PAGE);
+  const pageData = activeItems.slice(startIdx, startIdx + MONITORING_PER_PAGE);
 
   const pageBadge = document.getElementById('monitoring-page-badge');
   if (pageBadge) pageBadge.textContent = monitoringCurrentPage;

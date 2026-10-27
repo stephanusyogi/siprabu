@@ -4927,7 +4927,7 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
   return created;
 }
 
-function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai = '', username = '', exclude_expired = false } = {}) {
+function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai = '', username = '', exclude_expired = false, exclude_failed = false } = {}) {
   // 1. Bersihkan berkas fisik yang telah kadaluarsa (> 1 jam) & tandai status KADALUARSA
   cleanupExpiredDownloads();
 
@@ -4950,6 +4950,10 @@ function getDownloadRequests({ search = '', tanggal_mulai = '', tanggal_selesai 
     const now = new Date().toISOString();
     sql += " AND d.status != 'KADALUARSA' AND (d.expires_at IS NULL OR d.expires_at >= ?)";
     params.push(now);
+  }
+
+  if (exclude_failed) {
+    sql += " AND d.status != 'GAGAL'";
   }
 
   if (search) {
@@ -5048,6 +5052,20 @@ function cleanupExpiredDownloads() {
   }
 
   return cleaned;
+}
+
+/**
+ * Membersihkan secara permanen berkas unduhan yang gagal dan kadaluarsa
+ */
+function purgeFailedAndExpiredDownloads(username = null) {
+  let sql = "DELETE FROM download_requests WHERE status IN ('GAGAL', 'KADALUARSA')";
+  const params = [];
+  if (username) {
+    sql += " AND username = ?";
+    params.push(username);
+  }
+  const res = db.prepare(sql).run(...params);
+  return res.changes;
 }
 
 // Subbag Usulan Revisi
@@ -6147,6 +6165,7 @@ module.exports = {
   getDownloadRequestById,
   updateDownloadRequest,
   cleanupExpiredDownloads,
+  purgeFailedAndExpiredDownloads,
   getSubbagUsulanList,
   getSubbagUsulan,
   submitSubbagUsulan,

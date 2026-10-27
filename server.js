@@ -94,6 +94,7 @@ const {
   getDownloadRequestById,
   updateDownloadRequest,
   cleanupExpiredDownloads,
+  purgeFailedAndExpiredDownloads,
   getSubbagUsulanList,
   getSubbagUsulan,
   submitSubbagUsulan,
@@ -2602,13 +2603,25 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Filter per-user: hanya user yang mendownload yang bisa melihat riwayatnya
+      // Sesuai arahan: unduhan yang GAGAL dan KADALUARSA otomatis hilang dari datatabel
+      const showAll = query.all === '1' || query.all === 'true';
       const requests = getDownloadRequests({
         search: query.search || '',
         tanggal_mulai: query.tanggal_mulai || '',
         tanggal_selesai: query.tanggal_selesai || '',
-        username: currentUser.username
+        username: currentUser.username,
+        exclude_expired: !showAll,
+        exclude_failed: !showAll
       });
       return sendJson(res, 200, requests);
+    }
+    if (pathname === '/api/download-requests' && method === 'DELETE') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) {
+        return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      }
+      const purged = purgeFailedAndExpiredDownloads(currentUser.username);
+      return sendJson(res, 200, { success: true, purged });
     }
     if (pathname === '/api/download-requests' && method === 'POST') {
       const currentUser = getUserFromReq(req);
