@@ -59,6 +59,8 @@ const {
   saveUser,
   deleteUser,
   toggleUserStatus,
+  getMenuMatrix,
+  saveMenuMatrix,
   authenticateUser,
   authenticateGoogleUser,
   getMasters,
@@ -566,6 +568,49 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // 1c-2. POST /api/switch-active-role (Beralih Peran Aktif untuk Pengguna Multi-Peran)
+    if (pathname === '/api/switch-active-role' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const { role_id } = await parseJsonBody(req);
+      const targetRoleId = Number(role_id);
+
+      const roles = currentUser.roles || [];
+      const matchedRole = roles.find(r => Number(r.id) === targetRoleId);
+      if (!matchedRole && !currentUser.is_developer) {
+        return sendJson(res, 403, { error: 'Peran yang dipilih tidak terdaftar untuk akun Anda.' });
+      }
+
+      const activeRole = matchedRole || {
+        id: targetRoleId,
+        level: currentUser.level,
+        pic: currentUser.pic_subbag,
+        mode_akses: currentUser.mode_akses || 'VIEWER'
+      };
+
+      const updatedUser = {
+        ...currentUser,
+        level: activeRole.level,
+        pic_subbag: activeRole.pic,
+        mode_akses: activeRole.mode_akses,
+        active_role: activeRole
+      };
+
+      const token = createToken(updatedUser, null, {
+        preserveIat: currentUser.iat,
+        preserveExp: currentUser.exp,
+        preserveSid: currentUser.sid
+      });
+
+      return sendJson(res, 200, {
+        success: true,
+        token,
+        user: updatedUser,
+        message: `Berhasil beralih ke peran ${activeRole.label_peran || activeRole.pic} (Level ${activeRole.level}).`
+      });
+    }
+
     // 1d. POST /api/logout (Pencabutan Sesi Server-Side - Bab 12 & FR-15)
     if (pathname === '/api/logout' && method === 'POST') {
       const currentUser = getUserFromReq(req);
@@ -616,7 +661,8 @@ const server = http.createServer(async (req, res) => {
 
       // Level 1 tidak boleh membuat akun level 0 (developer) atau mengedit akun developer
       if (currentUser.level === 1) {
-        if (Number(body.level) === 0) {
+        const hasLevel0 = Number(body.level) === 0 || (Array.isArray(body.roles) && body.roles.some(r => Number(r.level) === 0));
+        if (hasLevel0) {
           return sendJson(res, 403, { error: 'Hanya Akun Developer yang berwenang menetapkan peran Developer.' });
         }
         if (body.id) {
@@ -674,6 +720,24 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
       }
+    }
+
+    // 3a. MATRIKS HAK AKSES MENU DINAMIS BERBASIS LEVEL (0-4)
+    if (pathname === '/api/menu-matrix' && method === 'GET') {
+      const matrix = getMenuMatrix();
+      return sendJson(res, 200, { success: true, matrix });
+    }
+
+    if (pathname === '/api/menu-matrix' && (method === 'PUT' || method === 'POST')) {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (Number(currentUser.level) !== 0) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengubahan matriks hak akses hanya diizinkan untuk Akun Developer (Level 0).' });
+      }
+      const body = await parseJsonBody(req);
+      const items = Array.isArray(body) ? body : (body.matrix || []);
+      const updated = saveMenuMatrix(items);
+      return sendJson(res, 200, { success: true, matrix: updated, message: 'Matriks hak akses menu berhasil diperbarui.' });
     }
 
     // 3b. ADMINISTRASI PEJABAT PENANDATANGAN DOKUMEN SATKER (BAB 22 CANON)

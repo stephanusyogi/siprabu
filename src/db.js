@@ -432,9 +432,85 @@ function initDb() {
   }
 
   safeAddColumn('satker_users', 'token_version INTEGER DEFAULT 1');
+  safeAddColumn('satker_users', 'nip TEXT');
   safeAddColumn('satker_users', 'email TEXT');
   safeAddColumn('satker_users', 'google_id TEXT');
   safeAddColumn('satker_users', 'avatar_url TEXT');
+
+  // Tabel Manajemen Peran Multi-Kewenangan Pengguna (3 Komponen: Level, PIC, Mode Akses)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS satker_user_roles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      level INTEGER NOT NULL,
+      pic TEXT NOT NULL,
+      mode_akses TEXT NOT NULL DEFAULT 'VIEWER',
+      is_default INTEGER DEFAULT 1,
+      label_peran TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Tabel Matriks Hak Akses Menu Dinamis Berbasis Level (0-4)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_menu_matrix (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      menu_key VARCHAR(64) NOT NULL UNIQUE,
+      menu_label VARCHAR(128) NOT NULL,
+      folder_key VARCHAR(64),
+      allow_l0 INTEGER DEFAULT 1,
+      allow_l1 INTEGER DEFAULT 0,
+      allow_l2 INTEGER DEFAULT 0,
+      allow_l3 INTEGER DEFAULT 0,
+      allow_l4 INTEGER DEFAULT 0,
+      required_mode VARCHAR(16) DEFAULT 'VIEWER',
+      urutan INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  try {
+    const existingMenuCount = db.prepare('SELECT COUNT(*) as cnt FROM app_menu_matrix').get()?.cnt || 0;
+    if (existingMenuCount === 0) {
+      const seedMenus = [
+        ['view-dashboard', 'Dashboard Satker', null, 1, 1, 1, 1, 1, 'VIEWER', 1],
+        ['view-rkb', 'RKB Belanja', null, 1, 1, 1, 1, 0, 'VIEWER', 2],
+        ['view-revisi-pengajuan', 'Pengajuan Usulan Revisi', 'folder-perencanaan', 1, 0, 1, 0, 0, 'EDITOR', 3],
+        ['view-revisi-validasi', 'Validasi Usulan Revisi', 'folder-perencanaan', 1, 1, 0, 0, 0, 'EDITOR', 4],
+        ['view-revisi-tahap4', 'Pengesahan BA Pleno (Tahap 4)', 'folder-perencanaan', 1, 1, 0, 0, 0, 'EDITOR', 5],
+        ['view-revisi-monitoring', 'Monitoring Siklus Dokumen', 'folder-perencanaan', 1, 1, 1, 1, 0, 'VIEWER', 6],
+        ['view-siklus', 'Pusat Siklus Dokumen', 'folder-perencanaan', 1, 1, 1, 1, 1, 'VIEWER', 7],
+        ['view-rekap-perencanaan', 'Rekap Perencanaan Anggaran', 'folder-rekap', 1, 0, 0, 0, 1, 'VIEWER', 8],
+        ['view-rekap-pelaksanaan', 'Rekap Pelaksanaan Anggaran', 'folder-rekap', 1, 0, 0, 0, 1, 'VIEWER', 9],
+        ['view-db-kuantitas', 'Standar Satuan & Kuantitas', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 10],
+        ['view-db-sbm', 'Standar Biaya Masukan (SBM)', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 11],
+        ['view-db-bas', 'Bagan Akun Standar (BAS)', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 12],
+        ['view-db-ppk', 'Database PPK (Kecamatan)', 'folder-database', 1, 1, 0, 1, 0, 'VIEWER', 13],
+        ['view-db-pps', 'Database PPS (Desa)', 'folder-database', 1, 1, 0, 1, 0, 'VIEWER', 14],
+        ['view-db-paslon', 'Database Paslon Pilkada', 'folder-database', 1, 1, 0, 1, 0, 'VIEWER', 15],
+        ['view-panduan', 'Panduan Perencanaan', 'folder-panduan', 1, 1, 1, 1, 1, 'VIEWER', 16],
+        ['view-panduan-pelaksanaan', 'Panduan Pelaksanaan', 'folder-panduan', 1, 1, 0, 0, 1, 'VIEWER', 17],
+        ['view-db-regulasi', 'Database Regulasi / JDIH', 'folder-panduan', 1, 1, 1, 1, 1, 'VIEWER', 18],
+        ['view-users', 'Administrasi Pengguna', 'folder-administrasi', 1, 1, 0, 0, 0, 'EDITOR', 19],
+        ['view-penandatangan', 'Pejabat Penandatangan', 'folder-administrasi', 1, 1, 0, 1, 0, 'VIEWER', 20],
+        ['view-db-settings', 'Pengaturan Konfigurasi', 'folder-administrasi', 1, 1, 0, 1, 0, 'VIEWER', 21],
+        ['view-audit', 'Audit Log Aktivitas', 'folder-administrasi', 1, 1, 0, 0, 0, 'VIEWER', 22],
+        ['view-developer', 'Ruang Pengembang DEV', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 23],
+        ['view-dev-push', 'Sinkronisasi Push Produksi', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 24]
+      ];
+      const insertMenuStmt = db.prepare(`
+        INSERT INTO app_menu_matrix (menu_key, menu_label, folder_key, allow_l0, allow_l1, allow_l2, allow_l3, allow_l4, required_mode, urutan, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `);
+      for (const m of seedMenus) {
+        try { insertMenuStmt.run(...m); } catch (e) {}
+      }
+    }
+  } catch (e) {
+    console.warn('[MENU-MATRIX] Inisialisasi seeding matrix:', e.message);
+  }
   safeAddColumn('periode_anggaran', 'pagu_nphd REAL DEFAULT 0');
   safeAddColumn('periode_anggaran', 'created_at TEXT DEFAULT CURRENT_TIMESTAMP');
   safeAddColumn('periode_anggaran', 'updated_at TEXT DEFAULT CURRENT_TIMESTAMP');
@@ -3316,12 +3392,161 @@ function commitStagedRkbOps(periodeId, ops = [], options = {}, actorUser = null)
 // AUTH & USER MANAGEMENT
 // ============================================================================
 
+function getUserRoles(userId) {
+  try {
+    const rows = db.prepare('SELECT id, user_id, level, pic, mode_akses, is_default, label_peran, created_at FROM satker_user_roles WHERE user_id = ? ORDER BY is_default DESC, level ASC, id ASC').all(userId) || [];
+    return rows.map(r => ({
+      id: Number(r.id),
+      user_id: Number(r.user_id),
+      level: Number(r.level),
+      pic: String(r.pic || 'SEMUA').toUpperCase(),
+      mode_akses: String(r.mode_akses || 'VIEWER').toUpperCase(),
+      is_default: Number(r.is_default) ? 1 : 0,
+      label_peran: r.label_peran || ''
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveUserRoles(userId, roles = []) {
+  if (!userId) return [];
+  try {
+    db.prepare('DELETE FROM satker_user_roles WHERE user_id = ?').run(userId);
+  } catch (e) {}
+
+  if (!Array.isArray(roles) || roles.length === 0) {
+    return [];
+  }
+
+  const insertStmt = db.prepare(`
+    INSERT INTO satker_user_roles (user_id, level, pic, mode_akses, is_default, label_peran)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  const savedRoles = [];
+  roles.forEach((r, idx) => {
+    const lvl = Number(r.level);
+    let pic = (r.pic || 'SEMUA').toUpperCase();
+    if (pic === 'PERENCANAAN') pic = 'RENDATIN';
+    if (pic === 'KEUANGAN') pic = 'KUL';
+    if (pic === 'PARMAS') pic = 'PARSDM';
+    const mode = (r.mode_akses || (lvl === 3 ? 'VIEWER' : 'EDITOR')).toUpperCase();
+    const isDef = (r.is_default !== undefined && Number(r.is_default) === 1) || (idx === 0 && !roles.some(x => Number(x.is_default) === 1)) ? 1 : 0;
+    const label = r.label_peran || '';
+
+    try {
+      const res = insertStmt.run(userId, lvl, pic, mode, isDef, label);
+      savedRoles.push({
+        id: res.lastInsertRowid || idx + 1,
+        user_id: userId,
+        level: lvl,
+        pic,
+        mode_akses: mode,
+        is_default: isDef,
+        label_peran: label
+      });
+    } catch (e) {
+      console.warn('[ROLES] Gagal simpan peran:', e.message);
+    }
+  });
+
+  return savedRoles;
+}
+
+/**
+ * Matriks Hak Akses Menu Dinamis Berbasis Level (0-4)
+ */
+function getMenuMatrix() {
+  try {
+    return db.prepare('SELECT id, menu_key, menu_label, folder_key, allow_l0, allow_l1, allow_l2, allow_l3, allow_l4, required_mode, urutan, is_active FROM app_menu_matrix WHERE is_active = 1 ORDER BY urutan ASC, id ASC').all() || [];
+  } catch (e) {
+    console.warn('[MENU-MATRIX] Gagal ambil matrix:', e.message);
+    return [];
+  }
+}
+
+function saveMenuMatrix(items = []) {
+  if (!Array.isArray(items) || items.length === 0) return getMenuMatrix();
+  const updateStmt = db.prepare(`
+    UPDATE app_menu_matrix 
+    SET allow_l0 = ?, allow_l1 = ?, allow_l2 = ?, allow_l3 = ?, allow_l4 = ?, required_mode = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE menu_key = ?
+  `);
+  items.forEach(item => {
+    try {
+      updateStmt.run(
+        item.allow_l0 ? 1 : 0,
+        item.allow_l1 ? 1 : 0,
+        item.allow_l2 ? 1 : 0,
+        item.allow_l3 ? 1 : 0,
+        item.allow_l4 ? 1 : 0,
+        item.required_mode || 'VIEWER',
+        item.menu_key
+      );
+    } catch (e) {
+      console.warn('[MENU-MATRIX] Gagal update matrix:', item.menu_key, e.message);
+    }
+  });
+  return getMenuMatrix();
+}
+
 function getUsers() {
-  return db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version FROM satker_users ORDER BY level ASC, id ASC').all();
+  const users = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version FROM satker_users ORDER BY level ASC, id ASC').all();
+  try {
+    const allRoles = db.prepare('SELECT id, user_id, level, pic, mode_akses, is_default, label_peran, created_at FROM satker_user_roles ORDER BY is_default DESC, level ASC, id ASC').all() || [];
+    const roleMap = {};
+    for (const r of allRoles) {
+      if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+      roleMap[r.user_id].push({
+        id: Number(r.id),
+        user_id: Number(r.user_id),
+        level: Number(r.level),
+        pic: String(r.pic || 'SEMUA').toUpperCase(),
+        mode_akses: String(r.mode_akses || 'VIEWER').toUpperCase(),
+        is_default: Number(r.is_default) ? 1 : 0,
+        label_peran: r.label_peran || ''
+      });
+    }
+    for (const u of users) {
+      u.roles = roleMap[u.id] || [];
+      if (u.roles.length === 0) {
+        let defaultMode = (u.level === 0 || u.level === 1 || (u.level === 2 && !u.username.startsWith('divisi_'))) ? 'EDITOR' : 'VIEWER';
+        u.roles = [{
+          id: 0,
+          user_id: u.id,
+          level: Number(u.level),
+          pic: u.pic_subbag || 'SEMUA',
+          mode_akses: defaultMode,
+          is_default: 1,
+          label_peran: u.jabatan || u.nama_pejabat
+        }];
+      }
+    }
+  } catch (e) {
+    users.forEach(u => { u.roles = []; });
+  }
+  return users;
 }
 
 function getUserById(id) {
-  return db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version FROM satker_users WHERE id = ?').get(id);
+  const u = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version FROM satker_users WHERE id = ?').get(id);
+  if (u) {
+    u.roles = getUserRoles(u.id);
+    if (u.roles.length === 0) {
+      let defaultMode = (u.level === 0 || u.level === 1 || (u.level === 2 && !u.username.startsWith('divisi_'))) ? 'EDITOR' : 'VIEWER';
+      u.roles = [{
+        id: 0,
+        user_id: u.id,
+        level: Number(u.level),
+        pic: u.pic_subbag || 'SEMUA',
+        mode_akses: defaultMode,
+        is_default: 1,
+        label_peran: u.jabatan || u.nama_pejabat
+      }];
+    }
+  }
+  return u;
 }
 
 function saveUser(userData, actorUser = null) {
@@ -3329,19 +3554,42 @@ function saveUser(userData, actorUser = null) {
   const username = (userData.username || '').trim().toLowerCase();
   const rawPassword = (userData.password || '').trim();
   const nama_pejabat = (userData.nama_pejabat || '').trim();
+  const nip = (userData.nip || '').trim();
   const jabatan = (userData.jabatan || '').trim();
   const email = (userData.email || '').trim().toLowerCase();
-  const role_id = (userData.role_id || 'op_teknis').trim();
-  const level = Number(userData.level) !== undefined ? Number(userData.level) : 2;
-  const pic_subbag = normalizePic(userData.pic_subbag || 'SEMUA');
   const is_active = userData.is_active !== undefined ? (Number(userData.is_active) ? 1 : 0) : 1;
 
   if (!username) throw new Error('Username tidak boleh kosong.');
   if (!id && !rawPassword) throw new Error('Password tidak boleh kosong untuk pengguna baru.');
   if (!nama_pejabat) throw new Error('Nama pejabat / pegawai tidak boleh kosong.');
 
-  const coh = validateUserCoherence({ level, role_id, pic_subbag });
-  if (!coh.valid) throw new Error(coh.error);
+  // Roles processing (3 Komponen: Level, PIC, Mode Akses)
+  let roles = Array.isArray(userData.roles) ? userData.roles : [];
+  if (roles.length === 0) {
+    const lvl = Number(userData.level) !== undefined ? Number(userData.level) : 2;
+    const pic = normalizePic(userData.pic_subbag || 'SEMUA');
+    const mode = lvl === 3 ? 'VIEWER' : (userData.mode_akses || 'EDITOR');
+    roles = [{
+      level: lvl,
+      pic,
+      mode_akses: mode,
+      is_default: 1,
+      label_peran: jabatan || nama_pejabat
+    }];
+  }
+
+  // Tentukan primary role untuk kolom backward-compatible di satker_users
+  const primaryRole = roles.find(r => Number(r.is_default) === 1) || roles[0];
+  const level = Number(primaryRole.level);
+  const pic_subbag = normalizePic(primaryRole.pic);
+  const role_id = (userData.role_id || (level === 0 ? 'developer' : (level === 1 ? 'super_admin' : (level === 3 ? 'pimpinan' : 'operator')))).trim();
+
+  // Validasi peran Level 0 Developer
+  if (roles.some(r => Number(r.level) === 0) && username !== 'emenje') {
+    if (!actorUser || Number(actorUser.level) !== 0) {
+      throw new Error('Hanya Developer yang berwenang menetapkan peran Level 0.');
+    }
+  }
 
   let finalPassword = '';
   if (rawPassword) {
@@ -3370,10 +3618,13 @@ function saveUser(userData, actorUser = null) {
 
     db.prepare(`
       UPDATE satker_users
-      SET username = ?, password = ?, nama_pejabat = ?, jabatan = ?, email = ?, 
+      SET username = ?, password = ?, nama_pejabat = ?, nip = ?, jabatan = ?, email = ?, 
           role_id = ?, level = ?, pic_subbag = ?, is_active = ?, token_version = ?
       WHERE id = ?
-    `).run(username, passToSave, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active, nextTokenVer, id);
+    `).run(username, passToSave, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, nextTokenVer, id);
+
+    // Simpan peran ke satker_user_roles
+    saveUserRoles(id, roles);
 
     recordAuditLog({
       user: actorUser,
@@ -3381,8 +3632,8 @@ function saveUser(userData, actorUser = null) {
       entity: 'satker_users',
       entity_id: id,
       old_values: { username: existing.username, role_id: existing.role_id, level: existing.level, is_active: existing.is_active },
-      new_values: { username, role_id, level, is_active },
-      notes: isSecurityChanged ? 'Data pengguna diubah (sesi lama dicabut).' : 'Data pengguna diperbarui.'
+      new_values: { username, role_id, level, is_active, roles_count: roles.length },
+      notes: isSecurityChanged ? 'Data pengguna & peran diubah (sesi lama dicabut).' : 'Data pengguna & peran diperbarui.'
     });
 
     return getUserById(id);
@@ -3391,20 +3642,23 @@ function saveUser(userData, actorUser = null) {
     if (exist) throw new Error(`Username "${username}" sudah terdaftar.`);
 
     const res = db.prepare(`
-      INSERT INTO satker_users (username, password, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active, token_version)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-    `).run(username, finalPassword, nama_pejabat, jabatan, email, role_id, level, pic_subbag, is_active);
+      INSERT INTO satker_users (username, password, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, token_version)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(username, finalPassword, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active);
+
+    const newId = res.lastInsertRowid;
+    saveUserRoles(newId, roles);
 
     recordAuditLog({
       user: actorUser,
       action: 'CREATE_USER',
       entity: 'satker_users',
-      entity_id: res.lastInsertRowid,
-      new_values: { username, role_id, level, is_active },
-      notes: `Pengguna baru "${username}" dibuat.`
+      entity_id: newId,
+      new_values: { username, role_id, level, is_active, roles_count: roles.length },
+      notes: `Pengguna baru "${username}" dibuat dengan ${roles.length} peran.`
     });
 
-    return getUserById(res.lastInsertRowid);
+    return getUserById(newId);
   }
 }
 
@@ -6461,6 +6715,8 @@ module.exports = {
   bumpRkbVersion,
   previewStagedRkbOps,
   commitStagedRkbOps,
+  getUserRoles,
+  saveUserRoles,
   getUsers,
   getUserById,
   saveUser,
@@ -6532,5 +6788,7 @@ module.exports = {
   getRevisiPengajuanHistory,
   getRevisionCycleStatus,
   checkpointAndSyncDatabase,
+  getMenuMatrix,
+  saveMenuMatrix,
   USE_MYSQL
 };

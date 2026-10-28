@@ -204,7 +204,7 @@ function verifyToken(token, dbInstance = null, options = {}) {
     // 3. Jika koneksi database diberikan, verifikasi integritas status user real-time
     if (dbInstance && payload.id) {
       const dbUser = dbInstance.prepare(`
-        SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag, email, avatar_url, is_active, token_version
+        SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, avatar_url, is_active, token_version
         FROM satker_users
         WHERE id = ?
       `).get(payload.id);
@@ -219,6 +219,34 @@ function verifyToken(token, dbInstance = null, options = {}) {
       const tokenVer = payload.token_version !== undefined ? Number(payload.token_version) : 1;
       if (currentVer !== tokenVer) {
         return null;
+      }
+
+      // Ambil daftar peran multi-kewenangan (satker_user_roles)
+      let userRoles = [];
+      try {
+        userRoles = dbInstance.prepare('SELECT id, user_id, level, pic, mode_akses, is_default, label_peran FROM satker_user_roles WHERE user_id = ? ORDER BY is_default DESC, level ASC, id ASC').all(dbUser.id) || [];
+      } catch (e) {}
+
+      // Fallback peran jika tabel roles kosong
+      if (userRoles.length === 0) {
+        let defaultMode = (Number(dbUser.level) === 0 || Number(dbUser.level) === 1 || (Number(dbUser.level) === 2 && !dbUser.username.startsWith('divisi_'))) ? 'EDITOR' : 'VIEWER';
+        userRoles = [{
+          id: 0,
+          user_id: dbUser.id,
+          level: Number(dbUser.level),
+          pic: dbUser.pic_subbag || 'SEMUA',
+          mode_akses: defaultMode,
+          is_default: 1,
+          label_peran: dbUser.jabatan || dbUser.nama_pejabat
+        }];
+      }
+
+      // Tentukan peran aktif dari payload token atau peran default
+      let activeRole = null;
+      if (payload.active_role && userRoles.some(r => r.id === payload.active_role.id || (r.level === payload.active_role.level && r.pic === payload.active_role.pic))) {
+        activeRole = payload.active_role;
+      } else {
+        activeRole = userRoles.find(r => Number(r.is_default) === 1) || userRoles[0];
       }
 
       // Jika sesi ini berasal dari peran hasil switch pengembang, verifikasi akun pengembang asal wajib Level 0
@@ -242,6 +270,12 @@ function verifyToken(token, dbInstance = null, options = {}) {
 
       return {
         ...dbUser,
+        nip: dbUser.nip || '',
+        roles: userRoles,
+        active_role: activeRole,
+        level: activeRole ? Number(activeRole.level) : Number(dbUser.level),
+        pic_subbag: activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase(),
+        mode_akses: activeRole ? String(activeRole.mode_akses).toUpperCase() : (Number(dbUser.level) === 3 ? 'VIEWER' : 'EDITOR'),
         sid: payload.sid || null,
         iat: payload.iat || null,
         exp: payload.exp || null,
@@ -301,20 +335,33 @@ function canEditRow(user, row, isPeriodeLocked) {
   if (isPeriodeLocked) return false;
 
   // Level 0 (developer): Full access
-  if (user.level === 0) return true;
+  if (Number(user.level) === 0) return true;
 
   // Level 1 (Perencanaan): Full edit RKB
-  if (user.level === 1) return true;
+  if (Number(user.level) === 1) return true;
 
-  // Level 2 (PIC Subbag): Hanya baris PIC miliknya
-  if (user.level === 2) {
+  // Jika hak aksi VIEWER (atau Level 3): Read-Only mutlak
+  if (user.mode_akses === 'VIEWER' || Number(user.level) === 3) return false;
+
+  // Level 2 (PIC Subbag): Hanya baris PIC miliknya yang boleh diedit jika berstatus EDITOR
+  if (Number(user.level) === 2) {
+    if (user.mode_akses && user.mode_akses !== 'EDITOR') return false;
     const userPic = normalizePic(user.pic_subbag);
     const rowPic = normalizePic(row.pic_bagian);
     if (userPic === 'SEMUA') return true;
     return userPic === rowPic;
   }
 
-  // Level 3 (Reviewer / Pejabat): Read-Only
+  // Level 4 (Akses Menu Eksklusif): Read-Only jika VIEWER, atau sesuai PIC jika EDITOR
+  if (Number(user.level) === 4) {
+    if (user.mode_akses !== 'EDITOR') return false;
+    const userPic = normalizePic(user.pic_subbag);
+    const rowPic = normalizePic(row.pic_bagian);
+    if (userPic === 'SEMUA') return true;
+    return userPic === rowPic;
+  }
+
+  // Level 3 & selainnya: Read-Only
   return false;
 }
 
@@ -349,19 +396,33 @@ function canManageUsers(user) {
  * Helper validasi kecocokan level, role_id, dan pic_subbag saat simpan pengguna
  */
 function validateUserCoherence(userData, isCreating = false) {
+  // Jika memiliki array roles (3 Komponen: Level, PIC, Mode Akses)
+  if (Array.isArray(userData.roles) && userData.roles.length > 0) {
+    for (const r of userData.roles) {
+      const lvl = Number(r.level);
+      if (Number.isNaN(lvl) || lvl < 0 || lvl > 4) {
+        return { valid: false, error: 'Level peran tidak valid (harus 0, 1, 2, 3, atau 4).' };
+      }
+      if (lvl === 3 && r.mode_akses && r.mode_akses.toUpperCase() !== 'VIEWER') {
+        return { valid: false, error: 'Pengguna Level 3 (Pimpinan Satker) wajib berstatus VIEWER.' };
+      }
+    }
+    return { valid: true };
+  }
+
   const level = Number(userData.level);
   const roleId = String(userData.role_id || '').trim().toLowerCase();
   const pic = normalizePic(userData.pic_subbag);
 
-  if (Number.isNaN(level) || level < 0 || level > 3) {
-    return { valid: false, error: 'Level pengguna tidak valid (harus 0, 1, 2, atau 3).' };
+  if (Number.isNaN(level) || level < 0 || level > 4) {
+    return { valid: false, error: 'Level pengguna tidak valid (harus 0, 1, 2, 3, atau 4).' };
   }
 
-  if (level === 0 && roleId !== 'developer') {
+  if (level === 0 && roleId !== 'developer' && userData.username !== 'emenje') {
     return { valid: false, error: 'Pengguna Level 0 wajib memiliki role developer.' };
   }
 
-  // Blokir tegas role 'developer' atau 'super_admin' pada akun selain level yang berhak (mencegah privilege escalation L2 -> L0)
+  // Blokir tegas role 'developer' atau 'super_admin' pada akun selain level yang berhak
   if (level !== 0 && roleId === 'developer') {
     return { valid: false, error: 'Role developer hanya diizinkan untuk akun Level 0 (Lead Developer).' };
   }
@@ -378,16 +439,6 @@ function validateUserCoherence(userData, isCreating = false) {
     const validPics = ['RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM', 'KUL'];
     if (!validPics.includes(pic)) {
       return { valid: false, error: `PIC Subbag untuk Level 2 harus salah satu dari: ${validPics.join(', ')}.` };
-    }
-    const validL2Roles = ['op_kul', 'op_teknis', 'op_hukum', 'op_parmas', 'op_parsdm', 'op_perencanaan', 'op_rendatin', 'operator'];
-    if (!validL2Roles.includes(roleId)) {
-      return { valid: false, error: `Role untuk Operator Level 2 harus salah satu dari: ${validL2Roles.join(', ')}.` };
-    }
-  }
-
-  if (level === 3) {
-    if (roleId.startsWith('op_') || roleId === 'operator') {
-      return { valid: false, error: 'Akun Level 3 (Viewer / Komisioner / Sekretaris) tidak boleh menggunakan role Operator.' };
     }
   }
 
