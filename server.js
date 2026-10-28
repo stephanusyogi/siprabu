@@ -225,22 +225,29 @@ setInterval(() => {
   } catch (e) {}
 }, 60 * 1000);
 
-// Auto-backup database berkala (12 jam) dengan proteksi fallback lokal
-const BACKUP_INTERVAL_MS = 12 * 60 * 60 * 1000;
+// Auto-backup database terjadwal (Setiap jam 01:00 dini hari dan jam 13:00 siang WIB)
+let lastAutoBackupHour = -1;
 setInterval(async () => {
   try {
-    const { createDatabaseBackup, executeBackupToGoogleDrive } = require('./src/backup');
-    try {
-      await executeBackupToGoogleDrive(db, 'auto_daemon');
-      console.log('[AUTO-BACKUP] Backup database otomatis berhasil diunggah ke Google Drive.');
-    } catch (gErr) {
-      console.warn('[AUTO-BACKUP] Upload Google Drive dilewati/gagal (' + gErr.message + '), beralih membuat backup lokal...');
-      createDatabaseBackup(db, 'auto_local_fallback');
+    const now = new Date();
+    const wibHour = (now.getUTCHours() + 7) % 24;
+    if ((wibHour === 1 || wibHour === 13) && lastAutoBackupHour !== wibHour) {
+      lastAutoBackupHour = wibHour;
+      const { createDatabaseBackup, executeBackupToGoogleDrive } = require('./src/backup');
+      try {
+        await executeBackupToGoogleDrive(db, 'auto_h' + wibHour);
+        console.log('[AUTO-BACKUP] Backup database otomatis (jam ' + String(wibHour).padStart(2, '0') + ':00 WIB) berhasil diunggah ke Google Drive.');
+      } catch (gErr) {
+        console.warn('[AUTO-BACKUP] Upload Google Drive dilewati/gagal (' + gErr.message + '), beralih membuat backup lokal...');
+        createDatabaseBackup(db, 'auto_local_fallback_h' + wibHour);
+      }
+    } else if (wibHour !== 1 && wibHour !== 13) {
+      lastAutoBackupHour = -1;
     }
   } catch (err) {
     console.warn('[AUTO-BACKUP] Peringatan backup otomatis:', err.message);
   }
-}, BACKUP_INTERVAL_MS);
+}, 60 * 1000);
 
 // MIME types map
 const MIME_TYPES = {
