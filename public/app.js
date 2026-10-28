@@ -127,6 +127,7 @@ const SAKTI_VIEW_TITLES = {
   'view-panduan-pelaksanaan': 'Panduan Pelaksanaan & Pembayaran Anggaran',
   'view-monitoring': 'Executive Real-Time Monitoring',
   'view-users': 'Manajemen Pengguna & Otoritas',
+  'view-penandatangan': 'Pejabat Penandatangan Satker',
   'view-developer': 'Ruang Pengembang & Blueprint PRD',
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
@@ -805,14 +806,37 @@ function applyRolePermissionsToUI() {
     folderDb.style.display = canViewDatabaseMaster(user) ? 'block' : 'none';
   }
 
-  // 3. Akses Menu Manajemen Pengguna & Log Aktivitas: HANYA Level 0 aktif dan Kasubbag Perencanaan (mengikuti batas peran simulasi)
+  // 3. Akses Menu Manajemen Pengguna & Penandatangan (Folder Administrasi)
   const canAccessUserMgmt = Boolean(
     user.level === 0 || 
     (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin'))
   );
+  const canAccessPenandatangan = Boolean(
+    user.level <= 1 || 
+    ['sekretaris', 'viewer_sekretaris', 'ketua_kpu', 'komisioner_rendatin', 'komisioner_teknis', 'komisioner_hukum', 'komisioner_parmas', 'komisioner_kul'].includes(user.role_id) ||
+    ['sekretaris', 'ketua', 'divisi_rendatin', 'divisi_teknis', 'divisi_hukum', 'divisi_parmas', 'divisi_kul'].includes(user.username)
+  );
+
+  const canAccessSettings = canViewDatabaseMaster(user);
+
+  // Folder Administrasi: Muncul untuk Level 0, Level 1, dan Pimpinan (Sekretaris/Ketua/Komisioner).
+  // Disembunyikan sepenuhnya untuk Level 2 (Operator Subbag) agar fokus pada RUH Belanja.
+  const folderAdmin = document.getElementById('folder-administrasi');
+  if (folderAdmin) {
+    folderAdmin.style.display = (canAccessUserMgmt || canAccessPenandatangan || canAccessSettings) ? 'block' : 'none';
+  }
+
   const navUserMgmt = document.getElementById('nav-item-users');
   if (navUserMgmt) {
     navUserMgmt.style.display = canAccessUserMgmt ? 'flex' : 'none';
+  }
+  const navPenandatangan = document.getElementById('nav-item-penandatangan');
+  if (navPenandatangan) {
+    navPenandatangan.style.display = canAccessPenandatangan ? 'flex' : 'none';
+  }
+  const navSettings = document.getElementById('nav-item-settings');
+  if (navSettings) {
+    navSettings.style.display = canAccessSettings ? 'flex' : 'none';
   }
   const navAudit = document.getElementById('nav-item-audit');
   if (navAudit) {
@@ -1822,7 +1846,7 @@ function switchView(viewId, updateHistory = true) {
     // 1. Pusat Siklus Dokumen & Arsip Revisi terbuka Read-Only untuk semua peran terautentikasi (Bab 5 Canon)
 
     // 2. Guard Database Master: Level <= 1 (CRUD) + Sekretaris & Divisi Perencanaan (Read-Only)
-    const isMasterDbView = ['view-db-ppk', 'view-db-pps', 'view-db-paslon', 'view-db-settings', 'view-settings'].includes(viewId);
+    const isMasterDbView = ['view-db-ppk', 'view-db-pps', 'view-db-paslon', 'view-db-settings', 'view-settings', 'view-penandatangan'].includes(viewId);
     if (isMasterDbView && !canViewDatabaseMaster(user)) {
       showToast('Akses ditolak: Menu Master Database hanya untuk Tim Perencanaan, Sekretaris, Divisi Perencanaan & Pengembang.', 'warning');
       switchView('view-dashboard', updateHistory);
@@ -1838,6 +1862,19 @@ function switchView(viewId, updateHistory = true) {
       showToast('Akses ditolak: Menu ini hanya untuk Akun Developer (Level 0) dan Kasubbag Perencanaan (Rendatin).', 'warning');
       switchView('view-dashboard', updateHistory);
       return;
+    }
+
+    if (viewId === 'view-penandatangan') {
+      const canAccessPenandatangan = Boolean(
+        user.level <= 1 || 
+        ['sekretaris', 'viewer_sekretaris', 'ketua_kpu', 'komisioner_rendatin', 'komisioner_teknis', 'komisioner_hukum', 'komisioner_parmas', 'komisioner_kul'].includes(user.role_id) ||
+        ['sekretaris', 'ketua', 'divisi_rendatin', 'divisi_teknis', 'divisi_hukum', 'divisi_parmas', 'divisi_kul'].includes(user.username)
+      );
+      if (!canAccessPenandatangan) {
+        showToast('Akses ditolak: Menu Pejabat Penandatangan khusus untuk Tim Perencanaan dan Pimpinan Satker.', 'warning');
+        switchView('view-dashboard', updateHistory);
+        return;
+      }
     }
 
     // 3b. Guard Ruang Pengembang (Blueprint & PRD): HANYA Akun Developer Aktif (Level 0 / emenje)
@@ -1940,6 +1977,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-panduan-pelaksanaan') { renderPanduanByRole(); }
   else if (viewId === 'view-monitoring') loadMonitoringReport();
   else if (viewId === 'view-users') renderUsersTable();
+  else if (viewId === 'view-penandatangan') loadPenandatanganView();
   else if (viewId === 'view-audit') loadAuditLogsView();
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
   else if (viewId === 'view-rekap-perencanaan') loadRekapView('perencanaan');
@@ -8400,27 +8438,7 @@ function renderSettings() {
   setElVal('set-kode-satker', s.kode_satker);
   setElVal('set-tahun-anggaran', s.tahun_anggaran || '2029');
   setElVal('set-nama-agenda', s.nama_agenda || 'PEMILIHAN BUPATI DAN WAKIL BUPATI NGAWI');
-  setElVal('set-ketua-nama', s.ketua_kpu_nama);
-  setElVal('set-ketua-jabatan', s.ketua_kpu_jabatan || 'Ketua Komisi Pemilihan Umum Kabupaten Ngawi');
-  setElVal('set-kpa-nama', s.kpa_nama);
-  setElVal('set-kpa-nip', s.kpa_nip);
-  setElVal('set-ppkom-nama', s.ppkom_nama);
-  setElVal('set-ppkom-nip', s.ppkom_nip);
-  setElVal('set-bp-nama', s.bendahara_nama || s.bp_nama);
-  setElVal('set-bp-nip', s.bendahara_nip || s.bp_nip || '19850615 200902 2 013');
   setElVal('set-kota-ttd', s.kota_penandatangan || 'NGAWI');
-
-  // Pejabat Penandatangan Dokumen Perencanaan 5 Divisi/Subbagian (Canon Bab 22)
-  const subbagList = AppState.masters.subbagians || [];
-  ['RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM', 'KUL'].forEach(code => {
-    const sub = subbagList.find(item => String(item.kode).toUpperCase() === code);
-    if (sub) {
-      setElVal(`set-kom-nama-${code}`, sub.komisioner_nama || '');
-      setElVal(`set-kom-jab-${code}`, sub.komisioner_jabatan || '');
-      setElVal(`set-kas-nama-${code}`, sub.kasubag_nama || '');
-      setElVal(`set-kas-nip-${code}`, sub.kasubag_nip || '');
-    }
-  });
 
   // Google OAuth Settings
   setElVal('set-google-client-id', s.google_client_id || '');
@@ -8436,39 +8454,15 @@ function renderSettings() {
 }
 
 async function saveSatkerSettings() {
-  const subbag_signatories = {};
-  ['RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM', 'KUL'].forEach(code => {
-    subbag_signatories[code] = {
-      komisioner_nama: document.getElementById(`set-kom-nama-${code}`)?.value || '',
-      komisioner_jabatan: document.getElementById(`set-kom-jab-${code}`)?.value || '',
-      kasubag_nama: document.getElementById(`set-kas-nama-${code}`)?.value || '',
-      kasubag_nip: document.getElementById(`set-kas-nip-${code}`)?.value || ''
-    };
-  });
-
-  const bpNipVal = document.getElementById('set-bp-nip')?.value || '';
-  const bpNamaVal = document.getElementById('set-bp-nama')?.value || '';
-
   const payload = {
     nama_satker: document.getElementById('set-nama-satker')?.value || '',
     kode_satker: document.getElementById('set-kode-satker')?.value || '',
     tahun_anggaran: document.getElementById('set-tahun-anggaran')?.value || '2029',
     nama_agenda: document.getElementById('set-nama-agenda')?.value || '',
-    ketua_kpu_nama: document.getElementById('set-ketua-nama')?.value || '',
-    ketua_kpu_jabatan: document.getElementById('set-ketua-jabatan')?.value || '',
-    kpa_nama: document.getElementById('set-kpa-nama')?.value || '',
-    kpa_nip: document.getElementById('set-kpa-nip')?.value || '',
-    ppkom_nama: document.getElementById('set-ppkom-nama')?.value || '',
-    ppkom_nip: document.getElementById('set-ppkom-nip')?.value || '',
-    bendahara_nama: bpNamaVal,
-    bp_nama: bpNamaVal,
-    bendahara_nip: bpNipVal,
-    bp_nip: bpNipVal,
     kota_penandatangan: document.getElementById('set-kota-ttd')?.value || 'NGAWI',
     google_client_id: document.getElementById('set-google-client-id')?.value || '',
     google_auth_enabled: document.getElementById('set-google-auth-enabled')?.value || '0',
-    google_allowed_domains: document.getElementById('set-google-allowed-domains')?.value || 'kpu.go.id, gmail.com',
-    subbag_signatories
+    google_allowed_domains: document.getElementById('set-google-allowed-domains')?.value || 'kpu.go.id, gmail.com'
   };
 
   try {
@@ -8751,6 +8745,237 @@ async function toggleUserStatusAction(userId) {
     alert('Gagal mengubah status: ' + err.message);
   }
 }
+
+// ============================================================================
+// MODUL ADMINISTRASI: PEJABAT PENANDATANGAN DOKUMEN SATKER (BAB 22 CANON)
+// ============================================================================
+
+AppState.penandatanganList = [];
+AppState.penandatanganFilter = 'ALL';
+AppState.penandatanganSearch = '';
+
+async function loadPenandatanganView() {
+  const tbody = document.getElementById('penandatangan-table-body');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 24px; color: #64748b;">Memuat data pejabat penandatangan...</td></tr>';
+  }
+
+  try {
+    const res = await apiFetch('/api/administrasi/penandatangan');
+    AppState.penandatanganList = res.data || [];
+    renderPenandatanganTable();
+  } catch (err) {
+    if (tbody) {
+      tbody.innerHTML = '<tr' + '><td colspan="9" class="text-center text-danger" style="padding: 24px;">Gagal memuat data: ' + escHtml(err.message) + '</td></tr>';
+    }
+  }
+}
+
+function renderPenandatanganTable(filterKategori = null) {
+  const tbody = document.getElementById('penandatangan-table-body');
+  if (!tbody) return;
+
+  if (filterKategori !== null) {
+    AppState.penandatanganFilter = filterKategori;
+  }
+
+  const activeFilter = AppState.penandatanganFilter || 'ALL';
+  const search = (AppState.penandatanganSearch || '').toLowerCase().trim();
+
+  const tabContainer = document.getElementById('filter-penandatangan-tabs');
+  if (tabContainer) {
+    tabContainer.querySelectorAll('button[data-filter]').forEach(btn => {
+      const isAct = btn.getAttribute('data-filter') === activeFilter;
+      btn.className = isAct ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-primary';
+    });
+  }
+
+  let list = AppState.penandatanganList || [];
+
+  if (activeFilter === 'KEUANGAN_LEMBAGA') {
+    list = list.filter(p => p.kategori === 'LEMBAGA' || p.kategori === 'KEUANGAN');
+  } else if (activeFilter === 'KOMISIONER') {
+    list = list.filter(p => p.kategori === 'KOMISIONER');
+  } else if (activeFilter === 'SUBBAGIAN') {
+    list = list.filter(p => p.kategori === 'SUBBAGIAN');
+  }
+
+  if (search) {
+    list = list.filter(p => {
+      const n = (p.nama_pejabat || '').toLowerCase();
+      const nip = (p.nip || '').toLowerCase();
+      const j = (p.jabatan_penandatangan || '').toLowerCase();
+      const jd = (p.jabatan_dinas || '').toLowerCase();
+      const u = (p.username_terkait || '').toLowerCase();
+      return n.includes(search) || nip.includes(search) || j.includes(search) || jd.includes(search) || u.includes(search);
+    });
+  }
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 24px; color: #64748b;">Tidak ada data penandatangan yang cocok dengan kriteria filter.</td></tr>';
+    return;
+  }
+
+  const currentUser = AppState.currentUser;
+  const canEdit = currentUser && (currentUser.level <= 1 || currentUser.username === 'emenje');
+
+  tbody.innerHTML = list.map((p, idx) => {
+    let katBadge = '';
+    if (p.kategori === 'LEMBAGA') {
+      katBadge = '<span class="badge" style="background:#0f172a; color:#fff;">LEMBAGA</span>';
+    } else if (p.kategori === 'KEUANGAN') {
+      katBadge = '<span class="badge" style="background:#0284c7; color:#fff;">KEUANGAN</span>';
+    } else if (p.kategori === 'KOMISIONER') {
+      katBadge = '<span class="badge" style="background:#7c3aed; color:#fff;">KOMISIONER</span>';
+    } else {
+      katBadge = '<span class="badge" style="background:#059669; color:#fff;">SUBBAGIAN</span>';
+    }
+
+    const linkedUserBadge = p.username_terkait
+      ? '<span class="badge badge-info" style="font-family:var(--font-mono); font-size:11px;">@' + escHtml(p.username_terkait) + '</span>'
+      : '<span style="color:#94a3b8; font-size:11px;">(Lepas)</span>';
+
+    return `
+      <tr>
+        <td class="text-center" style="font-size:11.5px; color:#64748b;">${idx + 1}</td>
+        <td class="text-center">${katBadge}</td>
+        <td>
+          <div style="font-weight:700; color:#0f172a; font-size:12.5px;">${escHtml(p.jabatan_penandatangan)}</div>
+          <div style="font-size:11px; color:#64748b; margin-top:2px;">${escHtml(p.deskripsi || '')}</div>
+        </td>
+        <td><strong style="color:#1e3a8a;">${escHtml(p.nama_pejabat)}</strong></td>
+        <td style="font-family:var(--font-mono); font-size:11.5px;">${escHtml(p.nip || '-')}</td>
+        <td style="font-size:12px; color:#334155;">${escHtml(p.jabatan_dinas || '-')}</td>
+        <td class="text-center">${linkedUserBadge}</td>
+        <td class="text-center">
+          <span class="badge badge-success" style="font-size:10.5px;">Aktif</span>
+        </td>
+        <td class="text-center">
+          ${canEdit ? `
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditPenandatanganModal('${escHtml(p.id)}')" style="padding:2px 8px; font-size:11.5px;">
+              ✏️ Edit
+            </button>
+          ` : '<span style="color:#94a3b8; font-size:11px;">-</span>'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterPenandatanganTable(kategori) {
+  renderPenandatanganTable(kategori);
+}
+
+function handleSearchPenandatangan(val) {
+  AppState.penandatanganSearch = val;
+  renderPenandatanganTable();
+}
+
+function openEditPenandatanganModal(id) {
+  const item = (AppState.penandatanganList || []).find(p => p.id === id);
+  if (!item) return;
+
+  document.getElementById('edit-ttd-id').value = item.id;
+  document.getElementById('edit-ttd-jabatan-label').value = item.jabatan_penandatangan;
+  document.getElementById('edit-ttd-nama').value = item.nama_pejabat === '-' ? '' : item.nama_pejabat;
+  document.getElementById('edit-ttd-nip').value = item.nip === '-' ? '' : item.nip;
+  document.getElementById('edit-ttd-jabatan-dinas').value = item.jabatan_dinas;
+
+  const userSelect = document.getElementById('edit-ttd-user-select');
+  if (userSelect) {
+    const users = AppState.usersList || [];
+    userSelect.innerHTML = '<option value="">-- Tidak Ditautkan ke Akun --</option>' + users.map(u => {
+      const isSel = (item.username_terkait === u.username);
+      return `<option value="${escHtml(u.username)}" ${isSel ? 'selected' : ''}>@${escHtml(u.username)} - ${escHtml(u.nama_pejabat || u.username)} (${escHtml(u.jabatan || 'User')})</option>`;
+    }).join('');
+  }
+
+  const modal = document.getElementById('modal-edit-penandatangan');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeEditPenandatanganModal() {
+  const modal = document.getElementById('modal-edit-penandatangan');
+  if (modal) modal.style.display = 'none';
+}
+
+function handlePenandatanganUserSelect(username) {
+  if (!username) return;
+  const user = (AppState.usersList || []).find(u => u.username === username);
+  if (user && user.nama_pejabat && !user.nama_pejabat.toLowerCase().startsWith('kasubbag') && !user.nama_pejabat.toLowerCase().startsWith('ketua')) {
+    document.getElementById('edit-ttd-nama').value = user.nama_pejabat;
+    if (user.jabatan) {
+      document.getElementById('edit-ttd-jabatan-dinas').value = user.jabatan;
+    }
+  }
+}
+
+async function savePenandatanganModal(e) {
+  if (e) e.preventDefault();
+  const id = document.getElementById('edit-ttd-id').value;
+  const nama = document.getElementById('edit-ttd-nama').value.trim();
+  const nip = document.getElementById('edit-ttd-nip').value.trim();
+  const jabatan = document.getElementById('edit-ttd-jabatan-dinas').value.trim();
+  const username = document.getElementById('edit-ttd-user-select').value;
+
+  const btn = document.getElementById('btn-save-penandatangan');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await apiFetch('/api/administrasi/penandatangan/update', {
+      method: 'POST',
+      body: JSON.stringify({
+        id,
+        nama_pejabat: nama,
+        nip,
+        jabatan_dinas: jabatan,
+        username_terkait: username
+      })
+    });
+
+    showToast(res.message || 'Pejabat penandatangan berhasil diperbarui.', 'success');
+    closeEditPenandatanganModal();
+    await loadPenandatanganView();
+    if (typeof loadUsers === 'function') await loadUsers();
+  } catch (err) {
+    showToast('Gagal menyimpan penandatangan: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function syncPenandatanganToUsers() {
+  if (!confirm('Apakah Anda ingin menyinkronkan profil nama pejabat pada seluruh Akun Pengguna berdasarkan data Pejabat Penandatangan Sah?')) {
+    return;
+  }
+
+  const btn = document.getElementById('btn-sync-penandatangan');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await apiFetch('/api/administrasi/penandatangan/sync-users', {
+      method: 'POST'
+    });
+    showToast(res.message || 'Sinkronisasi berhasil dilakukan.', 'success');
+    await loadPenandatanganView();
+    if (typeof loadUsers === 'function') await loadUsers();
+  } catch (err) {
+    showToast('Gagal sinkronisasi: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Registrasi global
+window.loadPenandatanganView = loadPenandatanganView;
+window.renderPenandatanganTable = renderPenandatanganTable;
+window.filterPenandatanganTable = filterPenandatanganTable;
+window.handleSearchPenandatangan = handleSearchPenandatangan;
+window.openEditPenandatanganModal = openEditPenandatanganModal;
+window.closeEditPenandatanganModal = closeEditPenandatanganModal;
+window.handlePenandatanganUserSelect = handlePenandatanganUserSelect;
+window.savePenandatanganModal = savePenandatanganModal;
+window.syncPenandatanganToUsers = syncPenandatanganToUsers;
 
 // ============================================================================
 // VIEW: RUANG PENGEMBANG & BLUEPRINT PRD ARSITEKTUR (LEAD DEVELOPER ONLY)
@@ -11510,6 +11735,20 @@ function printRekapCostSharingPdf(mode = 'perencanaan') {
         Cakupan PIC: <strong>${escHtml(state.filter_pic)}</strong>
       </div>
       ${clone.innerHTML}
+      
+      <!-- Blok Tanda Tangan Resmi SAKTI Bab 22 -->
+      <div style="margin-top: 36px; display: flex; justify-content: space-between; page-break-inside: avoid;">
+        <div style="width: 45%; text-align: center;">
+          <p style="margin: 0 0 54px 0;">Mengetahui,<br><strong>Ketua Komisi Pemilihan Umum<br>Kabupaten Ngawi</strong></p>
+          <p style="margin: 0; font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'KETUA')?.nama_pejabat) || 'SAMSU MUSTAKIM')}</p>
+        </div>
+        <div style="width: 45%; text-align: center;">
+          <p style="margin: 0 0 54px 0;">Ngawi, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br><strong>Sekretaris KPU Kabupaten Ngawi<br>Selaku Kuasa Pengguna Anggaran (KPA)</strong></p>
+          <p style="margin: 0; font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nama_pejabat) || 'BUDI RAHAYU')}</p>
+          <p style="margin: 0; font-family: monospace; font-size: 11px;">NIP. ${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nip) || '19830503 200902 1 002')}</p>
+        </div>
+      </div>
+      
       <script>window.onload = function() { window.print(); };</script>
     </body>
     </html>

@@ -119,7 +119,10 @@ const {
   getRevisiPengajuanHistory,
   classifyAuditCategory,
   recordAuditLog,
-  getAuditLogs
+  getAuditLogs,
+  getPenandatanganList,
+  updatePenandatangan,
+  syncPenandatanganToUsers
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset, auditRkbIntegrity } = require('./src/calculation');
@@ -668,6 +671,55 @@ const server = http.createServer(async (req, res) => {
       try {
         const result = toggleUserStatus(targetId, currentUser);
         return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // 3b. ADMINISTRASI PEJABAT PENANDATANGAN DOKUMEN SATKER (BAB 22 CANON)
+    if (pathname === '/api/administrasi/penandatangan' && method === 'GET') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      return sendJson(res, 200, { ok: true, data: getPenandatanganList() });
+    }
+
+    if (pathname === '/api/administrasi/penandatangan/update' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!canManageUsers(currentUser) && currentUser.level > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengubahan pejabat penandatangan hanya untuk Perencanaan dan Pengembang.' });
+      }
+
+      const body = await parseJsonBody(req);
+      if (!body.id) return sendJson(res, 400, { error: 'ID Pejabat penandatangan wajib diisi.' });
+
+      try {
+        const updatedList = updatePenandatangan(body.id, body, currentUser);
+        return sendJson(res, 200, {
+          ok: true,
+          message: `Data penandatangan "${body.nama_pejabat || body.id}" berhasil diperbarui.`,
+          data: updatedList
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    if (pathname === '/api/administrasi/penandatangan/sync-users' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!canManageUsers(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Sinkronisasi pengguna hanya untuk Akun Developer dan Kasubbag Perencanaan.' });
+      }
+
+      try {
+        const result = syncPenandatanganToUsers(currentUser);
+        return sendJson(res, 200, {
+          ok: true,
+          message: `Berhasil menyinkronkan profil ${result.updatedCount} akun pengguna dari daftar penandatangan resmi.`,
+          updatedCount: result.updatedCount,
+          data: result.list
+        });
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
       }
@@ -1962,6 +2014,49 @@ const server = http.createServer(async (req, res) => {
       for (let c = 1; c <= 6; c++) {
         totalSasRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
       }
+
+      // Blok Tanda Tangan Resmi Dokumen Rekap (Bab 22 SAKTI)
+      const ttdList = getPenandatanganList();
+      const ketuaTtd = ttdList.find(p => p.id === 'KETUA') || { nama_pejabat: 'SAMSU MUSTAKIM' };
+      const kpaTtd = ttdList.find(p => p.id === 'SEKRETARIS') || { nama_pejabat: 'BUDI RAHAYU', nip: '19830503 200902 1 002' };
+      const tglCetak = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      rIdx += 2;
+      ws1.mergeCells(`B${rIdx}:C${rIdx}`);
+      ws1.getCell(`B${rIdx}`).value = 'Mengetahui,';
+      ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center' };
+
+      ws1.mergeCells(`E${rIdx}:F${rIdx}`);
+      ws1.getCell(`E${rIdx}`).value = `Ngawi, ${tglCetak}`;
+      ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
+
+      rIdx++;
+      ws1.mergeCells(`B${rIdx}:C${rIdx}`);
+      ws1.getCell(`B${rIdx}`).value = 'Ketua Komisi Pemilihan Umum\nKabupaten Ngawi';
+      ws1.getCell(`B${rIdx}`).font = { name: 'Arial', size: 10, bold: true };
+      ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center', wrapText: true };
+
+      ws1.mergeCells(`E${rIdx}:F${rIdx}`);
+      ws1.getCell(`E${rIdx}`).value = 'Sekretaris KPU Kabupaten Ngawi\nSelaku Kuasa Pengguna Anggaran (KPA)';
+      ws1.getCell(`E${rIdx}`).font = { name: 'Arial', size: 10, bold: true };
+      ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center', wrapText: true };
+
+      rIdx += 4;
+      ws1.mergeCells(`B${rIdx}:C${rIdx}`);
+      ws1.getCell(`B${rIdx}`).value = ketuaTtd.nama_pejabat;
+      ws1.getCell(`B${rIdx}`).font = { name: 'Arial', size: 10, bold: true, underline: true };
+      ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center' };
+
+      ws1.mergeCells(`E${rIdx}:F${rIdx}`);
+      ws1.getCell(`E${rIdx}`).value = kpaTtd.nama_pejabat;
+      ws1.getCell(`E${rIdx}`).font = { name: 'Arial', size: 10, bold: true, underline: true };
+      ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
+
+      rIdx++;
+      ws1.mergeCells(`E${rIdx}:F${rIdx}`);
+      ws1.getCell(`E${rIdx}`).value = `NIP. ${kpaTtd.nip}`;
+      ws1.getCell(`E${rIdx}`).font = { name: 'Arial', size: 9 };
+      ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
 
       ws1.columns = [
         { width: 6 },

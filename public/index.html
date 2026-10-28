@@ -276,7 +276,7 @@
             </div>
           </div>
 
-          <!-- 4. DATABASE (3 MASTER PRIMER + PENGATURAN SATKER) -->
+          <!-- 4. DATABASE (3 MASTER WILAYAH & ELEKTORAL) -->
           <div class="sakti-tree-group collapsed" id="folder-database">
             <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-database', event)">
               <span class="sakti-folder-label">
@@ -296,10 +296,6 @@
               <button class="nav-item" data-view="view-db-paslon" onclick="switchView('view-db-paslon')">
                 <span class="icon">🗳️</span>
                 <span class="label">Master Pasangan Calon (Paslon)</span>
-              </button>
-              <button class="nav-item" data-view="view-db-settings" onclick="switchView('view-db-settings')">
-                <span class="icon">⚙️</span>
-                <span class="label">Pengaturan Satker KPU</span>
               </button>
             </div>
           </div>
@@ -324,34 +320,56 @@
             </div>
           </div>
 
-          <!-- 5B. REGULASI & DASAR HUKUM (MENU MANDIRI) -->
+          <!-- 6. ADMINISTRASI (PENGGUNA, PENANDATANGAN & PENGATURAN SATKER) -->
+          <div class="sakti-tree-group collapsed" id="folder-administrasi">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-administrasi', event)">
+              <span class="sakti-folder-label">
+                <span>📁 Administrasi</span>
+              </span>
+              <span class="sakti-chevron">▾</span>
+            </button>
+            <div class="sakti-tree-children">
+              <!-- Pengguna Satker -->
+              <button class="nav-item" data-view="view-users" onclick="switchView('view-users')" id="nav-item-users">
+                <span class="icon">👥</span>
+                <span class="label">Pengguna</span>
+                <span class="badge badge-info badge-sm" id="badge-total-users">15</span>
+              </button>
+              <!-- Pejabat Penandatangan -->
+              <button class="nav-item" data-view="view-penandatangan" onclick="switchView('view-penandatangan')" id="nav-item-penandatangan">
+                <span class="icon">✍️</span>
+                <span class="label">Penandatangan</span>
+                <span class="badge badge-primary badge-sm" id="badge-total-penandatangan">14</span>
+              </button>
+              <!-- Pengaturan Satker KPU -->
+              <button class="nav-item" data-view="view-db-settings" onclick="switchView('view-db-settings')" id="nav-item-settings">
+                <span class="icon">⚙️</span>
+                <span class="label">Pengaturan Satker</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 7. REGULASI & DASAR HUKUM (MENU MANDIRI) -->
           <button class="nav-item" data-view="view-db-regulasi" id="nav-item-regulasi" onclick="switchView('view-db-regulasi')">
             <span class="icon">📜</span>
             <span class="label">Regulasi & Dasar Hukum</span>
           </button>
 
-          <!-- 6. MONITORING UNDUHAN -->
+          <!-- 8. MONITORING UNDUHAN -->
           <button class="nav-item" data-view="view-monitoring" onclick="switchView('view-monitoring')">
             <span class="icon">📥</span>
             <span class="label">Monitoring Unduhan</span>
             <span class="badge badge-success badge-sm" id="badge-monitoring-count">0</span>
           </button>
 
-          <!-- 7. MANAJEMEN USER -->
-          <button class="nav-item" data-view="view-users" onclick="switchView('view-users')" id="nav-item-users">
-            <span class="icon">👥</span>
-            <span class="label">Manajemen User</span>
-            <span class="badge badge-info badge-sm" id="badge-total-users">10</span>
-          </button>
-
-          <!-- 7B. LOG AKTIVITAS (HANYA DEVELOPER & KASUBAG RENDATIN) -->
+          <!-- 9. LOG AKTIVITAS (HANYA DEVELOPER & KASUBAG RENDATIN) -->
           <button class="nav-item" data-view="view-audit" onclick="switchView('view-audit')" id="nav-item-audit" style="display: none;">
             <span class="icon">🛡️</span>
             <span class="label">Log Aktivitas</span>
             <span class="badge badge-primary badge-sm" id="badge-total-audit">0</span>
           </button>
 
-          <!-- 8. RUANG PENGEMBANG (HANYA DEVELOPER) -->
+          <!-- 10. RUANG PENGEMBANG (HANYA DEVELOPER) -->
           <button class="nav-item" data-view="view-developer" onclick="switchView('view-developer')" id="nav-item-developer" style="display: none; background: rgba(15, 23, 42, 0.05); border-left: 3px solid #0f172a; margin-top: 4px;">
             <span class="icon">🛠️</span>
             <span class="label" style="font-weight: 700; color: #0f172a;">Blueprint &amp; PRD</span>
@@ -1976,8 +1994,8 @@
         <section id="view-db-settings" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Pengaturan Satker & Pejabat Penandatangan</h2>
-              <p class="view-desc">Konfigurasi parameter instansi, KPA, PPKom, Bendahara, dan Ketua KPU.</p>
+              <h2 class="view-title">Pengaturan Satker KPU</h2>
+              <p class="view-desc">Konfigurasi parameter identitas lembaga, tahun anggaran, agenda pemilihan, dan integrasi Google SSO.</p>
             </div>
             <div class="header-actions">
               <button class="btn btn-primary" onclick="saveSatkerSettings()" id="btn-simpan-settings">
@@ -2002,201 +2020,34 @@
                   <input type="text" id="set-tahun-anggaran" class="input-text" value="2029">
                 </div>
                 <div class="form-group">
+                  <label>Kota Kedudukan Satker:</label>
+                  <input type="text" id="set-kota-ttd" class="input-text" value="NGAWI">
+                </div>
+                <div class="form-group full-width">
                   <label>Nama Agenda Pemilihan:</label>
                   <input type="text" id="set-nama-agenda" class="input-text" value="PEMILIHAN BUPATI DAN WAKIL BUPATI NGAWI">
                 </div>
 
-                <hr class="form-divider" style="grid-column: 1 / -1;">
-                <h4 style="grid-column: 1 / -1; margin: 6px 0 10px; color: var(--primary); font-size: 14px; font-weight: 700;">
-                  A. Pejabat Penandatangan Lembaga &amp; Pengelola Keuangan Satker (Ketua KPU, Sekretaris/KPA, PPK, BP):
-                </h4>
-
-                <!-- 1. KETUA -->
-                <div class="form-group">
-                  <label>1. Ketua KPU Kabupaten Ngawi:</label>
-                  <input type="text" id="set-ketua-nama" class="input-text" value="SAMSU MUSTAKIM">
-                </div>
-                <div class="form-group">
-                  <label>Jabatan Ketua:</label>
-                  <input type="text" id="set-ketua-jabatan" class="input-text" value="Ketua Komisi Pemilihan Umum Kabupaten Ngawi">
-                </div>
-
-                <!-- 2. SEKRETARIS (KPA) -->
-                <div class="form-group">
-                  <label>2. Sekretaris KPU / Kuasa Pengguna Anggaran (KPA):</label>
-                  <input type="text" id="set-kpa-nama" class="input-text" value="BUDI RAHAYU">
-                </div>
-                <div class="form-group">
-                  <label>NIP Sekretaris (KPA):</label>
-                  <input type="text" id="set-kpa-nip" class="input-text" value="19830503 200902 1 002">
-                </div>
-
-                <!-- 3. PPK (PPKom) -->
-                <div class="form-group">
-                  <label>3. Pejabat Pembuat Komitmen (PPK):</label>
-                  <input type="text" id="set-ppkom-nama" class="input-text" value="MOHAMMAD NOOR JIHAN">
-                </div>
-                <div class="form-group">
-                  <label>NIP PPK:</label>
-                  <input type="text" id="set-ppkom-nip" class="input-text" value="19840101 200912 1 001">
-                </div>
-
-                <!-- 4. BP (Bendahara Pengeluaran) -->
-                <div class="form-group">
-                  <label>4. Bendahara Pengeluaran (BP):</label>
-                  <input type="text" id="set-bp-nama" class="input-text" value="IMAS MAESAROH">
-                </div>
-                <div class="form-group">
-                  <label>NIP BP:</label>
-                  <input type="text" id="set-bp-nip" class="input-text" value="19850615 200902 2 013">
-                </div>
-
-                <!-- KOTA TTD -->
-                <div class="form-group full-width">
-                  <label>Kota Penandatanganan:</label>
-                  <input type="text" id="set-kota-ttd" class="input-text" value="NGAWI">
-                </div>
-
-                <hr class="form-divider" style="grid-column: 1 / -1;">
-                <div class="form-group full-width" style="margin-bottom: 4px;">
-                  <h4 style="margin: 4px 0 6px; color: var(--primary); font-size: 14px; font-weight: 700;">
-                    B. Pejabat Penandatangan Dokumen Perencanaan (Sesuai Canon Blueprint Bab 22):
-                  </h4>
-                  <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #1e3a8a; line-height: 1.5;">
-                    <strong>Ketentuan Blok Penandatangan Canon Blueprint Bab 22:</strong><br>
-                    1. <strong>Perencanaan Divisi (Pengajuan RKB Divisi):</strong> Ditandatangani oleh <strong>Ketua Divisi</strong> (Komisioner Pengampu) dan <strong>Kasubbag terkait</strong>.<br>
-                    2. <strong>Pengesahan Pleno (RKB Lembaga Tahap 4):</strong> Ditandatangani oleh <strong>Ketua KPU bersama 4 Anggota KPU lainnya</strong>.<br>
-                    3. <strong>Pengusulan, Pelaporan, dan Arsip Lembaga:</strong> Ditandatangani oleh <strong>Ketua KPU saja</strong>.
-                  </div>
-                </div>
-
-                <!-- DIVISI 1: RENDATIN -->
-                <div class="form-group full-width" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0284c7; border-radius: 8px; padding: 12px;">
-                  <div style="font-weight: 800; font-size: 12.5px; color: #0369a1; margin-bottom: 8px;">
-                    1. Divisi / Subbagian Perencanaan, Data dan Informasi (RENDATIN)
-                  </div>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Ketua Divisi Rendatin (Anggota KPU):</label>
-                      <input type="text" id="set-kom-nama-RENDATIN" class="input-text" value="PUTRA ADI WIBOWO SW">
+                <!-- CALLOUT SHORTCUT PENANDATANGAN -->
+                <div class="form-group full-width" style="margin-top: 10px;">
+                  <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 260px;">
+                      <div style="font-weight: 700; color: #166534; font-size: 13.5px; display: flex; align-items: center; gap: 6px;">
+                        <span>✍️ Pejabat Penandatangan Resmi (KPA, PPK, BP, Komisioner &amp; Kasubbag)</span>
+                      </div>
+                      <p style="font-size: 12px; color: #15803d; margin: 4px 0 0 0; line-height: 1.5;">
+                        Untuk menghindari duplikasi dan menjaga integritas data, pengelolaan seluruh pejabat penandatangan, NIP, jabatan, dan sinkronisasi akun kini dipusatkan di menu <strong>Administrasi &rarr; Penandatangan</strong>.
+                      </p>
                     </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Jabatan Ketua Divisi Rendatin:</label>
-                      <input type="text" id="set-kom-jab-RENDATIN" class="input-text" value="Ketua Divisi Perencanaan, Data dan Informasi">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Kepala Subbagian (Kasubbag) Rendatin:</label>
-                      <input type="text" id="set-kas-nama-RENDATIN" class="input-text" value="MOHAMMAD NOOR JIHAN">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">NIP Kasubbag Rendatin:</label>
-                      <input type="text" id="set-kas-nip-RENDATIN" class="input-text" value="19840101 200912 1 001">
-                    </div>
-                  </div>
-                </div>
-
-                <!-- DIVISI 2: TEKNIS -->
-                <div class="form-group full-width" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 12px;">
-                  <div style="font-weight: 800; font-size: 12.5px; color: #6d28d9; margin-bottom: 8px;">
-                    2. Divisi / Subbagian Teknis Penyelenggaraan Pemilu (TEKNIS)
-                  </div>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Ketua Divisi Teknis (Anggota KPU):</label>
-                      <input type="text" id="set-kom-nama-TEKNIS" class="input-text" value="MUHAMMAD PRASETYO NUGROHO">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Jabatan Ketua Divisi Teknis:</label>
-                      <input type="text" id="set-kom-jab-TEKNIS" class="input-text" value="Ketua Divisi Teknis Penyelenggaraan Pemilu/Pemilihan">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Kepala Subbagian (Kasubbag) Teknis:</label>
-                      <input type="text" id="set-kas-nama-TEKNIS" class="input-text" value="DWI ARDIANI">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">NIP Kasubbag Teknis:</label>
-                      <input type="text" id="set-kas-nip-TEKNIS" class="input-text" value="19780512 200801 1 015">
-                    </div>
-                  </div>
-                </div>
-
-                <!-- DIVISI 3: HUKUM -->
-                <div class="form-group full-width" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0891b2; border-radius: 8px; padding: 12px;">
-                  <div style="font-weight: 800; font-size: 12.5px; color: #0e7490; margin-bottom: 8px;">
-                    3. Divisi / Subbagian Hukum dan Pengawasan (HUKUM)
-                  </div>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Ketua Divisi Hukum (Anggota KPU):</label>
-                      <input type="text" id="set-kom-nama-HUKUM" class="input-text" value="SUDARSONO">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Jabatan Ketua Divisi Hukum:</label>
-                      <input type="text" id="set-kom-jab-HUKUM" class="input-text" value="Ketua Divisi Hukum dan Pengawasan">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Kepala Subbagian (Kasubbag) Hukum:</label>
-                      <input type="text" id="set-kas-nama-HUKUM" class="input-text" value="DWI ARDIANI">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">NIP Kasubbag Hukum:</label>
-                      <input type="text" id="set-kas-nip-HUKUM" class="input-text" value="19780512 200801 1 015">
-                    </div>
-                  </div>
-                </div>
-
-                <!-- DIVISI 4: PARSDM -->
-                <div class="form-group full-width" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #16a34a; border-radius: 8px; padding: 12px;">
-                  <div style="font-weight: 800; font-size: 12.5px; color: #15803d; margin-bottom: 8px;">
-                    4. Divisi / Subbagian Sosialisasi, Pendidikan Pemilih, Parmas dan SDM (PARSDM)
-                  </div>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Ketua Divisi ParSDM (Anggota KPU):</label>
-                      <input type="text" id="set-kom-nama-PARSDM" class="input-text" value="JEANNI TRIANGGALUH PRAMINTO">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Jabatan Ketua Divisi ParSDM:</label>
-                      <input type="text" id="set-kom-jab-PARSDM" class="input-text" value="Ketua Divisi Sosialisasi, Pendidikan Pemilih, Parmas dan SDM">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Kepala Subbagian (Kasubbag) ParSDM:</label>
-                      <input type="text" id="set-kas-nama-PARSDM" class="input-text" value="DEVI">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">NIP Kasubbag ParSDM:</label>
-                      <input type="text" id="set-kas-nip-PARSDM" class="input-text" value="19810320 200902 2 007">
-                    </div>
-                  </div>
-                </div>
-
-                <!-- DIVISI 5: KUL -->
-                <div class="form-group full-width" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #d97706; border-radius: 8px; padding: 12px;">
-                  <div style="font-weight: 800; font-size: 12.5px; color: #b45309; margin-bottom: 8px;">
-                    5. Divisi / Subbagian Keuangan, Umum, Rumah Tangga dan Logistik (KUL)
-                  </div>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Ketua Divisi KUL (Ketua KPU):</label>
-                      <input type="text" id="set-kom-nama-KUL" class="input-text" value="SAMSU MUSTAKIM">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Jabatan Ketua Divisi KUL:</label>
-                      <input type="text" id="set-kom-jab-KUL" class="input-text" value="Ketua Divisi Keuangan, Umum, Rumah Tangga dan Logistik">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">Kepala Subbagian (Kasubbag) KUL:</label>
-                      <input type="text" id="set-kas-nama-KUL" class="input-text" value="NURFANTI">
-                    </div>
-                    <div>
-                      <label style="font-size: 11.5px; font-weight: 700;">NIP Kasubbag KUL:</label>
-                      <input type="text" id="set-kas-nip-KUL" class="input-text" value="19820914 200902 1 004">
-                    </div>
+                    <button type="button" class="btn" style="background: #16a34a; color: #ffffff; border: none; font-weight: 600; font-size: 12.5px; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="switchView('view-penandatangan')">
+                      <span>✍️ Buka Menu Penandatangan</span>
+                      <span>&rarr;</span>
+                    </button>
                   </div>
                 </div>
 
                 <!-- INTEGRASI GOOGLE SIGN-IN OAUTH 2.0 -->
-                <div class="form-group full-width" style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
+                <div class="form-group full-width" style="margin-top: 16px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
                   <h4 style="font-size: 14.5px; font-weight: 800; color: #0284c7; margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px;">
                     <span>🌐 Integrasi Google Sign-In (OAuth 2.0)</span>
                   </h4>
@@ -2208,7 +2059,7 @@
                   <label>Google OAuth Client ID:</label>
                   <input type="text" id="set-google-client-id" class="input-text" placeholder="Contoh: 1234567890-abcdefgh.apps.googleusercontent.com">
                   <small style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block;">
-                    Diperoleh dari <strong>Google Cloud Console</strong> (APIs & Services ➔ Credentials ➔ OAuth 2.0 Client ID).
+                    Diperoleh dari <strong>Google Cloud Console</strong> (APIs &amp; Services ➔ Credentials ➔ OAuth 2.0 Client ID).
                   </small>
                 </div>
                 <div class="form-group">
@@ -3056,6 +2907,138 @@
             </div>
           </div>
         </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW: ADMINISTRASI PEJABAT PENANDATANGAN DOKUMEN SATKER (BAB 22) -->
+        <!-- ================================================================= -->
+        <section id="view-penandatangan" class="app-view">
+          <div class="view-header">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>✍️ MODUL ADMINISTRASI SATKER 657811</span>
+              </div>
+              <h2 class="view-title">Pejabat Penandatangan Dokumen Satker</h2>
+              <p class="view-desc">
+                Daftar pejabat yang sah dan berwenang menandatangani dokumen perencanaan (RKB), lembar pengesahan BA Pleno (Tahap 4), berita acara revisi, dan pengelola perbendaharaan KPU Kabupaten Ngawi.
+              </p>
+            </div>
+            <div class="header-actions" style="display:flex; gap:8px; align-items:center;">
+              <button type="button" class="btn btn-outline-primary" onclick="syncPenandatanganToUsers()" id="btn-sync-penandatangan" style="display:inline-flex; align-items:center; gap:6px;">
+                <span>🔄 Sinkronkan Profil Pengguna</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- KOTAK INFORMASI REGULASI PENANDATANGAN -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:10px; padding:14px 18px; margin-bottom:20px; line-height:1.5;">
+            <div style="font-weight:700; font-size:13px; color:#1e3a8a; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+              <span>📜 Standar Tata Kelola Blok Penandatangan Dokumen (SAKTI &amp; Bab 22 Blueprint):</span>
+            </div>
+            <div style="font-size:12px; color:#2563eb; display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:10px; margin-top:8px;">
+              <div style="background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #dbeafe;">
+                <strong>1. Pengesahan Pleno &amp; Lembaga:</strong><br>
+                Ketua KPU bersama 4 Anggota Komisioner (RKB Tahap 4 &amp; Berita Acara Pleno).
+              </div>
+              <div style="background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #dbeafe;">
+                <strong>2. Pengelola Keuangan &amp; SPBy:</strong><br>
+                Sekretaris KPU (KPA), Pejabat Pembuat Komitmen (PPK), dan Bendahara Pengeluaran (BP).
+              </div>
+              <div style="background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #dbeafe;">
+                <strong>3. Pengusulan Subbagian (PIC):</strong><br>
+                Ketua Divisi Pengampu bersama Kepala Subbagian pelaksana terkait.
+              </div>
+            </div>
+          </div>
+
+          <!-- BILAH FILTER & PENCARIAN PENANDATANGAN -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;" id="filter-penandatangan-tabs">
+              <button type="button" class="btn btn-sm btn-primary" data-filter="ALL" onclick="filterPenandatanganTable('ALL')">Semua Penandatangan (14)</button>
+              <button type="button" class="btn btn-sm btn-outline-primary" data-filter="KEUANGAN_LEMBAGA" onclick="filterPenandatanganTable('KEUANGAN_LEMBAGA')">Keuangan &amp; Lembaga (4)</button>
+              <button type="button" class="btn btn-sm btn-outline-primary" data-filter="KOMISIONER" onclick="filterPenandatanganTable('KOMISIONER')">Komisioner / Kadiv (5)</button>
+              <button type="button" class="btn btn-sm btn-outline-primary" data-filter="SUBBAGIAN" onclick="filterPenandatanganTable('SUBBAGIAN')">Kasubbag Pelaksana (5)</button>
+            </div>
+            <div style="min-width:260px;">
+              <input type="text" id="search-penandatangan" class="input-text" placeholder="🔍 Cari nama, NIP, atau jabatan..." oninput="handleSearchPenandatangan(this.value)" style="margin:0; padding:6px 12px; font-size:12.5px;">
+            </div>
+          </div>
+
+          <!-- TABEL PEJABAT PENANDATANGAN -->
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" id="table-penandatangan" style="margin-bottom:0;">
+                <thead>
+                  <tr style="background:#f1f5f9;">
+                    <th style="width:45px; text-align:center;">No</th>
+                    <th style="width:130px; text-align:center;">Kategori</th>
+                    <th>Jabatan Penandatangan Dokumen</th>
+                    <th>Nama Pejabat Sah</th>
+                    <th style="width:190px;">NIP</th>
+                    <th>Jabatan Kedinasan</th>
+                    <th style="width:130px; text-align:center;">Akun Terkait</th>
+                    <th style="width:90px; text-align:center;">Status</th>
+                    <th style="width:80px; text-align:center;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="penandatangan-table-body">
+                  <tr>
+                    <td colspan="9" class="text-center" style="padding: 24px; color: #64748b;">Memuat data pejabat penandatangan...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODAL EDIT PEJABAT PENANDATANGAN -->
+        <div id="modal-edit-penandatangan" class="modal-backdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
+          <div style="background:#fff; border-radius:12px; max-width:550px; width:92%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); overflow:hidden;">
+            <div style="background:#1e293b; color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px;">
+                <span>✍️ Edit Pejabat Penandatangan</span>
+              </div>
+              <button type="button" onclick="closeEditPenandatanganModal()" style="background:transparent; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px;">
+              <form id="form-edit-penandatangan" onsubmit="savePenandatanganModal(event)">
+                <input type="hidden" id="edit-ttd-id">
+                
+                <div class="form-group" style="margin-bottom:12px;">
+                  <label style="font-size:12px; font-weight:700; color:#475569;">Jabatan Penandatangan Dokumen:</label>
+                  <input type="text" id="edit-ttd-jabatan-label" class="input-text" readonly style="background:#f1f5f9; font-weight:700; color:#1e293b;">
+                </div>
+
+                <div class="form-group" style="margin-bottom:12px;">
+                  <label style="font-size:12px; font-weight:700; color:#475569;">Tautkan ke Akun Pengguna (Single Source of Truth):</label>
+                  <select id="edit-ttd-user-select" class="input-text" onchange="handlePenandatanganUserSelect(this.value)">
+                    <option value="">-- Tidak Ditautkan ke Akun --</option>
+                  </select>
+                  <small style="color:#64748b; font-size:11px;">Memilih akun pengguna akan otomatis mengisi dan menyelaraskan profil nama pejabat.</small>
+                </div>
+
+                <div class="form-group" style="margin-bottom:12px;">
+                  <label style="font-size:12px; font-weight:700; color:#475569;">Nama Pejabat (Lengkap dengan Gelar):</label>
+                  <input type="text" id="edit-ttd-nama" class="input-text" required placeholder="Contoh: SAMSU MUSTAKIM">
+                </div>
+
+                <div class="form-group" style="margin-bottom:12px;">
+                  <label style="font-size:12px; font-weight:700; color:#475569;">NIP (Nomor Induk Pegawai):</label>
+                  <input type="text" id="edit-ttd-nip" class="input-text" placeholder="Contoh: 19840101 200912 1 001 atau - jika Komisioner">
+                </div>
+
+                <div class="form-group" style="margin-bottom:16px;">
+                  <label style="font-size:12px; font-weight:700; color:#475569;">Jabatan Struktural / Dinas:</label>
+                  <input type="text" id="edit-ttd-jabatan-dinas" class="input-text" required placeholder="Contoh: Kasubbag Perencanaan, Data dan Informasi">
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px;">
+                  <button type="button" class="btn btn-outline-secondary" onclick="closeEditPenandatanganModal()">Batal</button>
+                  <button type="submit" class="btn btn-primary" id="btn-save-penandatangan">💾 Simpan Perubahan</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
 
         <!-- ================================================================= -->
         <!-- VIEW: LOG AKTIVITAS & REKAM JEJAK AUDIT (DEV & KASUBAG RENDATIN)   -->

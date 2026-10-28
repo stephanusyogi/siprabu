@@ -45,7 +45,8 @@ if (!isMainThread) {
     }
 
     // 4. Escape kata kunci reservasi MySQL `key` (terutama tabel settings_satker)
-    s = s.replace(/(\b(?:WHERE|SET|SELECT|AND|OR|,|\()\s*)key(\s*(?:=|<|>|IN|LIKE|,|\)))/gi, '$1`key`$2');
+    s = s.replace(/(\bsettings_satker\s*\(\s*)key(\s*,)/gi, '$1`key`$2');
+    s = s.replace(/(?<=\b(?:WHERE|SET|SELECT|AND|OR)\s+)key(?=\s*(?:=|<|>|\bIN\b|\bLIKE\b|,|\)))/gi, '`key`');
 
     // 5. Translasi sintaks fungsi agregasi & waktu SQLite -> MySQL
     s = s.replace(/GROUP_CONCAT\(([^,]+),\s*['"]([^'"]+)['"]\)/gi, "GROUP_CONCAT($1 SEPARATOR '$2')");

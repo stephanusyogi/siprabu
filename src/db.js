@@ -3632,7 +3632,7 @@ function deleteRegulasi(id, actorUser = null) {
 }
 
 function updateSettings(settingsObj, actorUser = null) {
-  const stmt = db.prepare('INSERT OR REPLACE INTO settings_satker (key, value) VALUES (?, ?)');
+  const stmt = db.prepare('INSERT OR REPLACE INTO settings_satker (`key`, value) VALUES (?, ?)');
   const updSubbag = db.prepare(`
     UPDATE master_subbagian
     SET komisioner_nama = COALESCE(?, komisioner_nama),
@@ -3683,6 +3683,253 @@ function updateSettings(settingsObj, actorUser = null) {
   });
 
   return getMasters().settings;
+}
+
+function getPenandatanganList() {
+  const settingsRows = db.prepare('SELECT `key`, value FROM settings_satker').all();
+  const settings = {};
+  settingsRows.forEach(r => { settings[r.key] = r.value; });
+
+  const subbags = db.prepare('SELECT * FROM master_subbagian ORDER BY id ASC').all();
+  const users = db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag FROM satker_users').all();
+
+  const userMap = {};
+  users.forEach(u => { userMap[u.username] = u; });
+
+  const list = [
+    // 1. KETUA KPU
+    {
+      id: 'KETUA',
+      urutan: 1,
+      kategori: 'LEMBAGA',
+      kategori_label: 'Pimpinan Lembaga',
+      kode_jabatan: 'KETUA_KPU',
+      jabatan_penandatangan: 'Ketua KPU Kabupaten Ngawi',
+      nama_pejabat: settings.ketua_nama || 'SAMSU MUSTAKIM',
+      nip: '-',
+      jabatan_dinas: settings.ketua_jabatan || 'Ketua Komisi Pemilihan Umum Kabupaten Ngawi',
+      username_terkait: 'ketua',
+      user_id: userMap['ketua']?.id || null,
+      status: 'AKTIF',
+      deskripsi: 'Menandatangani Berita Acara Pleno, RKB Lembaga, dan NPHD Induk.'
+    },
+    // 2. SEKRETARIS (KPA)
+    {
+      id: 'SEKRETARIS',
+      urutan: 2,
+      kategori: 'KEUANGAN',
+      kategori_label: 'Pengelola Keuangan & Perbendaharaan',
+      kode_jabatan: 'SEKRETARIS_KPA',
+      jabatan_penandatangan: 'Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)',
+      nama_pejabat: settings.kpa_nama || 'BUDI RAHAYU',
+      nip: settings.kpa_nip || '19830503 200902 1 002',
+      jabatan_dinas: settings.kpa_jabatan || 'Sekretaris Komisi Pemilihan Umum Kabupaten Ngawi',
+      username_terkait: 'sekretaris',
+      user_id: userMap['sekretaris']?.id || null,
+      status: 'AKTIF',
+      deskripsi: 'Penanggung jawab eksekusi DIPA/NPHD dan pengesahan komitmen anggaran.'
+    },
+    // 3. PPK
+    {
+      id: 'PPK',
+      urutan: 3,
+      kategori: 'KEUANGAN',
+      kategori_label: 'Pengelola Keuangan & Perbendaharaan',
+      kode_jabatan: 'PPK',
+      jabatan_penandatangan: 'Pejabat Pembuat Komitmen (PPK)',
+      nama_pejabat: settings.ppkom_nama || 'MOHAMMAD NOOR JIHAN',
+      nip: settings.ppkom_nip || '19840101 200912 1 001',
+      jabatan_dinas: settings.ppkom_jabatan || 'Kasubbag Perencanaan, Data dan Informasi',
+      username_terkait: 'perencanaan',
+      user_id: userMap['perencanaan']?.id || null,
+      status: 'AKTIF',
+      deskripsi: 'Pejabat penguji tagihan, penerbit perikatan/kontrak, dan validasi perintah bayar (SPBy).'
+    },
+    // 4. BENDAHARA PENGELUARAN
+    {
+      id: 'BENDAHARA',
+      urutan: 4,
+      kategori: 'KEUANGAN',
+      kategori_label: 'Pengelola Keuangan & Perbendaharaan',
+      kode_jabatan: 'BENDAHARA',
+      jabatan_penandatangan: 'Bendahara Pengeluaran (BP)',
+      nama_pejabat: settings.bp_nama || settings.bendahara_nama || 'IMAS MAESAROH',
+      nip: settings.bp_nip || settings.bendahara_nip || '19850615 200902 2 013',
+      jabatan_dinas: settings.bp_jabatan || settings.bendahara_jabatan || 'Bendahara Pengeluaran KPU Kabupaten Ngawi',
+      username_terkait: 'bp_ngawi',
+      user_id: userMap['bp_ngawi']?.id || userMap['op_kul']?.id || null,
+      status: 'AKTIF',
+      deskripsi: 'Pengelola Uang Persediaan (UP/GUP/TUP/LS) dan verifikasi bukti pengeluaran kuitansi.'
+    }
+  ];
+
+  let uIdx = 5;
+  const divOrder = ['RENDATIN', 'TEKNIS', 'PARSDM', 'KUL', 'HUKUM'];
+  const userDivMap = {
+    RENDATIN: 'divisi_rendatin',
+    TEKNIS: 'divisi_teknis',
+    PARSDM: 'divisi_parmas',
+    KUL: 'divisi_kul',
+    HUKUM: 'divisi_hukum'
+  };
+  const userKasMap = {
+    RENDATIN: 'perencanaan',
+    TEKNIS: 'teknis',
+    PARSDM: 'parmas',
+    KUL: 'kul',
+    HUKUM: 'hukum'
+  };
+
+  // 5 Komisioner Divisi
+  divOrder.forEach(k => {
+    const sbg = subbags.find(s => s.kode === k) || {};
+    const uName = userDivMap[k];
+    list.push({
+      id: `KOM_${k}`,
+      urutan: uIdx++,
+      kategori: 'KOMISIONER',
+      kategori_label: 'Komisioner / Ketua Divisi',
+      kode_jabatan: `KOM_${k}`,
+      jabatan_penandatangan: `Ketua Divisi ${sbg.nama || k}`,
+      nama_pejabat: sbg.komisioner_nama || '-',
+      nip: '-',
+      jabatan_dinas: sbg.komisioner_jabatan || `Ketua Divisi ${sbg.nama || k}`,
+      username_terkait: uName,
+      user_id: userMap[uName]?.id || null,
+      status: 'AKTIF',
+      subbag_kode: k,
+      deskripsi: `Pengampu kebijakan dan penandatangan pengajuan RKB Divisi ${k}.`
+    });
+  });
+
+  // 5 Kasubbag Subbagian
+  divOrder.forEach(k => {
+    const sbg = subbags.find(s => s.kode === k) || {};
+    const uName = userKasMap[k];
+    list.push({
+      id: `KAS_${k}`,
+      urutan: uIdx++,
+      kategori: 'SUBBAGIAN',
+      kategori_label: 'Kepala Subbagian Pelaksana',
+      kode_jabatan: `KAS_${k}`,
+      jabatan_penandatangan: `Kepala Subbagian ${sbg.nama || k}`,
+      nama_pejabat: sbg.kasubag_nama || '-',
+      nip: sbg.kasubag_nip || '-',
+      jabatan_dinas: sbg.kasubag_jabatan || `Kepala Subbagian ${sbg.nama || k}`,
+      username_terkait: uName,
+      user_id: userMap[uName]?.id || null,
+      status: 'AKTIF',
+      subbag_kode: k,
+      deskripsi: `Pelaksana teknis operasional dan verifikator draf usulan RKB ${k}.`
+    });
+  });
+
+  return list;
+}
+
+function updatePenandatangan(id, data, actorUser = null) {
+  const nama = String(data.nama_pejabat || '').trim();
+  const nip = String(data.nip || '').trim();
+  const jabatan = String(data.jabatan_dinas || '').trim();
+  const username = String(data.username_terkait || '').trim();
+
+  if (!nama) {
+    throw new Error('Nama Pejabat wajib diisi.');
+  }
+
+  const stmtSet = db.prepare('INSERT OR REPLACE INTO settings_satker (`key`, value) VALUES (?, ?)');
+
+  if (id === 'KETUA') {
+    stmtSet.run('ketua_nama', nama);
+    if (jabatan) stmtSet.run('ketua_jabatan', jabatan);
+  } else if (id === 'SEKRETARIS') {
+    stmtSet.run('kpa_nama', nama);
+    stmtSet.run('kpa_nip', nip);
+    if (jabatan) stmtSet.run('kpa_jabatan', jabatan);
+  } else if (id === 'PPK') {
+    stmtSet.run('ppkom_nama', nama);
+    stmtSet.run('ppkom_nip', nip);
+    if (jabatan) stmtSet.run('ppkom_jabatan', jabatan);
+  } else if (id === 'BENDAHARA') {
+    stmtSet.run('bp_nama', nama);
+    stmtSet.run('bp_nip', nip);
+    stmtSet.run('bendahara_nama', nama);
+    stmtSet.run('bendahara_nip', nip);
+    if (jabatan) {
+      stmtSet.run('bp_jabatan', jabatan);
+      stmtSet.run('bendahara_jabatan', jabatan);
+    }
+  } else if (id.startsWith('KOM_')) {
+    const subCode = id.replace('KOM_', '');
+    db.prepare(`
+      UPDATE master_subbagian
+      SET komisioner_nama = ?, komisioner_jabatan = COALESCE(NULLIF(?, ''), komisioner_jabatan)
+      WHERE kode = ?
+    `).run(nama, jabatan, subCode);
+  } else if (id.startsWith('KAS_')) {
+    const subCode = id.replace('KAS_', '');
+    db.prepare(`
+      UPDATE master_subbagian
+      SET kasubag_nama = ?, kasubag_nip = ?, kasubag_jabatan = COALESCE(NULLIF(?, ''), kasubag_jabatan)
+      WHERE kode = ?
+    `).run(nama, nip, jabatan, subCode);
+  }
+
+  // Jika username_terkait ditentukan, update juga data satker_users agar sinkron!
+  if (username) {
+    try {
+      db.prepare(`
+        UPDATE satker_users
+        SET nama_pejabat = ?, jabatan = COALESCE(NULLIF(?, ''), jabatan)
+        WHERE username = ?
+      `).run(nama, jabatan, username);
+    } catch (e) {}
+  }
+
+  try {
+    const { clearRkbDatasetCache } = require('./calculation');
+    clearRkbDatasetCache();
+  } catch (e) {}
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'UPDATE_PENANDATANGAN',
+    entity: 'settings_satker',
+    entity_id: id,
+    new_values: { id, nama_pejabat: nama, nip, jabatan_dinas: jabatan, username_terkait: username },
+    notes: `Pejabat Penandatangan "${nama}" (${id}) diperbarui.`
+  });
+
+  return getPenandatanganList();
+}
+
+function syncPenandatanganToUsers(actorUser = null) {
+  const list = getPenandatanganList();
+  let updatedCount = 0;
+
+  const updStmt = db.prepare(`
+    UPDATE satker_users
+    SET nama_pejabat = ?, jabatan = COALESCE(NULLIF(?, ''), jabatan)
+    WHERE username = ?
+  `);
+
+  list.forEach(p => {
+    if (p.username_terkait && p.nama_pejabat && p.nama_pejabat !== '-') {
+      try {
+        const res = updStmt.run(p.nama_pejabat, p.jabatan_dinas, p.username_terkait);
+        if (res && res.changes > 0) updatedCount++;
+      } catch (e) {}
+    }
+  });
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'SYNC_USERS_PENANDATANGAN',
+    entity: 'satker_users',
+    notes: `Sinkronisasi massal profil pengguna dari master penandatangan (${updatedCount} akun diperbarui).`
+  });
+
+  return { success: true, updatedCount, list };
 }
 
 function normalizeJalurPaslon(ket, partai = '') {
@@ -6223,6 +6470,9 @@ module.exports = {
   authenticateGoogleUser,
   getMasters,
   updateSettings,
+  getPenandatanganList,
+  updatePenandatangan,
+  syncPenandatanganToUsers,
   syncPrimaryKuantitas,
   syncRkbReferenceLinks,
   getKuantitasList,
