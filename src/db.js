@@ -525,6 +525,7 @@ function initDb() {
   safeAddColumn('periode_anggaran', 'rkb_final_link TEXT DEFAULT ""');
   safeAddColumn('periode_anggaran', 'kak_gabungan_link TEXT DEFAULT ""');
   safeAddColumn('periode_anggaran', 'verifikasi_manual_tahap4 INTEGER DEFAULT 0');
+  safeAddColumn('rab_baris', 'sbm_id INTEGER DEFAULT NULL');
 
   // Proteksi Tipe Kolom Unit & Var MySQL agar variabel SSOT tersimpan sebagai string (bukan terpotong jadi 0)
   if (USE_MYSQL) {
@@ -837,6 +838,14 @@ function initDb() {
 
   // Buat snapshot beku untuk arsip lama yang belum memiliki snapshot
   freezeExistingLockedPeriods();
+
+  // Auto-binding massal variabel SSOT & SBM untuk RKB draft tidak terkunci
+  try {
+    autoBindRabVariables();
+    autoBindRabSbm();
+  } catch (e) {
+    console.warn('[AUTO-BIND] Gagal auto-binding saat startup:', e.message);
+  }
 }
 
 /**
@@ -1360,7 +1369,7 @@ initDb();
 function getPeriodeList() {
   const periodes = db.prepare(`
     SELECT p.*,
-      COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id AND row_type != 'header'), 0) as total_items,
+      COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id AND row_type != \'header\'), 0) as total_items,
       COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id), 0) as total_baris
     FROM periode_anggaran p
     ORDER BY p.id ASC
@@ -2140,6 +2149,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
         label_pengali_adhoc = ?,
         satuan_vol = ?,
         harga_satuan = ?,
+        sbm_id = ?,
         pic_bagian = ?,
         sifat_biaya = ?,
         jenis_biaya = ?,
@@ -2174,6 +2184,7 @@ function saveRabRow(row, actorUser = null, options = {}) {
       isHeader ? '' : (row.label_pengali_adhoc !== undefined ? row.label_pengali_adhoc : (existing.label_pengali_adhoc || '')),
       isHeader ? '' : (row.satuan_vol !== undefined ? row.satuan_vol : (existing.satuan_vol || '')),
       harga,
+      isHeader ? null : (row.sbm_id !== undefined ? (row.sbm_id ? Number(row.sbm_id) : null) : (existing.sbm_id || null)),
       row.pic_bagian || existing.pic_bagian,
       row.sifat_biaya || existing.sifat_biaya,
       row.jenis_biaya || existing.jenis_biaya,
@@ -2330,20 +2341,20 @@ function saveRabRow(row, actorUser = null, options = {}) {
       INSERT INTO rab_baris (
         periode_id, urutan, row_type, kode, uraian, level_indent, target_scope, kode_akun,
         f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var,
-        basis_pengali, label_pengali_kab, label_pengali_adhoc, satuan_vol, harga_satuan,
+        basis_pengali, label_pengali_kab, label_pengali_adhoc, satuan_vol, harga_satuan, sbm_id,
         pic_bagian, sifat_biaya, jenis_biaya, blokir_rm, selalu_tampil_print, parent_rkb_row_id,
         catatan_revisi_baris, cost_sharing
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
         ?, ?
       )
     `).run(
       row.periode_id, urutan, effectiveRowType, row.kode || '', cleanUraian, effectiveLevelIndent, row.target_scope || 'KAB', row.kode_akun || '521211',
       f1, row.f1_unit || '', row.f1_var || '', f2, row.f2_unit || '', row.f2_var || '', f3, row.f3_unit || '', row.f3_var || '', f4, row.f4_unit || '', row.f4_var || '',
-      row.basis_pengali || 'NONE', row.label_pengali_kab || '', row.label_pengali_adhoc || '', row.satuan_vol || row.vol_satuan || '', harga,
+      row.basis_pengali || 'NONE', row.label_pengali_kab || '', row.label_pengali_adhoc || '', row.satuan_vol || row.vol_satuan || '', harga, (isHeader ? null : (row.sbm_id ? Number(row.sbm_id) : null)),
       row.pic_bagian || 'KUL', row.sifat_biaya || 'NON_OPERASIONAL', row.jenis_biaya || 'LANGSUNG', row.blokir_rm || 0, row.selalu_tampil_print || 0, row.parent_rkb_row_id || null,
       row.catatan_revisi_baris || '',
       (row.cost_sharing && String(row.cost_sharing).toUpperCase().trim() === 'PROVINSI') ? 'PROVINSI' : 'KABUPATEN'
@@ -2772,8 +2783,8 @@ function clearRabRows(periodeId) {
  */
 function autoBindRabVariables(targetPeriodeId = null) {
   const query = targetPeriodeId 
-    ? 'SELECT id, periode_id, uraian, target_scope, label_pengali_adhoc, f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var FROM rab_baris WHERE periode_id = ? AND level_indent = 4 AND row_type != "header"'
-    : 'SELECT r.id, r.periode_id, r.uraian, r.target_scope, r.label_pengali_adhoc, r.f1_val, r.f1_unit, r.f1_var, r.f2_val, r.f2_unit, r.f2_var, r.f3_val, r.f3_unit, r.f3_var, r.f4_val, r.f4_unit, r.f4_var FROM rab_baris r JOIN periode_anggaran p ON r.periode_id = p.id WHERE p.is_locked = 0 AND r.level_indent = 4 AND r.row_type != "header"';
+    ? 'SELECT id, periode_id, uraian, target_scope, label_pengali_adhoc, f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var FROM rab_baris WHERE periode_id = ? AND level_indent = 4 AND row_type != \'header\''
+    : 'SELECT r.id, r.periode_id, r.uraian, r.target_scope, r.label_pengali_adhoc, r.f1_val, r.f1_unit, r.f1_var, r.f2_val, r.f2_unit, r.f2_var, r.f3_val, r.f3_unit, r.f3_var, r.f4_val, r.f4_unit, r.f4_var FROM rab_baris r JOIN periode_anggaran p ON r.periode_id = p.id WHERE p.is_locked = 0 AND r.level_indent = 4 AND r.row_type != \'header\'';
 
   const rows = targetPeriodeId ? db.prepare(query).all(targetPeriodeId) : db.prepare(query).all();
   let updatedCount = 0;
@@ -2864,6 +2875,130 @@ function autoBindRabVariables(targetPeriodeId = null) {
         updates.f4_var, updates.f4_unit,
         r.id
       );
+      updatedCount++;
+    }
+  }
+
+  if (updatedCount > 0) {
+    try {
+      const { clearRkbDatasetCache } = require('./calculation');
+      if (typeof clearRkbDatasetCache === 'function') {
+        if (targetPeriodeId) clearRkbDatasetCache(targetPeriodeId);
+        else clearRkbDatasetCache();
+      }
+    } catch (e) {}
+  }
+
+  return updatedCount;
+}
+
+
+/**
+ * Mencocokkan rincian belanja dengan Master SBM secara cerdas
+ */
+function findMatchingSbm(r, sbms) {
+  const u = (r.uraian || '').toLowerCase().replace(/^[-.\s]+/, '').trim();
+  const scope = (r.target_scope || '').toUpperCase();
+
+  for (const s of sbms) {
+    const su = s.uraian.toLowerCase().trim();
+
+    // 1. Honorarium Adhoc
+    if (/honorarium ketua ppk|honor ketua ppk/i.test(u) && /ketua ppk/i.test(su)) return s;
+    if (/honorarium anggota ppk|honor anggota ppk/i.test(u) && /anggota ppk/i.test(su)) return s;
+    if (/honorarium sekretaris ppk|honor sekretaris ppk/i.test(u) && /sekretaris ppk/i.test(su)) return s;
+    if (/(staf sekretariat ppk|staf pelaksana.*ppk|staf administrasi.*ppk)/i.test(u) && /staf pelaksana sekretariat ppk/i.test(su)) return s;
+
+    if (/honorarium ketua pps|honor ketua pps/i.test(u) && !/peserta/i.test(u) && /ketua pps/i.test(su)) return s;
+    if (/honorarium anggota pps|honor anggota pps/i.test(u) && /anggota pps/i.test(su)) return s;
+    if (/honorarium sekretaris pps|honor sekretaris pps/i.test(u) && /sekretaris pps/i.test(su)) return s;
+    if (/(staf sekretariat pps|staf pelaksana.*pps)/i.test(u) && /staf pelaksana sekretariat pps/i.test(su)) return s;
+
+    if (/honor.*pantarlih/i.test(u) && /pantarlih/i.test(su)) return s;
+    if (/honor.*ketua kpps/i.test(u) && /ketua kpps \(pilkada\)/i.test(su)) return s;
+    if (/honor.*anggota kpps/i.test(u) && /anggota kpps \(pilkada\)/i.test(su)) return s;
+    if (/honor.*(linmas|ketertiban tps)/i.test(u) && /linmas/i.test(su)) return s;
+
+    // 2. Pokja
+    if (/pengarah pokja/i.test(u) && /pengarah pokja/i.test(su)) return s;
+    if (/penanggung jawab pokja/i.test(u) && /penanggung jawab pokja/i.test(su)) return s;
+    if (/ketua pokja/i.test(u) && /ketua pokja/i.test(su)) return s;
+    if (/sekretaris pokja/i.test(u) && /sekretaris pokja/i.test(su)) return s;
+    if (/anggota pokja/i.test(u) && /anggota pokja/i.test(su)) return s;
+
+    // 3. Konsumsi
+    if (/makan\s*(&|\+|dan)\s*snack/i.test(u) || /konsumsi.*(makan & snack|makan dan snack)/i.test(u)) {
+      if ((scope === 'PPK' || /ppk|kecamatan/i.test(u)) && s.id === 5) return s;
+      if ((scope === 'PPS' || /pps|desa/i.test(u)) && s.id === 8) return s;
+      if ((scope === 'KAB' || !/ppk|kecamatan|pps|desa/i.test(u)) && s.id === 2) return s;
+    }
+
+    if (/snack|kudapan/i.test(u) && !/makan/i.test(u)) {
+      if ((scope === 'PPK' || /ppk|kecamatan/i.test(u)) && s.id === 7) return s;
+      if ((scope === 'PPS' || /pps|desa/i.test(u)) && s.id === 10) return s;
+      if ((scope === 'KAB' || !/ppk|kecamatan|pps|desa/i.test(u)) && s.id === 4) return s;
+    }
+
+    if (/makan/i.test(u) && !/snack/i.test(u)) {
+      if ((scope === 'PPK' || /ppk|kecamatan/i.test(u)) && s.id === 6) return s;
+      if ((scope === 'PPS' || /pps|desa/i.test(u)) && s.id === 9) return s;
+      if ((scope === 'KAB' || !/ppk|kecamatan|pps|desa/i.test(u)) && s.id === 3) return s;
+    }
+
+    // 4. Transport & Sewa
+    if (/transport.*ppk ke kpu/i.test(u) && s.id === 40) return s;
+    if (/transport.*ppk ke pps/i.test(u) && s.id === 41) return s;
+    if (/transport.*pps ke ppk/i.test(u) && s.id === 42) return s;
+    if (/(internet|wifi).*ppk/i.test(u) && s.id === 43) return s;
+    if (/distribusi.*ppk ke pps/i.test(u) && s.id === 44) return s;
+    if (/distribusi.*pps ke tps/i.test(u) && s.id === 45) return s;
+    if (/bende/i.test(u) && s.id === 64) return s;
+    if (/honor.*narasumber.*eselon 3/i.test(u) && s.id === 65) return s;
+    if (/honor.*moderator/i.test(u) && s.id === 66) return s;
+    if (/transport.*peserta.*desa/i.test(u) && s.id === 67) return s;
+  }
+  return null;
+}
+
+/**
+ * Melakukan auto-binding massal harga satuan SBM pada tabel rab_baris untuk dokumen tidak terkunci
+ */
+function autoBindRabSbm(targetPeriodeId = null) {
+  let sbmList = [];
+  try {
+    sbmList = db.prepare('SELECT id, kode_akun, kategori, uraian, satuan, harga_satuan FROM master_sbm').all();
+  } catch (e) {
+    return 0;
+  }
+  if (!sbmList || sbmList.length === 0) return 0;
+
+  const query = targetPeriodeId
+    ? 'SELECT r.id, r.periode_id, r.uraian, r.target_scope, r.kode_akun, r.satuan_vol, r.harga_satuan, r.sbm_id FROM rab_baris r WHERE r.periode_id = ? AND r.level_indent = 4 AND r.row_type != \'header\''
+    : 'SELECT r.id, r.periode_id, r.uraian, r.target_scope, r.kode_akun, r.satuan_vol, r.harga_satuan, r.sbm_id FROM rab_baris r JOIN periode_anggaran p ON r.periode_id = p.id WHERE p.is_locked = 0 AND r.level_indent = 4 AND r.row_type != \'header\'';
+
+  const rows = targetPeriodeId ? db.prepare(query).all(targetPeriodeId) : db.prepare(query).all();
+  let updatedCount = 0;
+
+  const updateStmt = db.prepare('UPDATE rab_baris SET sbm_id = ? WHERE id = ?');
+  const updateWithPriceStmt = db.prepare('UPDATE rab_baris SET sbm_id = ?, harga_satuan = ? WHERE id = ?');
+
+  for (const r of rows) {
+    if (r.sbm_id) {
+      const matched = sbmList.find(s => s.id === Number(r.sbm_id));
+      if (matched && Number(r.harga_satuan) !== Number(matched.harga_satuan)) {
+        updateWithPriceStmt.run(matched.id, matched.harga_satuan, r.id);
+        updatedCount++;
+      }
+      continue;
+    }
+
+    const match = findMatchingSbm(r, sbmList);
+    if (match) {
+      if (Number(r.harga_satuan) === 0) {
+        updateWithPriceStmt.run(match.id, match.harga_satuan, r.id);
+      } else {
+        updateStmt.run(match.id, r.id);
+      }
       updatedCount++;
     }
   }
@@ -5285,6 +5420,18 @@ function saveSbm(data, actorUser = null) {
       SET kode_akun = ?, kategori = ?, uraian = ?, satuan = ?, harga_satuan = ?, keterangan = ?, pagu_sbm = ?, jenis_regulasi = ?, dasar_hukum = ?
       WHERE id = ?
     `).run(kode_akun, kategori, uraian, satuan, harga, ket, pagu, regulasi, dasar, id);
+    // Auto-sync ke seluruh baris RKB draft yang terikat ke SBM ini (Hanya RKB tidak terkunci)
+    try {
+      db.prepare(`
+        UPDATE rab_baris
+        SET harga_satuan = ?
+        WHERE sbm_id = ?
+          AND periode_id IN (SELECT id FROM periode_anggaran WHERE is_locked = 0)
+      `).run(harga, id);
+      const { clearRkbDatasetCache } = require('./calculation');
+      if (typeof clearRkbDatasetCache === 'function') clearRkbDatasetCache();
+    } catch (e) {}
+
     recordAuditLog({
       user: actorUser,
       action: 'UPDATE_SBM',
@@ -5422,6 +5569,11 @@ function bulkUpsertSbm(rows, options = {}) {
     new_values: { inserted: wouldInsert.length, updated: wouldUpdate.length, total_processed: wouldInsert.length + wouldUpdate.length },
     notes: `Impor massal SBM: ${wouldInsert.length} baru, ${wouldUpdate.length} diperbarui.`
   });
+  try {
+    autoBindRabSbm();
+    const { clearRkbDatasetCache } = require('./calculation');
+    if (typeof clearRkbDatasetCache === 'function') clearRkbDatasetCache();
+  } catch (e) {}
 
   return { success: true, processed: wouldInsert.length + wouldUpdate.length, inserted: wouldInsert.length, updated: wouldUpdate.length };
 }
@@ -6757,7 +6909,7 @@ function getRevisionCycleStatus(periodeId = null) {
 function getArsipRevisiList() {
   const periodes = db.prepare(`
     SELECT p.*,
-      COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id AND row_type != 'header'), 0) as total_items,
+      COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id AND row_type != \'header\'), 0) as total_items,
       COALESCE((SELECT COUNT(*) FROM rab_baris WHERE periode_id = p.id), 0) as total_baris,
       (SELECT snapshot_data FROM periode_snapshot WHERE periode_id = p.id) as snapshot_data
     FROM periode_anggaran p
@@ -6922,5 +7074,6 @@ module.exports = {
   getMenuMatrix,
   saveMenuMatrix,
   autoBindRabVariables,
+  autoBindRabSbm,
   USE_MYSQL
 };

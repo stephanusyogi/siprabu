@@ -10,6 +10,16 @@ const { parseIndonesianNumber } = require('./number_util');
 // Cache memori internal wilayah & kuantitas
 let cachedWilayah = null;
 let cachedKuantitas = null;
+let cachedSbmMap = null;
+
+function getSbmMap() {
+  const map = new Map();
+  try {
+    const rows = db.prepare('SELECT id, kode_akun, kategori, uraian, satuan, harga_satuan FROM master_sbm').all();
+    for (const r of rows) map.set(Number(r.id), r);
+  } catch (e) {}
+  return map;
+}
 
 function getWilayahData() {
   const variabels = db.prepare('SELECT * FROM master_variabel ORDER BY id').all();
@@ -485,7 +495,16 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
 
   const volume = baseFactor * mult;
   const hargaParsed = parseIndonesianNumber(r.harga_satuan);
-  const harga = (hargaParsed !== null && hargaParsed >= 0) ? hargaParsed : 0;
+  let harga = (hargaParsed !== null && hargaParsed >= 0) ? hargaParsed : 0;
+
+  if (r.sbm_id) {
+    if (!cachedSbmMap) cachedSbmMap = getSbmMap();
+    const matchedSbm = cachedSbmMap.get(Number(r.sbm_id));
+    if (matchedSbm && Number(matchedSbm.harga_satuan) > 0) {
+      harga = Number(matchedSbm.harga_satuan);
+    }
+  }
+
   const total = volume * harga;
 
   return {
@@ -495,7 +514,8 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
     parts,
     formulaText: parts.join(' x ') || '-',
     harga_satuan: harga,
-    total_anggaran: total
+    total_anggaran: total,
+    sbm_id: r.sbm_id ? Number(r.sbm_id) : null
   };
 }
 
@@ -1096,6 +1116,7 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
 function clearRkbDatasetCache(periodeId = null) {
   cachedWilayah = null;
   cachedKuantitas = null;
+  cachedSbmMap = null;
   if (periodeId !== null && periodeId !== undefined) {
     datasetCache.delete(Number(periodeId));
   } else {

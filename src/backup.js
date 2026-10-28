@@ -416,7 +416,238 @@ function convertMysqlDumpToSqlite(mysqlDumpText, targetSqlitePath) {
   return true;
 }
 
+
+// ============================================================================
+// GOOGLE DRIVE CLOUD AUTO-BACKUP MODULE (NATIVE NODE.JS - ZERO DEPENDENCY)
+// Mendukung:
+// 1. OAuth 2.0 User Token (Opsi B - Menggunakan Kuota 15GB+ Akun Pribadi)
+// 2. Service Account JWT RS256 (Opsi A - Shared Drive / Workspace)
+// ============================================================================
+
+const crypto = require('crypto');
+
+const DATA_DIR_PATH = path.resolve(__dirname, '..', 'data');
+const GDRIVE_OAUTH_FILE = process.env.GDRIVE_OAUTH_PATH || path.join(DATA_DIR_PATH, 'gdrive_oauth.json');
+const GDRIVE_SA_KEY_FILE = process.env.GDRIVE_KEY_PATH || path.join(DATA_DIR_PATH, 'siprabu-512318-8fdb26db96c4.json');
+const DEFAULT_GDRIVE_FOLDER_ID = process.env.GDRIVE_FOLDER_ID || '1n0Br1SqX2Tl4lI0HP3faRr68ZnZB97oQ';
+
+let cachedDriveToken = null;
+let driveTokenExpiresAt = 0;
+
+/**
+ * Mendapatkan Access Token Google Drive:
+ * Prioritas 1: OAuth 2.0 Refresh Token (Opsi B - Milik Pengguna/15GB+)
+ * Prioritas 2: Service Account JWT RS256 (Opsi A - Shared Drive)
+ */
+async function getGoogleDriveAccessToken() {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedDriveToken && driveTokenExpiresAt > now + 300) {
+    return cachedDriveToken;
+  }
+
+  // 1. Coba OAuth 2.0 User Token terlebih dahulu (Opsi B)
+  if (fs.existsSync(GDRIVE_OAUTH_FILE)) {
+    try {
+      const oauthData = JSON.parse(fs.readFileSync(GDRIVE_OAUTH_FILE, 'utf8'));
+      if (oauthData.refresh_token && oauthData.client_id && oauthData.client_secret) {
+        const res = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: oauthData.client_id,
+            client_secret: oauthData.client_secret,
+            refresh_token: oauthData.refresh_token,
+            grant_type: 'refresh_token'
+          })
+        });
+        const tokenRes = await res.json();
+        if (tokenRes.access_token) {
+          cachedDriveToken = tokenRes.access_token;
+          driveTokenExpiresAt = now + (tokenRes.expires_in || 3600);
+          return cachedDriveToken;
+        } else {
+          console.warn('[GDRIVE-OAUTH] Refresh token gagal:', tokenRes);
+        }
+      }
+    } catch (err) {
+      console.warn('[GDRIVE-OAUTH] Peringatan pembacaan gdrive_oauth.json:', err.message);
+    }
+  }
+
+  // 2. Fallback ke Service Account JWT RS256 (Opsi A)
+  if (!fs.existsSync(GDRIVE_SA_KEY_FILE)) {
+    throw new Error(`Kredensial Google Drive tidak ditemukan. Siapkan ${path.basename(GDRIVE_OAUTH_FILE)} (OAuth B) atau ${path.basename(GDRIVE_SA_KEY_FILE)} (Service Account).`);
+  }
+
+  const key = JSON.parse(fs.readFileSync(GDRIVE_SA_KEY_FILE, 'utf8'));
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    iss: key.client_email,
+    scope: 'https://www.googleapis.com/auth/drive',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  };
+
+  const toB64Url = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
+  const unsignedToken = `${toB64Url(header)}.${toB64Url(payload)}`;
+
+  const sign = crypto.createSign('RSA-SHA256');
+  sign.update(unsignedToken);
+  const signature = sign.sign(key.private_key, 'base64url');
+  const jwt = `${unsignedToken}.${signature}`;
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Gagal otentikasi Google Service Account: ${data.error_description || JSON.stringify(data)}`);
+  }
+
+  cachedDriveToken = data.access_token;
+  driveTokenExpiresAt = now + (data.expires_in || 3600);
+  return cachedDriveToken;
+}
+
+/**
+ * Mengunggah berkas backup (.sql atau .sqlite) ke Google Drive
+ */
+async function uploadBackupToGoogleDrive(filePath, options = {}) {
+  const folderId = options.folderId || DEFAULT_GDRIVE_FOLDER_ID;
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Berkas backup tidak ditemukan: ${filePath}`);
+  }
+
+  const token = await getGoogleDriveAccessToken();
+  const fileName = options.filename || path.basename(filePath);
+  const fileBuffer = fs.readFileSync(filePath);
+
+  const boundary = '-------SIPRABU' + Date.now();
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelimiter = `\r\n--${boundary}--`;
+
+  const metadata = {
+    name: fileName,
+    parents: [folderId]
+  };
+
+  const metadataPart = `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`;
+  const mediaHeader = `${delimiter}Content-Type: application/octet-stream\r\n\r\n`;
+
+  const bodyBuffer = Buffer.concat([
+    Buffer.from(metadataPart, 'utf8'),
+    Buffer.from(mediaHeader, 'utf8'),
+    fileBuffer,
+    Buffer.from(closeDelimiter, 'utf8')
+  ]);
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,size,createdTime,webViewLink', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+      'Content-Length': String(bodyBuffer.length)
+    },
+    body: bodyBuffer
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    if (data.error && data.error.message && data.error.message.includes('storage quota')) {
+      throw new Error(`[GDRIVE-QUOTA] Google Drive menolak unggahan service account pada folder Gmail pribadi (kuota 0 bytes). Silakan selesaikan setup OAuth2 (node scripts/gdrive_oauth_setup.js) agar upload menggunakan kuota akun pribadi.`);
+    }
+    throw new Error(`Gagal upload Google Drive: ${data.error?.message || JSON.stringify(data)}`);
+  }
+
+  // Terapkan retensi cloud (simpan 10 backup terakhir di GDrive)
+  try {
+    await applyGoogleDriveRetention(folderId, options.retention || 10);
+  } catch (e) {
+    console.warn('[GDRIVE] Gagal membersihkan retensi cloud:', e.message);
+  }
+
+  return {
+    success: true,
+    fileId: data.id,
+    name: data.name,
+    sizeBytes: Number(data.size || fileBuffer.length),
+    createdTime: data.createdTime || new Date().toISOString(),
+    webViewLink: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`
+  };
+}
+
+/**
+ * Membaca daftar berkas backup yang tersimpan di Google Drive
+ */
+async function listGoogleDriveBackups(folderId = DEFAULT_GDRIVE_FOLDER_ID) {
+  const token = await getGoogleDriveAccessToken();
+  const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy=createdTime+desc&fields=files(id,name,size,createdTime,webViewLink)`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Gagal membaca daftar Google Drive: ${data.error?.message || JSON.stringify(data)}`);
+  }
+  return data.files || [];
+}
+
+/**
+ * Menghapus berkas lama di Google Drive jika melebihi batas retensi
+ */
+async function applyGoogleDriveRetention(folderId = DEFAULT_GDRIVE_FOLDER_ID, keepCount = 10) {
+  const files = await listGoogleDriveBackups(folderId);
+  if (files.length <= keepCount) return 0;
+
+  const token = await getGoogleDriveAccessToken();
+  const toDelete = files.slice(keepCount);
+  let deletedCount = 0;
+
+  for (const f of toDelete) {
+    try {
+      const delRes = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?supportsAllDrives=true`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (delRes.ok) deletedCount++;
+    } catch (e) {}
+  }
+  return deletedCount;
+}
+
+/**
+ * Eksekusi One-Stop: Buat backup lokal & langsung unggah ke Google Drive
+ */
+async function executeBackupToGoogleDrive(dbInstance = null, label = 'cloud_auto') {
+  const localRes = createDatabaseBackup(dbInstance, label);
+  const gdriveRes = await uploadBackupToGoogleDrive(localRes.backupPath, {
+    filename: localRes.filename
+  });
+
+  return {
+    success: true,
+    engine: localRes.engine,
+    filename: localRes.filename,
+    localPath: localRes.backupPath,
+    sizeBytes: localRes.sizeBytes,
+    gdrive: gdriveRes
+  };
+}
+
 module.exports = {
+  getGoogleDriveAccessToken,
+  uploadBackupToGoogleDrive,
+  listGoogleDriveBackups,
+  applyGoogleDriveRetention,
+  executeBackupToGoogleDrive,
   convertMysqlDumpToSqlite,
   createDatabaseBackup,
   createBackup: createDatabaseBackup,

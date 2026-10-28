@@ -4451,6 +4451,7 @@ function openRowModal(rowId, event) {
   updateAkunCardDisplay(row.kode_akun || '521211');
 
   setElVal('modal-harga', row.harga_satuan || 0);
+  setModalSbmDisplay(row.sbm_id || null, row.harga_satuan);
   setElVal('modal-f1-val', row.f1_val !== null ? row.f1_val : '');
   setElVal('modal-f1-unit', row.f1_unit || '');
   setElVal('modal-f2-val', row.f2_val !== null ? row.f2_val : '');
@@ -4614,6 +4615,7 @@ function openAddRowModal() {
   populateFactorVarSelects();
 
   setElVal('modal-harga', 0);
+  setModalSbmDisplay(null);
   setElVal('modal-f1-val', 1);
   setElVal('modal-f1-unit', 'Keg');
   setElVal('modal-f1-var', '');
@@ -4789,6 +4791,7 @@ async function submitRowForm() {
     cost_sharing: document.getElementById('modal-cost-sharing-prov')?.checked ? 'PROVINSI' : 'KABUPATEN',
     kode_akun: document.getElementById('modal-akun')?.value || '521211',
     harga_satuan: isHeaderMode ? 0 : (Number(document.getElementById('modal-harga')?.value) || 0),
+    sbm_id: isHeaderMode ? null : (document.getElementById('modal-sbm-id')?.value ? Number(document.getElementById('modal-sbm-id').value) : null),
     f1_val: isHeaderMode ? null : (document.getElementById('modal-f1-val')?.value ? Number(document.getElementById('modal-f1-val').value) : null),
     f1_unit: isHeaderMode ? '' : (document.getElementById('modal-f1-unit')?.value || ''),
     f1_var: isHeaderMode ? '' : (document.getElementById('modal-f1-var')?.value || ''),
@@ -6251,6 +6254,7 @@ function applySbmRate(sbmId) {
 
   // 1. Set Harga Satuan
   setElVal('modal-harga', item.harga_satuan || 0);
+  setModalSbmDisplay(item.id, item.harga_satuan, item.uraian);
 
   // 2. Set Satuan Total Volume
   setSatuanVolValue(item.satuan || 'Paket');
@@ -12383,3 +12387,35 @@ window.closeAuditDetailModal = closeAuditDetailModal;
 
 
 
+
+function setModalSbmDisplay(sbmId, harga, uraianOpt = null) {
+  const inputEl = document.getElementById('modal-sbm-id');
+  const badgeEl = document.getElementById('modal-sbm-badge');
+  if (inputEl) inputEl.value = sbmId || '';
+  if (!badgeEl) return;
+  
+  if (!sbmId) {
+    badgeEl.style.display = 'none';
+    badgeEl.innerHTML = '';
+    return;
+  }
+  
+  const sbms = AppState.masters?.sbms || [];
+  const s = sbms.find(x => x.id === Number(sbmId));
+  const title = s ? s.uraian : (uraianOpt || 'Standar Biaya Masukan');
+  const tarif = s ? Number(s.harga_satuan) : Number(harga || 0);
+
+  badgeEl.style.display = 'block';
+  badgeEl.innerHTML = `
+    <div style="font-size:11px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; border:1px solid #bfdbfe; display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+      <span>🏷️ SBM SSOT: <strong>${escHtml(title)} (Rp ${tarif.toLocaleString('id-ID')})</strong></span>
+      <span style="font-size:10px; color:#64748b; font-weight:normal;">(Otomatis mengikuti referensi)</span>
+      <button type="button" onclick="unlinkModalSbm()" style="border:none; background:transparent; color:#ef4444; cursor:pointer; font-size:12px; font-weight:bold;" title="Lepas ikatan SBM">✕</button>
+    </div>
+  `;
+}
+
+function unlinkModalSbm() {
+  setModalSbmDisplay(null);
+}
+window.unlinkModalSbm = unlinkModalSbm;

@@ -3542,11 +3542,13 @@
                       <div style="flex:1; position:relative;">
                         <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:800; color:#1e40af; font-size:13.5px;">Rp</span>
                         <input type="number" id="modal-harga" class="input-text" required min="0" step="100" style="padding-left:38px; font-size:15px; font-weight:800; font-family:var(--font-mono); color:#0f172a; height:38px;" oninput="calculateModalTotal()">
+                        <input type="hidden" id="modal-sbm-id">
                       </div>
                       <button type="button" class="btn btn-sm btn-secondary" onclick="openSbmPickerModal()" title="Cari di Standar Biaya Masukan (SBM)" style="height:38px; padding:0 12px; white-space:nowrap;">
                         🏷️ Katalog SBM
                       </button>
                     </div>
+                    <div id="modal-sbm-badge" style="display:none; margin-top:5px;"></div>
                   </div>
 
                   <!-- QUICK CHIPS: SBM RELEVAN SESUAI KODE AKUN BAS -->

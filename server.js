@@ -225,6 +225,23 @@ setInterval(() => {
   } catch (e) {}
 }, 60 * 1000);
 
+// Auto-backup database berkala (12 jam) dengan proteksi fallback lokal
+const BACKUP_INTERVAL_MS = 12 * 60 * 60 * 1000;
+setInterval(async () => {
+  try {
+    const { createDatabaseBackup, executeBackupToGoogleDrive } = require('./src/backup');
+    try {
+      await executeBackupToGoogleDrive(db, 'auto_daemon');
+      console.log('[AUTO-BACKUP] Backup database otomatis berhasil diunggah ke Google Drive.');
+    } catch (gErr) {
+      console.warn('[AUTO-BACKUP] Upload Google Drive dilewati/gagal (' + gErr.message + '), beralih membuat backup lokal...');
+      createDatabaseBackup(db, 'auto_local_fallback');
+    }
+  } catch (err) {
+    console.warn('[AUTO-BACKUP] Peringatan backup otomatis:', err.message);
+  }
+}, BACKUP_INTERVAL_MS);
+
 // MIME types map
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -899,6 +916,61 @@ const server = http.createServer(async (req, res) => {
         return res.end(buf);
       } catch (err) {
         return sendJson(res, 500, { error: 'Gagal mengekspor database: ' + err.message });
+      }
+    }
+
+    // 3b-3. ENDPOINT AUTO-BACKUP DATABASE & GOOGLE DRIVE
+    if (pathname === '/api/backup/run' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser || (currentUser.level !== 0 && currentUser.level !== 1)) {
+        return sendJson(res, 403, { error: 'Hanya Administrator atau Kasubbag Perencanaan/Keuangan yang dapat menjalankan backup.' });
+      }
+      try {
+        const body = await parseJsonBody(req).catch(() => ({}));
+        const mode = body.mode || 'local';
+        const label = body.label || (mode === 'gdrive' ? 'web_gdrive' : 'web_manual');
+        const { createDatabaseBackup, executeBackupToGoogleDrive } = require('./src/backup');
+
+        if (mode === 'gdrive') {
+          const resGdrive = await executeBackupToGoogleDrive(db, label);
+          return sendJson(res, 200, {
+            success: true,
+            message: 'Backup database berhasil dibuat dan diunggah ke Google Drive.',
+            data: resGdrive
+          });
+        } else {
+          const resLocal = createDatabaseBackup(db, label);
+          return sendJson(res, 200, {
+            success: true,
+            message: 'Backup database lokal berhasil dibuat.',
+            data: resLocal
+          });
+        }
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Gagal menjalankan backup: ' + err.message });
+      }
+    }
+
+    if (pathname === '/api/backup/list' && method === 'GET') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      try {
+        const { listBackups, listGoogleDriveBackups } = require('./src/backup');
+        const localList = listBackups();
+        let gdriveList = [];
+        let gdriveError = null;
+        try {
+          gdriveList = await listGoogleDriveBackups();
+        } catch (e) {
+          gdriveError = e.message;
+        }
+        return sendJson(res, 200, {
+          local: localList,
+          gdrive: gdriveList,
+          gdriveError
+        });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Gagal membaca daftar backup: ' + err.message });
       }
     }
 

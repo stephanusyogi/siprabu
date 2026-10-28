@@ -14,6 +14,7 @@ data/*.sqlite.bak
 data/.session_secret
 data/backups/
 data/siprabu.db
+data/*.json
 
 # Template database dasar tetap di-track untuk instalasi baru
 !data/hibah_kpu.sqlite.template
