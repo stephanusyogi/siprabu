@@ -144,6 +144,12 @@
       </div>
 
       <div class="nav-right">
+        <!-- Tombol Monitoring Unduhan di Header Navbar -->
+        <button type="button" class="btn btn-outline btn-sm" onclick="switchView('view-monitoring')" id="nav-btn-monitoring" title="Pusat Monitoring Berkas Unduhan" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-weight: 700; font-size: 12px; border-radius: 8px; cursor: pointer; border-color: var(--border-color); color: var(--text-main);">
+          <span>📥 Unduhan</span>
+          <span class="badge badge-success badge-sm" id="badge-monitoring-count">0</span>
+        </button>
+
         <!-- Quick Switcher Role (Pair Testing / Multi-User) -->
         <div class="user-switcher-container" id="user-switcher-container">
           <label for="user-switcher">Ganti Peran:</label>
@@ -300,7 +306,7 @@
             </div>
           </div>
 
-          <!-- 5. PANDUAN (FOKUS 100% PANDUAN APLIKASI USER) -->
+          <!-- 5. PANDUAN (PEDOMAN PENGGUNA & REGULASI DASAR HUKUM) -->
           <div class="sakti-tree-group collapsed" id="folder-panduan">
             <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-panduan', event)">
               <span class="sakti-folder-label">
@@ -317,10 +323,15 @@
                 <span class="icon">💳</span>
                 <span class="label">Panduan Pelaksanaan</span>
               </button>
+              <!-- Regulasi & Dasar Hukum JDIH KPU -->
+              <button class="nav-item" data-view="view-db-regulasi" id="nav-item-regulasi" onclick="switchView('view-db-regulasi')">
+                <span class="icon">📜</span>
+                <span class="label">Regulasi &amp; Dasar Hukum</span>
+              </button>
             </div>
           </div>
 
-          <!-- 6. ADMINISTRASI (PENGGUNA, PENANDATANGAN & PENGATURAN SATKER) -->
+          <!-- 6. ADMINISTRASI (PENGGUNA, PENANDATANGAN, PENGATURAN & AUDIT LOG) -->
           <div class="sakti-tree-group collapsed" id="folder-administrasi">
             <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-administrasi', event)">
               <span class="sakti-folder-label">
@@ -346,35 +357,38 @@
                 <span class="icon">⚙️</span>
                 <span class="label">Pengaturan Satker</span>
               </button>
+              <!-- Log Aktivitas (Hanya Developer & Kasubbag Perencanaan) -->
+              <button class="nav-item" data-view="view-audit" onclick="switchView('view-audit')" id="nav-item-audit" style="display: none;">
+                <span class="icon">🛡️</span>
+                <span class="label">Log Aktivitas</span>
+                <span class="badge badge-primary badge-sm" id="badge-total-audit">0</span>
+              </button>
             </div>
           </div>
 
-          <!-- 7. REGULASI & DASAR HUKUM (MENU MANDIRI) -->
-          <button class="nav-item" data-view="view-db-regulasi" id="nav-item-regulasi" onclick="switchView('view-db-regulasi')">
-            <span class="icon">📜</span>
-            <span class="label">Regulasi & Dasar Hukum</span>
-          </button>
-
-          <!-- 8. MONITORING UNDUHAN -->
-          <button class="nav-item" data-view="view-monitoring" onclick="switchView('view-monitoring')">
-            <span class="icon">📥</span>
-            <span class="label">Monitoring Unduhan</span>
-            <span class="badge badge-success badge-sm" id="badge-monitoring-count">0</span>
-          </button>
-
-          <!-- 9. LOG AKTIVITAS (HANYA DEVELOPER & KASUBAG RENDATIN) -->
-          <button class="nav-item" data-view="view-audit" onclick="switchView('view-audit')" id="nav-item-audit" style="display: none;">
-            <span class="icon">🛡️</span>
-            <span class="label">Log Aktivitas</span>
-            <span class="badge badge-primary badge-sm" id="badge-total-audit">0</span>
-          </button>
-
-          <!-- 10. RUANG PENGEMBANG (HANYA DEVELOPER) -->
-          <button class="nav-item" data-view="view-developer" onclick="switchView('view-developer')" id="nav-item-developer" style="display: none; background: rgba(15, 23, 42, 0.05); border-left: 3px solid #0f172a; margin-top: 4px;">
-            <span class="icon">🛠️</span>
-            <span class="label" style="font-weight: 700; color: #0f172a;">Blueprint &amp; PRD</span>
-            <span class="badge badge-dark badge-sm" style="background: #0f172a; color: #fff; font-size: 10px; font-weight: 800;">DEV</span>
-          </button>
+          <!-- 7. PENGEMBANG (KHUSUS DEVELOPER / emenje) -->
+          <div class="sakti-tree-group collapsed" id="folder-developer" style="display: none;">
+            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-developer', event)">
+              <span class="sakti-folder-label">
+                <span>🛠️ Pengembang (DEV)</span>
+              </span>
+              <span class="sakti-chevron">▾</span>
+            </button>
+            <div class="sakti-tree-children">
+              <!-- Blueprint & PRD -->
+              <button class="nav-item" data-view="view-developer" onclick="switchView('view-developer')" id="nav-item-developer">
+                <span class="icon">📐</span>
+                <span class="label">Blueprint &amp; PRD</span>
+                <span class="badge badge-dark badge-sm" style="background: #0f172a; color: #fff; font-size: 10px; font-weight: 800;">DEV</span>
+              </button>
+              <!-- Pusat Rilis & Push GitHub -->
+              <button class="nav-item" data-view="view-dev-push" onclick="if (window.openDevPushView) { window.openDevPushView(); } else { switchView('view-dev-push'); }" id="nav-item-dev-push">
+                <span class="icon">🚀</span>
+                <span class="label">Pusat Rilis &amp; Push GitHub</span>
+                <span class="badge" id="badge-dev-sidebar-count" style="background: #16a34a; color: #fff; font-size: 10px; font-weight: 800;">✔ BERSIH</span>
+              </button>
+            </div>
+          </div>
         </nav>
 
         <div class="sidebar-footer">

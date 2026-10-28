@@ -924,10 +924,19 @@ function applyRolePermissionsToUI() {
     navTahap4.style.display = (user.level <= 1 || user.role_id === 'sekretaris') ? 'flex' : 'none';
   }
 
-  // e. Menu Ruang Pengembang (Blueprint & PRD) HANYA UNTUK AKUN DEVELOPER AKTIF (LEVEL 0)
+  // e. Folder Ruang Pengembang (DEV) HANYA UNTUK AKUN DEVELOPER AKTIF (LEVEL 0 / emenje)
+  const isDevUser = isActiveDeveloperUser(user);
+  const folderDev = document.getElementById('folder-developer');
+  if (folderDev) {
+    folderDev.style.display = isDevUser ? 'block' : 'none';
+  }
   const navDev = document.getElementById('nav-item-developer');
   if (navDev) {
-    navDev.style.display = isActiveDeveloperUser(user) ? 'flex' : 'none';
+    navDev.style.display = isDevUser ? 'flex' : 'none';
+  }
+  const navDevPush = document.getElementById('nav-item-dev-push');
+  if (navDevPush) {
+    navDevPush.style.display = isDevUser ? 'flex' : 'none';
   }
 
   // f. Menu Rekap Pelaksanaan & Panduan Pelaksanaan (Bab 21.4 Canon + Skalabilitas Level 4-6):
@@ -1919,6 +1928,18 @@ function switchView(viewId, updateHistory = true) {
 
   AppState.activeView = viewId;
   document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+  
+  // Perbarui status aktif tombol Monitoring Unduhan di Header
+  const btnHeaderMonitoring = document.getElementById('nav-btn-monitoring');
+  if (btnHeaderMonitoring) {
+    if (viewId === 'view-monitoring') {
+      btnHeaderMonitoring.classList.remove('btn-outline');
+      btnHeaderMonitoring.classList.add('btn-primary');
+    } else {
+      btnHeaderMonitoring.classList.remove('btn-primary');
+      btnHeaderMonitoring.classList.add('btn-outline');
+    }
+  }
   let activeParentGroup = null;
   document.querySelectorAll('.nav-item').forEach(btn => {
     const isActive = btn.getAttribute('data-view') === viewId;
