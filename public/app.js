@@ -11140,6 +11140,230 @@ function renderRekapTabContent(mode) {
         </table>
       </div>
     `;
+  } else if (tab === 'COST_SHARING') {
+    const byCS = summary?.byCostSharing || { KABUPATEN: 0, PROVINSI: 0 };
+    const kabTotal = Number(byCS.KABUPATEN) || 0;
+    const provTotal = Number(byCS.PROVINSI) || 0;
+    const grandTot = total || (kabTotal + provTotal);
+    const kabPct = grandTot > 0 ? ((kabTotal / grandTot) * 100).toFixed(2) : '0.00';
+    const provPct = grandTot > 0 ? ((provTotal / grandTot) * 100).toFixed(2) : '0.00';
+
+    const bySubCost = summary?.byCostSharingBySubbag || {};
+    const bySasCost = summary?.byCostSharingBySasaran || {};
+    const provItems = state.provinsi_items || state.data?.provinsi_items || [];
+
+    const subKeys = ['KUL', 'RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM'];
+    const sasOrder = [
+      { code: 'KAB', label: '1. KPU Kabupaten Ngawi (Satker)' },
+      { code: 'PPK', label: '2. PPK (19 Kecamatan)' },
+      { code: 'PPS', label: '3. PPS (217 Desa / Kelurahan)' },
+      { code: 'PANTARLIH', label: '4. Pantarlih / PPDP' },
+      { code: 'TPS', label: '5. TPS (KPPS & Linmas)' },
+      { code: 'PESERTA', label: '6. Peserta Pemilihan (Paslon)' }
+    ];
+
+    contentBox.innerHTML = `
+      <!-- Action Bar Unduh Tab 5 Mandiri -->
+      <div class="rekap-cost-sharing-action-bar" style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 16px; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <div>
+          <div style="font-weight:700; color:#1e293b; font-size:13px; display:flex; align-items:center; gap:6px;">
+            <i class="fa fa-pie-chart" style="color:#0284c7;"></i> Pemisahan Sumber Pendanaan: APBD Kabupaten &amp; APBD Provinsi (Cost Sharing)
+          </div>
+          <div style="font-size:12px; color:#64748b; margin-top:2px;">Rekapitulasi resmi pemilahan beban anggaran Pilkada 2024 sesuai NPHD Induk Pemkab Ngawi dan Cost Sharing Pemprov Jatim.</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-sm btn-success" onclick="exportRekapCostSharingExcel('${cleanMode}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+            <i class="fa fa-file-excel-o"></i> Unduh Excel Rekap Sumber Dana
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printRekapCostSharingPdf('${cleanMode}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+            <i class="fa fa-print"></i> Unduh / Cetak PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:11px; font-weight:700; color:#1e40af;">APBD KABUPATEN NGAWI</div>
+            <span style="font-size:11px; font-weight:800; background:#dbeafe; color:#1e40af; padding:1px 6px; border-radius:4px;">${kabPct}%</span>
+          </div>
+          <div style="font-size:20px; font-weight:800; font-family:var(--font-mono); color:#1e3a8a; margin-top:6px;">${formatRupiah(kabTotal)}</div>
+          <div style="font-size:11px; color:#3b82f6; margin-top:4px;">Beban NPHD Pemkab Ngawi</div>
+        </div>
+
+        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:11px; font-weight:700; color:#92400e;">APBD PROVINSI JAWA TIMUR</div>
+            <span style="font-size:11px; font-weight:800; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px;">${provPct}%</span>
+          </div>
+          <div style="font-size:20px; font-weight:800; font-family:var(--font-mono); color:#b45309; margin-top:6px;">${formatRupiah(provTotal)}</div>
+          <div style="font-size:11px; color:#d97706; margin-top:4px;">Cost Sharing Pemprov Jatim (${formatNumber(provItems.length)} Item Belanja)</div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:11px; font-weight:700; color:#334155;">TOTAL TERKONSOLIDASI</div>
+            <span style="font-size:11px; font-weight:800; background:#e2e8f0; color:#334155; padding:1px 6px; border-radius:4px;">100.00%</span>
+          </div>
+          <div style="font-size:20px; font-weight:800; font-family:var(--font-mono); color:#0f172a; margin-top:6px;">${formatRupiah(grandTot)}</div>
+          <div style="font-size:11px; color:#64748b; margin-top:4px;">Cakupan PIC: ${escHtml(filter_pic || 'SEMUA')}</div>
+        </div>
+      </div>
+
+      <!-- Tabel 1: Distribusi per Subbagian -->
+      <div style="margin-bottom:24px;">
+        <h4 style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+          <span>I. Distribusi Sumber Dana Berdasarkan Subbagian Pelaksana</span>
+        </h4>
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped" style="margin-bottom:0;">
+            <thead>
+              <tr style="background:#f1f5f9;">
+                <th style="width:45px; text-align:center;">No</th>
+                <th style="width:110px; text-align:center;">Kode PIC</th>
+                <th>Nama Subbagian Pelaksana</th>
+                <th class="text-right" style="width:180px;">APBD Kab (Rp)</th>
+                <th class="text-right" style="width:180px;">APBD Prov (Rp)</th>
+                <th class="text-right" style="width:190px;">Total Anggaran (Rp)</th>
+                <th class="text-right" style="width:105px;">Porsi Prov (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${subKeys.filter(k => filter_pic === 'SEMUA' || k === filter_pic).map((k, idx) => {
+                const kabVal = Number(bySubCost[k]?.KABUPATEN) || 0;
+                const provVal = Number(bySubCost[k]?.PROVINSI) || 0;
+                const totVal = kabVal + provVal;
+                const pct = totVal > 0 ? ((provVal / totVal) * 100).toFixed(2) : '0.00';
+                const meta = SUBBAG_META[k] || { name: k };
+                return `
+                  <tr>
+                    <td class="text-center">${idx + 1}</td>
+                    <td class="text-center"><span class="pic-chip pic-${k}">${k}</span></td>
+                    <td><strong>${escHtml(meta.name)}</strong></td>
+                    <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(kabVal)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-weight:${provVal > 0 ? '700' : 'normal'}; color:${provVal > 0 ? '#b45309' : 'inherit'};">${formatRupiah(provVal)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-weight:700;">${formatRupiah(totVal)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-weight:${provVal > 0 ? '700' : 'normal'}; color:${provVal > 0 ? '#b45309' : 'inherit'};">${pct}%</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background:#eff6ff; font-weight:800;">
+                <td colspan="3" class="text-center">TOTAL REKAPITULASI SUBBAGIAN</td>
+                <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(kabTotal)}</td>
+                <td class="text-right" style="font-family:var(--font-mono); color:#b45309;">${formatRupiah(provTotal)}</td>
+                <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(grandTot)}</td>
+                <td class="text-right" style="font-family:var(--font-mono); color:#b45309;">${provPct}%</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabel 2: Distribusi per Kelompok Sasaran -->
+      <div style="margin-bottom:24px;">
+        <h4 style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+          <span>II. Distribusi Sumber Dana Berdasarkan Kelompok Sasaran</span>
+        </h4>
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped" style="margin-bottom:0;">
+            <thead>
+              <tr style="background:#f1f5f9;">
+                <th style="width:45px; text-align:center;">No</th>
+                <th>Kelompok Sasaran</th>
+                <th class="text-right" style="width:180px;">APBD Kab (Rp)</th>
+                <th class="text-right" style="width:180px;">APBD Prov (Rp)</th>
+                <th class="text-right" style="width:190px;">Total Anggaran (Rp)</th>
+                <th class="text-right" style="width:105px;">Porsi Prov (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sasOrder.map((s, idx) => {
+                const kabVal = Number(bySasCost[s.code]?.KABUPATEN) || 0;
+                const provVal = Number(bySasCost[s.code]?.PROVINSI) || 0;
+                const totVal = kabVal + provVal;
+                const pct = totVal > 0 ? ((provVal / totVal) * 100).toFixed(2) : '0.00';
+                return `
+                  <tr>
+                    <td class="text-center">${idx + 1}</td>
+                    <td><strong>${escHtml(s.label)}</strong></td>
+                    <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(kabVal)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-weight:${provVal > 0 ? '700' : 'normal'}; color:${provVal > 0 ? '#b45309' : 'inherit'};">${formatRupiah(provVal)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-weight:700;">${formatRupiah(totVal)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-weight:${provVal > 0 ? '700' : 'normal'}; color:${provVal > 0 ? '#b45309' : 'inherit'};">${pct}%</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background:#eff6ff; font-weight:800;">
+                <td colspan="2" class="text-center">TOTAL REKAPITULASI SASARAN</td>
+                <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(kabTotal)}</td>
+                <td class="text-right" style="font-family:var(--font-mono); color:#b45309;">${formatRupiah(provTotal)}</td>
+                <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(grandTot)}</td>
+                <td class="text-right" style="font-family:var(--font-mono); color:#b45309;">${provPct}%</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabel 3: Rincian Khusus Belanja Bersumber APBD Provinsi -->
+      <div style="margin-bottom:16px;">
+        <h4 style="font-size:14px; font-weight:700; color:#92400e; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+          <span>III. Rincian Belanja yang Dibiayai Cost Sharing APBD Provinsi Jatim</span>
+          <span style="font-size:12px; font-weight:600; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; border:1px solid #fde68a;">
+            ${formatNumber(provItems.length)} Item
+          </span>
+        </h4>
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover" style="margin-bottom:0;">
+            <thead>
+              <tr style="background:#fffbeb; color:#92400e;">
+                <th style="width:40px; text-align:center;">No</th>
+                <th style="width:95px; text-align:center;">Kode Akun</th>
+                <th style="width:85px; text-align:center;">Kode RKB</th>
+                <th>Uraian Rincian Belanja</th>
+                <th style="width:90px; text-align:center;">Subbag</th>
+                <th style="width:85px; text-align:center;">Sasaran</th>
+                <th class="text-right" style="width:95px;">Volume</th>
+                <th class="text-right" style="width:130px;">Harga Satuan (Rp)</th>
+                <th class="text-right" style="width:160px;">Total Alokasi (Rp)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${provItems.length === 0 ? `
+                <tr>
+                  <td colspan="9" class="text-center" style="padding:18px; color:#64748b; font-style:italic;">
+                    Tidak ada rincian belanja bersumber APBD Provinsi pada cakupan filter ini.
+                  </td>
+                </tr>
+              ` : provItems.map((it, idx) => `
+                <tr>
+                  <td class="text-center" style="font-size:11px;">${idx + 1}</td>
+                  <td class="text-center" style="font-family:var(--font-mono); font-size:11px; font-weight:700; color:#0284c7;">${escHtml(it.kode_akun || '-')}</td>
+                  <td class="text-center" style="font-family:var(--font-mono); font-size:11px; color:#64748b;">${escHtml(it.kode || '-')}</td>
+                  <td><strong>${escHtml(it.uraian)}</strong></td>
+                  <td class="text-center"><span class="pic-chip pic-${escHtml(it.pic_bagian)}">${escHtml(it.pic_bagian)}</span></td>
+                  <td class="text-center"><span style="font-size:11px; font-weight:700; background:#f1f5f9; padding:2px 6px; border-radius:4px;">${escHtml(it.target_scope || 'KAB')}</span></td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-size:11px;">${formatNumber(it.volume || 1)} ${escHtml(it.satuan || '')}</td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-size:11px;">${formatRupiah(it.harga_satuan || 0)}</td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-weight:700; color:#b45309;">${formatRupiah(it.jumlah || 0)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background:#fffbeb; font-weight:800; color:#92400e;">
+                <td colspan="8" class="text-center">TOTAL RINCIAN BELANJA SHARING APBD PROVINSI</td>
+                <td class="text-right" style="font-family:var(--font-mono); font-weight:800; color:#b45309; font-size:13px;">${formatRupiah(provTotal)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `;
   }
 }
 
@@ -11153,7 +11377,7 @@ async function exportRekapExcel(mode = 'perencanaan') {
   const pId = state.periode.id;
   const filterPic = state.filter_pic || 'SEMUA';
   const qs = filterPic !== 'SEMUA' ? `?pic=${encodeURIComponent(filterPic)}` : '';
-  await downloadAuthenticatedFile(`/api/export-excel/${pId}${qs}`, `Rekap_${cleanMode}_${state.periode.versi_revisi || 'RKB'}_${filterPic}.xlsx`);
+  await downloadProtectedFile(`/api/export-excel/${pId}${qs}`, `Rekap_${cleanMode}_${state.periode.versi_revisi || 'RKB'}_${filterPic}.xlsx`);
 }
 
 function printRekapPdf(mode = 'perencanaan') {
@@ -11216,10 +11440,105 @@ function printRekapPdf(mode = 'perencanaan') {
   }).catch(() => {});
 }
 
+async function exportRekapCostSharingExcel(mode = 'perencanaan') {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  const state = AppState.rekapState[cleanMode]?.data;
+  if (!state || !state.periode) {
+    showToast('Data rekap belum dimuat.', 'warning');
+    return;
+  }
+  const filterPic = state.filter_pic || 'SEMUA';
+  const qs = filterPic !== 'SEMUA' ? `?pic=${encodeURIComponent(filterPic)}` : '';
+  const filename = `Rekap_Sumber_Dana_${cleanMode}_${state.periode.versi_revisi || 'RKB'}_${filterPic}.xlsx`;
+  try {
+    showToast('Menyiapkan berkas Excel Rekap Sumber Dana...', 'info');
+    await downloadProtectedFile(`/api/rekap/${cleanMode}/export-cost-sharing-excel${qs}`, filename);
+    showToast('Berkas Excel Rekap Sumber Dana berhasil diunduh.', 'success');
+  } catch (err) {
+    showToast('Gagal mengunduh Excel: ' + err.message, 'error');
+  }
+}
+
+function printRekapCostSharingPdf(mode = 'perencanaan') {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  const state = AppState.rekapState[cleanMode]?.data;
+  const contentEl = document.getElementById(`rekap-${cleanMode}-content`);
+  if (!state || !contentEl) return;
+
+  const win = window.open('', '_blank');
+  if (!win) {
+    window.print();
+    return;
+  }
+  const title = cleanMode === 'pelaksanaan'
+    ? 'REKAPITULASI SUMBER DANA ANGGARAN PELAKSANAAN (BASELINE SAH)'
+    : 'REKAPITULASI SUMBER DANA ANGGARAN PERENCANAAN (RKB AKTIF)';
+
+  const clone = contentEl.cloneNode(true);
+  const actionBars = clone.querySelectorAll('.rekap-cost-sharing-action-bar');
+  actionBars.forEach(el => el.remove());
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <title>${escHtml(title)} - SI-PRABU KPU Kabupaten Ngawi</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; font-size: 11px; line-height: 1.4; }
+        h2 { margin: 0 0 4px 0; font-size: 15px; text-align: center; }
+        .sub-title { text-align: center; font-size: 13px; font-weight: bold; color: #1e3a8a; margin-bottom: 6px; }
+        .meta { margin-bottom: 16px; font-size: 11px; color: #334155; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 16px; page-break-inside: auto; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
+        th, td { border: 1px solid #94a3b8; padding: 5px 6px; text-align: left; }
+        th { background: #f1f5f9; font-weight: bold; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        @media print {
+          body { padding: 0; }
+          button { display: none !important; }
+        }
+      </style>
+    </head>
+    <body>
+      <h2>KOMISI PEMILIHAN UMUM KABUPATEN NGAWI</h2>
+      <div class="sub-title">${escHtml(title)}</div>
+      <div class="meta">
+        Dokumen: <strong>${escHtml(state.periode.nama_periode)} (${escHtml(state.periode.versi_revisi || 'Induk')})</strong> |
+        Fase: <strong>${escHtml(state.periode.fase_perencanaan)}</strong> |
+        Cakupan PIC: <strong>${escHtml(state.filter_pic)}</strong>
+      </div>
+      ${clone.innerHTML}
+      <script>window.onload = function() { window.print(); };</script>
+    </body>
+    </html>
+  `);
+  win.document.close();
+
+  apiFetch('/api/audit-logs/client-event', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'EXPORT_REKAP_COST_SHARING_PDF',
+      entity: 'download_requests',
+      entity_id: state.periode?.id || '',
+      new_values: {
+        mode: cleanMode,
+        nama_periode: state.periode?.nama_periode || '',
+        versi_revisi: state.periode?.versi_revisi || '',
+        filter_pic: state.filter_pic || 'SEMUA'
+      },
+      notes: `Cetak / Ekspor PDF Rekap Sumber Dana (${state.periode?.nama_periode || ''} - PIC: ${state.filter_pic || 'SEMUA'}).`
+    })
+  }).catch(() => {});
+}
+
 window.loadRekapView = loadRekapView;
 window.switchRekapTab = switchRekapTab;
 window.exportRekapExcel = exportRekapExcel;
 window.printRekapPdf = printRekapPdf;
+window.exportRekapCostSharingExcel = exportRekapCostSharingExcel;
+window.printRekapCostSharingPdf = printRekapCostSharingPdf;
 
 // ============================================================================
 // MODUL LOG AKTIVITAS & REKAM JEJAK AUDIT (BAB 14 CANON)

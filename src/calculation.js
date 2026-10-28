@@ -677,13 +677,28 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
   const byAkun = {};
   const bySasaran = { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 };
   const byCostSharing = { KABUPATEN: 0, PROVINSI: 0 };
+  const byCostSharingBySubbag = {
+    KUL: { KABUPATEN: 0, PROVINSI: 0 },
+    RENDATIN: { KABUPATEN: 0, PROVINSI: 0 },
+    TEKNIS: { KABUPATEN: 0, PROVINSI: 0 },
+    HUKUM: { KABUPATEN: 0, PROVINSI: 0 },
+    PARSDM: { KABUPATEN: 0, PROVINSI: 0 }
+  };
+  const byCostSharingBySasaran = {
+    KAB: { KABUPATEN: 0, PROVINSI: 0 },
+    PPK: { KABUPATEN: 0, PROVINSI: 0 },
+    PPS: { KABUPATEN: 0, PROVINSI: 0 },
+    TPS: { KABUPATEN: 0, PROVINSI: 0 },
+    PANTARLIH: { KABUPATEN: 0, PROVINSI: 0 },
+    PESERTA: { KABUPATEN: 0, PROVINSI: 0 }
+  };
 
   const subbagSummaries = {
-    KUL: { pic: 'KUL', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { KUL: 0 } },
-    RENDATIN: { pic: 'RENDATIN', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { RENDATIN: 0 } },
-    TEKNIS: { pic: 'TEKNIS', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { TEKNIS: 0 } },
-    HUKUM: { pic: 'HUKUM', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { HUKUM: 0 } },
-    PARSDM: { pic: 'PARSDM', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byAkun: {}, bySubbag: { PARSDM: 0 } }
+    KUL: { pic: 'KUL', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byCostSharing: { KABUPATEN: 0, PROVINSI: 0 }, byAkun: {}, bySubbag: { KUL: 0 } },
+    RENDATIN: { pic: 'RENDATIN', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byCostSharing: { KABUPATEN: 0, PROVINSI: 0 }, byAkun: {}, bySubbag: { RENDATIN: 0 } },
+    TEKNIS: { pic: 'TEKNIS', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byCostSharing: { KABUPATEN: 0, PROVINSI: 0 }, byAkun: {}, bySubbag: { TEKNIS: 0 } },
+    HUKUM: { pic: 'HUKUM', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byCostSharing: { KABUPATEN: 0, PROVINSI: 0 }, byAkun: {}, bySubbag: { HUKUM: 0 } },
+    PARSDM: { pic: 'PARSDM', grandTotal: 0, totalItems: 0, bySasaran: { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 }, byCostSharing: { KABUPATEN: 0, PROVINSI: 0 }, byAkun: {}, bySubbag: { PARSDM: 0 } }
   };
 
   // 1. Hitung seluruh baris item (level_indent === 4 dan row_type !== 'header')
@@ -733,12 +748,22 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
     if (subbagSummaries[pic]) {
       subbagSummaries[pic].grandTotal += calc.total_anggaran;
       subbagSummaries[pic].totalItems++;
+      if (!subbagSummaries[pic].byCostSharing) {
+        subbagSummaries[pic].byCostSharing = { KABUPATEN: 0, PROVINSI: 0 };
+      }
+      subbagSummaries[pic].byCostSharing[rowCost] = (subbagSummaries[pic].byCostSharing[rowCost] || 0) + calc.total_anggaran;
       if (subbagSummaries[pic].bySasaran[sas] !== undefined) {
         subbagSummaries[pic].bySasaran[sas] += calc.total_anggaran;
       }
       if (!subbagSummaries[pic].byAkun[akun]) subbagSummaries[pic].byAkun[akun] = 0;
       subbagSummaries[pic].byAkun[akun] += calc.total_anggaran;
       subbagSummaries[pic].bySubbag[pic] += calc.total_anggaran;
+    }
+    if (byCostSharingBySubbag[pic]) {
+      byCostSharingBySubbag[pic][rowCost] = (byCostSharingBySubbag[pic][rowCost] || 0) + calc.total_anggaran;
+    }
+    if (byCostSharingBySasaran[sas]) {
+      byCostSharingBySasaran[sas][rowCost] = (byCostSharingBySasaran[sas][rowCost] || 0) + calc.total_anggaran;
     }
 
     return {
@@ -791,6 +816,8 @@ function calculateRkbDataset(rawRows, paguNphd = null) {
       byAkun,
       bySasaran,
       byCostSharing,
+      byCostSharingBySubbag,
+      byCostSharingBySasaran,
       subbagSummaries,
       banner: {
         totalPagu: grandTotal,
@@ -906,6 +933,21 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
   const summaryByAkun = {};
   const summaryBySasaran = { KAB: 0, PPK: 0, PPS: 0, TPS: 0, PANTARLIH: 0, PESERTA: 0 };
   const summaryByCostSharing = { KABUPATEN: 0, PROVINSI: 0 };
+  const summaryByCostSharingBySubbag = {
+    KUL: { KABUPATEN: 0, PROVINSI: 0 },
+    RENDATIN: { KABUPATEN: 0, PROVINSI: 0 },
+    TEKNIS: { KABUPATEN: 0, PROVINSI: 0 },
+    HUKUM: { KABUPATEN: 0, PROVINSI: 0 },
+    PARSDM: { KABUPATEN: 0, PROVINSI: 0 }
+  };
+  const summaryByCostSharingBySasaran = {
+    KAB: { KABUPATEN: 0, PROVINSI: 0 },
+    PPK: { KABUPATEN: 0, PROVINSI: 0 },
+    PPS: { KABUPATEN: 0, PROVINSI: 0 },
+    TPS: { KABUPATEN: 0, PROVINSI: 0 },
+    PANTARLIH: { KABUPATEN: 0, PROVINSI: 0 },
+    PESERTA: { KABUPATEN: 0, PROVINSI: 0 }
+  };
   let grandTotal = 0;
   let totalItems = 0;
 
@@ -949,6 +991,12 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
 
     const costKey = rCost === 'PROVINSI' ? 'PROVINSI' : 'KABUPATEN';
     summaryByCostSharing[costKey] = (summaryByCostSharing[costKey] || 0) + tot;
+    if (summaryByCostSharingBySubbag[rPic]) {
+      summaryByCostSharingBySubbag[rPic][costKey] = (summaryByCostSharingBySubbag[rPic][costKey] || 0) + tot;
+    }
+    if (summaryByCostSharingBySasaran[sas]) {
+      summaryByCostSharingBySasaran[sas][costKey] = (summaryByCostSharingBySasaran[sas][costKey] || 0) + tot;
+    }
   });
 
   // Himpun tree_id dari seluruh item yang cocok dan seluruh leluhur (ancestor)-nya
@@ -1006,7 +1054,9 @@ function filterAndPruneRkbDataset(fullDataset, { pic = 'SEMUA', target_scope = '
     bySubbag: summaryBySubbag,
     byAkun: summaryByAkun,
     bySasaran: summaryBySasaran,
-    byCostSharing: summaryByCostSharing
+    byCostSharing: summaryByCostSharing,
+    byCostSharingBySubbag: summaryByCostSharingBySubbag,
+    byCostSharingBySasaran: summaryByCostSharingBySasaran
   };
 
   return { rows: prunedRows, summary: filteredSummary };
