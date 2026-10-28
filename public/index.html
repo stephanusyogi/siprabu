@@ -54,29 +54,37 @@
           <span id="login-screen-error-text">Username atau kata sandi tidak sesuai.</span>
         </div>
 
-        <!-- Google SSO Section -->
-        <div id="login-screen-google-section" style="margin-bottom: 16px; text-align: center;">
-          <div style="font-size: 11.5px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-            Single Sign-On (SSO) Akun Instansi
+        <!-- Google SSO Section (Metode Login Utama & Eksklusif) -->
+        <div id="login-screen-google-section" style="margin-bottom: 8px; text-align: center;">
+          <div style="font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
+            Single Sign-On (SSO) Akun Google
           </div>
-          <div id="login-screen-google-btn-wrapper" style="display: flex; justify-content: center; min-height: 40px;">
+          <div id="login-screen-google-btn-wrapper" style="display: flex; justify-content: center; min-height: 44px;">
             <!-- Rendered via Google Identity Services -->
           </div>
-          <div id="login-screen-google-hint" style="font-size: 11px; color: #64748b; margin-top: 5px;"></div>
+          <div id="login-screen-google-hint" style="font-size: 11px; color: #64748b; margin-top: 8px;"></div>
         </div>
 
-        <!-- Divider -->
-        <div class="login-divider">
+        <!-- Pemberitahuan Mode Eksklusif SSO Google -->
+        <div id="login-screen-sso-notice" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 11.5px; color: #475569; text-align: center; margin-top: 14px; line-height: 1.55;">
+          🔒 <strong>Autentikasi Terpusat Aktif</strong><br>
+          <span style="font-size: 11px; color: #64748b;">
+            Akses masuk sistem saat ini <strong>hanya menggunakan Akun Google</strong> yang telah terdaftar pada Manajemen Pengguna Satker. Login akun lokal dinonaktifkan sementara.
+          </span>
+        </div>
+
+        <!-- Divider (Dinonaktifkan Sementara) -->
+        <div class="login-divider" style="display: none;">
           <span>ATAU MASUK DENGAN AKUN LOKAL</span>
         </div>
 
-        <!-- Form Login Lokal -->
-        <form id="form-screen-login" onsubmit="event.preventDefault(); submitScreenLoginForm();">
+        <!-- Form Login Lokal (Dinonaktifkan Sementara) -->
+        <form id="form-screen-login" style="display: none;" onsubmit="event.preventDefault(); submitScreenLoginForm();">
           <div class="login-form-group">
             <label for="screen-login-username">Nama Pengguna (Username):</label>
             <div class="login-input-wrapper">
               <span class="login-input-icon">👤</span>
-              <input type="text" id="screen-login-username" class="login-input-control" required placeholder="Masukkan nama pengguna" autocomplete="username" oninput="clearLoginScreenError()">
+              <input type="text" id="screen-login-username" class="login-input-control" placeholder="Masukkan nama pengguna" autocomplete="username" oninput="clearLoginScreenError()">
             </div>
           </div>
 
@@ -84,7 +92,7 @@
             <label for="screen-login-password">Kata Sandi (Password):</label>
             <div class="login-input-wrapper">
               <span class="login-input-icon">🔒</span>
-              <input type="password" id="screen-login-password" class="login-input-control" required placeholder="Masukkan kata sandi" autocomplete="current-password" oninput="clearLoginScreenError()">
+              <input type="password" id="screen-login-password" class="login-input-control" placeholder="Masukkan kata sandi" autocomplete="current-password" oninput="clearLoginScreenError()">
               <button type="button" class="login-toggle-pwd" onclick="toggleScreenPasswordVisibility()" title="Lihat / Sembunyikan Kata Sandi">
                 <span id="screen-pwd-icon">👁️</span>
               </button>

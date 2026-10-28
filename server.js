@@ -364,62 +364,20 @@ const server = http.createServer(async (req, res) => {
     // API ROUTES
     // ========================================================================
 
-    // 1. AUTH / LOGIN
+    // 1. AUTH / LOGIN (DINONAKTIFKAN SEMENTARA: HANYA SINGLE SIGN-ON GOOGLE)
     if (pathname === '/api/login' && method === 'POST') {
       const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
-      const rateCheck = checkLoginRateLimit(clientIp);
-      if (!rateCheck.allowed) {
-        return sendJson(res, 429, { error: `Terlalu banyak percobaan login gagal. Silakan coba lagi dalam ${Math.ceil(rateCheck.remainingSec / 60)} menit.` });
-      }
-
-      const { username, password } = await parseJsonBody(req);
-      if (!username) {
-        return sendJson(res, 400, { error: 'Username wajib diisi.' });
-      }
-      if (!password) {
-        return sendJson(res, 400, { error: 'Password wajib diisi.' });
-      }
-
-      // Verifikasi menggunakan mekanisme hash scrypt dan verifikasi aman tanpa backdoor
-      const user = authenticateUser(username, password);
-
-      if (!user) {
-        recordFailedLogin(clientIp);
-        recordAuditLog({
-          username: String(username || '').trim().toLowerCase(),
-          role_id: '-',
-          ip: clientIp,
-          action: 'LOGIN_FAILED',
-          entity: 'session',
-          status: 'FAILED',
-          notes: `Percobaan login gagal untuk akun "${String(username || '').trim()}" dari IP ${clientIp}.`
-        });
-        return sendJson(res, 401, { error: 'Username atau password salah.' });
-      }
-
-      recordSuccessfulLogin(clientIp);
-
-      const isDev = Boolean(user.level === 0 || user.role_id === 'developer' || user.username === 'emenje');
-      if (isDev) {
-        user.is_developer = true;
-      }
-
-      const token = createToken(user);
       recordAuditLog({
-        user,
+        username: '-',
+        role_id: '-',
         ip: clientIp,
-        action: 'LOGIN_SUCCESS',
+        action: 'LOGIN_LOCAL_DISABLED',
         entity: 'session',
-        entity_id: user.id,
-        new_values: { username: user.username, nama_pejabat: user.nama_pejabat, jabatan: user.jabatan, level: user.level, pic_subbag: user.pic_subbag },
-        notes: `Pengguna "${user.nama_pejabat || user.username}" (${user.username}) berhasil masuk (Login Manual).`
+        status: 'FAILED',
+        notes: `Percobaan login akun lokal ditolak karena sistem sedang disetel eksklusif Single Sign-On (SSO) Google.`
       });
-      return sendJson(res, 200, {
-        success: true,
-        token,
-        user,
-        is_developer: isDev,
-        message: user.level === 0 ? 'Selamat datang Pengembang (Level 0). Mode Bebas Ganti Peran Aktif.' : undefined
+      return sendJson(res, 403, {
+        error: 'Login menggunakan nama pengguna dan kata sandi sementara dinonaktifkan. Silakan gunakan Single Sign-On (SSO) Google.'
       });
     }
 

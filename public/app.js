@@ -619,56 +619,15 @@ function clearLoginScreenError() {
 
 
 async function submitScreenLoginForm() {
-  const username = document.getElementById('screen-login-username')?.value?.trim();
-  const password = document.getElementById('screen-login-password')?.value || '';
   const errorBox = document.getElementById('login-screen-error');
   const errorText = document.getElementById('login-screen-error-text');
-  const btnSubmit = document.getElementById('btn-screen-login-submit');
-  const btnText = document.getElementById('screen-login-btn-text');
-
-  if (!username) {
-    if (errorBox && errorText) {
-      errorText.textContent = 'Nama pengguna wajib diisi.';
-      errorBox.style.display = 'block';
-    }
-    return;
+  if (errorBox && errorText) {
+    errorText.textContent = 'Login menggunakan nama pengguna dan kata sandi sementara dinonaktifkan. Silakan gunakan Single Sign-On (SSO) Google di atas.';
+    errorBox.style.display = 'block';
   }
-
-  if (!password) {
-    if (errorBox && errorText) {
-      errorText.textContent = 'Kata sandi wajib diisi.';
-      errorBox.style.display = 'block';
-    }
-    return;
-  }
-
-  if (errorBox) errorBox.style.display = 'none';
-  if (btnSubmit) btnSubmit.disabled = true;
-  if (btnText) btnText.textContent = 'Memverifikasi kredensial...';
-
-  try {
-    const res = await performLogin(username, password);
-    await loadUsers();
-    showMainApp();
-    updateUserNavbar();
-    showToast(res.message || `Selamat datang, ${res.user.nama_pejabat}!`, 'success');
-    await loadMasters();
-    await loadPeriodes();
-    await loadRkbData();
-    renderAllViews();
-    const redirectView = sessionStorage.getItem('siprabu_redirect_view');
-    sessionStorage.removeItem('siprabu_redirect_view');
-    switchView(redirectView || 'view-dashboard', true);
-  } catch (err) {
-    if (errorBox && errorText) {
-      errorText.textContent = err.message || 'Username atau kata sandi tidak sesuai. Silakan coba lagi.';
-      errorBox.style.display = 'block';
-    }
-  } finally {
-    if (btnSubmit) btnSubmit.disabled = false;
-    if (btnText) btnText.innerHTML = 'Masuk ke Sistem SI-PRABU &rarr;';
-  }
+  return;
 }
+
 
 async function quickDeveloperLogin() {
   const errorBox = document.getElementById('login-screen-error');
@@ -1463,9 +1422,9 @@ function renderGoogleButton() {
   } else {
     activeTargets.forEach(({ container, hint }) => {
       container.innerHTML = `
-        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 10px 14px; border-radius: 8px; font-size: 11.5px; color: #64748b; width: 100%; text-align: center;">
-          ℹ️ <strong>Single Sign-On (SSO) Google sedang dinonaktifkan</strong><br>
-          <span style="font-size: 11px;">Silakan masuk menggunakan Nama Pengguna & Kata Sandi akun lokal di bawah.</span>
+        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 12px 14px; border-radius: 8px; font-size: 11.5px; color: #64748b; width: 100%; text-align: center;">
+          ℹ️ <strong>Single Sign-On (SSO) Google belum dikonfigurasi</strong><br>
+          <span style="font-size: 11px;">Silakan hubungi Administrator Satker untuk mengonfigurasi Client ID Google pada sistem.</span>
         </div>
       `;
       if (hint) hint.innerHTML = '';
