@@ -4464,28 +4464,38 @@ function openRowModal(rowId, event) {
   populateFactorVarSelects();
   for (let i = 1; i <= 4; i++) {
     let fVar = (row[`f${i}_var`] || '').trim();
-    const fUnit = (row[`f${i}_unit`] || '').trim().toLowerCase();
+    if (fVar === '0') fVar = '';
+    const fUnitRaw = String(row[`f${i}_unit`] || '').trim();
+    const fUnit = (fUnitRaw && fUnitRaw !== '0') ? fUnitRaw.toLowerCase() : '';
     const rawValNum = Number(row[`f${i}_val`] || 0);
+    const uLower = String(row.uraian || '').toLowerCase();
+    const targetScopeUpper = String(row.target_scope || '').toUpperCase();
+    const adhocLabelUpper = String(row.label_pengali_adhoc || '').toUpperCase();
+
     if (!fVar) {
-      if (fUnit === 'paslon') {
-        const uLower = String(row.uraian || '').toLowerCase();
+      if (fUnit === 'paslon' || uLower.includes('paslon')) {
         if (uLower.includes('perseorangan')) fVar = 'paslon_perseorangan';
-        else if (uLower.includes('bakal')) fVar = 'bakal_paslon';
+        else if (uLower.includes('bakal') || uLower.includes('parpol')) fVar = 'paslon_parpol';
         else fVar = 'paslon';
       } else if (fUnit === 'parpol' || fUnit === 'partai' || fUnit.includes('parpol')) {
         fVar = 'parpol';
       } else if (fUnit === 'komisioner') {
         fVar = 'komisioner';
-      } else if (fUnit === 'pemilih') {
+      } else if (fUnit === 'pemilih' || ((fUnit.includes('org') || !fUnit) && (uLower.includes(' dpt') || uLower.includes('pemilih')) && rawValNum >= 500000)) {
         fVar = 'dpt';
-      } else if (fUnit === 'lembar ss' || ((fUnit === 'lembar' || fUnit.includes('lembar')) && rawValNum >= 100000 && String(row.uraian || '').toLowerCase().includes('surat suara'))) {
+      } else if (fUnit === 'lembar ss' || ((fUnit === 'lembar' || fUnit.includes('lembar') || !fUnit) && rawValNum >= 100000 && uLower.includes('surat suara'))) {
         fVar = 'surat_suara';
-      } else if (fUnit === 'tps' && rawValNum >= 100) {
-        fVar = 'tps_rkb';
-      } else if (fUnit === 'kotak' && rawValNum >= 100) {
+      } else if (fUnit === 'kotak' || adhocLabelUpper === 'KOTAK' || (uLower.includes('kotak') && (rawValNum >= 100 || rawValNum === 1393 || rawValNum === 1374))) {
         fVar = 'kotak_rkb';
-      } else if (fUnit === 'pantarlih' || fUnit === 'ppdp') {
+      } else if (fUnit === 'pantarlih' || fUnit === 'ppdp' || targetScopeUpper === 'PANTARLIH' || uLower.includes('pantarlih') || uLower.includes('ppdp') || rawValNum === 2784) {
         fVar = 'pantarlih';
+      } else if (
+        fUnit === 'tps' || 
+        adhocLabelUpper === 'TPS' || 
+        (targetScopeUpper === 'TPS' && (rawValNum >= 100 || rawValNum === 1393 || rawValNum === 1374 || uLower.includes('kpps') || uLower.includes('tingkat kpps'))) ||
+        ((rawValNum === 1393 || rawValNum === 1374) && rawValNum >= 100)
+      ) {
+        fVar = 'tps_rkb';
       }
     }
     setElVal(`modal-f${i}-var`, fVar);

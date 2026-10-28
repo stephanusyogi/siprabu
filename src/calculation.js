@@ -330,41 +330,63 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
 
   for (let i = 0; i < factorSpecs.length; i++) {
     const fs = factorSpecs[i];
-    let varCode = (fs.varCode && fs.varCode !== '' && fs.varCode !== 'MANUAL' && fs.varCode !== 'FIXED') ? fs.varCode : null;
+    let varCode = (fs.varCode && fs.varCode !== '' && fs.varCode !== '0' && fs.varCode !== 0 && fs.varCode !== 'MANUAL' && fs.varCode !== 'FIXED') ? String(fs.varCode).trim() : null;
     const unitTrimmed = String(fs.unit || '').trim();
-    const unitLower = unitTrimmed.toLowerCase();
+    const unitLower = (unitTrimmed && unitTrimmed !== '0') ? unitTrimmed.toLowerCase() : '';
+    const rawNum = Number(parseIndonesianNumber(fs.val) || 0);
+    const uLower = String(r.uraian || '').toLowerCase();
+    const targetScopeUpper = String(r.target_scope || '').toUpperCase();
+    const adhocLabelUpper = String(r.label_pengali_adhoc || '').toUpperCase();
+    const unitClean = unitLower;
 
-    // AUTO-BINDING CERDAS: Jika baris belum memiliki varCode eksplisit di database, cocokkan secara cerdas dengan satuan atau uraian
+    // AUTO-BINDING CERDAS MASSAL (SSOT BINDING POIN 1)
+    // Presisi: Hanya bind faktor spesifik yang benar-benar mewakili kuantitas SSOT terkait (bukan faktor pengali lain seperti Org/Keg/Bln)
     if (!varCode) {
-      const rawNum = Number(parseIndonesianNumber(fs.val) || 0);
-      if (unitLower === 'paslon') {
-        const uLower = String(r.uraian || '').toLowerCase();
-        if (uLower.includes('perseorangan')) {
-          varCode = 'paslon_perseorangan';
-        } else if (uLower.includes('jalur parpol') || uLower.includes('paslon parpol')) {
-          varCode = 'paslon_parpol';
-        } else {
-          varCode = 'paslon';
-        }
-      } else if (unitLower === 'parpol' || unitLower === 'partai' || unitLower.includes('parpol')) {
+      // 1. Variabel Paslon Pilkada
+      if (unitClean === 'paslon') {
+        if (uLower.includes('perseorangan')) varCode = 'paslon_perseorangan';
+        else if (uLower.includes('jalur parpol') || uLower.includes('paslon parpol')) varCode = 'paslon_parpol';
+        else varCode = 'paslon';
+      } else if (uLower.includes('paslon') && (rawNum === 5 || rawNum === 4 || rawNum === 1 || rawNum === 2 || rawNum === 3) && unitClean !== 'keg' && unitClean !== 'kali' && unitClean !== 'bln' && unitClean !== 'bulan') {
+        if (uLower.includes('perseorangan') || rawNum === 1) varCode = 'paslon_perseorangan';
+        else if (uLower.includes('jalur parpol') || uLower.includes('paslon parpol') || rawNum === 4) varCode = 'paslon_parpol';
+        else varCode = 'paslon';
+      }
+      // 2. Variabel Parpol
+      else if (unitClean === 'parpol' || unitClean === 'partai' || (uLower.includes('partai politik') && (rawNum === 18 || rawNum === 24))) {
         varCode = 'parpol';
-      } else if (unitLower === 'komisioner') {
+      }
+      // 3. Variabel Komisioner KPU
+      else if (unitClean === 'komisioner' || (uLower.includes('komisioner') && rawNum === 5 && unitClean !== 'keg' && unitClean !== 'bln')) {
         varCode = 'komisioner';
-      } else if (unitLower === 'pemilih') {
+      }
+      // 4. Variabel Pemilih / DPT
+      else if (unitClean === 'pemilih' || ((unitClean.includes('org') || !unitClean) && (uLower.includes(' dpt') || uLower.includes('pemilih')) && rawNum >= 500000)) {
         varCode = 'dpt';
-      } else if (unitLower === 'lembar ss' || ((unitLower === 'lembar' || unitLower.includes('lembar')) && rawNum >= 100000 && String(r.uraian || '').toLowerCase().includes('surat suara'))) {
+      }
+      // 5. Variabel Surat Suara
+      else if (unitClean === 'lembar ss' || ((unitClean === 'lembar' || unitClean.includes('lembar') || !unitClean) && rawNum >= 100000 && uLower.includes('surat suara'))) {
         varCode = 'surat_suara';
-      } else if (unitLower === 'tps' && rawNum >= 100) {
-        varCode = 'tps_rkb';
-      } else if (unitLower === 'kotak' && rawNum >= 100) {
+      }
+      // 6. Variabel Kotak Suara
+      else if (unitClean === 'kotak' || (uLower.includes('kotak') && (rawNum === 1393 || rawNum === 1374 || (rawNum >= 100 && adhocLabelUpper === 'KOTAK')))) {
         varCode = 'kotak_rkb';
-      } else if (unitLower === 'pantarlih' || unitLower === 'ppdp') {
+      }
+      // 7. Variabel Pantarlih / PPDP
+      else if (unitClean === 'pantarlih' || unitClean === 'ppdp' || (rawNum === 2784 || (rawNum >= 1000 && targetScopeUpper === 'PANTARLIH' && unitClean !== 'keg' && unitClean !== 'bln'))) {
         varCode = 'pantarlih';
+      }
+      // 8. Variabel TPS RKB Induk
+      else if (
+        unitClean === 'tps' || 
+        (rawNum === 1393 || rawNum === 1374 || (rawNum >= 100 && (adhocLabelUpper === 'TPS' || (targetScopeUpper === 'TPS' && uLower.includes('kpps')))))
+      ) {
+        varCode = 'tps_rkb';
       }
     }
 
     const hasVar = Boolean(varCode);
-    const hasVal = fs.val !== null && fs.val !== undefined && String(fs.val).trim() !== '';
+    const hasVal = fs.val !== null && fs.val !== undefined && String(fs.val).trim() !== '' && String(fs.val).trim() !== 'null';
 
     // Faktor yang benar-benar kosong diabaikan (bukan pengali)
     if (!hasVar && !hasVal) {
@@ -373,7 +395,7 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
 
     activeFactorsCount++;
     let vNum = 1;
-    let unitLabel = fs.unit || '';
+    let unitLabel = (fs.unit && String(fs.unit).trim() !== '0') ? String(fs.unit).trim() : '';
 
     if (hasVar) {
       vNum = resolveVarValue(varCode, fs.val, contextType, entityData, kabSummary, kuantitasMap);
@@ -393,14 +415,16 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
       }
     }
 
+    const safeUnit = (unitLabel && unitLabel !== '0') ? unitLabel : '';
+
     // Jika nilai faktor adalah 0, perkalian harus menjadi 0 (jangan diabaikan!)
     if (vNum === 0) {
       hasExplicitZero = true;
       baseFactor = 0;
-      parts.push(`0 ${unitLabel}`.trim());
+      parts.push(`0 ${safeUnit}`.trim());
     } else {
       baseFactor *= vNum;
-      parts.push(`${Number(vNum).toLocaleString('id-ID')} ${unitLabel}`.trim());
+      parts.push(`${Number(vNum).toLocaleString('id-ID')} ${safeUnit}`.trim());
     }
   }
 
@@ -415,7 +439,14 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
   const basis = (r.basis_pengali || 'NONE').toUpperCase();
 
   if (!basis || basis === 'NONE' || basis === 'FIXED') {
-    mult = 1;
+    // Smart fallback jika basis belum disetel eksplisit tapi target_scope jelas PPK / PPS
+    if (String(r.target_scope).toUpperCase() === 'PPK' && (String(r.label_pengali_adhoc).toUpperCase() === 'KEC' || String(r.label_pengali_kab).toUpperCase() === 'KEC')) {
+      mult = kabSummary.jumlah_ppk;
+    } else if (String(r.target_scope).toUpperCase() === 'PPS' && (String(r.label_pengali_adhoc).toUpperCase() === 'DS/KEL' || String(r.label_pengali_kab).toUpperCase() === 'DS/KEL')) {
+      mult = kabSummary.jumlah_pps;
+    } else {
+      mult = 1;
+    }
   } else if (basis === 'TPS_RKB') {
     if (contextType === 'KAB') {
       mult = kuantitasMap && kuantitasMap.tps_rkb ? Number(kuantitasMap.tps_rkb.nilai) || kabSummary.jumlah_tps : kabSummary.jumlah_tps;
