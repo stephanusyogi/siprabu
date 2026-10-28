@@ -225,28 +225,56 @@ setInterval(() => {
   } catch (e) {}
 }, 60 * 1000);
 
-// Auto-backup database terjadwal (Setiap jam 01:00 dini hari dan jam 13:00 siang WIB)
-let lastAutoBackupHour = -1;
-setInterval(async () => {
+// Auto-backup database terjadwal & self-healing catch-up (Slot H1: 01:00 WIB & Slot H13: 13:00 WIB)
+let lastAutoBackupSlot = ''; // Format: 'YYYY-MM-DD_H1' atau 'YYYY-MM-DD_H13'
+let isAutoBackupRunning = false;
+
+async function checkAndRunCatchupBackup(reason = 'scheduler') {
+  if (isAutoBackupRunning) return;
   try {
     const now = new Date();
     const wibHour = (now.getUTCHours() + 7) % 24;
-    if ((wibHour === 1 || wibHour === 13) && lastAutoBackupHour !== wibHour) {
-      lastAutoBackupHour = wibHour;
-      const { createDatabaseBackup, executeBackupToGoogleDrive } = require('./src/backup');
-      try {
-        await executeBackupToGoogleDrive(db, 'auto_h' + wibHour);
-        console.log('[AUTO-BACKUP] Backup database otomatis (jam ' + String(wibHour).padStart(2, '0') + ':00 WIB) berhasil diunggah ke Google Drive.');
-      } catch (gErr) {
-        console.warn('[AUTO-BACKUP] Upload Google Drive dilewati/gagal (' + gErr.message + '), beralih membuat backup lokal...');
-        createDatabaseBackup(db, 'auto_local_fallback_h' + wibHour);
+    const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(now);
+
+    // Slot 1: Jam 01:00 s.d 12:59 -> slot 'H1'
+    // Slot 2: Jam 13:00 s.d 00:59 -> slot 'H13'
+    let slot = null;
+    let slotDate = dStr;
+    if (wibHour >= 1 && wibHour < 13) {
+      slot = 'H1';
+    } else {
+      slot = 'H13';
+      if (wibHour === 0) {
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        slotDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(yesterday);
       }
-    } else if (wibHour !== 1 && wibHour !== 13) {
-      lastAutoBackupHour = -1;
+    }
+
+    const targetKey = `${slotDate}_${slot}`;
+    if (lastAutoBackupSlot === targetKey) return; // Sudah dijalankan untuk slot ini
+
+    isAutoBackupRunning = true;
+    lastAutoBackupSlot = targetKey;
+
+    const { createDatabaseBackup, executeBackupToGoogleDrive } = require('./src/backup');
+    try {
+      console.log(`[AUTO-BACKUP] Menjalankan backup otomatis (${reason}) untuk slot ${targetKey}...`);
+      await executeBackupToGoogleDrive(db, `auto_${slot.toLowerCase()}`);
+      console.log(`[AUTO-BACKUP] Backup database otomatis (${targetKey}) berhasil diunggah ke Google Drive.`);
+    } catch (gErr) {
+      console.warn(`[AUTO-BACKUP] Upload Google Drive dilewati/gagal (${gErr.message}), beralih membuat backup lokal...`);
+      createDatabaseBackup(db, `auto_local_fallback_${slot.toLowerCase()}`);
     }
   } catch (err) {
     console.warn('[AUTO-BACKUP] Peringatan backup otomatis:', err.message);
+  } finally {
+    isAutoBackupRunning = false;
   }
+}
+
+// Evaluasi berkala setiap 1 menit jika server aktif
+setInterval(() => {
+  checkAndRunCatchupBackup('timer');
 }, 60 * 1000);
 
 // MIME types map
@@ -376,6 +404,11 @@ const server = http.createServer(async (req, res) => {
   const pathname = parsedUrl.pathname;
   const query = Object.fromEntries(parsedUrl.searchParams.entries());
   const method = req.method.toUpperCase();
+
+  // Self-healing scheduled backup catch-up saat server bangun dari idle
+  setImmediate(() => {
+    checkAndRunCatchupBackup('request_wake');
+  });
 
   // Handle CORS preflight
   if (method === 'OPTIONS') {
@@ -955,6 +988,34 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (err) {
         return sendJson(res, 500, { error: 'Gagal menjalankan backup: ' + err.message });
+      }
+    }
+
+    // 3b-3b. ENDPOINT CRON TRIGGER GOOGLE DRIVE BACKUP (Untuk Hostinger Cron Jobs / Wget / cURL)
+    if ((pathname === '/api/cron/backup' || pathname === '/api/backup/cron') && (method === 'GET' || method === 'POST')) {
+      const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const key = parsedUrl.searchParams.get('key') || req.headers['x-cron-key'];
+      const validKey = process.env.SESSION_SECRET || 'siprabu_kpu_ngawi_secret_key_2026';
+
+      const currentUser = getUserFromReq(req);
+      const isAuthUser = currentUser && (currentUser.level === 0 || currentUser.level === 1);
+
+      if (!isAuthUser && (!key || key !== validKey)) {
+        return sendJson(res, 401, { error: 'Kunci otorisasi cron tidak valid.' });
+      }
+
+      try {
+        const { executeBackupToGoogleDrive } = require('./src/backup');
+        const resGdrive = await executeBackupToGoogleDrive(db, 'cron_job');
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Cron backup database berhasil dibuat dan diunggah ke Google Drive.',
+          file: resGdrive.filename,
+          gdriveId: resGdrive.fileId,
+          timestamp: new Date().toISOString()
+        });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Cron backup gagal: ' + err.message });
       }
     }
 

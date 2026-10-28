@@ -446,31 +446,48 @@ async function getGoogleDriveAccessToken() {
   }
 
   // 1. Coba OAuth 2.0 User Token terlebih dahulu (Opsi B)
-  if (fs.existsSync(GDRIVE_OAUTH_FILE)) {
+  // Mendukung dari Environment Variables (Hostinger hPanel) maupun file data/gdrive_oauth.json
+  let oauthData = null;
+  const envRefreshToken = (process.env.GOOGLE_REFRESH_TOKEN || process.env.GDRIVE_REFRESH_TOKEN || '').trim();
+  const envClientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
+  const envClientSecret = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
+
+  if (envRefreshToken && envClientId && envClientSecret) {
+    oauthData = {
+      client_id: envClientId,
+      client_secret: envClientSecret,
+      refresh_token: envRefreshToken
+    };
+  } else if (fs.existsSync(GDRIVE_OAUTH_FILE)) {
     try {
-      const oauthData = JSON.parse(fs.readFileSync(GDRIVE_OAUTH_FILE, 'utf8'));
-      if (oauthData.refresh_token && oauthData.client_id && oauthData.client_secret) {
-        const res = await fetch('https://oauth2.googleapis.com/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: oauthData.client_id,
-            client_secret: oauthData.client_secret,
-            refresh_token: oauthData.refresh_token,
-            grant_type: 'refresh_token'
-          })
-        });
-        const tokenRes = await res.json();
-        if (tokenRes.access_token) {
-          cachedDriveToken = tokenRes.access_token;
-          driveTokenExpiresAt = now + (tokenRes.expires_in || 3600);
-          return cachedDriveToken;
-        } else {
-          console.warn('[GDRIVE-OAUTH] Refresh token gagal:', tokenRes);
-        }
-      }
+      oauthData = JSON.parse(fs.readFileSync(GDRIVE_OAUTH_FILE, 'utf8'));
     } catch (err) {
       console.warn('[GDRIVE-OAUTH] Peringatan pembacaan gdrive_oauth.json:', err.message);
+    }
+  }
+
+  if (oauthData && oauthData.refresh_token && oauthData.client_id && oauthData.client_secret) {
+    try {
+      const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: oauthData.client_id,
+          client_secret: oauthData.client_secret,
+          refresh_token: oauthData.refresh_token,
+          grant_type: 'refresh_token'
+        })
+      });
+      const tokenRes = await res.json();
+      if (tokenRes.access_token) {
+        cachedDriveToken = tokenRes.access_token;
+        driveTokenExpiresAt = now + (tokenRes.expires_in || 3600);
+        return cachedDriveToken;
+      } else {
+        console.warn('[GDRIVE-OAUTH] Refresh token gagal:', tokenRes);
+      }
+    } catch (netErr) {
+      console.warn('[GDRIVE-OAUTH] Gagal menghubungi Google OAuth endpoint:', netErr.message);
     }
   }
 
