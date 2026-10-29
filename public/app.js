@@ -631,7 +631,7 @@ async function submitScreenLoginForm() {
   const errorBox = document.getElementById('login-screen-error');
   const errorText = document.getElementById('login-screen-error-text');
   if (errorBox && errorText) {
-    errorText.textContent = 'Login menggunakan nama pengguna dan kata sandi sementara dinonaktifkan. Silakan gunakan Single Sign-On (SSO) Google di atas.';
+    errorText.textContent = 'Login menggunakan nama pengguna dan kata sandi dinonaktifkan. Silakan gunakan Single Sign-On (SSO) Google di atas.';
     errorBox.style.display = 'block';
   }
   return;
@@ -1796,6 +1796,8 @@ async function initGoogleAuth() {
 }
 
 let gsiRetryCount = 0;
+let gsiInitialized = false;
+
 function renderGoogleButton() {
   const targets = [
     {
@@ -1812,56 +1814,7 @@ function renderGoogleButton() {
   if (activeTargets.length === 0) return;
 
   const isGoogleActive = Boolean(googleAuthConfig.enabled && googleAuthConfig.client_id);
-  if (isGoogleActive) {
-    if (window.google && window.google.accounts && window.google.accounts.id) {
-      gsiRetryCount = 0;
-      activeTargets.forEach(({ container, hint }) => {
-        container.innerHTML = '';
-        try {
-          google.accounts.id.initialize({
-            client_id: googleAuthConfig.client_id,
-            callback: handleGoogleSignInCallback,
-            auto_select: false
-          });
-          google.accounts.id.renderButton(container, {
-            theme: 'outline',
-            size: 'large',
-            text: 'signin_with',
-            shape: 'rectangular',
-            logo_alignment: 'left',
-            width: 320
-          });
-          if (hint) {
-            hint.innerHTML = `Domain diizinkan: <strong>${escHtml(googleAuthConfig.allowed_domains || 'gmail.com, kpungawi.com, kpu.go.id')}</strong>`;
-          }
-        } catch (e) {
-          console.warn('GSI renderButton error:', e);
-          container.innerHTML = `<div class="text-danger" style="font-size:12px;">Gagal memuat tombol Google: ${escHtml(e.message)}</div>`;
-        }
-      });
-    } else {
-      // SDK Google masih dalam proses loading
-      if (gsiRetryCount < 15) {
-        gsiRetryCount++;
-        activeTargets.forEach(({ container }) => {
-          container.innerHTML = `
-            <div style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:#64748b;padding:8px;">
-              <span class="spinner-sm"></span> Menghubungkan Google Identity Services...
-            </div>
-          `;
-        });
-        setTimeout(renderGoogleButton, 350);
-      } else {
-        activeTargets.forEach(({ container }) => {
-          container.innerHTML = `
-            <div style="background:#fff1f2;border:1px solid #fecdd3;color:#e11d48;padding:8px 12px;border-radius:6px;font-size:11.5px;">
-              ⚠️ SDK Google Identity Services belum dapat dimuat dari Google. Periksa koneksi internet Anda.
-            </div>
-          `;
-        });
-      }
-    }
-  } else {
+  if (!isGoogleActive) {
     activeTargets.forEach(({ container, hint }) => {
       container.innerHTML = `
         <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 12px 14px; border-radius: 8px; font-size: 11.5px; color: #64748b; width: 100%; text-align: center;">
@@ -1871,8 +1824,85 @@ function renderGoogleButton() {
       `;
       if (hint) hint.innerHTML = '';
     });
+    return;
+  }
+
+  // Jika SDK Google sudah tersedia
+  if (window.google && window.google.accounts && window.google.accounts.id) {
+    gsiRetryCount = 0;
+
+    // Inisialisasi GSI HANYA SEKALI per sesi browser
+    if (!gsiInitialized) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: googleAuthConfig.client_id,
+          callback: handleGoogleSignInCallback,
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+        gsiInitialized = true;
+      } catch (err) {
+        console.warn('GSI initialize error:', err);
+      }
+    }
+
+    activeTargets.forEach(({ container, hint }) => {
+      // Hanya render pada container yang elemen induknya aktif / terlihat
+      const isScreenLogin = (container.id === 'login-screen-google-btn-wrapper');
+      const isVisible = (container.offsetParent !== null) || (isScreenLogin && document.getElementById('login-screen')?.style.display !== 'none');
+      if (!isVisible) return;
+
+      // Jika tombol sudah pernah dirender dan memiliki iframe, jangan timpa / clear ulang
+      if (container.querySelector('iframe')) {
+        return;
+      }
+
+      container.innerHTML = '';
+      try {
+        window.google.accounts.id.renderButton(container, {
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: 320
+        });
+
+        if (hint) {
+          hint.innerHTML = `Domain diizinkan: <strong>${escHtml(googleAuthConfig.allowed_domains || 'gmail.com, kpungawi.com, kpu.go.id')}</strong>`;
+        }
+      } catch (e) {
+        console.warn('GSI renderButton error:', e);
+        container.innerHTML = `<div class="text-danger" style="font-size:12px;">Gagal memuat tombol Google: ${escHtml(e.message)}</div>`;
+      }
+    });
+  } else {
+    // SDK Google masih dalam proses loading
+    if (gsiRetryCount < 25) {
+      gsiRetryCount++;
+      activeTargets.forEach(({ container }) => {
+        if (!container.querySelector('.spinner-sm')) {
+          container.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:#64748b;padding:8px;min-height:44px;">
+              <span class="spinner-sm"></span> Menghubungkan Google Identity Services...
+            </div>
+          `;
+        }
+      });
+      setTimeout(renderGoogleButton, 300);
+    } else {
+      activeTargets.forEach(({ container }) => {
+        container.innerHTML = `
+          <div style="background:#fff1f2;border:1px solid #fecdd3;color:#e11d48;padding:8px 12px;border-radius:6px;font-size:11.5px;text-align:center;">
+            ⚠️ SDK Google Identity Services belum dapat dimuat dari Google.<br>Periksa koneksi internet Anda atau muat ulang halaman.
+          </div>
+        `;
+      });
+    }
   }
 }
+
+window.handleGoogleSignInCallback = handleGoogleSignInCallback;
 
 async function handleGoogleSignInCallback(response) {
   if (!response || !response.credential) {
@@ -7569,9 +7599,22 @@ window.downloadMonitoringItem = downloadMonitoringItem;
 
 async function exportKecamatanExcel() {
   try {
-    await downloadProtectedFile('/api/master/kecamatan/export', 'Master_Kecamatan.xlsx');
+    showToast('Mengirim permintaan unduh Master Kecamatan ke Monitoring Unduhan...', 'info');
+    const res = await apiFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: 'Master_Kecamatan_19_PPK.xlsx',
+        tipe_unduhan: 'EXCEL_MASTER_KECAMATAN'
+      })
+    });
+    if (res && res.success) {
+      showToast('Permintaan unduh master berhasil dikirim. Mengalihkan ke Monitoring Unduhan...', 'info');
+      switchView('view-monitoring');
+    } else {
+      showToast(res.error || 'Gagal membuat antrean unduh.', 'error');
+    }
   } catch (err) {
-    showToast('Gagal mengunduh: ' + err.message, 'error');
+    showToast('Gagal memproses unduhan: ' + err.message, 'error');
   }
 }
 
@@ -7806,9 +7849,22 @@ async function deleteDesa(id) {
 
 async function exportDesaExcel() {
   try {
-    await downloadProtectedFile('/api/master/desa/export', 'Master_Desa.xlsx');
+    showToast('Mengirim permintaan unduh Master Desa/PPS ke Monitoring Unduhan...', 'info');
+    const res = await apiFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: 'Master_Desa_217_PPS.xlsx',
+        tipe_unduhan: 'EXCEL_MASTER_DESA'
+      })
+    });
+    if (res && res.success) {
+      showToast('Permintaan unduh master berhasil dikirim. Mengalihkan ke Monitoring Unduhan...', 'info');
+      switchView('view-monitoring');
+    } else {
+      showToast(res.error || 'Gagal membuat antrean unduh.', 'error');
+    }
   } catch (err) {
-    showToast('Gagal mengunduh: ' + err.message, 'error');
+    showToast('Gagal memproses unduhan: ' + err.message, 'error');
   }
 }
 
@@ -8355,9 +8411,22 @@ async function deleteSbm(id) {
 
 async function exportSbmExcel() {
   try {
-    await downloadProtectedFile('/api/master/sbm/export', 'Master_SBM.xlsx');
+    showToast('Mengirim permintaan unduh Standar Biaya Masukan (SBM) ke Monitoring Unduhan...', 'info');
+    const res = await apiFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: 'Master_Standar_Biaya_Masukan_SBM.xlsx',
+        tipe_unduhan: 'EXCEL_MASTER_SBM'
+      })
+    });
+    if (res && res.success) {
+      showToast('Permintaan unduh master berhasil dikirim. Mengalihkan ke Monitoring Unduhan...', 'info');
+      switchView('view-monitoring');
+    } else {
+      showToast(res.error || 'Gagal membuat antrean unduh.', 'error');
+    }
   } catch (err) {
-    showToast('Gagal mengunduh: ' + err.message, 'error');
+    showToast('Gagal memproses unduhan: ' + err.message, 'error');
   }
 }
 
@@ -8547,9 +8616,22 @@ async function deleteAkun(id) {
 
 async function exportBasExcel() {
   try {
-    await downloadProtectedFile('/api/master/akun/export', 'Master_Akun.xlsx');
+    showToast('Mengirim permintaan unduh Master Bagan Akun Standar (BAS) ke Monitoring Unduhan...', 'info');
+    const res = await apiFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: 'Master_Bagan_Akun_Standar_BAS.xlsx',
+        tipe_unduhan: 'EXCEL_MASTER_AKUN'
+      })
+    });
+    if (res && res.success) {
+      showToast('Permintaan unduh master berhasil dikirim. Mengalihkan ke Monitoring Unduhan...', 'info');
+      switchView('view-monitoring');
+    } else {
+      showToast(res.error || 'Gagal membuat antrean unduh.', 'error');
+    }
   } catch (err) {
-    showToast('Gagal mengunduh: ' + err.message, 'error');
+    showToast('Gagal memproses unduhan: ' + err.message, 'error');
   }
 }
 
@@ -11649,10 +11731,29 @@ async function bukaArsipKertasKerja(periodeId) {
 }
 
 async function downloadArsipExcel(periodeId) {
+  const pId = Number(periodeId);
+  const periode = (AppState.periodesList || []).find(p => p.id === pId) || { id: pId, versi_revisi: `Arsip_${pId}` };
+  const filename = `RKB_Arsip_${(periode.versi_revisi || 'Versi_' + pId).replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx`;
   try {
-    await downloadProtectedFile(`/api/export-excel/${periodeId}`, `RKB_Arsip_${periodeId}.xlsx`);
+    showToast('Mengirim permintaan unduh Arsip RKB ke Monitoring Unduhan...', 'info');
+    const res = await apiFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: filename,
+        tipe_unduhan: 'EXCEL_ARSIP',
+        periode_id: pId,
+        filter_pic: 'SEMUA',
+        filter_sasaran: 'ALL'
+      })
+    });
+    if (res && res.success) {
+      showToast('Permintaan unduh arsip berhasil dikirim. Mengalihkan ke Monitoring Unduhan...', 'info');
+      switchView('view-monitoring');
+    } else {
+      showToast(res.error || 'Gagal membuat antrean unduh.', 'error');
+    }
   } catch (err) {
-    showToast('Gagal mengunduh arsip: ' + err.message, 'error');
+    showToast('Gagal memproses unduhan: ' + err.message, 'error');
   }
 }
 
@@ -12206,13 +12307,33 @@ async function exportRekapExcel(mode = 'perencanaan') {
   const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
   const state = AppState.rekapState[cleanMode]?.data;
   if (!state || !state.periode) {
-    showToast('Data rekap belum dimuat.', 'warning');
+    showToast('Data periode belum dimuat.', 'warning');
     return;
   }
   const pId = state.periode.id;
   const filterPic = state.filter_pic || 'SEMUA';
-  const qs = filterPic !== 'SEMUA' ? `?pic=${encodeURIComponent(filterPic)}` : '';
-  await downloadProtectedFile(`/api/export-excel/${pId}${qs}`, `Rekap_${cleanMode}_${state.periode.versi_revisi || 'RKB'}_${filterPic}.xlsx`);
+  const filename = `Rekap_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}.xlsx`;
+  try {
+    showToast('Mengirim permintaan unduh Rekap Anggaran ke Monitoring Unduhan...', 'info');
+    const res = await apiFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: filename,
+        tipe_unduhan: 'EXCEL_REKAP',
+        periode_id: pId,
+        filter_pic: filterPic,
+        filter_sasaran: 'ALL'
+      })
+    });
+    if (res && res.success) {
+      showToast('Permintaan unduh berkas rekap berhasil dikirim ke antrean. Mengalihkan ke Monitoring Unduhan...', 'info');
+      switchView('view-monitoring');
+    } else {
+      showToast(res.error || 'Gagal membuat antrean unduh.', 'error');
+    }
+  } catch (err) {
+    showToast('Gagal memproses unduhan: ' + err.message, 'error');
+  }
 }
 
 function printRekapPdf(mode = 'perencanaan') {
@@ -12282,15 +12403,29 @@ async function exportRekapCostSharingExcel(mode = 'perencanaan') {
     showToast('Data rekap belum dimuat.', 'warning');
     return;
   }
+  const pId = state.periode.id;
   const filterPic = state.filter_pic || 'SEMUA';
-  const qs = filterPic !== 'SEMUA' ? `?pic=${encodeURIComponent(filterPic)}` : '';
-  const filename = `Rekap_Sumber_Dana_${cleanMode}_${state.periode.versi_revisi || 'RKB'}_${filterPic}.xlsx`;
+  const filename = `Rekap_Sumber_Dana_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}.xlsx`;
   try {
-    showToast('Menyiapkan berkas Excel Rekap Sumber Dana...', 'info');
-    await downloadProtectedFile(`/api/rekap/${cleanMode}/export-cost-sharing-excel${qs}`, filename);
-    showToast('Berkas Excel Rekap Sumber Dana berhasil diunduh.', 'success');
+    showToast('Mengirim permintaan unduh Rekap Sumber Dana ke Monitoring Unduhan...', 'info');
+    const res = await apiFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: filename,
+        tipe_unduhan: 'EXCEL_COST_SHARING',
+        periode_id: pId,
+        filter_pic: filterPic,
+        filter_sasaran: cleanMode
+      })
+    });
+    if (res && res.success) {
+      showToast('Permintaan unduh Rekap Sumber Dana berhasil dikirim ke antrean. Mengalihkan ke Monitoring Unduhan...', 'info');
+      switchView('view-monitoring');
+    } else {
+      showToast(res.error || 'Gagal membuat antrean unduh.', 'error');
+    }
   } catch (err) {
-    showToast('Gagal mengunduh Excel: ' + err.message, 'error');
+    showToast('Gagal memproses unduhan: ' + err.message, 'error');
   }
 }
 

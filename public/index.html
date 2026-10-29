@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png?v=3.5.0">
   <link rel="shortcut icon" type="image/png" href="/favicon.ico?v=3.5.0">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png?v=3.5.0">
-  <link rel="stylesheet" href="/style.css?v=4.2.1">
+  <link rel="stylesheet" href="/style.css?v=4.2.5">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -59,8 +59,16 @@
           <div style="font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
             Single Sign-On (SSO) Akun Google
           </div>
-          <div id="login-screen-google-btn-wrapper" style="display: flex; justify-content: center; min-height: 44px;">
-            <!-- Rendered via Google Identity Services -->
+          <div id="login-screen-google-btn-wrapper" style="display: flex; justify-content: center; min-height: 44px; align-items: center;">
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signin_with"
+                 data-size="large"
+                 data-logo_alignment="left"
+                 data-width="320">
+            </div>
           </div>
           <div id="login-screen-google-hint" style="font-size: 11px; color: #64748b; margin-top: 8px;"></div>
         </div>
@@ -69,22 +77,22 @@
         <div id="login-screen-sso-notice" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 11.5px; color: #475569; text-align: center; margin-top: 14px; line-height: 1.55;">
           🔒 <strong>Autentikasi Terpusat Aktif</strong><br>
           <span style="font-size: 11px; color: #64748b;">
-            Akses masuk sistem saat ini <strong>hanya menggunakan Akun Google</strong> yang telah terdaftar pada Manajemen Pengguna Satker. Login akun lokal dinonaktifkan sementara.
+            Akses masuk sistem saat ini <strong>hanya menggunakan Akun Google</strong> yang telah terdaftar pada Manajemen Pengguna Satker. Login akun lokal dinonaktifkan.
           </span>
         </div>
 
-        <!-- Divider (Dinonaktifkan Sementara) -->
+        <!-- Divider (Dinonaktifkan Permanen) -->
         <div class="login-divider" style="display: none;">
           <span>ATAU MASUK DENGAN AKUN LOKAL</span>
         </div>
 
-        <!-- Form Login Lokal (Dinonaktifkan Sementara) -->
+        <!-- Form Login Lokal (Dinonaktifkan Permanen) -->
         <form id="form-screen-login" style="display: none;" onsubmit="event.preventDefault(); submitScreenLoginForm();">
           <div class="login-form-group">
             <label for="screen-login-username">Nama Pengguna (Username):</label>
             <div class="login-input-wrapper">
               <span class="login-input-icon">👤</span>
-              <input type="text" id="screen-login-username" class="login-input-control" placeholder="Masukkan nama pengguna" autocomplete="username" oninput="clearLoginScreenError()">
+              <input type="text" id="screen-login-username" class="login-input-control" placeholder="Masukkan nama pengguna" autocomplete="username">
             </div>
           </div>
 
@@ -92,10 +100,7 @@
             <label for="screen-login-password">Kata Sandi (Password):</label>
             <div class="login-input-wrapper">
               <span class="login-input-icon">🔒</span>
-              <input type="password" id="screen-login-password" class="login-input-control" placeholder="Masukkan kata sandi" autocomplete="current-password" oninput="clearLoginScreenError()">
-              <button type="button" class="login-toggle-pwd" onclick="toggleScreenPasswordVisibility()" title="Lihat / Sembunyikan Kata Sandi">
-                <span id="screen-pwd-icon">👁️</span>
-              </button>
+              <input type="password" id="screen-login-password" class="login-input-control" placeholder="Masukkan kata sandi" autocomplete="current-password">
             </div>
           </div>
 
@@ -5897,7 +5902,7 @@
       </div>
     </div>
 
-    <script src="/app.js?v=4.2.1"></script>
+    <script src="/app.js?v=4.2.5"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

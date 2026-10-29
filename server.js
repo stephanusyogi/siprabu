@@ -131,7 +131,8 @@ const {
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset, auditRkbIntegrity } = require('./src/calculation');
 const { createToken, verifyToken, revokeToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser } = require('./src/auth');
 const { 
-  exportRkbToExcelBuffer, 
+  exportRkbToExcelBuffer,
+  exportCostSharingToExcelBuffer,
   exportSbmToExcelBuffer, 
   parseSbmExcelBuffer, 
   exportBasToExcelBuffer, 
@@ -185,8 +186,20 @@ async function processDownloadJob(jobId) {
         }
         archive.finalize();
       });
+    } else if (job.tipe_unduhan === 'EXCEL_COST_SHARING') {
+      const mode = (job.filter_sasaran === 'pelaksanaan') ? 'pelaksanaan' : 'perencanaan';
+      const targetPeriode = (job.periode_id ? getPeriodeById(job.periode_id) : null) || (mode === 'pelaksanaan' ? getLatestRatifiedPeriode() : (getActivePeriode() || getLatestRatifiedPeriode()));
+      buffer = await exportCostSharingToExcelBuffer(targetPeriode ? targetPeriode.id : null, { pic: job.filter_pic, mode });
+    } else if (job.tipe_unduhan === 'EXCEL_MASTER_KECAMATAN') {
+      buffer = await exportKecamatanToExcelBuffer();
+    } else if (job.tipe_unduhan === 'EXCEL_MASTER_DESA') {
+      buffer = await exportDesaToExcelBuffer();
+    } else if (job.tipe_unduhan === 'EXCEL_MASTER_SBM') {
+      buffer = await exportSbmToExcelBuffer();
+    } else if (job.tipe_unduhan === 'EXCEL_MASTER_AKUN') {
+      buffer = await exportBasToExcelBuffer();
     } else {
-      // Standar RUH Excel
+      // Standar RUH Excel, Rekap Excel, Arsip Excel (EXCEL_RUH, EXCEL_REKAP, EXCEL_ARSIP, EXCEL_RKB)
       const query = {};
       if (job.filter_pic && job.filter_pic !== 'SEMUA') query.pic = job.filter_pic;
       if (job.filter_sasaran && job.filter_sasaran !== 'ALL') query.sasaran = job.filter_sasaran;
@@ -427,7 +440,7 @@ const server = http.createServer(async (req, res) => {
     // API ROUTES
     // ========================================================================
 
-    // 1. AUTH / LOGIN (DINONAKTIFKAN SEMENTARA: HANYA SINGLE SIGN-ON GOOGLE)
+    // 1. AUTH / LOGIN (DINONAKTIFKAN: HANYA SINGLE SIGN-ON GOOGLE)
     if (pathname === '/api/login' && method === 'POST') {
       const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
       recordAuditLog({
@@ -437,10 +450,10 @@ const server = http.createServer(async (req, res) => {
         action: 'LOGIN_LOCAL_DISABLED',
         entity: 'session',
         status: 'FAILED',
-        notes: `Percobaan login akun lokal ditolak karena sistem sedang disetel eksklusif Single Sign-On (SSO) Google.`
+        notes: `Percobaan login akun lokal ditolak karena sistem disetel eksklusif Single Sign-On (SSO) Google.`
       });
       return sendJson(res, 403, {
-        error: 'Login menggunakan nama pengguna dan kata sandi sementara dinonaktifkan. Silakan gunakan Single Sign-On (SSO) Google.'
+        error: 'Login menggunakan nama pengguna dan kata sandi dinonaktifkan. Silakan gunakan Single Sign-On (SSO) Google.'
       });
     }
 
@@ -2166,268 +2179,7 @@ const server = http.createServer(async (req, res) => {
         filterPic = user.pic_subbag;
       }
 
-      const fullDataset = getCachedRkbDataset(targetPeriode.id);
-      const activeData = (filterPic && filterPic !== 'SEMUA')
-        ? filterAndPruneRkbDataset(fullDataset, { pic: filterPic })
-        : fullDataset;
-
-      const ExcelJS = require('exceljs');
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'SI-PRABU KPU Kabupaten Ngawi';
-      workbook.created = new Date();
-
-      // Sheet 1: Rekapitulasi Sumber Dana
-      const ws1 = workbook.addWorksheet('Rekap Sumber Dana');
-      ws1.views = [{ showGridLines: true }];
-
-      // Header Judul
-      ws1.mergeCells('A1:F1');
-      ws1.getCell('A1').value = 'KOMISI PEMILIHAN UMUM KABUPATEN NGAWI';
-      ws1.getCell('A1').font = { name: 'Arial', size: 13, bold: true };
-      ws1.getCell('A1').alignment = { horizontal: 'center' };
-
-      ws1.mergeCells('A2:F2');
-      ws1.getCell('A2').value = `REKAPITULASI SUMBER DANA ANGGARAN (${mode === 'pelaksanaan' ? 'BASELINE SAH' : 'RKB AKTIF'})`;
-      ws1.getCell('A2').font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF1E3A8A' } };
-      ws1.getCell('A2').alignment = { horizontal: 'center' };
-
-      ws1.mergeCells('A3:F3');
-      ws1.getCell('A3').value = `Dokumen: ${targetPeriode.nama_periode} (${targetPeriode.versi_revisi || 'Induk'}) • Cakupan: ${filterPic}`;
-      ws1.getCell('A3').font = { name: 'Arial', size: 10, italic: true };
-      ws1.getCell('A3').alignment = { horizontal: 'center' };
-
-      // Bagian 1: Distribusi per Subbagian Pelaksana
-      ws1.getCell('A5').value = 'I. REKAPITULASI DISTRIBUSI PER SUBBAGIAN PELAKSANA';
-      ws1.getCell('A5').font = { name: 'Arial', size: 11, bold: true };
-
-      const subbagHeaders = ['No', 'Subbagian Pelaksana', 'Alokasi APBD Kab (Rp)', 'Alokasi APBD Prov (Rp)', 'Total Anggaran (Rp)', 'Porsi Prov (%)'];
-      ws1.getRow(6).values = subbagHeaders;
-      ws1.getRow(6).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-      ws1.getRow(6).alignment = { horizontal: 'center', vertical: 'middle' };
-      for (let c = 1; c <= 6; c++) {
-        ws1.getCell(6, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-      }
-
-      const subbags = ['KUL', 'RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM'];
-      const bySubbagCost = activeData.summary?.byCostSharingBySubbag || {};
-      let rIdx = 7;
-      let totalKabSubbag = 0;
-      let totalProvSubbag = 0;
-      let totalAllSubbag = 0;
-
-      subbags.forEach((sbg, idx) => {
-        const kabVal = bySubbagCost[sbg]?.KABUPATEN || 0;
-        const provVal = bySubbagCost[sbg]?.PROVINSI || 0;
-        const totVal = kabVal + provVal;
-        const pctProv = totVal > 0 ? (provVal / totVal) : 0;
-
-        totalKabSubbag += kabVal;
-        totalProvSubbag += provVal;
-        totalAllSubbag += totVal;
-
-        const row = ws1.getRow(rIdx++);
-        row.values = [idx + 1, sbg, kabVal, provVal, totVal, pctProv];
-        row.font = { name: 'Arial', size: 10 };
-        row.getCell(1).alignment = { horizontal: 'center' };
-        row.getCell(3).numFmt = '#,##0';
-        row.getCell(4).numFmt = '#,##0';
-        row.getCell(5).numFmt = '#,##0';
-        row.getCell(6).numFmt = '0.00%';
-        row.getCell(5).font = { name: 'Arial', size: 10, bold: true };
-      });
-
-      const totalSubbagRow = ws1.getRow(rIdx++);
-      const pctProvTotalSub = totalAllSubbag > 0 ? (totalProvSubbag / totalAllSubbag) : 0;
-      totalSubbagRow.values = ['', 'TOTAL REKAPITULASI SUBBAGIAN', totalKabSubbag, totalProvSubbag, totalAllSubbag, pctProvTotalSub];
-      totalSubbagRow.font = { name: 'Arial', size: 10, bold: true };
-      totalSubbagRow.getCell(3).numFmt = '#,##0';
-      totalSubbagRow.getCell(4).numFmt = '#,##0';
-      totalSubbagRow.getCell(5).numFmt = '#,##0';
-      totalSubbagRow.getCell(6).numFmt = '0.00%';
-      for (let c = 1; c <= 6; c++) {
-        totalSubbagRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
-      }
-
-      // Bagian 2: Distribusi per Sasaran
-      rIdx += 2;
-      ws1.getCell(`A${rIdx}`).value = 'II. REKAPITULASI DISTRIBUSI PER KELOMPOK SASARAN';
-      ws1.getCell(`A${rIdx}`).font = { name: 'Arial', size: 11, bold: true };
-      rIdx++;
-
-      const sasHeaders = ['No', 'Kelompok Sasaran', 'Alokasi APBD Kab (Rp)', 'Alokasi APBD Prov (Rp)', 'Total Anggaran (Rp)', 'Porsi Prov (%)'];
-      ws1.getRow(rIdx).values = sasHeaders;
-      ws1.getRow(rIdx).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-      ws1.getRow(rIdx).alignment = { horizontal: 'center', vertical: 'middle' };
-      for (let c = 1; c <= 6; c++) {
-        ws1.getCell(rIdx, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-      }
-      rIdx++;
-
-      const sasList = [
-        { code: 'KAB', label: '1. KPU Kabupaten Ngawi (Satker)' },
-        { code: 'PPK', label: '2. PPK (19 Kecamatan)' },
-        { code: 'PPS', label: '3. PPS (217 Desa / Kelurahan)' },
-        { code: 'PANTARLIH', label: '4. Pantarlih / PPDP' },
-        { code: 'TPS', label: '5. TPS (KPPS & Linmas)' },
-        { code: 'PESERTA', label: '6. Peserta Pemilihan (Paslon)' }
-      ];
-      const bySasCost = activeData.summary?.byCostSharingBySasaran || {};
-      let totalKabSas = 0;
-      let totalProvSas = 0;
-      let totalAllSas = 0;
-
-      sasList.forEach((s, idx) => {
-        const kabVal = bySasCost[s.code]?.KABUPATEN || 0;
-        const provVal = bySasCost[s.code]?.PROVINSI || 0;
-        const totVal = kabVal + provVal;
-        const pctProv = totVal > 0 ? (provVal / totVal) : 0;
-
-        totalKabSas += kabVal;
-        totalProvSas += provVal;
-        totalAllSas += totVal;
-
-        const row = ws1.getRow(rIdx++);
-        row.values = [idx + 1, s.label, kabVal, provVal, totVal, pctProv];
-        row.font = { name: 'Arial', size: 10 };
-        row.getCell(1).alignment = { horizontal: 'center' };
-        row.getCell(3).numFmt = '#,##0';
-        row.getCell(4).numFmt = '#,##0';
-        row.getCell(5).numFmt = '#,##0';
-        row.getCell(6).numFmt = '0.00%';
-        row.getCell(5).font = { name: 'Arial', size: 10, bold: true };
-      });
-
-      const totalSasRow = ws1.getRow(rIdx++);
-      const pctProvTotalSas = totalAllSas > 0 ? (totalProvSas / totalAllSas) : 0;
-      totalSasRow.values = ['', 'TOTAL REKAPITULASI SASARAN', totalKabSas, totalProvSas, totalAllSas, pctProvTotalSas];
-      totalSasRow.font = { name: 'Arial', size: 10, bold: true };
-      totalSasRow.getCell(3).numFmt = '#,##0';
-      totalSasRow.getCell(4).numFmt = '#,##0';
-      totalSasRow.getCell(5).numFmt = '#,##0';
-      totalSasRow.getCell(6).numFmt = '0.00%';
-      for (let c = 1; c <= 6; c++) {
-        totalSasRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
-      }
-
-      // Blok Tanda Tangan Resmi Dokumen Rekap (Bab 22 SAKTI)
-      const ttdList = getPenandatanganList();
-      const ketuaTtd = ttdList.find(p => p.id === 'KETUA') || { nama_pejabat: 'SAMSU MUSTAKIM' };
-      const kpaTtd = ttdList.find(p => p.id === 'SEKRETARIS') || { nama_pejabat: 'BUDI RAHAYU', nip: '19830503 200902 1 002' };
-      const tglCetak = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
-      rIdx += 2;
-      ws1.mergeCells(`B${rIdx}:C${rIdx}`);
-      ws1.getCell(`B${rIdx}`).value = 'Mengetahui,';
-      ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center' };
-
-      ws1.mergeCells(`E${rIdx}:F${rIdx}`);
-      ws1.getCell(`E${rIdx}`).value = `Ngawi, ${tglCetak}`;
-      ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
-
-      rIdx++;
-      ws1.mergeCells(`B${rIdx}:C${rIdx}`);
-      ws1.getCell(`B${rIdx}`).value = 'Ketua Komisi Pemilihan Umum\nKabupaten Ngawi';
-      ws1.getCell(`B${rIdx}`).font = { name: 'Arial', size: 10, bold: true };
-      ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center', wrapText: true };
-
-      ws1.mergeCells(`E${rIdx}:F${rIdx}`);
-      ws1.getCell(`E${rIdx}`).value = 'Sekretaris KPU Kabupaten Ngawi\nSelaku Kuasa Pengguna Anggaran (KPA)';
-      ws1.getCell(`E${rIdx}`).font = { name: 'Arial', size: 10, bold: true };
-      ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center', wrapText: true };
-
-      rIdx += 4;
-      ws1.mergeCells(`B${rIdx}:C${rIdx}`);
-      ws1.getCell(`B${rIdx}`).value = ketuaTtd.nama_pejabat;
-      ws1.getCell(`B${rIdx}`).font = { name: 'Arial', size: 10, bold: true, underline: true };
-      ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center' };
-
-      ws1.mergeCells(`E${rIdx}:F${rIdx}`);
-      ws1.getCell(`E${rIdx}`).value = kpaTtd.nama_pejabat;
-      ws1.getCell(`E${rIdx}`).font = { name: 'Arial', size: 10, bold: true, underline: true };
-      ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
-
-      rIdx++;
-      ws1.mergeCells(`E${rIdx}:F${rIdx}`);
-      ws1.getCell(`E${rIdx}`).value = `NIP. ${kpaTtd.nip}`;
-      ws1.getCell(`E${rIdx}`).font = { name: 'Arial', size: 9 };
-      ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
-
-      ws1.columns = [
-        { width: 6 },
-        { width: 38 },
-        { width: 24 },
-        { width: 24 },
-        { width: 26 },
-        { width: 16 }
-      ];
-
-      // Sheet 2: Rincian Belanja Sharing Provinsi
-      const ws2 = workbook.addWorksheet('Rincian Belanja Sharing Prov');
-      ws2.views = [{ showGridLines: true }];
-
-      ws2.mergeCells('A1:I1');
-      ws2.getCell('A1').value = 'DAFTAR ITEM BELANJA BERSUMBER APBD PROVINSI (SHARING)';
-      ws2.getCell('A1').font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF065F46' } };
-      ws2.getCell('A1').alignment = { horizontal: 'center' };
-
-      const provHeaders = ['No', 'Kode Akun', 'Uraian Rincian Belanja', 'PIC', 'Sasaran', 'Volume', 'Satuan', 'Harga Satuan (Rp)', 'Total Anggaran (Rp)'];
-      ws2.getRow(3).values = provHeaders;
-      ws2.getRow(3).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-      ws2.getRow(3).alignment = { horizontal: 'center', vertical: 'middle' };
-      for (let c = 1; c <= 9; c++) {
-        ws2.getCell(3, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF047857' } };
-      }
-
-      const provItems = (activeData.rows || []).filter(r => !r.is_header && (r.cost_sharing || '').toUpperCase() === 'PROVINSI');
-      let pIdx = 4;
-      let totalProvItems = 0;
-      provItems.forEach((it, idx) => {
-        const tot = Number(it.computed_total || it.jumlah) || 0;
-        totalProvItems += tot;
-        const row = ws2.getRow(pIdx++);
-        row.values = [
-          idx + 1,
-          it.kode_akun || '-',
-          it.uraian || '-',
-          it.pic_bagian || '-',
-          it.target_scope || 'KAB',
-          it.vol_total || it.computed_volume || 1,
-          it.satuan_vol || '',
-          it.harga_satuan || 0,
-          tot
-        ];
-        row.font = { name: 'Arial', size: 10 };
-        row.getCell(1).alignment = { horizontal: 'center' };
-        row.getCell(2).alignment = { horizontal: 'center' };
-        row.getCell(4).alignment = { horizontal: 'center' };
-        row.getCell(5).alignment = { horizontal: 'center' };
-        row.getCell(6).numFmt = '#,##0.##';
-        row.getCell(8).numFmt = '#,##0';
-        row.getCell(9).numFmt = '#,##0';
-        row.getCell(9).font = { name: 'Arial', size: 10, bold: true };
-      });
-
-      const totalProvItemRow = ws2.getRow(pIdx++);
-      totalProvItemRow.values = ['', '', 'TOTAL BELANJA APBD PROVINSI', '', '', '', '', '', totalProvItems];
-      totalProvItemRow.font = { name: 'Arial', size: 10, bold: true };
-      totalProvItemRow.getCell(9).numFmt = '#,##0';
-      for (let c = 1; c <= 9; c++) {
-        totalProvItemRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
-      }
-
-      ws2.columns = [
-        { width: 6 },
-        { width: 14 },
-        { width: 44 },
-        { width: 12 },
-        { width: 12 },
-        { width: 12 },
-        { width: 14 },
-        { width: 20 },
-        { width: 24 }
-      ];
-
-      const buffer = await workbook.xlsx.writeBuffer();
+      const buffer = await exportCostSharingToExcelBuffer(targetPeriode.id, { pic: filterPic, mode });
       const filename = `Rekap_Sumber_Dana_APBD_${(targetPeriode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}_${Date.now()}.xlsx`;
 
       recordAuditLog({

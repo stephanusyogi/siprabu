@@ -305,19 +305,26 @@ function appendOfficialSignature(ws, { isPic, filterPic, tanggalUnduh, settings,
  * Helper menyisipkan signature riwayat file / audit log sistem di bawah lembar kerja
  * Selalu diletakkan di bagian bawah DILUAR area print resmi dokumen
  */
-function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran }) {
+function appendAuditSignature(ws, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran, now = new Date() }) {
   ws.addRow([]);
   ws.addRow([]); // 2 baris kosong pemisah setelah batas cetak resmi
 
   const hasFilter = Boolean(filterPic || filterSasaran);
   const picDisplay = filterPic ? (SUBBAG_LABEL_MAP[filterPic] || filterPic) : 'SEMUA';
 
-  const hRow1 = ws.addRow(['[PENANDA RIWAYAT FILE & AUDIT LOG SISTEM - BUKAN MERUPAKAN BAGIAN DOKUMEN RESMI]']);
-  const hRow2 = ws.addRow([`Program / Dokumen: ${periode ? periode.nama_periode : 'Pilkada Serentak'} | Versi: ${periode ? (periode.versi_revisi || 'Induk') : '-'} | Status: ${statusLabel}`]);
-  const hRow3 = ws.addRow([`Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'} | Tanggal Unduh: ${tanggalUnduh}${hasFilter ? ` | Filter: PIC=${picDisplay}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
-  const hRow4 = ws.addRow(['Aplikasi: SI-PRABU (Sistem Perencanaan dan Belanja Terpadu) v3.0 | Pengembang: emenje']);
+  const jamWib = new Intl.DateTimeFormat('id-ID', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: 'Asia/Jakarta'
+  }).format(now);
+  const timestampFull = `${tanggalUnduh} Pukul ${jamWib} WIB`;
 
-  [hRow1, hRow2, hRow3, hRow4].forEach(hr => {
+  const hRow1 = ws.addRow(['[PENANDA RIWAYAT FILE & AUDIT LOG SISTEM - BUKAN MERUPAKAN BAGIAN DOKUMEN RESMI]']);
+  const hRow2 = ws.addRow([`Nama Dokumen RKB   : ${periode ? periode.nama_periode : 'RKB KPU Kabupaten Ngawi Pilkada 2029'} (Versi: ${periode ? (periode.versi_revisi || 'Induk') : '-'})`]);
+  const hRow3 = ws.addRow([`Status Lembar Kerja: ${statusLabel || 'DRAFT AKTIF (LEMBAR KERJA)'} | Dasar Pengesahan: ${periode ? (periode.dasar_pengesahan || 'Kertas Kerja Penyusunan') : '-'}`]);
+  const hRow4 = ws.addRow([`Waktu & Tanggal Unduh: ${timestampFull}${hasFilter ? ` | Cakupan Filter: PIC=${picDisplay}, Sasaran=${filterSasaran || 'SEMUA'}` : ''}`]);
+  const hRow5 = ws.addRow(['Aplikasi: SI-PRABU (Sistem Perencanaan dan Belanja Terpadu) v3.0 | Pengembang: emenje']);
+
+  [hRow1, hRow2, hRow3, hRow4, hRow5].forEach(hr => {
     const c = hr.getCell(1);
     c.font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF666666' } };
   });
@@ -533,7 +540,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   // Baris 1: KOMISI PEMILIHAN UMUM KABUPATEN NGAWI
   // Baris 2: BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI TAHUN 2029
   ws1.addRow(['KOMISI PEMILIHAN UMUM KABUPATEN NGAWI']);
-  ws1.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI TAHUN 2029']);
+  ws1.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI 2029']);
   ws1.addRow([]); // Baris 3: Pemisah kosong
 
   ws1.mergeCells('A1:K1');
@@ -1070,15 +1077,24 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
     const sheet3Rows = rows.filter(r => includedTreeIds.has(r.tree_id));
 
-    ws3.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
+    ws3.views = [{ state: 'frozen', xSplit: 0, ySplit: 5 }];
 
+    ws3.addRow(['KOMISI PEMILIHAN UMUM KABUPATEN NGAWI']);
     ws3.addRow(['MATRIKS PERUBAHAN RENCANA USULAN HALAMAN BELANJA (SEMULA - MENJADI)']);
-    ws3.addRow(['KPU KABUPATEN NGAWI - PILKADA SERENTAK']);
+    ws3.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI 2029']);
     const blankHeader3 = ws3.addRow([]);
-    blankHeader3.height = 16;
+    blankHeader3.height = 10;
+
+    ws3.mergeCells('A1:K1');
+    ws3.mergeCells('A2:K2');
+    ws3.mergeCells('A3:K3');
 
     ws3.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
-    ws3.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+    ws3.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws3.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF006699' } };
+    ws3.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws3.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
+    ws3.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
 
     const headersSheet3 = [
       'Kode', 'Uraian Kegiatan / Akun / Rincian Belanja',
@@ -1270,14 +1286,23 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     };
     appendAuditSignature(ws3, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
   } else {
-    ws3.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
+    ws3.views = [{ state: 'frozen', xSplit: 0, ySplit: 5 }];
+    ws3.addRow(['KOMISI PEMILIHAN UMUM KABUPATEN NGAWI']);
     ws3.addRow(['MATRIKS PERUBAHAN RENCANA USULAN HALAMAN BELANJA (SEMULA - MENJADI)']);
-    ws3.addRow(['KPU KABUPATEN NGAWI - PILKADA SERENTAK']);
+    ws3.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI 2029']);
     const blankHeader3 = ws3.addRow([]);
-    blankHeader3.height = 16;
+    blankHeader3.height = 10;
+
+    ws3.mergeCells('A1:G1');
+    ws3.mergeCells('A2:G2');
+    ws3.mergeCells('A3:G3');
 
     ws3.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
-    ws3.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+    ws3.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws3.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF006699' } };
+    ws3.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws3.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
+    ws3.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
 
     const headersSheet3 = [
       'Kode', 'Uraian Kegiatan / Akun / Rincian Belanja',
@@ -1375,15 +1400,13 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     function applyDocumentHeader(ws, subTitle, colsCount = 6) {
       ws.addRow(['KOMISI PEMILIHAN UMUM KABUPATEN NGAWI']);
       ws.addRow([subTitle.toUpperCase()]);
-      ws.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI']);
-      ws.addRow([`Dokumen: ${periode ? periode.nama_periode : 'Pilkada'} (${periode ? (periode.versi_revisi || 'Induk') : '-'}) | Status: ${statusLabel} | Tanggal Unduh: ${tanggalUnduh}`]);
-      ws.addRow([]);
+      ws.addRow(['BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI 2029']);
+      ws.addRow([]); // Baris 4: Spasi kosong pemisah sebelum header tabel
 
       const lastColLetter = String.fromCharCode(64 + colsCount);
       ws.mergeCells(`A1:${lastColLetter}1`);
       ws.mergeCells(`A2:${lastColLetter}2`);
       ws.mergeCells(`A3:${lastColLetter}3`);
-      ws.mergeCells(`A4:${lastColLetter}4`);
 
       ws.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
       ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
@@ -1391,14 +1414,11 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
       ws.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
       ws.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
       ws.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center' };
-      ws.getCell('A4').font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF666666' } };
-      ws.getCell('A4').alignment = { vertical: 'middle', horizontal: 'center' };
 
       ws.getRow(1).height = 22;
       ws.getRow(2).height = 26;
       ws.getRow(3).height = 22;
-      ws.getRow(4).height = 20;
-      ws.getRow(5).height = 10;
+      ws.getRow(4).height = 10;
     }
 
     function appendKetuaSignatureBlock(ws, targetCol, tgl, ketua) {
@@ -1448,7 +1468,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
     applyDocumentHeader(wsRekapEksekutif, 'RESUME EKSEKUTIF ALOKASI ANGGARAN PILKADA TAHUN 2029', 6);
 
-    // KARTU INDIKATOR MAKRO EKSEKUTIF (BARIS 6 - 8)
+    // KARTU INDIKATOR MAKRO EKSEKUTIF
     const totalPenyelenggara = (sas.KAB || 0) + (sas.PPK || 0) + (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
     const totalBadanAdHoc = (sas.PPK || 0) + (sas.PPS || 0) + (sas.PANTARLIH || 0) + (sas.TPS || 0);
     const valPeserta = sas.PESERTA || 0;
@@ -1476,53 +1496,60 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     cardValRow.height = 28;
     cardSubRow.height = 20;
 
-    wsRekapEksekutif.mergeCells('A6:B6'); wsRekapEksekutif.mergeCells('A7:B7'); wsRekapEksekutif.mergeCells('A8:B8');
-    wsRekapEksekutif.mergeCells('E6:F6'); wsRekapEksekutif.mergeCells('E7:F7'); wsRekapEksekutif.mergeCells('E8:F8');
+    const rH = cardHeaderRow.number;
+    const rV = cardValRow.number;
+    const rS = cardSubRow.number;
+
+    wsRekapEksekutif.mergeCells(`A${rH}:B${rH}`); wsRekapEksekutif.mergeCells(`A${rV}:B${rV}`); wsRekapEksekutif.mergeCells(`A${rS}:B${rS}`);
+    wsRekapEksekutif.mergeCells(`E${rH}:F${rH}`); wsRekapEksekutif.mergeCells(`E${rV}:F${rV}`); wsRekapEksekutif.mergeCells(`E${rS}:F${rS}`);
 
     ['A', 'B'].forEach(col => {
-      [6, 7, 8].forEach(r => {
+      [rH, rV, rS].forEach(r => {
         wsRekapEksekutif.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
       });
     });
-    wsRekapEksekutif.getCell('A6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0369A1' } };
-    wsRekapEksekutif.getCell('A7').font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF0284C7' } };
-    wsRekapEksekutif.getCell('A7').numFmt = '#,##0';
-    wsRekapEksekutif.getCell('A8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF075985' } };
-    wsRekapEksekutif.getCell('A6').alignment = { vertical: 'middle', horizontal: 'center' };
-    wsRekapEksekutif.getCell('A7').alignment = { vertical: 'middle', horizontal: 'center' };
-    wsRekapEksekutif.getCell('A8').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`A${rH}`).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+    wsRekapEksekutif.getCell(`A${rV}`).font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FF0284C7' } };
+    wsRekapEksekutif.getCell(`A${rV}`).numFmt = '#,##0';
+    wsRekapEksekutif.getCell(`A${rS}`).font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF075985' } };
+    wsRekapEksekutif.getCell(`A${rH}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`A${rV}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`A${rS}`).alignment = { vertical: 'middle', horizontal: 'center' };
 
-    [6, 7, 8].forEach(r => {
+    [rH, rV, rS].forEach(r => {
       wsRekapEksekutif.getCell(`C${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
     });
-    wsRekapEksekutif.getCell('C6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF6B21A8' } };
-    wsRekapEksekutif.getCell('C7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF7E22CE' } };
-    wsRekapEksekutif.getCell('C7').numFmt = '#,##0';
-    wsRekapEksekutif.getCell('C8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF581C87' } };
-    wsRekapEksekutif.getCell('C6').alignment = { vertical: 'middle', horizontal: 'center' };
-    wsRekapEksekutif.getCell('C7').alignment = { vertical: 'middle', horizontal: 'center' };
-    wsRekapEksekutif.getCell('C8').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`C${rH}`).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF6B21A8' } };
+    wsRekapEksekutif.getCell(`C${rV}`).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF7E22CE' } };
+    wsRekapEksekutif.getCell(`C${rV}`).numFmt = '#,##0';
+    wsRekapEksekutif.getCell(`C${rS}`).font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF581C87' } };
+    wsRekapEksekutif.getCell(`C${rH}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`C${rV}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`C${rS}`).alignment = { vertical: 'middle', horizontal: 'center' };
 
-    [6, 7, 8].forEach(r => {
+    [rH, rV, rS].forEach(r => {
       wsRekapEksekutif.getCell(`D${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
     });
-    wsRekapEksekutif.getCell('D6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF15803D' } };
-    wsRekapEksekutif.getCell('D7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF16A34A' } };
-    wsRekapEksekutif.getCell('D7').numFmt = '#,##0';
-    wsRekapEksekutif.getCell('D8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF14532D' } };
-    wsRekapEksekutif.getCell('D6').alignment = { vertical: 'middle', horizontal: 'center' };
-    wsRekapEksekutif.getCell('D7').alignment = { vertical: 'middle', horizontal: 'center' };
-    wsRekapEksekutif.getCell('D8').alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`D${rH}`).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF15803D' } };
+    wsRekapEksekutif.getCell(`D${rV}`).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF16A34A' } };
+    wsRekapEksekutif.getCell(`D${rV}`).numFmt = '#,##0';
+    wsRekapEksekutif.getCell(`D${rS}`).font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF14532D' } };
+    wsRekapEksekutif.getCell(`D${rH}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`D${rV}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`D${rS}`).alignment = { vertical: 'middle', horizontal: 'center' };
 
     ['E', 'F'].forEach(col => {
-      [6, 7, 8].forEach(r => {
+      [rH, rV, rS].forEach(r => {
         wsRekapEksekutif.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
       });
     });
-    wsRekapEksekutif.getCell('E6').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFB45309' } };
-    wsRekapEksekutif.getCell('E7').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFD97706' } };
-    wsRekapEksekutif.getCell('E7').numFmt = '#,##0';
-    wsRekapEksekutif.getCell('E8').font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF78350F' } };
+    wsRekapEksekutif.getCell(`E${rH}`).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFB45309' } };
+    wsRekapEksekutif.getCell(`E${rV}`).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFD97706' } };
+    wsRekapEksekutif.getCell(`E${rV}`).numFmt = '#,##0';
+    wsRekapEksekutif.getCell(`E${rS}`).font = { name: 'Calibri', size: 9, italic: true, color: { argb: 'FF78350F' } };
+    wsRekapEksekutif.getCell(`E${rH}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`E${rV}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    wsRekapEksekutif.getCell(`E${rS}`).alignment = { vertical: 'middle', horizontal: 'center' };
     wsRekapEksekutif.getCell('E6').alignment = { vertical: 'middle', horizontal: 'center' };
     wsRekapEksekutif.getCell('E7').alignment = { vertical: 'middle', horizontal: 'center' };
     wsRekapEksekutif.getCell('E8').alignment = { vertical: 'middle', horizontal: 'center' };
@@ -1681,20 +1708,9 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     const hRowKegiatan = wsRekapKegiatan.addRow(['Kode', 'Uraian Program / Kegiatan (Level RKB)', 'Pagu Anggaran (Rp)', 'Porsi (%)', 'PIC Subbag Utama']);
     applyPresentationHeader(hRowKegiatan, 5);
 
-    // Ambil Level 1 dan Level 2 dari dataset
-    const secA = rows.find(r => r.tree_level === 1 && r.kode === 'A');
-    const secA_I = rows.find(r => r.tree_level === 2 && r.parent_tree_id === 'h_' + (secA ? secA.id : '') && r.kode === 'I.');
-    const secA_II = rows.find(r => r.tree_level === 2 && r.parent_tree_id === 'h_' + (secA ? secA.id : '') && r.kode === 'II.');
-    const itemsA_I = rows.filter(r => r.parent_tree_id === 'h_' + (secA_I ? secA_I.id : '') && (r.tree_level === 3 || (r.is_header && r.level_indent === 2)));
-    const itemsA_II = rows.filter(r => r.parent_tree_id === 'h_' + (secA_II ? secA_II.id : '') && (r.tree_level === 3 || (r.is_header && r.level_indent === 2)));
-
-    const secB = rows.find(r => r.tree_level === 1 && r.kode === 'B');
-    const secB_I = rows.find(r => r.tree_level === 2 && r.parent_tree_id === 'h_' + (secB ? secB.id : '') && r.kode === 'I.');
-    const secB_II = rows.find(r => r.tree_level === 2 && r.parent_tree_id === 'h_' + (secB ? secB.id : '') && r.kode === 'II.');
-    const itemsB_II = rows.filter(r => r.parent_tree_id === 'h_' + (secB_II ? secB_II.id : '') && (r.tree_level === 3 || (r.is_header && r.level_indent === 2)));
-
+    // Ambil Level 1 dan Level 2 dari dataset secara dinamis & konsisten
     function addLevelHeader(ws, kode, uraian, totalVal, isLevel1 = false) {
-      const pct = ((totalVal / grandTotal) * 100).toFixed(2) + '%';
+      const pct = grandTotal > 0 ? (((totalVal / grandTotal) * 100).toFixed(2) + '%') : '0.00%';
       const r = ws.addRow([kode, uraian, totalVal, pct, isLevel1 ? 'Kelompok Makro' : 'Kelompok Tahapan']);
       r.height = isLevel1 ? 25 : 23;
       const bgColor = isLevel1 ? 'FF1E293B' : 'FF334155';
@@ -1712,7 +1728,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     }
 
     function addSubtotalRow(ws, label, totalVal, note = '') {
-      const pct = ((totalVal / grandTotal) * 100).toFixed(2) + '%';
+      const pct = grandTotal > 0 ? (((totalVal / grandTotal) * 100).toFixed(2) + '%') : '0.00%';
       const r = ws.addRow(['', label, totalVal, pct, note]);
       r.height = 23;
       for (let c = 1; c <= 5; c++) {
@@ -1729,8 +1745,8 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
     function addItemRow(ws, it) {
       const val = it.computed_total || 0;
-      const pct = ((val / grandTotal) * 100).toFixed(2) + '%';
-      const r = ws.addRow([it.kode || '', it.uraian || '', val, pct, it.pic_bagian || '-']);
+      const pct = grandTotal > 0 ? (((val / grandTotal) * 100).toFixed(2) + '%') : '0.00%';
+      const r = ws.addRow([it.kode || '', '    ' + (it.uraian || ''), val, pct, it.pic_bagian || '-']);
       r.height = 22;
       for (let c = 1; c <= 5; c++) {
         r.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
@@ -1745,23 +1761,16 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     }
 
     // --- BAGIAN A: KEBUTUHAN BARANG DAN JASA ---
-    if (secA) addLevelHeader(wsRekapKegiatan, secA.kode, secA.uraian, secA.computed_total, true);
-    
-    // I. Tahapan Persiapan & Pelaksanaan
-    if (secA_I) {
-      addLevelHeader(wsRekapKegiatan, secA_I.kode, secA_I.uraian, secA_I.computed_total, false);
-      itemsA_I.forEach(it => addItemRow(wsRekapKegiatan, it));
-      addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL TAHAPAN PERSIAPAN DAN PELAKSANAAN (I)', secA_I.computed_total, `${itemsA_I.length} Kegiatan`);
-    }
-
-    // II. Operasional & Administrasi Kantor
-    if (secA_II) {
-      addLevelHeader(wsRekapKegiatan, secA_II.kode, secA_II.uraian, secA_II.computed_total, false);
-      itemsA_II.forEach(it => addItemRow(wsRekapKegiatan, it));
-      addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL OPERASIONAL DAN ADMINISTRASI KANTOR (II)', secA_II.computed_total, `${itemsA_II.length} Komponen`);
-    }
-
+    const secA = rows.find(r => r.is_header && Number(r.level_indent) === 0 && r.kode === 'A');
     if (secA) {
+      addLevelHeader(wsRekapKegiatan, secA.kode, secA.uraian, secA.computed_total, true);
+      const childrenA = rows.filter(r => (r.parent_tree_id === secA.tree_id || r.parent_tree_id === 'row_' + secA.id) && Number(r.level_indent) === 1);
+      childrenA.forEach(tahapan => {
+        addLevelHeader(wsRekapKegiatan, tahapan.kode, tahapan.uraian, tahapan.computed_total, false);
+        const actItems = rows.filter(r => (r.parent_tree_id === tahapan.tree_id || r.parent_tree_id === 'row_' + tahapan.id) && (r.tree_level === 3 || (r.is_header && Number(r.level_indent) === 2)));
+        actItems.forEach(it => addItemRow(wsRekapKegiatan, it));
+        addSubtotalRow(wsRekapKegiatan, `SUBTOTAL ${tahapan.uraian.toUpperCase()} (${tahapan.kode.replace(/\./g, '')}):`, tahapan.computed_total, `${actItems.length} Kegiatan`);
+      });
       const subTotA = addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL KEBUTUHAN BARANG DAN JASA (A):', secA.computed_total, '28 Kegiatan & Operasional');
       for (let c = 1; c <= 5; c++) {
         subTotA.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
@@ -1769,41 +1778,41 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     }
 
     // --- BAGIAN B: HONORARIUM KELOMPOK KERJA DAN PENYELENGGARA PEMILIHAN ---
-    if (secB) addLevelHeader(wsRekapKegiatan, secB.kode, secB.uraian, secB.computed_total, true);
-
-    // I. Honorarium Kelompok Kerja Pemilihan (Pokja)
-    if (secB_I) {
-      const valPokja = secB_I.computed_total || 0;
-      const pctPokja = ((valPokja / grandTotal) * 100).toFixed(2) + '%';
-      const rPokja = wsRekapKegiatan.addRow([
-        'Pokja',
-        'Honorarium Kelompok Kerja (Pokja) Pemilihan (11 Bidang Pokja)',
-        valPokja,
-        pctPokja,
-        'KUL / Lintas Subbag'
-      ]);
-      rPokja.height = 22;
-      for (let c = 1; c <= 5; c++) {
-        rPokja.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
-        rPokja.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
-      }
-      rPokja.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-      rPokja.getCell(3).numFmt = '#,##0';
-      rPokja.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
-      rPokja.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
-      rPokja.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-
-      addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL HONORARIUM KELOMPOK KERJA (I)', valPokja, '11 Bidang Pokja');
-    }
-
-    // II. Honorarium Penyelenggara Pemilihan (Badan Ad Hoc)
-    if (secB_II) {
-      addLevelHeader(wsRekapKegiatan, secB_II.kode, secB_II.uraian, secB_II.computed_total, false);
-      itemsB_II.forEach(it => addItemRow(wsRekapKegiatan, it));
-      addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL HONORARIUM PENYELENGGARA PEMILIHAN (II)', secB_II.computed_total, 'PPK, PPS, KPPS & Pantarlih');
-    }
-
+    const secB = rows.find(r => r.is_header && Number(r.level_indent) === 0 && r.kode === 'B');
     if (secB) {
+      addLevelHeader(wsRekapKegiatan, secB.kode, secB.uraian, secB.computed_total, true);
+      const childrenB = rows.filter(r => (r.parent_tree_id === secB.tree_id || r.parent_tree_id === 'row_' + secB.id) && Number(r.level_indent) === 1);
+      childrenB.forEach(tahapan => {
+        addLevelHeader(wsRekapKegiatan, tahapan.kode, tahapan.uraian, tahapan.computed_total, false);
+        const actItems = rows.filter(r => (r.parent_tree_id === tahapan.tree_id || r.parent_tree_id === 'row_' + tahapan.id) && (r.tree_level === 3 || (r.is_header && Number(r.level_indent) === 2)));
+        if (actItems.length > 0) {
+          actItems.forEach(it => addItemRow(wsRekapKegiatan, it));
+          addSubtotalRow(wsRekapKegiatan, `SUBTOTAL ${tahapan.uraian.toUpperCase()} (${tahapan.kode.replace(/\./g, '')}):`, tahapan.computed_total, 'PPK, PPS, KPPS & Pantarlih');
+        } else {
+          // Tahapan Pokja (Honorarium Kelompok Kerja Pemilihan - 11 Bidang Pokja)
+          const valPokja = tahapan.computed_total || 0;
+          const pctPokja = grandTotal > 0 ? (((valPokja / grandTotal) * 100).toFixed(2) + '%') : '0.00%';
+          const rPokja = wsRekapKegiatan.addRow([
+            'Pokja',
+            '    Honorarium Kelompok Kerja (Pokja) Pemilihan (11 Bidang Pokja)',
+            valPokja,
+            pctPokja,
+            'KUL / Lintas Subbag'
+          ]);
+          rPokja.height = 22;
+          for (let c = 1; c <= 5; c++) {
+            rPokja.getCell(c).font = { name: 'Calibri', size: 11, color: { argb: 'FF000000' } };
+            rPokja.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } }, left: { style: 'thin', color: { argb: 'FFE5E7EB' } }, right: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+          }
+          rPokja.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+          rPokja.getCell(3).numFmt = '#,##0';
+          rPokja.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+          rPokja.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+          rPokja.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+
+          addSubtotalRow(wsRekapKegiatan, `SUBTOTAL ${tahapan.uraian.toUpperCase()} (${tahapan.kode.replace(/\./g, '')}):`, valPokja, '11 Bidang Pokja');
+        }
+      });
       const subTotB = addSubtotalRow(wsRekapKegiatan, 'SUBTOTAL HONORARIUM KELOMPOK KERJA & PENYELENGGARA (B):', secB.computed_total, 'Pokja & Badan Ad Hoc');
       for (let c = 1; c <= 5; c++) {
         subTotB.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
@@ -2863,8 +2872,347 @@ function parseKecamatanExcelBuffer(buffer) {
   return parsedItems;
 }
 
+/**
+ * Ekspor Rekapitulasi Sumber Dana / Cost Sharing (APBD Kab vs Prov) ke format Excel
+ * Dilengkapi Kop resmi Tahun 2029, tanpa metadata di kop atas,
+ * tanda tangan pejabat, printArea ketat, serta audit timestamp di luar print area.
+ */
+async function exportCostSharingToExcelBuffer(periodeId, { pic = 'SEMUA', mode = 'perencanaan' } = {}) {
+  const { getPeriodeById, getPenandatanganList, getActivePeriode, getLatestRatifiedPeriode } = require('./db');
+  const { getCachedRkbDataset, filterAndPruneRkbDataset } = require('./calculation');
+
+  const targetPeriode = (periodeId ? getPeriodeById(periodeId) : null) || (mode === 'pelaksanaan' ? getLatestRatifiedPeriode() : (getActivePeriode() || getLatestRatifiedPeriode()));
+  if (!targetPeriode) {
+    throw new Error('Dokumen RKB sumber rekap tidak ditemukan.');
+  }
+
+  const fullDataset = getCachedRkbDataset(targetPeriode.id);
+  const activeData = (pic && pic !== 'SEMUA')
+    ? filterAndPruneRkbDataset(fullDataset, { pic })
+    : fullDataset;
+
+  const ExcelJS = require('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'SI-PRABU KPU Kabupaten Ngawi';
+  workbook.created = new Date();
+
+  const now = new Date();
+  const bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const tanggalUnduh = `${now.getDate()} ${bulanIndo[now.getMonth()]} ${now.getFullYear()}`;
+  const statusLabel = targetPeriode.is_locked ? 'BASELINE SAH (TERKUNCI)' : (targetPeriode.fase_perencanaan || 'DRAFT AKTIF (LEMBAR KERJA)');
+
+  // Sheet 1: Rekap Sumber Dana
+  const ws1 = workbook.addWorksheet('Rekap Sumber Dana', {
+    pageSetup: {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 }
+    },
+    headerFooter: {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
+    }
+  });
+  ws1.views = [{ showGridLines: true }];
+
+  // Header Judul 3 Baris Resmi
+  ws1.mergeCells('A1:F1');
+  ws1.getCell('A1').value = 'KOMISI PEMILIHAN UMUM KABUPATEN NGAWI';
+  ws1.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+  ws1.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws1.mergeCells('A2:F2');
+  ws1.getCell('A2').value = `REKAPITULASI SUMBER DANA ANGGARAN (${mode === 'pelaksanaan' ? 'BASELINE SAH' : 'RKB AKTIF'})`;
+  ws1.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF006699' } };
+  ws1.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws1.mergeCells('A3:F3');
+  ws1.getCell('A3').value = 'BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI 2029';
+  ws1.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
+  ws1.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws1.getRow(1).height = 22;
+  ws1.getRow(2).height = 26;
+  ws1.getRow(3).height = 22;
+  ws1.addRow([]); // Baris 4: Spasi kosong
+  ws1.getRow(4).height = 10;
+
+  // Bagian 1: Distribusi per Subbagian Pelaksana
+  ws1.getCell('A5').value = 'I. REKAPITULASI DISTRIBUSI PER SUBBAGIAN PELAKSANA';
+  ws1.getCell('A5').font = { name: 'Calibri', size: 11, bold: true };
+
+  const subbagHeaders = ['No', 'Subbagian Pelaksana', 'Alokasi APBD Kab (Rp)', 'Alokasi APBD Prov (Rp)', 'Total Anggaran (Rp)', 'Porsi Prov (%)'];
+  ws1.getRow(6).values = subbagHeaders;
+  ws1.getRow(6).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  ws1.getRow(6).alignment = { horizontal: 'center', vertical: 'middle' };
+  for (let c = 1; c <= 6; c++) {
+    ws1.getCell(6, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  }
+
+  const subbags = ['KUL', 'RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM'];
+  const bySubbagCost = activeData.summary?.byCostSharingBySubbag || {};
+  let rIdx = 7;
+  let totalKabSubbag = 0;
+  let totalProvSubbag = 0;
+  let totalAllSubbag = 0;
+
+  subbags.forEach((sbg, idx) => {
+    const kabVal = bySubbagCost[sbg]?.KABUPATEN || 0;
+    const provVal = bySubbagCost[sbg]?.PROVINSI || 0;
+    const totVal = kabVal + provVal;
+    const pctProv = totVal > 0 ? (provVal / totVal) : 0;
+
+    totalKabSubbag += kabVal;
+    totalProvSubbag += provVal;
+    totalAllSubbag += totVal;
+
+    const row = ws1.getRow(rIdx++);
+    row.values = [idx + 1, sbg, kabVal, provVal, totVal, pctProv];
+    row.font = { name: 'Calibri', size: 10 };
+    row.getCell(1).alignment = { horizontal: 'center' };
+    row.getCell(3).numFmt = '#,##0';
+    row.getCell(4).numFmt = '#,##0';
+    row.getCell(5).numFmt = '#,##0';
+    row.getCell(6).numFmt = '0.00%';
+    row.getCell(5).font = { name: 'Calibri', size: 10, bold: true };
+  });
+
+  const totalSubbagRow = ws1.getRow(rIdx++);
+  const pctProvTotalSub = totalAllSubbag > 0 ? (totalProvSubbag / totalAllSubbag) : 0;
+  totalSubbagRow.values = ['', 'TOTAL REKAPITULASI SUBBAGIAN', totalKabSubbag, totalProvSubbag, totalAllSubbag, pctProvTotalSub];
+  totalSubbagRow.font = { name: 'Calibri', size: 10, bold: true };
+  totalSubbagRow.getCell(3).numFmt = '#,##0';
+  totalSubbagRow.getCell(4).numFmt = '#,##0';
+  totalSubbagRow.getCell(5).numFmt = '#,##0';
+  totalSubbagRow.getCell(6).numFmt = '0.00%';
+  for (let c = 1; c <= 6; c++) {
+    totalSubbagRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+  }
+
+  // Bagian 2: Distribusi per Sasaran
+  rIdx += 2;
+  ws1.getCell(`A${rIdx}`).value = 'II. REKAPITULASI DISTRIBUSI PER KELOMPOK SASARAN';
+  ws1.getCell(`A${rIdx}`).font = { name: 'Calibri', size: 11, bold: true };
+  rIdx++;
+
+  const sasHeaders = ['No', 'Kelompok Sasaran', 'Alokasi APBD Kab (Rp)', 'Alokasi APBD Prov (Rp)', 'Total Anggaran (Rp)', 'Porsi Prov (%)'];
+  ws1.getRow(rIdx).values = sasHeaders;
+  ws1.getRow(rIdx).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  ws1.getRow(rIdx).alignment = { horizontal: 'center', vertical: 'middle' };
+  for (let c = 1; c <= 6; c++) {
+    ws1.getCell(rIdx, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  }
+  rIdx++;
+
+  const sasList = [
+    { code: 'KAB', label: '1. KPU Kabupaten Ngawi (Satker)' },
+    { code: 'PPK', label: '2. PPK (19 Kecamatan)' },
+    { code: 'PPS', label: '3. PPS (217 Desa / Kelurahan)' },
+    { code: 'PANTARLIH', label: '4. Pantarlih / PPDP' },
+    { code: 'TPS', label: '5. TPS (KPPS & Linmas)' },
+    { code: 'PESERTA', label: '6. Peserta Pemilihan (Paslon)' }
+  ];
+  const bySasCost = activeData.summary?.byCostSharingBySasaran || {};
+  let totalKabSas = 0;
+  let totalProvSas = 0;
+  let totalAllSas = 0;
+
+  sasList.forEach((s, idx) => {
+    const kabVal = bySasCost[s.code]?.KABUPATEN || 0;
+    const provVal = bySasCost[s.code]?.PROVINSI || 0;
+    const totVal = kabVal + provVal;
+    const pctProv = totVal > 0 ? (provVal / totVal) : 0;
+
+    totalKabSas += kabVal;
+    totalProvSas += provVal;
+    totalAllSas += totVal;
+
+    const row = ws1.getRow(rIdx++);
+    row.values = [idx + 1, s.label, kabVal, provVal, totVal, pctProv];
+    row.font = { name: 'Calibri', size: 10 };
+    row.getCell(1).alignment = { horizontal: 'center' };
+    row.getCell(3).numFmt = '#,##0';
+    row.getCell(4).numFmt = '#,##0';
+    row.getCell(5).numFmt = '#,##0';
+    row.getCell(6).numFmt = '0.00%';
+    row.getCell(5).font = { name: 'Calibri', size: 10, bold: true };
+  });
+
+  const totalSasRow = ws1.getRow(rIdx++);
+  const pctProvTotalSas = totalAllSas > 0 ? (totalProvSas / totalAllSas) : 0;
+  totalSasRow.values = ['', 'TOTAL REKAPITULASI SASARAN', totalKabSas, totalProvSas, totalAllSas, pctProvTotalSas];
+  totalSasRow.font = { name: 'Calibri', size: 10, bold: true };
+  totalSasRow.getCell(3).numFmt = '#,##0';
+  totalSasRow.getCell(4).numFmt = '#,##0';
+  totalSasRow.getCell(5).numFmt = '#,##0';
+  totalSasRow.getCell(6).numFmt = '0.00%';
+  for (let c = 1; c <= 6; c++) {
+    totalSasRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+  }
+
+  // Blok Tanda Tangan Resmi Dokumen Rekap (Bab 22 SAKTI)
+  const ttdList = getPenandatanganList();
+  const ketuaTtd = ttdList.find(p => p.id === 'KETUA') || { nama_pejabat: 'SAMSU MUSTAKIM' };
+  const kpaTtd = ttdList.find(p => p.id === 'SEKRETARIS') || { nama_pejabat: 'BUDI RAHAYU', nip: '19830503 200902 1 002' };
+
+  rIdx += 2;
+  ws1.mergeCells(`B${rIdx}:C${rIdx}`);
+  ws1.getCell(`B${rIdx}`).value = 'Mengetahui,';
+  ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center' };
+
+  ws1.mergeCells(`E${rIdx}:F${rIdx}`);
+  ws1.getCell(`E${rIdx}`).value = `Ngawi, ${tanggalUnduh}`;
+  ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
+
+  rIdx++;
+  ws1.mergeCells(`B${rIdx}:C${rIdx}`);
+  ws1.getCell(`B${rIdx}`).value = 'Ketua Komisi Pemilihan Umum\nKabupaten Ngawi';
+  ws1.getCell(`B${rIdx}`).font = { name: 'Calibri', size: 10, bold: true };
+  ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center', wrapText: true };
+
+  ws1.mergeCells(`E${rIdx}:F${rIdx}`);
+  ws1.getCell(`E${rIdx}`).value = 'Sekretaris KPU Kabupaten Ngawi\nSelaku Kuasa Pengguna Anggaran (KPA)';
+  ws1.getCell(`E${rIdx}`).font = { name: 'Calibri', size: 10, bold: true };
+  ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center', wrapText: true };
+
+  rIdx += 4;
+  ws1.mergeCells(`B${rIdx}:C${rIdx}`);
+  ws1.getCell(`B${rIdx}`).value = ketuaTtd.nama_pejabat;
+  ws1.getCell(`B${rIdx}`).font = { name: 'Calibri', size: 10, bold: true, underline: true };
+  ws1.getCell(`B${rIdx}`).alignment = { horizontal: 'center' };
+
+  ws1.mergeCells(`E${rIdx}:F${rIdx}`);
+  ws1.getCell(`E${rIdx}`).value = kpaTtd.nama_pejabat;
+  ws1.getCell(`E${rIdx}`).font = { name: 'Calibri', size: 10, bold: true, underline: true };
+  ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
+
+  rIdx++;
+  ws1.mergeCells(`E${rIdx}:F${rIdx}`);
+  ws1.getCell(`E${rIdx}`).value = `NIP. ${kpaTtd.nip || '-'}`;
+  ws1.getCell(`E${rIdx}`).font = { name: 'Calibri', size: 9 };
+  ws1.getCell(`E${rIdx}`).alignment = { horizontal: 'center' };
+
+  ws1.columns = [
+    { width: 6 },
+    { width: 38 },
+    { width: 24 },
+    { width: 24 },
+    { width: 26 },
+    { width: 16 }
+  ];
+
+  const signEndRowCost1 = rIdx;
+  ws1.pageSetup.printArea = `A1:F${signEndRowCost1}`;
+  appendAuditSignature(ws1, { periode: targetPeriode, statusLabel, tanggalUnduh, filterPic: pic, filterSasaran: mode, now });
+
+  // Sheet 2: Rincian Belanja Sharing Provinsi
+  const ws2 = workbook.addWorksheet('Rincian Belanja Sharing Prov', {
+    pageSetup: {
+      orientation: 'landscape',
+      paperSize: 9,
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.3 }
+    },
+    headerFooter: {
+      oddFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N',
+      evenFooter: '&C&"Calibri,Regular"&10Halaman &P dari &N'
+    }
+  });
+  ws2.views = [{ showGridLines: true }];
+
+  ws2.mergeCells('A1:I1');
+  ws2.getCell('A1').value = 'KOMISI PEMILIHAN UMUM KABUPATEN NGAWI';
+  ws2.getCell('A1').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
+  ws2.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws2.mergeCells('A2:I2');
+  ws2.getCell('A2').value = 'DAFTAR ITEM BELANJA BERSUMBER APBD PROVINSI (SHARING)';
+  ws2.getCell('A2').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF065F46' } };
+  ws2.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws2.mergeCells('A3:I3');
+  ws2.getCell('A3').value = 'BELANJA HIBAH DALAM RANGKA PEMILIHAN BUPATI DAN WAKIL BUPATI 2029';
+  ws2.getCell('A3').font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF333333' } };
+  ws2.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws2.getRow(1).height = 22;
+  ws2.getRow(2).height = 26;
+  ws2.getRow(3).height = 22;
+  ws2.addRow([]); // Baris 4: Spasi kosong
+  ws2.getRow(4).height = 10;
+
+  const provHeaders = ['No', 'Kode Akun', 'Uraian Rincian Belanja', 'PIC', 'Sasaran', 'Volume', 'Satuan', 'Harga Satuan (Rp)', 'Total Anggaran (Rp)'];
+  ws2.getRow(5).values = provHeaders;
+  ws2.getRow(5).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  ws2.getRow(5).alignment = { horizontal: 'center', vertical: 'middle' };
+  for (let c = 1; c <= 9; c++) {
+    ws2.getCell(5, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF047857' } };
+  }
+
+  const provItems = (activeData.rows || []).filter(r => !r.is_header && (r.cost_sharing || '').toUpperCase() === 'PROVINSI');
+  let pIdx = 6;
+  let totalProvItems = 0;
+  provItems.forEach((it, idx) => {
+    const tot = Number(it.computed_total || it.jumlah) || 0;
+    totalProvItems += tot;
+    const row = ws2.getRow(pIdx++);
+    row.values = [
+      idx + 1,
+      it.kode_akun || '-',
+      it.uraian || '-',
+      it.pic_bagian || '-',
+      it.target_scope || 'KAB',
+      it.vol_total || it.computed_volume || 1,
+      it.satuan_vol || '',
+      it.harga_satuan || 0,
+      tot
+    ];
+    row.font = { name: 'Calibri', size: 10 };
+    row.getCell(1).alignment = { horizontal: 'center' };
+    row.getCell(2).alignment = { horizontal: 'center' };
+    row.getCell(4).alignment = { horizontal: 'center' };
+    row.getCell(5).alignment = { horizontal: 'center' };
+    row.getCell(6).numFmt = '#,##0.##';
+    row.getCell(8).numFmt = '#,##0';
+    row.getCell(9).numFmt = '#,##0';
+    row.getCell(9).font = { name: 'Calibri', size: 10, bold: true };
+  });
+
+  const totalProvItemRow = ws2.getRow(pIdx++);
+  totalProvItemRow.values = ['', '', 'TOTAL BELANJA APBD PROVINSI', '', '', '', '', '', totalProvItems];
+  totalProvItemRow.font = { name: 'Calibri', size: 10, bold: true };
+  totalProvItemRow.getCell(9).numFmt = '#,##0';
+  for (let c = 1; c <= 9; c++) {
+    totalProvItemRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+  }
+
+  ws2.columns = [
+    { width: 6 },
+    { width: 14 },
+    { width: 44 },
+    { width: 12 },
+    { width: 12 },
+    { width: 12 },
+    { width: 14 },
+    { width: 20 },
+    { width: 24 }
+  ];
+
+  const signEndRowCost2 = pIdx;
+  ws2.pageSetup.printArea = `A1:I${signEndRowCost2}`;
+  appendAuditSignature(ws2, { periode: targetPeriode, statusLabel, tanggalUnduh, filterPic: pic, filterSasaran: mode, now });
+
+  return await workbook.xlsx.writeBuffer();
+}
+
 module.exports = {
   exportRkbToExcelBuffer,
+  exportCostSharingToExcelBuffer,
   exportSbmToExcelBuffer,
   parseSbmExcelBuffer,
   exportBasToExcelBuffer,
