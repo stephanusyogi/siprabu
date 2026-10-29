@@ -359,6 +359,11 @@
                 <span class="icon">📜</span>
                 <span class="label">Regulasi &amp; Dasar Hukum</span>
               </button>
+              <!-- Standar 28 Kegiatan KPT KPU 543/2022 -->
+              <button class="nav-item" data-view="view-juknis-kegiatan" id="nav-item-juknis-kegiatan" onclick="switchView('view-juknis-kegiatan')">
+                <span class="icon">📋</span>
+                <span class="label">Standar 28 Kegiatan (KPT 543)</span>
+              </button>
             </div>
           </div>
 
@@ -2035,6 +2040,8 @@
                   <option value="PMK">PMK (Peraturan Menteri Keuangan)</option>
                   <option value="PKPU">PKPU (Peraturan KPU)</option>
                   <option value="KPT KPU">KPT KPU (Keputusan KPU)</option>
+                  <option value="KEP GUBERNUR">KEP GUBERNUR (Keputusan Gubernur Jatim)</option>
+                  <option value="KEP GUBERNUR">KEP GUBERNUR (Keputusan Gubernur / Pendanaan Bersama)</option>
                   <option value="KEP / PEDOMAN">KEP / PEDOMAN (Keputusan Teknis / BAS)</option>
                 </select>
               </div>
@@ -2048,6 +2055,105 @@
           <!-- JDIH Document Catalog List -->
           <div id="jdih-catalog-container" style="display: flex; flex-direction: column; gap: 12px;">
             <!-- Rendered dynamically via renderDbRegulasi() in app.js -->
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW: STANDAR & JUKNIS 28 KEGIATAN (KEPUTUSAN KPU NO. 543/2022)   -->
+        <!-- ================================================================= -->
+        <section id="view-juknis-kegiatan" class="app-view">
+          <div class="view-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>📋 PETUNJUK TEKNIS RESMI • KEPUTUSAN KPU NOMOR 543 TAHUN 2022</span>
+              </div>
+              <h2 class="view-title">Standar 28 Kegiatan &amp; Pedoman Anggaran Pemilihan</h2>
+              <p class="view-desc">
+                Intisari Lampiran V KPT 543/2022 &mdash; Rincian operasional bentuk kegiatan riil, klasifikasi akun BAS baku, rambu batasan belanja, dan output SPJ terukur untuk 28 kegiatan serta norma 11 Pokja.
+              </p>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="openJuknisModalPokja()" style="font-weight: 700;">
+                👥 Ringkasan 11 Pokja &amp; Ad Hoc
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="switchView('view-db-regulasi')" style="font-weight: 700;">
+                ⚖️ Katalog Regulasi JDIH &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- Juknis KPI Strip -->
+          <div class="penyelenggara-strip mb-3">
+            <div class="penyelenggara-box" style="border-left: 4px solid #b91c1c;">
+              <div class="p-title">Total Standar &amp; Juknis</div>
+              <div class="p-val" id="juknis-kpi-total">28 + 2 Honor</div>
+              <div class="p-note">Lampiran II, IV &amp; V KPT 543</div>
+            </div>
+            <div class="penyelenggara-box" style="border-left: 4px solid #d97706;">
+              <div class="p-title">Tahapan Persiapan</div>
+              <div class="p-val">4 Kegiatan</div>
+              <div class="p-note">Kegiatan No. 1 s.d. 4</div>
+            </div>
+            <div class="penyelenggara-box" style="border-left: 4px solid #2563eb;">
+              <div class="p-title">Tahapan Penyelenggaraan</div>
+              <div class="p-val">13 Kegiatan</div>
+              <div class="p-note">Kegiatan No. 5 s.d. 17</div>
+            </div>
+            <div class="penyelenggara-box" style="border-left: 4px solid #059669;">
+              <div class="p-title">Operasional Kantor</div>
+              <div class="p-val">11 Kegiatan</div>
+              <div class="p-note">Kegiatan No. 18 s.d. 28</div>
+            </div>
+            <div class="penyelenggara-box" style="border-left: 4px solid #7c3aed;">
+              <div class="p-title">Standar Honorarium</div>
+              <div class="p-val">2 Kategori</div>
+              <div class="p-note">Pokja &amp; Badan Ad Hoc</div>
+            </div>
+          </div>
+
+          <!-- Toolbar Pencarian & Filter Accordion -->
+          <div class="card mb-3" style="padding: 14px 16px;">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;" id="juknis-tahapan-tabs">
+                <button type="button" class="btn btn-sm btn-primary" data-tahapan="ALL" onclick="setJuknisTahapanFilter('ALL')">
+                  📚 Semua Standar &amp; Juknis
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-tahapan="PERSIAPAN" onclick="setJuknisTahapanFilter('PERSIAPAN')">
+                  📐 Persiapan (No. 1-4)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-tahapan="PENYELENGGARAAN" onclick="setJuknisTahapanFilter('PENYELENGGARAAN')">
+                  🗳️ Penyelenggaraan (No. 5-17)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-tahapan="OPERASIONAL" onclick="setJuknisTahapanFilter('OPERASIONAL')">
+                  🏢 Operasional &amp; Perkantoran (No. 18-28)
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-tahapan="HONORARIUM" onclick="setJuknisTahapanFilter('HONORARIUM')">
+                  💰 II. Honorarium (Pokja &amp; Ad Hoc)
+                </button>
+              </div>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" class="btn btn-xs btn-outline" onclick="expandAllJuknis()" title="Buka seluruh accordion kegiatan">
+                  🔽 Buka Semua
+                </button>
+                <button type="button" class="btn btn-xs btn-outline" onclick="collapseAllJuknis()" title="Tutup seluruh accordion kegiatan">
+                  🔼 Tutup Semua
+                </button>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
+              <div>
+                <input type="text" id="search-juknis-kegiatan" class="input-text input-sm" placeholder="🔍 Cari nama kegiatan, kode akun (521211, 521213, dsb), atau kata kunci (contoh: Coklit, Surat Suara, Debat, Honor)..." oninput="filterJuknisKegiatan()" style="width: 100%;">
+              </div>
+              <div style="font-size: 11.5px; color: #64748b; font-weight: 600; white-space: nowrap;" id="juknis-showing-count">
+                Menampilkan 28 kegiatan
+              </div>
+            </div>
+          </div>
+
+          <!-- Container Accordion 28 Kegiatan -->
+          <div id="juknis-accordion-container" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Rendered dynamically via renderJuknisKegiatan() in app.js -->
           </div>
         </section>
 
@@ -5578,6 +5684,11 @@
               <label style="font-weight: 700;">Tautan Portal JDIH / Dokumen Resmi (Opsional):</label>
               <input type="url" id="regulasi-tautan" class="input-text" placeholder="https://jdih.kpu.go.id/...">
             </div>
+            <div class="form-group" style="margin-top: 12px;">
+              <label style="font-weight: 700;">Tautan Dokumen PDF (Google Drive):</label>
+              <input type="url" id="regulasi-file-pdf" class="input-text" placeholder="https://drive.google.com/file/d/.../view?usp=sharing">
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Tempelkan tautan berbagi Google Drive. Tombol &quot;📄 Buka PDF&quot; pada katalog akan langsung membuka dokumen ini.</div>
+            </div>
           </form>
         </div>
         <div class="modal-footer">
@@ -5908,6 +6019,33 @@
       </div>
     </div>
 
+    <!-- MODAL RINGKASAN 11 POKJA & HONORARIUM AD HOC KPT 543/2022 -->
+    <div id="modal-juknis-pokja" class="modal-backdrop" style="display: none;" onclick="if(event.target===this) closeJuknisModalPokja()">
+      <div class="modal-dialog" style="max-width: 920px; width: 95%;">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title" style="margin: 0;">👥 Standar 11 Pokja &amp; Honorarium Ad Hoc (KPT 543/2022)</h3>
+            <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">
+              Pedoman Pembentukan Kelompok Kerja, Batasan 2 Pokja/Tahun, &amp; Standar SBML Ad Hoc (KPT 472/2022).
+            </p>
+          </div>
+          <button type="button" class="modal-close-btn" onclick="closeJuknisModalPokja()">&times;</button>
+        </div>
+        <div class="modal-body" style="max-height: 75vh; overflow-y: auto; padding: 20px;">
+          <div id="modal-juknis-pokja-content">
+            <!-- Dynamic via openJuknisModalPokja() in app.js -->
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="/docs/Catatan_Analisis_Regulasi_Pokja_KPU_Ngawi.docx" class="btn btn-success btn-sm" download="Catatan_Analisis_Regulasi_Pokja_KPU_Ngawi.docx" style="font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+            📥 Unduh Catatan &amp; Analisis Pokja (.DOCX)
+          </a>
+          <button type="button" class="btn btn-secondary" onclick="closeJuknisModalPokja()">Tutup</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/data_juknis.js?v=1.0.0"></script>
     <script src="/app.js?v=4.2.5"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>

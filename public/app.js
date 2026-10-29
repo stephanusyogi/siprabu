@@ -77,7 +77,8 @@ const SAKTI_VIEW_CODES = {
   'view-rekap-pelaksanaan': 22,
   'view-audit': 23,
   'view-panduan-pelaksanaan': 24,
-  'view-menu-matrix': 25
+  'view-menu-matrix': 25,
+  'view-juknis-kegiatan': 26
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -105,7 +106,8 @@ const SAKTI_CODE_TO_VIEW = {
   22: 'view-rekap-pelaksanaan',
   23: 'view-audit',
   24: 'view-panduan-pelaksanaan',
-  25: 'view-menu-matrix'
+  25: 'view-menu-matrix',
+  26: 'view-juknis-kegiatan'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -124,6 +126,7 @@ const SAKTI_VIEW_TITLES = {
   'view-db-sbm': 'Master Standar Biaya Masukan (SBM)',
   'view-db-bas': 'Master Bagan Akun Standar (BAS)',
   'view-db-regulasi': 'Regulasi & Dasar Hukum KPU',
+  'view-juknis-kegiatan': 'Standar 28 Kegiatan KPT 543/2022',
   'view-db-settings': 'Pengaturan Sistem & Parameter',
   'view-settings': 'Pengaturan Sistem & Parameter',
   'view-panduan': 'Panduan Perencanaan Anggaran',
@@ -2480,6 +2483,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-db-sbm') { renderDbSbm(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-bas') { renderDbBas(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-regulasi') { renderDbRegulasi(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-juknis-kegiatan') { renderJuknisKegiatan(); }
   else if (viewId === 'view-db-settings' || viewId === 'view-settings') { renderSettings(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-panduan') { renderPanduanByRole(); }
   else if (viewId === 'view-panduan-pelaksanaan') { renderPanduanByRole(); }
@@ -2505,6 +2509,7 @@ function renderAllViews() {
   renderDbSbm();
   renderDbBas();
   renderDbRegulasi();
+  renderJuknisKegiatan();
   renderSettings();
   renderUsersTable();
   applyRolePermissionsToUI();
@@ -8706,6 +8711,7 @@ function getJdihJenisStyle(jenis) {
   if (j.includes('PMK')) return { bg: '#dcfce7', color: '#166534', border: '#16a34a', icon: '💰' };
   if (j.includes('PKPU')) return { bg: '#dbeafe', color: '#1e40af', border: '#2563eb', icon: '🗳️' };
   if (j.includes('KPT KPU')) return { bg: '#f3e8ff', color: '#6b21a8', border: '#9333ea', icon: '⚖️' };
+  if (j.includes('GUBERNUR')) return { bg: '#e0f2fe', color: '#0369a1', border: '#0284c7', icon: '🏛️' };
   return { bg: '#f1f5f9', color: '#334155', border: '#64748b', icon: '📋' };
 }
 
@@ -8720,6 +8726,19 @@ function getJdihScopeBadge(lingkup) {
   return `<span class="badge badge-primary" style="font-size:11px; padding:3px 9px; font-weight:700;">🔄 Penyusunan &amp; Pelaksanaan</span>`;
 }
 
+
+function handleEmptyPdfLink(id) {
+  const isLevel1 = (AppState.currentUser?.level <= 1);
+  if (isLevel1) {
+    showToast('Tautan Google Drive belum diisi. Membuka form edit...', 'info');
+    openModalRegulasi(id);
+    setTimeout(() => {
+      document.getElementById('regulasi-file-pdf')?.focus();
+    }, 200);
+  } else {
+    showToast('Dokumen PDF di Google Drive sedang dipersiapkan oleh Satker.', 'warning');
+  }
+}
 function renderDbRegulasi() {
   if (!AppState.masters) return;
   const regulasis = AppState.masters.regulasis || [];
@@ -8811,13 +8830,22 @@ function filterDbRegulasi() {
           </div>
           <div style="display: flex; align-items: center; gap: 6px;">
             <button type="button" class="btn btn-outline-primary btn-xs" onclick="openModalRegulasiDetail(${r.id})" title="Lihat Lembar Metadata & Abstrak JDIH">
-              📖 Abstrak &amp; Metadata
+              📖 Abstrak
             </button>
-            ${r.tautan_dokumen ? `
-              <a href="${escapeHtml(r.tautan_dokumen)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs" style="text-decoration: none;" title="Buka Portal JDIH Resmi">
-                🔗 Portal JDIH &rarr;
-              </a>
+            ${(r.nomor_peraturan && r.nomor_peraturan.includes('543')) ? `
+              <button type="button" class="btn btn-xs" onclick="switchView('view-juknis-kegiatan')" title="Buka Standar 28 Kegiatan Interaktif KPT 543/2022" style="font-weight: 700; background-color: #eff6ff; color: #1d4ed8 !important; border: 1px solid #93c5fd; display: inline-flex; align-items: center; gap: 4px;">
+                ⚡ Juknis 28 Kegiatan &rarr;
+              </button>
             ` : ''}
+            ${r.file_pdf_nama ? `
+              <a href="${escapeHtml(r.file_pdf_nama)}" target="_blank" rel="noopener noreferrer" class="btn btn-danger btn-xs" style="text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; background-color: #dc2626; color: #ffffff !important; border: 1px solid #b91c1c; box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2);" title="Buka Dokumen PDF di Google Drive">
+                📄 Buka PDF
+              </a>
+            ` : `
+              <button type="button" class="btn btn-xs" style="color: #64748b !important; background-color: #f8fafc; border: 1px solid #cbd5e1; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="handleEmptyPdfLink(${r.id})" title="Tautan Google Drive belum diisi (Klik untuk mengisi)">
+                📄 Buka PDF
+              </button>
+            `}
             ${isLevel1 ? `
               <button type="button" class="btn btn-outline btn-xs" onclick="openModalRegulasi(${r.id})" title="Edit Produk Hukum">✏️</button>
               <button type="button" class="btn btn-outline-danger btn-xs" onclick="deleteRegulasi(${r.id})" title="Hapus Produk Hukum">🗑️</button>
@@ -8894,6 +8922,21 @@ function openModalRegulasiDetail(id) {
           <th style="background: #f1f5f9;">Abstrak / Pokok Materi</th>
           <td style="line-height: 1.6;">${escapeHtml(r.abstrak || '-')}</td>
         </tr>
+        ${r.file_pdf_nama ? `
+        <tr>
+          <th style="background: #f1f5f9; color: #b91c1c;">Dokumen PDF (Google Drive)</th>
+          <td>
+            <a href="${escapeHtml(r.file_pdf_nama)}" target="_blank" rel="noopener noreferrer" class="btn btn-danger btn-xs" style="color: #ffffff; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+              📄 Buka Dokumen PDF di Google Drive &rarr;
+            </a>
+          </td>
+        </tr>
+        ` : `
+        <tr>
+          <th style="background: #f1f5f9; color: #94a3b8;">Dokumen PDF</th>
+          <td style="color: #94a3b8; font-style: italic;">Tautan Google Drive sedang dipersiapkan oleh Satker</td>
+        </tr>
+        `}
         ${r.tautan_dokumen ? `
         <tr>
           <th style="background: #f1f5f9;">Tautan JDIH Resmi</th>
@@ -8932,6 +8975,7 @@ function openModalRegulasi(id = null) {
       setElVal('regulasi-modul', r.modul_terkait || '');
       setElVal('regulasi-abstrak', r.abstrak || '');
       setElVal('regulasi-tautan', r.tautan_dokumen || '');
+      setElVal('regulasi-file-pdf', r.file_pdf_nama || '');
     }
   } else {
     setElText('modal-regulasi-title', '➕ Tambah Produk Hukum JDIH Baru');
@@ -8941,6 +8985,7 @@ function openModalRegulasi(id = null) {
     setElVal('regulasi-tahun', 2024);
     setElVal('regulasi-lingkup', 'PENYUSUNAN & PELAKSANAAN');
     setElVal('regulasi-status', 'Berlaku');
+    setElVal('regulasi-file-pdf', '');
   }
   modal.style.display = 'flex';
 }
@@ -8963,7 +9008,8 @@ async function submitModalRegulasi() {
     instansi_penetap: (document.getElementById('regulasi-instansi')?.value || '').trim(),
     modul_terkait: (document.getElementById('regulasi-modul')?.value || '').trim(),
     abstrak: (document.getElementById('regulasi-abstrak')?.value || '').trim(),
-    tautan_dokumen: (document.getElementById('regulasi-tautan')?.value || '').trim()
+    tautan_dokumen: (document.getElementById('regulasi-tautan')?.value || '').trim(),
+    file_pdf_nama: (document.getElementById('regulasi-file-pdf')?.value || '').trim()
   };
 
   if (!payload.nomor_peraturan || !payload.tentang) {
@@ -9002,6 +9048,443 @@ async function deleteRegulasi(id) {
     showToast('Gagal menghapus produk hukum: ' + err.message, 'error');
   }
 }
+
+// ============================================================================
+// STANDAR 28 KEGIATAN KEPUTUSAN KPU NO. 543 TAHUN 2022 (LAMPIRAN V)
+// ============================================================================
+
+AppState.juknisTahapanFilter = 'ALL';
+AppState.juknisExpandedSet = new Set([1]); // Kegiatan No. 1 terbuka secara default
+
+function setJuknisTahapanFilter(tahapan) {
+  AppState.juknisTahapanFilter = tahapan;
+  document.querySelectorAll('#juknis-tahapan-tabs button').forEach(btn => {
+    const isMatch = btn.getAttribute('data-tahapan') === tahapan;
+    btn.className = isMatch ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-primary';
+  });
+  renderJuknisKegiatan();
+}
+
+function filterJuknisKegiatan() {
+  renderJuknisKegiatan();
+}
+
+function toggleJuknisAccordion(nomor) {
+  if (AppState.juknisExpandedSet.has(nomor)) {
+    AppState.juknisExpandedSet.delete(nomor);
+  } else {
+    AppState.juknisExpandedSet.add(nomor);
+  }
+  const card = document.getElementById(`juknis-card-${nomor}`);
+  if (card) {
+    const isExp = AppState.juknisExpandedSet.has(nomor);
+    card.classList.toggle('expanded', isExp);
+    const body = card.querySelector('.juknis-acc-body');
+    if (body) body.style.display = isExp ? 'block' : 'none';
+  }
+}
+
+function expandAllJuknis() {
+  const data = window.JUKNIS_KPT543_DATA || [];
+  data.forEach(d => AppState.juknisExpandedSet.add(d.nomor));
+  renderJuknisKegiatan();
+}
+
+function collapseAllJuknis() {
+  AppState.juknisExpandedSet.clear();
+  renderJuknisKegiatan();
+}
+
+function copyJuknisRAB(nomor) {
+  const item = (window.JUKNIS_KPT543_DATA || []).find(k => String(k.nomor) === String(nomor));
+  if (!item) return;
+  const lines = [
+    `KEGIATAN ${item.nomor}: ${item.nama.toUpperCase()}`,
+    `Tahapan: ${item.tahapan} | Penanggung Jawab: ${item.divisi} (${item.subbag})`,
+    `Deskripsi: ${item.deskripsi}`,
+    '',
+    'KOMPONEN BELANJA & AKUN BAS:'
+  ];
+  item.komponen_belanja.forEach(kb => {
+    lines.push(`• Akun ${kb.akun} (${kb.nama}): ${kb.item}`);
+  });
+  lines.push('');
+  lines.push('RAMBU REGULASI (DO\'S & DON\'TS):');
+  item.rambu_larangan.forEach(rl => lines.push(`- ${rl}`));
+  lines.push('');
+  lines.push('OUTPUT TERUKUR / SPJ:');
+  item.output_spj.forEach(out => lines.push(`- ${out}`));
+
+  const textToCopy = lines.join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      showToast(`Komponen Belanja Kegiatan ${item.nomor} berhasil disalin!`, 'success');
+    }).catch(() => {
+      showToast('Gagal menyalin ke clipboard.', 'warning');
+    });
+  } else {
+    showToast('Clipboard API tidak didukung pada browser ini.', 'warning');
+  }
+}
+
+function renderJuknisKegiatan() {
+  const container = document.getElementById('juknis-accordion-container');
+  if (!container) return;
+
+  const allData = window.JUKNIS_KPT543_DATA || [];
+  const searchVal = (document.getElementById('search-juknis-kegiatan')?.value || '').trim().toLowerCase();
+  const tahapanFilter = AppState.juknisTahapanFilter || 'ALL';
+
+  const filtered = allData.filter(item => {
+    if (tahapanFilter !== 'ALL' && item.tahapan !== tahapanFilter) return false;
+    if (!searchVal) return true;
+
+    const hay = [
+      String(item.nomor),
+      item.nama,
+      item.tahapan,
+      item.divisi,
+      item.subbag,
+      item.deskripsi,
+      ...item.bentuk_kegiatan,
+      ...item.komponen_belanja.map(k => k.akun + ' ' + k.nama + ' ' + k.item),
+      ...item.rambu_larangan,
+      ...item.output_spj
+    ].join(' ').toLowerCase();
+
+    return hay.includes(searchVal);
+  });
+
+  const countEl = document.getElementById('juknis-showing-count');
+  if (countEl) {
+    countEl.textContent = `Menampilkan ${filtered.length} dari ${allData.length} kegiatan`;
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="card p-5 text-center" style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px;">
+        <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+        <div style="font-size: 14px; font-weight: 700; color: #1e293b;">Tidak ada kegiatan yang cocok</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Coba gunakan kata kunci pencarian lain atau pilih tab "Semua Kegiatan".</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(item => {
+    const isExpanded = AppState.juknisExpandedSet.has(item.nomor);
+    let badgeClass = 'juknis-badge-persiapan';
+    let tahapanLabel = '📐 Tahapan Persiapan';
+    if (item.tahapan === 'PENYELENGGARAAN') {
+      badgeClass = 'juknis-badge-penyelenggaraan';
+      tahapanLabel = '🗳️ Tahapan Penyelenggaraan';
+    } else if (item.tahapan === 'OPERASIONAL') {
+      badgeClass = 'juknis-badge-operasional';
+      tahapanLabel = '🏢 Operasional & Perkantoran';
+    } else if (item.tahapan === 'HONORARIUM') {
+      badgeClass = 'juknis-badge-honorarium';
+      tahapanLabel = item.nomor === 'II.1' 
+        ? '💰 Standar Honorarium Kelompok Kerja (Pokja)' 
+        : '💰 Standar Honorarium Badan Ad Hoc';
+    }
+
+    const bentukHtml = item.bentuk_kegiatan.map(b => `<li style="margin-bottom: 4px;">${escapeHtml(b)}</li>`).join('');
+
+    const belanjaHtml = item.komponen_belanja.map(b => `
+      <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0;">
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+          <span style="background: #1e293b; color: #f8fafc; font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">
+            ${escapeHtml(b.akun)}
+          </span>
+          <strong style="font-size: 12px; color: #0f172a;">${escapeHtml(b.nama)}</strong>
+        </div>
+        <div style="font-size: 12px; color: #334155; line-height: 1.45;">${escapeHtml(b.item)}</div>
+      </div>
+    `).join('');
+
+    const rambuHtml = item.rambu_larangan.map(r => `<li style="margin-bottom: 5px; color: #991b1b;">${escapeHtml(r)}</li>`).join('');
+
+    const outputHtml = item.output_spj.map(o => `<li style="margin-bottom: 4px; color: #166534;">${escapeHtml(o)}</li>`).join('');
+
+    return `
+      <div class="juknis-acc-card ${isExpanded ? 'expanded' : ''}" id="juknis-card-${item.nomor}">
+        <div class="juknis-acc-header" onclick="toggleJuknisAccordion('${item.nomor}')">
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+            <div class="juknis-acc-badge-no ${badgeClass}">
+              ${item.nomor}
+            </div>
+            <div>
+              <div style="font-size: 14.5px; font-weight: 800; color: #0f172a; line-height: 1.35;">
+                ${escapeHtml(item.nama)}
+              </div>
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; font-size: 11px;">
+                <span style="font-weight: 700; color: #475569;">${tahapanLabel}</span>
+                <span style="color: #cbd5e1;">&bull;</span>
+                <span style="color: #1e40af; font-weight: 600;">🏛️ Divisi ${escapeHtml(item.divisi)}</span>
+                <span style="color: #cbd5e1;">&bull;</span>
+                <span style="color: #64748b;">${escapeHtml(item.subbag)}</span>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span class="juknis-acc-chevron">▼</span>
+          </div>
+        </div>
+
+        <div class="juknis-acc-body" style="display: ${isExpanded ? 'block' : 'none'};">
+          <p style="margin: 0 0 12px 0; font-size: 12.5px; color: #475569; font-style: italic; line-height: 1.55; background: #f8fafc; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #64748b;">
+            ${escapeHtml(item.deskripsi)}
+          </p>
+
+          ${item.nomor === 'II.1' ? `
+            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">📘</span>
+                <div>
+                  <div style="font-size: 12.5px; font-weight: 800; color: #166534;">Dokumen Catatan &amp; Analisis Yuridis Pengaturan Pokja</div>
+                  <div style="font-size: 11px; color: #15803d;">Ulasan lengkap kuota satker vs personel, dasar hukum, matriks 11 Pokja, &amp; mitigasi audit BPK KPU Kab. Ngawi.</div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <a href="/docs/Catatan_Analisis_Regulasi_Pokja_KPU_Ngawi.docx" class="btn btn-success btn-xs" download="Catatan_Analisis_Regulasi_Pokja_KPU_Ngawi.docx" style="font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Unduh Catatan & Analisis Regulasi Pokja dalam format Microsoft Word (.docx)">
+                  📥 Unduh Word (.DOCX)
+                </a>
+                <a href="/docs/Catatan_Analisis_Regulasi_Pokja_KPU_Ngawi.html" target="_blank" class="btn btn-outline-success btn-xs" style="font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Buka Catatan Pokja versi cetak / simpan PDF">
+                  🖨️ Cetak / PDF
+                </a>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="juknis-grid-2">
+            <!-- Kolom Kiri: Bentuk Kegiatan & Akun Belanja -->
+            <div>
+              <div class="juknis-box juknis-box-blue mb-3">
+                <div style="font-size: 12px; font-weight: 800; color: #0369a1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                  <span>🎯 Bentuk Riil Pelaksanaan Kegiatan</span>
+                </div>
+                <ul style="margin: 0; padding-left: 18px; line-height: 1.5;">
+                  ${bentukHtml}
+                </ul>
+              </div>
+
+              <div class="juknis-box juknis-box-gray">
+                <div style="font-size: 12px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                  <span>💰 Komponen Belanja &amp; Kode Akun BAS</span>
+                </div>
+                <div>
+                  ${belanjaHtml}
+                </div>
+              </div>
+            </div>
+
+            <!-- Kolom Kanan: Rambu Regulasi & Output SPJ -->
+            <div>
+              <div class="juknis-box juknis-box-red mb-3">
+                <div style="font-size: 12px; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                  <span>⚠️ Rambu Regulasi &amp; Batasan Belanja (Do's &amp; Don'ts)</span>
+                </div>
+                <ul style="margin: 0; padding-left: 18px; line-height: 1.5;">
+                  ${rambuHtml}
+                </ul>
+              </div>
+
+              <div class="juknis-box juknis-box-green">
+                <div style="font-size: 12px; font-weight: 800; color: #15803d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                  <span>📄 Output Terukur &amp; Bukti Dukung SPJ</span>
+                </div>
+                <ul style="margin: 0; padding-left: 18px; line-height: 1.5;">
+                  ${outputHtml}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Footer Actions -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
+            <div style="font-size: 11px; color: #94a3b8;">
+              📌 Rujukan Yuridis: Lampiran IV (Standar Honor) &amp; Lampiran V (Juknis) KPT 543/2022 jo Surat Menkeu S-647/2022
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+              ${item.nomor === 'II.1' ? `
+                <a href="/docs/Catatan_Analisis_Regulasi_Pokja_KPU_Ngawi.docx" class="btn btn-success btn-xs" download="Catatan_Analisis_Regulasi_Pokja_KPU_Ngawi.docx" style="font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Unduh Catatan & Analisis Regulasi Pokja format Microsoft Word (.docx)">
+                  📥 Unduh Catatan (.DOCX)
+                </a>
+              ` : ''}
+              ${String(item.nomor).startsWith('II') ? `
+                <button type="button" class="btn btn-outline-primary btn-xs" onclick="openJuknisModalPokja()" style="font-weight: 700;">
+                  👥 Buka Tabel Lengkap 11 Pokja &amp; Ad Hoc
+                </button>
+              ` : ''}
+              <button type="button" class="btn btn-outline btn-xs" onclick="copyJuknisRAB('${item.nomor}')" title="Salin ringkasan kegiatan dan komponen belanja ke clipboard">
+                📋 Salin Ringkasan Belanja
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openJuknisModalPokja() {
+  const modal = document.getElementById('modal-juknis-pokja');
+  const content = document.getElementById('modal-juknis-pokja-content');
+  if (!modal || !content) return;
+
+  const pokjas = window.POKJA_KPT543_DATA || [];
+  const adhocs = window.ADHOC_HONOR_DATA || [];
+
+  content.innerHTML = `
+    <!-- Banner Norma Pembatasan Pokja -->
+    <div class="card p-3 mb-3" style="background: linear-gradient(135deg, #1e3a8a 0%, #0369a1 100%); color: #ffffff; border: none; border-radius: 8px;">
+      <div style="font-size: 13.5px; font-weight: 800; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+        <span>⚖️ NORMA PENGENDALIAN &amp; BATASAN HONORARIUM KELOMPOK KERJA (POKJA)</span>
+      </div>
+      <div style="font-size: 12px; line-height: 1.6; color: #f0f9ff;">
+        <strong>Dasar Regulasi:</strong> Keputusan KPU No. 543/2022 (Lamp. IV &amp; Lamp. V Bab II.C.1 hal. 66-75) jo. Keputusan KPU No. 472/2022 (Diktum Keempat &amp; Keenam) jo. Surat Menkeu S-647/MK.02/2022:<br>
+        1. <strong>Maksimal 2 (dua) Pokja per Personel dalam 1 Tahun Anggaran:</strong> Setiap pejabat/staf (Komisioner, Pejabat Struktural, ASN/PPPK) hanya dapat diberikan honorarium dari pembentukan Pokja <strong>paling banyak 2 (dua) tim dalam satu tahun anggaran</strong> (KPT 543/2022 hal. 66 jo. KPT 472/2022 Diktum Keempat huruf b &amp; PMK SBM Kemenkeu).<br>
+        2. <strong>Batas Kuota Satker: Maksimal 5 (lima) Pokja Diberikan Honor:</strong> Jumlah Pokja yang dapat diberikan honorarium di tingkat KPU Kabupaten/Kota adalah <strong>maksimal 5 (lima) Pokja</strong> dari seluruh rangkaian tahapan Pemilu/Pemilihan (KPT KPU No. 472/2022 Diktum Keempat huruf a angka 5). Satker memilih 5 Pokja paling prioritas.<br>
+        3. <strong>Masa Kerja Pokja Maksimal 3 Bulan:</strong> Setiap Pokja bekerja paling lama 3 bulan berturut-turut (KPT 543/2022 Lamp. IV &amp; hal. 66 jo. KPT 472/2022 Diktum Keempat huruf a angka 4).<br>
+        4. <strong>Larangan Duplikasi Honor (Irisan Pemilu &amp; Pilkada):</strong> Jika terdapat irisan tahapan Pemilu dan Pilkada, tidak diperkenankan duplikasi pembayaran honorarium (KPT 472/2022 Diktum Keenam).<br>
+        5. <strong>Komposisi Baku:</strong> Pengarah (maks 2), Penanggung Jawab (1), Ketua (1), Sekretaris (1), Anggota. Jumlah personil dari internal KPU Kab/Kota <strong>paling banyak 10 orang</strong> (KPT 543/2022 hal. 70). Tenaga outsource dilarang menerima honor Pokja.<br>
+        6. <strong>SPJ Wajib Output Bab I-IV:</strong> SK Pembentukan KPA, Surat Tugas, Undangan, Presensi Hadir, Risalah Rapat, dan Laporan Hasil Pelaksanaan Tugas Pokja (Bab I Pendahuluan s.d. Bab IV Penutup) (KPT 543/2022 hal. 72-75).
+      </div>
+    </div>
+
+    <!-- Matriks Ringkasan Regulasi Pembatasan Pokja -->
+    <div style="margin-bottom: 22px;">
+      <h4 style="font-size: 13.5px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0; display: flex; align-items: center; gap: 6px;">
+        <span>📊 Matriks Batasan &amp; Norma Hukum Pokja Pemilihan</span>
+      </h4>
+      <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+          <thead>
+            <tr style="background: #f8fafc; color: #1e293b; font-weight: 700; border-bottom: 2px solid #cbd5e1;">
+              <th style="padding: 9px 12px; width: 28%;">Norma / Parameter</th>
+              <th style="padding: 9px 12px; width: 37%;">Batasan Maksimal (Aturan Ketat)</th>
+              <th style="padding: 9px 12px; width: 35%;">Dasar Regulasi Resmi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+              <td style="padding: 8px 12px; font-weight: 700; color: #1e3a8a;">🏛️ Kuota Pokja Satker KPU Kab/Kota</td>
+              <td style="padding: 8px 12px; font-weight: 600; color: #b91c1c;">Maksimal 5 (lima) Pokja yang diberikan honorarium dari seluruh tahapan</td>
+              <td style="padding: 8px 12px; color: #475569;">KPT KPU 472/2022 Diktum IV.a.5</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+              <td style="padding: 8px 12px; font-weight: 700; color: #1e3a8a;">👤 Kuota Penerimaan per Personel</td>
+              <td style="padding: 8px 12px; font-weight: 600; color: #b91c1c;">Maksimal 2 (dua) Pokja dalam 1 Tahun Anggaran per individu</td>
+              <td style="padding: 8px 12px; color: #475569;">KPT KPU 543/2022 Hal. 66 jo. PMK SBM</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+              <td style="padding: 8px 12px; font-weight: 700; color: #1e3a8a;">⏱️ Durasi Kerja per Pokja</td>
+              <td style="padding: 8px 12px; font-weight: 600; color: #047857;">Paling lama 3 (tiga) Bulan</td>
+              <td style="padding: 8px 12px; color: #475569;">KPT KPU 543/2022 Lamp. IV &amp; KPT 472/2022</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+              <td style="padding: 8px 12px; font-weight: 700; color: #1e3a8a;">🏢 Kuota Personel Internal KPU</td>
+              <td style="padding: 8px 12px; font-weight: 600; color: #1e40af;">Paling banyak 10 orang (sisanya wajib instansi eksternal/Pemda)</td>
+              <td style="padding: 8px 12px; color: #475569;">KPT KPU 543/2022 Hal. 70</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+              <td style="padding: 8px 12px; font-weight: 700; color: #1e3a8a;">🔀 Irisan Tahapan (Pemilu vs Pilkada)</td>
+              <td style="padding: 8px 12px; font-weight: 600; color: #c2410c;">Dilarang keras duplikasi honorarium antar tahapan yang beririsan</td>
+              <td style="padding: 8px 12px; color: #475569;">KPT KPU 472/2022 Diktum VI</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+              <td style="padding: 8px 12px; font-weight: 700; color: #1e3a8a;">🚫 Tenaga Pendukung Outsource</td>
+              <td style="padding: 8px 12px; font-weight: 600; color: #dc2626;">Dilarang diangkat sebagai penerima honor Pokja</td>
+              <td style="padding: 8px 12px; color: #475569;">KPT KPU 543/2022 Hal. 37 &amp; Hal. 70</td>
+            </tr>
+            <tr style="background: #ffffff;">
+              <td style="padding: 8px 12px; font-weight: 700; color: #1e3a8a;">📑 Output Wajib Pertanggungjawaban</td>
+              <td style="padding: 8px 12px; font-weight: 600; color: #334155;">Laporan Hasil Kerja Sistematika Bab I s.d. Bab IV disahkan KPA</td>
+              <td style="padding: 8px 12px; color: #475569;">KPT KPU 543/2022 Hal. 72–75</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tabel 11 Pokja KPU Kab/Kota -->
+    <h4 style="font-size: 13.5px; font-weight: 800; color: #0f172a; margin: 16px 0 8px 0;">
+      📋 11 Kelompok Kerja (Pokja) Resmi KPU Kabupaten Ngawi
+    </h4>
+    <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+        <thead>
+          <tr style="background: #f1f5f9; color: #334155; font-weight: 700; border-bottom: 1px solid #cbd5e1;">
+            <th style="padding: 8px 10px; width: 40px; text-align: center;">No</th>
+            <th style="padding: 8px 10px;">Nama Kelompok Kerja (Pokja)</th>
+            <th style="padding: 8px 10px; text-align: center;">Maks Internal KPU</th>
+            <th style="padding: 8px 10px; text-align: center;">Batas Total Personel</th>
+            <th style="padding: 8px 10px; text-align: center;">Masa Kerja</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pokjas.map(p => `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 10px; text-align: center; font-weight: 700;">${p.no}</td>
+              <td style="padding: 8px 10px; font-weight: 600; color: #0f172a;">${escapeHtml(p.nama)}</td>
+              <td style="padding: 8px 10px; text-align: center; color: #1e40af; font-weight: 700;">${p.internal_kpu} orang</td>
+              <td style="padding: 8px 10px; text-align: center; font-weight: 700;">${p.maks_orang} orang</td>
+              <td style="padding: 8px 10px; text-align: center; color: #047857; font-weight: 600;">${p.masa_kerja}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tabel Honorarium Badan Ad Hoc -->
+    <h4 style="font-size: 13.5px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0;">
+      💰 Standar Satuan Biaya Masukan Lainnya (SBML) Badan Ad Hoc (Surat Menkeu S-647/2022)
+    </h4>
+    <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+        <thead>
+          <tr style="background: #f1f5f9; color: #334155; font-weight: 700; border-bottom: 1px solid #cbd5e1;">
+            <th style="padding: 8px 10px;">Badan Ad Hoc</th>
+            <th style="padding: 8px 10px;">Jabatan</th>
+            <th style="padding: 8px 10px; text-align: right;">Besaran Honor</th>
+            <th style="padding: 8px 10px; text-align: center;">Satuan</th>
+            <th style="padding: 8px 10px; text-align: center;">Masa Kerja</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${adhocs.map(a => `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 8px 10px; font-weight: 700; color: #1e3a8a;">${a.badan}</td>
+              <td style="padding: 8px 10px; color: #0f172a;">${escapeHtml(a.jabatan)}</td>
+              <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: #b91c1c; font-family: var(--font-mono);">
+                Rp ${a.besaran.toLocaleString('id-ID')}
+              </td>
+              <td style="padding: 8px 10px; text-align: center;">${a.satuan}</td>
+              <td style="padding: 8px 10px; text-align: center; color: #475569;">${a.masa_kerja}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function closeJuknisModalPokja() {
+  const modal = document.getElementById('modal-juknis-pokja');
+  if (modal) modal.style.display = 'none';
+}
+
+window.renderJuknisKegiatan = renderJuknisKegiatan;
+window.filterJuknisKegiatan = filterJuknisKegiatan;
+window.setJuknisTahapanFilter = setJuknisTahapanFilter;
+window.toggleJuknisAccordion = toggleJuknisAccordion;
+window.expandAllJuknis = expandAllJuknis;
+window.collapseAllJuknis = collapseAllJuknis;
+window.copyJuknisRAB = copyJuknisRAB;
+window.openJuknisModalPokja = openJuknisModalPokja;
+window.closeJuknisModalPokja = closeJuknisModalPokja;
 
 // ============================================================================
 // VIEW 5: PENGATURAN SATKER & PEJABAT PENANDATANGAN
