@@ -839,12 +839,12 @@ function initDb() {
   // Buat snapshot beku untuk arsip lama yang belum memiliki snapshot
   freezeExistingLockedPeriods();
 
-  // Auto-binding massal variabel SSOT & SBM untuk RKB draft tidak terkunci
+  // Self-healing: Reparasi otomatis faktor terduplikasi & auto-binding SBM
   try {
-    autoBindRabVariables();
+    repairCorruptedDuplicateFactors();
     autoBindRabSbm();
   } catch (e) {
-    console.warn('[AUTO-BIND] Gagal auto-binding saat startup:', e.message);
+    console.warn('[SELF-HEALING/AUTO-BIND] Peringatan saat startup:', e.message);
   }
 }
 
@@ -2778,118 +2778,79 @@ function clearRabRows(periodeId) {
   return { success: true };
 }
 /**
- * Melakukan auto-binding massal variabel SSOT pada tabel rab_baris untuk dokumen tidak terkunci
- * (Kompatibel penuh dengan MySQL & SQLite)
+ * Reparasi otomatis faktor baris RKB yang terkorupsi akibat auto-bind duplikasi variabel
+ * Memulihkan f1 s.d f4 kembali ke nilai murni yang terverifikasi
+ */
+function repairCorruptedDuplicateFactors() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const repairMapPath = path.join(__dirname, 'repair_clean_factors.json');
+    if (!fs.existsSync(repairMapPath)) return 0;
+
+    const repairMap = JSON.parse(fs.readFileSync(repairMapPath, 'utf8'));
+    const ids = Object.keys(repairMap);
+    if (!ids || ids.length === 0) return 0;
+
+    let repairedCount = 0;
+    const updateStmt = db.prepare(`
+      UPDATE rab_baris SET
+        f1_val = ?, f1_unit = ?, f1_var = ?,
+        f2_val = ?, f2_unit = ?, f2_var = ?,
+        f3_val = ?, f3_unit = ?, f3_var = ?,
+        f4_val = ?, f4_unit = ?, f4_var = ?
+      WHERE id = ?
+    `);
+
+    for (const [idStr, clean] of Object.entries(repairMap)) {
+      const rowId = Number(idStr);
+      let row = null;
+      try {
+        row = db.prepare('SELECT id, f1_var, f2_var, f3_var, f4_var FROM rab_baris WHERE id = ?').get(rowId);
+      } catch (e) {
+        continue;
+      }
+      if (!row) continue;
+
+      const vars = [row.f1_var, row.f2_var, row.f3_var, row.f4_var].filter(v => v && String(v).trim() !== '' && String(v).trim() !== '0');
+      const hasDuplicate = vars.length > 0 && new Set(vars).size < vars.length;
+
+      if (hasDuplicate) {
+        updateStmt.run(
+          clean[0], clean[1], clean[2],
+          clean[3], clean[4], clean[5],
+          clean[6], clean[7], clean[8],
+          clean[9], clean[10], clean[11],
+          rowId
+        );
+        repairedCount++;
+      }
+    }
+
+    if (repairedCount > 0) {
+      console.log(`[SELF-HEALING] Berhasil memperbaiki ${repairedCount} baris faktor RKB yang terkorupsi duplikasi variabel.`);
+      try {
+        const { clearRkbDatasetCache } = require('./calculation');
+        if (typeof clearRkbDatasetCache === 'function') {
+          clearRkbDatasetCache();
+        }
+      } catch (e) {}
+    }
+
+    return repairedCount;
+  } catch (err) {
+    console.warn('[SELF-HEALING] Gagal menjalankan reparasi faktor otomatis:', err.message);
+    return 0;
+  }
+}
+
+/**
+ * Dinonaktifkan: Heuristik auto-binding pada multi-faktor dihentikan permanen
+ * untuk mencegah duplikasi variabel antar-faktor (f1 s.d f4).
+ * Sinkronisasi variabel kuantitas SSOT dikelola secara presisi oleh syncPrimaryKuantitas().
  */
 function autoBindRabVariables(targetPeriodeId = null) {
-  const query = targetPeriodeId 
-    ? 'SELECT id, periode_id, uraian, target_scope, label_pengali_adhoc, f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var FROM rab_baris WHERE periode_id = ? AND level_indent = 4 AND row_type != \'header\''
-    : 'SELECT r.id, r.periode_id, r.uraian, r.target_scope, r.label_pengali_adhoc, r.f1_val, r.f1_unit, r.f1_var, r.f2_val, r.f2_unit, r.f2_var, r.f3_val, r.f3_unit, r.f3_var, r.f4_val, r.f4_unit, r.f4_var FROM rab_baris r JOIN periode_anggaran p ON r.periode_id = p.id WHERE p.is_locked = 0 AND r.level_indent = 4 AND r.row_type != \'header\'';
-
-  const rows = targetPeriodeId ? db.prepare(query).all(targetPeriodeId) : db.prepare(query).all();
-  let updatedCount = 0;
-
-  const updateStmt = db.prepare(`
-    UPDATE rab_baris SET
-      f1_var = ?, f1_unit = ?,
-      f2_var = ?, f2_unit = ?,
-      f3_var = ?, f3_unit = ?,
-      f4_var = ?, f4_unit = ?
-    WHERE id = ?
-  `);
-
-  for (const r of rows) {
-    let changed = false;
-    const updates = {
-      f1_var: String(r.f1_var || '').trim() === '0' ? '' : (r.f1_var || ''),
-      f1_unit: String(r.f1_unit || '').trim() === '0' ? '' : (r.f1_unit || ''),
-      f2_var: String(r.f2_var || '').trim() === '0' ? '' : (r.f2_var || ''),
-      f2_unit: String(r.f2_unit || '').trim() === '0' ? '' : (r.f2_unit || ''),
-      f3_var: String(r.f3_var || '').trim() === '0' ? '' : (r.f3_var || ''),
-      f3_unit: String(r.f3_unit || '').trim() === '0' ? '' : (r.f3_unit || ''),
-      f4_var: String(r.f4_var || '').trim() === '0' ? '' : (r.f4_var || ''),
-      f4_unit: String(r.f4_unit || '').trim() === '0' ? '' : (r.f4_unit || '')
-    };
-
-    const uLower = String(r.uraian || '').toLowerCase();
-    const targetScopeUpper = String(r.target_scope || '').toUpperCase();
-    const adhocLabelUpper = String(r.label_pengali_adhoc || '').toUpperCase();
-
-    for (let i = 1; i <= 4; i++) {
-      let v = String(r[`f${i}_var`] || '').trim();
-      if (v === '0') v = '';
-      let u = String(r[`f${i}_unit`] || '').trim();
-      if (u === '0') u = '';
-      const rawNum = Number(r[`f${i}_val`] || 0);
-
-      if (!v || v === 'MANUAL' || v === 'FIXED') {
-        let detectedVar = null;
-        let detectedUnit = u;
-
-        if (u === 'paslon' || uLower.includes('paslon')) {
-          if (uLower.includes('perseorangan')) detectedVar = 'paslon_perseorangan';
-          else if (uLower.includes('parpol')) detectedVar = 'paslon_parpol';
-          else detectedVar = 'paslon';
-          detectedUnit = 'Paslon';
-        } else if (u === 'parpol' || u === 'partai' || uLower.includes('partai politik')) {
-          detectedVar = 'parpol';
-          detectedUnit = 'Partai';
-        } else if (u === 'komisioner') {
-          detectedVar = 'komisioner';
-          detectedUnit = 'Org';
-        } else if (u === 'pemilih' || ((u.includes('org') || !u) && (uLower.includes(' dpt') || uLower.includes('pemilih')) && rawNum >= 500000)) {
-          detectedVar = 'dpt';
-          detectedUnit = 'Pemilih';
-        } else if (u === 'lembar ss' || ((u.includes('lembar') || !u) && rawNum >= 100000 && uLower.includes('surat suara'))) {
-          detectedVar = 'surat_suara';
-          detectedUnit = 'Lembar';
-        } else if (u === 'kotak' || adhocLabelUpper === 'KOTAK' || (uLower.includes('kotak') && (rawNum >= 100 || rawNum === 1393 || rawNum === 1374))) {
-          detectedVar = 'kotak_rkb';
-          detectedUnit = 'Kotak';
-        } else if (u === 'pantarlih' || u === 'ppdp' || targetScopeUpper === 'PANTARLIH' || uLower.includes('pantarlih') || uLower.includes('ppdp') || rawNum === 2784) {
-          detectedVar = 'pantarlih';
-          detectedUnit = 'Org';
-        } else if (
-          u === 'tps' || 
-          adhocLabelUpper === 'TPS' || 
-          (targetScopeUpper === 'TPS' && (rawNum >= 100 || rawNum === 1393 || rawNum === 1374 || uLower.includes('kpps') || uLower.includes('tingkat kpps'))) ||
-          ((rawNum === 1393 || rawNum === 1374) && rawNum >= 100)
-        ) {
-          detectedVar = 'tps_rkb';
-          detectedUnit = 'TPS';
-        }
-
-        if (detectedVar) {
-          updates[`f${i}_var`] = detectedVar;
-          updates[`f${i}_unit`] = detectedUnit;
-          changed = true;
-        }
-      }
-    }
-
-    if (changed) {
-      updateStmt.run(
-        updates.f1_var, updates.f1_unit,
-        updates.f2_var, updates.f2_unit,
-        updates.f3_var, updates.f3_unit,
-        updates.f4_var, updates.f4_unit,
-        r.id
-      );
-      updatedCount++;
-    }
-  }
-
-  if (updatedCount > 0) {
-    try {
-      const { clearRkbDatasetCache } = require('./calculation');
-      if (typeof clearRkbDatasetCache === 'function') {
-        if (targetPeriodeId) clearRkbDatasetCache(targetPeriodeId);
-        else clearRkbDatasetCache();
-      }
-    } catch (e) {}
-  }
-
-  return updatedCount;
+  return 0;
 }
 
 
@@ -7073,6 +7034,7 @@ module.exports = {
   checkpointAndSyncDatabase,
   getMenuMatrix,
   saveMenuMatrix,
+  repairCorruptedDuplicateFactors,
   autoBindRabVariables,
   autoBindRabSbm,
   USE_MYSQL
