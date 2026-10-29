@@ -404,6 +404,7 @@ async function apiFetch(endpoint, options = {}) {
       localStorage.removeItem('siprabu_token');
       AppState.currentUser = null;
       showLoginScreen();
+      showToast('Sesi Anda telah berakhir atau akun telah login di perangkat lain.', 'warning');
     }
   }
 
@@ -602,7 +603,8 @@ function showMainApp() {
   if (loginScreen) loginScreen.style.setProperty('display', 'none', 'important');
   if (appLayout) appLayout.style.display = 'flex';
 
-  renderActiveRoleSwitcher(user);
+  const user = AppState.currentUser;
+  if (typeof renderActiveRoleSwitcher === 'function') renderActiveRoleSwitcher(user);
   applyRolePermissionsToUI();
 }
 

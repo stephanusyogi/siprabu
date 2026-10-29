@@ -3990,17 +3990,25 @@ function authenticateUser(username, password) {
     } catch (e) {}
   }
 
+  // SINGLE-DEVICE LOGIN: Naikkan token_version agar sesi lama di perangkat lain otomatis tercabut
+  const nextTokenVersion = (Number(u.token_version) || 1) + 1;
+  try {
+    db.prepare('UPDATE satker_users SET token_version = ? WHERE id = ?').run(nextTokenVersion, u.id);
+  } catch (e) {}
+
   return {
     id: u.id,
     username: u.username,
     nama_pejabat: u.nama_pejabat,
     jabatan: u.jabatan,
+    nip: u.nip || '',
     role_id: u.role_id,
     level: u.level,
     pic_subbag: u.pic_subbag,
     email: u.email || '',
     avatar_url: u.avatar_url || '',
-    token_version: u.token_version !== undefined ? Number(u.token_version) : 1
+    token_version: nextTokenVersion,
+    role_mode: u.role_mode || 'SWITCH'
   };
 }
 
@@ -4018,7 +4026,10 @@ function authenticateGoogleUser(googleProfile) {
 
   if (!u) return null;
 
+  // SINGLE-DEVICE LOGIN: Naikkan token_version agar sesi lama di perangkat lain otomatis tercabut
+  const nextGoogleTokenVersion = (Number(u.token_version) || 1) + 1;
   try {
+    db.prepare('UPDATE satker_users SET token_version = ? WHERE id = ?').run(nextGoogleTokenVersion, u.id);
     if (!u.google_id && sub) {
       db.prepare('UPDATE satker_users SET google_id = ? WHERE id = ?').run(sub, u.id);
     }
@@ -4032,12 +4043,14 @@ function authenticateGoogleUser(googleProfile) {
     username: u.username,
     nama_pejabat: u.nama_pejabat,
     jabatan: u.jabatan,
+    nip: u.nip || '',
     role_id: u.role_id,
     level: u.level,
     pic_subbag: u.pic_subbag,
     email: u.email || email,
     avatar_url: googleProfile.picture || u.avatar_url || '',
-    token_version: u.token_version !== undefined ? Number(u.token_version) : 1
+    token_version: nextGoogleTokenVersion,
+    role_mode: u.role_mode || 'SWITCH'
   };
 }
 
