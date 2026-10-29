@@ -2447,6 +2447,7 @@ function renderAllViews() {
   const u = AppState.currentUser;
   const canAudit = Boolean(
     u && (
+      u.is_developer ||
       u.level === 0 ||
       (u.level === 1 && (u.username === 'perencanaan' || u.username === 'kasubbag_rendatin' || u.role_id === 'super_admin'))
     )
@@ -12474,6 +12475,15 @@ async function loadAuditLogsView(showFeedback = false) {
     });
 
     const res = await apiFetch(`/api/audit-logs?${qs.toString()}`);
+    if (res && res.error) {
+      st.logs = [];
+      st.total = 0;
+      st.summary = { total: 0, RKB: 0, SIKLUS: 0, MASTER: 0, USER: 0, AUTH: 0, UNDUH: 0 };
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding:28px;color:#ef4444;">${res.error}</td></tr>`;
+      }
+      return;
+    }
     st.logs = res.logs || [];
     st.total = Number(res.total) || 0;
     st.summary = res.summary || { total: 0, RKB: 0, SIKLUS: 0, MASTER: 0, USER: 0, AUTH: 0, UNDUH: 0 };

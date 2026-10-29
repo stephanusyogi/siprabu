@@ -394,14 +394,16 @@ function canManageLifecycle(user) {
  */
 function canManageUsers(user) {
   if (!user) return false;
-  if (Number(user.level) === 0 && (user.role_id === 'developer' || user.username === 'emenje')) return true;
+  if (Number(user.level) === 0 && (user.role_id === 'developer' || user.username === 'emenje' || user.is_developer)) return true;
   if (Number(user.level) === 1) {
     return Boolean(
       user.username === 'perencanaan' ||
       user.username === 'kasubbag_rendatin' ||
       user.username === 'kasubag_rendatin' ||
       user.role_id === 'super_admin' ||
-      user.role_id === 'perencanaan_kasubag'
+      user.role_id === 'perencanaan_kasubag' ||
+      user.role_id === 'admin' ||
+      user.is_developer
     );
   }
   return false;
