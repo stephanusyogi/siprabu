@@ -780,9 +780,7 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
     if (!btn) return;
 
     let isAllowed = false;
-    if (isDevUnrestricted) {
-      isAllowed = true;
-    } else if (isKumulatif) {
+    if (isKumulatif) {
       for (const lvl of userLevels) {
         if (item['allow_l' + lvl]) {
           isAllowed = true;
@@ -790,7 +788,7 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
         }
       }
     } else {
-      // Strict SAKTI Mode: Murni mengevaluasi peran aktif yang sedang dipilih (activeLevel)
+      // Dinamis mengevaluasi peran aktif yang sedang dipilih (activeLevel, termasuk L0 Developer)
       isAllowed = Boolean(item['allow_l' + activeLevel]);
     }
 
@@ -815,7 +813,7 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
 
   // Jika view aktif saat ini tidak diizinkan untuk peran saat ini, alihkan otomatis ke view-dashboard
   const currentMatrixItem = matrix.find(m => m.menu_key === AppState.activeView);
-  if (currentMatrixItem && !isDevUnrestricted) {
+  if (currentMatrixItem) {
     let currentAllowed = false;
     if (isKumulatif) {
       for (const lvl of userLevels) {
@@ -1257,9 +1255,17 @@ function updateUserNavbar() {
   // SAKTI Sub-text Peran Aktif: VALIDATOR SATKER 657811 2026 (Gambar 2)
   const activeRoleSub = document.getElementById('user-active-role-sub');
   if (activeRoleSub) {
-    const activeRole = user.active_role || (Array.isArray(user.roles) ? user.roles[0] : null);
-    const subText = getSaktiRoleHeaderSub(activeRole, user);
-    activeRoleSub.textContent = `${subText} 2026`;
+    if (user.role_mode === 'KUMULATIF') {
+      activeRoleSub.textContent = 'HAK KUMULATIF SATKER 657811 2026';
+    } else {
+      const activeRole = user.active_role || (Array.isArray(user.roles) ? user.roles[0] : null);
+      const subText = getSaktiRoleHeaderSub(activeRole, user);
+      activeRoleSub.textContent = `${subText} 2026`;
+    }
+    const dropdownGantiPeran = document.getElementById('sakti-dropdown-ganti-peran');
+    if (dropdownGantiPeran) {
+      dropdownGantiPeran.style.display = (user.role_mode === 'KUMULATIF' && !isDeveloperSession()) ? 'none' : 'flex';
+    }
   }
 
   const roleEl = document.getElementById('user-role-badge');
@@ -9573,7 +9579,23 @@ function renderUsersTable() {
       is_default: 1
     }];
 
-    let rolesHtml = `<div style="display:flex;flex-direction:column;gap:5px;">`;
+    const isUserKumulatif = (u.role_mode === 'KUMULATIF');
+    const modeBadge = isUserKumulatif
+      ? `<span class="badge" style="background:#dcfce7;color:#15803d;font-weight:700;font-size:10px;border:1px solid #86efac;display:inline-flex;align-items:center;gap:3px;" title="Mode Hak Kumulatif: Seluruh peran & subbagian aktif serentak">⚡ Mode Kumulatif</span>`
+      : `<span class="badge" style="background:#f1f5f9;color:#475569;font-weight:600;font-size:10px;border:1px solid #cbd5e1;display:inline-flex;align-items:center;gap:3px;" title="Mode Ganti Peran: Satu peran aktif per sesi (ala SAKTI)">🎭 Mode Ganti Peran</span>`;
+
+    let quickToggleBtn = '';
+    if (canManage && (isDev || u.level > 0)) {
+      quickToggleBtn = `<button type="button" class="btn btn-xs btn-outline" onclick="toggleUserRoleModeAction(${u.id}, '${escHtml(u.username)}', '${u.role_mode || 'SWITCH'}')" style="padding:1px 6px;font-size:10px;border-radius:4px;margin-left:4px;" title="Klik untuk beralih antara Mode Kumulatif dan Ganti Peran">🔄 Ganti Mode</button>`;
+    }
+
+    let rolesHtml = `
+      <div style="display:flex;align-items:center;margin-bottom:6px;gap:4px;">
+        ${modeBadge}
+        ${quickToggleBtn}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+    `;
     roles.forEach(r => {
       const lvl = Number(r.level);
       let lvlBadge = '';
@@ -9921,6 +9943,29 @@ async function deleteUserAction(userId, username) {
     await loadUsers();
   } catch (err) {
     alert('Gagal menghapus pengguna: ' + err.message);
+  }
+}
+
+async function toggleUserRoleModeAction(userId, username, currentMode) {
+  const targetMode = currentMode === 'KUMULATIF' ? 'SWITCH' : 'KUMULATIF';
+  const modeText = targetMode === 'KUMULATIF' ? 'Mode Hak Kumulatif (Seluruh wewenang aktif serentak)' : 'Mode Ganti Peran ala SAKTI (Satu peran aktif per sesi)';
+  if (!confirm(`Ubah preferensi operasional akun "${username}" menjadi ${modeText}?`)) {
+    return;
+  }
+  try {
+    const res = await apiFetch(`/api/users/${userId}/toggle-role-mode`, {
+      method: 'POST'
+    });
+    showToast(res.message || 'Mode pengguna berhasil diubah.', 'success');
+    await loadUsers();
+    if (AppState.currentUser && AppState.currentUser.id === userId) {
+      AppState.currentUser.role_mode = res.role_mode;
+      updateUserNavbar();
+      applyDynamicMenuMatrix(AppState.currentUser);
+      applyRolePermissionsToUI();
+    }
+  } catch (err) {
+    alert('Gagal mengubah mode pengguna: ' + err.message);
   }
 }
 
@@ -13767,10 +13812,10 @@ function renderMenuMatrixTable() {
           </span>
         </td>
         <td style="padding: 10px 14px; text-align: center; background: #f8fafc;">
-          <input type="checkbox" data-field="allow_l0" ${m.allow_l0 ? 'checked' : ''} disabled title="Developer (Level 0) dilindungi anti-lockout" style="width: 15px; height: 15px; cursor: not-allowed; accent-color: #0f172a;">
+          <input type="checkbox" data-field="allow_l0" ${m.allow_l0 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #0f172a;" title="Level 0 (Developer)">
         </td>
         <td style="padding: 10px 14px; text-align: center; background: #eff6ff;">
-          <input type="checkbox" data-field="allow_l1" ${m.allow_l1 ? 'checked' : ''} ${isCriticalAdmin ? 'disabled title="Menu kritis Level 1 dilindungi anti-lockout"' : ''} style="width: 15px; height: 15px; cursor: ${isCriticalAdmin ? 'not-allowed' : 'pointer'}; accent-color: #1e40af;">
+          <input type="checkbox" data-field="allow_l1" ${m.allow_l1 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #1e40af;" title="Level 1 (Perencanaan)">
         </td>
         <td style="padding: 10px 14px; text-align: center; background: #f0fdf4;">
           <input type="checkbox" data-field="allow_l2" ${m.allow_l2 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #166534;">
@@ -13809,7 +13854,7 @@ async function saveMenuMatrixAction() {
     rows.forEach(tr => {
       const menuKey = tr.getAttribute('data-menu-key');
       if (matrixMap[menuKey]) {
-        matrixMap[menuKey].allow_l0 = 1; // Anti-lockout
+        matrixMap[menuKey].allow_l0 = tr.querySelector('input[data-field="allow_l0"]')?.checked ? 1 : 0;
         matrixMap[menuKey].allow_l1 = tr.querySelector('input[data-field="allow_l1"]')?.checked ? 1 : 0;
         matrixMap[menuKey].allow_l2 = tr.querySelector('input[data-field="allow_l2"]')?.checked ? 1 : 0;
         matrixMap[menuKey].allow_l3 = tr.querySelector('input[data-field="allow_l3"]')?.checked ? 1 : 0;

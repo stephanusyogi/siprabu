@@ -85,24 +85,34 @@ async function testSaktiRoleAndMenuMatrix() {
       console.log('✅ Test 4: Mode KUMULATIF mengizinkan seluruh peran yang dimiliki (TEKNIS & HUKUM) tanpa kebocoran ke KUL.');
     }
 
-    // 5. Uji Matriks Hak Akses Menu & Anti-Lockout Guard
+    // 5. Uji Matriks Hak Akses Menu Dinamis Penuh (L0 Developer & Semua Level Bebas Dinyalakan/Dimatikan)
     const matrix = getMenuMatrix();
     assert.ok(Array.isArray(matrix) && matrix.length > 0, 'Matriks menu harus ada');
     const menuMatrixRow = matrix.find(m => m.menu_key === 'view-menu-matrix');
     assert.ok(menuMatrixRow, 'Menu view-menu-matrix harus terdaftar di matriks');
 
-    // Coba update matriks menu
+    // Uji matikan allow_l0 secara dinamis pada view-rkb
     const updatedItems = matrix.map(item => ({
       ...item,
-      allow_l0: 0, // Coba matikan developer (akan dilindungi oleh guard)
+      allow_l0: item.menu_key === 'view-rkb' ? 0 : (item.allow_l0 ? 1 : 0),
       allow_l2: item.menu_key === 'view-rkb' ? 1 : 0
     }));
 
     saveMenuMatrix(updatedItems);
-    const matrixAfter = getMenuMatrix();
-    const devRow = matrixAfter.find(m => m.menu_key === 'view-dashboard');
-    assert.strictEqual(Number(devRow.allow_l0), 1, 'Developer Level 0 tidak boleh bisa di-uncheck');
-    console.log('✅ Test 5: Matriks menu dinamis berhasil di-update dengan proteksi anti-lockout.');
+    let matrixAfter = getMenuMatrix();
+    let rkbRow = matrixAfter.find(m => m.menu_key === 'view-rkb');
+    assert.strictEqual(Number(rkbRow.allow_l0), 0, 'Developer Level 0 pada view-rkb harus dinamis berhasil dimatikan (0)');
+
+    // Uji nyalakan kembali allow_l0 secara dinamis pada view-rkb
+    const reenabledItems = matrixAfter.map(item => ({
+      ...item,
+      allow_l0: item.menu_key === 'view-rkb' ? 1 : (item.allow_l0 ? 1 : 0)
+    }));
+    saveMenuMatrix(reenabledItems);
+    matrixAfter = getMenuMatrix();
+    rkbRow = matrixAfter.find(m => m.menu_key === 'view-rkb');
+    assert.strictEqual(Number(rkbRow.allow_l0), 1, 'Developer Level 0 pada view-rkb harus dinamis berhasil dinyalakan kembali (1)');
+    console.log('✅ Test 5: Matriks hak akses menu dinamis penuh (L0 Developer dan semua level berhasil dimatikan & dinyalakan secara dinamis).');
 
   } finally {
     // Cleanup test user

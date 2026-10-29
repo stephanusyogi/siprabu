@@ -715,12 +715,12 @@ const server = http.createServer(async (req, res) => {
         label_peran: matchedRole.label_peran || `Level ${matchedRole.level}`
       };
 
-      // Saat beralih ke peran aktif tertentu, aktifkan mode SWITCH (ala SAKTI)
-      updateUserRoleMode(currentUser.id, 'SWITCH');
+      const currentDbUser = getUserById(currentUser.id);
+      const persistentMode = currentDbUser?.role_mode || currentUser.role_mode || 'SWITCH';
 
       const updatedUser = {
         ...currentUser,
-        role_mode: 'SWITCH',
+        role_mode: persistentMode,
         level: Number(activeRole.level),
         pic_subbag: String(activeRole.pic || 'SEMUA').toUpperCase(),
         mode_akses: String(activeRole.mode_akses || 'VIEWER').toUpperCase(),
@@ -920,6 +920,39 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         return sendJson(res, 400, { error: err.message });
       }
+    }
+
+    const toggleRoleModeMatch = pathname.match(/^\/api\/users\/(\d+)\/toggle-role-mode$/);
+    if (toggleRoleModeMatch && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!canManageUsers(currentUser)) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan mode pengguna hanya diizinkan untuk Akun Developer dan Kasubbag Perencanaan.' });
+      }
+
+      const targetId = Number(toggleRoleModeMatch[1]);
+      const target = getUserById(targetId);
+      if (!target) return sendJson(res, 404, { error: 'Pengguna tidak ditemukan.' });
+
+      const newMode = (target.role_mode === 'KUMULATIF') ? 'SWITCH' : 'KUMULATIF';
+      updateUserRoleMode(targetId, newMode);
+
+      recordAuditLog({
+        user_id: currentUser.id,
+        username: currentUser.username,
+        role_id: currentUser.role_id,
+        action: 'UPDATE_USER_ROLE_MODE',
+        target_type: 'satker_users',
+        target_id: targetId,
+        notes: `Mengubah mode operasional akun ${target.username} menjadi: ${newMode === 'KUMULATIF' ? 'Mode Hak Kumulatif' : 'Mode Ganti Peran (SAKTI)'}`,
+        user: currentUser
+      });
+
+      return sendJson(res, 200, {
+        success: true,
+        role_mode: newMode,
+        message: `Mode operasional akun "${target.username}" berhasil diubah ke ${newMode === 'KUMULATIF' ? 'Mode Kumulatif' : 'Mode Ganti Peran (SAKTI)'}.`
+      });
     }
 
     // 3a. MATRIKS HAK AKSES MENU DINAMIS BERBASIS LEVEL (0-4)

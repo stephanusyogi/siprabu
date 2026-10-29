@@ -3828,8 +3828,8 @@ function saveMenuMatrix(items = []) {
   items.forEach(item => {
     try {
       updateStmt.run(
-        1, // allow_l0 anti-lockout
-        (item.menu_key === 'view-users' || item.menu_key === 'view-menu-matrix' || item.menu_key === 'view-dashboard') ? 1 : (item.allow_l1 ? 1 : 0),
+        item.allow_l0 ? 1 : 0,
+        item.allow_l1 ? 1 : 0,
         item.allow_l2 ? 1 : 0,
         item.allow_l3 ? 1 : 0,
         item.allow_l4 ? 1 : 0,

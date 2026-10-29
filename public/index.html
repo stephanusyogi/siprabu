@@ -3104,8 +3104,8 @@
           <div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
             <span style="font-size:24px;">🛡️</span>
             <div>
-              <strong style="font-size:13px;display:block;color:#14532d;">Sistem Keamanan Terpadu &amp; Proteksi Anti-Lockout</strong>
-              <span style="font-size:12px;color:#15803d;">Hak akses Level 0 (Developer) dan menu Administrasi untuk Level 1 dilindungi secara permanen untuk mencegah penguncian sistem secara tidak sengaja. Perubahan yang Anda simpan akan langsung berlaku seketika pada menu navigasi pengguna.</span>
+              <strong style="font-size:13px;display:block;color:#14532d;">Manajemen Matriks Hak Akses Menu Dinamis</strong>
+              <span style="font-size:12px;color:#15803d;">Seluruh hak akses menu per tingkat kewenangan (Level 0 Developer hingga Level 4 Auditor) bersifat dinamis penuh dan dapat dimatikan/dinyalakan sesuai kebutuhan satker. Perubahan yang Anda simpan langsung berlaku seketika pada menu navigasi pengguna.</span>
             </div>
           </div>
 
@@ -3137,7 +3137,7 @@
                     <th style="padding: 10px 14px; width: 40px; text-align: center;">No</th>
                     <th style="padding: 10px 14px;">Nama Menu &amp; Fitur</th>
                     <th style="padding: 10px 14px;">Kategori / Folder</th>
-                    <th style="padding: 10px 14px; text-align: center; width: 90px; background: #f8fafc;" title="Level 0: Lead Developer (Full Override)">
+                    <th style="padding: 10px 14px; text-align: center; width: 90px; background: #f8fafc;" title="Level 0: Lead Developer">
                       <div style="font-weight: 800; color: #0f172a;">L0</div>
                       <div style="font-size: 9.5px; color: #64748b;">Developer</div>
                     </th>
@@ -4704,12 +4704,12 @@
               </div>
 
               <div class="form-group full-width">
-                <label>Preferensi Multi-Peran Akun:</label>
+                <label style="font-weight:700;color:#0f172a;">Mode Kewenangan Akun (Multi-Peran):</label>
                 <select id="modal-user-role-mode" class="input-select">
-                  <option value="SWITCH">Mode Ganti Peran (SAKTI) - Pilih satu peran aktif pada satu waktu melalui dropdown header</option>
-                  <option value="KUMULATIF">Mode Kumulatif - Seluruh hak akses peran langsung aktif bersamaan</option>
+                  <option value="SWITCH">🎭 Mode Ganti Peran (SAKTI) - Pengguna memilih 1 peran aktif pada satu waktu</option>
+                  <option value="KUMULATIF">⚡ Mode Hak Kumulatif - Seluruh wewenang peran &amp; subbagian aktif serentak</option>
                 </select>
-                <small style="font-size:10.5px;color:#64748b;margin-top:2px;display:block;">Menentukan apakah pengguna harus beralih peran seperti di SAKTI Kemenkeu atau seluruh hak subbagian langsung aktif bersamaan.</small>
+                <small style="font-size:10.5px;color:#64748b;margin-top:2px;display:block;">Pengaturan wewenang multi-peran ini ditetapkan oleh Administrator/Perencana. Pengguna tidak dapat mengubah mode ini secara mandiri.</small>
               </div>
             </div>
 
@@ -5853,16 +5853,6 @@
           <div style="font-size: 13.5px; font-weight: 800; color: #0a2540; letter-spacing: 0.8px; line-height: 1.3; text-transform: uppercase;">REPUBLIK INDONESIA</div>
         </div>
 
-                <!-- Checkbox Preferensi Mode Kumulatif SAKTI -->
-        <div class="sakti-kumulatif-pref-card" id="sakti-login-kumulatif-card" style="max-width: 660px; margin: 0 auto 16px;">
-          <label class="sakti-kumulatif-pref-label">
-            <input type="checkbox" id="chk-sakti-login-kumulatif" onchange="handleSaktiKumulatifToggle(this.checked)" class="menu-matrix-checkbox">
-            <span>⚡ Aktifkan Mode Hak Kumulatif (Semua Wewenang Sekaligus)</span>
-          </label>
-          <div class="sakti-kumulatif-pref-desc">
-            Jika dicentang, seluruh hak subbagian Anda langsung aktif serentak tanpa perlu beralih peran manual satu per satu.
-          </div>
-        </div>
 
         <div class="sakti-role-greeting">
           Selamat datang, <span id="sakti-login-user-name">PENGGUNA</span>
@@ -5904,18 +5894,6 @@
           <button type="button" class="btn-close" onclick="closeSaktiGantiPeranModal()">&times;</button>
         </div>
 
-        <!-- Checkbox Preferensi Mode Kumulatif Modal -->
-        <div style="padding: 12px 22px 0;">
-          <div class="sakti-kumulatif-pref-card" id="sakti-modal-kumulatif-card" style="margin-bottom: 0;">
-            <label class="sakti-kumulatif-pref-label">
-              <input type="checkbox" id="chk-sakti-modal-kumulatif" onchange="handleSaktiKumulatifToggle(this.checked)" class="menu-matrix-checkbox">
-              <span>⚡ Aktifkan Mode Hak Kumulatif (Semua Wewenang Sekaligus)</span>
-            </label>
-            <div class="sakti-kumulatif-pref-desc">
-              Gabungkan semua subbagian yang Anda miliki secara simultan tanpa pergantian peran manual.
-            </div>
-          </div>
-        </div>
 
         <!-- Search Input SAKTI -->
         <div style="padding: 16px 22px 8px;">
