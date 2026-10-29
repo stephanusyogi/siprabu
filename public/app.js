@@ -1919,17 +1919,6 @@ function switchView(viewId, updateHistory = true) {
   AppState.activeView = viewId;
   document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
   
-  // Perbarui status aktif tombol Monitoring Unduhan di Header
-  const btnHeaderMonitoring = document.getElementById('nav-btn-monitoring');
-  if (btnHeaderMonitoring) {
-    if (viewId === 'view-monitoring') {
-      btnHeaderMonitoring.classList.remove('btn-outline');
-      btnHeaderMonitoring.classList.add('btn-primary');
-    } else {
-      btnHeaderMonitoring.classList.remove('btn-primary');
-      btnHeaderMonitoring.classList.add('btn-outline');
-    }
-  }
   let activeParentGroup = null;
   document.querySelectorAll('.nav-item').forEach(btn => {
     const isActive = btn.getAttribute('data-view') === viewId;

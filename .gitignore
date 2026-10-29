@@ -25,7 +25,11 @@ data/downloads/*
 # Developer Local Tools (Hanya ada di laptop lokal, tidak di-push ke GitHub)
 public/dev-tools.js
 dev-routes.js
-
+Mulai_SIPRABU.bat
+launch_silent.vbs
+launcher.js
+public/app_icon.ico
+AGENTS.md
 
 temp/
 scratch/

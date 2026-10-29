@@ -144,12 +144,6 @@
       </div>
 
       <div class="nav-right">
-        <!-- Tombol Monitoring Unduhan di Header Navbar -->
-        <button type="button" class="btn btn-outline btn-sm" onclick="switchView('view-monitoring')" id="nav-btn-monitoring" title="Pusat Monitoring Berkas Unduhan" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-weight: 700; font-size: 12px; border-radius: 8px; cursor: pointer; border-color: var(--border-color); color: var(--text-main);">
-          <span>📥 Unduhan</span>
-          <span class="badge badge-success badge-sm" id="badge-monitoring-count">0</span>
-        </button>
-
         <!-- Quick Switcher Role (Pair Testing / Multi-User) -->
         <div class="user-switcher-container" id="user-switcher-container">
           <label for="user-switcher">Ganti Peran:</label>
@@ -365,6 +359,13 @@
               </button>
             </div>
           </div>
+
+          <!-- 6B. MONITORING UNDUHAN -->
+          <button class="nav-item" data-view="view-monitoring" id="nav-item-monitoring" onclick="switchView('view-monitoring')">
+            <span class="icon">📥</span>
+            <span class="label">Monitoring Unduhan</span>
+            <span class="badge badge-success badge-sm" id="badge-monitoring-count">0</span>
+          </button>
 
           <!-- 7. PENGEMBANG (KHUSUS DEVELOPER / emenje) -->
           <div class="sakti-tree-group collapsed" id="folder-developer" style="display: none;">

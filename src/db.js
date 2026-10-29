@@ -497,8 +497,9 @@ function initDb() {
         ['view-penandatangan', 'Pejabat Penandatangan', 'folder-administrasi', 1, 1, 0, 1, 0, 'VIEWER', 20],
         ['view-db-settings', 'Pengaturan Konfigurasi', 'folder-administrasi', 1, 1, 0, 1, 0, 'VIEWER', 21],
         ['view-audit', 'Audit Log Aktivitas', 'folder-administrasi', 1, 1, 0, 0, 0, 'VIEWER', 22],
-        ['view-developer', 'Ruang Pengembang DEV', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 23],
-        ['view-dev-push', 'Sinkronisasi Push Produksi', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 24]
+        ['view-monitoring', 'Monitoring Unduhan', null, 1, 1, 1, 1, 1, 'VIEWER', 23],
+        ['view-developer', 'Ruang Pengembang DEV', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 24],
+        ['view-dev-push', 'Sinkronisasi Push Produksi', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 25]
       ];
       const insertMenuStmt = db.prepare(`
         INSERT INTO app_menu_matrix (menu_key, menu_label, folder_key, allow_l0, allow_l1, allow_l2, allow_l3, allow_l4, required_mode, urutan, is_active)
