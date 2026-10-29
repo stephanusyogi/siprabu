@@ -5755,6 +5755,31 @@ function bulkUpsertAkun(rows, options = {}) {
 }
 
 // Download Requests (Bab 9 & FR-10 Canon Master Blueprint)
+// Helper Formatter Tanggal-Bulan-Tahun Unduh & Jam Sesuai Instruksi Mas emenje (_tanggalbulantahundownload_jam)
+function formatDownloadTimestamp(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(d);
+  const get = type => parts.find(p => p.type === type)?.value || '';
+  return `${get('day')}${get('month')}${get('year')}_${get('hour')}${get('minute')}`;
+}
+
+function appendDownloadTimestamp(filename, d = new Date()) {
+  const ts = formatDownloadTimestamp(d);
+  if (!filename) return `Laporan_${ts}.xlsx`;
+  const ext = path.extname(filename) || '.xlsx';
+  let base = path.basename(filename, ext);
+  base = base.replace(/_\d{10,14}$/, '');
+  base = base.replace(/_\d{8}_\d{4}$/, '');
+  return `${base}_${ts}${ext}`;
+}
+
 function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran, user_id, username, user = null }) {
   const reqId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const dateObj = new Date();
@@ -5766,6 +5791,7 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
   const cleanSasaran = filter_sasaran || 'ALL';
   const cleanUsername = username || (user ? user.username : null);
   const cleanUserId = user_id || (user ? user.id : null);
+  const finalFilename = appendDownloadTimestamp(nama_file, dateObj);
 
   const stmt = db.prepare(`
     INSERT INTO download_requests (
@@ -5776,7 +5802,7 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
 
   const res = stmt.run(
     reqId,
-    nama_file,
+    finalFilename,
     cleanTipe,
     cleanPeriodeId,
     cleanPic,
@@ -5795,7 +5821,7 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
     entity_id: created?.id || res.lastInsertRowid,
     new_values: {
       request_id: reqId,
-      nama_file,
+      nama_file: finalFilename,
       tipe_unduhan: cleanTipe,
       periode_id: cleanPeriodeId,
       filter_pic: cleanPic,
@@ -5803,7 +5829,7 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
       status: 'DIPROSES',
       expires_at: expiresAt
     },
-    notes: `Permintaan unduhan [${cleanTipe}] "${nama_file}" (Siklus ID: ${cleanPeriodeId || '-'}, PIC: ${cleanPic}, Sasaran: ${cleanSasaran})`
+    notes: `Permintaan unduhan [${cleanTipe}] "${finalFilename}" (Siklus ID: ${cleanPeriodeId || '-'}, PIC: ${cleanPic}, Sasaran: ${cleanSasaran})`
   });
 
   return created;
@@ -7048,6 +7074,8 @@ module.exports = {
   saveAkun,
   deleteAkun,
   bulkUpsertAkun,
+  formatDownloadTimestamp,
+  appendDownloadTimestamp,
   createDownloadRequest,
   getDownloadRequests,
   getDownloadRequestById,

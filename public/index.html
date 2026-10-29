@@ -1426,8 +1426,11 @@
                 </select>
               </div>
               <span id="rekap-perencanaan-pic-locked-badge" class="badge badge-info" style="display: none; font-size: 12px; padding: 6px 10px;"></span>
-              <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportRekapExcel('perencanaan')" style="font-weight: 700;">
-                📥 Unduh Excel (.xlsx)
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportRekapExcel('perencanaan', false)" style="font-weight: 700;" title="Unduh sheet khusus untuk modul/tab rekap yang sedang aktif dilihat (Opsi A)">
+                📥 Unduh Tab Aktif (.xlsx)
+              </button>
+              <button type="button" class="btn btn-outline-success btn-sm" onclick="exportRekapExcel('perencanaan', true)" style="font-weight: 700;" title="Unduh buku kompilasi lengkap 5 modul rekapitulasi tanpa rincian RUH (Opsi B)">
+                📚 Unduh Kompilasi 5 Rekap (.xlsx)
               </button>
               <button type="button" class="btn btn-primary btn-sm" onclick="printRekapPdf('perencanaan')" style="font-weight: 700;">
                 🖨️ Cetak / PDF (.pdf)
@@ -1479,8 +1482,11 @@
                   <option value="KUL">KUL</option>
                 </select>
               </div>
-              <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportRekapExcel('pelaksanaan')" style="font-weight: 700;">
-                📥 Unduh Excel (.xlsx)
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportRekapExcel('pelaksanaan', false)" style="font-weight: 700;" title="Unduh sheet khusus untuk modul/tab rekap yang sedang aktif dilihat (Opsi A)">
+                📥 Unduh Tab Aktif (.xlsx)
+              </button>
+              <button type="button" class="btn btn-outline-success btn-sm" onclick="exportRekapExcel('pelaksanaan', true)" style="font-weight: 700;" title="Unduh buku kompilasi lengkap 5 modul rekapitulasi tanpa rincian RUH (Opsi B)">
+                📚 Unduh Kompilasi 5 Rekap (.xlsx)
               </button>
               <button type="button" class="btn btn-primary btn-sm" onclick="printRekapPdf('pelaksanaan')" style="font-weight: 700;">
                 🖨️ Cetak / PDF (.pdf)

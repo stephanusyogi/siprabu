@@ -484,10 +484,10 @@ async function runAllTests() {
   });
 
   const listA = getDownloadRequests({ username: 'user_a' });
-  assert(listA.length === 1 && listA[0].nama_file === 'Laporan_User_A.xlsx', 'User A hanya melihat berkas unduhan miliknya sendiri.');
+  assert(listA.length === 1 && listA[0].nama_file.startsWith('Laporan_User_A'), 'User A hanya melihat berkas unduhan miliknya sendiri.');
 
   const listB = getDownloadRequests({ username: 'user_b' });
-  assert(listB.length === 1 && listB[0].nama_file === 'Laporan_User_B.xlsx', 'User B hanya melihat berkas unduhan miliknya sendiri (tidak bocor ke User A).');
+  assert(listB.length === 1 && listB[0].nama_file.startsWith('Laporan_User_B'), 'User B hanya melihat berkas unduhan miliknya sendiri (tidak bocor ke User A).');
 
   // Buat berkas buatan berstatus kadaluarsa (waktu lampau > 1 jam)
   db.prepare("UPDATE download_requests SET expires_at = '2020-01-01T00:00:00.000Z', status = 'SELESAI' WHERE id = ?").run(jobUserA.id);

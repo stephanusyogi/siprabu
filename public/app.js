@@ -463,6 +463,21 @@ async function downloadProtectedFile(url, fallbackFilename = 'download.xlsx') {
 
 window.downloadProtectedFile = downloadProtectedFile;
 
+function formatClientDownloadTimestamp(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(d);
+  const get = type => parts.find(p => p.type === type)?.value || '';
+  return `${get('day')}${get('month')}${get('year')}_${get('hour')}${get('minute')}`;
+}
+
+
 // ============================================================================
 // INISIALISASI APLIKASI
 // ============================================================================
@@ -7157,7 +7172,7 @@ async function executeExportExcel() {
   const periode = AppState.periodesList?.find(p => p.id === pendingExportPeriodeId) || AppState.currentPeriode;
   const versiStr = (periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_');
   const filterSuffix = (pic !== 'SEMUA' ? `_${pic}` : '') + (sasaran !== 'ALL' ? `_${sasaran}` : '');
-  const filename = `RUH_Belanja_${versiStr}${filterSuffix}.xlsx`;
+  const filename = `RUH_Belanja_${versiStr}${filterSuffix}_${formatClientDownloadTimestamp()}.xlsx`;
 
   try {
     const result = await apiFetch('/api/download-requests', {
@@ -7188,7 +7203,7 @@ async function downloadAllSubbagZip(periodeId = null) {
 
   const periode = AppState.periodesList?.find(p => p.id === pId) || AppState.currentPeriode;
   const versiStr = (periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `Paket_RUH_5_Subbagian_${versiStr}.zip`;
+  const filename = `Paket_RUH_5_Subbagian_${versiStr}_${formatClientDownloadTimestamp()}.zip`;
 
   try {
     const result = await apiFetch('/api/download-requests', {
@@ -7603,7 +7618,7 @@ async function exportKecamatanExcel() {
     const res = await apiFetch('/api/download-requests', {
       method: 'POST',
       body: JSON.stringify({
-        nama_file: 'Master_Kecamatan_19_PPK.xlsx',
+        nama_file: `Master_Kecamatan_19_PPK_${formatClientDownloadTimestamp()}.xlsx`,
         tipe_unduhan: 'EXCEL_MASTER_KECAMATAN'
       })
     });
@@ -7853,7 +7868,7 @@ async function exportDesaExcel() {
     const res = await apiFetch('/api/download-requests', {
       method: 'POST',
       body: JSON.stringify({
-        nama_file: 'Master_Desa_217_PPS.xlsx',
+        nama_file: `Master_Desa_217_PPS_${formatClientDownloadTimestamp()}.xlsx`,
         tipe_unduhan: 'EXCEL_MASTER_DESA'
       })
     });
@@ -8415,7 +8430,7 @@ async function exportSbmExcel() {
     const res = await apiFetch('/api/download-requests', {
       method: 'POST',
       body: JSON.stringify({
-        nama_file: 'Master_Standar_Biaya_Masukan_SBM.xlsx',
+        nama_file: `Master_Standar_Biaya_Masukan_SBM_${formatClientDownloadTimestamp()}.xlsx`,
         tipe_unduhan: 'EXCEL_MASTER_SBM'
       })
     });
@@ -8620,7 +8635,7 @@ async function exportBasExcel() {
     const res = await apiFetch('/api/download-requests', {
       method: 'POST',
       body: JSON.stringify({
-        nama_file: 'Master_Bagan_Akun_Standar_BAS.xlsx',
+        nama_file: `Master_Bagan_Akun_Standar_BAS_${formatClientDownloadTimestamp()}.xlsx`,
         tipe_unduhan: 'EXCEL_MASTER_AKUN'
       })
     });
@@ -11733,7 +11748,7 @@ async function bukaArsipKertasKerja(periodeId) {
 async function downloadArsipExcel(periodeId) {
   const pId = Number(periodeId);
   const periode = (AppState.periodesList || []).find(p => p.id === pId) || { id: pId, versi_revisi: `Arsip_${pId}` };
-  const filename = `RKB_Arsip_${(periode.versi_revisi || 'Versi_' + pId).replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx`;
+  const filename = `RKB_Arsip_${(periode.versi_revisi || 'Versi_' + pId).replace(/[^a-zA-Z0-9_-]/g, '_')}_${formatClientDownloadTimestamp()}.xlsx`;
   try {
     showToast('Mengirim permintaan unduh Arsip RKB ke Monitoring Unduhan...', 'info');
     const res = await apiFetch('/api/download-requests', {
@@ -12303,18 +12318,45 @@ function renderRekapTabContent(mode) {
   }
 }
 
-async function exportRekapExcel(mode = 'perencanaan') {
+async function exportRekapExcel(mode = 'perencanaan', isFullCompilation = false) {
   const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
-  const state = AppState.rekapState[cleanMode]?.data;
+  const stateObj = AppState.rekapState[cleanMode];
+  const state = stateObj?.data;
   if (!state || !state.periode) {
     showToast('Data periode belum dimuat.', 'warning');
     return;
   }
   const pId = state.periode.id;
   const filterPic = state.filter_pic || 'SEMUA';
-  const filename = `Rekap_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}.xlsx`;
+  const activeTab = stateObj?.tab || 'EKSEKUTIF';
+
+  let baseName = '';
+  let filterSasaranPayload = '';
+
+  if (isFullCompilation) {
+    baseName = `Buku_Rekap_5_Modul_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}`;
+    filterSasaranPayload = `${cleanMode}|full_compilation`;
+  } else {
+    const tabLabelMap = {
+      'EKSEKUTIF': 'Eksekutif',
+      'KEGIATAN': 'Kegiatan_RKB',
+      'SUBBAGIAN': 'Subbagian',
+      'AKUN_BAS': 'Akun_BAS',
+      'COST_SHARING': 'Sumber_Dana'
+    };
+    const tabLabel = tabLabelMap[activeTab] || activeTab;
+    baseName = `Rekap_${tabLabel}_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}`;
+    filterSasaranPayload = `${cleanMode}|tab:${activeTab}`;
+  }
+
+  const filename = `${baseName}_${formatClientDownloadTimestamp()}.xlsx`;
+
   try {
-    showToast('Mengirim permintaan unduh Rekap Anggaran ke Monitoring Unduhan...', 'info');
+    const toastMsg = isFullCompilation
+      ? 'Mengirim permintaan unduh Buku Kompilasi 5 Rekap Anggaran ke Monitoring Unduhan...'
+      : `Mengirim permintaan unduh Rekap Modul (${activeTab}) ke Monitoring Unduhan...`;
+    showToast(toastMsg, 'info');
+
     const res = await apiFetch('/api/download-requests', {
       method: 'POST',
       body: JSON.stringify({
@@ -12322,7 +12364,7 @@ async function exportRekapExcel(mode = 'perencanaan') {
         tipe_unduhan: 'EXCEL_REKAP',
         periode_id: pId,
         filter_pic: filterPic,
-        filter_sasaran: 'ALL'
+        filter_sasaran: filterSasaranPayload
       })
     });
     if (res && res.success) {
@@ -12405,7 +12447,7 @@ async function exportRekapCostSharingExcel(mode = 'perencanaan') {
   }
   const pId = state.periode.id;
   const filterPic = state.filter_pic || 'SEMUA';
-  const filename = `Rekap_Sumber_Dana_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}.xlsx`;
+  const filename = `Rekap_Sumber_Dana_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}_${formatClientDownloadTimestamp()}.xlsx`;
   try {
     showToast('Mengirim permintaan unduh Rekap Sumber Dana ke Monitoring Unduhan...', 'info');
     const res = await apiFetch('/api/download-requests', {

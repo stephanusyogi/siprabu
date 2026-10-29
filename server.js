@@ -93,6 +93,8 @@ const {
   saveAkun,
   deleteAkun,
   bulkUpsertAkun,
+  formatDownloadTimestamp,
+  appendDownloadTimestamp,
   createDownloadRequest,
   getDownloadRequests,
   getDownloadRequestById,
@@ -132,6 +134,7 @@ const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevis
 const { createToken, verifyToken, revokeToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser } = require('./src/auth');
 const { 
   exportRkbToExcelBuffer,
+  exportRekapToExcelBuffer,
   exportCostSharingToExcelBuffer,
   exportSbmToExcelBuffer, 
   parseSbmExcelBuffer, 
@@ -198,6 +201,42 @@ async function processDownloadJob(jobId) {
       buffer = await exportSbmToExcelBuffer();
     } else if (job.tipe_unduhan === 'EXCEL_MASTER_AKUN') {
       buffer = await exportBasToExcelBuffer();
+    } else if (job.tipe_unduhan === 'EXCEL_REKAP') {
+      // PROSES DOWNLOAD REKAPITULASI (OPSI A: TAB/MODUL AKTIF, OPSI B: BUKU KOMPILASI 5 REKAP)
+      let mode = 'perencanaan';
+      let tab = 'EKSEKUTIF';
+      let fullCompilation = false;
+
+      if (job.filter_sasaran) {
+        if (job.filter_sasaran.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(job.filter_sasaran);
+            mode = parsed.mode || mode;
+            tab = parsed.tab || tab;
+            fullCompilation = !!parsed.full;
+          } catch (e) {}
+        } else if (job.filter_sasaran.includes('|')) {
+          const parts = job.filter_sasaran.split('|');
+          mode = parts[0] || mode;
+          for (let i = 1; i < parts.length; i++) {
+            if (parts[i].startsWith('tab:')) tab = parts[i].substring(4);
+            if (parts[i] === 'full_compilation' || parts[i] === 'full:true') fullCompilation = true;
+          }
+        } else {
+          if (job.filter_sasaran === 'pelaksanaan') mode = 'pelaksanaan';
+          if (job.filter_sasaran === 'perencanaan') mode = 'perencanaan';
+          if (job.nama_file && job.nama_file.toLowerCase().includes('kompilasi')) {
+            fullCompilation = true;
+          }
+        }
+      }
+
+      buffer = await exportRekapToExcelBuffer(job.periode_id, {
+        pic: job.filter_pic,
+        mode,
+        tab,
+        fullCompilation
+      });
     } else {
       // Standar RUH Excel, Rekap Excel, Arsip Excel (EXCEL_RUH, EXCEL_REKAP, EXCEL_ARSIP, EXCEL_RKB)
       const query = {};
@@ -2180,7 +2219,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const buffer = await exportCostSharingToExcelBuffer(targetPeriode.id, { pic: filterPic, mode });
-      const filename = `Rekap_Sumber_Dana_APBD_${(targetPeriode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}_${Date.now()}.xlsx`;
+      const filename = `Rekap_Sumber_Dana_APBD_${(targetPeriode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}_${formatDownloadTimestamp()}.xlsx`;
 
       recordAuditLog({
         user,
@@ -3138,7 +3177,7 @@ const server = http.createServer(async (req, res) => {
 
       const buffer = await exportRkbToExcelBuffer(periodeId, query);
       const filterSuffix = (query.pic && query.pic !== 'SEMUA' ? `_${query.pic}` : '') + (query.sasaran && query.sasaran !== 'ALL' ? `_${query.sasaran}` : '');
-      const filename = `RUH_Belanja_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}${filterSuffix}_${Date.now()}.xlsx`;
+      const filename = `RUH_Belanja_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}${filterSuffix}_${formatDownloadTimestamp()}.xlsx`;
 
       if (method === 'GET') {
         recordAuditLog({
@@ -3191,7 +3230,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const archiver = require('archiver');
-      const filename = `Paket_RUH_5_Subbagian_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.zip`;
+      const filename = `Paket_RUH_5_Subbagian_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${formatDownloadTimestamp()}.zip`;
 
       recordAuditLog({
         user,
