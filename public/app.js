@@ -76,7 +76,8 @@ const SAKTI_VIEW_CODES = {
   'view-rekap-perencanaan': 21,
   'view-rekap-pelaksanaan': 22,
   'view-audit': 23,
-  'view-panduan-pelaksanaan': 24
+  'view-panduan-pelaksanaan': 24,
+  'view-menu-matrix': 25
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -103,7 +104,8 @@ const SAKTI_CODE_TO_VIEW = {
   21: 'view-rekap-perencanaan',
   22: 'view-rekap-pelaksanaan',
   23: 'view-audit',
-  24: 'view-panduan-pelaksanaan'
+  24: 'view-panduan-pelaksanaan',
+  25: 'view-menu-matrix'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -132,7 +134,8 @@ const SAKTI_VIEW_TITLES = {
   'view-developer': 'Ruang Pengembang & Blueprint PRD',
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
-  'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem'
+  'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
+  'view-menu-matrix': 'Manajemen Hak Akses Menu (RBAC)'
 };
 
 function bufferToBase64Url(uint8Array) {
@@ -599,6 +602,7 @@ function showMainApp() {
   if (loginScreen) loginScreen.style.setProperty('display', 'none', 'important');
   if (appLayout) appLayout.style.display = 'flex';
 
+  renderActiveRoleSwitcher(user);
   applyRolePermissionsToUI();
 }
 
@@ -733,8 +737,22 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   }
 
   const isDevOrigin = sessionStorage.getItem('siprabu_is_developer_origin') === 'true' || user.username === 'emenje';
-  const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
   const isDevUnrestricted = isDevOrigin && (Number(user.level) === 0 && (!user.active_role || Number(user.active_role.level) === 0));
+
+  // Kumpulkan level kewenangan berdasarkan mode peran (SAKTI vs KUMULATIF)
+  const userLevels = new Set();
+  const isKumulatif = (user.role_mode === 'KUMULATIF');
+  if (isKumulatif) {
+    userLevels.add(Number(user.level));
+    if (Array.isArray(user.roles)) {
+      user.roles.forEach(r => userLevels.add(Number(r.level)));
+    }
+  } else {
+    // Mode SAKTI: Tampilkan menu sesuai peran aktif saja
+    const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
+    userLevels.add(activeLevel);
+  }
+  const isDev = isDevUnrestricted || userLevels.has(0) || user.role_id === 'developer' || user.username === 'emenje';
 
   // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Strict SAKTI Canon)
   matrix.forEach(item => {
@@ -1858,7 +1876,7 @@ async function handleGoogleSignInCallback(response) {
       closeLoginModal();
 
       // Alur SAKTI Post-Login (Gambar 1): Jika akun memiliki > 1 peran, tampilkan Layar Pemilihan Peran
-      if (res.user && Array.isArray(res.user.roles) && res.user.roles.length > 1) {
+      if (res.user && Array.isArray(res.user.roles) && res.user.roles.length > 1 && res.user.role_mode !== 'KUMULATIF') {
         showSaktiPostLoginRoleSelector(res.user);
         return;
       }
@@ -1925,7 +1943,7 @@ async function submitLocalLoginForm() {
     closeLoginModal();
 
     // Alur SAKTI Post-Login (Gambar 1): Jika akun memiliki > 1 peran, tampilkan Layar Pemilihan Peran
-    if (res.user && Array.isArray(res.user.roles) && res.user.roles.length > 1) {
+    if (res.user && Array.isArray(res.user.roles) && res.user.roles.length > 1 && res.user.role_mode !== 'KUMULATIF') {
       showSaktiPostLoginRoleSelector(res.user);
       return;
     }
@@ -2277,7 +2295,7 @@ function switchView(viewId, updateHistory = true) {
       user.level === 0 || 
       (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin'))
     );
-    if ((viewId === 'view-users' || viewId === 'view-audit') && !canAccessUserMgmt) {
+    if ((viewId === 'view-users' || viewId === 'view-audit' || viewId === 'view-menu-matrix') && !canAccessUserMgmt) {
       showToast('Akses ditolak: Menu ini hanya untuk Akun Developer (Level 0) dan Kasubbag Perencanaan (Rendatin).', 'warning');
       switchView('view-dashboard', updateHistory);
       return;
@@ -2400,6 +2418,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-panduan-pelaksanaan') { renderPanduanByRole(); }
   else if (viewId === 'view-monitoring') loadMonitoringReport();
   else if (viewId === 'view-users') renderUsersTable();
+  else if (viewId === 'view-menu-matrix') loadMenuMatrixView();
   else if (viewId === 'view-penandatangan') loadPenandatanganView();
   else if (viewId === 'view-audit') loadAuditLogsView();
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
@@ -9184,6 +9203,7 @@ function openAddUserModal() {
   setElVal('modal-user-jabatan', '');
   setElVal('modal-user-email', '');
   setElVal('modal-user-status', '1');
+  setElVal('modal-user-role-mode', 'SWITCH');
 
   AppState.modalUserRoles = [{
     level: 2,
@@ -9214,6 +9234,7 @@ function openEditUserModal(userId) {
   setElVal('modal-user-jabatan', user.jabatan || '');
   setElVal('modal-user-email', user.email || '');
   setElVal('modal-user-status', String(user.is_active));
+  setElVal('modal-user-role-mode', user.role_mode || 'SWITCH');
 
   if (Array.isArray(user.roles) && user.roles.length > 0) {
     AppState.modalUserRoles = JSON.parse(JSON.stringify(user.roles));
@@ -9267,6 +9288,7 @@ async function submitUserForm() {
     jabatan: document.getElementById('modal-user-jabatan')?.value || '',
     email: document.getElementById('modal-user-email')?.value?.trim()?.toLowerCase() || '',
     is_active: Number(document.getElementById('modal-user-status')?.value || 1),
+    role_mode: document.getElementById('modal-user-role-mode')?.value || 'SWITCH',
     roles: AppState.modalUserRoles
   };
 
@@ -12831,3 +12853,339 @@ function unlinkModalSbm() {
   setModalSbmDisplay(null);
 }
 window.unlinkModalSbm = unlinkModalSbm;
+
+
+// ============================================================================
+// SAKTI ACTIVE ROLE SWITCHER & ROLE PREFERENCE
+// ============================================================================
+
+function toggleActiveRoleDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById('active-role-dropdown-menu');
+  if (!dropdown) return;
+  const isVisible = dropdown.style.display === 'block';
+  dropdown.style.display = isVisible ? 'none' : 'block';
+}
+
+window.addEventListener('click', (e) => {
+  const container = document.getElementById('active-role-container');
+  const dropdown = document.getElementById('active-role-dropdown-menu');
+  if (dropdown && dropdown.style.display === 'block') {
+    if (!container || !container.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  }
+});
+
+function renderActiveRoleSwitcher(user = AppState.currentUser) {
+  const container = document.getElementById('active-role-container');
+  if (!container) return;
+
+  if (!user || !Array.isArray(user.roles) || user.roles.length <= 1) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'inline-flex';
+
+  const chkKumulatif = document.getElementById('chk-role-mode-kumulatif');
+  const roleIcon = document.getElementById('active-role-icon');
+  const roleLabel = document.getElementById('active-role-label');
+  const roleBtn = document.getElementById('btn-active-role-dropdown');
+  const subheading = document.getElementById('role-dropdown-subheading');
+  const listEl = document.getElementById('active-role-list');
+
+  const isKumulatif = (user.role_mode === 'KUMULATIF');
+  if (chkKumulatif) chkKumulatif.checked = isKumulatif;
+
+  if (isKumulatif) {
+    if (roleIcon) roleIcon.textContent = '⚡';
+    const subbagList = user.roles.map(r => r.pic).filter((v, i, a) => a.indexOf(v) === i).join(', ');
+    if (roleLabel) roleLabel.textContent = `Hak Kumulatif: ${subbagList}`;
+    if (roleBtn) {
+      roleBtn.style.background = '#15803d';
+      roleBtn.style.borderColor = '#22c55e';
+      roleBtn.style.color = '#ffffff';
+    }
+    if (subheading) subheading.textContent = 'MODE AKTIF: HAK KUMULATIF GABUNGAN';
+  } else {
+    if (roleIcon) roleIcon.textContent = '🎭';
+    const activeLabel = user.active_role ? (user.active_role.label_peran || `Operator ${user.active_role.pic}`) : (user.jabatan || user.pic_subbag);
+    const activeMode = user.active_role ? user.active_role.mode_akses : user.mode_akses;
+    if (roleLabel) roleLabel.textContent = `${activeLabel} (${activeMode})`;
+    if (roleBtn) {
+      roleBtn.style.background = 'rgba(255, 255, 255, 0.12)';
+      roleBtn.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+      roleBtn.style.color = '#ffffff';
+    }
+    if (subheading) subheading.textContent = 'PILIH PERAN AKTIF (MODE SAKTI):';
+  }
+
+  if (listEl) {
+    listEl.innerHTML = '';
+    user.roles.forEach(r => {
+      const isRoleActive = (!isKumulatif) && (
+        (user.active_role && Number(user.active_role.id) === Number(r.id)) ||
+        (!user.active_role && Number(r.is_default) === 1) ||
+        (user.active_role && Number(user.active_role.level) === Number(r.level) && String(user.active_role.pic).toUpperCase() === String(r.pic).toUpperCase())
+      );
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `role-item-btn ${isRoleActive ? 'active' : ''}`;
+      btn.onclick = () => switchActiveRoleAction(r.id);
+
+      const modeBadgeBg = (r.mode_akses === 'EDITOR') ? '#dcfce7' : '#f1f5f9';
+      const modeBadgeColor = (r.mode_akses === 'EDITOR') ? '#15803d' : '#475569';
+
+      btn.innerHTML = `
+        <div style="flex: 1; text-align: left;">
+          <div class="role-item-title" style="display: flex; align-items: center; justify-content: space-between;">
+            <span>${escHtml(r.label_peran || ('Operator ' + r.pic))}</span>
+            ${isRoleActive ? '<span style="color: #2563eb; font-weight: 800; font-size: 13px;">✓</span>' : ''}
+          </div>
+          <div class="role-item-desc" style="margin-top: 2px;">
+            Level ${r.level} • Subbag: <strong>${escHtml(r.pic)}</strong>
+          </div>
+        </div>
+        <span class="role-item-badge" style="background: ${modeBadgeBg}; color: ${modeBadgeColor}; margin-left: 8px;">
+          ${escHtml(r.mode_akses)}
+        </span>
+      `;
+      listEl.appendChild(btn);
+    });
+  }
+}
+
+async function switchActiveRoleAction(roleId) {
+  try {
+    const res = await apiFetch('/api/switch-active-role', {
+      method: 'POST',
+      body: JSON.stringify({ role_id: roleId })
+    });
+    if (res && res.token) {
+      localStorage.setItem('token', res.token);
+      AppState.currentUser = res.user;
+      const dropdown = document.getElementById('active-role-dropdown-menu');
+      if (dropdown) dropdown.style.display = 'none';
+      showToast(res.message || 'Berhasil beralih peran.', 'success');
+      updateUserNavbar();
+      applyDynamicMenuMatrix(res.user);
+      renderAllViews();
+    }
+  } catch (err) {
+    showToast(err.message || 'Gagal beralih peran.', 'error');
+  }
+}
+
+async function toggleRoleModeCheckbox(checked) {
+  const newMode = checked ? 'KUMULATIF' : 'SWITCH';
+  try {
+    const res = await apiFetch('/api/user/preference-role-mode', {
+      method: 'POST',
+      body: JSON.stringify({ role_mode: newMode })
+    });
+    if (res && res.token) {
+      localStorage.setItem('token', res.token);
+      AppState.currentUser = res.user;
+      showToast(res.message || `Mode peran diubah ke ${newMode}.`, 'success');
+      updateUserNavbar();
+      applyDynamicMenuMatrix(res.user);
+      renderAllViews();
+    }
+  } catch (err) {
+    showToast(err.message || 'Gagal mengubah preferensi mode peran.', 'error');
+    const chk = document.getElementById('chk-role-mode-kumulatif');
+    if (chk) chk.checked = !checked;
+  }
+}
+
+// ============================================================================
+// MODUL MANAJEMEN MATRIKS HAK AKSES MENU (RBAC DINAMIS)
+// ============================================================================
+
+async function loadMenuMatrixView() {
+  const tbody = document.getElementById('menu-matrix-table-body');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses menu...</td></tr>';
+  }
+  try {
+    const res = await apiFetch('/api/menu-matrix');
+    if (res && res.matrix) {
+      AppState.menuMatrix = res.matrix;
+      renderMenuMatrixTable();
+    }
+  } catch (err) {
+    if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks: ${escHtml(err.message)}</td></tr>`;
+  }
+}
+
+function filterMenuMatrixTable() {
+  renderMenuMatrixTable();
+}
+
+function renderMenuMatrixTable() {
+  const tbody = document.getElementById('menu-matrix-table-body');
+  if (!tbody) return;
+
+  const matrix = AppState.menuMatrix || [];
+  const filterFolder = document.getElementById('menu-matrix-filter-folder')?.value || 'ALL';
+
+  let filtered = matrix;
+  if (filterFolder === 'ROOT') {
+    filtered = matrix.filter(m => !m.folder_key);
+  } else if (filterFolder !== 'ALL') {
+    filtered = matrix.filter(m => m.folder_key === filterFolder);
+  }
+
+  const countEl = document.getElementById('menu-matrix-count');
+  if (countEl) countEl.textContent = `${filtered.length} dari ${matrix.length} Menu`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 24px; color: #64748b;">Tidak ada menu pada kategori ini.</td></tr>';
+    return;
+  }
+
+  const folderLabels = {
+    'folder-perencanaan': 'Perencanaan & Revisi',
+    'folder-rekap': 'Rekapitulasi Anggaran',
+    'folder-referensi': 'Referensi Standar (SBM, BAS)',
+    'folder-database': 'Database Master Adhoc',
+    'folder-panduan': 'Panduan & Regulasi',
+    'folder-administrasi': 'Administrasi & Pengaturan',
+    'folder-developer': 'Ruang Pengembang DEV'
+  };
+
+  tbody.innerHTML = filtered.map((m, idx) => {
+    const fName = m.folder_key ? (folderLabels[m.folder_key] || m.folder_key) : 'Menu Utama (Root)';
+    const isCriticalAdmin = (m.menu_key === 'view-users' || m.menu_key === 'view-menu-matrix' || m.menu_key === 'view-dashboard');
+
+    return `
+      <tr data-menu-key="${escHtml(m.menu_key)}" style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px 14px; text-align: center; color: #64748b;">${idx + 1}</td>
+        <td style="padding: 10px 14px;">
+          <strong style="color: #1e293b; font-size: 12.5px;">${escHtml(m.menu_label || m.menu_key)}</strong>
+          <div style="font-size: 11px; color: #94a3b8; font-family: var(--font-mono); margin-top: 2px;">
+            ${escHtml(m.menu_key)}
+          </div>
+        </td>
+        <td style="padding: 10px 14px; color: #475569;">
+          <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">
+            ${escHtml(fName)}
+          </span>
+        </td>
+        <td style="padding: 10px 14px; text-align: center; background: #f8fafc;">
+          <input type="checkbox" data-field="allow_l0" ${m.allow_l0 ? 'checked' : ''} disabled title="Developer (Level 0) dilindungi anti-lockout" style="width: 15px; height: 15px; cursor: not-allowed; accent-color: #0f172a;">
+        </td>
+        <td style="padding: 10px 14px; text-align: center; background: #eff6ff;">
+          <input type="checkbox" data-field="allow_l1" ${m.allow_l1 ? 'checked' : ''} ${isCriticalAdmin ? 'disabled title="Menu kritis Level 1 dilindungi anti-lockout"' : ''} style="width: 15px; height: 15px; cursor: ${isCriticalAdmin ? 'not-allowed' : 'pointer'}; accent-color: #1e40af;">
+        </td>
+        <td style="padding: 10px 14px; text-align: center; background: #f0fdf4;">
+          <input type="checkbox" data-field="allow_l2" ${m.allow_l2 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #166534;">
+        </td>
+        <td style="padding: 10px 14px; text-align: center; background: #fdf4ff;">
+          <input type="checkbox" data-field="allow_l3" ${m.allow_l3 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #86198f;">
+        </td>
+        <td style="padding: 10px 14px; text-align: center; background: #fefce8;">
+          <input type="checkbox" data-field="allow_l4" ${m.allow_l4 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #854d0e;">
+        </td>
+        <td style="padding: 10px 14px; text-align: center;">
+          <select class="input-select-sm" data-field="required_mode" style="padding: 3px 6px; font-size: 11px; font-weight: 600;">
+            <option value="VIEWER" ${(m.required_mode || 'VIEWER') === 'VIEWER' ? 'selected' : ''}>VIEWER</option>
+            <option value="EDITOR" ${m.required_mode === 'EDITOR' ? 'selected' : ''}>EDITOR</option>
+          </select>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function saveMenuMatrixAction() {
+  const btn = document.getElementById('btn-save-menu-matrix');
+  if (btn) btn.disabled = true;
+
+  try {
+    const tbody = document.getElementById('menu-matrix-table-body');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr[data-menu-key]');
+    const matrixMap = {};
+    (AppState.menuMatrix || []).forEach(m => {
+      matrixMap[m.menu_key] = { ...m };
+    });
+
+    rows.forEach(tr => {
+      const menuKey = tr.getAttribute('data-menu-key');
+      if (matrixMap[menuKey]) {
+        matrixMap[menuKey].allow_l0 = 1; // Anti-lockout
+        matrixMap[menuKey].allow_l1 = tr.querySelector('input[data-field="allow_l1"]')?.checked ? 1 : 0;
+        matrixMap[menuKey].allow_l2 = tr.querySelector('input[data-field="allow_l2"]')?.checked ? 1 : 0;
+        matrixMap[menuKey].allow_l3 = tr.querySelector('input[data-field="allow_l3"]')?.checked ? 1 : 0;
+        matrixMap[menuKey].allow_l4 = tr.querySelector('input[data-field="allow_l4"]')?.checked ? 1 : 0;
+        matrixMap[menuKey].required_mode = tr.querySelector('select[data-field="required_mode"]')?.value || 'VIEWER';
+      }
+    });
+
+    const itemsToSave = Object.values(matrixMap);
+    const res = await apiFetch('/api/menu-matrix', {
+      method: 'PUT',
+      body: JSON.stringify({ matrix: itemsToSave })
+    });
+
+    AppState.menuMatrix = res.matrix || itemsToSave;
+    applyDynamicMenuMatrix(AppState.currentUser);
+    showToast(res.message || 'Matriks hak akses menu berhasil disimpan.', 'success');
+  } catch (err) {
+    showToast('Gagal menyimpan matriks: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+
+// Preferensi Mode Multi-Peran (SAKTI vs KUMULATIF)
+async function handleSaktiKumulatifToggle(checked) {
+  const targetMode = checked ? 'KUMULATIF' : 'SWITCH';
+  try {
+    const res = await apiFetch('/api/user/preference-role-mode', {
+      method: 'POST',
+      body: JSON.stringify({ role_mode: targetMode })
+    });
+    if (res && res.success) {
+      if (res.token) localStorage.setItem('siprabu_token', res.token);
+      if (res.user) AppState.currentUser = res.user;
+      else if (AppState.currentUser) AppState.currentUser.role_mode = targetMode;
+
+      // Sync checkbox states
+      const chkLogin = document.getElementById('chk-sakti-login-kumulatif');
+      const chkModal = document.getElementById('chk-sakti-modal-kumulatif');
+      if (chkLogin) chkLogin.checked = checked;
+      if (chkModal) chkModal.checked = checked;
+
+      // Update UI
+      updateUserNavbar();
+      applyDynamicMenuMatrix(AppState.currentUser);
+      applyRolePermissionsToUI();
+
+      if (checked) {
+        showToast('⚡ Mode Hak Kumulatif aktif: Seluruh wewenang subbagian Anda kini aktif bersamaan.', 'success');
+        const postLoginScreen = document.getElementById('sakti-post-login-screen');
+        if (postLoginScreen && postLoginScreen.style.display !== 'none') {
+          postLoginScreen.style.display = 'none';
+          showMainApp();
+          await loadMasters();
+          await loadPeriodes();
+          await loadRkbData();
+          renderAllViews();
+          switchView('view-dashboard', true);
+        }
+      } else {
+        showToast('Mode Ganti Peran (ala SAKTI) aktif: Silakan pilih peran yang ingin digunakan.', 'info');
+      }
+    } else {
+      throw new Error(res.error || 'Gagal mengubah preferensi peran');
+    }
+  } catch (err) {
+    showToast(`Gagal mengubah preferensi peran: ${err.message}`, 'error');
+  }
+}

@@ -61,6 +61,7 @@ const {
   toggleUserStatus,
   getMenuMatrix,
   saveMenuMatrix,
+  updateUserRoleMode,
   authenticateUser,
   authenticateGoogleUser,
   getMasters,
@@ -661,8 +662,12 @@ const server = http.createServer(async (req, res) => {
         label_peran: matchedRole.label_peran || `Level ${matchedRole.level}`
       };
 
+      // Saat beralih ke peran aktif tertentu, aktifkan mode SWITCH (ala SAKTI)
+      updateUserRoleMode(currentUser.id, 'SWITCH');
+
       const updatedUser = {
         ...currentUser,
+        role_mode: 'SWITCH',
         level: Number(activeRole.level),
         pic_subbag: String(activeRole.pic || 'SEMUA').toUpperCase(),
         mode_akses: String(activeRole.mode_akses || 'VIEWER').toUpperCase(),
@@ -705,6 +710,51 @@ const server = http.createServer(async (req, res) => {
         token,
         user: updatedUser,
         message: `Berhasil beralih ke peran ${activeRole.label_peran || activeRole.pic} (Level ${activeRole.level}).`
+      });
+    }
+
+        // 1c-3. POST /api/user/preference-role-mode (Pengaturan Preferensi Multi-Peran: SAKTI vs KUMULATIF)
+    if (pathname === '/api/user/preference-role-mode' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const { role_mode } = await parseJsonBody(req);
+      const cleanMode = String(role_mode).toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH';
+
+      updateUserRoleMode(currentUser.id, cleanMode);
+
+      const updatedUser = {
+        ...currentUser,
+        role_mode: cleanMode
+      };
+
+      const token = createToken(updatedUser, null, {
+        preserveIat: currentUser.iat,
+        preserveExp: currentUser.exp,
+        preserveSid: currentUser.sid
+      });
+
+      res.setHeader('Set-Cookie', [
+        `siprabu_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+      ]);
+
+      recordAuditLog({
+        user_id: currentUser.id,
+        username: currentUser.username,
+        role_id: currentUser.role_id,
+        action: 'UPDATE_ROLE_PREFERENCE',
+        target_type: 'satker_users',
+        target_id: currentUser.id,
+        notes: `Pengguna ${currentUser.username} mengubah preferensi peran menjadi: ${cleanMode === 'KUMULATIF' ? 'Kumulatif (Semua Hak Sekaligus)' : 'Ganti Peran Eksklusif (ala SAKTI)'}`,
+        user: updatedUser
+      });
+
+      return sendJson(res, 200, {
+        success: true,
+        token,
+        user: updatedUser,
+        role_mode: cleanMode,
+        message: `Preferensi peran berhasil diperbarui ke mode ${cleanMode}.`
       });
     }
 

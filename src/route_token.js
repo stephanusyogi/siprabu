@@ -31,7 +31,8 @@ const SAKTI_VIEW_CODES = {
   'view-rekap-perencanaan': 21,
   'view-rekap-pelaksanaan': 22,
   'view-audit': 23,
-  'view-panduan-pelaksanaan': 24
+  'view-panduan-pelaksanaan': 24,
+  'view-menu-matrix': 25
 };
 
 const SAKTI_CODE_TO_VIEW = {
@@ -58,7 +59,8 @@ const SAKTI_CODE_TO_VIEW = {
   21: 'view-rekap-perencanaan',
   22: 'view-rekap-pelaksanaan',
   23: 'view-audit',
-  24: 'view-panduan-pelaksanaan'
+  24: 'view-panduan-pelaksanaan',
+  25: 'view-menu-matrix'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -86,7 +88,8 @@ const SAKTI_VIEW_TITLES = {
   'view-developer': 'Ruang Pengembang & Blueprint PRD',
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
-  'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem'
+  'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
+  'view-menu-matrix': 'Manajemen Hak Akses Menu (RBAC)'
 };
 
 function bufferToBase64Url(buf) {

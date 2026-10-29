@@ -192,6 +192,8 @@
             </button>
           </div>
         </div>
+          </div>
+        </div>
 
         <button class="btn btn-outline btn-sm" id="btn-nav-login" onclick="openLoginModal()" title="Masuk dengan Google atau Akun Lokal">
           🔑 Masuk
@@ -377,6 +379,11 @@
                 <span class="icon">✍️</span>
                 <span class="label">Penandatangan</span>
                 <span class="badge badge-primary badge-sm" id="badge-total-penandatangan">14</span>
+              </button>
+              <!-- Hak Akses Menu Satker (RBAC Dinamis) -->
+              <button class="nav-item" data-view="view-menu-matrix" onclick="switchView('view-menu-matrix')" id="nav-item-menu-matrix">
+                <span class="icon">🎛️</span>
+                <span class="label">Hak Akses Menu</span>
               </button>
               <!-- Pengaturan Satker KPU -->
               <button class="nav-item" data-view="view-db-settings" onclick="switchView('view-db-settings')" id="nav-item-settings">
@@ -2955,6 +2962,98 @@
         </section>
 
         <!-- ================================================================= -->
+        <!-- VIEW: MODUL MANAJEMEN MATRIKS HAK AKSES MENU (RBAC DINAMIS)      -->
+        <!-- ================================================================= -->
+        <section id="view-menu-matrix" class="app-view">
+          <div class="view-header">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>🎛️ MODUL MANAJEMEN MENU &amp; RBAC MATRIX</span>
+              </div>
+              <h2 class="view-title">Manajemen Hak Akses Menu Satker</h2>
+              <p class="view-desc">
+                Konfigurasi visibilitas dan izin akses menu/fitur aplikasi per tingkat kewenangan (Level 0 Developer, Level 1 Perencanaan, Level 2 Operator Subbag, Level 3 Pimpinan, Level 4 Viewer/Auditor).
+              </p>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="btn btn-outline" onclick="loadMenuMatrixView()">
+                🔄 Muat Ulang
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveMenuMatrixAction()" id="btn-save-menu-matrix">
+                💾 Simpan Matriks Menu
+              </button>
+            </div>
+          </div>
+
+          <!-- NOTICE WEWENANG MATRIX -->
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:24px;">🛡️</span>
+            <div>
+              <strong style="font-size:13px;display:block;color:#14532d;">Sistem Keamanan Terpadu &amp; Proteksi Anti-Lockout</strong>
+              <span style="font-size:12px;color:#15803d;">Hak akses Level 0 (Developer) dan menu Administrasi untuk Level 1 dilindungi secara permanen untuk mencegah penguncian sistem secara tidak sengaja. Perubahan yang Anda simpan akan langsung berlaku seketika pada menu navigasi pengguna.</span>
+            </div>
+          </div>
+
+          <!-- TABLE MATRIX -->
+          <div class="card" style="padding: 0; overflow: hidden; border-radius: 10px; border: 1px solid var(--border-color);">
+            <div style="padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 12px; font-weight: 700; color: #475569;">Filter Kategori:</span>
+                <select id="menu-matrix-filter-folder" class="input-select-sm" onchange="filterMenuMatrixTable()" style="min-width: 180px;">
+                  <option value="ALL">Semua Kategori Menu</option>
+                  <option value="ROOT">Menu Utama (Beranda &amp; RKB)</option>
+                  <option value="folder-perencanaan">Perencanaan &amp; Revisi</option>
+                  <option value="folder-referensi">Referensi Standar (SBM, BAS, Kuantitas)</option>
+                  <option value="folder-database">Database Adhoc &amp; Paslon</option>
+                  <option value="folder-panduan">Panduan &amp; Regulasi</option>
+                  <option value="folder-administrasi">Administrasi &amp; Pengaturan</option>
+                  <option value="folder-developer">Ruang Pengembang</option>
+                </select>
+              </div>
+              <div style="font-size: 11.5px; color: #64748b;">
+                Total Menu: <strong id="menu-matrix-count" style="color: #0f172a;">0</strong>
+              </div>
+            </div>
+
+            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+              <table class="table" style="margin: 0; font-size: 12px; border-collapse: separate; border-spacing: 0;">
+                <thead style="position: sticky; top: 0; z-index: 2; background: #f1f5f9; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                  <tr>
+                    <th style="padding: 10px 14px; width: 40px; text-align: center;">No</th>
+                    <th style="padding: 10px 14px;">Nama Menu &amp; Fitur</th>
+                    <th style="padding: 10px 14px;">Kategori / Folder</th>
+                    <th style="padding: 10px 14px; text-align: center; width: 90px; background: #f8fafc;" title="Level 0: Lead Developer (Full Override)">
+                      <div style="font-weight: 800; color: #0f172a;">L0</div>
+                      <div style="font-size: 9.5px; color: #64748b;">Developer</div>
+                    </th>
+                    <th style="padding: 10px 14px; text-align: center; width: 95px; background: #eff6ff;" title="Level 1: Kasubbag Perencanaan &amp; Rendatin">
+                      <div style="font-weight: 800; color: #1e40af;">L1</div>
+                      <div style="font-size: 9.5px; color: #3b82f6;">Perencanaan</div>
+                    </th>
+                    <th style="padding: 10px 14px; text-align: center; width: 95px; background: #f0fdf4;" title="Level 2: Operator 5 Subbagian">
+                      <div style="font-weight: 800; color: #166534;">L2</div>
+                      <div style="font-size: 9.5px; color: #16a34a;">Operator</div>
+                    </th>
+                    <th style="padding: 10px 14px; text-align: center; width: 95px; background: #fdf4ff;" title="Level 3: Ketua &amp; Anggota Komisioner KPU">
+                      <div style="font-weight: 800; color: #86198f;">L3</div>
+                      <div style="font-size: 9.5px; color: #a21caf;">Pimpinan</div>
+                    </th>
+                    <th style="padding: 10px 14px; text-align: center; width: 95px; background: #fefce8;" title="Level 4: Viewer / Auditor Eksternal">
+                      <div style="font-weight: 800; color: #854d0e;">L4</div>
+                      <div style="font-size: 9.5px; color: #ca8a04;">Auditor</div>
+                    </th>
+                    <th style="padding: 10px 14px; text-align: center; width: 110px;">Mode Akses</th>
+                  </tr>
+                </thead>
+                <tbody id="menu-matrix-table-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
         <!-- VIEW: ADMINISTRASI PEJABAT PENANDATANGAN DOKUMEN SATKER (BAB 22) -->
         <!-- ================================================================= -->
         <section id="view-penandatangan" class="app-view">
@@ -4488,6 +4587,15 @@
                 <input type="email" id="modal-user-email" class="input-text" placeholder="Contoh: user@kpu-ngawi.go.id atau user@gmail.com">
                 <small style="font-size:10.5px;color:#64748b;margin-top:2px;display:block;">Digunakan untuk mencocokkan identitas saat login dengan Akun Google (Single Sign-On).</small>
               </div>
+
+              <div class="form-group full-width">
+                <label>Preferensi Multi-Peran Akun:</label>
+                <select id="modal-user-role-mode" class="input-select">
+                  <option value="SWITCH">Mode Ganti Peran (SAKTI) - Pilih satu peran aktif pada satu waktu melalui dropdown header</option>
+                  <option value="KUMULATIF">Mode Kumulatif - Seluruh hak akses peran langsung aktif bersamaan</option>
+                </select>
+                <small style="font-size:10.5px;color:#64748b;margin-top:2px;display:block;">Menentukan apakah pengguna harus beralih peran seperti di SAKTI Kemenkeu atau seluruh hak subbagian langsung aktif bersamaan.</small>
+              </div>
             </div>
 
             <!-- BLOK PENGATURAN PERAN (3 KOMPONEN: LEVEL, PIC, MODE AKSES) -->
@@ -5625,6 +5733,17 @@
           <div style="font-size: 13.5px; font-weight: 800; color: #0a2540; letter-spacing: 0.8px; line-height: 1.3; text-transform: uppercase;">REPUBLIK INDONESIA</div>
         </div>
 
+                <!-- Checkbox Preferensi Mode Kumulatif SAKTI -->
+        <div class="sakti-kumulatif-pref-card" id="sakti-login-kumulatif-card" style="max-width: 660px; margin: 0 auto 16px;">
+          <label class="sakti-kumulatif-pref-label">
+            <input type="checkbox" id="chk-sakti-login-kumulatif" onchange="handleSaktiKumulatifToggle(this.checked)" class="menu-matrix-checkbox">
+            <span>⚡ Aktifkan Mode Hak Kumulatif (Semua Wewenang Sekaligus)</span>
+          </label>
+          <div class="sakti-kumulatif-pref-desc">
+            Jika dicentang, seluruh hak subbagian Anda langsung aktif serentak tanpa perlu beralih peran manual satu per satu.
+          </div>
+        </div>
+
         <div class="sakti-role-greeting">
           Selamat datang, <span id="sakti-login-user-name">PENGGUNA</span>
         </div>
@@ -5663,6 +5782,19 @@
         <div class="sakti-modal-header">
           <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">Ganti Peran</h3>
           <button type="button" class="btn-close" onclick="closeSaktiGantiPeranModal()">&times;</button>
+        </div>
+
+        <!-- Checkbox Preferensi Mode Kumulatif Modal -->
+        <div style="padding: 12px 22px 0;">
+          <div class="sakti-kumulatif-pref-card" id="sakti-modal-kumulatif-card" style="margin-bottom: 0;">
+            <label class="sakti-kumulatif-pref-label">
+              <input type="checkbox" id="chk-sakti-modal-kumulatif" onchange="handleSaktiKumulatifToggle(this.checked)" class="menu-matrix-checkbox">
+              <span>⚡ Aktifkan Mode Hak Kumulatif (Semua Wewenang Sekaligus)</span>
+            </label>
+            <div class="sakti-kumulatif-pref-desc">
+              Gabungkan semua subbagian yang Anda miliki secara simultan tanpa pergantian peran manual.
+            </div>
+          </div>
         </div>
 
         <!-- Search Input SAKTI -->

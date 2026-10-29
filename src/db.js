@@ -527,6 +527,18 @@ function initDb() {
   safeAddColumn('periode_anggaran', 'kak_gabungan_link TEXT DEFAULT ""');
   safeAddColumn('periode_anggaran', 'verifikasi_manual_tahap4 INTEGER DEFAULT 0');
   safeAddColumn('rab_baris', 'sbm_id INTEGER DEFAULT NULL');
+  safeAddColumn('satker_users', "role_mode TEXT DEFAULT 'SWITCH'");
+
+  // Pastikan menu matriks hak akses menu terdaftar di app_menu_matrix
+  try {
+    const hasMenuMatrixRow = db.prepare('SELECT id FROM app_menu_matrix WHERE menu_key = ?').get('view-menu-matrix');
+    if (!hasMenuMatrixRow) {
+      db.prepare(`
+        INSERT INTO app_menu_matrix (menu_key, menu_label, folder_key, allow_l0, allow_l1, allow_l2, allow_l3, allow_l4, required_mode, urutan, is_active)
+        VALUES ('view-menu-matrix', 'Hak Akses Menu', 'folder-administrasi', 1, 1, 0, 0, 0, 'EDITOR', 23, 1)
+      `).run();
+    }
+  } catch (e) {}
 
   // Proteksi Tipe Kolom Unit & Var MySQL agar variabel SSOT tersimpan sebagai string (bukan terpotong jadi 0)
   if (USE_MYSQL) {
@@ -1483,7 +1495,19 @@ function checkRowEditPermission(periodeId, subbag, user = null) {
   if (user && user.level > 1) {
     // Level 2 (Operator Subbag):
     const userPic = normalizePic(user.pic_subbag);
-    if (userPic !== cleanSubbag && userPic !== 'SEMUA') {
+    let isAuthorized = (userPic === cleanSubbag || userPic === 'SEMUA');
+
+    // Jika pengguna berada dalam mode KUMULATIF dan memiliki daftar peran:
+    if (!isAuthorized && user.role_mode === 'KUMULATIF' && Array.isArray(user.roles)) {
+      isAuthorized = user.roles.some(r => {
+        const rPic = normalizePic(r.pic);
+        const isEditor = String(r.mode_akses).toUpperCase() !== 'VIEWER';
+        const isLevelOk = Number(r.level) <= 2;
+        return isEditor && isLevelOk && (rPic === cleanSubbag || rPic === 'SEMUA');
+      });
+    }
+
+    if (!isAuthorized) {
       throw new Error(`Akses ditolak. Operator ${userPic} tidak berwenang menyunting rincian belanja milik subbagian ${cleanSubbag}.`);
     }
 
@@ -3620,6 +3644,12 @@ function commitStagedRkbOps(periodeId, ops = [], options = {}, actorUser = null)
 // AUTH & USER MANAGEMENT
 // ============================================================================
 
+function updateUserRoleMode(userId, roleMode) {
+  const mode = String(roleMode).toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH';
+  db.prepare('UPDATE satker_users SET role_mode = ? WHERE id = ?').run(mode, userId);
+  return getUserById(userId);
+}
+
 function getUserRoles(userId) {
   try {
     const rows = db.prepare('SELECT id, user_id, level, pic, mode_akses, is_default, label_peran, created_at FROM satker_user_roles WHERE user_id = ? ORDER BY is_default DESC, level ASC, id ASC').all(userId) || [];
@@ -3704,8 +3734,8 @@ function saveMenuMatrix(items = []) {
   items.forEach(item => {
     try {
       updateStmt.run(
-        item.allow_l0 ? 1 : 0,
-        item.allow_l1 ? 1 : 0,
+        1, // allow_l0 anti-lockout
+        (item.menu_key === 'view-users' || item.menu_key === 'view-menu-matrix' || item.menu_key === 'view-dashboard') ? 1 : (item.allow_l1 ? 1 : 0),
         item.allow_l2 ? 1 : 0,
         item.allow_l3 ? 1 : 0,
         item.allow_l4 ? 1 : 0,
@@ -3720,7 +3750,7 @@ function saveMenuMatrix(items = []) {
 }
 
 function getUsers() {
-  const users = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version FROM satker_users ORDER BY level ASC, id ASC').all();
+  const users = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode FROM satker_users ORDER BY level ASC, id ASC').all();
   try {
     const allRoles = db.prepare('SELECT id, user_id, level, pic, mode_akses, is_default, label_peran, created_at FROM satker_user_roles ORDER BY is_default DESC, level ASC, id ASC').all() || [];
     const roleMap = {};
@@ -3758,7 +3788,7 @@ function getUsers() {
 }
 
 function getUserById(id) {
-  const u = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version FROM satker_users WHERE id = ?').get(id);
+  const u = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode FROM satker_users WHERE id = ?').get(id);
   if (u) {
     u.roles = getUserRoles(u.id);
     if (u.roles.length === 0) {
@@ -3844,12 +3874,13 @@ function saveUser(userData, actorUser = null) {
     );
     const nextTokenVer = isSecurityChanged ? (Number(existing.token_version || 1) + 1) : (Number(existing.token_version || 1));
 
+    const role_mode = userData.role_mode ? (String(userData.role_mode).toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH') : (existing.role_mode || 'SWITCH');
     db.prepare(`
       UPDATE satker_users
       SET username = ?, password = ?, nama_pejabat = ?, nip = ?, jabatan = ?, email = ?, 
-          role_id = ?, level = ?, pic_subbag = ?, is_active = ?, token_version = ?
+          role_id = ?, level = ?, pic_subbag = ?, is_active = ?, token_version = ?, role_mode = ?
       WHERE id = ?
-    `).run(username, passToSave, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, nextTokenVer, id);
+    `).run(username, passToSave, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, nextTokenVer, role_mode, id);
 
     // Simpan peran ke satker_user_roles
     saveUserRoles(id, roles);
@@ -3869,10 +3900,11 @@ function saveUser(userData, actorUser = null) {
     const exist = db.prepare('SELECT id FROM satker_users WHERE username = ?').get(username);
     if (exist) throw new Error(`Username "${username}" sudah terdaftar.`);
 
+    const role_mode = userData.role_mode ? (String(userData.role_mode).toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH') : 'SWITCH';
     const res = db.prepare(`
-      INSERT INTO satker_users (username, password, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, token_version)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-    `).run(username, finalPassword, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active);
+      INSERT INTO satker_users (username, password, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, token_version, role_mode)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `).run(username, finalPassword, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, role_mode);
 
     const newId = res.lastInsertRowid;
     saveUserRoles(newId, roles);
@@ -7035,6 +7067,7 @@ module.exports = {
   checkpointAndSyncDatabase,
   getMenuMatrix,
   saveMenuMatrix,
+  updateUserRoleMode,
   repairCorruptedDuplicateFactors,
   autoBindRabVariables,
   autoBindRabSbm,

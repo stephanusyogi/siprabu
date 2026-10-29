@@ -134,6 +134,7 @@ function createToken(user, originalDevUser = null, options = {}) {
     token_version: user.token_version !== undefined ? Number(user.token_version) : 1,
     active_role: user.active_role || null,
     mode_akses: user.mode_akses || (user.active_role ? user.active_role.mode_akses : null) || 'VIEWER',
+    role_mode: user.role_mode || 'SWITCH',
     iat,
     exp
   };
@@ -272,14 +273,24 @@ function verifyToken(token, dbInstance = null, options = {}) {
         payload.is_developer = false;
       }
 
+      const roleMode = String(dbUser.role_mode || payload.role_mode || 'SWITCH').toUpperCase();
+      const isKumulatif = (roleMode === 'KUMULATIF');
+
       return {
         ...dbUser,
         nip: dbUser.nip || '',
         roles: userRoles,
         active_role: activeRole,
-        level: activeRole ? Number(activeRole.level) : Number(dbUser.level),
-        pic_subbag: activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase(),
-        mode_akses: activeRole ? String(activeRole.mode_akses).toUpperCase() : (Number(dbUser.level) === 3 ? 'VIEWER' : 'EDITOR'),
+        role_mode: roleMode,
+        level: isKumulatif 
+          ? Math.min(...userRoles.map(r => Number(r.level))) 
+          : (activeRole ? Number(activeRole.level) : Number(dbUser.level)),
+        pic_subbag: isKumulatif
+          ? (userRoles.some(r => r.pic === 'SEMUA') ? 'SEMUA' : (activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase()))
+          : (activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase()),
+        mode_akses: isKumulatif
+          ? (userRoles.some(r => String(r.mode_akses).toUpperCase() === 'EDITOR') ? 'EDITOR' : 'VIEWER')
+          : (activeRole ? String(activeRole.mode_akses).toUpperCase() : (Number(dbUser.level) === 3 ? 'VIEWER' : 'EDITOR')),
         sid: payload.sid || null,
         iat: payload.iat || null,
         exp: payload.exp || null,
