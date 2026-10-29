@@ -742,6 +742,7 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   const isDevUnrestricted = isDevOrigin && (Number(user.level) === 0 && (!user.active_role || Number(user.active_role.level) === 0));
 
   // Kumpulkan level kewenangan berdasarkan mode peran (SAKTI vs KUMULATIF)
+  const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
   const userLevels = new Set();
   const isKumulatif = (user.role_mode === 'KUMULATIF');
   if (isKumulatif) {
@@ -751,22 +752,28 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
     }
   } else {
     // Mode SAKTI: Tampilkan menu sesuai peran aktif saja
-    const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
     userLevels.add(activeLevel);
   }
   const isDev = isDevUnrestricted || userLevels.has(0) || user.role_id === 'developer' || user.username === 'emenje';
 
   // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Strict SAKTI Canon)
   matrix.forEach(item => {
-    const btn = document.querySelector(`button[data-view="${item.menu_key}"]`);
+    const btn = document.querySelector('button[data-view="' + item.menu_key + '"]');
     if (!btn) return;
 
     let isAllowed = false;
     if (isDevUnrestricted) {
       isAllowed = true;
+    } else if (isKumulatif) {
+      for (const lvl of userLevels) {
+        if (item['allow_l' + lvl]) {
+          isAllowed = true;
+          break;
+        }
+      }
     } else {
       // Strict SAKTI Mode: Murni mengevaluasi peran aktif yang sedang dipilih (activeLevel)
-      isAllowed = Boolean(item[`allow_l${activeLevel}`]);
+      isAllowed = Boolean(item['allow_l' + activeLevel]);
     }
 
     btn.style.display = isAllowed ? 'flex' : 'none';
@@ -788,10 +795,23 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
     folder.style.display = hasVisible ? 'block' : 'none';
   });
 
-  // Jika view aktif saat ini tidak diizinkan untuk activeLevel, alihkan otomatis ke view-dashboard
+  // Jika view aktif saat ini tidak diizinkan untuk peran saat ini, alihkan otomatis ke view-dashboard
   const currentMatrixItem = matrix.find(m => m.menu_key === AppState.activeView);
-  if (currentMatrixItem && !isDevUnrestricted && !currentMatrixItem[`allow_l${activeLevel}`]) {
-    switchView('view-dashboard', true);
+  if (currentMatrixItem && !isDevUnrestricted) {
+    let currentAllowed = false;
+    if (isKumulatif) {
+      for (const lvl of userLevels) {
+        if (currentMatrixItem['allow_l' + lvl]) {
+          currentAllowed = true;
+          break;
+        }
+      }
+    } else {
+      currentAllowed = Boolean(currentMatrixItem['allow_l' + activeLevel]);
+    }
+    if (!currentAllowed) {
+      switchView('view-dashboard', true);
+    }
   }
 }
 
