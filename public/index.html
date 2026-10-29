@@ -152,12 +152,44 @@
           </select>
         </div>
 
-        <!-- User Profile Pill -->
-        <div class="user-pill" id="user-profile-pill" onclick="openLoginModal()" title="Klik untuk Masuk / Ganti Akun" style="cursor: pointer;">
-          <div class="avatar" id="user-avatar">👤</div>
-          <div class="user-info">
-            <span class="user-name" id="user-nama-pejabat">Tamu</span>
-            <span class="user-role badge" id="user-role-badge">Level 1: Perencanaan</span>
+        <!-- User Profile Pill SAKTI (Gambar 2) -->
+        <div class="user-pill sakti-user-pill" id="user-profile-pill" onclick="handleUserProfileClick(event)" title="Menu Akun &amp; Ganti Peran">
+          <div class="sakti-navbar-grid-icon" title="Aplikasi SI-PRABU">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="color: #64748b;">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+          </div>
+          <div class="sakti-user-pill-info">
+            <div class="sakti-user-pill-top">
+              <span class="user-name" id="user-nama-pejabat">Tamu</span>
+              <span class="sakti-verified-badge" id="user-verified-badge" style="display: none;" title="Akun Terverifikasi">☑</span>
+              <span class="sakti-user-nip" id="user-nip-badge"></span>
+            </div>
+            <div class="sakti-user-pill-sub" id="user-active-role-sub">
+              VALIDATOR SATKER 657811 2026
+            </div>
+          </div>
+          <div class="avatar" id="user-avatar" style="margin-left: 6px;">👤</div>
+
+          <!-- SAKTI Profile Dropdown Menu (Gambar 2) -->
+          <div class="sakti-profile-dropdown" id="sakti-profile-dropdown" style="display: none;">
+            <div class="sakti-dropdown-caret"></div>
+            <button type="button" class="sakti-dropdown-item" onclick="openProfileInfoModal(event)">
+              <span>Profile</span>
+              <span class="sakti-dropdown-icon">🪪</span>
+            </button>
+            <button type="button" class="sakti-dropdown-item" id="sakti-dropdown-ganti-peran" onclick="openSaktiGantiPeranModal(event)">
+              <span>Ganti Peran</span>
+              <span class="sakti-dropdown-icon">👥</span>
+            </button>
+            <div class="sakti-dropdown-divider"></div>
+            <button type="button" class="sakti-dropdown-item text-danger" onclick="logout(event)">
+              <span>Keluar</span>
+              <span class="sakti-dropdown-icon">⏻</span>
+            </button>
           </div>
         </div>
 
@@ -5555,6 +5587,125 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeAuditDetailModal()">Tutup</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- LAYAR PEMILIHAN PERAN PASCA-LOGIN SAKTI (GAMBAR 1)                -->
+    <!-- ================================================================= -->
+    <div id="sakti-post-login-screen" class="sakti-role-screen-overlay" style="display: none;">
+      <div class="sakti-role-screen-card">
+        <div class="sakti-role-logo-area">
+          <svg class="sakti-role-logo" viewBox="0 0 100 110" width="62" height="68" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0284c7" />
+                <stop offset="50%" stop-color="#034b94" />
+                <stop offset="100%" stop-color="#022859" />
+              </linearGradient>
+              <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fef08a" />
+                <stop offset="50%" stop-color="#eab308" />
+                <stop offset="100%" stop-color="#ca8a04" />
+              </linearGradient>
+            </defs>
+            <polygon points="50,4 94,18 82,82 50,106 18,82 6,18" fill="url(#shieldGrad)" stroke="#facc15" stroke-width="3" stroke-linejoin="round" />
+            <polygon points="50,10 88,22 78,78 50,100 22,78 12,22" fill="none" stroke="#fef08a" stroke-width="1.2" opacity="0.85" />
+            <circle cx="50" cy="24" r="4.5" fill="url(#goldGrad)" />
+            <line x1="32" y1="36" x2="68" y2="36" stroke="url(#goldGrad)" stroke-width="3" stroke-linecap="round" />
+            <line x1="50" y1="24" x2="50" y2="68" stroke="url(#goldGrad)" stroke-width="3" />
+            <polygon points="32,38 24,52 40,52" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
+            <polygon points="68,38 60,52 76,52" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
+            <path d="M 22,46 Q 16,62 30,76 Q 40,82 50,86 Q 60,82 70,76 Q 84,62 78,46" fill="none" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" />
+            <rect x="25" y="88" width="50" height="9" rx="2" fill="url(#goldGrad)" />
+            <line x1="30" y1="92.5" x2="70" y2="92.5" stroke="#1e3a8a" stroke-width="1.5" />
+          </svg>
+          <div style="font-size: 15px; font-weight: 800; color: #0a2540; letter-spacing: 0.8px; line-height: 1.3; text-transform: uppercase;">KEMENTERIAN KEUANGAN</div>
+          <div style="font-size: 13.5px; font-weight: 800; color: #0a2540; letter-spacing: 0.8px; line-height: 1.3; text-transform: uppercase;">REPUBLIK INDONESIA</div>
+        </div>
+
+        <div class="sakti-role-greeting">
+          Selamat datang, <span id="sakti-login-user-name">PENGGUNA</span>
+        </div>
+
+        <!-- Search Input SAKTI -->
+        <div class="sakti-role-search-wrap">
+          <input type="text" id="sakti-login-search-input" class="sakti-role-search-input" placeholder="Pencarian kode satker, nama satker, peran atau tipe" oninput="filterSaktiLoginRoles()" />
+        </div>
+
+        <!-- Role List Table Container -->
+        <div class="sakti-role-table-box">
+          <div class="sakti-role-table-header">
+            <div class="sakti-role-col-satker">Kode Satker</div>
+            <div class="sakti-role-col-peran">Peran</div>
+            <div class="sakti-role-col-tipe">Tipe</div>
+          </div>
+          <div class="sakti-role-rows-list" id="sakti-login-roles-list">
+            <!-- Rendered dynamically via JS -->
+          </div>
+        </div>
+
+        <div>
+          <button type="button" class="sakti-btn-kembali-login" onclick="logout(true)">
+            <span style="font-size: 16px;">⬅</span>
+            <span>KEMBALI KE HALAMAN LOGIN</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MODAL GANTI PERAN SAKTI (GAMBAR 3)                                -->
+    <!-- ================================================================= -->
+    <div id="modal-sakti-ganti-peran" class="modal-backdrop" style="display: none; z-index: 99999; align-items: center; justify-content: center;">
+      <div class="sakti-ganti-peran-modal-box">
+        <div class="sakti-modal-header">
+          <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">Ganti Peran</h3>
+          <button type="button" class="btn-close" onclick="closeSaktiGantiPeranModal()">&times;</button>
+        </div>
+
+        <!-- Search Input SAKTI -->
+        <div style="padding: 16px 22px 8px;">
+          <input type="text" id="sakti-modal-search-input" class="sakti-role-search-input" placeholder="Pencarian kode satker, nama satker, peran atau tipe" oninput="filterSaktiModalRoles()" />
+        </div>
+
+        <!-- Role List Table Container -->
+        <div style="padding: 8px 22px 20px;">
+          <div class="sakti-role-table-header">
+            <div class="sakti-role-col-satker">Kode Satker</div>
+            <div class="sakti-role-col-peran">Peran</div>
+            <div class="sakti-role-col-tipe">Tipe</div>
+          </div>
+          <div class="sakti-role-rows-list" id="sakti-modal-roles-list">
+            <!-- Rendered dynamically via JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- POP-UP KONFIRMASI GANTI PERAN SAKTI (GAMBAR 3 INSET)              -->
+    <!-- ================================================================= -->
+    <div id="modal-sakti-konfirmasi" class="sakti-confirm-popup" style="display: none; z-index: 100005;">
+      <div class="sakti-confirm-box">
+        <div class="sakti-confirm-title">Konfirmasi</div>
+        <div class="sakti-confirm-body">
+          <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; font-weight: 700; color: #1e293b; font-size: 13.5px;">
+            <span style="font-size: 18px; color: #d97706; line-height: 1;">⚠️</span>
+            <span>Apakah yakin ingin masuk sebagai</span>
+          </div>
+          <div id="sakti-confirm-details-content" style="font-family: var(--font-mono, monospace); font-size: 12.5px; line-height: 1.8; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; color: #1e293b;">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+        <div class="sakti-confirm-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-sakti-confirm-yes" onclick="executeSaktiRoleSwitch()" style="padding: 8px 24px; font-weight: 800; background: #0070f3; border-color: #0070f3; border-radius: 4px;">
+            ✓ Ya
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="closeSaktiConfirmPopup()" style="padding: 8px 24px; font-weight: 800; background: #0070f3; border-color: #0070f3; border-radius: 4px;">
+            ✖ Tidak
+          </button>
         </div>
       </div>
     </div>

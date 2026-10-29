@@ -2859,3 +2859,379 @@ tr.rkb-row-lvl-41.table-row-selected td {
 
 
 
+
+
+/* ========================================================================== */
+/* SAKTI KEMENKEU MULTI-ROLE CANON STYLES (GAMBAR 1, 2, 3)                     */
+/* ========================================================================== */
+
+/* 1. Layar Pemilihan Peran Pasca-Login (Gambar 1) */
+.sakti-role-screen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: #f1f5f9;
+  background-image: radial-gradient(at 0% 0%, #e2e8f0 0px, transparent 50%),
+                    radial-gradient(at 100% 100%, #dbeafe 0px, transparent 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.sakti-role-screen-card {
+  width: 100%;
+  max-width: 720px;
+  text-align: center;
+  margin: auto;
+}
+
+.sakti-role-logo-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.sakti-role-logo {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.sakti-role-greeting {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1e3a8a;
+  margin-bottom: 22px;
+  letter-spacing: -0.2px;
+}
+
+.sakti-role-search-wrap {
+  width: 100%;
+  max-width: 660px;
+  margin: 0 auto 18px;
+}
+
+.sakti-role-search-input {
+  width: 100%;
+  padding: 11px 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13.5px;
+  background: #ffffff;
+  color: #1e293b;
+  outline: none;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.sakti-role-search-input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.sakti-role-table-box {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  border: 1px solid #e2e8f0;
+  padding: 16px 20px 22px;
+  width: 100%;
+  max-width: 660px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.sakti-role-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 18px 14px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.sakti-role-rows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sakti-role-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.sakti-role-card-item:hover {
+  border-color: #0284c7;
+  background: #f0f9ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.12);
+}
+
+.sakti-role-card-item.active-role {
+  background: #0a2540 !important;
+  color: #ffffff !important;
+  border-color: #0a2540 !important;
+  box-shadow: 0 4px 12px rgba(10, 37, 64, 0.3) !important;
+}
+
+.sakti-role-card-item.active-role .sakti-role-col {
+  color: #ffffff !important;
+}
+
+.sakti-role-col-satker {
+  flex: 1;
+  font-weight: 700;
+  font-size: 13.5px;
+  text-align: center;
+}
+
+.sakti-role-col-peran {
+  flex: 2;
+  font-weight: 800;
+  font-size: 13.5px;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.sakti-role-col-tipe {
+  flex: 1;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  color: #475569;
+}
+
+.sakti-btn-kembali-login {
+  background: #0070f3;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  padding: 12px 24px;
+  margin-top: 24px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 660px;
+  box-shadow: 0 4px 12px rgba(0, 112, 243, 0.3);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.sakti-btn-kembali-login:hover {
+  background: #0051a8;
+  transform: translateY(-1px);
+}
+
+/* 2. User Profile Pill & Dropdown SAKTI (Gambar 2) */
+.sakti-user-pill {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  position: relative;
+}
+
+.sakti-user-pill:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.sakti-navbar-grid-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  color: #64748b;
+}
+
+.sakti-user-pill-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.sakti-user-pill-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.sakti-verified-badge {
+  color: #0284c7;
+  font-size: 13px;
+}
+
+.sakti-user-nip {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.sakti-user-pill-sub {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: #0369a1;
+  text-transform: uppercase;
+}
+
+.sakti-profile-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  min-width: 180px;
+  z-index: 10000;
+  padding: 6px 0;
+  animation: saktiFadeIn 0.15s ease-out;
+}
+
+.sakti-dropdown-caret {
+  position: absolute;
+  top: -6px;
+  right: 18px;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  transform: rotate(45deg);
+  border-left: 1px solid #cbd5e1;
+  border-top: 1px solid #cbd5e1;
+}
+
+.sakti-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 16px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.sakti-dropdown-item:hover {
+  background: #f1f5f9;
+  color: #0284c7;
+}
+
+.sakti-dropdown-item.text-danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.sakti-dropdown-icon {
+  font-size: 15px;
+  color: #475569;
+}
+
+.sakti-dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+}
+
+/* 3. Modal Ganti Peran & Konfirmasi (Gambar 3) */
+.sakti-ganti-peran-modal-box {
+  max-width: 620px;
+  width: 95%;
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+  position: relative;
+}
+
+.sakti-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+
+.sakti-confirm-popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  animation: saktiFadeIn 0.15s ease;
+}
+
+.sakti-confirm-box {
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.25);
+  width: 90%;
+  max-width: 440px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+}
+
+.sakti-confirm-title {
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.sakti-confirm-body {
+  padding: 18px 20px;
+  font-size: 12.5px;
+  color: #1e293b;
+  line-height: 1.6;
+}
+
+.sakti-confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 18px 16px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}
+
+@keyframes saktiFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}

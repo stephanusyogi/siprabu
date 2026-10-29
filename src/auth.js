@@ -132,6 +132,8 @@ function createToken(user, originalDevUser = null, options = {}) {
     pic_subbag: user.pic_subbag,
     is_developer: isDev,
     token_version: user.token_version !== undefined ? Number(user.token_version) : 1,
+    active_role: user.active_role || null,
+    mode_akses: user.mode_akses || (user.active_role ? user.active_role.mode_akses : null) || 'VIEWER',
     iat,
     exp
   };
@@ -243,7 +245,9 @@ function verifyToken(token, dbInstance = null, options = {}) {
 
       // Tentukan peran aktif dari payload token atau peran default
       let activeRole = null;
-      if (payload.active_role && userRoles.some(r => r.id === payload.active_role.id || (r.level === payload.active_role.level && r.pic === payload.active_role.pic))) {
+      if (payload.active_role && userRoles.some(r => Number(r.id) === Number(payload.active_role.id) || (Number(r.level) === Number(payload.active_role.level) && String(r.pic).toUpperCase() === String(payload.active_role.pic).toUpperCase()))) {
+        activeRole = userRoles.find(r => Number(r.id) === Number(payload.active_role.id) || (Number(r.level) === Number(payload.active_role.level) && String(r.pic).toUpperCase() === String(payload.active_role.pic).toUpperCase())) || payload.active_role;
+      } else if (payload.is_developer && payload.active_role) {
         activeRole = payload.active_role;
       } else {
         activeRole = userRoles.find(r => Number(r.is_default) === 1) || userRoles[0];
