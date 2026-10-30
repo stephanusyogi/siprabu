@@ -475,30 +475,30 @@ function initDb() {
     const existingMenuCount = db.prepare('SELECT COUNT(*) as cnt FROM app_menu_matrix').get()?.cnt || 0;
     if (existingMenuCount === 0) {
       const seedMenus = [
-        ['view-dashboard', 'Dashboard Satker', null, 1, 1, 1, 1, 1, 'VIEWER', 1],
+        ['view-dashboard', 'Dashboard Satker', null, 1, 1, 1, 1, 0, 'VIEWER', 1],
         ['view-rkb', 'RKB Belanja', null, 1, 1, 1, 1, 0, 'VIEWER', 2],
-        ['view-revisi-pengajuan', 'Pengajuan Usulan Revisi', 'folder-perencanaan', 1, 0, 1, 0, 0, 'EDITOR', 3],
+        ['view-revisi-pengajuan', 'Pengajuan Usulan Revisi', 'folder-perencanaan', 1, 1, 1, 1, 0, 'EDITOR', 3],
         ['view-revisi-validasi', 'Validasi Usulan Revisi', 'folder-perencanaan', 1, 1, 0, 0, 0, 'EDITOR', 4],
         ['view-revisi-tahap4', 'Pengesahan BA Pleno (Tahap 4)', 'folder-perencanaan', 1, 1, 0, 0, 0, 'EDITOR', 5],
         ['view-revisi-monitoring', 'Monitoring Siklus Dokumen', 'folder-perencanaan', 1, 1, 1, 1, 0, 'VIEWER', 6],
-        ['view-siklus', 'Pusat Siklus Dokumen', 'folder-perencanaan', 1, 1, 1, 1, 1, 'VIEWER', 7],
-        ['view-rekap-perencanaan', 'Rekap Perencanaan Anggaran', 'folder-rekap', 1, 0, 0, 0, 1, 'VIEWER', 8],
-        ['view-rekap-pelaksanaan', 'Rekap Pelaksanaan Anggaran', 'folder-rekap', 1, 0, 0, 0, 1, 'VIEWER', 9],
+        ['view-siklus', 'Pusat Siklus Dokumen', 'folder-perencanaan', 1, 1, 0, 0, 0, 'VIEWER', 7],
+        ['view-rekap-perencanaan', 'Rekap Perencanaan Anggaran', 'folder-rekap', 1, 1, 0, 0, 1, 'VIEWER', 8],
+        ['view-rekap-pelaksanaan', 'Rekap Pelaksanaan Anggaran', 'folder-rekap', 1, 1, 0, 0, 1, 'VIEWER', 9],
         ['view-db-kuantitas', 'Standar Satuan & Kuantitas', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 10],
         ['view-db-sbm', 'Standar Biaya Masukan (SBM)', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 11],
         ['view-db-bas', 'Bagan Akun Standar (BAS)', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 12],
-        ['view-db-ppk', 'Database PPK (Kecamatan)', 'folder-database', 1, 1, 0, 1, 0, 'VIEWER', 13],
-        ['view-db-pps', 'Database PPS (Desa)', 'folder-database', 1, 1, 0, 1, 0, 'VIEWER', 14],
-        ['view-db-paslon', 'Database Paslon Pilkada', 'folder-database', 1, 1, 0, 1, 0, 'VIEWER', 15],
-        ['view-panduan', 'Panduan Perencanaan', 'folder-panduan', 1, 1, 1, 1, 1, 'VIEWER', 16],
-        ['view-panduan-pelaksanaan', 'Panduan Pelaksanaan', 'folder-panduan', 1, 1, 0, 0, 1, 'VIEWER', 17],
-        ['view-db-regulasi', 'Database Regulasi / JDIH', 'folder-panduan', 1, 1, 1, 1, 1, 'VIEWER', 18],
+        ['view-db-ppk', 'Database PPK (Kecamatan)', 'folder-database', 1, 1, 0, 0, 0, 'VIEWER', 13],
+        ['view-db-pps', 'Database PPS (Desa)', 'folder-database', 1, 1, 0, 0, 0, 'VIEWER', 14],
+        ['view-db-paslon', 'Database Paslon Pilkada', 'folder-database', 1, 1, 0, 0, 0, 'VIEWER', 15],
+        ['view-panduan', 'Panduan Perencanaan', 'folder-panduan', 1, 1, 1, 1, 0, 'VIEWER', 16],
+        ['view-panduan-pelaksanaan', 'Panduan Pelaksanaan', 'folder-panduan', 1, 1, 0, 0, 0, 'VIEWER', 17],
+        ['view-db-regulasi', 'Database Regulasi / JDIH', 'folder-panduan', 1, 1, 1, 1, 0, 'VIEWER', 18],
         ['view-users', 'Administrasi Pengguna', 'folder-administrasi', 1, 1, 0, 0, 0, 'EDITOR', 19],
-        ['view-penandatangan', 'Pejabat Penandatangan', 'folder-administrasi', 1, 1, 0, 1, 0, 'VIEWER', 20],
-        ['view-db-settings', 'Pengaturan Konfigurasi', 'folder-administrasi', 1, 1, 0, 1, 0, 'VIEWER', 21],
+        ['view-penandatangan', 'Pejabat Penandatangan', 'folder-administrasi', 1, 1, 0, 0, 0, 'VIEWER', 20],
+        ['view-db-settings', 'Pengaturan Konfigurasi', 'folder-administrasi', 1, 1, 0, 0, 0, 'VIEWER', 21],
         ['view-audit', 'Audit Log Aktivitas', 'folder-administrasi', 1, 1, 0, 0, 0, 'VIEWER', 22],
-        ['view-monitoring', 'Monitoring Unduhan', null, 1, 1, 1, 1, 1, 'VIEWER', 23],
-        ['view-developer', 'Ruang Pengembang DEV', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 24],
+        ['view-developer', 'Ruang Pengembang DEV', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 23],
+        ['view-menu-matrix', 'Hak Akses Menu', 'folder-administrasi', 1, 0, 0, 0, 0, 'EDITOR', 24],
         ['view-dev-push', 'Sinkronisasi Push Produksi', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 25]
       ];
       const insertMenuStmt = db.prepare(`
@@ -528,6 +528,11 @@ function initDb() {
   safeAddColumn('periode_anggaran', 'verifikasi_manual_tahap4 INTEGER DEFAULT 0');
   safeAddColumn('rab_baris', 'sbm_id INTEGER DEFAULT NULL');
   safeAddColumn('satker_users', "role_mode TEXT DEFAULT 'SWITCH'");
+  safeAddColumn('app_menu_matrix', "mode_l0 TEXT DEFAULT 'EDITOR'");
+  safeAddColumn('app_menu_matrix', "mode_l1 TEXT DEFAULT 'EDITOR'");
+  safeAddColumn('app_menu_matrix', "mode_l2 TEXT DEFAULT 'VIEWER'");
+  safeAddColumn('app_menu_matrix', "mode_l3 TEXT DEFAULT 'VIEWER'");
+  safeAddColumn('app_menu_matrix', "mode_l4 TEXT DEFAULT 'VIEWER'");
 
   // Pastikan menu matriks hak akses menu terdaftar di app_menu_matrix
   try {
@@ -535,7 +540,7 @@ function initDb() {
     if (!hasMenuMatrixRow) {
       db.prepare(`
         INSERT INTO app_menu_matrix (menu_key, menu_label, folder_key, allow_l0, allow_l1, allow_l2, allow_l3, allow_l4, required_mode, urutan, is_active)
-        VALUES ('view-menu-matrix', 'Hak Akses Menu', 'folder-administrasi', 1, 1, 0, 0, 0, 'EDITOR', 23, 1)
+        VALUES ('view-menu-matrix', 'Hak Akses Menu', 'folder-administrasi', 1, 0, 0, 0, 0, 'EDITOR', 24, 1)
       `).run();
     }
   } catch (e) {}
@@ -3811,7 +3816,15 @@ function saveUserRoles(userId, roles = []) {
  */
 function getMenuMatrix() {
   try {
-    return db.prepare('SELECT id, menu_key, menu_label, folder_key, allow_l0, allow_l1, allow_l2, allow_l3, allow_l4, required_mode, urutan, is_active FROM app_menu_matrix WHERE is_active = 1 ORDER BY urutan ASC, id ASC').all() || [];
+    const rows = db.prepare('SELECT * FROM app_menu_matrix WHERE is_active = 1 ORDER BY urutan ASC, id ASC').all() || [];
+    return rows.map(r => ({
+      ...r,
+      mode_l0: r.mode_l0 || (r.required_mode === 'EDITOR' ? 'EDITOR' : 'VIEWER'),
+      mode_l1: r.mode_l1 || (r.required_mode === 'EDITOR' ? 'EDITOR' : 'VIEWER'),
+      mode_l2: r.mode_l2 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
+      mode_l3: r.mode_l3 || 'VIEWER',
+      mode_l4: r.mode_l4 || 'VIEWER'
+    }));
   } catch (e) {
     console.warn('[MENU-MATRIX] Gagal ambil matrix:', e.message);
     return [];
@@ -3820,22 +3833,50 @@ function getMenuMatrix() {
 
 function saveMenuMatrix(items = []) {
   if (!Array.isArray(items) || items.length === 0) return getMenuMatrix();
-  const updateStmt = db.prepare(`
-    UPDATE app_menu_matrix 
-    SET allow_l0 = ?, allow_l1 = ?, allow_l2 = ?, allow_l3 = ?, allow_l4 = ?, required_mode = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE menu_key = ?
-  `);
+  let updateStmt;
+  let hasPerLevelCols = true;
+  try {
+    updateStmt = db.prepare(`
+      UPDATE app_menu_matrix 
+      SET allow_l0 = ?, mode_l0 = ?,
+          allow_l1 = ?, mode_l1 = ?,
+          allow_l2 = ?, mode_l2 = ?,
+          allow_l3 = ?, mode_l3 = ?,
+          allow_l4 = ?, mode_l4 = ?,
+          required_mode = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE menu_key = ?
+    `);
+  } catch (err) {
+    hasPerLevelCols = false;
+    updateStmt = db.prepare(`
+      UPDATE app_menu_matrix 
+      SET allow_l0 = ?, allow_l1 = ?, allow_l2 = ?, allow_l3 = ?, allow_l4 = ?, required_mode = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE menu_key = ?
+    `);
+  }
   items.forEach(item => {
     try {
-      updateStmt.run(
-        item.allow_l0 ? 1 : 0,
-        item.allow_l1 ? 1 : 0,
-        item.allow_l2 ? 1 : 0,
-        item.allow_l3 ? 1 : 0,
-        item.allow_l4 ? 1 : 0,
-        item.required_mode || 'VIEWER',
-        item.menu_key
-      );
+      if (hasPerLevelCols) {
+        updateStmt.run(
+          item.allow_l0 ? 1 : 0, item.mode_l0 || 'EDITOR',
+          item.allow_l1 ? 1 : 0, item.mode_l1 || 'EDITOR',
+          item.allow_l2 ? 1 : 0, item.mode_l2 || 'VIEWER',
+          item.allow_l3 ? 1 : 0, item.mode_l3 || 'VIEWER',
+          item.allow_l4 ? 1 : 0, item.mode_l4 || 'VIEWER',
+          item.required_mode || item.mode_l1 || 'VIEWER',
+          item.menu_key
+        );
+      } else {
+        updateStmt.run(
+          item.allow_l0 ? 1 : 0,
+          item.allow_l1 ? 1 : 0,
+          item.allow_l2 ? 1 : 0,
+          item.allow_l3 ? 1 : 0,
+          item.allow_l4 ? 1 : 0,
+          item.required_mode || item.mode_l1 || 'VIEWER',
+          item.menu_key
+        );
+      }
     } catch (e) {
       console.warn('[MENU-MATRIX] Gagal update matrix:', item.menu_key, e.message);
     }

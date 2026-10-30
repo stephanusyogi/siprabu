@@ -13744,7 +13744,7 @@ async function toggleRoleModeCheckbox(checked) {
 async function loadMenuMatrixView() {
   const tbody = document.getElementById('menu-matrix-table-body');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses menu...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses menu...</td></tr>';
   }
   try {
     const res = await apiFetch('/api/menu-matrix');
@@ -13753,7 +13753,7 @@ async function loadMenuMatrixView() {
       renderMenuMatrixTable();
     }
   } catch (err) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks: ${escHtml(err.message)}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="13" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks: ${escHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -13779,7 +13779,7 @@ function renderMenuMatrixTable() {
   if (countEl) countEl.textContent = `${filtered.length} dari ${matrix.length} Menu`;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 24px; color: #64748b;">Tidak ada menu pada kategori ini.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="text-center" style="padding: 24px; color: #64748b;">Tidak ada menu pada kategori ini.</td></tr>';
     return;
   }
 
@@ -13795,41 +13795,83 @@ function renderMenuMatrixTable() {
 
   tbody.innerHTML = filtered.map((m, idx) => {
     const fName = m.folder_key ? (folderLabels[m.folder_key] || m.folder_key) : 'Menu Utama (Root)';
-    const isCriticalAdmin = (m.menu_key === 'view-users' || m.menu_key === 'view-menu-matrix' || m.menu_key === 'view-dashboard');
+    const isLocalDev = (m.menu_key === 'view-developer' || m.menu_key === 'view-dev-push');
+
+    const modeL0 = m.mode_l0 || 'EDITOR';
+    const modeL1 = m.mode_l1 || (m.required_mode === 'EDITOR' ? 'EDITOR' : 'VIEWER');
+    const modeL2 = m.mode_l2 || ((m.menu_key === 'view-rkb' || m.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER');
+    const modeL3 = m.mode_l3 || 'VIEWER';
+    const modeL4 = m.mode_l4 || 'VIEWER';
+
+    const trStyle = isLocalDev
+      ? 'background: #fff5f5; border-bottom: 1px solid #fecaca;'
+      : 'border-bottom: 1px solid #f1f5f9;';
 
     return `
-      <tr data-menu-key="${escHtml(m.menu_key)}" style="border-bottom: 1px solid #f1f5f9;">
-        <td style="padding: 10px 14px; text-align: center; color: #64748b;">${idx + 1}</td>
-        <td style="padding: 10px 14px;">
-          <strong style="color: #1e293b; font-size: 12.5px;">${escHtml(m.menu_label || m.menu_key)}</strong>
-          <div style="font-size: 11px; color: #94a3b8; font-family: var(--font-mono); margin-top: 2px;">
+      <tr data-menu-key="${escHtml(m.menu_key)}" style="${trStyle}">
+        <td style="padding: 8px 6px; text-align: center; color: #64748b; font-weight: 600; border-right: 1px solid #e2e8f0;">${idx + 1}</td>
+        <td style="padding: 8px 12px; border-right: 1px solid #e2e8f0;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <strong style="color: ${isLocalDev ? '#b91c1c' : '#1e293b'}; font-size: 12px;">${escHtml(m.menu_label || m.menu_key)}</strong>
+            ${isLocalDev ? '<span class="badge" style="background: #dc2626; color: #fff; font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px;">Hanya di Local</span>' : ''}
+          </div>
+          <div style="font-size: 10.5px; color: #94a3b8; font-family: var(--font-mono); margin-top: 2px;">
             ${escHtml(m.menu_key)}
           </div>
         </td>
-        <td style="padding: 10px 14px; color: #475569;">
-          <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">
+        <td style="padding: 8px 10px; color: #475569; border-right: 2px solid #cbd5e1;">
+          <span style="background: ${isLocalDev ? '#fee2e2' : '#f1f5f9'}; color: ${isLocalDev ? '#991b1b' : '#334155'}; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 600;">
             ${escHtml(fName)}
           </span>
         </td>
-        <td style="padding: 10px 14px; text-align: center; background: #f8fafc;">
-          <input type="checkbox" data-field="allow_l0" ${m.allow_l0 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #0f172a;" title="Level 0 (Developer)">
+        <!-- L0 Developer (Akses & Mode) -->
+        <td style="padding: 6px; text-align: center; background: #f8fafc; border-right: 1px solid #e2e8f0;">
+          <input type="checkbox" data-field="allow_l0" ${m.allow_l0 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #0f172a;" title="L0 Akses">
         </td>
-        <td style="padding: 10px 14px; text-align: center; background: #eff6ff;">
-          <input type="checkbox" data-field="allow_l1" ${m.allow_l1 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #1e40af;" title="Level 1 (Perencanaan)">
+        <td style="padding: 6px; text-align: center; background: #f8fafc; border-right: 1px solid #cbd5e1;">
+          <select class="input-select-sm" data-field="mode_l0" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #cbd5e1; background: ${modeL0 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL0 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
+            <option value="EDITOR" ${modeL0 === 'EDITOR' ? 'selected' : ''}>Editor</option>
+            <option value="VIEWER" ${modeL0 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
+          </select>
         </td>
-        <td style="padding: 10px 14px; text-align: center; background: #f0fdf4;">
-          <input type="checkbox" data-field="allow_l2" ${m.allow_l2 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #166534;">
+        <!-- L1 Perencanaan (Akses & Mode) -->
+        <td style="padding: 6px; text-align: center; background: #eff6ff; border-right: 1px solid #e2e8f0;">
+          <input type="checkbox" data-field="allow_l1" ${m.allow_l1 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #1e40af;" title="L1 Akses">
         </td>
-        <td style="padding: 10px 14px; text-align: center; background: #fdf4ff;">
-          <input type="checkbox" data-field="allow_l3" ${m.allow_l3 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #86198f;">
+        <td style="padding: 6px; text-align: center; background: #eff6ff; border-right: 1px solid #cbd5e1;">
+          <select class="input-select-sm" data-field="mode_l1" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #bfdbfe; background: ${modeL1 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL1 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
+            <option value="EDITOR" ${modeL1 === 'EDITOR' ? 'selected' : ''}>Editor</option>
+            <option value="VIEWER" ${modeL1 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
+          </select>
         </td>
-        <td style="padding: 10px 14px; text-align: center; background: #fefce8;">
-          <input type="checkbox" data-field="allow_l4" ${m.allow_l4 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #854d0e;">
+        <!-- L2 Operator (Akses & Mode) -->
+        <td style="padding: 6px; text-align: center; background: #f0fdf4; border-right: 1px solid #e2e8f0;">
+          <input type="checkbox" data-field="allow_l2" ${m.allow_l2 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #166534;" title="L2 Akses">
         </td>
-        <td style="padding: 10px 14px; text-align: center;">
-          <select class="input-select-sm" data-field="required_mode" style="padding: 3px 6px; font-size: 11px; font-weight: 600;">
-            <option value="VIEWER" ${(m.required_mode || 'VIEWER') === 'VIEWER' ? 'selected' : ''}>VIEWER</option>
-            <option value="EDITOR" ${m.required_mode === 'EDITOR' ? 'selected' : ''}>EDITOR</option>
+        <td style="padding: 6px; text-align: center; background: #f0fdf4; border-right: 1px solid #cbd5e1;">
+          <select class="input-select-sm" data-field="mode_l2" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #bbf7d0; background: ${modeL2 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL2 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
+            <option value="EDITOR" ${modeL2 === 'EDITOR' ? 'selected' : ''}>Editor</option>
+            <option value="VIEWER" ${modeL2 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
+          </select>
+        </td>
+        <!-- L3 Pimpinan (Akses & Mode) -->
+        <td style="padding: 6px; text-align: center; background: #fdf4ff; border-right: 1px solid #e2e8f0;">
+          <input type="checkbox" data-field="allow_l3" ${m.allow_l3 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #86198f;" title="L3 Akses">
+        </td>
+        <td style="padding: 6px; text-align: center; background: #fdf4ff; border-right: 1px solid #cbd5e1;">
+          <select class="input-select-sm" data-field="mode_l3" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #e9d5ff; background: ${modeL3 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL3 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
+            <option value="VIEWER" ${modeL3 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
+            <option value="EDITOR" ${modeL3 === 'EDITOR' ? 'selected' : ''}>Editor</option>
+          </select>
+        </td>
+        <!-- L4 Auditor (Akses & Mode) -->
+        <td style="padding: 6px; text-align: center; background: #fefce8; border-right: 1px solid #e2e8f0;">
+          <input type="checkbox" data-field="allow_l4" ${m.allow_l4 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #854d0e;" title="L4 Akses">
+        </td>
+        <td style="padding: 6px; text-align: center; background: #fefce8;">
+          <select class="input-select-sm" data-field="mode_l4" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #fef08a; background: ${modeL4 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL4 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
+            <option value="VIEWER" ${modeL4 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
+            <option value="EDITOR" ${modeL4 === 'EDITOR' ? 'selected' : ''}>Editor</option>
           </select>
         </td>
       </tr>
@@ -13855,11 +13897,16 @@ async function saveMenuMatrixAction() {
       const menuKey = tr.getAttribute('data-menu-key');
       if (matrixMap[menuKey]) {
         matrixMap[menuKey].allow_l0 = tr.querySelector('input[data-field="allow_l0"]')?.checked ? 1 : 0;
+        matrixMap[menuKey].mode_l0 = tr.querySelector('select[data-field="mode_l0"]')?.value || 'EDITOR';
         matrixMap[menuKey].allow_l1 = tr.querySelector('input[data-field="allow_l1"]')?.checked ? 1 : 0;
+        matrixMap[menuKey].mode_l1 = tr.querySelector('select[data-field="mode_l1"]')?.value || 'EDITOR';
         matrixMap[menuKey].allow_l2 = tr.querySelector('input[data-field="allow_l2"]')?.checked ? 1 : 0;
+        matrixMap[menuKey].mode_l2 = tr.querySelector('select[data-field="mode_l2"]')?.value || 'VIEWER';
         matrixMap[menuKey].allow_l3 = tr.querySelector('input[data-field="allow_l3"]')?.checked ? 1 : 0;
+        matrixMap[menuKey].mode_l3 = tr.querySelector('select[data-field="mode_l3"]')?.value || 'VIEWER';
         matrixMap[menuKey].allow_l4 = tr.querySelector('input[data-field="allow_l4"]')?.checked ? 1 : 0;
-        matrixMap[menuKey].required_mode = tr.querySelector('select[data-field="required_mode"]')?.value || 'VIEWER';
+        matrixMap[menuKey].mode_l4 = tr.querySelector('select[data-field="mode_l4"]')?.value || 'VIEWER';
+        matrixMap[menuKey].required_mode = matrixMap[menuKey].mode_l1 || 'VIEWER';
       }
     });
 
@@ -13878,9 +13925,6 @@ async function saveMenuMatrixAction() {
     if (btn) btn.disabled = false;
   }
 }
-
-
-// Preferensi Mode Multi-Peran (SAKTI vs KUMULATIF)
 async function handleSaktiKumulatifToggle(checked) {
   const targetMode = checked ? 'KUMULATIF' : 'SWITCH';
   try {
