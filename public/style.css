@@ -607,7 +607,7 @@ html, body {
 .rkb-table thead th {
   position: sticky;
   top: 0;
-  background-color: #2563eb !important; /* Vivid SAKTI Blue */
+  background-color: #2563eb !important; /* Vivid PRABU Blue */
   color: #ffffff !important;
   z-index: 10;
   font-size: 11.5px;
@@ -618,11 +618,11 @@ html, body {
   padding: 9px 10px;
 }
 
-/* HIERARCHY LEVEL ROW STYLES (SAKTI AUTHENTIC THEME) */
+/* HIERARCHY LEVEL ROW STYLES (PRABU AUTHENTIC THEME) */
 
-/* Level 0: Kelompok Belanja Utama (e.g. A. KEBUTUHAN BARANG DAN JASA) - SAKTI Yellow Highlight */
+/* Level 0: Kelompok Belanja Utama (e.g. A. KEBUTUHAN BARANG DAN JASA) - PRABU Yellow Highlight */
 tr.rkb-row-lvl-0 {
-  background-color: #fef9c3 !important; /* Soft Pastel Yellow SAKTI */
+  background-color: #fef9c3 !important; /* Soft Pastel Yellow PRABU */
   color: #0f172a !important;
   font-weight: 800;
   font-size: 13.5px;
@@ -640,7 +640,7 @@ tr.rkb-row-lvl-0 td.col-kode {
   font-weight: 800;
 }
 
-/* Level 1: Tahapan (e.g. I. TAHAPAN PERSIAPAN DAN PELAKSANAAN) - SAKTI Underlined Bold */
+/* Level 1: Tahapan (e.g. I. TAHAPAN PERSIAPAN DAN PELAKSANAAN) - PRABU Underlined Bold */
 tr.rkb-row-lvl-1 {
   background-color: #f8fafc !important;
   color: #0f172a !important;
@@ -664,7 +664,7 @@ tr.rkb-row-lvl-1 td.col-total {
   text-decoration: underline;
 }
 
-/* Level 2: Program / Kegiatan (e.g. 1. Perencanaan Program) - SAKTI Clean Bold */
+/* Level 2: Program / Kegiatan (e.g. 1. Perencanaan Program) - PRABU Clean Bold */
 tr.rkb-row-lvl-2 {
   background-color: #ffffff !important;
   color: #0f172a !important;
@@ -682,7 +682,7 @@ tr.rkb-row-lvl-2 td.col-kode {
   background-color: #f8fafc;
 }
 
-/* Level 21-24: Sub-kegiatan - SAKTI SubOutput */
+/* Level 21-24: Sub-kegiatan - PRABU SubOutput */
 tr.rkb-row-lvl-21, tr.rkb-row-lvl-22, tr.rkb-row-lvl-23, tr.rkb-row-lvl-24 {
   background-color: #ffffff !important;
   color: #334155 !important;
@@ -693,7 +693,7 @@ tr.rkb-row-lvl-21 td, tr.rkb-row-lvl-22 td, tr.rkb-row-lvl-23 td, tr.rkb-row-lvl
   border-bottom: 1px solid #f8fafc;
 }
 
-/* Level 3: Akun Belanja (e.g. 521211 Belanja Bahan) - SAKTI Underlined Akun */
+/* Level 3: Akun Belanja (e.g. 521211 Belanja Bahan) - PRABU Underlined Akun */
 tr.rkb-row-lvl-3 {
   background-color: #ffffff !important;
   color: #1e3a8a !important;
@@ -717,7 +717,7 @@ tr.rkb-row-lvl-3 td.col-total {
   text-decoration: underline;
 }
 
-/* Level 41: Sub-rincian / Header Rincian (e.g. a. Kantor/Inventaris) - SAKTI SubKomponen Italic */
+/* Level 41: Sub-rincian / Header Rincian (e.g. a. Kantor/Inventaris) - PRABU SubKomponen Italic */
 tr.rkb-row-lvl-41 {
   background-color: #ffffff !important;
   font-style: italic;
@@ -733,7 +733,7 @@ tr.rkb-row-lvl-41 td.col-kode {
   font-style: italic;
 }
 
-/* Level 4: Item Rincian Belanja Riil - SAKTI Item */
+/* Level 4: Item Rincian Belanja Riil - PRABU Item */
 tr.rkb-row-lvl-4 {
   background-color: #ffffff;
   color: var(--text-main);
@@ -992,41 +992,41 @@ tr.rkb-row-lvl-4:hover {
 }
 
 /* ========================================================================= */
-/* SAKTI LANDSCAPE MODE: MODAL EDIT / TAMBAH RINCIAN BELANJA RKB             */
+/* PRABU LANDSCAPE MODE: MODAL EDIT / TAMBAH RINCIAN BELANJA RKB             */
 /* ========================================================================= */
-.modal-box.modal-sakti-landscape {
+.modal-box.modal-PRABU-landscape {
   max-width: 1120px;
   width: 92vw;
   max-height: 94vh;
 }
 
-.sakti-modal-top-banners {
+.prabu-modal-top-banners {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
   gap: 10px;
   margin-bottom: 12px;
 }
 
-.sakti-landscape-grid {
+.prabu-landscape-grid {
   gap: 10px;
 }
 
-.sakti-identity-row {
+.prabu-identity-row {
   display: flex;
   gap: 12px;
   align-items: flex-end;
   flex-wrap: wrap;
 }
 
-.sakti-identity-row > #modal-header-kode-group {
+.prabu-identity-row > #modal-header-kode-group {
   flex: 0 0 110px;
 }
 
-.sakti-identity-row > #modal-uraian-group {
+.prabu-identity-row > #modal-uraian-group {
   flex: 2.2 1 320px;
 }
 
-.sakti-identity-row > .form-group:not(#modal-header-kode-group):not(#modal-uraian-group) {
+.prabu-identity-row > .form-group:not(#modal-header-kode-group):not(#modal-uraian-group) {
   flex: 1 1 200px;
 }
 
@@ -1132,7 +1132,7 @@ tr.rkb-row-lvl-4:hover {
 }
 
 /* HARGA SATUAN & SBM SECTION (AFTER FAKTOR MULTIPLIER) */
-.sakti-harga-sbm-section {
+.prabu-harga-sbm-section {
   display: grid;
   grid-template-columns: 1fr 1.35fr;
   gap: 14px;
@@ -1143,13 +1143,13 @@ tr.rkb-row-lvl-4:hover {
   padding: 10px 14px;
 }
 
-.sakti-harga-input-col {
+.prabu-harga-input-col {
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-.sakti-sbm-quick-col {
+.prabu-sbm-quick-col {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1158,14 +1158,14 @@ tr.rkb-row-lvl-4:hover {
 }
 
 /* BOTTOM SUMMARY GRID: CATATAN REVISI + LIVE PREVIEW */
-.sakti-bottom-summary-grid {
+.prabu-bottom-summary-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: 14px;
   align-items: stretch;
 }
 
-.sakti-bottom-left-col {
+.prabu-bottom-left-col {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1198,9 +1198,9 @@ tr.rkb-row-lvl-4:hover {
 }
 
 @media (max-width: 960px) {
-  .sakti-modal-top-banners,
-  .sakti-harga-sbm-section,
-  .sakti-bottom-summary-grid {
+  .prabu-modal-top-banners,
+  .prabu-harga-sbm-section,
+  .prabu-bottom-summary-grid {
     grid-template-columns: 1fr;
   }
   .factors-grid {
@@ -1303,13 +1303,13 @@ tr.rkb-row-lvl-4:hover {
 .mt-4 { margin-top: 16px; }
 
 /* ========================================================================== */
-/* SAKTI SIDEBAR FOLDER & TREE GROUPS                                         */
+/* PRABU SIDEBAR FOLDER & TREE GROUPS                                         */
 /* ========================================================================== */
-.sakti-tree-group {
+.prabu-tree-group {
   margin-bottom: 4px;
 }
 
-.sakti-folder-toggle {
+.prabu-folder-toggle {
   width: 100%;
   display: flex;
   align-items: center;
@@ -1328,28 +1328,28 @@ tr.rkb-row-lvl-4:hover {
   transition: all 0.15s ease;
 }
 
-.sakti-folder-toggle:hover {
+.prabu-folder-toggle:hover {
   background: rgba(15, 23, 42, 0.04);
   color: var(--primary);
 }
 
-.sakti-folder-label {
+.prabu-folder-label {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.sakti-chevron {
+.prabu-chevron {
   display: inline-block;
   font-size: 11px;
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease;
 }
 
-.sakti-tree-group.collapsed .sakti-chevron {
+.prabu-tree-group.collapsed .prabu-chevron {
   transform: rotate(-90deg);
 }
 
-.sakti-tree-children {
+.prabu-tree-children {
   padding-left: 8px;
   margin-top: 2px;
   max-height: 450px;
@@ -1362,7 +1362,7 @@ tr.rkb-row-lvl-4:hover {
               margin-top 0.28s ease;
 }
 
-.sakti-tree-group.collapsed .sakti-tree-children {
+.prabu-tree-group.collapsed .prabu-tree-children {
   max-height: 0;
   opacity: 0;
   margin-top: 0;
@@ -1501,9 +1501,9 @@ tr.rkb-row-lvl-4:hover {
 }
 
 /* ========================================================================== */
-/* SAKTI CONTEXT BAR                                                          */
+/* PRABU CONTEXT BAR                                                          */
 /* ========================================================================== */
-.sakti-context-bar {
+.prabu-context-bar {
   background: #f8fafc;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -1516,7 +1516,7 @@ tr.rkb-row-lvl-4:hover {
   margin-bottom: 12px;
 }
 
-.sakti-selected-info {
+.prabu-selected-info {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1524,7 +1524,7 @@ tr.rkb-row-lvl-4:hover {
   color: #334155;
 }
 
-.sakti-selected-pill {
+.prabu-selected-pill {
   background: #dbeafe;
   color: #1e40af;
   font-weight: 700;
@@ -1534,7 +1534,7 @@ tr.rkb-row-lvl-4:hover {
   white-space: nowrap;
 }
 
-.sakti-action-buttons {
+.prabu-action-buttons {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1628,7 +1628,7 @@ tr.rkb-row-lvl-4:hover {
   border-bottom: 2px solid #2563eb !important;
 }
 
-/* High-Specificity Overrides for Selected Header Rows (SAKTI Theme) */
+/* High-Specificity Overrides for Selected Header Rows (PRABU Theme) */
 tr.rkb-row-lvl-0.table-row-selected {
   background-color: #fef08a !important;
   color: #0f172a !important;
@@ -2004,9 +2004,9 @@ tr.rkb-row-lvl-41.table-row-selected td {
 }
 
 /* ========================================================================== */
-/* SAKTI KEMENKEU NAVIGATION & SIDEBAR COLLAPSE                               */
+/* SI-PRABU KPU NGAWI NAVIGATION & SIDEBAR COLLAPSE                               */
 /* ========================================================================== */
-.sakti-sidebar-toggle-btn {
+.prabu-sidebar-toggle-btn {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
@@ -2024,7 +2024,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   flex-shrink: 0;
 }
 
-.sakti-sidebar-toggle-btn:hover {
+.prabu-sidebar-toggle-btn:hover {
   background: #f1f5f9;
   border-color: #94a3b8;
   color: #0284c7;
@@ -2058,10 +2058,10 @@ tr.rkb-row-lvl-41.table-row-selected td {
 }
 
 .sidebar.collapsed .sidebar-footer,
-.sidebar.collapsed .sakti-chevron,
+.sidebar.collapsed .prabu-chevron,
 .sidebar.collapsed .badge,
 .sidebar.collapsed .label,
-.sidebar.collapsed .sakti-folder-label span {
+.sidebar.collapsed .prabu-folder-label span {
   display: none !important;
 }
 
@@ -2076,19 +2076,19 @@ tr.rkb-row-lvl-41.table-row-selected td {
   font-size: 18px;
 }
 
-.sidebar.collapsed .sakti-folder-toggle {
+.sidebar.collapsed .prabu-folder-toggle {
   justify-content: center !important;
   padding: 8px 0 !important;
 }
 
-.sidebar.collapsed .sakti-tree-children {
+.sidebar.collapsed .prabu-tree-children {
   padding-left: 0 !important;
 }
 
 /* ========================================================================== */
-/* SAKTI MONITORING REPORT CARD & PARAMETER GROUPBOX                          */
+/* PRABU MONITORING REPORT CARD & PARAMETER GROUPBOX                          */
 /* ========================================================================== */
-.sakti-card-container {
+.prabu-card-container {
   background: #ffffff;
   border: 1px solid #dee2e6;
   border-radius: 4px;
@@ -2096,7 +2096,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.sakti-parameter-groupbox {
+.prabu-parameter-groupbox {
   border: 1px solid #dee2e6;
   border-radius: 4px;
   position: relative;
@@ -2105,7 +2105,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   background: #ffffff;
 }
 
-.sakti-parameter-legend {
+.prabu-parameter-legend {
   position: absolute;
   top: -12px;
   left: 14px;
@@ -2119,19 +2119,19 @@ tr.rkb-row-lvl-41.table-row-selected td {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.sakti-parameter-body {
+.prabu-parameter-body {
   padding-top: 6px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.sakti-form-row {
+.prabu-form-row {
   display: flex;
   align-items: center;
 }
 
-.sakti-form-label {
+.prabu-form-label {
   width: 140px;
   font-size: 13px;
   font-weight: 700;
@@ -2139,12 +2139,12 @@ tr.rkb-row-lvl-41.table-row-selected td {
   flex-shrink: 0;
 }
 
-.sakti-form-field {
+.prabu-form-field {
   flex: 1;
   max-width: 500px;
 }
 
-/* SAKTI Download Status Badges */
+/* PRABU Download Status Badges */
 .badge-diproses {
   background: #fff3cd;
   color: #856404;
@@ -2197,7 +2197,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   gap: 5px;
 }
 
-.btn-sakti-download {
+.btn-PRABU-download {
   background: #007bff;
   color: #ffffff;
   border: 1px solid #007bff;
@@ -2213,14 +2213,14 @@ tr.rkb-row-lvl-41.table-row-selected td {
   text-decoration: none;
 }
 
-.btn-sakti-download:hover {
+.btn-PRABU-download:hover {
   background: #0069d9;
   border-color: #0062cc;
   color: #ffffff;
 }
 
-.btn-sakti-download:disabled,
-.btn-sakti-download.disabled {
+.btn-PRABU-download:disabled,
+.btn-PRABU-download.disabled {
   background: #6c757d;
   border-color: #6c757d;
   opacity: 0.65;
@@ -2509,10 +2509,10 @@ tr.rkb-row-lvl-41.table-row-selected td {
 }
 
 /* ========================================================================= */
-/* SAKTI REVISI 4-TAHAP WORKFLOW & STEPPER FORM STYLING                      */
+/* PRABU REVISI 4-TAHAP WORKFLOW & STEPPER FORM STYLING                      */
 /* ========================================================================= */
 
-.sakti-stepper {
+.prabu-stepper {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2524,7 +2524,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   box-shadow: var(--shadow-sm);
 }
 
-.sakti-step-item {
+.prabu-step-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2533,7 +2533,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   cursor: pointer;
 }
 
-.sakti-step-circle {
+.prabu-step-circle {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -2549,52 +2549,52 @@ tr.rkb-row-lvl-41.table-row-selected td {
   flex-shrink: 0;
 }
 
-.sakti-step-label {
+.prabu-step-label {
   display: flex;
   flex-direction: column;
 }
 
-.sakti-step-title {
+.prabu-step-title {
   font-size: 12.5px;
   font-weight: 700;
   color: #475569;
 }
 
-.sakti-step-desc {
+.prabu-step-desc {
   font-size: 10.5px;
   color: #94a3b8;
 }
 
-.sakti-step-item.active .sakti-step-circle {
+.prabu-step-item.active .prabu-step-circle {
   background: #2563eb;
   color: #ffffff;
   border-color: #1d4ed8;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
-.sakti-step-item.active .sakti-step-title {
+.prabu-step-item.active .prabu-step-title {
   color: #1e40af;
 }
 
-.sakti-step-item.completed .sakti-step-circle {
+.prabu-step-item.completed .prabu-step-circle {
   background: #16a34a;
   color: #ffffff;
   border-color: #15803d;
 }
 
-.sakti-step-line {
+.prabu-step-line {
   flex: 1;
   height: 2px;
   background: #e2e8f0;
   margin: 0 12px;
 }
 
-.sakti-step-line.completed {
+.prabu-step-line.completed {
   background: #16a34a;
 }
 
-/* SAKTI Stage Status Badge (Angka Lingkaran 1-4 SAKTI Style) */
-.sakti-tahap-badge {
+/* PRABU Stage Status Badge (Angka Lingkaran 1-4 PRABU Style) */
+.prabu-tahap-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2607,28 +2607,28 @@ tr.rkb-row-lvl-41.table-row-selected td {
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
-.sakti-tahap-badge.tahap-green {
+.prabu-tahap-badge.tahap-green {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: 1.5px solid #047857;
 }
 
-.sakti-tahap-badge.tahap-red {
+.prabu-tahap-badge.tahap-red {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   border: 1.5px solid #b91c1c;
 }
 
-.sakti-tahap-badge.tahap-blue {
+.prabu-tahap-badge.tahap-blue {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   border: 1.5px solid #1d4ed8;
 }
 
-.sakti-tahap-badge.tahap-orange {
+.prabu-tahap-badge.tahap-orange {
   background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
   border: 1.5px solid #c2410c;
 }
 
-/* SAKTI Stage Color Box (Kotak Warna Tahapan seperti SAKTI Kemenkeu) */
-.sakti-stage-box {
+/* PRABU Stage Color Box (Kotak Warna Tahapan seperti SI-PRABU KPU NGAWI) */
+.prabu-stage-box {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2643,23 +2643,23 @@ tr.rkb-row-lvl-41.table-row-selected td {
   line-height: 1.35;
 }
 
-/* 1. Selesai / Disetujui / Lolos (Hijau SAKTI) */
-.sakti-stage-box.stage-success {
+/* 1. Selesai / Disetujui / Lolos (Hijau PRABU) */
+.prabu-stage-box.stage-success {
   background-color: #d1fae5;
   border: 1px solid #6ee7b7;
   color: #065f46;
 }
-.sakti-stage-box.stage-success .stage-date {
+.prabu-stage-box.stage-success .stage-date {
   font-weight: 700;
   color: #047857;
   font-family: var(--font-mono);
   font-size: 11px;
 }
-.sakti-stage-box.stage-success .stage-meta {
+.prabu-stage-box.stage-success .stage-meta {
   color: #065f46;
   font-size: 10px;
 }
-.sakti-stage-box.stage-success .stage-pill {
+.prabu-stage-box.stage-success .stage-pill {
   background-color: #059669;
   color: #ffffff;
   padding: 1px 6px;
@@ -2670,23 +2670,23 @@ tr.rkb-row-lvl-41.table-row-selected td {
   display: inline-block;
 }
 
-/* 2. Sedang Aktif / Menunggu Antrean (Kuning / Oranye SAKTI) */
-.sakti-stage-box.stage-pending {
+/* 2. Sedang Aktif / Menunggu Antrean (Kuning / Oranye PRABU) */
+.prabu-stage-box.stage-pending {
   background-color: #fef3c7;
   border: 1px solid #fcd34d;
   color: #92400e;
 }
-.sakti-stage-box.stage-pending .stage-date {
+.prabu-stage-box.stage-pending .stage-date {
   font-weight: 700;
   color: #b45309;
   font-family: var(--font-mono);
   font-size: 11px;
 }
-.sakti-stage-box.stage-pending .stage-meta {
+.prabu-stage-box.stage-pending .stage-meta {
   color: #92400e;
   font-size: 10px;
 }
-.sakti-stage-box.stage-pending .stage-pill {
+.prabu-stage-box.stage-pending .stage-pill {
   background-color: #d97706;
   color: #ffffff;
   padding: 1px 6px;
@@ -2697,23 +2697,23 @@ tr.rkb-row-lvl-41.table-row-selected td {
   display: inline-block;
 }
 
-/* 3. Dikembalikan / Perlu Perbaikan / Ditolak (Merah SAKTI) */
-.sakti-stage-box.stage-rejected {
+/* 3. Dikembalikan / Perlu Perbaikan / Ditolak (Merah PRABU) */
+.prabu-stage-box.stage-rejected {
   background-color: #fee2e2;
   border: 1px solid #fca5a5;
   color: #991b1b;
 }
-.sakti-stage-box.stage-rejected .stage-date {
+.prabu-stage-box.stage-rejected .stage-date {
   font-weight: 700;
   color: #b91c1c;
   font-family: var(--font-mono);
   font-size: 11px;
 }
-.sakti-stage-box.stage-rejected .stage-meta {
+.prabu-stage-box.stage-rejected .stage-meta {
   color: #991b1b;
   font-size: 10px;
 }
-.sakti-stage-box.stage-rejected .stage-pill {
+.prabu-stage-box.stage-rejected .stage-pill {
   background-color: #dc2626;
   color: #ffffff;
   padding: 1px 6px;
@@ -2725,7 +2725,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
 }
 
 /* 4. Belum Tercapai / Kosong (Abu-abu Netral) */
-.sakti-stage-box.stage-empty {
+.prabu-stage-box.stage-empty {
   background-color: #f8fafc;
   border: 1px dashed #cbd5e1;
   color: #94a3b8;
@@ -2733,25 +2733,25 @@ tr.rkb-row-lvl-41.table-row-selected td {
   font-weight: 600;
 }
 
-.sakti-tahap-cell {
+.prabu-tahap-cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
   font-size: 11px;
 }
 
-.sakti-tahap-time {
+.prabu-tahap-time {
   font-weight: 600;
   color: #1e293b;
   white-space: nowrap;
 }
 
-.sakti-tahap-user {
+.prabu-tahap-user {
   color: #64748b;
   font-size: 10px;
 }
 
-.sakti-form-card {
+.prabu-form-card {
   background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 10px;
@@ -2760,7 +2760,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   margin-bottom: 20px;
 }
 
-.sakti-form-header {
+.prabu-form-header {
   background: #f8fafc;
   border-bottom: 1px solid var(--border-color);
   padding: 12px 18px;
@@ -2769,7 +2769,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   justify-content: space-between;
 }
 
-.sakti-form-header h4 {
+.prabu-form-header h4 {
   font-size: 13.5px;
   font-weight: 700;
   color: #1e293b;
@@ -2779,37 +2779,37 @@ tr.rkb-row-lvl-41.table-row-selected td {
   gap: 8px;
 }
 
-.sakti-form-body {
+.prabu-form-body {
   padding: 20px;
 }
 
-.sakti-grid-2col {
+.prabu-grid-2col {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
 @media (max-width: 768px) {
-  .sakti-grid-2col {
+  .prabu-grid-2col {
     grid-template-columns: 1fr;
   }
 }
 
-.sakti-form-group {
+.prabu-form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-bottom: 14px;
 }
 
-.sakti-form-group label {
+.prabu-form-group label {
   font-size: 11.5px;
   font-weight: 700;
   color: #475569;
   margin: 0;
 }
 
-.sakti-form-group .form-control {
+.prabu-form-group .form-control {
   padding: 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -2819,20 +2819,20 @@ tr.rkb-row-lvl-41.table-row-selected td {
   transition: border-color 0.15s ease;
 }
 
-.sakti-form-group .form-control:focus {
+.prabu-form-group .form-control:focus {
   border-color: #2563eb;
   outline: none;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
-.sakti-form-group .form-control[readonly],
-.sakti-form-group .form-control:disabled {
+.prabu-form-group .form-control[readonly],
+.prabu-form-group .form-control:disabled {
   background-color: #f1f5f9;
   color: #64748b;
   cursor: not-allowed;
 }
 
-.sakti-form-footer {
+.prabu-form-footer {
   background: #f8fafc;
   border-top: 1px solid var(--border-color);
   padding: 12px 20px;
@@ -2842,7 +2842,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   gap: 10px;
 }
 
-.sakti-semula-menjadi-banner {
+.prabu-semula-menjadi-banner {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
@@ -2853,20 +2853,20 @@ tr.rkb-row-lvl-41.table-row-selected td {
   margin-bottom: 16px;
 }
 
-.sakti-summary-item {
+.prabu-summary-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.sakti-summary-item label {
+.prabu-summary-item label {
   font-size: 11px;
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
 }
 
-.sakti-summary-item .amount {
+.prabu-summary-item .amount {
   font-size: 16px;
   font-weight: 800;
   font-family: var(--font-mono);
@@ -2878,11 +2878,11 @@ tr.rkb-row-lvl-41.table-row-selected td {
 
 
 /* ========================================================================== */
-/* SAKTI KEMENKEU MULTI-ROLE CANON STYLES (GAMBAR 1, 2, 3)                     */
+/* SI-PRABU KPU NGAWI MULTI-ROLE CANON STYLES (GAMBAR 1, 2, 3)                     */
 /* ========================================================================== */
 
 /* 1. Layar Pemilihan Peran Pasca-Login (Gambar 1) */
-.sakti-role-screen-overlay {
+.prabu-role-screen-overlay {
   position: fixed;
   inset: 0;
   z-index: 100000;
@@ -2896,14 +2896,14 @@ tr.rkb-row-lvl-41.table-row-selected td {
   overflow-y: auto;
 }
 
-.sakti-role-screen-card {
+.prabu-role-screen-card {
   width: 100%;
   max-width: 720px;
   text-align: center;
   margin: auto;
 }
 
-.sakti-role-logo-area {
+.prabu-role-logo-area {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2911,13 +2911,13 @@ tr.rkb-row-lvl-41.table-row-selected td {
   margin-bottom: 24px;
 }
 
-.sakti-role-logo {
+.prabu-role-logo {
   width: 58px;
   height: 58px;
   object-fit: contain;
 }
 
-.sakti-role-greeting {
+.prabu-role-greeting {
   font-size: 20px;
   font-weight: 800;
   color: #1e3a8a;
@@ -2925,13 +2925,13 @@ tr.rkb-row-lvl-41.table-row-selected td {
   letter-spacing: -0.2px;
 }
 
-.sakti-role-search-wrap {
+.prabu-role-search-wrap {
   width: 100%;
   max-width: 660px;
   margin: 0 auto 18px;
 }
 
-.sakti-role-search-input {
+.prabu-role-search-input {
   width: 100%;
   padding: 11px 18px;
   border: 1px solid #cbd5e1;
@@ -2944,12 +2944,12 @@ tr.rkb-row-lvl-41.table-row-selected td {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.sakti-role-search-input:focus {
+.prabu-role-search-input:focus {
   border-color: #0284c7;
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
-.sakti-role-table-box {
+.prabu-role-table-box {
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.06);
@@ -2961,7 +2961,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   text-align: left;
 }
 
-.sakti-role-table-header {
+.prabu-role-table-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2971,13 +2971,13 @@ tr.rkb-row-lvl-41.table-row-selected td {
   color: #0f172a;
 }
 
-.sakti-role-rows-list {
+.prabu-role-rows-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.sakti-role-card-item {
+.prabu-role-card-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2990,32 +2990,32 @@ tr.rkb-row-lvl-41.table-row-selected td {
   box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
-.sakti-role-card-item:hover {
+.prabu-role-card-item:hover {
   border-color: #0284c7;
   background: #f0f9ff;
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(2, 132, 199, 0.12);
 }
 
-.sakti-role-card-item.active-role {
+.prabu-role-card-item.active-role {
   background: #0a2540 !important;
   color: #ffffff !important;
   border-color: #0a2540 !important;
   box-shadow: 0 4px 12px rgba(10, 37, 64, 0.3) !important;
 }
 
-.sakti-role-card-item.active-role .sakti-role-col {
+.prabu-role-card-item.active-role .prabu-role-col {
   color: #ffffff !important;
 }
 
-.sakti-role-col-satker {
+.prabu-role-col-satker {
   flex: 1;
   font-weight: 700;
   font-size: 13.5px;
   text-align: center;
 }
 
-.sakti-role-col-peran {
+.prabu-role-col-peran {
   flex: 2;
   font-weight: 800;
   font-size: 13.5px;
@@ -3023,7 +3023,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   text-align: center;
 }
 
-.sakti-role-col-tipe {
+.prabu-role-col-tipe {
   flex: 1;
   font-weight: 700;
   font-size: 13px;
@@ -3031,7 +3031,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   color: #475569;
 }
 
-.sakti-btn-kembali-login {
+.prabu-btn-kembali-login {
   background: #0070f3;
   color: #ffffff;
   border: none;
@@ -3052,13 +3052,13 @@ tr.rkb-row-lvl-41.table-row-selected td {
   transition: background 0.2s, transform 0.1s;
 }
 
-.sakti-btn-kembali-login:hover {
+.prabu-btn-kembali-login:hover {
   background: #0051a8;
   transform: translateY(-1px);
 }
 
-/* 2. User Profile Pill & Dropdown SAKTI (Gambar 2) */
-.sakti-user-pill {
+/* 2. User Profile Pill & Dropdown PRABU (Gambar 2) */
+.prabu-user-pill {
   display: inline-flex;
   align-items: center;
   background: #ffffff;
@@ -3071,12 +3071,12 @@ tr.rkb-row-lvl-41.table-row-selected td {
   position: relative;
 }
 
-.sakti-user-pill:hover {
+.prabu-user-pill:hover {
   background: #f8fafc;
   border-color: #cbd5e1;
 }
 
-.sakti-navbar-grid-icon {
+.prabu-navbar-grid-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3084,13 +3084,13 @@ tr.rkb-row-lvl-41.table-row-selected td {
   color: #64748b;
 }
 
-.sakti-user-pill-info {
+.prabu-user-pill-info {
   display: flex;
   flex-direction: column;
   text-align: left;
 }
 
-.sakti-user-pill-top {
+.prabu-user-pill-top {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -3099,18 +3099,18 @@ tr.rkb-row-lvl-41.table-row-selected td {
   color: #0f172a;
 }
 
-.sakti-verified-badge {
+.prabu-verified-badge {
   color: #0284c7;
   font-size: 13px;
 }
 
-.sakti-user-nip {
+.prabu-user-nip {
   font-size: 11px;
   font-weight: 600;
   color: #64748b;
 }
 
-.sakti-user-pill-sub {
+.prabu-user-pill-sub {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.4px;
@@ -3118,7 +3118,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   text-transform: uppercase;
 }
 
-.sakti-profile-dropdown {
+.prabu-profile-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
@@ -3129,10 +3129,10 @@ tr.rkb-row-lvl-41.table-row-selected td {
   min-width: 180px;
   z-index: 10000;
   padding: 6px 0;
-  animation: saktiFadeIn 0.15s ease-out;
+  animation: PRABUFadeIn 0.15s ease-out;
 }
 
-.sakti-dropdown-caret {
+.prabu-dropdown-caret {
   position: absolute;
   top: -6px;
   right: 18px;
@@ -3144,7 +3144,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   border-top: 1px solid #cbd5e1;
 }
 
-.sakti-dropdown-item {
+.prabu-dropdown-item {
   width: 100%;
   display: flex;
   align-items: center;
@@ -3160,29 +3160,29 @@ tr.rkb-row-lvl-41.table-row-selected td {
   transition: background 0.15s;
 }
 
-.sakti-dropdown-item:hover {
+.prabu-dropdown-item:hover {
   background: #f1f5f9;
   color: #0284c7;
 }
 
-.sakti-dropdown-item.text-danger:hover {
+.prabu-dropdown-item.text-danger:hover {
   background: #fef2f2;
   color: #dc2626;
 }
 
-.sakti-dropdown-icon {
+.prabu-dropdown-icon {
   font-size: 15px;
   color: #475569;
 }
 
-.sakti-dropdown-divider {
+.prabu-dropdown-divider {
   height: 1px;
   background: #e2e8f0;
   margin: 4px 0;
 }
 
 /* 3. Modal Ganti Peran & Konfirmasi (Gambar 3) */
-.sakti-ganti-peran-modal-box {
+.prabu-ganti-peran-modal-box {
   max-width: 620px;
   width: 95%;
   background: #ffffff;
@@ -3192,7 +3192,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   position: relative;
 }
 
-.sakti-modal-header {
+.prabu-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -3201,7 +3201,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   background: #fafafa;
 }
 
-.sakti-confirm-popup {
+.prabu-confirm-popup {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.55);
@@ -3209,10 +3209,10 @@ tr.rkb-row-lvl-41.table-row-selected td {
   align-items: center;
   justify-content: center;
   z-index: 100000;
-  animation: saktiFadeIn 0.15s ease;
+  animation: PRABUFadeIn 0.15s ease;
 }
 
-.sakti-confirm-box {
+.prabu-confirm-box {
   background: #ffffff;
   border-radius: 6px;
   box-shadow: 0 16px 36px rgba(0,0,0,0.25);
@@ -3222,7 +3222,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   border: 1px solid #cbd5e1;
 }
 
-.sakti-confirm-title {
+.prabu-confirm-title {
   padding: 12px 18px;
   font-size: 14px;
   font-weight: 800;
@@ -3231,14 +3231,14 @@ tr.rkb-row-lvl-41.table-row-selected td {
   background: #f8fafc;
 }
 
-.sakti-confirm-body {
+.prabu-confirm-body {
   padding: 18px 20px;
   font-size: 12.5px;
   color: #1e293b;
   line-height: 1.6;
 }
 
-.sakti-confirm-actions {
+.prabu-confirm-actions {
   display: flex;
   justify-content: center;
   gap: 12px;
@@ -3247,12 +3247,12 @@ tr.rkb-row-lvl-41.table-row-selected td {
   border-top: 1px solid #f1f5f9;
 }
 
-@keyframes saktiFadeIn {
+@keyframes PRABUFadeIn {
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 
-/* SAKTI Kumulatif Mode Preference Banner in Post-Login & Modal */
-.sakti-kumulatif-pref-card {
+/* PRABU Kumulatif Mode Preference Banner in Post-Login & Modal */
+.prabu-kumulatif-pref-card {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -3261,12 +3261,12 @@ tr.rkb-row-lvl-41.table-row-selected td {
   text-align: left;
 }
 
-.sakti-kumulatif-pref-card.active {
+.prabu-kumulatif-pref-card.active {
   background: #eff6ff;
   border-color: #93c5fd;
 }
 
-.sakti-kumulatif-pref-label {
+.prabu-kumulatif-pref-label {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -3276,7 +3276,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
   color: #0f172a;
 }
 
-.sakti-kumulatif-pref-desc {
+.prabu-kumulatif-pref-desc {
   font-size: 11.5px;
   color: #64748b;
   margin-top: 4px;
@@ -3441,4 +3441,27 @@ tr.rkb-row-lvl-41.table-row-selected td {
 .juknis-box-gray {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
+}
+
+/* ========================================================================== */
+/* TABLE USERS HORIZONTAL DIVIDERS & ROW SPACING                              */
+/* ========================================================================== */
+#table-users {
+  border-collapse: collapse !important;
+  width: 100% !important;
+}
+#table-users thead th {
+  border-bottom: 2px solid #cbd5e1 !important;
+  padding: 12px 10px !important;
+  background: #f8fafc !important;
+  font-weight: 700 !important;
+  color: #334155 !important;
+}
+#table-users tbody td {
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 14px 10px !important;
+  vertical-align: middle !important;
+}
+#table-users tbody tr:hover {
+  background-color: #f8fafc !important;
 }

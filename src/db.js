@@ -120,7 +120,7 @@ function getJakartaTimeString(d = new Date()) {
   return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')} WIB`;
 }
 
-function formatWaktuSakti(d = new Date()) {
+function formatWaktuResmi(d = new Date()) {
   const parts = new Intl.DateTimeFormat('id-ID', {
     timeZone: 'Asia/Jakarta',
     year: 'numeric',
@@ -451,7 +451,7 @@ function initDb() {
     );
   `);
 
-  // Tabel Matriks Hak Akses Menu Dinamis Berbasis Level (0-4)
+  // Tabel Matriks Hak Akses Menu Dinamis Berbasis 11 Level (L0 s.d. L10) Decoupled RBAC
   db.exec(`
     CREATE TABLE IF NOT EXISTS app_menu_matrix (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -463,6 +463,23 @@ function initDb() {
       allow_l2 INTEGER DEFAULT 0,
       allow_l3 INTEGER DEFAULT 0,
       allow_l4 INTEGER DEFAULT 0,
+      allow_l5 INTEGER DEFAULT 0,
+      allow_l6 INTEGER DEFAULT 0,
+      allow_l7 INTEGER DEFAULT 0,
+      allow_l8 INTEGER DEFAULT 0,
+      allow_l9 INTEGER DEFAULT 0,
+      allow_l10 INTEGER DEFAULT 0,
+      mode_l0 TEXT DEFAULT 'EDITOR',
+      mode_l1 TEXT DEFAULT 'EDITOR',
+      mode_l2 TEXT DEFAULT 'EDITOR',
+      mode_l3 TEXT DEFAULT 'EDITOR',
+      mode_l4 TEXT DEFAULT 'VIEWER',
+      mode_l5 TEXT DEFAULT 'VIEWER',
+      mode_l6 TEXT DEFAULT 'VIEWER',
+      mode_l7 TEXT DEFAULT 'EDITOR',
+      mode_l8 TEXT DEFAULT 'EDITOR',
+      mode_l9 TEXT DEFAULT 'EDITOR',
+      mode_l10 TEXT DEFAULT 'EDITOR',
       required_mode VARCHAR(16) DEFAULT 'VIEWER',
       urutan INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1,
@@ -471,42 +488,113 @@ function initDb() {
     );
   `);
 
+  // Migrasi Kolom Dinamis Level 0-10 untuk app_menu_matrix & satker_users
+  for (let i = 0; i <= 10; i++) {
+    safeAddColumn('app_menu_matrix', `allow_l${i} INTEGER DEFAULT ${i === 0 ? 1 : 0}`);
+    const defaultMode = [0, 1, 2, 3, 7, 8, 9, 10].includes(i) ? 'EDITOR' : 'VIEWER';
+    safeAddColumn('app_menu_matrix', `mode_l${i} TEXT DEFAULT '${defaultMode}'`);
+  }
+  safeAddColumn('satker_users', "role_mode TEXT DEFAULT 'SWITCH'");
+  safeAddColumn('satker_users', "mode_akses TEXT DEFAULT 'VIEWER'");
+
+  // Registri 27 Halaman Resmi & Matriks Standar (Sesuai Blueprint Master Excel)
+  const canonicalMenus = [
+    { urutan: 1, menu_key: 'view-dashboard', menu_label: 'Beranda (Dashboard)', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    { urutan: 2, menu_key: 'view-rkb', menu_label: 'RUH Belanja RKB', folder_key: null, flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 3, menu_key: 'view-revisi-pengajuan', menu_label: 'Pengajuan Usulan Revisi', folder_key: 'folder-perencanaan', flags: [1,1,0,1,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 4, menu_key: 'view-revisi-validasi', menu_label: 'Validasi Revisi', folder_key: 'folder-perencanaan', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 5, menu_key: 'view-revisi-tahap4', menu_label: 'Pengesahan BA Pleno (Tahap 4)', folder_key: 'folder-perencanaan', flags: [1,1,0,0,1,1,1,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 6, menu_key: 'view-revisi-monitoring', menu_label: 'Monitoring Revisi (4 Tahap)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 7, menu_key: 'view-siklus', menu_label: 'Pusat Siklus Dokumen', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 8, menu_key: 'view-rekap-perencanaan', menu_label: 'Rekap Perencanaan', folder_key: 'folder-rekap', flags: [1,1,1,0,1,1,1,1,1,1,0], req_mode: 'VIEWER' },
+    { urutan: 9, menu_key: 'view-rekap-pelaksanaan', menu_label: 'Rekap Pelaksanaan', folder_key: 'folder-rekap', flags: [1,1,1,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 10, menu_key: 'view-db-kuantitas', menu_label: 'Parameter & Kuantitas SSOT', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 11, menu_key: 'view-db-sbm', menu_label: 'Standar Biaya Masukan (SBM)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 12, menu_key: 'view-db-bas', menu_label: 'Bagan Akun Standar (BAS)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 13, menu_key: 'view-db-ppk', menu_label: 'Master Kecamatan (19 PPK)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,0], req_mode: 'VIEWER' },
+    { urutan: 14, menu_key: 'view-db-pps', menu_label: 'Master Desa & TPS (217 PPS)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,1], req_mode: 'VIEWER' },
+    { urutan: 15, menu_key: 'view-db-paslon', menu_label: 'Master Pasangan Calon (Paslon)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 16, menu_key: 'view-panduan', menu_label: 'Panduan Perencanaan', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 17, menu_key: 'view-panduan-pelaksanaan', menu_label: 'Panduan Pelaksanaan', folder_key: 'folder-panduan', flags: [1,1,1,0,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 18, menu_key: 'view-db-regulasi', menu_label: 'Regulasi & Dasar Hukum JDIH', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    { urutan: 19, menu_key: 'view-juknis-kegiatan', menu_label: 'Standar 28 Kegiatan (KPT 543)', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    { urutan: 20, menu_key: 'view-users', menu_label: 'Pengguna', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 21, menu_key: 'view-penandatangan', menu_label: 'Penandatangan', folder_key: 'folder-administrasi', flags: [1,1,1,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 22, menu_key: 'view-menu-matrix', menu_label: 'Hak Akses Menu', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 23, menu_key: 'view-db-settings', menu_label: 'Pengaturan Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,0,1,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 24, menu_key: 'view-audit', menu_label: 'Log Aktivitas Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 25, menu_key: 'view-monitoring', menu_label: 'Monitoring Unduhan', folder_key: 'folder-administrasi', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    { urutan: 26, menu_key: 'view-developer', menu_label: 'Blueprint & PRD (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 27, menu_key: 'view-dev-push', menu_label: 'Pusat Rilis & Push GitHub (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' }
+  ];
+
   try {
     const existingMenuCount = db.prepare('SELECT COUNT(*) as cnt FROM app_menu_matrix').get()?.cnt || 0;
     if (existingMenuCount === 0) {
-      const seedMenus = [
-        ['view-dashboard', 'Dashboard Satker', null, 1, 1, 1, 1, 0, 'VIEWER', 1],
-        ['view-rkb', 'RKB Belanja', null, 1, 1, 1, 1, 0, 'VIEWER', 2],
-        ['view-revisi-pengajuan', 'Pengajuan Usulan Revisi', 'folder-perencanaan', 1, 1, 1, 1, 0, 'EDITOR', 3],
-        ['view-revisi-validasi', 'Validasi Usulan Revisi', 'folder-perencanaan', 1, 1, 0, 0, 0, 'EDITOR', 4],
-        ['view-revisi-tahap4', 'Pengesahan BA Pleno (Tahap 4)', 'folder-perencanaan', 1, 1, 0, 0, 0, 'EDITOR', 5],
-        ['view-revisi-monitoring', 'Monitoring Siklus Dokumen', 'folder-perencanaan', 1, 1, 1, 1, 0, 'VIEWER', 6],
-        ['view-siklus', 'Pusat Siklus Dokumen', 'folder-perencanaan', 1, 1, 0, 0, 0, 'VIEWER', 7],
-        ['view-rekap-perencanaan', 'Rekap Perencanaan Anggaran', 'folder-rekap', 1, 1, 0, 0, 1, 'VIEWER', 8],
-        ['view-rekap-pelaksanaan', 'Rekap Pelaksanaan Anggaran', 'folder-rekap', 1, 1, 0, 0, 1, 'VIEWER', 9],
-        ['view-db-kuantitas', 'Standar Satuan & Kuantitas', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 10],
-        ['view-db-sbm', 'Standar Biaya Masukan (SBM)', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 11],
-        ['view-db-bas', 'Bagan Akun Standar (BAS)', 'folder-referensi', 1, 1, 1, 1, 0, 'VIEWER', 12],
-        ['view-db-ppk', 'Database PPK (Kecamatan)', 'folder-database', 1, 1, 0, 0, 0, 'VIEWER', 13],
-        ['view-db-pps', 'Database PPS (Desa)', 'folder-database', 1, 1, 0, 0, 0, 'VIEWER', 14],
-        ['view-db-paslon', 'Database Paslon Pilkada', 'folder-database', 1, 1, 0, 0, 0, 'VIEWER', 15],
-        ['view-panduan', 'Panduan Perencanaan', 'folder-panduan', 1, 1, 1, 1, 0, 'VIEWER', 16],
-        ['view-panduan-pelaksanaan', 'Panduan Pelaksanaan', 'folder-panduan', 1, 1, 0, 0, 0, 'VIEWER', 17],
-        ['view-db-regulasi', 'Database Regulasi / JDIH', 'folder-panduan', 1, 1, 1, 1, 0, 'VIEWER', 18],
-        ['view-users', 'Administrasi Pengguna', 'folder-administrasi', 1, 1, 0, 0, 0, 'EDITOR', 19],
-        ['view-penandatangan', 'Pejabat Penandatangan', 'folder-administrasi', 1, 1, 0, 0, 0, 'VIEWER', 20],
-        ['view-db-settings', 'Pengaturan Konfigurasi', 'folder-administrasi', 1, 1, 0, 0, 0, 'VIEWER', 21],
-        ['view-audit', 'Audit Log Aktivitas', 'folder-administrasi', 1, 1, 0, 0, 0, 'VIEWER', 22],
-        ['view-developer', 'Ruang Pengembang DEV', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 23],
-        ['view-menu-matrix', 'Hak Akses Menu', 'folder-administrasi', 1, 0, 0, 0, 0, 'EDITOR', 24],
-        ['view-dev-push', 'Sinkronisasi Push Produksi', 'folder-developer', 1, 0, 0, 0, 0, 'EDITOR', 25]
-      ];
-      const insertMenuStmt = db.prepare(`
-        INSERT INTO app_menu_matrix (menu_key, menu_label, folder_key, allow_l0, allow_l1, allow_l2, allow_l3, allow_l4, required_mode, urutan, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      const insertStmt = db.prepare(`
+        INSERT INTO app_menu_matrix (
+          menu_key, menu_label, folder_key,
+          allow_l0, allow_l1, allow_l2, allow_l3, allow_l4,
+          allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10,
+          mode_l0, mode_l1, mode_l2, mode_l3, mode_l4,
+          mode_l5, mode_l6, mode_l7, mode_l8, mode_l9, mode_l10,
+          required_mode, urutan, is_active
+        ) VALUES (
+          ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?,
+          ?, ?, 1
+        )
       `);
-      for (const m of seedMenus) {
-        try { insertMenuStmt.run(...m); } catch (e) {}
+      for (const m of canonicalMenus) {
+        try {
+          const modes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(lvl => {
+            if ([4, 5, 6].includes(lvl)) return 'VIEWER';
+            return m.req_mode === 'EDITOR' ? 'EDITOR' : (lvl <= 3 ? 'EDITOR' : 'VIEWER');
+          });
+          insertStmt.run(
+            m.menu_key, m.menu_label, m.folder_key,
+            ...m.flags,
+            ...modes,
+            m.req_mode, m.urutan
+          );
+        } catch (e) {}
+      }
+    } else {
+      // Pastikan seluruh 27 menu terdaftar dan kolom baru tersinkronisasi
+      for (const m of canonicalMenus) {
+        const row = db.prepare('SELECT id, allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10 FROM app_menu_matrix WHERE menu_key = ?').get(m.menu_key);
+        if (!row) {
+          try {
+            db.prepare(`
+              INSERT INTO app_menu_matrix (
+                menu_key, menu_label, folder_key,
+                allow_l0, allow_l1, allow_l2, allow_l3, allow_l4,
+                allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10,
+                required_mode, urutan, is_active
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            `).run(
+              m.menu_key, m.menu_label, m.folder_key,
+              ...m.flags,
+              m.req_mode, m.urutan
+            );
+          } catch (e) {}
+        } else if (row.allow_l5 === null || row.allow_l5 === undefined || (row.allow_l5 === 0 && row.allow_l6 === 0 && row.allow_l7 === 0 && row.allow_l8 === 0 && row.allow_l9 === 0 && row.allow_l10 === 0 && m.flags.slice(5).some(f => f === 1))) {
+          try {
+            db.prepare(`
+              UPDATE app_menu_matrix SET
+                allow_l5 = ?, allow_l6 = ?, allow_l7 = ?, allow_l8 = ?, allow_l9 = ?, allow_l10 = ?,
+                urutan = ?, menu_label = ?, folder_key = ?
+              WHERE menu_key = ?
+            `).run(
+              m.flags[5], m.flags[6], m.flags[7], m.flags[8], m.flags[9], m.flags[10],
+              m.urutan, m.menu_label, m.folder_key,
+              m.menu_key
+            );
+          } catch (e) {}
+        }
       }
     }
   } catch (e) {
@@ -528,11 +616,7 @@ function initDb() {
   safeAddColumn('periode_anggaran', 'verifikasi_manual_tahap4 INTEGER DEFAULT 0');
   safeAddColumn('rab_baris', 'sbm_id INTEGER DEFAULT NULL');
   safeAddColumn('satker_users', "role_mode TEXT DEFAULT 'SWITCH'");
-  safeAddColumn('app_menu_matrix', "mode_l0 TEXT DEFAULT 'EDITOR'");
-  safeAddColumn('app_menu_matrix', "mode_l1 TEXT DEFAULT 'EDITOR'");
-  safeAddColumn('app_menu_matrix', "mode_l2 TEXT DEFAULT 'VIEWER'");
-  safeAddColumn('app_menu_matrix', "mode_l3 TEXT DEFAULT 'VIEWER'");
-  safeAddColumn('app_menu_matrix', "mode_l4 TEXT DEFAULT 'VIEWER'");
+  // mode_l0..mode_l10 handled in loop above
 
   // Pastikan menu matriks hak akses menu terdaftar di app_menu_matrix
   try {
@@ -582,7 +666,7 @@ function initDb() {
     );
   `);
 
-  // 2. Tabel Snapshot Periode (Arsip Terkunci Standar SAKTI)
+  // 2. Tabel Snapshot Periode (Arsip Terkunci Standar SI-PRABU)
   db.exec(`
     CREATE TABLE IF NOT EXISTS periode_snapshot (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -702,7 +786,7 @@ function initDb() {
     );
   `);
 
-  // 6. Tabel Siklus Pengajuan & Monitoring Revisi SAKTI (4 Tahap)
+  // 6. Tabel Siklus Pengajuan & Monitoring Revisi SI-PRABU (4 Tahap)
   db.exec(`
     CREATE TABLE IF NOT EXISTS revisi_pengajuan (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1253,7 +1337,7 @@ function seedMasterRegulasiJdih() {
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Komisi Pemilihan Umum RI',
         modul_terkait: 'Rekap Pelaksanaan, Penyaluran Dana Adhoc, Bukti SPJ, Pajak & Pengembalian Sisa Hibah',
-        abstrak: 'Pedoman operasional pelaksanaan anggaran hibah Pemilihan oleh KPA, PPK, dan Bendahara Pengeluaran, mencakup mekanisme penyaluran dana operasional dan honorarium ke PPK/PPS/KPPS, kelengkapan bukti pertanggungjawaban (SPJ), pemungutan pajak, pengesahan SAKTI, hingga pelaporan dan pengembalian sisa dana hibah.',
+        abstrak: 'Pedoman operasional pelaksanaan anggaran hibah Pemilihan oleh KPA, PPK, dan Bendahara Pengeluaran, mencakup mekanisme penyaluran dana operasional dan honorarium ke PPK/PPS/KPPS, kelengkapan bukti pertanggungjawaban (SPJ), pemungutan pajak, pengesahan anggaran, hingga pelaporan dan pengembalian sisa dana hibah.',
         tautan_dokumen: 'https://jdih.kpu.go.id/',
         file_pdf_nama: 'https://drive.google.com/file/d/1Nia5CcEHqFImESaMpWzf8xeDhfQ7OEhL/view?usp=sharing'
       }
@@ -1619,7 +1703,7 @@ function checkRowEditPermission(periodeId, subbag, user = null) {
     // Level 1 (Perencanaan) / Level 0 (Developer):
     // Catat koreksi kecil rincian belanja pada pengajuan yang sedang diproses
     if (proposal && proposal.status_tahap !== 'DRAFT') {
-      const waktu = formatWaktuSakti();
+      const waktu = formatWaktuResmi();
       const koreksiMsg = `Koreksi rincian belanja dilakukan oleh ${user.username} pada ${waktu}`;
       db.prepare(`
         UPDATE revisi_pengajuan SET
@@ -1698,7 +1782,7 @@ function logRevisiHistory({
   selisih = 0,
   user = null
 }) {
-  const waktuNow = formatWaktuSakti();
+  const waktuNow = formatWaktuResmi();
   const actorId = user ? user.id : null;
   const actorUsername = user ? user.username : 'system';
   const actorName = user ? (user.nama_pejabat || user.username) : 'System';
@@ -3788,7 +3872,8 @@ function saveUserRoles(userId, roles = []) {
     if (pic === 'PERENCANAAN') pic = 'RENDATIN';
     if (pic === 'KEUANGAN') pic = 'KUL';
     if (pic === 'PARMAS') pic = 'PARSDM';
-    const mode = (r.mode_akses || (lvl === 3 ? 'VIEWER' : 'EDITOR')).toUpperCase();
+    const defaultModeByLvl = [4, 5, 6].includes(lvl) ? 'VIEWER' : 'EDITOR';
+    const mode = (r.mode_akses || defaultModeByLvl).toUpperCase();
     const isDef = (r.is_default !== undefined && Number(r.is_default) === 1) || (idx === 0 && !roles.some(x => Number(x.is_default) === 1)) ? 1 : 0;
     const label = r.label_peran || '';
 
@@ -3812,18 +3897,35 @@ function saveUserRoles(userId, roles = []) {
 }
 
 /**
- * Matriks Hak Akses Menu Dinamis Berbasis Level (0-4)
+ * Matriks Hak Akses Menu Dinamis Berbasis 11 Level (L0 s.d. L10) Decoupled RBAC
  */
 function getMenuMatrix() {
   try {
     const rows = db.prepare('SELECT * FROM app_menu_matrix WHERE is_active = 1 ORDER BY urutan ASC, id ASC').all() || [];
     return rows.map(r => ({
       ...r,
+      allow_l0: Number(r.allow_l0 ?? 1),
+      allow_l1: Number(r.allow_l1 ?? 0),
+      allow_l2: Number(r.allow_l2 ?? 0),
+      allow_l3: Number(r.allow_l3 ?? 0),
+      allow_l4: Number(r.allow_l4 ?? 0),
+      allow_l5: Number(r.allow_l5 ?? 0),
+      allow_l6: Number(r.allow_l6 ?? 0),
+      allow_l7: Number(r.allow_l7 ?? 0),
+      allow_l8: Number(r.allow_l8 ?? 0),
+      allow_l9: Number(r.allow_l9 ?? 0),
+      allow_l10: Number(r.allow_l10 ?? 0),
       mode_l0: r.mode_l0 || (r.required_mode === 'EDITOR' ? 'EDITOR' : 'VIEWER'),
       mode_l1: r.mode_l1 || (r.required_mode === 'EDITOR' ? 'EDITOR' : 'VIEWER'),
       mode_l2: r.mode_l2 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
-      mode_l3: r.mode_l3 || 'VIEWER',
-      mode_l4: r.mode_l4 || 'VIEWER'
+      mode_l3: r.mode_l3 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
+      mode_l4: r.mode_l4 || 'VIEWER',
+      mode_l5: r.mode_l5 || 'VIEWER',
+      mode_l6: r.mode_l6 || 'VIEWER',
+      mode_l7: r.mode_l7 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
+      mode_l8: r.mode_l8 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
+      mode_l9: r.mode_l9 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
+      mode_l10: r.mode_l10 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER')
     }));
   } catch (e) {
     console.warn('[MENU-MATRIX] Gagal ambil matrix:', e.message);
@@ -3834,8 +3936,26 @@ function getMenuMatrix() {
 function saveMenuMatrix(items = []) {
   if (!Array.isArray(items) || items.length === 0) return getMenuMatrix();
   let updateStmt;
-  let hasPerLevelCols = true;
+  let has11Levels = true;
   try {
+    updateStmt = db.prepare(`
+      UPDATE app_menu_matrix 
+      SET allow_l0 = ?, mode_l0 = ?,
+          allow_l1 = ?, mode_l1 = ?,
+          allow_l2 = ?, mode_l2 = ?,
+          allow_l3 = ?, mode_l3 = ?,
+          allow_l4 = ?, mode_l4 = ?,
+          allow_l5 = ?, mode_l5 = ?,
+          allow_l6 = ?, mode_l6 = ?,
+          allow_l7 = ?, mode_l7 = ?,
+          allow_l8 = ?, mode_l8 = ?,
+          allow_l9 = ?, mode_l9 = ?,
+          allow_l10 = ?, mode_l10 = ?,
+          required_mode = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE menu_key = ?
+    `);
+  } catch (err) {
+    has11Levels = false;
     updateStmt = db.prepare(`
       UPDATE app_menu_matrix 
       SET allow_l0 = ?, mode_l0 = ?,
@@ -3846,33 +3966,32 @@ function saveMenuMatrix(items = []) {
           required_mode = ?, updated_at = CURRENT_TIMESTAMP
       WHERE menu_key = ?
     `);
-  } catch (err) {
-    hasPerLevelCols = false;
-    updateStmt = db.prepare(`
-      UPDATE app_menu_matrix 
-      SET allow_l0 = ?, allow_l1 = ?, allow_l2 = ?, allow_l3 = ?, allow_l4 = ?, required_mode = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE menu_key = ?
-    `);
   }
   items.forEach(item => {
     try {
-      if (hasPerLevelCols) {
+      if (has11Levels) {
         updateStmt.run(
           item.allow_l0 ? 1 : 0, item.mode_l0 || 'EDITOR',
           item.allow_l1 ? 1 : 0, item.mode_l1 || 'EDITOR',
           item.allow_l2 ? 1 : 0, item.mode_l2 || 'VIEWER',
           item.allow_l3 ? 1 : 0, item.mode_l3 || 'VIEWER',
           item.allow_l4 ? 1 : 0, item.mode_l4 || 'VIEWER',
+          item.allow_l5 ? 1 : 0, item.mode_l5 || 'VIEWER',
+          item.allow_l6 ? 1 : 0, item.mode_l6 || 'VIEWER',
+          item.allow_l7 ? 1 : 0, item.mode_l7 || 'VIEWER',
+          item.allow_l8 ? 1 : 0, item.mode_l8 || 'VIEWER',
+          item.allow_l9 ? 1 : 0, item.mode_l9 || 'VIEWER',
+          item.allow_l10 ? 1 : 0, item.mode_l10 || 'VIEWER',
           item.required_mode || item.mode_l1 || 'VIEWER',
           item.menu_key
         );
       } else {
         updateStmt.run(
-          item.allow_l0 ? 1 : 0,
-          item.allow_l1 ? 1 : 0,
-          item.allow_l2 ? 1 : 0,
-          item.allow_l3 ? 1 : 0,
-          item.allow_l4 ? 1 : 0,
+          item.allow_l0 ? 1 : 0, item.mode_l0 || 'EDITOR',
+          item.allow_l1 ? 1 : 0, item.mode_l1 || 'EDITOR',
+          item.allow_l2 ? 1 : 0, item.mode_l2 || 'VIEWER',
+          item.allow_l3 ? 1 : 0, item.mode_l3 || 'VIEWER',
+          item.allow_l4 ? 1 : 0, item.mode_l4 || 'VIEWER',
           item.required_mode || item.mode_l1 || 'VIEWER',
           item.menu_key
         );
@@ -3904,7 +4023,7 @@ function getUsers() {
     for (const u of users) {
       u.roles = roleMap[u.id] || [];
       if (u.roles.length === 0) {
-        let defaultMode = (u.level === 0 || u.level === 1 || (u.level === 2 && !u.username.startsWith('divisi_'))) ? 'EDITOR' : 'VIEWER';
+        let defaultMode = [0, 1, 2, 3, 7, 8, 9, 10].includes(Number(u.level)) && !u.username.startsWith('divisi_') ? 'EDITOR' : 'VIEWER';
         u.roles = [{
           id: 0,
           user_id: u.id,
@@ -3927,7 +4046,7 @@ function getUserById(id) {
   if (u) {
     u.roles = getUserRoles(u.id);
     if (u.roles.length === 0) {
-      let defaultMode = (u.level === 0 || u.level === 1 || (u.level === 2 && !u.username.startsWith('divisi_'))) ? 'EDITOR' : 'VIEWER';
+      let defaultMode = [0, 1, 2, 3, 7, 8, 9, 10].includes(Number(u.level)) && !u.username.startsWith('divisi_') ? 'EDITOR' : 'VIEWER';
       u.roles = [{
         id: 0,
         user_id: u.id,
@@ -3944,17 +4063,25 @@ function getUserById(id) {
 
 function saveUser(userData, actorUser = null) {
   const id = userData.id ? Number(userData.id) : null;
-  const username = (userData.username || '').trim().toLowerCase();
+  const email = (userData.email || '').trim().toLowerCase();
+  let username = (userData.username || '').trim().toLowerCase();
   const rawPassword = (userData.password || '').trim();
   const nama_pejabat = (userData.nama_pejabat || '').trim();
   const nip = (userData.nip || '').trim();
   const jabatan = (userData.jabatan || '').trim();
-  const email = (userData.email || '').trim().toLowerCase();
   const is_active = userData.is_active !== undefined ? (Number(userData.is_active) ? 1 : 0) : 1;
 
-  if (!username) throw new Error('Username tidak boleh kosong.');
-  if (!id && !rawPassword) throw new Error('Password tidak boleh kosong untuk pengguna baru.');
+  if (!username && email) {
+    username = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+  }
+
+  if (!username) throw new Error('Username atau Email tidak boleh kosong.');
   if (!nama_pejabat) throw new Error('Nama pejabat / pegawai tidak boleh kosong.');
+
+  if (email) {
+    const emailClash = db.prepare('SELECT id, username FROM satker_users WHERE email = ? AND id != ?').get(email, id || 0);
+    if (emailClash) throw new Error(`Email "${email}" sudah digunakan oleh akun "${emailClash.username}".`);
+  }
 
   // Roles processing (3 Komponen: Level, PIC, Mode Akses)
   let roles = Array.isArray(userData.roles) ? userData.roles : [];
@@ -3975,7 +4102,7 @@ function saveUser(userData, actorUser = null) {
   const primaryRole = roles.find(r => Number(r.is_default) === 1) || roles[0];
   const level = Number(primaryRole.level);
   const pic_subbag = normalizePic(primaryRole.pic);
-  const role_id = (userData.role_id || (level === 0 ? 'developer' : (level === 1 ? 'super_admin' : (level === 3 ? 'pimpinan' : 'operator')))).trim();
+  const role_id = (userData.role_id || (level === 0 ? 'developer' : (level === 1 ? 'super_admin' : ([4, 5, 6].includes(level) ? 'pimpinan' : 'operator')))).trim();
 
   // Validasi peran Level 0 Developer
   if (roles.some(r => Number(r.level) === 0) && username !== 'emenje') {
@@ -3987,6 +4114,9 @@ function saveUser(userData, actorUser = null) {
   let finalPassword = '';
   if (rawPassword) {
     finalPassword = rawPassword.startsWith('scrypt$') ? rawPassword : hashPassword(rawPassword);
+  } else if (!id) {
+    // Pengguna baru tanpa password (autentikasi eksklusif Google SSO) diberi hash acak berkekuatan tinggi
+    finalPassword = hashPassword(crypto.randomBytes(24).toString('hex'));
   }
 
   if (id) {
@@ -5919,7 +6049,7 @@ function appendDownloadTimestamp(filename, d = new Date()) {
 function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran, user_id, username, user = null }) {
   const reqId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const dateObj = new Date();
-  const requestTime = formatWaktuSakti(dateObj);
+  const requestTime = formatWaktuResmi(dateObj);
   const expiresAt = new Date(dateObj.getTime() + 60 * 60 * 1000).toISOString();
   const cleanTipe = tipe_unduhan || 'EXCEL_RKB';
   const cleanPeriodeId = periode_id ? Number(periode_id) : null;
@@ -6149,7 +6279,7 @@ function submitSubbagUsulan({ periodeId, subbag, gdrive_link, catatan_usulan, us
     throw new Error('Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat mengajukan usulan revisi.');
   }
   const cleanSubbag = normalizePic(subbag);
-  const now = formatWaktuSakti();
+  const now = formatWaktuResmi();
   const submitter = user ? `${user.nama_pejabat} (${user.username})` : 'PIC Subbag';
 
   db.prepare(`
@@ -6177,7 +6307,7 @@ function submitSubbagUsulan({ periodeId, subbag, gdrive_link, catatan_usulan, us
 
 function validateSubbagUsulan({ periodeId, subbag, user }) {
   const cleanSubbag = normalizePic(subbag);
-  const now = formatWaktuSakti();
+  const now = formatWaktuResmi();
   const validator = user ? `${user.nama_pejabat} (${user.username})` : 'Tim Rendatin';
 
   db.prepare(`
@@ -6195,7 +6325,7 @@ function validateSubbagUsulan({ periodeId, subbag, user }) {
 
 function rejectSubbagUsulan({ periodeId, subbag, alasan_pengembalian, user }) {
   const cleanSubbag = normalizePic(subbag);
-  const now = formatWaktuSakti();
+  const now = formatWaktuResmi();
   const validator = user ? `${user.nama_pejabat} (${user.username})` : 'Tim Rendatin';
 
   db.prepare(`
@@ -6289,7 +6419,7 @@ function createRevisiPengajuan(data, user) {
   const totalSemula = Number(data.total_semula) || 0;
   const totalMenjadi = Number(data.total_menjadi) || totalSemula;
   const selisih = totalMenjadi - totalSemula;
-  const waktuNow = formatWaktuSakti();
+  const waktuNow = formatWaktuResmi();
   const submitter = user ? `${user.nama_pejabat || user.username} (${user.username})` : pejabatPengusul;
 
   // 1. Tentukan siklus berjalan (atau buat baru jika belum ada)
@@ -6528,7 +6658,7 @@ function updateRevisiTahap(id, { tahap, aksi, catatan = '', nomor_penetapan = ''
   }
 
   const targetTahap = Number(tahap);
-  const waktuNow = formatWaktuSakti();
+  const waktuNow = formatWaktuResmi();
   const userName = user ? `${user.nama_pejabat || user.username} (${user.username})` : 'Tim Rendatin';
   const curVer = Number(rev.versi_usulan || 1);
 
@@ -6771,7 +6901,7 @@ function finalizeTahap4Keseluruhan({
     if (!verifikasi_manual) throw new Error('Verifikasi manual sebelum pengesahan Tahap 4 wajib dicentang.');
   }
 
-  const waktuNow = formatWaktuSakti();
+  const waktuNow = formatWaktuResmi();
   const userName = user ? `${user.nama_pejabat || user.username} (${user.username})` : 'Tim Rendatin & Pleno KPU';
 
   db.exec('BEGIN IMMEDIATE');
@@ -7134,10 +7264,12 @@ function getArsipRevisiList() {
   });
 }
 
+const formatWaktuSakti = formatWaktuResmi;
 module.exports = {
   db,
   safeAddColumn,
   getJakartaTimeString,
+  formatWaktuResmi,
   formatWaktuSakti,
   classifyAuditCategory,
   recordAuditLog,

@@ -107,7 +107,7 @@ const {
   validateSubbagUsulan,
   rejectSubbagUsulan,
   saveCatatanPlenoSubbag,
-  formatWaktuSakti,
+  formatWaktuResmi,
   generateNextKodeRevisi,
   createRevisiPengajuan,
   getRevisiPengajuanList,
@@ -153,7 +153,7 @@ if (!fs.existsSync(DOWNLOADS_DIR)) {
   fs.mkdirSync(DOWNLOADS_DIR, { recursive: true });
 }
 
-// Background Worker untuk Antrean Unduhan SAKTI Kemenkeu
+// Background Worker untuk Antrean Unduhan SI-PRABU KPU Ngawi
 async function processDownloadJob(jobId) {
   try {
     const job = getDownloadRequestById(jobId);
@@ -679,7 +679,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // 1c-2. POST /api/switch-active-role (Beralih Peran Aktif untuk Pengguna Multi-Peran - SAKTI Multi-Role Canon)
+    // 1c-2. POST /api/switch-active-role (Beralih Peran Aktif untuk Pengguna Multi-Peran - Multi-Role SI-PRABU)
     if (pathname === '/api/switch-active-role' && method === 'POST') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
@@ -690,14 +690,20 @@ const server = http.createServer(async (req, res) => {
       const roles = currentUser.roles || [];
       let matchedRole = roles.find(r => Number(r.id) === targetRoleId);
       
-      // Jika Developer melakukan simulasi peran SAKTI
+      // Jika Developer melakukan simulasi peran satker
       if (!matchedRole && (currentUser.is_developer || currentUser.level === 0 || currentUser.username === 'emenje')) {
         const simRoles = [
           { id: 10, level: 0, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Lead Developer & System Architect' },
-          { id: 1001, level: 1, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Kasubbag Perencanaan (Validator)' },
-          { id: 1002, level: 2, pic: 'TEKNIS', mode_akses: 'EDITOR', label_peran: 'Staf Subbag Teknis (Operator)' },
-          { id: 1003, level: 3, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Sekretaris KPU (Approver)' },
-          { id: 1004, level: 4, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Akses Eksklusif Rekap Taktis' }
+          { id: 1001, level: 1, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Administrator Utama Satker (Rendatin)' },
+          { id: 1002, level: 2, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pengolah Data Perencanaan Anggaran' },
+          { id: 1003, level: 3, pic: 'TEKNIS', mode_akses: 'EDITOR', label_peran: 'Operator Pengelola Subbagian (Teknis)' },
+          { id: 1004, level: 4, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Ketua KPU (Kepala Lembaga)' },
+          { id: 1005, level: 5, pic: 'TEKNIS', mode_akses: 'VIEWER', label_peran: 'Anggota Komisioner KPU' },
+          { id: 1006, level: 6, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Kuasa Pengguna Anggaran (KPA)' },
+          { id: 1007, level: 7, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pejabat Perbendaharaan Keuangan' },
+          { id: 1008, level: 8, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pejabat Pembuat Komitmen & PBJ' },
+          { id: 1009, level: 9, pic: 'KECAMATAN', mode_akses: 'EDITOR', label_peran: 'Badan Ad Hoc — PPK (Kecamatan)' },
+          { id: 1010, level: 10, pic: 'DESA', mode_akses: 'EDITOR', label_peran: 'Badan Ad Hoc — PPS (Desa/Kelurahan)' }
         ];
         matchedRole = simRoles.find(r => Number(r.id) === targetRoleId);
       }
@@ -798,7 +804,7 @@ const server = http.createServer(async (req, res) => {
         action: 'UPDATE_ROLE_PREFERENCE',
         target_type: 'satker_users',
         target_id: currentUser.id,
-        notes: `Pengguna ${currentUser.username} mengubah preferensi peran menjadi: ${cleanMode === 'KUMULATIF' ? 'Kumulatif (Semua Hak Sekaligus)' : 'Ganti Peran Eksklusif (ala SAKTI)'}`,
+        notes: `Pengguna ${currentUser.username} mengubah preferensi peran menjadi: ${cleanMode === 'KUMULATIF' ? 'Kumulatif (Semua Hak Sekaligus)' : 'Mode Ganti Peran (Peran Tunggal)'}`,
         user: updatedUser
       });
 
@@ -854,7 +860,7 @@ const server = http.createServer(async (req, res) => {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       if (!canManageUsers(currentUser)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan pengguna hanya diizinkan untuk Akun Developer dan Kasubbag Perencanaan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan pengguna hanya diizinkan untuk Otoritas Level 0 dan Level 1.' });
       }
 
       const body = await parseJsonBody(req);
@@ -886,7 +892,7 @@ const server = http.createServer(async (req, res) => {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       if (!canManageUsers(currentUser)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Penghapusan pengguna hanya diizinkan untuk Akun Developer dan Kasubbag Perencanaan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Penghapusan pengguna hanya diizinkan untuk Otoritas Level 0 dan Level 1.' });
       }
 
       const targetId = Number(delUserMatch[1]);
@@ -910,7 +916,7 @@ const server = http.createServer(async (req, res) => {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       if (!canManageUsers(currentUser)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Pengaktifan pengguna hanya diizinkan untuk Akun Developer dan Kasubbag Perencanaan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengaktifan pengguna hanya diizinkan untuk Otoritas Level 0 dan Level 1.' });
       }
 
       const targetId = Number(toggleUserMatch[1]);
@@ -927,7 +933,7 @@ const server = http.createServer(async (req, res) => {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       if (!canManageUsers(currentUser)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan mode pengguna hanya diizinkan untuk Akun Developer dan Kasubbag Perencanaan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan mode pengguna hanya diizinkan untuk Otoritas Level 0 dan Level 1.' });
       }
 
       const targetId = Number(toggleRoleModeMatch[1]);
@@ -944,14 +950,14 @@ const server = http.createServer(async (req, res) => {
         action: 'UPDATE_USER_ROLE_MODE',
         target_type: 'satker_users',
         target_id: targetId,
-        notes: `Mengubah mode operasional akun ${target.username} menjadi: ${newMode === 'KUMULATIF' ? 'Mode Hak Kumulatif' : 'Mode Ganti Peran (SAKTI)'}`,
+        notes: `Mengubah mode operasional akun ${target.username} menjadi: ${newMode === 'KUMULATIF' ? 'Mode Hak Kumulatif' : 'Mode Ganti Peran (Peran Tunggal)'}`,
         user: currentUser
       });
 
       return sendJson(res, 200, {
         success: true,
         role_mode: newMode,
-        message: `Mode operasional akun "${target.username}" berhasil diubah ke ${newMode === 'KUMULATIF' ? 'Mode Kumulatif' : 'Mode Ganti Peran (SAKTI)'}.`
+        message: `Mode operasional akun "${target.username}" berhasil diubah ke ${newMode === 'KUMULATIF' ? 'Mode Kumulatif' : 'Mode Ganti Peran (Peran Tunggal)'}.`
       });
     }
 
@@ -984,7 +990,7 @@ const server = http.createServer(async (req, res) => {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       if (!canManageUsers(currentUser) && currentUser.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Pengubahan pejabat penandatangan hanya untuk Perencanaan dan Pengembang.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengubahan pejabat penandatangan hanya untuk Otoritas Level 0 dan Level 1.' });
       }
 
       const body = await parseJsonBody(req);
@@ -1006,7 +1012,7 @@ const server = http.createServer(async (req, res) => {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       if (!canManageUsers(currentUser)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Sinkronisasi pengguna hanya untuk Akun Developer dan Kasubbag Perencanaan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Sinkronisasi pengguna hanya untuk Otoritas Level 0 dan Level 1.' });
       }
 
       try {
@@ -1027,7 +1033,7 @@ const server = http.createServer(async (req, res) => {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
       if (!canManageUsers(currentUser)) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Log Aktivitas hanya dapat diakses oleh Akun Developer (Level 0) dan Kasubbag Perencanaan (Rendatin).' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Log Aktivitas hanya dapat diakses oleh Otoritas Level 0 dan Level 1.' });
       }
 
       const result = getAuditLogs({
@@ -2055,7 +2061,7 @@ const server = http.createServer(async (req, res) => {
     if (usulanValidasiMatch && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Tim Rendatin (Level 1) yang berwenang menyatakan valid.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Validasi usulan revisi hanya diizinkan untuk Otoritas Level 1.' });
       }
       const periodeId = Number(usulanValidasiMatch[1]);
       const body = await parseJsonBody(req);
@@ -2073,7 +2079,7 @@ const server = http.createServer(async (req, res) => {
     if (usulanKembalikanMatch && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Tim Rendatin (Level 1) yang berwenang mengembalikan usulan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengembalian usulan revisi hanya diizinkan untuk Otoritas Level 1.' });
       }
       const periodeId = Number(usulanKembalikanMatch[1]);
       const body = await parseJsonBody(req);
@@ -2092,7 +2098,7 @@ const server = http.createServer(async (req, res) => {
     if (usulanCatatanPlenoMatch && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Tim Rendatin (Level 1) yang dapat membubuhkan catatan pleno.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Pembubuhan catatan pleno hanya diizinkan untuk Otoritas Level 1.' });
       }
       const periodeId = Number(usulanCatatanPlenoMatch[1]);
       const body = await parseJsonBody(req);
@@ -2106,7 +2112,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ========================================================================
-    // SIKLUS PROSES REVISI MANDIRI (STANDAR SAKTI KEMENKEU 4-TAHAP WORKFLOW)
+    // SIKLUS PROSES REVISI MANDIRI (STANDAR SI-PRABU KPU NGAWI 4-TAHAP WORKFLOW)
     // ========================================================================
 
     // 1. GET /api/revisi/monitoring & /api/revisi/pengajuan
@@ -2153,7 +2159,7 @@ const server = http.createServer(async (req, res) => {
         // Bab 21.4: Rekap Pelaksanaan dikunci khusus untuk Ketua KPU, Sekretaris KPU, dan Level 1 (serta Level 0)
         const canAccessPelaksanaan = user.level <= 1 || isKetua || isSekretaris;
         if (!canAccessPelaksanaan) {
-          return sendJson(res, 403, { error: 'Akses ditolak. Menu Rekap Pelaksanaan dikunci khusus untuk Ketua KPU, Sekretaris KPU, dan Tim Perencanaan (Level 1).' });
+          return sendJson(res, 403, { error: 'Akses ditolak. Akses Rekap Pelaksanaan hanya diizinkan untuk Level yang berwenang.' });
         }
       }
 
@@ -2424,7 +2430,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/revisi/pengesahan-tahap4-keseluruhan' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Pengesahan Tahap 4 (Penguncian RKB & BA Pleno) hanya dapat dilakukan oleh Tim Rendatin / Perencanaan (Level 1).' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengesahan Tahap 4 hanya dapat dilakukan oleh Otoritas Level 1.' });
       }
 
       const body = await parseJsonBody(req);
@@ -2715,7 +2721,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/master/paslon' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Paslon.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. data Paslon.' });
       }
       const body = await parseJsonBody(req);
       const list = savePaslon(body, user);
@@ -2769,7 +2775,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/master/kuantitas' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Tim Perencanaan dan Pengembang yang dapat mengubah parameter SSOT.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. parameter SSOT.' });
       }
       try {
         const body = await parseJsonBody(req);
@@ -2790,7 +2796,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/master/kecamatan' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Kecamatan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. data Kecamatan.' });
       }
       const body = await parseJsonBody(req);
       const list = saveKecamatan(body, user);
@@ -2824,7 +2830,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/master/kecamatan/import' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Kecamatan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. data Kecamatan.' });
       }
       const body = await parseJsonBody(req);
       if (!body.file_base64) {
@@ -2867,7 +2873,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/master/desa' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Desa.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. data Desa.' });
       }
       const body = await parseJsonBody(req);
       const list = saveDesa(body, user);
@@ -2897,7 +2903,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/master/desa/import' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data Desa.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. data Desa.' });
       }
       const body = await parseJsonBody(req);
       if (!body.file_base64) {
@@ -2939,7 +2945,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/master/sbm' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data SBM.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. data SBM.' });
       }
       const body = await parseJsonBody(req);
       const saved = saveSbm(body, user);
@@ -3013,7 +3019,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/master/akun' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah data BAS.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. data BAS.' });
       }
       const body = await parseJsonBody(req);
       const saved = saveAkun(body, user);
@@ -3078,7 +3084,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // 13e. SISTEM ANTREAN UNDUHAN / MONITORING REPORT (SAKTI KEMENKEU STYLE)
+    // 13e. SISTEM ANTREAN UNDUHAN / MONITORING REPORT (SI-PRABU STYLE)
     if (pathname === '/api/download-requests' && method === 'GET') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) {
@@ -3118,7 +3124,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'Nama file unduhan wajib disertakan.' });
       }
       if (currentUser.level === 2 && body.tipe_unduhan === 'ZIP_SUBBAGIAN') {
-        return sendJson(res, 403, { error: 'Akses ditolak. Paket ZIP 5 Subbagian hanya dapat diunduh oleh Tim Perencanaan, Komisioner, atau Pengembang.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Paket ZIP 5 Subbagian hanya dapat diunduh oleh Level kewenangan yang berhak.' });
       }
       if (currentUser.level === 2 && currentUser.pic_subbag && currentUser.pic_subbag !== 'SEMUA') {
         body.filter_pic = currentUser.pic_subbag;
@@ -3187,7 +3193,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/settings' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Hanya Perencanaan dan Pengembang yang dapat mengubah pengaturan.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. pengaturan.' });
       }
       const body = await parseJsonBody(req);
       const updated = updateSettings(body, user);
@@ -3241,7 +3247,7 @@ const server = http.createServer(async (req, res) => {
 
       // Tolak Operator Level 2 agar tidak mengekspor paket ZIP seluruh subbagian
       if (user.level === 2) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Paket ZIP 5 Subbagian hanya dapat diunduh oleh Tim Perencanaan, Komisioner, atau Pengembang.' });
+        return sendJson(res, 403, { error: 'Akses ditolak. Paket ZIP 5 Subbagian hanya dapat diunduh oleh Level kewenangan yang berhak.' });
       }
 
       const periodeId = Number(exportZipMatch[1]);

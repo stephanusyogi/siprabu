@@ -6,7 +6,7 @@
 
 const crypto = require('crypto');
 
-const SAKTI_VIEW_CODES = {
+const PRABU_VIEW_CODES = {
   'view-dashboard': 1,
   'view-rkb': 2,
   'view-siklus': 3,
@@ -35,7 +35,7 @@ const SAKTI_VIEW_CODES = {
   'view-menu-matrix': 25
 };
 
-const SAKTI_CODE_TO_VIEW = {
+const PRABU_CODE_TO_VIEW = {
   1: 'view-dashboard',
   2: 'view-rkb',
   3: 'view-siklus',
@@ -104,13 +104,13 @@ function base64UrlToBuffer(str) {
   return Buffer.from(base64, 'base64');
 }
 
-function generateSaktiLoginToken() {
+function generateLoginToken() {
   const bytes = crypto.randomBytes(15);
   return 'LL-' + bufferToBase64Url(bytes);
 }
 
-function generateSaktiRouteToken(viewId, isSanding = false) {
-  const code = SAKTI_VIEW_CODES[viewId] || 1;
+function generateRouteToken(viewId, isSanding = false) {
+  const code = PRABU_VIEW_CODES[viewId] || 1;
   const buf = Buffer.alloc(32);
   buf[0] = 0x53; // 'S' Magic Byte
   buf[1] = code;
@@ -130,7 +130,7 @@ function generateSaktiRouteToken(viewId, isSanding = false) {
   return bufferToBase64Url(buf);
 }
 
-function parseSaktiRouteToken(tokenPath) {
+function parseRouteToken(tokenPath) {
   if (!tokenPath) return null;
   const clean = String(tokenPath).replace(/^\/+/, '').split('?')[0].split('#')[0];
   if (!clean) return null;
@@ -150,7 +150,7 @@ function parseSaktiRouteToken(tokenPath) {
     if (buf[30] !== sum1 || buf[31] !== sum2) return null;
     const viewCode = buf[1];
     const isSanding = (buf[2] & 1) === 1;
-    const viewId = SAKTI_CODE_TO_VIEW[viewCode];
+    const viewId = PRABU_CODE_TO_VIEW[viewCode];
     if (!viewId) return null;
     return { viewId, isSanding, isLogin: false };
   } catch (e) {
@@ -158,9 +158,24 @@ function parseSaktiRouteToken(tokenPath) {
   }
 }
 
+
+// Backward-compatibility aliases for SI-PRABU Core
+const SAKTI_VIEW_CODES = PRABU_VIEW_CODES;
+const SAKTI_CODE_TO_VIEW = PRABU_CODE_TO_VIEW;
+const generateSaktiRouteToken = generateRouteToken;
+const generateSaktiLoginToken = generateLoginToken;
+const parseSaktiRouteToken = parseRouteToken;
+
 module.exports = {
-  SAKTI_VIEW_CODES,
-  SAKTI_CODE_TO_VIEW,
+  PRABU_VIEW_CODES,
+  PRABU_CODE_TO_VIEW,
+  SAKTI_VIEW_CODES: PRABU_VIEW_CODES,
+  SAKTI_CODE_TO_VIEW: PRABU_CODE_TO_VIEW,
+  generateRouteToken,
+  generateLoginToken,
+  parseRouteToken,
+  PRABU_VIEW_CODES,
+  PRABU_CODE_TO_VIEW,
   SAKTI_VIEW_TITLES,
   generateSaktiLoginToken,
   generateSaktiRouteToken,

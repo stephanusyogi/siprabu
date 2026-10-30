@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png?v=3.5.0">
   <link rel="shortcut icon" type="image/png" href="/favicon.ico?v=3.5.0">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png?v=3.5.0">
-  <link rel="stylesheet" href="/style.css?v=4.3.0">
+  <link rel="stylesheet" href="/style.css?v=4.4.1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -82,6 +82,12 @@
         </div>
 
         <!-- Divider (Dinonaktifkan Permanen) -->
+        <!-- Shortcut Khusus Lingkungan Lokal Pengembang (Hanya aktif di Localhost) -->
+        <div id="dev-quick-login-box" style="display: none; margin-top: 14px; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 12px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="quickDeveloperLogin()" style="width: 100%; font-size: 11.5px; font-weight: 700; color: #0284c7; border: 1px dashed #38bdf8; padding: 8px 10px; border-radius: 6px; background: #f0f9ff; cursor: pointer; transition: all 0.2s;" title="Masuk langsung ke Akun Pengembang Level 0 untuk pengujian lokal">
+            ⚡ Akses Cepat Pengembang Lokal (L0 emenje)
+          </button>
+        </div>
         <div class="login-divider" style="display: none;">
           <span>ATAU MASUK DENGAN AKUN LOKAL</span>
         </div>
@@ -125,22 +131,17 @@
         <div class="brand">
           <img src="/assets/logo-icon.png" alt="SI-PRABU" class="brand-logo-img">
           <div class="brand-text">
-            <span class="app-title">SI-PRABU <span class="app-version">v3.0</span></span>
+            <span class="app-title">SI-PRABU</span>
             <span class="app-subtitle" id="satker-name-header">KPU KABUPATEN NGAWI</span>
           </div>
         </div>
 
-        <!-- Tombol Lipat Menu SAKTI Style (<) -->
-        <button type="button" class="sakti-sidebar-toggle-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Lipat / Buka Menu (SAKTI Style)">
+        <!-- Tombol Lipat Menu Sidebar (<) -->
+        <button type="button" class="prabu-sidebar-toggle-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Lipat / Buka Menu Sidebar">
           <span class="toggle-icon">❮</span>
         </button>
 
-        <!-- Waktu Server SAKTI Style -->
-        <div class="server-clock-pill" id="server-clock-pill" title="Sinkronisasi Jam Server Otomatis">
-          <span class="clock-icon">🕒</span>
-          <span id="server-clock-text">Memuat Waktu Server...</span>
-        </div>
-
+        <!-- Dokumen Aktif Context Pill -->
         <div class="context-pill" id="context-pill">
           <span class="pulse-dot active" id="context-dot"></span>
           <span class="context-title" id="context-nama-dokumen">Memuat Dokumen...</span>
@@ -149,17 +150,11 @@
       </div>
 
       <div class="nav-right">
-        <!-- Quick Switcher Role (Pair Testing / Multi-User) -->
-        <div class="user-switcher-container" id="user-switcher-container">
-          <label for="user-switcher">Ganti Peran:</label>
-          <select id="user-switcher" class="input-select-sm" onchange="switchUser(this.value)">
-            <!-- Populated via JS -->
-          </select>
-        </div>
+        <div id="user-switcher-container" style="display:none!important;"><select id="user-switcher" style="display:none!important;"></select></div>
 
-        <!-- User Profile Pill SAKTI (Gambar 2) -->
-        <div class="user-pill sakti-user-pill" id="user-profile-pill" onclick="handleUserProfileClick(event)" title="Menu Akun &amp; Ganti Peran">
-          <div class="sakti-navbar-grid-icon" title="Aplikasi SI-PRABU">
+        <!-- User Profile Pill (Informasi Akun, Peran Aktif & Dropdown Menu) -->
+        <div class="user-pill prabu-user-pill" id="user-profile-pill" onclick="handleUserProfileClick(event)" title="Menu Akun &amp; Ganti Peran">
+          <div class="prabu-navbar-grid-icon" title="Aplikasi SI-PRABU">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="color: #64748b;">
               <rect x="3" y="3" width="7" height="7" rx="1.5" />
               <rect x="14" y="3" width="7" height="7" rx="1.5" />
@@ -167,43 +162,39 @@
               <rect x="14" y="14" width="7" height="7" rx="1.5" />
             </svg>
           </div>
-          <div class="sakti-user-pill-info">
-            <div class="sakti-user-pill-top">
+          <div class="prabu-user-pill-info">
+            <div class="prabu-user-pill-top">
               <span class="user-name" id="user-nama-pejabat">Tamu</span>
-              <span class="sakti-verified-badge" id="user-verified-badge" style="display: none;" title="Akun Terverifikasi">☑</span>
-              <span class="sakti-user-nip" id="user-nip-badge"></span>
+              <span class="prabu-verified-badge" id="user-verified-badge" style="display: none;" title="Akun Terverifikasi">☑</span>
+              <span class="prabu-user-nip" id="user-nip-badge"></span>
             </div>
-            <div class="sakti-user-pill-sub" id="user-active-role-sub">
+            <div class="prabu-user-pill-sub" id="user-active-role-sub">
               VALIDATOR SATKER 657811 2026
             </div>
           </div>
           <div class="avatar" id="user-avatar" style="margin-left: 6px;">👤</div>
 
-          <!-- SAKTI Profile Dropdown Menu (Gambar 2) -->
-          <div class="sakti-profile-dropdown" id="sakti-profile-dropdown" style="display: none;">
-            <div class="sakti-dropdown-caret"></div>
-            <button type="button" class="sakti-dropdown-item" onclick="openProfileInfoModal(event)">
+          <!-- SI-PRABU Profile Dropdown Menu -->
+          <div class="prabu-profile-dropdown" id="prabu-profile-dropdown" style="display: none;">
+            <div class="prabu-dropdown-caret"></div>
+            <button type="button" class="prabu-dropdown-item" onclick="openProfileInfoModal(event)">
               <span>Profile</span>
-              <span class="sakti-dropdown-icon">🪪</span>
+              <span class="prabu-dropdown-icon">🪪</span>
             </button>
-            <button type="button" class="sakti-dropdown-item" id="sakti-dropdown-ganti-peran" onclick="openSaktiGantiPeranModal(event)">
+            <button type="button" class="prabu-dropdown-item" id="prabu-dropdown-ganti-peran" onclick="openGantiPeranModal(event)">
               <span>Ganti Peran</span>
-              <span class="sakti-dropdown-icon">👥</span>
+              <span class="prabu-dropdown-icon">👥</span>
             </button>
-            <div class="sakti-dropdown-divider"></div>
-            <button type="button" class="sakti-dropdown-item text-danger" onclick="logout(event)">
+            <div class="prabu-dropdown-divider"></div>
+            <button type="button" class="prabu-dropdown-item text-danger" onclick="logout(event)">
               <span>Keluar</span>
-              <span class="sakti-dropdown-icon">⏻</span>
+              <span class="prabu-dropdown-icon">⏻</span>
             </button>
           </div>
         </div>
 
         <button class="btn btn-outline btn-sm" id="btn-nav-login" onclick="openLoginModal()" title="Masuk dengan Google atau Akun Lokal">
           🔑 Masuk
-        </button>
-
-        <button class="btn btn-outline-danger btn-sm" id="btn-nav-logout" onclick="logout()" title="Keluar">
-          🚪 Keluar
         </button>
       </div>
     </header>
@@ -220,14 +211,14 @@
           </button>
 
           <!-- 2. PENGANGGARAN -->
-          <div class="sakti-tree-group collapsed" id="folder-penganggaran">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-penganggaran', event)">
-              <span class="sakti-folder-label">
+          <div class="prabu-tree-group collapsed" id="folder-penganggaran">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-penganggaran', event)">
+              <span class="prabu-folder-label">
                 <span>📁 Penganggaran</span>
               </span>
-              <span class="sakti-chevron">▾</span>
+              <span class="prabu-chevron">▾</span>
             </button>
-            <div class="sakti-tree-children">
+            <div class="prabu-tree-children">
               <!-- RUH Belanja RKB (Semua Level) -->
               <button class="nav-item" data-view="view-rkb" onclick="switchView('view-rkb')">
                 <span class="icon">📘</span>
@@ -254,7 +245,7 @@
                 <span class="label">Pengesahan BA Pleno (Tahap 4)</span>
               </button>
 
-              <!-- Monitoring Revisi 4-Tahap SAKTI (Semua Level) -->
+              <!-- Monitoring Revisi 4-Tahap SI-PRABU (Semua Level) -->
               <button class="nav-item" data-view="view-revisi-monitoring" onclick="switchView('view-revisi-monitoring')" id="nav-item-revisi-monitoring">
                 <span class="icon">📊</span>
                 <span class="label">Monitoring Revisi (4 Tahap)</span>
@@ -270,14 +261,14 @@
           </div>
 
           <!-- 2B. REKAP ANGGARAN (BAB 21 CANON: REKAP PERENCANAAN & REKAP PELAKSANAAN) -->
-          <div class="sakti-tree-group collapsed" id="folder-rekap">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-rekap', event)">
-              <span class="sakti-folder-label">
+          <div class="prabu-tree-group collapsed" id="folder-rekap">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-rekap', event)">
+              <span class="prabu-folder-label">
                 <span>📁 Rekap Anggaran</span>
               </span>
-              <span class="sakti-chevron">▾</span>
+              <span class="prabu-chevron">▾</span>
             </button>
-            <div class="sakti-tree-children">
+            <div class="prabu-tree-children">
               <button class="nav-item" data-view="view-rekap-perencanaan" id="nav-item-rekap-perencanaan" onclick="switchView('view-rekap-perencanaan')">
                 <span class="icon">📊</span>
                 <span class="label">Rekap Perencanaan</span>
@@ -290,14 +281,14 @@
           </div>
 
           <!-- 3. REFERENSI (SSOT, SBM, BAS) -->
-          <div class="sakti-tree-group collapsed" id="folder-referensi">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-referensi', event)">
-              <span class="sakti-folder-label">
+          <div class="prabu-tree-group collapsed" id="folder-referensi">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-referensi', event)">
+              <span class="prabu-folder-label">
                 <span>📁 Referensi</span>
               </span>
-              <span class="sakti-chevron">▾</span>
+              <span class="prabu-chevron">▾</span>
             </button>
-            <div class="sakti-tree-children">
+            <div class="prabu-tree-children">
               <button class="nav-item" data-view="view-db-kuantitas" onclick="switchView('view-db-kuantitas')">
                 <span class="icon">📐</span>
                 <span class="label">Parameter & Kuantitas SSOT</span>
@@ -314,14 +305,14 @@
           </div>
 
           <!-- 4. DATABASE (3 MASTER WILAYAH & ELEKTORAL) -->
-          <div class="sakti-tree-group collapsed" id="folder-database">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-database', event)">
-              <span class="sakti-folder-label">
+          <div class="prabu-tree-group collapsed" id="folder-database">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-database', event)">
+              <span class="prabu-folder-label">
                 <span>📁 Database</span>
               </span>
-              <span class="sakti-chevron">▾</span>
+              <span class="prabu-chevron">▾</span>
             </button>
-            <div class="sakti-tree-children">
+            <div class="prabu-tree-children">
               <button class="nav-item" data-view="view-db-ppk" onclick="switchView('view-db-ppk')">
                 <span class="icon">🏛️</span>
                 <span class="label">Master Kecamatan (19 PPK)</span>
@@ -338,14 +329,14 @@
           </div>
 
           <!-- 5. PANDUAN (PEDOMAN PENGGUNA & REGULASI DASAR HUKUM) -->
-          <div class="sakti-tree-group collapsed" id="folder-panduan">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-panduan', event)">
-              <span class="sakti-folder-label">
+          <div class="prabu-tree-group collapsed" id="folder-panduan">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-panduan', event)">
+              <span class="prabu-folder-label">
                 <span>📁 Panduan</span>
               </span>
-              <span class="sakti-chevron">▾</span>
+              <span class="prabu-chevron">▾</span>
             </button>
-            <div class="sakti-tree-children">
+            <div class="prabu-tree-children">
               <button class="nav-item" data-view="view-panduan" id="nav-item-panduan-perencanaan" onclick="switchView('view-panduan')">
                 <span class="icon">📖</span>
                 <span class="label">Panduan Perencanaan</span>
@@ -368,14 +359,14 @@
           </div>
 
           <!-- 6. ADMINISTRASI (PENGGUNA, PENANDATANGAN, PENGATURAN & AUDIT LOG) -->
-          <div class="sakti-tree-group collapsed" id="folder-administrasi">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-administrasi', event)">
-              <span class="sakti-folder-label">
+          <div class="prabu-tree-group collapsed" id="folder-administrasi">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-administrasi', event)">
+              <span class="prabu-folder-label">
                 <span>📁 Administrasi</span>
               </span>
-              <span class="sakti-chevron">▾</span>
+              <span class="prabu-chevron">▾</span>
             </button>
-            <div class="sakti-tree-children">
+            <div class="prabu-tree-children">
               <!-- Pengguna Satker -->
               <button class="nav-item" data-view="view-users" onclick="switchView('view-users')" id="nav-item-users">
                 <span class="icon">👥</span>
@@ -415,14 +406,14 @@
           </button>
 
           <!-- 7. PENGEMBANG (KHUSUS DEVELOPER / emenje) -->
-          <div class="sakti-tree-group collapsed" id="folder-developer" style="display: none;">
-            <button type="button" class="sakti-folder-toggle" onclick="toggleSidebarFolder('folder-developer', event)">
-              <span class="sakti-folder-label">
+          <div class="prabu-tree-group collapsed" id="folder-developer" style="display: none;">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-developer', event)">
+              <span class="prabu-folder-label">
                 <span>🛠️ Pengembang (DEV)</span>
               </span>
-              <span class="sakti-chevron">▾</span>
+              <span class="prabu-chevron">▾</span>
             </button>
-            <div class="sakti-tree-children">
+            <div class="prabu-tree-children">
               <!-- Blueprint & PRD -->
               <button class="nav-item" data-view="view-developer" onclick="switchView('view-developer')" id="nav-item-developer">
                 <span class="icon">📐</span>
@@ -734,13 +725,13 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW: PENGAJUAN USULAN REVISI (SAKTI KEMENKEU STYLE STEPPER)       -->
+        <!-- VIEW: PENGAJUAN USULAN REVISI (SI-PRABU KEMENKEU STYLE STEPPER)       -->
         <!-- ================================================================= -->
         <section id="view-revisi-pengajuan" class="app-view">
           <div class="view-header">
             <div>
               <h2 class="view-title">Pengajuan Usulan Revisi RKB</h2>
-              <p class="view-desc">Lembar kerja mandiri penyusunan surat dinas dan dokumen usulan revisi pergeseran rincian belanja subbagian (Standar Alur Kerja SAKTI Kemenkeu).</p>
+              <p class="view-desc">Lembar kerja mandiri penyusunan surat dinas dan dokumen usulan revisi pergeseran rincian belanja subbagian (Alur Kerja 4-Tahap Terpadu).</p>
             </div>
             <div class="header-actions">
               <button class="btn btn-outline-primary" onclick="switchView('view-revisi-monitoring')">
@@ -750,43 +741,43 @@
           </div>
 
           <!-- STEPPER NAVIGATOR (1 - 2 - 3) -->
-          <div class="sakti-stepper">
-            <div class="sakti-step-item active" id="step-nav-1" onclick="goToRevisiStep(1)">
-              <div class="sakti-step-circle">1</div>
-              <div class="sakti-step-label">
-                <span class="sakti-step-title">Langkah 1: Informasi Usulan</span>
-                <span class="sakti-step-desc">Surat Usulan Dinas &amp; Alasan</span>
+          <div class="prabu-stepper">
+            <div class="prabu-step-item active" id="step-nav-1" onclick="goToRevisiStep(1)">
+              <div class="prabu-step-circle">1</div>
+              <div class="prabu-step-label">
+                <span class="prabu-step-title">Langkah 1: Informasi Usulan</span>
+                <span class="prabu-step-desc">Surat Usulan Dinas &amp; Alasan</span>
               </div>
             </div>
-            <div class="sakti-step-line" id="step-line-1"></div>
-            <div class="sakti-step-item" id="step-nav-2" onclick="goToRevisiStep(2)">
-              <div class="sakti-step-circle">2</div>
-              <div class="sakti-step-label">
-                <span class="sakti-step-title">Langkah 2: Matriks Perubahan</span>
-                <span class="sakti-step-desc">Semula - Menjadi Anggaran</span>
+            <div class="prabu-step-line" id="step-line-1"></div>
+            <div class="prabu-step-item" id="step-nav-2" onclick="goToRevisiStep(2)">
+              <div class="prabu-step-circle">2</div>
+              <div class="prabu-step-label">
+                <span class="prabu-step-title">Langkah 2: Matriks Perubahan</span>
+                <span class="prabu-step-desc">Semula - Menjadi Anggaran</span>
               </div>
             </div>
-            <div class="sakti-step-line" id="step-line-2"></div>
-            <div class="sakti-step-item" id="step-nav-3" onclick="goToRevisiStep(3)">
-              <div class="sakti-step-circle">3</div>
-              <div class="sakti-step-label">
-                <span class="sakti-step-title">Langkah 3: Dokumen &amp; Kirim</span>
-                <span class="sakti-step-desc">Bukti Dukung &amp; Finalisasi</span>
+            <div class="prabu-step-line" id="step-line-2"></div>
+            <div class="prabu-step-item" id="step-nav-3" onclick="goToRevisiStep(3)">
+              <div class="prabu-step-circle">3</div>
+              <div class="prabu-step-label">
+                <span class="prabu-step-title">Langkah 3: Dokumen &amp; Kirim</span>
+                <span class="prabu-step-desc">Bukti Dukung &amp; Finalisasi</span>
               </div>
             </div>
           </div>
 
           <!-- STEP 1 CONTENT: FORMULIR SURAT USULAN DINAS -->
-          <div class="sakti-form-card" id="revisi-step-1-content">
-            <div class="sakti-form-header">
+          <div class="prabu-form-card" id="revisi-step-1-content">
+            <div class="prabu-form-header">
               <h4>📄 Informasi Surat Usulan Revisi Subbagian</h4>
               <span class="badge badge-primary">Tahap 1 / Formulir Pengusulan</span>
             </div>
-            <div class="sakti-form-body">
+            <div class="prabu-form-body">
               <form id="form-revisi-step-1" onsubmit="event.preventDefault(); goToRevisiStep(2);">
-                <div class="sakti-grid-2col">
+                <div class="prabu-grid-2col">
                   <!-- Subbagian Pengusul -->
-                  <div class="sakti-form-group">
+                  <div class="prabu-form-group">
                     <label for="revisi-input-subbag">Subbagian Pengusul:</label>
                     <select id="revisi-input-subbag" class="form-control" onchange="handleSubbagInputChange(this.value)">
                       <option value="TEKNIS">Subbag Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
@@ -798,45 +789,45 @@
                   </div>
 
                   <!-- Komisioner Pengusul (Pengampu Divisi) -->
-                  <div class="sakti-form-group">
+                  <div class="prabu-form-group">
                     <label for="revisi-input-komisioner-pengusul">Komisioner Pengusul:</label>
                     <input type="text" id="revisi-input-komisioner-pengusul" class="form-control" readonly style="font-weight: 600; color: #1e40af; background: #eff6ff;" value="Anggota KPU Divisi Teknis Penyelenggaraan">
                   </div>
                 </div>
 
-                <div class="sakti-grid-2col">
+                <div class="prabu-grid-2col">
                   <!-- Nomor Surat Usulan -->
-                  <div class="sakti-form-group">
+                  <div class="prabu-form-group">
                     <label for="revisi-input-nomor-surat">Nomor Surat Usulan Dinas: <span style="color: red;">*</span></label>
                     <input type="text" id="revisi-input-nomor-surat" class="form-control" required placeholder="Contoh: 05/PP.01.2-SD/3521/2026">
                   </div>
 
                   <!-- Tanggal Surat Usulan -->
-                  <div class="sakti-form-group">
+                  <div class="prabu-form-group">
                     <label for="revisi-input-tanggal-surat">Tanggal Surat Usulan: <span style="color: red;">*</span></label>
                     <input type="date" id="revisi-input-tanggal-surat" class="form-control" required>
                   </div>
                 </div>
 
                 <!-- Perihal Usulan -->
-                <div class="sakti-form-group">
+                <div class="prabu-form-group">
                   <label for="revisi-input-perihal">Perihal Surat Usulan: <span style="color: red;">*</span></label>
                   <input type="text" id="revisi-input-perihal" class="form-control" required placeholder="Contoh: Usulan Revisi Pergeseran Rincian Output Tahapan Pilkada TA 2026">
                 </div>
 
                 <!-- Validasi PMK SBM -->
-                <div class="sakti-form-group">
+                <div class="prabu-form-group">
                   <label>Validasi Kepatuhan SBM / PMK:</label>
                   <input type="text" class="form-control" value="Lolos Uji SBM (Bagan Akun &amp; Standar Tarif Biaya Sesuai PMK)" readonly style="font-weight: 600; color: #15803d; background: #f0fdf4;">
                 </div>
 
                 <!-- Keterangan / Latar Belakang -->
-                <div class="sakti-form-group">
+                <div class="prabu-form-group">
                   <label for="revisi-input-keterangan">Keterangan / Latar Belakang &amp; Urgensi Usulan Revisi: <span style="color: red;">*</span></label>
                   <textarea id="revisi-input-keterangan" class="form-control" rows="3" required placeholder="Jelaskan secara rinci alasan pergeseran anggaran, kendala lapangan, atau kebutuhan kegiatan baru yang mendesak..."></textarea>
                 </div>
 
-                <div class="sakti-form-footer">
+                <div class="prabu-form-footer">
                   <button type="button" class="btn btn-outline" onclick="resetRevisiForm()">Batal / Reset</button>
                   <button type="submit" class="btn btn-primary">Langkah Selanjutnya: Matriks Perubahan &rarr;</button>
                 </div>
@@ -845,22 +836,22 @@
           </div>
 
           <!-- STEP 2 CONTENT: RINGKASAN INFORMASI UTAMA & TOTAL ANGGARAN (BAB 4.1 CANON) -->
-          <div class="sakti-form-card" id="revisi-step-2-content" style="display: none;">
-            <div class="sakti-form-header">
+          <div class="prabu-form-card" id="revisi-step-2-content" style="display: none;">
+            <div class="prabu-form-header">
               <h4>📊 Ringkasan Informasi Utama &amp; Total Anggaran Usulan</h4>
               <span class="badge badge-info">Langkah 2 / Rekapitulasi Fiskal</span>
             </div>
-            <div class="sakti-form-body">
-              <div class="sakti-semula-menjadi-banner">
-                <div class="sakti-summary-item">
+            <div class="prabu-form-body">
+              <div class="prabu-semula-menjadi-banner">
+                <div class="prabu-summary-item">
                   <label>Pagu Semula Subbagian:</label>
                   <span class="amount" id="preview-semula-val" style="color: #475569;">Rp 0</span>
                 </div>
-                <div class="sakti-summary-item">
+                <div class="prabu-summary-item">
                   <label>Pagu Menjadi (Usulan):</label>
                   <span class="amount" id="preview-menjadi-val" style="color: #1e40af;">Rp 0</span>
                 </div>
-                <div class="sakti-summary-item">
+                <div class="prabu-summary-item">
                   <label>Selisih Netto (+ / -):</label>
                   <span class="amount" id="preview-selisih-val" style="color: #16a34a;">Rp 0</span>
                 </div>
@@ -885,7 +876,7 @@
               <!-- Hidden legacy tbody for backward compatibility -->
               <table style="display: none;"><tbody id="table-revisi-matriks-preview"></tbody></table>
 
-              <div class="sakti-form-footer" style="margin-top: 16px;">
+              <div class="prabu-form-footer" style="margin-top: 16px;">
                 <button type="button" class="btn btn-outline" onclick="goToRevisiStep(1)">&larr; Kembali ke Informasi Surat</button>
                 <button type="button" class="btn btn-primary" onclick="goToRevisiStep(3)">Langkah Selanjutnya: Dokumen Pendukung &rarr;</button>
               </div>
@@ -893,25 +884,25 @@
           </div>
 
           <!-- STEP 3 CONTENT: DOKUMEN PENDUKUNG & FINAL SUBMIT (3 LINK WAJIB + KONFIRMASI, BAB 4.1 & FR-03) -->
-          <div class="sakti-form-card" id="revisi-step-3-content" style="display: none;">
-            <div class="sakti-form-header">
+          <div class="prabu-form-card" id="revisi-step-3-content" style="display: none;">
+            <div class="prabu-form-header">
               <h4>📎 Dokumen Pendukung Wajib (3 Tautan Google Drive) &amp; Konfirmasi</h4>
               <span class="badge badge-success">Langkah 3 / Finalisasi &amp; Kirim</span>
             </div>
-            <div class="sakti-form-body">
-              <div class="sakti-form-group">
+            <div class="prabu-form-body">
+              <div class="prabu-form-group">
                 <label for="revisi-input-dok-surat">1. Tautan Google Drive Nota Dinas / Surat Usulan Bertanda Tangan: <span style="color: red;">*</span></label>
                 <input type="url" id="revisi-input-dok-surat" class="form-control" required placeholder="https://drive.google.com/file/d/...">
                 <small style="color: #64748b;">Wajib: Tautan berkas Nota Dinas usulan revisi yang telah ditandatangani resmi.</small>
               </div>
 
-              <div class="sakti-form-group">
+              <div class="prabu-form-group">
                 <label for="revisi-input-dok-matriks">2. Tautan Google Drive RKB Hardcopy PIC Bertanda Tangan: <span style="color: red;">*</span></label>
                 <input type="url" id="revisi-input-dok-matriks" class="form-control" required placeholder="https://drive.google.com/file/d/...">
                 <small style="color: #64748b;">Wajib: Tautan berkas cetakan RKB / Matriks subbagian yang telah ditandatangani Ketua Divisi &amp; Kasubag terkait.</small>
               </div>
 
-              <div class="sakti-form-group">
+              <div class="prabu-form-group">
                 <label for="revisi-input-dok-lain">3. Tautan Google Drive Kerangka Acuan Kerja (KAK) Bertanda Tangan: <span style="color: red;">*</span></label>
                 <input type="url" id="revisi-input-dok-lain" class="form-control" required placeholder="https://drive.google.com/file/d/...">
                 <small style="color: #64748b;">Wajib: Tautan berkas KAK / TOR pendukung revisi yang telah ditandatangani.</small>
@@ -927,7 +918,7 @@
                 </label>
               </div>
 
-              <div class="sakti-form-footer" style="margin-top: 20px;">
+              <div class="prabu-form-footer" style="margin-top: 20px;">
                 <button type="button" class="btn btn-outline" onclick="goToRevisiStep(2)">&larr; Kembali ke Ringkasan</button>
                 <button type="button" class="btn btn-success" id="btn-submit-revisi-final" onclick="submitRevisiUsulanFinal()">
                   🚀 Kirim Usulan Revisi (Submit ke Tahap 1)
@@ -1020,7 +1011,7 @@
             </div>
           </div>
 
-          <div class="sakti-grid-2col">
+          <div class="prabu-grid-2col">
             <!-- PANEL KIRI: STATUS DRAF RKB AKTIF SAAT INI -->
             <div class="card">
               <div class="card-header">
@@ -1067,9 +1058,9 @@
               </div>
               <div class="card-body">
                 <form id="form-pengesahan-tahap4-rkb" onsubmit="event.preventDefault(); submitPengesahanTahap4Keseluruhan();">
-                  <div class="sakti-grid-2col">
+                  <div class="prabu-grid-2col">
                     <!-- Fase Perencanaan Eksplisit (Bab 17.1 & 17.2 Canon) -->
-                    <div class="sakti-form-group">
+                    <div class="prabu-form-group">
                       <label for="tahap4-input-fase">Fase Perencanaan Siklus Ini: <span style="color: red;">*</span></label>
                       <select id="tahap4-input-fase" class="form-control" required style="font-weight: 700; color: #1e40af;">
                         <option value="PRA_NPHD">PRA_NPHD — Pra-NPHD (Pagu Dinamis)</option>
@@ -1080,7 +1071,7 @@
                     </div>
 
                     <!-- Dasar Pengesahan Terpisah dari Fase (Bab 17.2 Canon) -->
-                    <div class="sakti-form-group">
+                    <div class="prabu-form-group">
                       <label for="tahap4-input-dasar-pengesahan">Dasar Pengesahan / Acuan Hukum: <span style="color: red;">*</span></label>
                       <select id="tahap4-input-dasar-pengesahan" class="form-control" required style="font-weight: 600;">
                         <option value="BA Pleno Komisioner">BA Pleno Komisioner</option>
@@ -1093,41 +1084,41 @@
                     </div>
                   </div>
 
-                  <div class="sakti-grid-2col">
+                  <div class="prabu-grid-2col">
                     <!-- Nomor BA Pleno -->
-                    <div class="sakti-form-group">
+                    <div class="prabu-form-group">
                       <label for="tahap4-input-nomor-ba">Nomor Berita Acara Pleno (BA Pleno): <span style="color: red;">*</span></label>
                       <input type="text" id="tahap4-input-nomor-ba" class="form-control" required placeholder="Contoh: 05/BA.01-BA/3521/2029">
                     </div>
 
                     <!-- Tanggal BA Pleno -->
-                    <div class="sakti-form-group">
+                    <div class="prabu-form-group">
                       <label for="tahap4-input-tanggal-ba">Tanggal Berita Acara Pleno: <span style="color: red;">*</span></label>
                       <input type="date" id="tahap4-input-tanggal-ba" class="form-control" required>
                     </div>
                   </div>
 
                   <!-- 3 Tautan Google Drive Terpisah (Bab 4.3 & FR-06 Canon) -->
-                  <div class="sakti-form-group">
+                  <div class="prabu-form-group">
                     <label for="tahap4-input-link-ba">1. Tautan Google Drive BA Pleno Bertanda Tangan: <span style="color: red;">*</span></label>
                     <input type="url" id="tahap4-input-link-ba" class="form-control" required placeholder="https://drive.google.com/file/d/...">
                     <small style="color: #64748b;">Wajib: Tautkan berkas scan Berita Acara Rapat Pleno yang telah ditandatangani Ketua &amp; Anggota Komisioner KPU.</small>
                   </div>
 
-                  <div class="sakti-form-group">
+                  <div class="prabu-form-group">
                     <label for="tahap4-input-link-rkb-final">2. Tautan Google Drive RKB Final Bertanda Tangan: <span style="color: red;">*</span></label>
                     <input type="url" id="tahap4-input-link-rkb-final" class="form-control" required placeholder="https://drive.google.com/file/d/...">
                     <small style="color: #64748b;">Wajib: Tautkan berkas RKB gabungan final yang telah ditandatangani resmi.</small>
                   </div>
 
-                  <div class="sakti-form-group">
+                  <div class="prabu-form-group">
                     <label for="tahap4-input-link-kak-gabungan">3. Tautan Google Drive KAK Gabungan: <span style="color: red;">*</span></label>
                     <input type="url" id="tahap4-input-link-kak-gabungan" class="form-control" required placeholder="https://drive.google.com/file/d/...">
                     <small style="color: #64748b;">Wajib: Tautkan berkas Kerangka Acuan Kerja (KAK) gabungan seluruh subbagian.</small>
                   </div>
 
                   <!-- Catatan / Keterangan Legalitas -->
-                  <div class="sakti-form-group">
+                  <div class="prabu-form-group">
                     <label for="tahap4-input-catatan">Catatan / Risalah Penetapan Pleno:</label>
                     <textarea id="tahap4-input-catatan" class="form-control" rows="2" placeholder="Tuliskan intisari putusan rapat pleno pengesahan revisi RKB ini..."></textarea>
                   </div>
@@ -1157,13 +1148,13 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW: MONITORING REVISI 4 TAHAP (STANDAR SAKTI KEMENKEU)           -->
+        <!-- VIEW: MONITORING REVISI 4 TAHAP (STANDAR SI-PRABU KEMENKEU)           -->
         <!-- ================================================================= -->
         <section id="view-revisi-monitoring" class="app-view">
           <div class="view-header">
             <div>
               <h2 class="view-title">Monitoring Siklus Proses Revisi</h2>
-              <p class="view-desc">Pelacakan berjenjang 4-Tahap Standar SAKTI: <b>Tahap 1 (Pengajuan)</b> &rarr; <b>Tahap 2 (Penelitian Rendatin)</b> &rarr; <b>Tahap 3 (ACC Pleno)</b> &rarr; <b>Tahap 4 (BA Pleno di Sahkan)</b>.</p>
+              <p class="view-desc">Pelacakan berjenjang 4-Tahap Terpadu: <b>Tahap 1 (Pengajuan)</b> &rarr; <b>Tahap 2 (Penelitian Rendatin)</b> &rarr; <b>Tahap 3 (ACC Pleno)</b> &rarr; <b>Tahap 4 (BA Pleno di Sahkan)</b>.</p>
             </div>
             <div class="header-actions">
               <!-- HANYA LEVEL 2 YANG MEMILIKI TOMBOL BUAT USULAN REVISI -->
@@ -1209,7 +1200,7 @@
             </div>
           </div>
 
-          <!-- TABEL GRID MONITORING 4 TAHAP SAKTI (DENGAN KOTAK WARNA SAKTI) -->
+          <!-- TABEL GRID MONITORING 4 TAHAP SI-PRABU (DENGAN KOTAK WARNA SAKTI) -->
           <div class="card">
             <div class="card-body" style="padding: 0;">
               <div class="table-responsive">
@@ -1348,10 +1339,10 @@
               </div>
 
               <!-- Info Singkat Baris Aktif yang Disorot -->
-              <span id="treeSelectedPill" class="sakti-selected-pill" style="display: none; max-width: 280px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 11.5px; padding: 4px 9px;" title="Baris Aktif yang Disorot"></span>
+              <span id="treeSelectedPill" class="prabu-selected-pill" style="display: none; max-width: 280px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 11.5px; padding: 4px 9px;" title="Baris Aktif yang Disorot"></span>
 
               <!-- Tombol Kontekstual Baris Aktif Sesuai Level Hirarki (L1..L6) -->
-              <div id="saktiActionButtons" style="display: inline-flex; align-items: center; gap: 6px;">
+              <div id="prabuActionButtons" style="display: inline-flex; align-items: center; gap: 6px;">
                 <!-- Populated via updateSelectedRowUI() based on selected row -->
               </div>
 
@@ -2302,23 +2293,23 @@
             </div>
           </div>
 
-          <!-- PETA HIERARKI, PENOMORAN & STANDAR PENULISAN RKB BERBASIS SAKTI (L1 s.d. L6 — 5 LAPIS LEVEL 4) -->
+          <!-- PETA HIERARKI, PENOMORAN & STANDAR PENULISAN RKB BERBASIS SI-PRABU (L1 s.d. L6 — 5 LAPIS LEVEL 4) -->
           <div class="card p-3 mb-4" style="border-top: 4px solid #0f766e; background: #ffffff;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
               <h3 style="font-size: 15.5px; font-weight: 800; color: #0f766e; margin: 0; display: flex; align-items: center; gap: 8px;">
-                <span>📐 Peta Hierarki, Penomoran &amp; Standar Penulisan RKB Berbasis SAKTI (L1 s.d. L6 &mdash; Maksimal 5 Lapis Anak Level 4)</span>
+                <span>📐 Peta Hierarki, Penomoran &amp; Standar Penulisan RKB (L1 s.d. L6 &mdash; Maksimal 5 Lapis Anak Level 4)</span>
               </h3>
-              <span style="background:#ccfbf1; color:#115e59; font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px;">DISIPLIN POHON RKKS SAKTI (BAB 25 PRD)</span>
+              <span style="background:#ccfbf1; color:#115e59; font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px;">DISIPLIN POHON HIERARKI RKB (BAB 25 PRD)</span>
             </div>
             <p style="font-size: 12.5px; color: #334155; line-height: 1.55; margin-bottom: 12px;">
-              Untuk menjamin ketepatan <em>rollup</em> subtotal di setiap induk dan konsistensi dengan cara kerja <strong>RKKS SAKTI</strong>, penulisan struktur RKB di SI-PRABU wajib mengikuti urutan level satu arah dari atas ke bawah (tidak boleh bolak-balik / <em>zig-zag</em> antara Sub-Komponen dan Kode Akun):
+              Untuk menjamin ketepatan <em>rollup</em> subtotal di setiap induk dan konsistensi perhitungan, penulisan struktur RKB di SI-PRABU wajib mengikuti urutan level satu arah dari atas ke bawah (tidak boleh bolak-balik / <em>zig-zag</em> antara Sub-Komponen dan Kode Akun):
             </p>
             <div class="table-responsive" style="margin-bottom: 12px;">
               <table class="table table-bordered table-hover" style="font-size: 12px; margin-bottom: 0;">
                 <thead>
                   <tr style="background: #f0fdfa; color: #0f766e;">
                     <th style="width: 115px;">Level RKB</th>
-                    <th style="width: 135px;">Padanan SAKTI</th>
+                    <th style="width: 135px;">Rujukan Standar</th>
                     <th style="width: 115px;">Format Kode</th>
                     <th>Peran Hierarki &amp; Contoh Penulisan</th>
                     <th style="width: 90px; text-align:center;">Kode Sistem</th>
@@ -2560,7 +2551,7 @@
                 <li>Pilih atau pastikan <strong>PIC subbagian</strong> yang menjadi kewenangan Anda. Gunakan pencarian kode/uraian dan filter bila diperlukan.</li>
                 <li>Buka cabang baris <strong>L1–L6</strong> untuk melihat induk dan rincian belanja.</li>
                 <li>Isi atau koreksi rincian yang diperbolehkan: <strong>uraian, faktor/pengali (F1–F4), volume, satuan, harga satuan, PIC, dan sasaran</strong>. Periksa jumlah anggaran yang dihitung sistem.</li>
-                <li>Jika perlu menambah baris, ikuti disiplin Pohon Hierarki SAKTI (<strong>Level 4 memiliki maksimal 5 lapis: <code>4.1 a.</code> &rarr; <code>4.2 1)</code> &rarr; <code>4.3 a)</code> &rarr; <code>4.4 (1)</code> &rarr; <code>4.5 (a)</code> di ATAS <code>Level 5 Akun 52xxxx</code></strong>).</li>
+                <li>Jika perlu menambah baris, ikuti disiplin Pohon Hierarki RKB (<strong>Level 4 memiliki maksimal 5 lapis: <code>4.1 a.</code> &rarr; <code>4.2 1)</code> &rarr; <code>4.3 a)</code> &rarr; <code>4.4 (1)</code> &rarr; <code>4.5 (a)</code> di ATAS <code>Level 5 Akun 52xxxx</code></strong>).</li>
                 <li>Sebelum menghapus baris induk, baca konfirmasi: <strong>semua anak di bawah induk tersebut ikut terhapus</strong>.</li>
                 <li>Klik tombol <strong>Simpan Perubahan RKB</strong> untuk menyimpan draf ke database, lalu periksa kembali total dan data PIC sebelum mengajukan revisi.</li>
               </ol>
@@ -2861,38 +2852,38 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 9: MONITORING UNDUHAN (SAKTI KEMENKEU MONITORING REPORT)      -->
+        <!-- VIEW 9: MONITORING UNDUHAN (SI-PRABU KEMENKEU MONITORING REPORT)      -->
         <!-- ================================================================= -->
         <section id="view-monitoring" class="app-view">
           <div class="view-header">
             <div>
               <h2 class="view-title">Monitoring Report</h2>
-              <p class="view-desc">Pemantauan Status Pemrosesan dan Pengunduhan Berkas Laporan Anggaran (Adopsi Sistem SAKTI Kemenkeu). Berkas fisik tersedia selama 1 jam sejak selesai dibuat, sedangkan riwayat unduhan tetap tercatat untuk keperluan audit.</p>
+              <p class="view-desc">Pemantauan Status Pemrosesan dan Pengunduhan Berkas Laporan Anggaran. Berkas fisik tersedia selama 1 jam sejak selesai dibuat, sedangkan riwayat unduhan tetap tercatat untuk keperluan audit.</p>
             </div>
           </div>
 
-          <!-- Parameter Card ala SAKTI -->
-          <div class="sakti-card-container mb-4">
-            <div class="sakti-parameter-groupbox">
-              <div class="sakti-parameter-legend">Parameter</div>
-              <div class="sakti-parameter-body">
-                <div class="sakti-form-row">
-                  <div class="sakti-form-label">Nama File</div>
-                  <div class="sakti-form-field">
+          <!-- Parameter Card ala SI-PRABU -->
+          <div class="prabu-card-container mb-4">
+            <div class="prabu-parameter-groupbox">
+              <div class="prabu-parameter-legend">Parameter</div>
+              <div class="prabu-parameter-body">
+                <div class="prabu-form-row">
+                  <div class="prabu-form-label">Nama File</div>
+                  <div class="prabu-form-field">
                     <input type="text" id="monitoring-search-file" class="input-text" placeholder="Masukan pencarian nama file.." onkeydown="if(event.key==='Enter') loadMonitoringReport()">
                   </div>
                 </div>
-                <div class="sakti-form-row">
-                  <div class="sakti-form-label">Tanggal</div>
-                  <div class="sakti-form-field" style="display: flex; align-items: center; gap: 8px;">
+                <div class="prabu-form-row">
+                  <div class="prabu-form-label">Tanggal</div>
+                  <div class="prabu-form-field" style="display: flex; align-items: center; gap: 8px;">
                     <input type="date" id="monitoring-date-start" class="input-text" style="max-width: 170px;">
                     <span style="font-size: 12px; font-weight: 600; color: #475569;">s.d</span>
                     <input type="date" id="monitoring-date-end" class="input-text" style="max-width: 170px;">
                   </div>
                 </div>
-                <div class="sakti-form-row" style="margin-top: 6px;">
-                  <div class="sakti-form-label"></div>
-                  <div class="sakti-form-field" style="display: flex; gap: 8px;">
+                <div class="prabu-form-row" style="margin-top: 6px;">
+                  <div class="prabu-form-label"></div>
+                  <div class="prabu-form-field" style="display: flex; gap: 8px;">
                     <button type="button" class="btn btn-primary" onclick="loadMonitoringReport()" style="min-width: 75px; background: #007bff; border-color: #007bff;">
                       Cari
                     </button>
@@ -3058,9 +3049,8 @@
             <div class="table-container" style="overflow-x:auto;">
               <table class="data-table" id="table-users" style="width:100%;font-size:12px;">
                 <thead>
-                  <tr style="background:#f8fafc;">
+                  <tr style="background:#f8fafc; border-bottom: 2px solid #cbd5e1;">
                     <th style="width:40px;text-align:center;">No</th>
-                    <th style="width:130px;">Username</th>
                     <th>Nama Pejabat / Pegawai</th>
                     <th>Jabatan</th>
                     <th style="min-width:240px;">Peran &amp; Hak Akses (3 Komponen)</th>
@@ -3133,50 +3123,67 @@
             <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
               <table class="table" style="margin: 0; font-size: 11.5px; border-collapse: separate; border-spacing: 0;">
                 <thead style="position: sticky; top: 0; z-index: 2; background: #f8fafc; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                  <tr>
-                    <th rowspan="2" style="padding: 10px 8px; width: 35px; text-align: center; vertical-align: middle; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; font-weight: 800;">No</th>
-                    <th rowspan="2" style="padding: 10px 14px; min-width: 180px; vertical-align: middle; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; font-weight: 800;">Nama Menu &amp; Fitur</th>
-                    <th rowspan="2" style="padding: 10px 12px; width: 135px; vertical-align: middle; border-bottom: 2px solid #cbd5e1; border-right: 2px solid #94a3b8; font-weight: 800;">Kategori / Folder</th>
-                    
-                    <!-- L0 Developer -->
-                    <th colspan="2" style="padding: 8px 10px; text-align: center; background: #f8fafc; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1;" title="Level 0: Lead Developer">
-                      <div style="font-weight: 800; color: #0f172a; font-size: 12px;">L0 (Developer)</div>
-                    </th>
-                    <!-- L1 Perencanaan -->
-                    <th colspan="2" style="padding: 8px 10px; text-align: center; background: #eff6ff; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1;" title="Level 1: Kasubbag Perencanaan &amp; Rendatin">
-                      <div style="font-weight: 800; color: #1e40af; font-size: 12px;">L1 (Perencanaan)</div>
-                    </th>
-                    <!-- L2 Subbag / Operator -->
-                    <th colspan="2" style="padding: 8px 10px; text-align: center; background: #f0fdf4; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1;" title="Level 2: Operator 5 Subbagian">
-                      <div style="font-weight: 800; color: #166534; font-size: 12px;">L2 (Subbag/Operator)</div>
-                    </th>
-                    <!-- L3 Pimpinan -->
-                    <th colspan="2" style="padding: 8px 10px; text-align: center; background: #fdf4ff; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1;" title="Level 3: Ketua &amp; Anggota Komisioner KPU">
-                      <div style="font-weight: 800; color: #86198f; font-size: 12px;">L3 (Pimpinan)</div>
-                    </th>
-                    <!-- L4 Auditor -->
-                    <th colspan="2" style="padding: 8px 10px; text-align: center; background: #fefce8; border-bottom: 1px solid #cbd5e1;" title="Level 4: Viewer / Auditor Eksternal">
-                      <div style="font-weight: 800; color: #854d0e; font-size: 12px;">L4 (Auditor)</div>
-                    </th>
-                  </tr>
-                  <tr style="background: #f8fafc; font-size: 11px;">
-                    <!-- L0 Subheaders -->
-                    <th style="padding: 6px 6px; text-align: center; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; width: 44px; font-weight: 700; color: #475569;">Akses</th>
-                    <th style="padding: 6px 6px; text-align: center; background: #f8fafc; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 78px; font-weight: 700; color: #475569;">Mode</th>
-                    <!-- L1 Subheaders -->
-                    <th style="padding: 6px 6px; text-align: center; background: #dbeafe; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; width: 44px; font-weight: 700; color: #1e40af;">Akses</th>
-                    <th style="padding: 6px 6px; text-align: center; background: #eff6ff; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 78px; font-weight: 700; color: #1e40af;">Mode</th>
-                    <!-- L2 Subheaders -->
-                    <th style="padding: 6px 6px; text-align: center; background: #dcfce7; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; width: 44px; font-weight: 700; color: #166534;">Akses</th>
-                    <th style="padding: 6px 6px; text-align: center; background: #f0fdf4; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 78px; font-weight: 700; color: #166534;">Mode</th>
-                    <!-- L3 Subheaders -->
-                    <th style="padding: 6px 6px; text-align: center; background: #f3e8ff; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; width: 44px; font-weight: 700; color: #86198f;">Akses</th>
-                    <th style="padding: 6px 6px; text-align: center; background: #fdf4ff; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 78px; font-weight: 700; color: #86198f;">Mode</th>
-                    <!-- L4 Subheaders -->
-                    <th style="padding: 6px 6px; text-align: center; background: #fef9c3; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; width: 44px; font-weight: 700; color: #854d0e;">Akses</th>
-                    <th style="padding: 6px 6px; text-align: center; background: #fefce8; border-bottom: 2px solid #cbd5e1; width: 78px; font-weight: 700; color: #854d0e;">Mode</th>
-                  </tr>
-                </thead>
+  <tr>
+    <th style="padding: 10px 8px; width: 35px; text-align: center; vertical-align: middle; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; font-weight: 800;">No</th>
+    <th style="padding: 10px 14px; min-width: 175px; vertical-align: middle; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; font-weight: 800;">Nama Menu &amp; Fitur</th>
+    <th style="padding: 10px 12px; width: 130px; vertical-align: middle; border-bottom: 2px solid #cbd5e1; border-right: 2px solid #94a3b8; font-weight: 800;">Kategori / Folder</th>
+    <!-- L0 Developer -->
+    <th style="padding: 8px 4px; text-align: center; background: #f8fafc; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 0: Lead Developer &amp; System Architect">
+      <div style="font-weight: 800; color: #0f172a; font-size: 11px;">L0</div>
+      <div style="font-size: 9px; color: #475569;">Developer</div>
+    </th>
+    <!-- L1 Admin Satker -->
+    <th style="padding: 8px 4px; text-align: center; background: #eff6ff; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 1: Administrator Utama Satker (Rendatin)">
+      <div style="font-weight: 800; color: #1e40af; font-size: 11px;">L1</div>
+      <div style="font-size: 9px; color: #2563eb;">Admin</div>
+    </th>
+    <!-- L2 Pengolah Data -->
+    <th style="padding: 8px 4px; text-align: center; background: #f0f9ff; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 2: Pengolah Data Perencanaan Anggaran">
+      <div style="font-weight: 800; color: #0369a1; font-size: 11px;">L2</div>
+      <div style="font-size: 9px; color: #0284c7;">Pengolah</div>
+    </th>
+    <!-- L3 Operator Subbag -->
+    <th style="padding: 8px 4px; text-align: center; background: #f0fdf4; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 3: Operator Pengelola Subbagian">
+      <div style="font-weight: 800; color: #166534; font-size: 11px;">L3</div>
+      <div style="font-size: 9px; color: #15803d;">Operator</div>
+    </th>
+    <!-- L4 Ketua KPU -->
+    <th style="padding: 8px 4px; text-align: center; background: #fff7ed; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 4: Ketua KPU (Kepala Lembaga - Peninjau Murni)">
+      <div style="font-weight: 800; color: #c2410c; font-size: 11px;">L4</div>
+      <div style="font-size: 9px; color: #ea580c;">Ketua KPU</div>
+    </th>
+    <!-- L5 Anggota KPU -->
+    <th style="padding: 8px 4px; text-align: center; background: #fdf4ff; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 5: Anggota Komisioner KPU (Peninjau Murni)">
+      <div style="font-weight: 800; color: #86198f; font-size: 11px;">L5</div>
+      <div style="font-size: 9px; color: #a21caf;">Komisioner</div>
+    </th>
+    <!-- L6 Sekretaris / KPA -->
+    <th style="padding: 8px 4px; text-align: center; background: #eef2ff; border-bottom: 2px solid #cbd5e1; border-right: 2px solid #6366f1; width: 84px;" title="Level 6: Kuasa Pengguna Anggaran (KPA) / Sekretaris (Peninjau Murni)">
+      <div style="font-weight: 800; color: #4338ca; font-size: 11px;">L6</div>
+      <div style="font-size: 9px; color: #4f46e5;">Sekr / KPA</div>
+    </th>
+    <!-- L7 Perbendaharaan -->
+    <th style="padding: 8px 4px; text-align: center; background: #ecfdf5; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 7: Pejabat Perbendaharaan Keuangan">
+      <div style="font-weight: 800; color: #047857; font-size: 11px;">L7</div>
+      <div style="font-size: 9px; color: #059669;">Keuangan</div>
+    </th>
+    <!-- L8 PPK / PBJ -->
+    <th style="padding: 8px 4px; text-align: center; background: #fffbeb; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 8: Pejabat Pembuat Komitmen &amp; PBJ">
+      <div style="font-weight: 800; color: #b45309; font-size: 11px;">L8</div>
+      <div style="font-size: 9px; color: #d97706;">PPK / PBJ</div>
+    </th>
+    <!-- L9 Badan Ad Hoc PPK -->
+    <th style="padding: 8px 4px; text-align: center; background: #f8fafc; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 9: Badan Ad Hoc — PPK (Kecamatan)">
+      <div style="font-weight: 800; color: #334155; font-size: 11px;">L9</div>
+      <div style="font-size: 9px; color: #475569;">PPK (Kec)</div>
+    </th>
+    <!-- L10 Badan Ad Hoc PPS -->
+    <th style="padding: 8px 4px; text-align: center; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; width: 80px;" title="Level 10: Badan Ad Hoc — PPS (Desa/Kelurahan)">
+      <div style="font-weight: 800; color: #475569; font-size: 11px;">L10</div>
+      <div style="font-size: 9px; color: #64748b;">PPS (Desa)</div>
+    </th>
+  </tr>
+</thead>
                 <tbody id="menu-matrix-table-body">
                   <!-- Populated via JS -->
                 </tbody>
@@ -3184,102 +3191,18 @@
             </div>
           </div>
 
-          <!-- TABEL 2: PEMBAGIAN PIC DI RKB BELANJA (SESUAI SPREADSHEET PIMPINAN) -->
-          <div class="card" style="margin-top: 24px; padding: 0; overflow: hidden; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-            <div style="padding: 12px 18px; background: #f8fafc; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-              <div>
-                <h3 style="margin: 0; font-size: 13.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px;">
-                  <span>📋 Pembagian PIC di RKB Belanja :</span>
-                </h3>
-                <span style="font-size: 11px; color: #64748b;">Matriks standar cakupan wewenang subbagian dan mode akses operasional belanja satker.</span>
-              </div>
-              <span class="badge badge-info" style="font-size: 10px; font-weight: 700;">Standar Juknis &amp; RBAC</span>
-            </div>
-            <div class="table-responsive">
-              <table class="table" style="margin: 0; font-size: 11.5px; border-collapse: separate; border-spacing: 0;">
-                <thead style="background: #f1f5f9;">
-                  <tr>
-                    <th style="padding: 9px 12px; width: 40px; text-align: center; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; font-weight: 800;">No</th>
-                    <th style="padding: 9px 16px; min-width: 220px; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; font-weight: 800;">Tingkatan / Peran Pengguna</th>
-                    <th style="padding: 9px 12px; text-align: center; width: 90px; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; background: #f0fdf4; font-weight: 800; color: #166534;">Rendatin</th>
-                    <th style="padding: 9px 12px; text-align: center; width: 90px; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; background: #f0fdf4; font-weight: 800; color: #166534;">KUL</th>
-                    <th style="padding: 9px 12px; text-align: center; width: 90px; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; background: #f0fdf4; font-weight: 800; color: #166534;">ParSDM</th>
-                    <th style="padding: 9px 12px; text-align: center; width: 90px; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #e2e8f0; background: #f0fdf4; font-weight: 800; color: #166534;">Teknis</th>
-                    <th style="padding: 9px 12px; text-align: center; width: 90px; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; background: #f0fdf4; font-weight: 800; color: #166534;">Hukum</th>
-                    <th style="padding: 9px 14px; text-align: center; width: 120px; border-bottom: 2px solid #cbd5e1; font-weight: 800;">Mode Akses</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 10px 12px; text-align: center; color: #64748b; font-weight: 700;">1</td>
-                    <td style="padding: 10px 16px; font-weight: 700; color: #0f172a;">L0 (Developer)</td>
-                    <td style="text-align: center; background: #f8fafc;"><span style="font-size: 16px; color: #15803d; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #f8fafc;"><span style="font-size: 16px; color: #15803d; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #f8fafc;"><span style="font-size: 16px; color: #15803d; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #f8fafc;"><span style="font-size: 16px; color: #15803d; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #f8fafc;"><span style="font-size: 16px; color: #15803d; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center;"><span class="badge" style="background: #fef3c7; color: #92400e; font-weight: 700; border: 1px solid #fde68a; padding: 3px 8px;">Editor</span></td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 10px 12px; text-align: center; color: #64748b; font-weight: 700;">2</td>
-                    <td style="padding: 10px 16px; font-weight: 700; color: #1e40af;">L1 (Tim Rendatin)</td>
-                    <td style="text-align: center; background: #eff6ff;"><span style="font-size: 16px; color: #1d4ed8; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #eff6ff;"><span style="font-size: 16px; color: #1d4ed8; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #eff6ff;"><span style="font-size: 16px; color: #1d4ed8; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #eff6ff;"><span style="font-size: 16px; color: #1d4ed8; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #eff6ff;"><span style="font-size: 16px; color: #1d4ed8; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center;"><span class="badge" style="background: #fef3c7; color: #92400e; font-weight: 700; border: 1px solid #fde68a; padding: 3px 8px;">Editor</span></td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 10px 12px; text-align: center; color: #64748b; font-weight: 700;">3</td>
-                    <td style="padding: 10px 16px; font-weight: 700; color: #166534;">L2 (PIC Divisi)</td>
-                    <td colspan="5" style="text-align: center; background: #f0fdf4; color: #166534; font-weight: 600; font-style: italic; letter-spacing: 0.3px;">Sesuai Pembagian PIC</td>
-                    <td style="text-align: center;"><span class="badge" style="background: #dcfce7; color: #166534; font-weight: 700; border: 1px solid #bbf7d0; padding: 3px 8px;">Viewer</span></td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 10px 12px; text-align: center; color: #64748b; font-weight: 700;">4</td>
-                    <td style="padding: 10px 16px; font-weight: 700; color: #166534;">L2 (PIC Kasubag dan Operator)</td>
-                    <td colspan="5" style="text-align: center; background: #f0fdf4; color: #166534; font-weight: 600; font-style: italic; letter-spacing: 0.3px;">Sesuai Pembagian PIC</td>
-                    <td style="text-align: center;"><span class="badge" style="background: #fef3c7; color: #92400e; font-weight: 700; border: 1px solid #fde68a; padding: 3px 8px;">Editor</span></td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 10px 12px; text-align: center; color: #64748b; font-weight: 700;">5</td>
-                    <td style="padding: 10px 16px; font-weight: 700; color: #86198f;">L3 (Pimpinan) (Ketua, Div Rendatin dan Sek)</td>
-                    <td style="text-align: center; background: #fdf4ff;"><span style="font-size: 16px; color: #86198f; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #fdf4ff;"><span style="font-size: 16px; color: #86198f; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #fdf4ff;"><span style="font-size: 16px; color: #86198f; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #fdf4ff;"><span style="font-size: 16px; color: #86198f; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #fdf4ff;"><span style="font-size: 16px; color: #86198f; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center;"><span class="badge" style="background: #dcfce7; color: #166534; font-weight: 700; border: 1px solid #bbf7d0; padding: 3px 8px;">Viewer</span></td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 10px 12px; text-align: center; color: #64748b; font-weight: 700;">6</td>
-                    <td style="padding: 10px 16px; font-weight: 700; color: #854d0e;">L4 (Auditor) (Sek)</td>
-                    <td style="text-align: center; background: #fefce8;"><span style="font-size: 16px; color: #854d0e; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #fefce8;"><span style="font-size: 16px; color: #854d0e; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #fefce8;"><span style="font-size: 16px; color: #854d0e; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #fefce8;"><span style="font-size: 16px; color: #854d0e; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center; background: #fefce8;"><span style="font-size: 16px; color: #854d0e; font-weight: 800;">☑</span></td>
-                    <td style="text-align: center;"><span class="badge" style="background: #dcfce7; color: #166534; font-weight: 700; border: 1px solid #bbf7d0; padding: 3px 8px;">Viewer</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- KOTAK CATATAN KHUSUS & INTEGRASI SPREADSHEET -->
-          <div style="margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 24px;">
+          <!-- KOTAK CATATAN KHUSUS ARSITEKTUR DECOUPLED RBAC & ABAC -->
+          <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 24px;">
             <div style="background: #fff; border: 1px solid #cbd5e1; border-left: 4px solid #0f172a; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-              <strong style="display: block; font-size: 12.5px; color: #0f172a; margin-bottom: 8px;">📌 Catatan Khusus Konten RKB :</strong>
-              <ul style="margin: 0; padding-left: 18px; font-size: 11.5px; color: #475569; line-height: 1.65;">
-                <li><strong>Fitur Terkait:</strong> Edit atau View RKB, Usulan Revisi, Dashboard, dan Download Excel/PDF.</li>
-                <li><strong>Isolasi Hak:</strong> Pengguna Level 2 (Subbag) hanya mendapatkan hak akses data sesuai PIC masing-masing.</li>
-              </ul>
+              <strong style="display: block; font-size: 12.5px; color: #0f172a; margin-bottom: 8px;">🛡️ Hak Akses Menu (Decoupled RBAC) :</strong>
+              <p style="margin: 0; font-size: 11.5px; color: #475569; line-height: 1.65;">
+                Matriks di atas murni mengatur izin <strong>visibilitas dan pembukaan menu</strong> untuk masing-masing tingkatan level pengguna (L0 s.d. L10). Menu yang tidak dicentang akan otomatis disembunyikan dari sidebar navigasi pengguna terkait.
+              </p>
             </div>
             <div style="background: #fff; border: 1px solid #cbd5e1; border-left: 4px solid #2563eb; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-              <strong style="display: block; font-size: 12.5px; color: #1e40af; margin-bottom: 8px;">💡 Catatan Hak Akses Menu :</strong>
+              <strong style="display: block; font-size: 12.5px; color: #1e40af; margin-bottom: 8px;">⚙️ Wewenang Belanja &amp; Mode Akses (Decoupled ABAC) :</strong>
               <p style="margin: 0; font-size: 11.5px; color: #475569; line-height: 1.65;">
-                Belum ada spesifikasi pemilihan RKB per PIC di matriks menu ini karena telah teratasi secara otomatis saat pengaturan di daftar pengguna pada <a href="javascript:void(0)" onclick="switchView('view-users')" style="color:#2563eb;font-weight:700;text-decoration:underline;">Manajemen Pengguna (Filter PIC)</a>.
+                Pengaturan hak operasional belanja (apakah berstatus <strong>EDITOR</strong> atau <strong>VIEWER</strong>) serta pembatasan subbagian pelaksana (<strong>PIC Subbag</strong>) diterapkan secara spesifik per pengguna pada modul <a href="javascript:void(0)" onclick="switchView('view-users')" style="color:#2563eb;font-weight:700;text-decoration:underline;">Manajemen Pengguna</a>.
               </p>
             </div>
           </div>
@@ -3309,7 +3232,7 @@
           <!-- KOTAK INFORMASI REGULASI PENANDATANGAN -->
           <div style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:10px; padding:14px 18px; margin-bottom:20px; line-height:1.5;">
             <div style="font-weight:700; font-size:13px; color:#1e3a8a; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-              <span>📜 Standar Tata Kelola Blok Penandatangan Dokumen (SAKTI &amp; Bab 22 Blueprint):</span>
+              <span>📜 Standar Tata Kelola Blok Penandatangan Dokumen (Bab 22 Blueprint):</span>
             </div>
             <div style="font-size:12px; color:#2563eb; display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:10px; margin-top:8px;">
               <div style="background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #dbeafe;">
@@ -3610,13 +3533,13 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- MODAL: EDIT / TAMBAH BARIS RKB (SAKTI LANDSCAPE MODE)                 -->
+    <!-- MODAL: EDIT / TAMBAH BARIS RKB (SI-PRABU LANDSCAPE MODE)                 -->
     <!-- ===================================================================== -->
     <div id="modal-row" class="modal-backdrop" style="display: none;">
-      <div class="modal-box modal-lg modal-sakti-landscape">
+      <div class="modal-box modal-lg modal-prabu-landscape">
         <div class="modal-header" style="padding: 12px 20px; background: linear-gradient(90deg, #0f172a 0%, #1e3a8a 100%); color: #ffffff;">
           <div style="display:flex; align-items:center; gap:10px;">
-            <span style="background:rgba(255,255,255,0.15); padding:4px 8px; border-radius:6px; font-size:12px; font-weight:700;">SAKTI RUH</span>
+            <span style="background:rgba(255,255,255,0.15); padding:4px 8px; border-radius:6px; font-size:12px; font-weight:700;">RUH BELANJA</span>
             <h3 id="modal-row-title" style="color:#ffffff; margin:0; font-size:15px;">Edit Rincian Belanja RKB</h3>
           </div>
           <button class="btn-close" onclick="closeRowModal()" style="color:#ffffff; opacity:0.85;">✕</button>
@@ -3625,7 +3548,7 @@
           <div id="modal-insertion-context" class="alert-info-box" style="margin-bottom: 10px; font-size: 12px; padding: 6px 12px; display: none;"></div>
           
           <!-- Baris Kompak: Banner Rekam Akun BAS & Opsi Checkbox Header Teks -->
-          <div class="sakti-modal-top-banners">
+          <div class="prabu-modal-top-banners">
             <div id="modal-suggest-akun-banner" style="background:#eff6ff;border:1px solid #bfdbfe;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11.5px;">
               <span style="color:#1e40af;">💡 <em>Perlu membuat <strong>Akun Belanja (BAS - Level 3)</strong> baru?</em></span>
               <button type="button" class="btn btn-xs btn-primary" onclick="switchToAkunModal()" style="font-size:11px;padding:3px 8px;font-weight:700;white-space:nowrap;">🏷️ Rekam Akun BAS</button>
@@ -3643,9 +3566,9 @@
             <input type="hidden" id="modal-row-id">
             <input type="hidden" id="modal-row-level" value="4">
             
-            <div class="form-row-grid sakti-landscape-grid">
+            <div class="form-row-grid prabu-landscape-grid">
               <!-- BAGIAN 1: IDENTITAS & KLASIFIKASI BARIS BELANJA -->
-              <div class="sakti-identity-row full-width">
+              <div class="prabu-identity-row full-width">
                 <!-- KODE / NO (Tampil saat mode Header Teks aktif) -->
                 <div id="modal-header-kode-group" class="form-group" style="display:none; margin-bottom:0;">
                   <label style="font-weight:700;">Kode / No:</label>
@@ -3724,12 +3647,12 @@
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                       <h4 style="margin:0; font-size:13px; color:#1e3a8a;">🧮 Faktor Multiplier Volume (F1 × F2 × F3 × F4 × Basis Pengali)</h4>
-                      <span class="badge-subtle" style="font-size:10.5px; background:#dbeafe; color:#1e40af; padding:2px 7px; border-radius:4px; font-weight:700;">Urutan Standar SAKTI: Volume → Harga Satuan</span>
+                      <span class="badge-subtle" style="font-size:10.5px; background:#dbeafe; color:#1e40af; padding:2px 7px; border-radius:4px; font-weight:700;">Urutan Standar: Volume → Harga Satuan</span>
                     </div>
                     <span style="font-size:11px; color:#2563eb; font-weight:600;">🔗 Terhubung Parameter Referensi SSOT</span>
                   </div>
 
-                  <div class="factors-grid sakti-factors-grid">
+                  <div class="factors-grid prabu-factors-grid">
                     <!-- FAKTOR 1 -->
                     <div class="factor-card">
                       <div class="factor-card-header">
@@ -3894,8 +3817,8 @@
                 <!-- ========================================================= -->
                 <!-- BAGIAN 3: HARGA SATUAN (Rp) & TARIF SBM CEPAT             -->
                 <!-- ========================================================= -->
-                <div class="sakti-harga-sbm-section full-width">
-                  <div class="sakti-harga-input-col">
+                <div class="prabu-harga-sbm-section full-width">
+                  <div class="prabu-harga-input-col">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                       <label style="margin:0; font-size:12.5px; font-weight:700; color:#0f172a;">💰 Harga Satuan (Rp):</label>
                       <button type="button" class="btn btn-xs btn-outline-primary" onclick="openSbmPickerModal()" style="font-size:11px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px; font-weight:600;">
@@ -3916,7 +3839,7 @@
                   </div>
 
                   <!-- QUICK CHIPS: SBM RELEVAN SESUAI KODE AKUN BAS -->
-                  <div id="modal-sbm-quick-container" class="sbm-quick-container sakti-sbm-quick-col">
+                  <div id="modal-sbm-quick-container" class="sbm-quick-container prabu-sbm-quick-col">
                     <div style="font-size:11px; color:#475569; display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:5px;">
                       <span>⚡ <strong>Tarif SBM Cepat Terkait Akun:</strong></span>
                       <span id="sbm-quick-status" style="font-size:10px; color:#64748b;">(Klik chip untuk otomatis mengisi Harga &amp; Satuan)</span>
@@ -3931,8 +3854,8 @@
               <!-- ========================================================= -->
               <!-- BAGIAN 4: CATATAN REVISI & LIVE PREVIEW KALKULASI         -->
               <!-- ========================================================= -->
-              <div class="sakti-bottom-summary-grid full-width">
-                <div class="sakti-bottom-left-col">
+              <div class="prabu-bottom-summary-grid full-width">
+                <div class="prabu-bottom-left-col">
                   <!-- CATATAN / ALASAN PERUBAHAN (JUSTIFIKASI REVISI) -->
                   <div class="form-group" style="margin-bottom:0;">
                     <label style="display:flex; justify-content:space-between; align-items:center;">
@@ -3961,7 +3884,7 @@
                 </div>
 
                 <!-- PREVIEW PERHITUNGAN MODAL -->
-                <div id="modal-calc-preview-card" class="calc-preview-card sakti-calc-preview-box">
+                <div id="modal-calc-preview-card" class="calc-preview-card prabu-calc-preview-box">
                   <div class="calc-line">
                     <span>Rumus Perhitungan:</span>
                     <strong id="modal-preview-formula" style="font-family:var(--font-mono); color:#1e293b;">-</strong>
@@ -4491,7 +4414,7 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- MODAL: REKAM AKUN BELANJA (BAS - LEVEL 3) SESUAI STANDAR SAKTI        -->
+    <!-- MODAL: REKAM AKUN BELANJA (BAS - LEVEL 3) SESUAI STANDAR SI-PRABU        -->
     <!-- ===================================================================== -->
     <div id="modal-add-akun" class="modal-backdrop" style="display: none; z-index: 1090;">
       <div class="modal-box" style="max-width: 540px;">
@@ -4501,7 +4424,7 @@
               <span>🏷️</span> Rekam Akun Belanja (BAS) Baru
             </h3>
             <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-              Standar Struktur Anggaran SAKTI (Level 3 Header Belanja)
+              Standar Struktur Anggaran (Level 3 Header Belanja)
             </div>
           </div>
           <button class="btn-close" onclick="closeAddAkunModal()">✕</button>
@@ -4778,36 +4701,33 @@
         <div class="modal-body">
           <form id="form-user" onsubmit="event.preventDefault(); submitUserForm();">
             <input type="hidden" id="modal-user-id">
+            <input type="hidden" id="modal-user-username">
+            <input type="hidden" id="modal-user-password">
 
             <div class="form-row-grid">
-              <div class="form-group">
-                <label>Username (Login):</label>
-                <input type="text" id="modal-user-username" class="input-text" required placeholder="Contoh: teknis_operator">
+              <div class="form-group full-width">
+                <label style="font-weight:700;color:#0f172a;">Email Terdaftar (Akun Google / Resmi SSO): <span style="color:#ef4444;">*</span></label>
+                <input type="email" id="modal-user-email" class="input-text" required placeholder="Contoh: user@kpu-ngawi.go.id atau user@gmail.com">
+                <small style="font-size:10.5px;color:#64748b;margin-top:3px;display:block;">Identitas utama Single Sign-On (SSO) Akun Google. Username &amp; sandi otomatis dikelola sistem terpusat.</small>
               </div>
 
               <div class="form-group">
-                <label id="modal-user-password-label">Password:</label>
-                <input type="password" id="modal-user-password" class="input-text" placeholder="Masukkan kata sandi">
-                <small id="modal-user-password-hint" style="font-size:10.5px;color:#64748b;display:none;margin-top:2px;">Kosongkan jika tidak ingin mengubah password.</small>
-              </div>
-
-              <div class="form-group">
-                <label>Nama Lengkap / Pejabat:</label>
+                <label style="font-weight:600;color:#334155;">Nama Lengkap / Pejabat: <span style="color:#ef4444;">*</span></label>
                 <input type="text" id="modal-user-nama" class="input-text" required placeholder="Contoh: Budi Santoso, S.Kom">
               </div>
 
               <div class="form-group">
-                <label>NIP / NIK:</label>
+                <label style="font-weight:600;color:#334155;">NIP / NIK:</label>
                 <input type="text" id="modal-user-nip" class="input-text" placeholder="Contoh: 198501012010011001 (opsional)">
               </div>
 
               <div class="form-group">
-                <label>Jabatan Kedinasan:</label>
+                <label style="font-weight:600;color:#334155;">Jabatan Kedinasan: <span style="color:#ef4444;">*</span></label>
                 <input type="text" id="modal-user-jabatan" class="input-text" required placeholder="Contoh: Staf Pelaksana Subbag Teknis">
               </div>
 
               <div class="form-group">
-                <label>Status Akun:</label>
+                <label style="font-weight:600;color:#334155;">Status Akun:</label>
                 <select id="modal-user-status" class="input-select">
                   <option value="1">Aktif (Dapat Digunakan)</option>
                   <option value="0">Nonaktif (Dibekukan)</option>
@@ -4815,44 +4735,39 @@
               </div>
 
               <div class="form-group full-width">
-                <label>Email Terdaftar (Akun Google / Resmi):</label>
-                <input type="email" id="modal-user-email" class="input-text" placeholder="Contoh: user@kpu-ngawi.go.id atau user@gmail.com">
-                <small style="font-size:10.5px;color:#64748b;margin-top:2px;display:block;">Digunakan untuk mencocokkan identitas saat login dengan Akun Google (Single Sign-On).</small>
-              </div>
-
-              <div class="form-group full-width">
-                <label style="font-weight:700;color:#0f172a;">Mode Kewenangan Akun (Multi-Peran):</label>
-                <select id="modal-user-role-mode" class="input-select">
-                  <option value="SWITCH">🎭 Mode Ganti Peran (SAKTI) - Pengguna memilih 1 peran aktif pada satu waktu</option>
-                  <option value="KUMULATIF">⚡ Mode Hak Kumulatif - Seluruh wewenang peran &amp; subbagian aktif serentak</option>
+                <label style="font-weight:700;color:#0f172a;">Mekanisme Pelaksanaan Multi-Peran:</label>
+                <select id="modal-user-role-mode" class="input-select" style="font-weight:600;">
+                  <option value="SWITCH">🎭 Sistem Peran Tunggal Bergantian (Pilih Peran Saat Login)</option>
+                  <option value="KUMULATIF">⚡ Sistem Wewenang Kumulatif (Perangkapan Subbagian Aktif Serentak)</option>
                 </select>
-                <small style="font-size:10.5px;color:#64748b;margin-top:2px;display:block;">Pengaturan wewenang multi-peran ini ditetapkan oleh Administrator/Perencana. Pengguna tidak dapat mengubah mode ini secara mandiri.</small>
+                <div style="font-size:10.5px;color:#64748b;margin-top:5px;line-height:1.45;background:#f8fafc;padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0;">
+                  • <strong>Sistem Peran Bergantian:</strong> Saat login, pengguna disuguhkan layar pemilihan 1 peran aktif yang akan digunakan.<br>
+                  • <strong>Sistem Wewenang Kumulatif:</strong> Seluruh wewenang subbagian aktif serentak dan pengguna langsung diarahkan ke Dashboard.
+                </div>
               </div>
             </div>
 
-            <!-- BLOK PENGATURAN PERAN (3 KOMPONEN: LEVEL, PIC, MODE AKSES) -->
+            <!-- BLOK PENGATURAN PERAN PENGGUNA -->
             <div style="margin-top: 18px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <label style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0;">
-                  🔑 Pengaturan Peran &amp; Hak Akses (3 Komponen)
+                  🔑 Penugasan Peran &amp; Cakupan Subbagian (Multi-Peran)
                 </label>
-                <span class="badge badge-info" style="font-size: 10px;">Mendukung Multi-Peran (Checklist SAKTI)</span>
+                <span class="badge badge-info" style="font-size: 10px;">Penugasan Multi-Peran</span>
               </div>
               <p style="font-size: 11px; color: #64748b; margin: 0 0 10px 0; line-height: 1.45;">
-                Kewenangan ditentukan oleh kombinasi <strong>Level Otoritas (0-4)</strong>, <strong>Cakupan PIC</strong>, dan <strong>Hak Aksi (Editor / Viewer)</strong>. Satu akun dapat memiliki lebih dari satu peran (misal: Kasubbag merangkap teknis &amp; hukum, atau Komisioner pengampu divisi).
+                Hak akses menu dan mode operasional (Editor/Viewer) telah diatur secara terpusat pada <strong>Matriks Hak Akses Menu Satker</strong>. Di sini tentukan <strong>Level Otoritas</strong>, <strong>Cakupan Subbag (PIC)</strong>, dan <strong>Keterangan Penugasan</strong>.
               </p>
 
-              <!-- TABEL PERAN YANG TERPASANG -->
+              <!-- TABEL PERAN YANG TERPASANG (5 KOLOM BERSIH) -->
               <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin-bottom: 12px;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
                   <thead>
                     <tr style="background: #e2e8f0; color: #334155; text-align: left; font-weight: 700;">
-                      <th style="padding: 6px 10px; width: 30px; text-align: center;">#</th>
+                      <th style="padding: 6px 10px; width: 35px; text-align: center;">#</th>
                       <th style="padding: 6px 10px;">Level Otoritas</th>
-                      <th style="padding: 6px 10px;">Cakupan PIC</th>
-                      <th style="padding: 6px 10px;">Hak Aksi</th>
-                      <th style="padding: 6px 10px;">Keterangan Peran</th>
-                      <th style="padding: 6px 10px; width: 60px; text-align: center;">Utama</th>
+                      <th style="padding: 6px 10px;">Cakupan PIC Subbagian</th>
+                      <th style="padding: 6px 10px;">Keterangan Penugasan</th>
                       <th style="padding: 6px 10px; width: 50px; text-align: center;">Aksi</th>
                     </tr>
                   </thead>
@@ -4867,15 +4782,21 @@
                 <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
                   + Tambah Peran ke Pengguna Ini:
                 </div>
-                <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.2fr auto; gap: 8px; align-items: end;">
+                <div style="display: grid; grid-template-columns: 1.4fr 1.1fr 1.5fr auto; gap: 8px; align-items: end;">
                   <div>
                     <label style="font-size: 10.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Level:</label>
                     <select id="modal-newrole-level" class="input-select" style="font-size: 11px; padding: 4px 6px;" onchange="onModalNewRoleLevelChange()">
-                      <option value="2" selected>Level 2 (Pelaksana Subbag)</option>
-                      <option value="3">Level 3 (Pimpinan / Viewer Murni)</option>
-                      <option value="4">Level 4 (Akses Menu Eksklusif / Rekap)</option>
-                      <option value="1">Level 1 (Perencana / Super Admin)</option>
-                      <option value="0">Level 0 (Developer Master)</option>
+                      <option value="0">Level 0: Lead Developer &amp; System Architect</option>
+                      <option value="1">Level 1: Administrator Utama Satker (Rendatin)</option>
+                      <option value="2">Level 2: Pengolah Data Perencanaan Anggaran</option>
+                      <option value="3" selected>Level 3: Operator Pengelola Subbagian</option>
+                      <option value="4">Level 4: Ketua KPU (Kepala Lembaga)</option>
+                      <option value="5">Level 5: Anggota Komisioner KPU</option>
+                      <option value="6">Level 6: Kuasa Pengguna Anggaran (KPA)</option>
+                      <option value="7">Level 7: Pejabat Perbendaharaan Keuangan</option>
+                      <option value="8">Level 8: Pejabat Pembuat Komitmen &amp; PBJ</option>
+                      <option value="9">Level 9: Badan Ad Hoc — PPK (Kecamatan)</option>
+                      <option value="10">Level 10: Badan Ad Hoc — PPS (Desa/Kelurahan)</option>
                     </select>
                   </div>
 
@@ -4892,15 +4813,7 @@
                   </div>
 
                   <div>
-                    <label style="font-size: 10.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Hak Aksi:</label>
-                    <select id="modal-newrole-mode" class="input-select" style="font-size: 11px; padding: 4px 6px;">
-                      <option value="EDITOR" selected>EDITOR (Input/Ubah)</option>
-                      <option value="VIEWER">VIEWER (Hanya Lihat)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style="font-size: 10.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Label / Keterangan:</label>
+                    <label style="font-size: 10.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Label / Keterangan Penugasan:</label>
                     <input type="text" id="modal-newrole-label" class="input-text" style="font-size: 11px; padding: 4px 8px;" placeholder="cth: Kasubbag Teknis">
                   </div>
 
@@ -4911,8 +4824,7 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </form>
+            </div></form>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary btn-sm" onclick="closeUserModal()">Batal</button>
@@ -5070,7 +4982,7 @@
               <span>📑 Format Berkas Multi-Sheet Resmi KPU (7 Sheet Satker Penuh):</span>
             </div>
             <ul style="margin: 0; padding-left: 18px; line-height: 1.55;">
-              <li><strong>Sheet 1 (RUH_Belanja_Resmi):</strong> Format cetak baku resmi KPU &amp; SAKTI.</li>
+              <li><strong>Sheet 1 (RUH_Belanja_Resmi):</strong> Format cetak baku resmi KPU Kabupaten Ngawi.</li>
               <li><strong>Sheet 2 (Data_Kertas_Kerja):</strong> Tabel data datar (flat) lengkap untuk analisis spreadsheet / pivot.</li>
               <li><strong>Sheet 3 (Matriks_Revisi):</strong> Matriks sandingan rincian belanja <em>Sebelum vs Menjadi</em> beserta selisih.</li>
               <li><strong>Sheet 4–7 (Rekap Anggaran):</strong> <em>Rekap_Eksekutif</em>, <em>Rekap_Kegiatan_RKB</em>, <em>Rekap_Subbagian</em>, dan <em>Rekap_Akun_BAS</em>.</li>
@@ -5638,7 +5550,7 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- MODAL: DETAIL USULAN REVISI (SAKTI 4-TAHAP TIMELINE & DOKUMEN)        -->
+    <!-- MODAL: DETAIL USULAN REVISI (SI-PRABU 4-TAHAP TIMELINE & DOKUMEN)        -->
     <!-- ===================================================================== -->
     <div id="modal-revisi-detail" class="modal-backdrop" style="display: none; z-index: 1080;">
       <div class="modal-box" style="max-width: 820px; width: 95%;">
@@ -5937,63 +5849,39 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- LAYAR PEMILIHAN PERAN PASCA-LOGIN SAKTI (GAMBAR 1)                -->
+    <!-- LAYAR PEMILIHAN PERAN PASCA-LOGIN SI-PRABU (GAMBAR 1)                -->
     <!-- ================================================================= -->
-    <div id="sakti-post-login-screen" class="sakti-role-screen-overlay" style="display: none;">
-      <div class="sakti-role-screen-card">
-        <div class="sakti-role-logo-area">
-          <svg class="sakti-role-logo" viewBox="0 0 100 110" width="62" height="68" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#0284c7" />
-                <stop offset="50%" stop-color="#034b94" />
-                <stop offset="100%" stop-color="#022859" />
-              </linearGradient>
-              <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#fef08a" />
-                <stop offset="50%" stop-color="#eab308" />
-                <stop offset="100%" stop-color="#ca8a04" />
-              </linearGradient>
-            </defs>
-            <polygon points="50,4 94,18 82,82 50,106 18,82 6,18" fill="url(#shieldGrad)" stroke="#facc15" stroke-width="3" stroke-linejoin="round" />
-            <polygon points="50,10 88,22 78,78 50,100 22,78 12,22" fill="none" stroke="#fef08a" stroke-width="1.2" opacity="0.85" />
-            <circle cx="50" cy="24" r="4.5" fill="url(#goldGrad)" />
-            <line x1="32" y1="36" x2="68" y2="36" stroke="url(#goldGrad)" stroke-width="3" stroke-linecap="round" />
-            <line x1="50" y1="24" x2="50" y2="68" stroke="url(#goldGrad)" stroke-width="3" />
-            <polygon points="32,38 24,52 40,52" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
-            <polygon points="68,38 60,52 76,52" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
-            <path d="M 22,46 Q 16,62 30,76 Q 40,82 50,86 Q 60,82 70,76 Q 84,62 78,46" fill="none" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" />
-            <rect x="25" y="88" width="50" height="9" rx="2" fill="url(#goldGrad)" />
-            <line x1="30" y1="92.5" x2="70" y2="92.5" stroke="#1e3a8a" stroke-width="1.5" />
-          </svg>
-          <div style="font-size: 15px; font-weight: 800; color: #0a2540; letter-spacing: 0.8px; line-height: 1.3; text-transform: uppercase;">KEMENTERIAN KEUANGAN</div>
-          <div style="font-size: 13.5px; font-weight: 800; color: #0a2540; letter-spacing: 0.8px; line-height: 1.3; text-transform: uppercase;">REPUBLIK INDONESIA</div>
+    <div id="prabu-post-login-screen" class="prabu-role-screen-overlay" style="display: none;">
+      <div class="prabu-role-screen-card">
+        <div class="prabu-role-logo-area">
+          <img src="/favicon.png" alt="Logo KPU" style="width: 62px; height: 62px; object-fit: contain; margin-bottom: 6px;">
+          <div style="font-size: 15px; font-weight: 800; color: #0a2540; letter-spacing: 0.8px; line-height: 1.3; text-transform: uppercase;">KOMISI PEMILIHAN UMUM</div>
+          <div style="font-size: 13.5px; font-weight: 800; color: #0a2540; letter-spacing: 0.8px; line-height: 1.3; text-transform: uppercase;">KABUPATEN NGAWI</div>
         </div>
 
-
-        <div class="sakti-role-greeting">
-          Selamat datang, <span id="sakti-login-user-name">PENGGUNA</span>
+        <div class="prabu-role-greeting">
+          Selamat datang, <span id="prabu-login-user-name">PENGGUNA</span>
         </div>
 
-        <!-- Search Input SAKTI -->
-        <div class="sakti-role-search-wrap">
-          <input type="text" id="sakti-login-search-input" class="sakti-role-search-input" placeholder="Pencarian kode satker, nama satker, peran atau tipe" oninput="filterSaktiLoginRoles()" />
+        <!-- Search Input SI-PRABU -->
+        <div class="prabu-role-search-wrap">
+          <input type="text" id="prabu-login-search-input" class="prabu-role-search-input" placeholder="Pencarian kode satker, nama satker, peran atau tipe" oninput="filterLoginRoles()" />
         </div>
 
         <!-- Role List Table Container -->
-        <div class="sakti-role-table-box">
-          <div class="sakti-role-table-header">
-            <div class="sakti-role-col-satker">Kode Satker</div>
-            <div class="sakti-role-col-peran">Peran</div>
-            <div class="sakti-role-col-tipe">Tipe</div>
+        <div class="prabu-role-table-box">
+          <div class="prabu-role-table-header">
+            <div class="prabu-role-col-satker">Kode Satker</div>
+            <div class="prabu-role-col-peran">Peran</div>
+            <div class="prabu-role-col-tipe">Tipe</div>
           </div>
-          <div class="sakti-role-rows-list" id="sakti-login-roles-list">
+          <div class="prabu-role-rows-list" id="prabu-login-roles-list">
             <!-- Rendered dynamically via JS -->
           </div>
         </div>
 
         <div>
-          <button type="button" class="sakti-btn-kembali-login" onclick="logout(true)">
+          <button type="button" class="prabu-btn-kembali-login" onclick="logout(true)">
             <span style="font-size: 16px;">⬅</span>
             <span>KEMBALI KE HALAMAN LOGIN</span>
           </button>
@@ -6002,29 +5890,29 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- MODAL GANTI PERAN SAKTI (GAMBAR 3)                                -->
+    <!-- MODAL GANTI PERAN SI-PRABU (GAMBAR 3)                                -->
     <!-- ================================================================= -->
-    <div id="modal-sakti-ganti-peran" class="modal-backdrop" style="display: none; z-index: 99999; align-items: center; justify-content: center;">
-      <div class="sakti-ganti-peran-modal-box">
-        <div class="sakti-modal-header">
+    <div id="modal-ganti-peran" class="modal-backdrop" style="display: none; z-index: 99999; align-items: center; justify-content: center;">
+      <div class="prabu-ganti-peran-modal-box">
+        <div class="prabu-modal-header">
           <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">Ganti Peran</h3>
-          <button type="button" class="btn-close" onclick="closeSaktiGantiPeranModal()">&times;</button>
+          <button type="button" class="btn-close" onclick="closeGantiPeranModal()">&times;</button>
         </div>
 
 
-        <!-- Search Input SAKTI -->
+        <!-- Search Input SI-PRABU -->
         <div style="padding: 16px 22px 8px;">
-          <input type="text" id="sakti-modal-search-input" class="sakti-role-search-input" placeholder="Pencarian kode satker, nama satker, peran atau tipe" oninput="filterSaktiModalRoles()" />
+          <input type="text" id="prabu-modal-search-input" class="prabu-role-search-input" placeholder="Pencarian kode satker, nama satker, peran atau tipe" oninput="filterModalRoles()" />
         </div>
 
         <!-- Role List Table Container -->
         <div style="padding: 8px 22px 20px;">
-          <div class="sakti-role-table-header">
-            <div class="sakti-role-col-satker">Kode Satker</div>
-            <div class="sakti-role-col-peran">Peran</div>
-            <div class="sakti-role-col-tipe">Tipe</div>
+          <div class="prabu-role-table-header">
+            <div class="prabu-role-col-satker">Kode Satker</div>
+            <div class="prabu-role-col-peran">Peran</div>
+            <div class="prabu-role-col-tipe">Tipe</div>
           </div>
-          <div class="sakti-role-rows-list" id="sakti-modal-roles-list">
+          <div class="prabu-role-rows-list" id="prabu-modal-roles-list">
             <!-- Rendered dynamically via JS -->
           </div>
         </div>
@@ -6032,25 +5920,25 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- POP-UP KONFIRMASI GANTI PERAN SAKTI (GAMBAR 3 INSET)              -->
+    <!-- POP-UP KONFIRMASI GANTI PERAN SI-PRABU (GAMBAR 3 INSET)              -->
     <!-- ================================================================= -->
-    <div id="modal-sakti-konfirmasi" class="sakti-confirm-popup" style="display: none; z-index: 100005;">
-      <div class="sakti-confirm-box">
-        <div class="sakti-confirm-title">Konfirmasi</div>
-        <div class="sakti-confirm-body">
+    <div id="modal-konfirmasi-peran" class="prabu-confirm-popup" style="display: none; z-index: 100005;">
+      <div class="prabu-confirm-box">
+        <div class="prabu-confirm-title">Konfirmasi</div>
+        <div class="prabu-confirm-body">
           <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; font-weight: 700; color: #1e293b; font-size: 13.5px;">
             <span style="font-size: 18px; color: #d97706; line-height: 1;">⚠️</span>
             <span>Apakah yakin ingin masuk sebagai</span>
           </div>
-          <div id="sakti-confirm-details-content" style="font-family: var(--font-mono, monospace); font-size: 12.5px; line-height: 1.8; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; color: #1e293b;">
+          <div id="prabu-confirm-details-content" style="font-family: var(--font-mono, monospace); font-size: 12.5px; line-height: 1.8; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; color: #1e293b;">
             <!-- Populated via JS -->
           </div>
         </div>
-        <div class="sakti-confirm-actions">
-          <button type="button" class="btn btn-primary btn-sm" id="btn-sakti-confirm-yes" onclick="executeSaktiRoleSwitch()" style="padding: 8px 24px; font-weight: 800; background: #0070f3; border-color: #0070f3; border-radius: 4px;">
+        <div class="prabu-confirm-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-role-confirm-yes" onclick="executeRoleSwitch()" style="padding: 8px 24px; font-weight: 800; background: #0070f3; border-color: #0070f3; border-radius: 4px;">
             ✓ Ya
           </button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="closeSaktiConfirmPopup()" style="padding: 8px 24px; font-weight: 800; background: #0070f3; border-color: #0070f3; border-radius: 4px;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="closeConfirmPopup()" style="padding: 8px 24px; font-weight: 800; background: #0070f3; border-color: #0070f3; border-radius: 4px;">
             ✖ Tidak
           </button>
         </div>
@@ -6141,12 +6029,12 @@
     </div>
 
     <script src="/data_juknis.js?v=1.0.0"></script>
-    <script src="/app.js?v=4.3.0"></script>
+    <script src="/app.js?v=4.4.2"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
         const s = document.createElement('script');
-        s.src = '/dev-tools.js';
+        s.src = '/dev-tools.js?v=' + Date.now();
         document.body.appendChild(s);
       }
     </script>

@@ -36,7 +36,11 @@ const AppState = {
   latestReferenceVersion: null,
   referenceChangeAcknowledged: false,
   rkbVersion: null,
-  menuMatrix: []
+  menuMatrix: [],
+  rekapState: {
+    perencanaan: { tab: 'EKSEKUTIF', data: null },
+    pelaksanaan: { tab: 'EKSEKUTIF', data: null }
+  }
 };
 
 // META DATA RESMI 5 SUBBAGIAN PELAKSANA KPU KABUPATEN NGAWI (SESUAI DASHBOARD)
@@ -51,7 +55,7 @@ const SUBBAG_META = {
 // ============================================================================
 // SISTEM ROUTING DINAMIS TERENKRIPSI ALA SAKTI KEMENKEU (43-CHAR TOKENS)
 // ============================================================================
-const SAKTI_VIEW_CODES = {
+const PRABU_VIEW_CODES = {
   'view-dashboard': 1,
   'view-rkb': 2,
   'view-siklus': 3,
@@ -81,7 +85,7 @@ const SAKTI_VIEW_CODES = {
   'view-juknis-kegiatan': 26
 };
 
-const SAKTI_CODE_TO_VIEW = {
+const PRABU_CODE_TO_VIEW = {
   1: 'view-dashboard',
   2: 'view-rkb',
   3: 'view-siklus',
@@ -110,7 +114,7 @@ const SAKTI_CODE_TO_VIEW = {
   26: 'view-juknis-kegiatan'
 };
 
-const SAKTI_VIEW_TITLES = {
+const PRABU_VIEW_TITLES = {
   'view-dashboard': 'Dashboard KPI Eksekutif',
   'view-rkb': 'RUH Belanja RKB Pilkada',
   'view-siklus': 'Pusat Siklus & Tata Kelola Anggaran',
@@ -167,7 +171,7 @@ function base64UrlToBuffer(base64UrlStr) {
   return new Uint8Array(0);
 }
 
-function generateSaktiLoginToken() {
+function generateLoginToken() {
   const bytes = new Uint8Array(15);
   if (window.crypto && window.crypto.getRandomValues) {
     window.crypto.getRandomValues(bytes);
@@ -177,8 +181,8 @@ function generateSaktiLoginToken() {
   return 'LL-' + bufferToBase64Url(bytes);
 }
 
-function generateSaktiRouteToken(viewId, isSanding = false) {
-  const code = SAKTI_VIEW_CODES[viewId] || 1;
+function generateRouteToken(viewId, isSanding = false) {
+  const code = PRABU_VIEW_CODES[viewId] || 1;
   const bytes = new Uint8Array(32);
   bytes[0] = 0x53; // 'S' Magic Byte
   bytes[1] = code;
@@ -208,7 +212,7 @@ function generateSaktiRouteToken(viewId, isSanding = false) {
   return bufferToBase64Url(bytes);
 }
 
-function parseSaktiRouteToken(tokenPath) {
+function parseRouteToken(tokenPath) {
   if (!tokenPath) return null;
   const clean = tokenPath.replace(/^\/+/, '').split('?')[0].split('#')[0];
   if (!clean) return null;
@@ -228,13 +232,21 @@ function parseSaktiRouteToken(tokenPath) {
     if (bytes[30] !== sum1 || bytes[31] !== sum2) return null;
     const viewCode = bytes[1];
     const isSanding = (bytes[2] & 1) === 1;
-    const viewId = SAKTI_CODE_TO_VIEW[viewCode];
+    const viewId = PRABU_CODE_TO_VIEW[viewCode];
     if (!viewId) return null;
     return { viewId, isSanding, isLogin: false };
   } catch (e) {
     return null;
   }
 }
+
+// Backward-compatibility aliases
+const SAKTI_VIEW_CODES = PRABU_VIEW_CODES;
+const SAKTI_CODE_TO_VIEW = PRABU_CODE_TO_VIEW;
+const SAKTI_VIEW_TITLES = PRABU_VIEW_TITLES;
+const generateSaktiRouteToken = generateRouteToken;
+const generateSaktiLoginToken = generateLoginToken;
+const parseSaktiRouteToken = parseRouteToken;
 
 // ============================================================================
 // UTILITIES & DEFENSIVE DOM HELPERS
@@ -497,7 +509,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderAllViews();
 
       // Kembalikan rute dari token URL jika ada
-      const parsedRoute = parseSaktiRouteToken(window.location.pathname);
+      const parsedRoute = parseRouteToken(window.location.pathname);
       let targetViewId = 'view-dashboard';
       if (parsedRoute && parsedRoute.viewId) {
         targetViewId = parsedRoute.viewId;
@@ -510,9 +522,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       switchView(targetViewId, false);
 
       // Pastikan URL termutakhirkan dengan token SAKTI yang valid
-      const token = generateSaktiRouteToken(AppState.activeView, AppState.revisionViewMode === 'SANDING');
+      const token = generateRouteToken(AppState.activeView, AppState.revisionViewMode === 'SANDING');
       window.history.replaceState({ viewId: AppState.activeView, revisionViewMode: AppState.revisionViewMode }, '', '/' + token);
-      document.title = (SAKTI_VIEW_TITLES[AppState.activeView] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
+      document.title = (PRABU_VIEW_TITLES[AppState.activeView] || 'SI-PRABU') + ' | SI-PRABU KPU Kabupaten Ngawi';
     }
   } catch (err) {
     console.error('Initialization error:', err);
@@ -549,7 +561,7 @@ async function initAuth() {
     AppState.currentUser = null;
     sessionStorage.removeItem('siprabu_is_developer_origin');
     // Jika user mencoba membuka link modul tanpa login, simpan untuk redirect setelah login
-    const parsed = parseSaktiRouteToken(window.location.pathname);
+    const parsed = parseRouteToken(window.location.pathname);
     if (parsed && parsed.viewId) {
       sessionStorage.setItem('siprabu_redirect_view', parsed.viewId);
     }
@@ -590,6 +602,8 @@ function showLoginScreen(updateHistory = true) {
   if (splash) splash.style.setProperty('display', 'none', 'important');
   if (loginScreen) loginScreen.style.setProperty('display', 'flex', 'important');
   if (appLayout) appLayout.style.display = 'none';
+  const postLoginScreen = document.getElementById('prabu-post-login-screen') || document.getElementById('sakti-post-login-screen');
+  if (postLoginScreen) postLoginScreen.style.display = 'none';
 
   const uInput = document.getElementById('screen-login-username');
   const pInput = document.getElementById('screen-login-password');
@@ -602,14 +616,18 @@ function showLoginScreen(updateHistory = true) {
   if (errBox) errBox.style.display = 'none';
 
   renderGoogleButton();
+  if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+    const devBox = document.getElementById('dev-quick-login-box');
+    if (devBox) devBox.style.display = 'block';
+  }
 
   if (updateHistory !== false) {
     const curPath = window.location.pathname.replace(/^\/+/, '');
     if (!curPath.startsWith('LL-')) {
-      const loginToken = generateSaktiLoginToken();
+      const loginToken = generateLoginToken();
       window.history.replaceState({ isLogin: true }, '', '/' + loginToken);
     }
-    document.title = 'Masuk Sistem | SAKTI Kemenkeu - KPU Ngawi';
+    document.title = 'Masuk Sistem | SI-PRABU KPU Kabupaten Ngawi';
   }
 }
 
@@ -620,6 +638,8 @@ function showMainApp() {
   if (splash) splash.style.setProperty('display', 'none', 'important');
   if (loginScreen) loginScreen.style.setProperty('display', 'none', 'important');
   if (appLayout) appLayout.style.display = 'flex';
+  const postLoginScreen = document.getElementById('sakti-post-login-screen');
+  if (postLoginScreen) postLoginScreen.style.display = 'none';
 
   const user = AppState.currentUser;
   if (typeof renderActiveRoleSwitcher === 'function') renderActiveRoleSwitcher(user);
@@ -774,7 +794,7 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   }
   const isDev = isDevUnrestricted || userLevels.has(0) || user.role_id === 'developer' || user.username === 'emenje';
 
-  // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Strict SAKTI Canon)
+  // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Strict RBAC Peran Aktif)
   matrix.forEach(item => {
     const btn = document.querySelector('button[data-view="' + item.menu_key + '"]');
     if (!btn) return;
@@ -796,14 +816,14 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   });
 
   // 2. Evaluasi Folder (Auto-Hide jika semua submenu di dalamnya 'none')
-  const folders = document.querySelectorAll('.sakti-tree-group');
+  const folders = document.querySelectorAll('.prabu-tree-group, .sakti-tree-group');
   folders.forEach(folder => {
     if (folder.id === 'folder-developer') {
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      folder.style.display = (isDevOrigin && isLocalhost) ? 'block' : 'none';
+      folder.style.display = (isDevOrigin && isLocalhost && activeLevel === 0) ? 'block' : 'none';
       return;
     }
-    const children = folder.querySelectorAll('.sakti-tree-children button.nav-item');
+    const children = folder.querySelectorAll('.prabu-tree-children button.nav-item, .sakti-tree-children button.nav-item');
     let hasVisible = false;
     children.forEach(c => {
       if (c.style.display !== 'none') hasVisible = true;
@@ -833,89 +853,158 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
 
 
 // ==============================================================================
-// SAKTI KEMENKEU MULTI-ROLE CANON IMPLEMENTATION (GAMBAR 1, 2, 3)
+// SISTEM MANAJEMEN MULTI-PERAN SATKER SI-PRABU KPU KABUPATEN NGAWI
 // ==============================================================================
-let SaktiRoleState = {
+let RoleSelectionState = {
   pendingRoleId: null,
   isFromPostLogin: false,
-  loginSearchFilter: '',
-  modalSearchFilter: ''
+  loginSearchFilter: "",
+  modalSearchFilter: ""
 };
+let SaktiRoleState = RoleSelectionState; // Alias backward-compatibility
 
-function getSaktiRoleNomenclature(role, user) {
+function getSelectableRolesForUser(user) {
+  if (!user) return [];
+  if (isDeveloperSession()) {
+    const simRoles = [
+      { id: 1001, level: 1, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Administrator Utama Satker (Rendatin)" },
+      { id: 1002, level: 2, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pengolah Data Perencanaan Anggaran" },
+      { id: 1003, level: 3, pic: "TEKNIS", mode_akses: "EDITOR", label_peran: "Operator Subbag Teknis" },
+      { id: 1004, level: 4, pic: "SEMUA", mode_akses: "VIEWER", label_peran: "Ketua KPU (Kepala Lembaga)" },
+      { id: 1005, level: 5, pic: "TEKNIS", mode_akses: "VIEWER", label_peran: "Anggota Komisioner KPU" },
+      { id: 1006, level: 6, pic: "SEMUA", mode_akses: "VIEWER", label_peran: "Kuasa Pengguna Anggaran (KPA)" },
+      { id: 1007, level: 7, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pejabat Perbendaharaan Keuangan" },
+      { id: 1008, level: 8, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pejabat Pembuat Komitmen & PBJ" },
+      { id: 1009, level: 9, pic: "KECAMATAN", mode_akses: "EDITOR", label_peran: "Badan Ad Hoc — PPK (Kecamatan)" },
+      { id: 1010, level: 10, pic: "DESA", mode_akses: "EDITOR", label_peran: "Badan Ad Hoc — PPS (Desa/Kelurahan)" }
+    ];
+    // Jika Developer sedang dalam mode simulasi peran (level > 0), sertakan opsi reset kembali ke Developer Level 0
+    if (Number(user.level) > 0) {
+      simRoles.unshift({ id: 10, level: 0, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Kembali ke Lead Developer (Akses Penuh Level 0)" });
+    }
+    // Jika Developer sedang di Level 0 asli, JANGAN sertakan Level 0 di daftar pilihan ganti peran!
+    return simRoles;
+  }
+
+  // Untuk Pengguna Non-Developer (Satker):
+  let roles = Array.isArray(user.roles) ? [...user.roles] : [];
+  return roles.filter(r => Number(r.level) !== 0);
+}
+
+function getRoleNomenclature(role, user) {
   if (!role) {
     return {
-      kodeSatker: '657811',
-      peran: 'OPERATOR',
-      tipe: 'SATKER',
-      roleCode: 'ROLE_OPERATOR',
-      deskripsiSatker: 'KPU KABUPATEN NGAWI',
-      kodeUakpb: '076010500657811000KD',
-      userId: 'opr_657811_198401012009121001',
-      labelPeran: 'OPERATOR'
+      kodeSatker: "657811",
+      peran: "OPERATOR",
+      tipe: "SATKER",
+      roleCode: "ROLE_OPERATOR",
+      deskripsiSatker: "KPU KABUPATEN NGAWI",
+      kodeUakpb: "076010500657811000KD",
+      userId: "opr_657811_198401012009121001",
+      labelPeran: "OPERATOR"
     };
   }
   const lvl = Number(role.level);
-  const pic = String(role.pic || user?.pic_subbag || 'SEMUA').toUpperCase();
-  let peranLabel = 'OPERATOR';
-  let roleCode = 'ROLE_OPERATOR';
-  let prefix = 'opr';
+  const pic = String(role.pic || user?.pic_subbag || "SEMUA").toUpperCase();
+  let peranLabel = "OPERATOR";
+  let roleCode = "ROLE_OPERATOR";
+  let prefix = "opr";
 
   if (lvl === 0) {
-    peranLabel = 'ADMINISTRATOR';
-    roleCode = 'ROLE_ADMINISTRATOR';
-    prefix = 'adm';
+    if (role.id === 10 || (role.label_peran && role.label_peran.includes("Developer"))) {
+      peranLabel = "KEMBALI KE DEVELOPER (AKSES PENUH)";
+      roleCode = "ROLE_DEVELOPER";
+      prefix = "dev";
+    } else {
+      peranLabel = "ADMINISTRATOR";
+      roleCode = "ROLE_ADMINISTRATOR";
+      prefix = "adm";
+    }
   } else if (lvl === 1) {
-    peranLabel = 'VALIDATOR';
-    roleCode = 'ROLE_VALIDATOR';
-    prefix = 'val';
+    peranLabel = "VALIDATOR";
+    roleCode = "ROLE_VALIDATOR";
+    prefix = "val";
   } else if (lvl === 2) {
-    peranLabel = pic !== 'SEMUA' ? `OPERATOR (${pic})` : 'OPERATOR';
-    roleCode = pic !== 'SEMUA' ? `ROLE_OPERATOR_${pic}` : 'ROLE_OPERATOR';
-    prefix = 'opr';
+    peranLabel = "OPERATOR (PERENCANAAN)";
+    roleCode = "ROLE_OPERATOR_PERENCANAAN";
+    prefix = "opr";
   } else if (lvl === 3) {
-    peranLabel = 'APPROVER';
-    roleCode = 'ROLE_APPROVER';
-    prefix = 'app';
+    peranLabel = pic !== "SEMUA" ? `OPERATOR (${pic})` : "OPERATOR";
+    roleCode = pic !== "SEMUA" ? `ROLE_OPERATOR_${pic}` : "ROLE_OPERATOR";
+    prefix = "opr";
   } else if (lvl === 4) {
-    peranLabel = 'REKAP TAKTIS';
-    roleCode = 'ROLE_REKAP_TAKTIS';
-    prefix = 'aud';
+    peranLabel = "APPROVER (KETUA KPU)";
+    roleCode = "ROLE_APPROVER_KETUA";
+    prefix = "app";
+  } else if (lvl === 5) {
+    peranLabel = pic !== "SEMUA" ? `APPROVER (KOMISIONER ${pic})` : "APPROVER (KOMISIONER)";
+    roleCode = "ROLE_APPROVER_KOM";
+    prefix = "app";
+  } else if (lvl === 6) {
+    peranLabel = "APPROVER (KPA)";
+    roleCode = "ROLE_APPROVER_KPA";
+    prefix = "app";
+  } else if (lvl === 7) {
+    peranLabel = "VALIDATOR (KEUANGAN)";
+    roleCode = "ROLE_VALIDATOR_KEU";
+    prefix = "val";
+  } else if (lvl === 8) {
+    peranLabel = "OPERATOR (PPK/PBJ)";
+    roleCode = "ROLE_OPERATOR_PPK";
+    prefix = "opr";
+  } else if (lvl === 9) {
+    peranLabel = pic !== "SEMUA" ? `OPERATOR (PPK ${pic})` : "OPERATOR (PPK KEC)";
+    roleCode = "ROLE_OPERATOR_KEC";
+    prefix = "opr";
+  } else if (lvl === 10) {
+    peranLabel = pic !== "SEMUA" ? `OPERATOR (PPS ${pic})` : "OPERATOR (PPS DESA)";
+    roleCode = "ROLE_OPERATOR_DESA";
+    prefix = "opr";
   } else {
     peranLabel = role.label_peran ? role.label_peran.toUpperCase() : `LEVEL ${lvl}`;
     roleCode = `ROLE_LEVEL_${lvl}`;
-    prefix = 'usr';
+    prefix = "usr";
   }
 
-  const rawNip = user?.nip || user?.username || '198401012009121001';
-  const cleanDigits = String(rawNip).replace(/\D/g, '');
-  const userNipId = cleanDigits.length >= 8 ? cleanDigits : (user?.username || '198401012009121001');
+  const rawNip = user?.nip || user?.username || "198401012009121001";
+  const cleanDigits = String(rawNip).replace(/\D/g, "");
+  const userNipId = cleanDigits.length >= 8 ? cleanDigits : (user?.username || "198401012009121001");
   const userIdFormatted = `${prefix}_657811_${userNipId}`;
 
   return {
-    kodeSatker: '657811',
+    kodeSatker: "657811",
     peran: peranLabel,
-    tipe: 'SATKER',
+    tipe: (lvl === 0 && (role.id === 10 || role.label_peran?.includes("Developer"))) ? "SISTEM" : "SATKER",
     roleCode: roleCode,
-    deskripsiSatker: 'KPU KABUPATEN NGAWI',
-    kodeUakpb: '076010500657811000KD',
+    deskripsiSatker: "KPU KABUPATEN NGAWI",
+    kodeUakpb: "076010500657811000KD",
     userId: userIdFormatted,
     labelPeran: role.label_peran || peranLabel
   };
 }
+const getSaktiRoleNomenclature = getRoleNomenclature;
+window.getRoleNomenclature = getRoleNomenclature;
+window.getSaktiRoleNomenclature = getRoleNomenclature;
 
-function getSaktiRoleHeaderSub(role, user) {
+function getRoleHeaderSub(role, user) {
   const lvl = role ? Number(role.level) : Number(user?.level ?? 1);
-  if (lvl === 0) return 'ADMINISTRATOR SATKER 657811';
-  if (lvl === 1) return 'VALIDATOR SATKER 657811';
-  if (lvl === 2) {
-    const pic = role ? String(role.pic).toUpperCase() : String(user?.pic_subbag || 'TEKNIS').toUpperCase();
+  if (lvl === 0) return "LEAD DEVELOPER SATKER 657811";
+  if (lvl === 1) return "VALIDATOR SATKER 657811";
+  if (lvl === 2) return "OPERATOR PERENCANAAN SATKER 657811";
+  if (lvl === 3) {
+    const pic = role ? String(role.pic).toUpperCase() : String(user?.pic_subbag || "TEKNIS").toUpperCase();
     return `OPERATOR ${pic} SATKER 657811`;
   }
-  if (lvl === 3) return 'APPROVER SATKER 657811';
-  if (lvl === 4) return 'REKAP TAKTIS SATKER 657811';
-  return 'SATKER 657811';
+  if (lvl === 4) return "APPROVER (KETUA KPU) SATKER 657811";
+  if (lvl === 5) return "APPROVER (KOMISIONER) SATKER 657811";
+  if (lvl === 6) return "APPROVER (KPA) SATKER 657811";
+  if (lvl === 7) return "VALIDATOR (KEUANGAN) SATKER 657811";
+  if (lvl === 8) return "OPERATOR (PPK/PBJ) SATKER 657811";
+  if (lvl === 9) return "OPERATOR AD HOC PPK (KECAMATAN)";
+  if (lvl === 10) return "OPERATOR AD HOC PPS (DESA)";
+  return "SATKER 657811";
 }
+const getSaktiRoleHeaderSub = getRoleHeaderSub;
 
 function handleUserProfileClick(event) {
   if (event) event.stopPropagation();
@@ -923,88 +1012,78 @@ function handleUserProfileClick(event) {
     openLoginModal();
     return;
   }
-  const dropdown = document.getElementById('sakti-profile-dropdown');
+  const dropdown = document.getElementById("prabu-profile-dropdown") || document.getElementById("sakti-profile-dropdown");
   if (dropdown) {
-    const isOpen = dropdown.style.display === 'block';
-    dropdown.style.display = isOpen ? 'none' : 'block';
+    const isOpen = dropdown.style.display === "block";
+    dropdown.style.display = isOpen ? "none" : "block";
   }
 }
 
-// Tutup dropdown saat klik di luar
-window.addEventListener('click', function(e) {
-  const dropdown = document.getElementById('sakti-profile-dropdown');
-  if (dropdown && dropdown.style.display === 'block') {
-    if (!e.target.closest('#user-profile-pill')) {
-      dropdown.style.display = 'none';
+window.addEventListener("click", function(e) {
+  const dropdown = document.getElementById("prabu-profile-dropdown") || document.getElementById("sakti-profile-dropdown");
+  if (dropdown && dropdown.style.display === "block") {
+    if (!e.target.closest("#user-profile-pill")) {
+      dropdown.style.display = "none";
     }
   }
 });
 
 function openProfileInfoModal(event) {
   if (event) event.stopPropagation();
-  const dropdown = document.getElementById('sakti-profile-dropdown');
-  if (dropdown) dropdown.style.display = 'none';
+  const dropdown = document.getElementById("prabu-profile-dropdown") || document.getElementById("sakti-profile-dropdown");
+  if (dropdown) dropdown.style.display = "none";
 
   const user = AppState.currentUser;
   if (!user) return;
   const activeRole = user.active_role || (user.roles ? user.roles[0] : null);
-  const nom = getSaktiRoleNomenclature(activeRole, user);
+  const nom = getRoleNomenclature(activeRole, user);
 
-  alert(`[PROFILE SAKTI SI-PRABU]\n\nNama: ${user.nama_pejabat || user.username}\nUsername: ${user.username}\nNIP: ${user.nip || '-'}\nPeran Aktif: ${nom.peran}\nKode Satker: 657811 (KPU KABUPATEN NGAWI)\nKode UAKPB: 076010500657811000KD\nMode Akses: ${user.mode_akses || 'VIEWER'}`);
+  alert(`[PROFIL PENGGUNA SI-PRABU]\n\nNama: ${user.nama_pejabat || user.username}\nUsername: ${user.username}\nNIP: ${user.nip || "-"}\nPeran Aktif: ${nom.peran}\nKode Satker: 657811 (KPU KABUPATEN NGAWI)\nKode UAKPB: 076010500657811000KD\nMode Akses: ${user.mode_akses || "VIEWER"}`);
 }
 
-function openSaktiGantiPeranModal(event) {
+function openGantiPeranModal(event) {
   if (event) event.stopPropagation();
-  const dropdown = document.getElementById('sakti-profile-dropdown');
-  if (dropdown) dropdown.style.display = 'none';
+  const dropdown = document.getElementById("prabu-profile-dropdown") || document.getElementById("sakti-profile-dropdown");
+  if (dropdown) dropdown.style.display = "none";
 
-  const modal = document.getElementById('modal-sakti-ganti-peran');
+  const modal = document.getElementById("modal-ganti-peran") || document.getElementById("modal-sakti-ganti-peran");
   if (!modal) return;
 
-  const searchInput = document.getElementById('sakti-modal-search-input');
-  if (searchInput) searchInput.value = '';
-  SaktiRoleState.modalSearchFilter = '';
+  const searchInput = document.getElementById("prabu-modal-search-input") || document.getElementById("sakti-modal-search-input");
+  if (searchInput) searchInput.value = "";
+  RoleSelectionState.modalSearchFilter = "";
 
-  renderSaktiModalRolesList();
-  modal.style.display = 'flex';
+  renderModalRolesList();
+  modal.style.display = "flex";
 }
+const openSaktiGantiPeranModal = openGantiPeranModal;
+window.openGantiPeranModal = openGantiPeranModal;
+window.openSaktiGantiPeranModal = openGantiPeranModal;
 
-function closeSaktiGantiPeranModal() {
-  const modal = document.getElementById('modal-sakti-ganti-peran');
-  if (modal) modal.style.display = 'none';
-  closeSaktiConfirmPopup();
+function closeGantiPeranModal() {
+  const modal = document.getElementById("modal-ganti-peran") || document.getElementById("modal-sakti-ganti-peran");
+  if (modal) modal.style.display = "none";
+  closeConfirmPopup();
 }
+const closeSaktiGantiPeranModal = closeGantiPeranModal;
+window.closeGantiPeranModal = closeGantiPeranModal;
+window.closeSaktiGantiPeranModal = closeGantiPeranModal;
 
-function renderSaktiModalRolesList() {
-  const container = document.getElementById('sakti-modal-roles-list');
+function renderModalRolesList() {
+  const container = document.getElementById("prabu-modal-roles-list") || document.getElementById("sakti-modal-roles-list");
   if (!container) return;
 
   const user = AppState.currentUser;
   if (!user) return;
 
-  let roles = Array.isArray(user.roles) ? [...user.roles] : [];
-  if (isDeveloperSession()) {
-    const simRoles = [
-      { id: 10, level: 0, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Lead Developer & System Architect' },
-      { id: 1001, level: 1, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Kasubbag Perencanaan (Validator)' },
-      { id: 1002, level: 2, pic: 'TEKNIS', mode_akses: 'EDITOR', label_peran: 'Staf Subbag Teknis (Operator)' },
-      { id: 1003, level: 3, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Sekretaris KPU (Approver)' },
-      { id: 1004, level: 4, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Akses Eksklusif Rekap Taktis' }
-    ];
-    simRoles.forEach(sr => {
-      if (!roles.some(r => Number(r.id) === Number(sr.id))) {
-        roles.push(sr);
-      }
-    });
-  }
-
+  const roles = getSelectableRolesForUser(user);
   const activeRoleId = user.active_role ? Number(user.active_role.id) : (roles[0] ? Number(roles[0].id) : null);
   const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
-  const query = (SaktiRoleState.modalSearchFilter || '').toLowerCase().trim();
+  const query = (RoleSelectionState.modalSearchFilter || "").toLowerCase().trim();
 
   const filtered = roles.filter(r => {
     if (!query) return true;
-    const nom = getSaktiRoleNomenclature(r, user);
+    const nom = getRoleNomenclature(r, user);
     return nom.kodeSatker.includes(query) ||
            nom.peran.toLowerCase().includes(query) ||
            nom.tipe.toLowerCase().includes(query) ||
@@ -1017,59 +1096,52 @@ function renderSaktiModalRolesList() {
   }
 
   container.innerHTML = filtered.map(r => {
-    const isActive = Number(r.id) === activeRoleId || Number(r.level) === activeLevel;
-    const nom = getSaktiRoleNomenclature(r, user);
+    const isActive = Number(r.id) === activeRoleId || (Number(r.level) === activeLevel && user.level === Number(r.level));
+    const nom = getRoleNomenclature(r, user);
     return `
-      <div class="sakti-role-card-item ${isActive ? 'active-role' : ''}" onclick="promptSaktiRoleConfirmation(${r.id}, false)">
-        <div class="sakti-role-col sakti-role-col-satker">${nom.kodeSatker}</div>
-        <div class="sakti-role-col sakti-role-col-peran">${nom.peran}</div>
-        <div class="sakti-role-col sakti-role-col-tipe">${nom.tipe}</div>
+      <div class="prabu-role-card-item sakti-role-card-item ${isActive ? "active-role" : ""}" onclick="promptRoleConfirmation(${r.id}, false)">
+        <div class="prabu-role-col sakti-role-col prabu-role-col-satker sakti-role-col-satker">${nom.kodeSatker}</div>
+        <div class="prabu-role-col sakti-role-col prabu-role-col-peran sakti-role-col-peran">${nom.peran}</div>
+        <div class="prabu-role-col sakti-role-col prabu-role-col-tipe sakti-role-col-tipe">${nom.tipe}</div>
       </div>
     `;
-  }).join('');
+  }).join("");
 }
+const renderSaktiModalRolesList = renderModalRolesList;
+window.renderModalRolesList = renderModalRolesList;
+window.renderSaktiModalRolesList = renderModalRolesList;
 
-function filterSaktiModalRoles() {
-  const input = document.getElementById('sakti-modal-search-input');
-  SaktiRoleState.modalSearchFilter = input ? input.value : '';
-  renderSaktiModalRolesList();
+function filterModalRoles() {
+  const input = document.getElementById("prabu-modal-search-input") || document.getElementById("sakti-modal-search-input");
+  RoleSelectionState.modalSearchFilter = input ? input.value : "";
+  renderModalRolesList();
 }
+const filterSaktiModalRoles = filterModalRoles;
+window.filterModalRoles = filterModalRoles;
+window.filterSaktiModalRoles = filterModalRoles;
 
-function promptSaktiRoleConfirmation(roleId, isFromPostLogin = false) {
+function promptRoleConfirmation(roleId, isFromPostLogin = false) {
   const user = AppState.currentUser;
   if (!user) return;
 
-  let roles = Array.isArray(user.roles) ? [...user.roles] : [];
-  if (isDeveloperSession()) {
-    const simRoles = [
-      { id: 10, level: 0, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Lead Developer & System Architect' },
-      { id: 1001, level: 1, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Kasubbag Perencanaan (Validator)' },
-      { id: 1002, level: 2, pic: 'TEKNIS', mode_akses: 'EDITOR', label_peran: 'Staf Subbag Teknis (Operator)' },
-      { id: 1003, level: 3, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Sekretaris KPU (Approver)' },
-      { id: 1004, level: 4, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Akses Eksklusif Rekap Taktis' }
-    ];
-    simRoles.forEach(sr => {
-      if (!roles.some(r => Number(r.id) === Number(sr.id))) {
-        roles.push(sr);
-      }
-    });
-  }
+  const roles = isFromPostLogin
+    ? (Array.isArray(user.roles) ? user.roles : [])
+    : getSelectableRolesForUser(user);
 
   const targetRole = roles.find(r => Number(r.id) === Number(roleId));
   if (!targetRole) return;
 
-  // Jika role yang diklik sudah aktif dan bukan dari post-login, beri info
   if (!isFromPostLogin && user.active_role && Number(user.active_role.id) === Number(roleId)) {
-    showToast('Peran ini sudah aktif pada sesi Anda saat ini.', 'info');
+    showToast("Peran ini sudah aktif pada sesi Anda saat ini.", "info");
     return;
   }
 
-  SaktiRoleState.pendingRoleId = roleId;
-  SaktiRoleState.isFromPostLogin = isFromPostLogin;
+  RoleSelectionState.pendingRoleId = roleId;
+  RoleSelectionState.isFromPostLogin = isFromPostLogin;
 
-  const nom = getSaktiRoleNomenclature(targetRole, user);
+  const nom = getRoleNomenclature(targetRole, user);
 
-  const detailsContainer = document.getElementById('sakti-confirm-details-content');
+  const detailsContainer = document.getElementById("prabu-confirm-details-content") || document.getElementById("sakti-confirm-details-content");
   if (detailsContainer) {
     detailsContainer.innerHTML = `
       <div>Peran : <strong>${nom.roleCode}</strong></div>
@@ -1081,107 +1153,112 @@ function promptSaktiRoleConfirmation(roleId, isFromPostLogin = false) {
     `;
   }
 
-  const confirmModal = document.getElementById('modal-sakti-konfirmasi');
-  if (confirmModal) confirmModal.style.display = 'flex';
+  const confirmModal = document.getElementById("modal-konfirmasi-peran") || document.getElementById("modal-sakti-konfirmasi");
+  if (confirmModal) confirmModal.style.display = "flex";
 }
+const promptSaktiRoleConfirmation = promptRoleConfirmation;
+window.promptRoleConfirmation = promptRoleConfirmation;
+window.promptSaktiRoleConfirmation = promptRoleConfirmation;
 
-function closeSaktiConfirmPopup() {
-  const confirmModal = document.getElementById('modal-sakti-konfirmasi');
-  if (confirmModal) confirmModal.style.display = 'none';
-  SaktiRoleState.pendingRoleId = null;
+function closeConfirmPopup() {
+  const confirmModal = document.getElementById("modal-konfirmasi-peran") || document.getElementById("modal-sakti-konfirmasi");
+  if (confirmModal) confirmModal.style.display = "none";
+  RoleSelectionState.pendingRoleId = null;
 }
+const closeSaktiConfirmPopup = closeConfirmPopup;
+window.closeConfirmPopup = closeConfirmPopup;
+window.closeSaktiConfirmPopup = closeConfirmPopup;
 
-async function executeSaktiRoleSwitch() {
-  const roleId = SaktiRoleState.pendingRoleId;
+async function executeRoleSwitch() {
+  const roleId = RoleSelectionState.pendingRoleId;
   if (!roleId) return;
 
-  const confirmBtn = document.getElementById('btn-sakti-confirm-yes');
+  const confirmBtn = document.getElementById("btn-role-confirm-yes") || document.getElementById("btn-sakti-confirm-yes");
   if (confirmBtn) {
     confirmBtn.disabled = true;
-    confirmBtn.textContent = '⏳ Memproses...';
+    confirmBtn.textContent = "⏳ Memproses...";
   }
 
   try {
-    const res = await apiFetch('/api/switch-active-role', {
-      method: 'POST',
+    const res = await apiFetch("/api/switch-active-role", {
+      method: "POST",
       body: JSON.stringify({ role_id: roleId })
     });
 
     if (res && res.success && res.token) {
-      localStorage.setItem('siprabu_token', res.token);
+      localStorage.setItem("siprabu_token", res.token);
       AppState.currentUser = res.user;
 
-      closeSaktiConfirmPopup();
-      closeSaktiGantiPeranModal();
+      closeConfirmPopup();
+      closeGantiPeranModal();
 
-      // Sembunyikan post-login screen jika aktif
-      const postLoginScreen = document.getElementById('sakti-post-login-screen');
-      if (postLoginScreen) postLoginScreen.style.display = 'none';
+      const postLoginScreen = document.getElementById("prabu-post-login-screen") || document.getElementById("sakti-post-login-screen");
+      if (postLoginScreen) postLoginScreen.style.display = "none";
 
       updateUserNavbar();
       applyDynamicMenuMatrix(res.user);
       applyRolePermissionsToUI();
 
-      const nom = getSaktiRoleNomenclature(res.user.active_role, res.user);
-      showToast(`✅ Berhasil masuk sebagai ${nom.peran} (SATKER 657811)`, 'success');
+      const nom = getRoleNomenclature(res.user.active_role, res.user);
+      showToast(`✅ Berhasil masuk sebagai ${nom.peran} (SATKER 657811)`, "success");
 
-      // Refresh tampilan sesuai peran baru
-      if (SaktiRoleState.isFromPostLogin) {
+      if (RoleSelectionState.isFromPostLogin) {
         showMainApp();
         await loadMasters();
         await loadPeriodes();
         await loadRkbData();
         renderAllViews();
-        switchView('view-dashboard', true);
+        switchView("view-dashboard", true);
       } else {
-        if (Number(res.user.level) === 4) {
-          switchView('view-rekap-taktis', true);
-        } else {
-          switchView('view-dashboard', true);
-        }
+        switchView("view-dashboard", true);
       }
     } else {
-      throw new Error(res.error || 'Gagal beralih peran');
+      throw new Error(res.error || "Gagal beralih peran");
     }
   } catch (err) {
-    showToast(`Gagal beralih peran: ${err.message}`, 'error');
+    showToast(`Gagal beralih peran: ${err.message}`, "error");
   } finally {
     if (confirmBtn) {
       confirmBtn.disabled = false;
-      confirmBtn.textContent = '✓ Ya';
+      confirmBtn.textContent = "✓ Ya";
     }
   }
 }
+const executeSaktiRoleSwitch = executeRoleSwitch;
+window.executeRoleSwitch = executeRoleSwitch;
+window.executeSaktiRoleSwitch = executeRoleSwitch;
 
-// Layar Pemilihan Peran Pasca-Login (Gambar 1)
-function showSaktiPostLoginRoleSelector(user) {
-  const overlay = document.getElementById('sakti-post-login-screen');
+function showPostLoginRoleSelector(user) {
+  const overlay = document.getElementById("prabu-post-login-screen") || document.getElementById("sakti-post-login-screen");
   if (!overlay) return;
 
-  const nameEl = document.getElementById('sakti-login-user-name');
-  if (nameEl) nameEl.textContent = (user.nama_pejabat || user.username || 'PENGGUNA').toUpperCase();
+  const nameEl = document.getElementById("prabu-login-user-name") || document.getElementById("sakti-login-user-name");
+  if (nameEl) nameEl.textContent = (user.nama_pejabat || user.username || "PENGGUNA").toUpperCase();
 
-  const searchInput = document.getElementById('sakti-login-search-input');
-  if (searchInput) searchInput.value = '';
-  SaktiRoleState.loginSearchFilter = '';
+  const searchInput = document.getElementById("prabu-login-search-input") || document.getElementById("sakti-login-search-input");
+  if (searchInput) searchInput.value = "";
+  RoleSelectionState.loginSearchFilter = "";
 
-  renderSaktiLoginRolesList();
-  overlay.style.display = 'flex';
+  renderLoginRolesList();
+  overlay.style.display = "flex";
 }
+const showSaktiPostLoginRoleSelector = showPostLoginRoleSelector;
+window.showPostLoginRoleSelector = showPostLoginRoleSelector;
+window.showSaktiPostLoginRoleSelector = showPostLoginRoleSelector;
 
-function renderSaktiLoginRolesList() {
-  const container = document.getElementById('sakti-login-roles-list');
+function renderLoginRolesList() {
+  const container = document.getElementById("prabu-login-roles-list") || document.getElementById("sakti-login-roles-list");
   if (!container) return;
 
   const user = AppState.currentUser;
   if (!user) return;
 
-  const roles = Array.isArray(user.roles) ? user.roles : [];
-  const query = (SaktiRoleState.loginSearchFilter || '').toLowerCase().trim();
+  const roles = Array.isArray(user.roles) ? user.roles.filter(r => Number(r.level) !== 0) : [];
+  const query = (RoleSelectionState.loginSearchFilter || "").toLowerCase().trim();
 
   const filtered = roles.filter(r => {
     if (!query) return true;
-    const nom = getSaktiRoleNomenclature(r, user);
+    const nom = getRoleNomenclature(r, user);
     return nom.kodeSatker.includes(query) ||
            nom.peran.toLowerCase().includes(query) ||
            nom.tipe.toLowerCase().includes(query) ||
@@ -1194,24 +1271,28 @@ function renderSaktiLoginRolesList() {
   }
 
   container.innerHTML = filtered.map(r => {
-    const nom = getSaktiRoleNomenclature(r, user);
+    const nom = getRoleNomenclature(r, user);
     return `
-      <div class="sakti-role-card-item" onclick="promptSaktiRoleConfirmation(${r.id}, true)">
-        <div class="sakti-role-col sakti-role-col-satker">${nom.kodeSatker}</div>
-        <div class="sakti-role-col sakti-role-col-peran">${nom.peran}</div>
-        <div class="sakti-role-col sakti-role-col-tipe">${nom.tipe}</div>
+      <div class="prabu-role-card-item sakti-role-card-item" onclick="promptRoleConfirmation(${r.id}, true)">
+        <div class="prabu-role-col sakti-role-col prabu-role-col-satker sakti-role-col-satker">${nom.kodeSatker}</div>
+        <div class="prabu-role-col sakti-role-col prabu-role-col-peran sakti-role-col-peran">${nom.peran}</div>
+        <div class="prabu-role-col sakti-role-col prabu-role-col-tipe sakti-role-col-tipe">${nom.tipe}</div>
       </div>
     `;
-  }).join('');
+  }).join("");
 }
+const renderSaktiLoginRolesList = renderLoginRolesList;
+window.renderLoginRolesList = renderLoginRolesList;
+window.renderSaktiLoginRolesList = renderLoginRolesList;
 
-function filterSaktiLoginRoles() {
-  const input = document.getElementById('sakti-login-search-input');
-  SaktiRoleState.loginSearchFilter = input ? input.value : '';
-  renderSaktiLoginRolesList();
+function filterLoginRoles() {
+  const input = document.getElementById("prabu-login-search-input") || document.getElementById("sakti-login-search-input");
+  RoleSelectionState.loginSearchFilter = input ? input.value : "";
+  renderLoginRolesList();
 }
-// ==============================================================================
-
+const filterSaktiLoginRoles = filterLoginRoles;
+window.filterLoginRoles = filterLoginRoles;
+window.filterSaktiLoginRoles = filterLoginRoles;
 function updateUserNavbar() {
   const user = AppState.currentUser;
   if (!user) return;
@@ -1222,7 +1303,7 @@ function updateUserNavbar() {
   const isDev = isDeveloperSession();
   const isDevSimulating = isDev && user.level > 0;
   const devAccount = AppState.usersList.find(u => u.level === 0 || u.username === 'emenje');
-  const permanentDevNama = user.original_dev_nama || devAccount?.nama_pejabat || 'emenje (Pengembang)';
+  const permanentDevNama = user.original_dev_nama || devAccount?.nama_pejabat || 'emenje';
   const permanentDevAvatar = user.original_dev_avatar || devAccount?.avatar_url || '';
 
   // Bab 11.2 & FR-14: Saat login sebagai Developer (termasuk saat ganti peran), badge login kanan atas TIDAK BERUBAH
@@ -1230,13 +1311,13 @@ function updateUserNavbar() {
   const switcher = document.getElementById('user-switcher');
   if (switcher) switcher.value = user.username;
 
-  // SAKTI Verified Badge (Gambar 2)
+  // Verified Badge (Gambar 2)
   const verifiedBadge = document.getElementById('user-verified-badge');
   if (verifiedBadge) {
     verifiedBadge.style.display = 'inline-block';
   }
 
-  // SAKTI Masked NIP / Username (Gambar 2: | 140902******0012)
+  // Masked NIP / Username (Gambar 2: | 140902******0012)
   const nipBadge = document.getElementById('user-nip-badge');
   if (nipBadge) {
     if (user.nip) {
@@ -1252,7 +1333,7 @@ function updateUserNavbar() {
     }
   }
 
-  // SAKTI Sub-text Peran Aktif: VALIDATOR SATKER 657811 2026 (Gambar 2)
+  // Sub-text Peran Aktif: VALIDATOR SATKER 657811 2026 (Gambar 2)
   const activeRoleSub = document.getElementById('user-active-role-sub');
   if (activeRoleSub) {
     if (user.role_mode === 'KUMULATIF') {
@@ -1264,7 +1345,8 @@ function updateUserNavbar() {
     }
     const dropdownGantiPeran = document.getElementById('sakti-dropdown-ganti-peran');
     if (dropdownGantiPeran) {
-      dropdownGantiPeran.style.display = (user.role_mode === 'KUMULATIF' && !isDeveloperSession()) ? 'none' : 'flex';
+      const canSwitchRole = !isDev && user.level > 0 && Array.isArray(user.roles) && user.roles.length > 1 && user.role_mode !== 'KUMULATIF';
+      dropdownGantiPeran.style.display = canSwitchRole ? 'flex' : 'none';
     }
   }
 
@@ -1327,7 +1409,7 @@ function updateUserNavbar() {
   const btnLogin = document.getElementById('btn-nav-login');
   const btnLogout = document.getElementById('btn-nav-logout');
   if (btnLogin) btnLogin.style.display = 'none';
-  if (btnLogout) btnLogout.style.display = 'inline-flex';
+  if (btnLogout) btnLogout.style.display = 'none';
 
   applyRolePermissionsToUI();
 }
@@ -1401,7 +1483,7 @@ function applyRolePermissionsToUI() {
   // 5. Pengendali Switcher Cepat: HANYA tampil untuk Pengembang (Level 0 / QC Mode)
   const switcherContainer = document.getElementById('user-switcher-container');
   if (switcherContainer) {
-    switcherContainer.style.display = isDeveloperSession() ? 'inline-flex' : 'none';
+    switcherContainer.style.display = 'none';
   }
 
   // 6. Tombol "Buat Usulan Revisi Baru" HANYA ADA DI LEVEL 2
@@ -1594,7 +1676,7 @@ async function switchUser(username) {
   // 1. Tampilkan Pop-Up Validasi Ganti Peran seketika
   const modal = document.getElementById('modal-role-switch');
   const devAccount = AppState.usersList.find(u => u.level === 0 || u.username === 'emenje');
-  const permanentDevNama = prevUser?.original_dev_nama || devAccount?.nama_pejabat || 'emenje (Pengembang)';
+  const permanentDevNama = prevUser?.original_dev_nama || devAccount?.nama_pejabat || 'emenje';
 
   setElText('role-switch-origin-name', permanentDevNama);
   setElText('role-switch-target-name', `${targetUser.nama_pejabat} (${targetUser.username})`);
@@ -1952,7 +2034,7 @@ async function handleGoogleSignInCallback(response) {
       closeLoginModal();
 
       // Alur SAKTI Post-Login (Gambar 1): Jika akun memiliki > 1 peran, tampilkan Layar Pemilihan Peran
-      if (res.user && Array.isArray(res.user.roles) && res.user.roles.length > 1 && res.user.role_mode !== 'KUMULATIF') {
+      if (res.user && res.user.role_mode !== "KUMULATIF" && Array.isArray(res.user.roles) && res.user.roles.length > 1) {
         showSaktiPostLoginRoleSelector(res.user);
         return;
       }
@@ -2019,16 +2101,19 @@ async function submitLocalLoginForm() {
     closeLoginModal();
 
     // Alur SAKTI Post-Login (Gambar 1): Jika akun memiliki > 1 peran, tampilkan Layar Pemilihan Peran
-    if (res.user && Array.isArray(res.user.roles) && res.user.roles.length > 1 && res.user.role_mode !== 'KUMULATIF') {
+    if (res.user && res.user.role_mode !== "KUMULATIF" && Array.isArray(res.user.roles) && res.user.roles.length > 1) {
       showSaktiPostLoginRoleSelector(res.user);
       return;
     }
 
     showToast(`Berhasil login sebagai ${AppState.currentUser.nama_pejabat}!`, 'success');
+    showMainApp();
+    updateUserNavbar();
     await loadMasters();
     await loadPeriodes();
     await loadRkbData();
     renderAllViews();
+    switchView('view-dashboard', true);
   } catch (err) {
     showToast(err.message || 'Username atau kata sandi salah.', 'error');
     alert(err.message || 'Username atau kata sandi salah.');
@@ -2236,8 +2321,9 @@ function toggleSidebarFolder(folderId, event) {
 
   const isCurrentlyOpen = !target.classList.contains('collapsed');
 
-  // Duplikasi Cara Kerja SAKTI Kemenkeu: Tutup SEMUA modul folder lainnya
-  document.querySelectorAll('#sidebar-nav-menu .sakti-tree-group').forEach(group => {
+  // Aturan UX SI-PRABU Accordion (Aturan 2):
+  // Tutup SEMUA modul folder lainnya (hanya satu folder yang boleh terbuka pada satu waktu)
+  document.querySelectorAll('#sidebar-nav-menu .prabu-tree-group, #sidebar-nav-menu .sakti-tree-group').forEach(group => {
     group.classList.add('collapsed');
   });
 
@@ -2255,20 +2341,17 @@ function toggleSidebarCollapse() {
   const isCollapsed = sidebar.classList.contains('collapsed');
   if (btn) {
     btn.innerHTML = isCollapsed ? '<span class="toggle-icon">❯</span>' : '<span class="toggle-icon">❮</span>';
-    btn.title = isCollapsed ? 'Buka Menu (SAKTI Style)' : 'Lipat Menu (SAKTI Style)';
+    btn.title = isCollapsed ? 'Buka Menu Sidebar' : 'Lipat Menu Sidebar';
   }
 }
 
 function filterSidebarMenu() {
   const query = (document.getElementById('menu-search-input')?.value || '').toLowerCase().trim();
   const navItems = document.querySelectorAll('#sidebar-nav-menu .nav-item');
-  const groups = document.querySelectorAll('#sidebar-nav-menu .sakti-tree-group');
+  const groups = document.querySelectorAll('#sidebar-nav-menu .prabu-tree-group, #sidebar-nav-menu .sakti-tree-group');
 
   if (!query) {
-    navItems.forEach(item => item.style.display = '');
-    groups.forEach(g => {
-      g.style.display = '';
-    });
+    applyDynamicMenuMatrix();
     return;
   }
 
@@ -2329,17 +2412,25 @@ function switchView(viewId, updateHistory = true) {
 
   const user = AppState.currentUser;
   if (user) {
-    // 0. GUARD DINAMIS BERBASIS MATRIKS DATABASE LEVEL (0-4)
+    // 0. GUARD DINAMIS BERBASIS MATRIKS HAK AKSES LEVEL (0-10)
     if (Array.isArray(AppState.menuMatrix) && AppState.menuMatrix.length > 0) {
       const menuItem = AppState.menuMatrix.find(m => m.menu_key === viewId);
       if (menuItem) {
         const userLevels = new Set();
-        userLevels.add(Number(user.level));
-        if (Array.isArray(user.roles)) {
-          user.roles.forEach(r => userLevels.add(Number(r.level)));
+        const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
+        if (user.role_mode === "KUMULATIF") {
+          userLevels.add(Number(user.level));
+          if (Array.isArray(user.roles)) {
+            user.roles.forEach(r => userLevels.add(Number(r.level)));
+          }
+        } else {
+          userLevels.add(activeLevel);
         }
-        const isDev = userLevels.has(0) || user.role_id === 'developer' || user.username === 'emenje';
-        let isAllowed = isDev;
+
+        const isDevOrigin = sessionStorage.getItem("siprabu_is_developer_origin") === "true" || user.username === "emenje";
+        const isDevUnrestricted = isDevOrigin && (Number(user.level) === 0 && (!user.active_role || Number(user.active_role.level) === 0));
+
+        let isAllowed = isDevUnrestricted;
         if (!isAllowed) {
           for (const lvl of userLevels) {
             if (Boolean(menuItem[`allow_l${lvl}`])) {
@@ -2348,88 +2439,23 @@ function switchView(viewId, updateHistory = true) {
             }
           }
         }
+
         if (!isAllowed) {
-          showToast(`Akses ditolak: Menu "${menuItem.menu_label || viewId}" memerlukan kewenangan khusus (Level ${[0,1,2,3,4].filter(l => menuItem['allow_l' + l]).join('/')}).`, 'warning');
-          switchView('view-dashboard', updateHistory);
+          showToast(`Akses ditolak: Menu "${menuItem.menu_label || viewId}" tidak diizinkan untuk Level kewenangan aktif Anda.`, "warning");
+          switchView("view-dashboard", updateHistory);
           return;
         }
       }
     }
 
-    // 1. Pusat Siklus Dokumen & Arsip Revisi terbuka Read-Only untuk semua peran terautentikasi (Bab 5 Canon)
-
-    // 2. Guard Database Master: Level <= 1 (CRUD) + Sekretaris & Divisi Perencanaan (Read-Only)
-    const isMasterDbView = ['view-db-ppk', 'view-db-pps', 'view-db-paslon', 'view-db-settings', 'view-settings', 'view-penandatangan'].includes(viewId);
-    if (isMasterDbView && !canViewDatabaseMaster(user)) {
-      showToast('Akses ditolak: Menu Master Database hanya untuk Tim Perencanaan, Sekretaris, Divisi Perencanaan & Pengembang.', 'warning');
-      switchView('view-dashboard', updateHistory);
-      return;
-    }
-
-    // 3. Guard Manajemen User & Log Aktivitas: HANYA Level 0 aktif dan Kasubbag Perencanaan
-    const canAccessUserMgmt = Boolean(
-      user.level === 0 || 
-      (user.level === 1 && (user.username === 'perencanaan' || user.username === 'kasubbag_rendatin' || user.role_id === 'super_admin'))
-    );
-    if ((viewId === 'view-users' || viewId === 'view-audit' || viewId === 'view-menu-matrix') && !canAccessUserMgmt) {
-      showToast('Akses ditolak: Menu ini hanya untuk Akun Developer (Level 0) dan Kasubbag Perencanaan (Rendatin).', 'warning');
-      switchView('view-dashboard', updateHistory);
-      return;
-    }
-
-    if (viewId === 'view-penandatangan') {
-      const canAccessPenandatangan = Boolean(
-        user.level <= 1 || 
-        ['sekretaris', 'viewer_sekretaris', 'ketua_kpu', 'komisioner_rendatin', 'komisioner_teknis', 'komisioner_hukum', 'komisioner_parmas', 'komisioner_kul'].includes(user.role_id) ||
-        ['sekretaris', 'ketua', 'divisi_rendatin', 'divisi_teknis', 'divisi_hukum', 'divisi_parmas', 'divisi_kul'].includes(user.username)
-      );
-      if (!canAccessPenandatangan) {
-        showToast('Akses ditolak: Menu Pejabat Penandatangan khusus untuk Tim Perencanaan dan Pimpinan Satker.', 'warning');
-        switchView('view-dashboard', updateHistory);
-        return;
-      }
-    }
-
-    // 3b. Guard Ruang Pengembang (Blueprint & PRD): HANYA Akun Developer Aktif (Level 0 / emenje) di Server Lokal (Localhost)
-    if (viewId === 'view-developer' || viewId === 'view-dev-push') {
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // Guard khusus Ruang Pengembang (DEV): HANYA Akun Developer Aktif (Level 0) di Server Lokal
+    if (viewId === "view-developer" || viewId === "view-dev-push") {
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       if (!isLocalhost || !isActiveDeveloperUser(user)) {
-        showToast('Akses ditolak: Ruang Pengembang (DEV) hanya dapat diakses pada server lokal pengembang.', 'error');
-        switchView('view-dashboard', updateHistory);
+        showToast("Akses ditolak: Ruang Pengembang (DEV) hanya dapat diakses oleh Akun Pengembang Level 0 di server lokal.", "error");
+        switchView("view-dashboard", updateHistory);
         return;
       }
-    }
-
-    // 4. Guard Menu Siklus Revisi Sesuai Role KPU:
-    // a. Pengajuan Usulan Revisi: HANYA untuk PIC Subbag (Level 2)
-    if (viewId === 'view-revisi-pengajuan' && user.level !== 2) {
-      showToast('Akses dibatasi: Form Pengajuan Usulan Revisi hanya untuk Akun PIC Subbag (Level 2). Anda dialihkan ke Validasi Revisi.', 'info');
-      switchView('view-revisi-validasi', updateHistory);
-      return;
-    }
-    // b. Validasi Revisi: HANYA untuk Tim Rendatin (Level <= 1) & Developer
-    if (viewId === 'view-revisi-validasi' && user.level > 1 && user.role_id !== 'sekretaris' && user.role_id !== 'developer') {
-      showToast('Akses ditolak: Menu Validasi Revisi khusus untuk Tim Rendatin (Level 1).', 'warning');
-      switchView('view-revisi-monitoring', updateHistory);
-      return;
-    }
-    // c. Pengesahan BA Pleno (Tahap 4): HANYA untuk Tim Rendatin (Level <= 1), Sekretaris KPU, & Developer
-    if (viewId === 'view-revisi-tahap4' && user.level > 1 && user.role_id !== 'sekretaris' && user.role_id !== 'developer') {
-      showToast('Akses ditolak: Pengesahan BA Pleno (Tahap 4) khusus untuk Tim Rendatin (Level 1) & Sekretaris KPU.', 'warning');
-      switchView('view-revisi-monitoring', updateHistory);
-      return;
-    }
-    // d. Guard Modul Pelaksanaan (Rekap Pelaksanaan & Panduan Pelaksanaan): Ketat sesuai hak akses
-    if ((viewId === 'view-rekap-pelaksanaan' || viewId === 'view-panduan-pelaksanaan') && !canAccessModulPelaksanaan(user)) {
-      showToast('Akses ditolak: Modul & Panduan Pelaksanaan hanya tersedia sesuai kewenangan peran Pelaksanaan/Pimpinan.', 'warning');
-      switchView(viewId === 'view-panduan-pelaksanaan' ? 'view-panduan' : 'view-rekap-perencanaan', updateHistory);
-      return;
-    }
-    // e. Guard Panduan Perencanaan: Ketat sesuai hak akses Modul Perencanaan
-    if (viewId === 'view-panduan' && !canAccessModulPerencanaan(user)) {
-      showToast('Akses ditolak: Panduan Perencanaan hanya untuk peran Modul Perencanaan.', 'warning');
-      switchView('view-panduan-pelaksanaan', updateHistory);
-      return;
     }
   }
 
@@ -2441,14 +2467,14 @@ function switchView(viewId, updateHistory = true) {
     const isActive = btn.getAttribute('data-view') === viewId;
     btn.classList.toggle('active', isActive);
     if (isActive) {
-      activeParentGroup = btn.closest('.sakti-tree-group');
+      activeParentGroup = btn.closest('.prabu-tree-group, .sakti-tree-group');
     }
   });
 
-  // Duplikasi Cara Kerja SAKTI Kemenkeu:
-  // Jika target view berada di dalam modul folder, buka folder tersebut dan tutup folder lain.
-  // Jika target view adalah menu mandiri (Beranda, Manajemen User, Log, dll), tutup SEMUA folder.
-  document.querySelectorAll('#sidebar-nav-menu .sakti-tree-group').forEach(group => {
+  // Aturan UX SI-PRABU Accordion (Aturan 1 & 2):
+  // 1. Jika target view berada di dalam modul folder, buka HANYA folder tersebut dan tutup SEMUA folder lain.
+  // 2. Jika target view adalah menu mandiri (Beranda, Monitoring Unduhan, dll), tutup SEMUA folder accordion.
+  document.querySelectorAll('#sidebar-nav-menu .prabu-tree-group, #sidebar-nav-menu .sakti-tree-group').forEach(group => {
     if (activeParentGroup && group === activeParentGroup) {
       group.classList.remove('collapsed');
     } else {
@@ -2461,10 +2487,10 @@ function switchView(viewId, updateHistory = true) {
 
   // Perbarui Riwayat URL Browser & Judul Layar SAKTI Kemenkeu
   if (updateHistory !== false) {
-    const routeToken = generateSaktiRouteToken(viewId, AppState.revisionViewMode === 'SANDING');
+    const routeToken = generateRouteToken(viewId, AppState.revisionViewMode === 'SANDING');
     window.history.pushState({ viewId, revisionViewMode: AppState.revisionViewMode }, '', '/' + routeToken);
   }
-  document.title = (SAKTI_VIEW_TITLES[viewId] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
+  document.title = (PRABU_VIEW_TITLES[viewId] || 'SI-PRABU') + ' | SI-PRABU KPU Kabupaten Ngawi';
 
   if (viewId === 'view-dashboard') {
     // ATURAN BARU: Masuk ke dashboard SELALU beralih dan mengambil data draft aktif
@@ -3431,7 +3457,7 @@ function isNodeExpanded(treeId) {
 function toggleRevisionSandingMode(checked) {
   AppState.revisionViewMode = checked ? 'SANDING' : 'STANDARD';
   if (AppState.activeView === 'view-rkb') {
-    const token = generateSaktiRouteToken('view-rkb', checked);
+    const token = generateRouteToken('view-rkb', checked);
     window.history.replaceState({ viewId: 'view-rkb', revisionViewMode: AppState.revisionViewMode }, '', '/' + token);
   }
   renderRkbTable();
@@ -3551,7 +3577,7 @@ function clearSelectedRow(event) {
 function updateSelectedRowUI() {
   const rowId = AppState.selectedRowId;
   const pill = document.querySelector('.sakti-selected-pill');
-  const actBox = document.getElementById('saktiActionButtons');
+  const actBox = document.getElementById('prabuActionButtons');
   if (!actBox) return;
 
   const user = AppState.currentUser;
@@ -6725,7 +6751,7 @@ function filterSbmPickerTable() {
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center" style="padding: 24px; color: #64748b;">
+        <td colspan="6" class="text-center" style="padding: 24px; color: #64748b;">
           🔍 Tidak ditemukan standar biaya masukan yang sesuai dengan pencarian "<strong>${escHtml(q)}</strong>".
         </td>
       </tr>
@@ -9570,23 +9596,26 @@ function renderUsersTable() {
   users.forEach((u, idx) => {
     const isCurrent = currentUser && currentUser.username === u.username;
 
-    // Render Peran & Hak Akses (3 Komponen: Level, PIC, Hak Aksi)
+    // Render Peran & Hak Akses
     const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [{
       level: Number(u.level),
       pic: u.pic_subbag || 'SEMUA',
-      mode_akses: Number(u.level) === 3 ? 'VIEWER' : 'EDITOR',
+      mode_akses: [4, 5, 6].includes(Number(u.level)) ? 'VIEWER' : 'EDITOR',
       label_peran: u.jabatan || u.nama_pejabat,
       is_default: 1
     }];
 
+    const isDevRow = false; // Unified: Semua pengguna diperlakukan setara
     const isUserKumulatif = (u.role_mode === 'KUMULATIF');
-    const modeBadge = isUserKumulatif
-      ? `<span class="badge" style="background:#dcfce7;color:#15803d;font-weight:700;font-size:10px;border:1px solid #86efac;display:inline-flex;align-items:center;gap:3px;" title="Mode Hak Kumulatif: Seluruh peran & subbagian aktif serentak">⚡ Mode Kumulatif</span>`
-      : `<span class="badge" style="background:#f1f5f9;color:#475569;font-weight:600;font-size:10px;border:1px solid #cbd5e1;display:inline-flex;align-items:center;gap:3px;" title="Mode Ganti Peran: Satu peran aktif per sesi (ala SAKTI)">🎭 Mode Ganti Peran</span>`;
+    const modeBadge = isDevRow
+      ? `<span class="badge" style="background:#0f172a;color:#fff;font-weight:800;font-size:10px;padding:2px 8px;border-radius:4px;display:inline-flex;align-items:center;gap:3px;">⚡ Akses Penuh Sistem (Level 0)</span>`
+      : (isUserKumulatif
+        ? `<span class="badge" style="background:#dcfce7;color:#15803d;font-weight:700;font-size:10px;border:1px solid #86efac;display:inline-flex;align-items:center;gap:3px;" title="Sistem Wewenang Kumulatif: Perangkapan subbagian aktif serentak (langsung Dashboard)">⚡ Hak Kumulatif</span>`
+        : `<span class="badge" style="background:#f1f5f9;color:#475569;font-weight:600;font-size:10px;border:1px solid #cbd5e1;display:inline-flex;align-items:center;gap:3px;" title="Sistem Peran Bergantian: Memilih 1 peran aktif saat login">🎭 Peran Bergantian</span>`);
 
     let quickToggleBtn = '';
-    if (canManage && (isDev || u.level > 0)) {
-      quickToggleBtn = `<button type="button" class="btn btn-xs btn-outline" onclick="toggleUserRoleModeAction(${u.id}, '${escHtml(u.username)}', '${u.role_mode || 'SWITCH'}')" style="padding:1px 6px;font-size:10px;border-radius:4px;margin-left:4px;" title="Klik untuk beralih antara Mode Kumulatif dan Ganti Peran">🔄 Ganti Mode</button>`;
+    if (canManage) {
+      quickToggleBtn = `<button type="button" class="btn btn-xs btn-outline" onclick="toggleUserRoleModeAction(${u.id}, '${escHtml(u.username)}', '${u.role_mode || 'SWITCH'}')" style="padding:1px 6px;font-size:10px;border-radius:4px;margin-left:4px;" title="Klik untuk beralih antara Mode Kumulatif dan Peran Bergantian">🔄 Ganti Mode</button>`;
     }
 
     let rolesHtml = `
@@ -9600,10 +9629,16 @@ function renderUsersTable() {
       const lvl = Number(r.level);
       let lvlBadge = '';
       if (lvl === 0) lvlBadge = `<span class="badge" style="background:#0f172a;color:#fff;font-weight:800;font-size:10px;">L0 DEV</span>`;
-      else if (lvl === 1) lvlBadge = `<span class="badge badge-primary" style="font-weight:700;font-size:10px;">L1 PERENCANA</span>`;
-      else if (lvl === 2) lvlBadge = `<span class="badge badge-success" style="font-weight:700;font-size:10px;">L2 SUBBAG</span>`;
-      else if (lvl === 3) lvlBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;font-weight:800;font-size:10px;">L3 PIMPINAN</span>`;
-      else if (lvl === 4) lvlBadge = `<span class="badge" style="background:#f3e8ff;color:#6b21a8;font-weight:800;font-size:10px;border:1px solid #d8b4fe;">L4 EKSKLUSIF</span>`;
+      else if (lvl === 1) lvlBadge = `<span class="badge badge-primary" style="font-weight:700;font-size:10px;">L1 ADMIN</span>`;
+      else if (lvl === 2) lvlBadge = `<span class="badge" style="background:#0284c7;color:#fff;font-weight:700;font-size:10px;">L2 PENGOLAH</span>`;
+      else if (lvl === 3) lvlBadge = `<span class="badge badge-success" style="font-weight:700;font-size:10px;">L3 OPERATOR</span>`;
+      else if (lvl === 4) lvlBadge = `<span class="badge" style="background:#fff7ed;color:#c2410c;font-weight:800;font-size:10px;border:1px solid #fed7aa;">L4 KETUA</span>`;
+      else if (lvl === 5) lvlBadge = `<span class="badge" style="background:#fdf4ff;color:#86198f;font-weight:800;font-size:10px;border:1px solid #f5d0fe;">L5 KOMISIONER</span>`;
+      else if (lvl === 6) lvlBadge = `<span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:800;font-size:10px;border:1px solid #c7d2fe;">L6 KPA</span>`;
+      else if (lvl === 7) lvlBadge = `<span class="badge" style="background:#ecfdf5;color:#047857;font-weight:800;font-size:10px;border:1px solid #a7f3d0;">L7 KEUANGAN</span>`;
+      else if (lvl === 8) lvlBadge = `<span class="badge" style="background:#fffbeb;color:#b45309;font-weight:800;font-size:10px;border:1px solid #fde68a;">L8 PBJ</span>`;
+      else if (lvl === 9) lvlBadge = `<span class="badge" style="background:#f8fafc;color:#334155;font-weight:800;font-size:10px;border:1px solid #cbd5e1;">L9 PPK</span>`;
+      else if (lvl === 10) lvlBadge = `<span class="badge" style="background:#f1f5f9;color:#475569;font-weight:800;font-size:10px;border:1px solid #cbd5e1;">L10 PPS</span>`;
       else lvlBadge = `<span class="badge" style="background:#e2e8f0;color:#334155;font-weight:700;font-size:10px;">L${lvl}</span>`;
 
       let pic = String(r.pic || 'SEMUA').toUpperCase();
@@ -9615,18 +9650,11 @@ function renderUsersTable() {
         picBadge = `<span class="badge badge-info" style="font-size:10px;">SEMUA PIC</span>`;
       }
 
-      const mode = String(r.mode_akses || 'VIEWER').toUpperCase();
-      let modeBadge = mode === 'EDITOR'
-        ? `<span class="badge" style="background:#dcfce7;color:#166534;font-size:9.5px;font-weight:800;border:1px solid #bbf7d0;">EDITOR</span>`
-        : `<span class="badge" style="background:#f1f5f9;color:#475569;font-size:9.5px;font-weight:700;border:1px solid #cbd5e1;">VIEWER</span>`;
-
       rolesHtml += `
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#f8fafc;padding:3px 6px;border-radius:4px;border:1px solid #e2e8f0;">
           ${lvlBadge}
           ${picBadge}
-          ${modeBadge}
           ${r.label_peran ? `<span style="font-size:10.5px;color:#475569;font-weight:500;">${escHtml(r.label_peran)}</span>` : ''}
-          ${r.is_default ? `<span title="Peran Utama" style="font-size:11px;">⭐</span>` : ''}
         </div>
       `;
     });
@@ -9673,33 +9701,21 @@ function renderUsersTable() {
     aksiHtml += `</div>`;
 
     html += `
-      <tr style="${isCurrent ? 'background: #f0fdf4;' : ''}">
-        <td class="text-center" style="font-weight:600; color:#64748b;">${idx + 1}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-weight:700;font-family:var(--font-mono);color:#0f172a;">${escHtml(u.username)}</span>
-            ${u.level === 0 ? `<span style="font-size:11px;" title="Akun Developer Resmi">⚡</span>` : ''}
-          </div>
-        </td>
-        <td>
-          <strong style="color:#0f172a;">${escHtml(u.nama_pejabat)}</strong>
+      <tr style="${isCurrent ? 'background: #f0fdf4;' : ''} border-bottom: 1px solid #e2e8f0;">
+        <td class="text-center" style="font-weight:600; color:#64748b; padding: 14px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">${idx + 1}</td>
+        <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
+          <strong style="color:#0f172a; font-size: 13.5px;">${escHtml(u.nama_pejabat)}</strong>
           ${u.nip ? `<div style="font-size:11px;color:#64748b;font-family:var(--font-mono);margin-top:2px;">NIP: ${escHtml(u.nip)}</div>` : ''}
           ${u.email ? `<div style="font-size:11px;color:#0284c7;font-family:var(--font-mono);margin-top:2px;">📧 ${escHtml(u.email)}</div>` : ''}
         </td>
-        <td style="color:#475569;">${escHtml(u.jabatan || '-')}</td>
-        <td>${rolesHtml}</td>
-        <td class="text-center">${statusBadge}</td>
-        <td class="text-center">${aksiHtml}</td>
+        <td style="color:#475569; padding: 14px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">${escHtml(u.jabatan || '-')}</td>
+        <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">${rolesHtml}</td>
+        <td class="text-center" style="padding: 14px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">${statusBadge}</td>
+        <td class="text-center" style="padding: 14px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">${aksiHtml}</td>
       </tr>
     `;
   });
-
   tbody.innerHTML = html;
-
-  const sessionInfoEl = document.getElementById('users-active-session-info');
-  if (sessionInfoEl && currentUser) {
-    sessionInfoEl.innerHTML = `Sesi Aktif: <strong>${escHtml(currentUser.nama_pejabat)}</strong> (${escHtml(currentUser.username)}) &bull; [Level ${currentUser.level} - ${currentUser.mode_akses || 'VIEWER'}]`;
-  }
 }
 
 function renderModalUserRolesTable() {
@@ -9708,35 +9724,36 @@ function renderModalUserRolesTable() {
 
   const roles = AppState.modalUserRoles || [];
   if (roles.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding:14px;color:#94a3b8;">Belum ada peran terpasang. Tambahkan minimal satu peran di bawah.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding:14px;color:#94a3b8;">Belum ada peran terpasang. Tambahkan minimal satu peran di bawah.</td></tr>`;
     return;
   }
+
+  const lvlNames = {
+    0: 'L0: Developer',
+    1: 'L1: Admin Satker',
+    2: 'L2: Pengolah Data',
+    3: 'L3: Operator Subbag',
+    4: 'L4: Ketua KPU',
+    5: 'L5: Anggota KPU',
+    6: 'L6: Sekretaris/KPA',
+    7: 'L7: Perbendaharaan',
+    8: 'L8: PPK/PBJ',
+    9: 'L9: Ad Hoc PPK',
+    10: 'L10: Ad Hoc PPS'
+  };
 
   let html = '';
   roles.forEach((r, idx) => {
     const lvl = Number(r.level);
-    let lvlLabel = `Level ${lvl}`;
-    if (lvl === 0) lvlLabel = `Level 0 (Developer)`;
-    else if (lvl === 1) lvlLabel = `Level 1 (Perencana)`;
-    else if (lvl === 2) lvlLabel = `Level 2 (Subbagian)`;
-    else if (lvl === 3) lvlLabel = `Level 3 (Pimpinan Satker)`;
-    else if (lvl === 4) lvlLabel = `Level 4 (Menu Eksklusif / Rekap)`;
-
-    const mode = String(r.mode_akses || 'VIEWER').toUpperCase();
-    const modeBadge = mode === 'EDITOR'
-      ? `<span class="badge" style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;">EDITOR</span>`
-      : `<span class="badge" style="background:#f1f5f9;color:#475569;font-size:10px;font-weight:700;">VIEWER</span>`;
+    const lvlLabel = lvlNames[lvl] || `Level ${lvl}`;
+    const pic = String(r.pic || 'SEMUA').toUpperCase();
 
     html += `
       <tr style="border-bottom:1px solid #e2e8f0;">
         <td style="padding:6px 10px;text-align:center;font-weight:600;color:#64748b;">${idx + 1}</td>
         <td style="padding:6px 10px;font-weight:600;color:#0f172a;">${lvlLabel}</td>
-        <td style="padding:6px 10px;"><span class="pic-chip pic-${r.pic}">${r.pic}</span></td>
-        <td style="padding:6px 10px;">${modeBadge}</td>
+        <td style="padding:6px 10px;"><span class="pic-chip pic-${pic}">${pic}</span></td>
         <td style="padding:6px 10px;color:#475569;">${escHtml(r.label_peran || '-')}</td>
-        <td style="padding:6px 10px;text-align:center;">
-          <input type="radio" name="modal_role_default" ${r.is_default ? 'checked' : ''} onchange="setDefaultModalRole(${idx})" title="Jadikan Peran Utama">
-        </td>
         <td style="padding:6px 10px;text-align:center;">
           <button type="button" class="btn btn-xs btn-outline-danger" onclick="removeRoleFromModalUser(${idx})" title="Hapus Peran Ini" style="padding:2px 6px;">✕</button>
         </td>
@@ -9749,46 +9766,55 @@ function renderModalUserRolesTable() {
 function onModalNewRoleLevelChange() {
   const lvl = Number(document.getElementById('modal-newrole-level')?.value);
   const picSelect = document.getElementById('modal-newrole-pic');
-  const modeSelect = document.getElementById('modal-newrole-mode');
+  if (!picSelect) return;
 
-  if (lvl === 3 || lvl === 4) {
-    if (picSelect) picSelect.value = 'SEMUA';
-    if (modeSelect) modeSelect.value = 'VIEWER';
-  } else if (lvl === 1 || lvl === 0) {
-    if (picSelect) picSelect.value = 'SEMUA';
-    if (modeSelect) modeSelect.value = 'EDITOR';
-  } else if (lvl === 2) {
-    if (picSelect && picSelect.value === 'SEMUA') picSelect.value = 'TEKNIS';
+  if ([0, 1, 2, 4, 6, 7, 8].includes(lvl)) {
+    picSelect.value = 'SEMUA';
+  } else if (lvl === 3) {
+    if (picSelect.value === 'SEMUA') picSelect.value = 'TEKNIS';
+  } else if (lvl === 9) {
+    picSelect.value = 'SEMUA';
+  } else if (lvl === 10) {
+    picSelect.value = 'SEMUA';
   }
 }
 
 function addRoleToModalUser() {
-  const lvl = Number(document.getElementById('modal-newrole-level')?.value || 2);
+  const lvl = Number(document.getElementById('modal-newrole-level')?.value || 3);
   let pic = (document.getElementById('modal-newrole-pic')?.value || 'TEKNIS').toUpperCase();
-  let mode = (document.getElementById('modal-newrole-mode')?.value || 'EDITOR').toUpperCase();
   const label = (document.getElementById('modal-newrole-label')?.value || '').trim();
 
-  if (lvl === 3) {
-    mode = 'VIEWER';
-    pic = 'SEMUA';
-  } else if (lvl === 1 || lvl === 0) {
-    mode = 'EDITOR';
+  if ([0, 1, 2, 4, 6, 7, 8].includes(lvl)) {
     pic = 'SEMUA';
   }
 
-  // Cek duplikasi peran yang persis sama (level & pic sama)
+  // Cek duplikasi peran (level & pic sama)
   const exists = AppState.modalUserRoles.some(r => Number(r.level) === lvl && r.pic === pic);
   if (exists) {
-    alert(`Peran dengan Level ${lvl} dan PIC ${pic} sudah ada dalam daftar pengguna ini.`);
+    alert(`Peran dengan Level ${lvl} dan Cakupan PIC ${pic} sudah ada dalam daftar pengguna ini.`);
     return;
   }
 
+  const defaultMode = [4, 5, 6].includes(lvl) ? 'VIEWER' : 'EDITOR';
   const isFirst = AppState.modalUserRoles.length === 0;
+
   AppState.modalUserRoles.push({
     level: lvl,
     pic,
-    mode_akses: mode,
-    label_peran: label || (lvl === 0 ? 'Developer' : (lvl === 1 ? 'Perencana' : (lvl === 3 ? 'Pimpinan Satker' : (lvl === 4 ? 'Akses Eksklusif Rekap' : `Pelaksana ${pic}`)))),
+    mode_akses: defaultMode,
+    label_peran: label || (
+      lvl === 0 ? 'Lead Developer & System Architect' :
+      lvl === 1 ? 'Administrator Utama Satker (Rendatin)' :
+      lvl === 2 ? 'Pengolah Data Perencanaan Anggaran' :
+      lvl === 3 ? `Operator Pengelola Subbagian (${pic})` :
+      lvl === 4 ? 'Ketua KPU (Kepala Lembaga)' :
+      lvl === 5 ? `Anggota Komisioner KPU (${pic})` :
+      lvl === 6 ? 'Kuasa Pengguna Anggaran (KPA)' :
+      lvl === 7 ? 'Pejabat Perbendaharaan Keuangan' :
+      lvl === 8 ? 'Pejabat Pembuat Komitmen & PBJ' :
+      lvl === 9 ? `Badan Ad Hoc — PPK (${pic})` :
+      lvl === 10 ? `Badan Ad Hoc — PPS (${pic})` : `Level ${lvl} (${pic})`
+    ),
     is_default: isFirst ? 1 : 0
   });
 
@@ -9803,18 +9829,10 @@ function removeRoleFromModalUser(idx) {
     alert('Pengguna harus memiliki minimal satu peran kewenangan.');
     return;
   }
-  const wasDefault = AppState.modalUserRoles[idx]?.is_default;
   AppState.modalUserRoles.splice(idx, 1);
-  if (wasDefault && AppState.modalUserRoles.length > 0) {
+  if (AppState.modalUserRoles.length > 0) {
     AppState.modalUserRoles[0].is_default = 1;
   }
-  renderModalUserRolesTable();
-}
-
-function setDefaultModalRole(idx) {
-  AppState.modalUserRoles.forEach((r, i) => {
-    r.is_default = (i === idx) ? 1 : 0;
-  });
   renderModalUserRolesTable();
 }
 
@@ -9823,48 +9841,51 @@ function openAddUserModal() {
   setElVal('modal-user-id', '');
   setElVal('modal-user-username', '');
   setElVal('modal-user-password', '');
+  setElVal('modal-user-email', '');
   setElVal('modal-user-nama', '');
   setElVal('modal-user-nip', '');
   setElVal('modal-user-jabatan', '');
-  setElVal('modal-user-email', '');
   setElVal('modal-user-status', '1');
   setElVal('modal-user-role-mode', 'SWITCH');
+  const roleModeGroup = document.getElementById('modal-user-role-mode')?.closest('.form-group');
+  if (roleModeGroup) roleModeGroup.style.display = 'block';
 
   AppState.modalUserRoles = [{
-    level: 2,
+    level: 3,
     pic: 'TEKNIS',
     mode_akses: 'EDITOR',
     label_peran: 'Operator Subbag Teknis',
     is_default: 1
   }];
 
-  document.getElementById('modal-user-username').readOnly = false;
-  document.getElementById('modal-user-password').required = true;
-  document.getElementById('modal-user-password-hint').style.display = 'none';
-
   renderModalUserRolesTable();
-  document.getElementById('modal-user').style.display = 'flex';
+  const modal = document.getElementById('modal-user');
+  if (modal) modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('modal-user-email')?.focus(), 150);
 }
 
 function openEditUserModal(userId) {
   const user = AppState.usersList.find(u => u.id === userId);
   if (!user) return;
 
-  setElText('modal-user-title', `Edit Pengguna: ${user.username}`);
+  setElText('modal-user-title', `Edit Pengguna: ${user.nama_pejabat || user.username}`);
   setElVal('modal-user-id', user.id);
   setElVal('modal-user-username', user.username);
   setElVal('modal-user-password', '');
+  setElVal('modal-user-email', user.email || '');
   setElVal('modal-user-nama', user.nama_pejabat);
   setElVal('modal-user-nip', user.nip || '');
   setElVal('modal-user-jabatan', user.jabatan || '');
-  setElVal('modal-user-email', user.email || '');
   setElVal('modal-user-status', String(user.is_active));
   setElVal('modal-user-role-mode', user.role_mode || 'SWITCH');
+  const isDevUser = (Number(user.level) === 0 || user.username === 'emenje');
+  const roleModeGroup = document.getElementById('modal-user-role-mode')?.closest('.form-group');
+  if (roleModeGroup) roleModeGroup.style.display = isDevUser ? 'none' : 'block';
 
   if (Array.isArray(user.roles) && user.roles.length > 0) {
     AppState.modalUserRoles = JSON.parse(JSON.stringify(user.roles));
   } else {
-    let defaultMode = (Number(user.level) === 0 || Number(user.level) === 1 || (Number(user.level) === 2 && !user.username.startsWith('divisi_'))) ? 'EDITOR' : 'VIEWER';
+    let defaultMode = [4, 5, 6].includes(Number(user.level)) ? 'VIEWER' : 'EDITOR';
     AppState.modalUserRoles = [{
       level: Number(user.level),
       pic: user.pic_subbag || 'SEMUA',
@@ -9874,35 +9895,44 @@ function openEditUserModal(userId) {
     }];
   }
 
-  document.getElementById('modal-user-username').readOnly = (user.username === 'emenje');
-  document.getElementById('modal-user-password').required = false;
-  document.getElementById('modal-user-password-hint').style.display = 'block';
-
   renderModalUserRolesTable();
-  document.getElementById('modal-user').style.display = 'flex';
+  const modal = document.getElementById('modal-user');
+  if (modal) modal.style.display = 'flex';
 }
 
 function closeUserModal() {
-  document.getElementById('modal-user').style.display = 'none';
+  const modal = document.getElementById('modal-user');
+  if (modal) modal.style.display = 'none';
 }
 
 async function submitUserForm() {
   const id = document.getElementById('modal-user-id')?.value;
-  const username = (document.getElementById('modal-user-username')?.value || '').trim();
+  let username = (document.getElementById('modal-user-username')?.value || '').trim();
+  const email = (document.getElementById('modal-user-email')?.value || '').trim().toLowerCase();
   const nama_pejabat = (document.getElementById('modal-user-nama')?.value || '').trim();
 
-  if (!username) {
-    alert('Username tidak boleh kosong.');
+  if (!email) {
+    alert('Email Terdaftar (Akun Google) wajib diisi untuk autentikasi Single Sign-On.');
+    document.getElementById('modal-user-email')?.focus();
     return;
   }
   if (!nama_pejabat) {
     alert('Nama lengkap / pejabat tidak boleh kosong.');
+    document.getElementById('modal-user-nama')?.focus();
     return;
+  }
+  if (!username) {
+    username = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
   }
   if (!AppState.modalUserRoles || AppState.modalUserRoles.length === 0) {
-    alert('Pengguna wajib memiliki minimal satu peran (Level, PIC, Mode Akses).');
+    alert('Pengguna wajib memiliki minimal satu peran (Level & Cakupan Subbagian).');
     return;
   }
+
+  const sanitizedRoles = AppState.modalUserRoles.map((r, idx) => ({
+    ...r,
+    is_default: idx === 0 ? 1 : 0
+  }));
 
   const payload = {
     id: id ? Number(id) : undefined,
@@ -9911,10 +9941,10 @@ async function submitUserForm() {
     nama_pejabat,
     nip: document.getElementById('modal-user-nip')?.value || '',
     jabatan: document.getElementById('modal-user-jabatan')?.value || '',
-    email: document.getElementById('modal-user-email')?.value?.trim()?.toLowerCase() || '',
+    email,
     is_active: Number(document.getElementById('modal-user-status')?.value || 1),
-    role_mode: document.getElementById('modal-user-role-mode')?.value || 'SWITCH',
-    roles: AppState.modalUserRoles
+    role_mode: (username === 'emenje' || (id && AppState.usersList.find(u => u.id === Number(id))?.level === 0)) ? 'KUMULATIF' : (document.getElementById('modal-user-role-mode')?.value || 'SWITCH'),
+    roles: sanitizedRoles
   };
 
   try {
@@ -9948,7 +9978,7 @@ async function deleteUserAction(userId, username) {
 
 async function toggleUserRoleModeAction(userId, username, currentMode) {
   const targetMode = currentMode === 'KUMULATIF' ? 'SWITCH' : 'KUMULATIF';
-  const modeText = targetMode === 'KUMULATIF' ? 'Mode Hak Kumulatif (Seluruh wewenang aktif serentak)' : 'Mode Ganti Peran ala SAKTI (Satu peran aktif per sesi)';
+  const modeText = targetMode === 'KUMULATIF' ? 'Mode Hak Kumulatif (Seluruh wewenang aktif serentak)' : 'Mode Peran Bergantian (Satu peran aktif per sesi)';
   if (!confirm(`Ubah preferensi operasional akun "${username}" menjadi ${modeText}?`)) {
     return;
   }
@@ -12334,10 +12364,14 @@ window.quickDeveloperLogin = quickDeveloperLogin;
 window.isDeveloperSession = isDeveloperSession;
 window.logout = logout;
 window.switchView = switchView;
-window.generateSaktiRouteToken = generateSaktiRouteToken;
-window.generateSaktiLoginToken = generateSaktiLoginToken;
-window.parseSaktiRouteToken = parseSaktiRouteToken;
-window.SAKTI_VIEW_TITLES = SAKTI_VIEW_TITLES;
+window.generateRouteToken = generateRouteToken;
+window.generateLoginToken = generateLoginToken;
+window.parseRouteToken = parseRouteToken;
+window.generateSaktiRouteToken = generateRouteToken;
+window.generateSaktiLoginToken = generateLoginToken;
+window.parseSaktiRouteToken = parseRouteToken;
+window.PRABU_VIEW_TITLES = PRABU_VIEW_TITLES;
+window.SAKTI_VIEW_TITLES = PRABU_VIEW_TITLES;
 
 // ============================================================================
 // POPSTATE LISTENER: DUKUNGAN NAVIGASI BROWSER (BACK / FORWARD) ALA SAKTI
@@ -12354,9 +12388,9 @@ window.addEventListener('popstate', (event) => {
       if (cb) cb.checked = (event.state.revisionViewMode === 'SANDING');
     }
     switchView(event.state.viewId, false);
-    document.title = (SAKTI_VIEW_TITLES[event.state.viewId] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
+    document.title = (PRABU_VIEW_TITLES[event.state.viewId] || 'SI-PRABU') + ' | SI-PRABU KPU Kabupaten Ngawi';
   } else {
-    const parsed = parseSaktiRouteToken(window.location.pathname);
+    const parsed = parseRouteToken(window.location.pathname);
     if (parsed && parsed.viewId) {
       if (parsed.isSanding) {
         AppState.revisionViewMode = 'SANDING';
@@ -12364,10 +12398,10 @@ window.addEventListener('popstate', (event) => {
         if (cb) cb.checked = true;
       }
       switchView(parsed.viewId, false);
-      document.title = (SAKTI_VIEW_TITLES[parsed.viewId] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
+      document.title = (PRABU_VIEW_TITLES[parsed.viewId] || 'SI-PRABU') + ' | SI-PRABU KPU Kabupaten Ngawi';
     } else {
       switchView('view-dashboard', false);
-      document.title = (SAKTI_VIEW_TITLES['view-dashboard'] || 'SI-PRABU') + ' | SAKTI Kemenkeu - KPU Ngawi';
+      document.title = (PRABU_VIEW_TITLES['view-dashboard'] || 'SI-PRABU') + ' | SI-PRABU KPU Kabupaten Ngawi';
     }
   }
 });
@@ -13618,7 +13652,7 @@ function renderActiveRoleSwitcher(user = AppState.currentUser) {
   const container = document.getElementById('active-role-container');
   if (!container) return;
 
-  if (!user || !Array.isArray(user.roles) || user.roles.length <= 1) {
+  if (!user || !Array.isArray(user.roles) || user.roles.length <= 1 || isDeveloperSession() || user.level === 0) {
     container.style.display = 'none';
     return;
   }
@@ -13655,7 +13689,7 @@ function renderActiveRoleSwitcher(user = AppState.currentUser) {
       roleBtn.style.borderColor = 'rgba(255, 255, 255, 0.25)';
       roleBtn.style.color = '#ffffff';
     }
-    if (subheading) subheading.textContent = 'PILIH PERAN AKTIF (MODE SAKTI):';
+    if (subheading) subheading.textContent = 'PILIH PERAN AKTIF:';
   }
 
   if (listEl) {
@@ -13761,6 +13795,23 @@ function filterMenuMatrixTable() {
   renderMenuMatrixTable();
 }
 
+window.onMatrixStatusChange = function(el) {
+  const val = el.value;
+  if (val === 'EDITOR') {
+    el.style.background = '#fef3c7';
+    el.style.color = '#b45309';
+    el.style.borderColor = '#fcd34d';
+  } else if (val === 'VIEWER') {
+    el.style.background = '#dcfce7';
+    el.style.color = '#15803d';
+    el.style.borderColor = '#86efac';
+  } else {
+    el.style.background = '#f8fafc';
+    el.style.color = '#64748b';
+    el.style.borderColor = '#cbd5e1';
+  }
+};
+
 function renderMenuMatrixTable() {
   const tbody = document.getElementById('menu-matrix-table-body');
   if (!tbody) return;
@@ -13779,7 +13830,7 @@ function renderMenuMatrixTable() {
   if (countEl) countEl.textContent = `${filtered.length} dari ${matrix.length} Menu`;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="13" class="text-center" style="padding: 24px; color: #64748b;">Tidak ada menu pada kategori ini.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="text-center" style="padding: 24px; color: #64748b;">Tidak ada menu pada kategori ini.</td></tr>';
     return;
   }
 
@@ -13797,83 +13848,62 @@ function renderMenuMatrixTable() {
     const fName = m.folder_key ? (folderLabels[m.folder_key] || m.folder_key) : 'Menu Utama (Root)';
     const isLocalDev = (m.menu_key === 'view-developer' || m.menu_key === 'view-dev-push');
 
-    const modeL0 = m.mode_l0 || 'EDITOR';
-    const modeL1 = m.mode_l1 || (m.required_mode === 'EDITOR' ? 'EDITOR' : 'VIEWER');
-    const modeL2 = m.mode_l2 || ((m.menu_key === 'view-rkb' || m.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER');
-    const modeL3 = m.mode_l3 || 'VIEWER';
-    const modeL4 = m.mode_l4 || 'VIEWER';
-
     const trStyle = isLocalDev
       ? 'background: #fff5f5; border-bottom: 1px solid #fecaca;'
       : 'border-bottom: 1px solid #f1f5f9;';
 
+    let levelCells = '';
+    for (let lvl = 0; lvl <= 10; lvl++) {
+      const isAllowed = Boolean(m['allow_l' + lvl]);
+      const defaultMode = [4, 5, 6].includes(lvl) ? 'VIEWER' : (m.required_mode === 'EDITOR' ? 'EDITOR' : (lvl <= 3 ? 'EDITOR' : 'VIEWER'));
+      const modeVal = m['mode_l' + lvl] || defaultMode;
+
+      let currentStatus = 'NONE';
+      if (isAllowed) {
+        currentStatus = (modeVal === 'EDITOR' && ![4, 5, 6].includes(lvl)) ? 'EDITOR' : 'VIEWER';
+      }
+
+      let bg = '#f8fafc';
+      let color = '#64748b';
+      let border = '#cbd5e1';
+      if (currentStatus === 'VIEWER') {
+        bg = '#dcfce7'; color = '#15803d'; border = '#86efac';
+      } else if (currentStatus === 'EDITOR') {
+        bg = '#fef3c7'; color = '#b45309'; border = '#fcd34d';
+      }
+
+      const isSep = (lvl === 6);
+      const isPimpinan = [4, 5, 6].includes(lvl);
+
+      levelCells += `
+        <td style="padding: 4px 2px; text-align: center; border-right: ${isSep ? '2px solid #6366f1' : '1px solid #e2e8f0'};">
+          <select class="input-select-sm" data-field="status_l${lvl}" onchange="window.onMatrixStatusChange(this)" style="padding: 3px 2px; font-size: 10px; font-weight: 700; border-radius: 4px; border: 1px solid ${border}; background: ${bg}; color: ${color}; width: 100%; cursor: pointer;">
+            <option value="NONE" ${currentStatus === 'NONE' ? 'selected' : ''}>❌ Tutup</option>
+            <option value="VIEWER" ${currentStatus === 'VIEWER' ? 'selected' : ''}>👁️ View</option>
+            ${!isPimpinan ? `<option value="EDITOR" ${currentStatus === 'EDITOR' ? 'selected' : ''}>✏️ Edit</option>` : ''}
+          </select>
+        </td>
+      `;
+    }
+
     return `
       <tr data-menu-key="${escHtml(m.menu_key)}" style="${trStyle}">
         <td style="padding: 8px 6px; text-align: center; color: #64748b; font-weight: 600; border-right: 1px solid #e2e8f0;">${idx + 1}</td>
-        <td style="padding: 8px 12px; border-right: 1px solid #e2e8f0;">
+        <td style="padding: 8px 10px; border-right: 1px solid #e2e8f0;">
           <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            <strong style="color: ${isLocalDev ? '#b91c1c' : '#1e293b'}; font-size: 12px;">${escHtml(m.menu_label || m.menu_key)}</strong>
-            ${isLocalDev ? '<span class="badge" style="background: #dc2626; color: #fff; font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px;">Hanya di Local</span>' : ''}
+            <strong style="color: ${isLocalDev ? '#b91c1c' : '#1e293b'}; font-size: 11.5px;">${escHtml(m.menu_label || m.menu_key)}</strong>
+            ${isLocalDev ? '<span class="badge" style="background: #dc2626; color: #fff; font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 4px;">Local DEV</span>' : ''}
           </div>
-          <div style="font-size: 10.5px; color: #94a3b8; font-family: var(--font-mono); margin-top: 2px;">
+          <div style="font-size: 10px; color: #94a3b8; font-family: var(--font-mono); margin-top: 1px;">
             ${escHtml(m.menu_key)}
           </div>
         </td>
-        <td style="padding: 8px 10px; color: #475569; border-right: 2px solid #cbd5e1;">
-          <span style="background: ${isLocalDev ? '#fee2e2' : '#f1f5f9'}; color: ${isLocalDev ? '#991b1b' : '#334155'}; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 600;">
+        <td style="padding: 8px 8px; color: #475569; border-right: 2px solid #cbd5e1;">
+          <span style="background: ${isLocalDev ? '#fee2e2' : '#f1f5f9'}; color: ${isLocalDev ? '#991b1b' : '#334155'}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">
             ${escHtml(fName)}
           </span>
         </td>
-        <!-- L0 Developer (Akses & Mode) -->
-        <td style="padding: 6px; text-align: center; background: #f8fafc; border-right: 1px solid #e2e8f0;">
-          <input type="checkbox" data-field="allow_l0" ${m.allow_l0 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #0f172a;" title="L0 Akses">
-        </td>
-        <td style="padding: 6px; text-align: center; background: #f8fafc; border-right: 1px solid #cbd5e1;">
-          <select class="input-select-sm" data-field="mode_l0" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #cbd5e1; background: ${modeL0 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL0 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
-            <option value="EDITOR" ${modeL0 === 'EDITOR' ? 'selected' : ''}>Editor</option>
-            <option value="VIEWER" ${modeL0 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
-          </select>
-        </td>
-        <!-- L1 Perencanaan (Akses & Mode) -->
-        <td style="padding: 6px; text-align: center; background: #eff6ff; border-right: 1px solid #e2e8f0;">
-          <input type="checkbox" data-field="allow_l1" ${m.allow_l1 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #1e40af;" title="L1 Akses">
-        </td>
-        <td style="padding: 6px; text-align: center; background: #eff6ff; border-right: 1px solid #cbd5e1;">
-          <select class="input-select-sm" data-field="mode_l1" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #bfdbfe; background: ${modeL1 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL1 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
-            <option value="EDITOR" ${modeL1 === 'EDITOR' ? 'selected' : ''}>Editor</option>
-            <option value="VIEWER" ${modeL1 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
-          </select>
-        </td>
-        <!-- L2 Operator (Akses & Mode) -->
-        <td style="padding: 6px; text-align: center; background: #f0fdf4; border-right: 1px solid #e2e8f0;">
-          <input type="checkbox" data-field="allow_l2" ${m.allow_l2 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #166534;" title="L2 Akses">
-        </td>
-        <td style="padding: 6px; text-align: center; background: #f0fdf4; border-right: 1px solid #cbd5e1;">
-          <select class="input-select-sm" data-field="mode_l2" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #bbf7d0; background: ${modeL2 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL2 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
-            <option value="EDITOR" ${modeL2 === 'EDITOR' ? 'selected' : ''}>Editor</option>
-            <option value="VIEWER" ${modeL2 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
-          </select>
-        </td>
-        <!-- L3 Pimpinan (Akses & Mode) -->
-        <td style="padding: 6px; text-align: center; background: #fdf4ff; border-right: 1px solid #e2e8f0;">
-          <input type="checkbox" data-field="allow_l3" ${m.allow_l3 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #86198f;" title="L3 Akses">
-        </td>
-        <td style="padding: 6px; text-align: center; background: #fdf4ff; border-right: 1px solid #cbd5e1;">
-          <select class="input-select-sm" data-field="mode_l3" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #e9d5ff; background: ${modeL3 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL3 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
-            <option value="VIEWER" ${modeL3 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
-            <option value="EDITOR" ${modeL3 === 'EDITOR' ? 'selected' : ''}>Editor</option>
-          </select>
-        </td>
-        <!-- L4 Auditor (Akses & Mode) -->
-        <td style="padding: 6px; text-align: center; background: #fefce8; border-right: 1px solid #e2e8f0;">
-          <input type="checkbox" data-field="allow_l4" ${m.allow_l4 ? 'checked' : ''} style="width: 15px; height: 15px; cursor: pointer; accent-color: #854d0e;" title="L4 Akses">
-        </td>
-        <td style="padding: 6px; text-align: center; background: #fefce8;">
-          <select class="input-select-sm" data-field="mode_l4" style="padding: 2px 4px; font-size: 10.5px; font-weight: 700; border-radius: 4px; border: 1px solid #fef08a; background: ${modeL4 === 'EDITOR' ? '#fef3c7' : '#dcfce7'}; color: ${modeL4 === 'EDITOR' ? '#92400e' : '#166534'};" onchange="this.style.background = this.value === 'EDITOR' ? '#fef3c7' : '#dcfce7'; this.style.color = this.value === 'EDITOR' ? '#92400e' : '#166534';">
-            <option value="VIEWER" ${modeL4 === 'VIEWER' ? 'selected' : ''}>Viewer</option>
-            <option value="EDITOR" ${modeL4 === 'EDITOR' ? 'selected' : ''}>Editor</option>
-          </select>
-        </td>
+        ${levelCells}
       </tr>
     `;
   }).join('');
@@ -13896,16 +13926,20 @@ async function saveMenuMatrixAction() {
     rows.forEach(tr => {
       const menuKey = tr.getAttribute('data-menu-key');
       if (matrixMap[menuKey]) {
-        matrixMap[menuKey].allow_l0 = tr.querySelector('input[data-field="allow_l0"]')?.checked ? 1 : 0;
-        matrixMap[menuKey].mode_l0 = tr.querySelector('select[data-field="mode_l0"]')?.value || 'EDITOR';
-        matrixMap[menuKey].allow_l1 = tr.querySelector('input[data-field="allow_l1"]')?.checked ? 1 : 0;
-        matrixMap[menuKey].mode_l1 = tr.querySelector('select[data-field="mode_l1"]')?.value || 'EDITOR';
-        matrixMap[menuKey].allow_l2 = tr.querySelector('input[data-field="allow_l2"]')?.checked ? 1 : 0;
-        matrixMap[menuKey].mode_l2 = tr.querySelector('select[data-field="mode_l2"]')?.value || 'VIEWER';
-        matrixMap[menuKey].allow_l3 = tr.querySelector('input[data-field="allow_l3"]')?.checked ? 1 : 0;
-        matrixMap[menuKey].mode_l3 = tr.querySelector('select[data-field="mode_l3"]')?.value || 'VIEWER';
-        matrixMap[menuKey].allow_l4 = tr.querySelector('input[data-field="allow_l4"]')?.checked ? 1 : 0;
-        matrixMap[menuKey].mode_l4 = tr.querySelector('select[data-field="mode_l4"]')?.value || 'VIEWER';
+        for (let lvl = 0; lvl <= 10; lvl++) {
+          const sel = tr.querySelector(`select[data-field="status_l${lvl}"]`);
+          const val = sel ? sel.value : 'NONE';
+          if (val === 'NONE') {
+            matrixMap[menuKey]['allow_l' + lvl] = 0;
+            matrixMap[menuKey]['mode_l' + lvl] = [4, 5, 6].includes(lvl) ? 'VIEWER' : 'EDITOR';
+          } else if (val === 'VIEWER') {
+            matrixMap[menuKey]['allow_l' + lvl] = 1;
+            matrixMap[menuKey]['mode_l' + lvl] = 'VIEWER';
+          } else if (val === 'EDITOR') {
+            matrixMap[menuKey]['allow_l' + lvl] = 1;
+            matrixMap[menuKey]['mode_l' + lvl] = 'EDITOR';
+          }
+        }
         matrixMap[menuKey].required_mode = matrixMap[menuKey].mode_l1 || 'VIEWER';
       }
     });
@@ -13925,7 +13959,8 @@ async function saveMenuMatrixAction() {
     if (btn) btn.disabled = false;
   }
 }
-async function handleSaktiKumulatifToggle(checked) {
+
+async function handleKumulatifToggle(checked) {
   const targetMode = checked ? 'KUMULATIF' : 'SWITCH';
   try {
     const res = await apiFetch('/api/user/preference-role-mode', {
@@ -13961,7 +13996,7 @@ async function handleSaktiKumulatifToggle(checked) {
           switchView('view-dashboard', true);
         }
       } else {
-        showToast('Mode Ganti Peran (ala SAKTI) aktif: Silakan pilih peran yang ingin digunakan.', 'info');
+        showToast('Mode Peran Bergantian aktif: Silakan pilih peran yang ingin digunakan.', 'info');
       }
     } else {
       throw new Error(res.error || 'Gagal mengubah preferensi peran');

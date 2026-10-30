@@ -1,6 +1,6 @@
 /**
  * SI-PRABU Clean Web Edition v3.0
- * Modul Export Excel (XLSX) Multi-Sheet Resmi (SAKTI FA 16 Detail Architecture)
+ * Modul Export Excel (XLSX) Multi-Sheet Resmi (Format Standar Detail 16 Segmen KPU Ngawi)
  * Pengembang Resmi: emenje
  */
 
@@ -1558,7 +1558,7 @@ async function exportRekapToExcelBuffer(periodeId, { pic = 'SEMUA', mode = 'pere
 
 /**
  * Menghasilkan buffer XLSX untuk download RUH Belanja Multi-Sheet
- * Sesuai Standar FA Detail 16 Segmen SAKTI Kemenkeu
+ * Format Standar Detail 16 Segmen KPU Kabupaten Ngawi
  * @param {number} periodeId
  * @param {object} options { pic, sasaran, scope }
  * @returns {Promise<Buffer>}
@@ -1747,7 +1747,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   const headerRow1 = ws1.getRow(4);
   headerRow1.height = 28;
 
-  // Latar Header SAKTI FA Detail 16 Segmen (#0099CC), font putih tebal 11pt
+  // Latar Header Format Detail 16 Segmen (#0099CC), font putih tebal 11pt
   const sHeaderColor = 'FF0099CC';
   for (let c = 1; c <= 15; c++) {
     if (c === 12) continue; // Kolom kosong spacer tidak di-fill
@@ -1935,22 +1935,22 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } };
       }
     } else if (treeLvl === 3) {
-      // Level 3: Kegiatan (1..28) - SAKTI Output: FONT MERAH TEGAS (#FF0000) Bold 13pt!
+      // Level 3: Kegiatan (1..28) - Format Output: FONT MERAH TEGAS (#FF0000) Bold 13pt!
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FFFF0000' } };
       }
     } else if (treeLvl === 4) {
-      // Level 4: Sub-Kegiatan - SAKTI SubOutput: FONT UNGU / MAGENTA (#CC00CC) Bold 12.5pt!
+      // Level 4: Sub-Kegiatan - Format SubOutput: FONT UNGU / MAGENTA (#CC00CC) Bold 12.5pt!
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 12.5, bold: true, color: { argb: 'FFCC00CC' } };
       }
     } else if (treeLvl === 5) {
-      // Level 5: Akun BAS 6-Digit (521211, dll) - SAKTI Akun: Font Hitam Bold 12pt
+      // Level 5: Akun BAS 6-Digit (521211, dll) - Format Akun: Font Hitam Bold 12pt
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
       }
     } else if (treeLvl === 5.5) {
-      // Level 5.5: Sub-Header Item / Komponen - SAKTI Komponen: FONT COKLAT KEEMASAN / GOLD (#CC9900) Bold 12pt!
+      // Level 5.5: Sub-Header Item / Komponen - Format Komponen: FONT COKLAT KEEMASAN / GOLD (#CC9900) Bold 12pt!
       for (let c = 1; c <= 11; c++) {
         excelRow.getCell(c).font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFCC9900' } };
       }
@@ -1980,7 +1980,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
     minFinalRows: 12
   });
 
-  // BARIS TOTAL PAGU BELANJA (Format SAKTI FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold, Tanpa 'RUH')
+  // BARIS TOTAL PAGU BELANJA (Format Standar FA Detail: Latar Cyan #00FFFF, Teks Hitam Bold, Tanpa 'RUH')
   const totalRowNumber = ws1.rowCount + 1;
   const totalLabel = filterPic
     ? `TOTAL PAGU BELANJA (${(SUBBAG_LABEL_MAP[filterPic] || filterPic).toUpperCase()}):`
@@ -1994,12 +1994,12 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   ws1.mergeCells(`A${totalRowNumber}:J${totalRowNumber}`);
   totalRow.height = 28;
 
-  const cyanSaktiFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } }; // CYAN SAKTI
+  const cyanHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FFFF' } }; // CYAN RESMI
 
   // Latar dan border total label (A:J)
   for (let c = 1; c <= 10; c++) {
     const cCell = ws1.getCell(totalRowNumber, c);
-    cCell.fill = cyanSaktiFill;
+    cCell.fill = cyanHeaderFill;
     cCell.border = {
       top: { style: 'thin', color: { argb: 'FF000000' } },
       bottom: { style: 'double', color: { argb: 'FF000000' } },
@@ -2012,7 +2012,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 
   // Total nilai cell (K)
   const totalValCell = ws1.getCell(`K${totalRowNumber}`);
-  totalValCell.fill = cyanSaktiFill;
+  totalValCell.fill = cyanHeaderFill;
   totalValCell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } };
   totalValCell.alignment = { vertical: 'middle', horizontal: 'right' };
   totalValCell.numFmt = '#,##0';
@@ -2043,7 +2043,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
   // FOOTER PENANDA RIWAYAT FILE & AUDIT SISTEM (Diletakkan di bawah DILUAR area print)
   appendAuditSignature(ws1, { periode, statusLabel, tanggalUnduh, filterPic, filterSasaran });
 
-  // LEBAR KOLOM DIRAPATKAN SEPERTI FA 16 DETAIL SAKTI
+  // LEBAR KOLOM DIRAPATKAN STANDAR RESMI FA 16 DETAIL
   // Kolom A sampai D membentuk kesatuan header "Nomor" ramping (Total 12.5), Kolom E adalah "Kode" (9.5)
   const colWidths1 = [2.8, 3.0, 3.2, 3.5, 9.5, 52.0, 22.0, 10.5, 10.5, 17.0, 19.0, 3.5, 6.5, 12.0, 12.0];
   colWidths1.forEach((w, i) => {
@@ -2588,7 +2588,7 @@ async function exportRkbToExcelBuffer(periodeId, options = {}) {
 }
 
 /**
- * Ekspor Data Master SBM ke Format Excel Resmi SAKTI
+ * Ekspor Data Master SBM ke Format Excel Resmi
  */
 async function exportSbmToExcelBuffer() {
   const { getSbmList } = require('./db');
@@ -2802,7 +2802,7 @@ function parseSbmExcelBuffer(buffer) {
 }
 
 /**
- * Ekspor Data Master BAS ke Format Excel Resmi SAKTI
+ * Ekspor Data Master BAS ke Format Excel Resmi
  */
 async function exportBasToExcelBuffer() {
   const { getAkunList } = require('./db');
