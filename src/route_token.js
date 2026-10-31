@@ -89,7 +89,7 @@ const SAKTI_VIEW_TITLES = {
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
   'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
-  'view-menu-matrix': 'Manajemen Hak Akses Menu (RBAC)'
+  'view-menu-matrix': 'Manajemen Hak Akses'
 };
 
 function bufferToBase64Url(buf) {

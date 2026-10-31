@@ -61,6 +61,8 @@ const {
   toggleUserStatus,
   getMenuMatrix,
   saveMenuMatrix,
+  getSheetMatrix,
+  saveSheetMatrix,
   updateUserRoleMode,
   authenticateUser,
   authenticateGoogleUser,
@@ -174,7 +176,7 @@ async function processDownloadJob(jobId) {
       const archiver = require('archiver');
       const buffers = [];
       for (const s of subbags) {
-        const buf = await exportRkbToExcelBuffer(job.periode_id, { pic: s.code });
+        const buf = await exportRkbToExcelBuffer(job.periode_id, { pic: s.code, cost_sharing: job.filter_cost_sharing || 'ALL' });
         buffers.push({ name: s.filename, data: buf });
       }
 
@@ -242,7 +244,9 @@ async function processDownloadJob(jobId) {
       const query = {};
       if (job.filter_pic && job.filter_pic !== 'SEMUA') query.pic = job.filter_pic;
       if (job.filter_sasaran && job.filter_sasaran !== 'ALL') query.sasaran = job.filter_sasaran;
-      buffer = await exportRkbToExcelBuffer(job.periode_id, query);
+      if (job.filter_cost_sharing && job.filter_cost_sharing !== 'ALL') query.cost_sharing = job.filter_cost_sharing;
+      const requester = job.user_id ? getUserById(job.user_id) : (job.username ? getUserByUsername(job.username) : null);
+      buffer = await exportRkbToExcelBuffer(job.periode_id, query, requester);
     }
 
     const cleanName = (job.nama_file || 'Laporan.xlsx').replace(/[^a-zA-Z0-9_\-\.]/g, '_');
@@ -977,6 +981,24 @@ const server = http.createServer(async (req, res) => {
       const items = Array.isArray(body) ? body : (body.matrix || []);
       const updated = saveMenuMatrix(items);
       return sendJson(res, 200, { success: true, matrix: updated, message: 'Matriks hak akses menu berhasil diperbarui.' });
+    }
+
+    // 3c. MATRIKS HAK AKSES SHEET EXCEL & SUMBER DANA DINAMIS BERBASIS LEVEL (0-10)
+    if (pathname === '/api/sheet-matrix' && method === 'GET') {
+      const matrix = getSheetMatrix();
+      return sendJson(res, 200, { success: true, matrix });
+    }
+
+    if (pathname === '/api/sheet-matrix' && (method === 'PUT' || method === 'POST')) {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (Number(currentUser.level) > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengubahan matriks hak akses sheet hanya diizinkan untuk Otoritas Level 0 dan Level 1.' });
+      }
+      const body = await parseJsonBody(req);
+      const items = Array.isArray(body) ? body : (body.matrix || []);
+      const updated = saveSheetMatrix(items);
+      return sendJson(res, 200, { success: true, matrix: updated, message: 'Matriks hak akses sheet & sumber dana berhasil diperbarui.' });
     }
 
     // 3b. ADMINISTRASI PEJABAT PENANDATANGAN DOKUMEN SATKER (BAB 22 CANON)
@@ -3123,10 +3145,10 @@ const server = http.createServer(async (req, res) => {
       if (!body.nama_file) {
         return sendJson(res, 400, { error: 'Nama file unduhan wajib disertakan.' });
       }
-      if (currentUser.level === 2 && body.tipe_unduhan === 'ZIP_SUBBAGIAN') {
+      if ((currentUser.level === 3 || (currentUser.level > 2 && currentUser.pic_subbag && currentUser.pic_subbag !== 'SEMUA')) && body.tipe_unduhan === 'ZIP_SUBBAGIAN') {
         return sendJson(res, 403, { error: 'Akses ditolak. Paket ZIP 5 Subbagian hanya dapat diunduh oleh Level kewenangan yang berhak.' });
       }
-      if (currentUser.level === 2 && currentUser.pic_subbag && currentUser.pic_subbag !== 'SEMUA') {
+      if ((currentUser.level === 3 || (currentUser.level > 2 && currentUser.pic_subbag && currentUser.pic_subbag !== 'SEMUA')) && currentUser.pic_subbag && currentUser.pic_subbag !== 'SEMUA') {
         body.filter_pic = currentUser.pic_subbag;
       }
       body.user_id = currentUser.id;
@@ -3210,13 +3232,16 @@ const server = http.createServer(async (req, res) => {
       const periode = getPeriodeById(periodeId);
       if (!periode) return sendJson(res, 404, { error: 'Dokumen tidak ditemukan.' });
 
+      let { pic, sasaran, cost_sharing } = query;
       // Enforce Level 2 operator subbag boundaries (backend protection)
       if (user.level > 1 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
-        query.pic = user.pic_subbag;
+        pic = user.pic_subbag;
       }
 
-      const buffer = await exportRkbToExcelBuffer(periodeId, query);
-      const filterSuffix = (query.pic && query.pic !== 'SEMUA' ? `_${query.pic}` : '') + (query.sasaran && query.sasaran !== 'ALL' ? `_${query.sasaran}` : '');
+      const buffer = await exportRkbToExcelBuffer(periodeId, { pic, sasaran, cost_sharing }, user);
+      const filterSuffix = (pic && pic !== 'SEMUA' ? `_${pic}` : '') + 
+                           (sasaran && sasaran !== 'ALL' ? `_${sasaran}` : '') +
+                           (cost_sharing && cost_sharing !== 'ALL' ? `_${cost_sharing}` : '');
       const filename = `RUH_Belanja_${(periode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}${filterSuffix}_${formatDownloadTimestamp()}.xlsx`;
 
       if (method === 'GET') {
@@ -3245,8 +3270,8 @@ const server = http.createServer(async (req, res) => {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu untuk mengunduh laporan.' });
 
-      // Tolak Operator Level 2 agar tidak mengekspor paket ZIP seluruh subbagian
-      if (user.level === 2) {
+      // Tolak Operator agar tidak mengekspor paket ZIP seluruh subbagian
+      if (user.level === 3 || (user.level > 2 && user.pic_subbag && user.pic_subbag !== 'SEMUA')) {
         return sendJson(res, 403, { error: 'Akses ditolak. Paket ZIP 5 Subbagian hanya dapat diunduh oleh Level kewenangan yang berhak.' });
       }
 

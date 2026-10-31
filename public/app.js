@@ -142,7 +142,7 @@ const PRABU_VIEW_TITLES = {
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
   'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
-  'view-menu-matrix': 'Manajemen Hak Akses Menu (RBAC)'
+  'view-menu-matrix': 'Manajemen Hak Akses'
 };
 
 function bufferToBase64Url(uint8Array) {
@@ -760,6 +760,7 @@ async function loadMenuMatrix() {
       AppState.menuMatrix = res.matrix;
       applyDynamicMenuMatrix();
     }
+    loadSheetMatrix();
   } catch (e) {
     console.warn('[MENU-MATRIX] Gagal memuat matriks hak akses:', e);
   }
@@ -3823,9 +3824,29 @@ function renderRkbTable() {
   const isSanding = hasParentRev && AppState.revisionViewMode === 'SANDING';
 
   // Total footer
-  const hasFilter = Boolean(AppState.filters.pic !== 'SEMUA' || AppState.filters.sasaran !== 'ALL' || (AppState.filters.search && AppState.filters.search.trim()));
+  const isCostKab = AppState.filters.cost_sharing === 'KABUPATEN';
+  const isCostProv = AppState.filters.cost_sharing === 'PROVINSI';
+  const hasFilter = Boolean(
+    (AppState.filters.pic && AppState.filters.pic !== 'SEMUA') ||
+    (AppState.filters.sasaran && AppState.filters.sasaran !== 'ALL') ||
+    (AppState.filters.cost_sharing && AppState.filters.cost_sharing !== 'ALL') ||
+    (AppState.filters.search && AppState.filters.search.trim())
+  );
   const displayTotal = (hasFilter && AppState.rkbData.filtered_summary) ? AppState.rkbData.filtered_summary.grandTotal : summary.grandTotal;
   setElText('rkb-tfoot-total', formatRupiah(displayTotal));
+
+  const tfootLabel = document.getElementById('rkb-tfoot-label');
+  if (tfootLabel) {
+    if (isCostKab) {
+      tfootLabel.textContent = 'TOTAL PAGU BELANJA (APBD KABUPATEN):';
+    } else if (isCostProv) {
+      tfootLabel.textContent = 'TOTAL PAGU BELANJA (SHARING APBD PROVINSI):';
+    } else if (hasFilter) {
+      tfootLabel.textContent = 'TOTAL PAGU BELANJA (TERFILTER):';
+    } else {
+      tfootLabel.textContent = 'TOTAL PAGU BELANJA:';
+    }
+  }
 
   // Update RUH Belanja Header Badges
   const statusBadge = document.getElementById('rkb-header-status-badge');
@@ -4311,8 +4332,15 @@ function handleSearchDebounce() {
 function openResumeSasaranModal() {
   if (!AppState.rkbData) return;
   const { summary } = AppState.rkbData;
-  const sas = summary.bySasaran || {};
-  const total = Number(summary.grandTotal) || 0;
+  const hasFilter = Boolean(
+    (AppState.filters.pic && AppState.filters.pic !== 'SEMUA') ||
+    (AppState.filters.sasaran && AppState.filters.sasaran !== 'ALL') ||
+    (AppState.filters.cost_sharing && AppState.filters.cost_sharing !== 'ALL') ||
+    (AppState.filters.search && AppState.filters.search.trim())
+  );
+  const activeSummary = (hasFilter && AppState.rkbData.filtered_summary) ? AppState.rkbData.filtered_summary : summary;
+  const sas = activeSummary.bySasaran || {};
+  const total = Number(activeSummary.grandTotal) || 0;
 
   const kecCount = (AppState.masters?.kecamatans || []).length || 19;
   const desas = AppState.masters?.desas || [];
@@ -7077,15 +7105,18 @@ async function downloadExcel(periodeId = null) {
     // Cek apakah filter layar sedang aktif
     const currentPic = (AppState.filters && AppState.filters.pic) || 'SEMUA';
     const currentSasaran = (AppState.filters && AppState.filters.sasaran) || 'ALL';
-    const isFiltered = (currentPic !== 'SEMUA' || currentSasaran !== 'ALL');
+    const currentCostSharing = (AppState.filters && AppState.filters.cost_sharing) || 'ALL';
+    const isFiltered = (currentPic !== 'SEMUA' || currentSasaran !== 'ALL' || currentCostSharing !== 'ALL');
 
     const picSelect = document.getElementById('export-filter-pic');
     const sasaranSelect = document.getElementById('export-filter-sasaran');
+    const costSharingSelect = document.getElementById('export-filter-cost-sharing');
     const scopeFullRadio = document.getElementById('export-scope-full');
     const scopeFilteredRadio = document.getElementById('export-scope-filtered');
 
     if (picSelect) picSelect.value = currentPic;
     if (sasaranSelect) sasaranSelect.value = currentSasaran;
+    if (costSharingSelect) costSharingSelect.value = currentCostSharing;
 
     // Role checking (Level 0 Developer, Level 1 Perencanaan)
     const user = AppState.currentUser;
@@ -7131,6 +7162,16 @@ async function downloadExcel(periodeId = null) {
       }
     }
 
+    // Evaluasi kebijakan Sumber Dana pada sheet RUH_Belanja_Resmi dari sheetMatrix
+    const uLevel = user ? Number(user.level) : 0;
+    if (!Array.isArray(AppState.sheetMatrix) || AppState.sheetMatrix.length === 0) {
+      loadSheetMatrix().then(() => {
+        applyExportCostSharingPolicy(uLevel);
+      });
+    } else {
+      applyExportCostSharingPolicy(uLevel);
+    }
+
     toggleExportFilterScope();
 
     const modal = document.getElementById('modal-export-excel');
@@ -7138,7 +7179,8 @@ async function downloadExcel(periodeId = null) {
       modal.style.display = 'flex';
     } else {
       // Fallback jika modal tidak ditemukan di DOM
-      await downloadProtectedFile(`/api/export-excel/${pId}`, `RKB_Periode_${pId}.xlsx`);
+      const csParam = currentCostSharing !== 'ALL' ? `?cost_sharing=${encodeURIComponent(currentCostSharing)}` : '';
+      await downloadProtectedFile(`/api/export-excel/${pId}${csParam}`, `RKB_Periode_${pId}.xlsx`);
     }
   } catch (err) {
     console.error('Error saat membuka modal ekspor excel:', err);
@@ -7206,9 +7248,13 @@ async function executeExportExcel() {
     sasaran = document.getElementById('export-filter-sasaran')?.value || 'ALL';
   }
 
+  const costSharing = document.getElementById('export-filter-cost-sharing')?.value || 'ALL';
+
   const periode = AppState.periodesList?.find(p => p.id === pendingExportPeriodeId) || AppState.currentPeriode;
   const versiStr = (periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filterSuffix = (pic !== 'SEMUA' ? `_${pic}` : '') + (sasaran !== 'ALL' ? `_${sasaran}` : '');
+  const filterSuffix = (pic !== 'SEMUA' ? `_${pic}` : '') + 
+                       (sasaran !== 'ALL' ? `_${sasaran}` : '') +
+                       (costSharing !== 'ALL' ? `_${costSharing}` : '');
   const filename = `RUH_Belanja_${versiStr}${filterSuffix}_${formatClientDownloadTimestamp()}.xlsx`;
 
   try {
@@ -7219,7 +7265,8 @@ async function executeExportExcel() {
         tipe_unduhan: 'EXCEL_RUH',
         periode_id: pendingExportPeriodeId,
         filter_pic: pic,
-        filter_sasaran: sasaran
+        filter_sasaran: sasaran,
+        filter_cost_sharing: costSharing
       })
     });
     if (result && result.success) {
@@ -7238,9 +7285,11 @@ async function downloadAllSubbagZip(periodeId = null) {
   const pId = periodeId || pendingExportPeriodeId || (AppState.currentPeriode ? AppState.currentPeriode.id : 1);
   if (!pId) return;
 
+  const costSharing = document.getElementById('export-filter-cost-sharing')?.value || 'ALL';
   const periode = AppState.periodesList?.find(p => p.id === pId) || AppState.currentPeriode;
   const versiStr = (periode?.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `Paket_RUH_5_Subbagian_${versiStr}_${formatClientDownloadTimestamp()}.zip`;
+  const csSuffix = (costSharing !== 'ALL' ? `_${costSharing}` : '');
+  const filename = `Paket_RUH_5_Subbagian_${versiStr}${csSuffix}_${formatClientDownloadTimestamp()}.zip`;
 
   try {
     const result = await apiFetch('/api/download-requests', {
@@ -7248,7 +7297,8 @@ async function downloadAllSubbagZip(periodeId = null) {
       body: JSON.stringify({
         nama_file: filename,
         tipe_unduhan: 'ZIP_SUBBAGIAN',
-        periode_id: pId
+        periode_id: pId,
+        filter_cost_sharing: costSharing
       })
     });
     if (result.success) {
@@ -10209,6 +10259,225 @@ async function savePenandatanganModal(e) {
   }
 }
 
+function applyExportCostSharingPolicy(uLevel) {
+  const csSelect = document.getElementById('export-filter-cost-sharing');
+  if (!csSelect) return;
+  const matrix = AppState.sheetMatrix || [];
+  const ruhPolicy = matrix.find(s => s.sheet_key === 'RUH_Belanja_Resmi');
+  const existingNote = document.getElementById('export-cs-lock-note');
+  if (existingNote) existingNote.remove();
+
+  if (ruhPolicy) {
+    const csMode = ruhPolicy['cs_mode_l' + uLevel] || 'SWITCH';
+    if (csMode === 'LENGKAP') {
+      csSelect.value = 'ALL';
+      csSelect.disabled = true;
+      const note = document.createElement('div');
+      note.id = 'export-cs-lock-note';
+      note.style.cssText = 'font-size: 11px; color: #0369a1; font-weight: 700; margin-top: 5px; display: flex; align-items: center; gap: 4px;';
+      note.innerHTML = '<span>🔒</span> <em>Terkunci: Kewenangan Anda (Level ' + uLevel + ') diatur untuk mencetak Sumber Dana Lengkap (APBD Gabungan).</em>';
+      csSelect.parentNode.appendChild(note);
+    } else {
+      csSelect.disabled = false;
+    }
+  } else {
+    csSelect.disabled = false;
+  }
+}
+
+// ============================================================================
+// MODUL MANAJEMEN MATRIKS HAK AKSES SHEET & SUMBER DANA (RBAC DINAMIS)
+// ============================================================================
+
+let activeMatrixTab = 'menu';
+
+function switchMatrixTab(tab) {
+  activeMatrixTab = tab;
+  const btnMenu = document.getElementById('tab-btn-matrix-menu');
+  const btnSheet = document.getElementById('tab-btn-matrix-sheet');
+  const contentMenu = document.getElementById('matrix-tab-content-menu');
+  const contentSheet = document.getElementById('matrix-tab-content-sheet');
+
+  if (tab === 'sheet') {
+    if (btnMenu) { btnMenu.className = 'btn btn-sm btn-outline'; }
+    if (btnSheet) { btnSheet.className = 'btn btn-sm btn-primary'; }
+    if (contentMenu) contentMenu.style.display = 'none';
+    if (contentSheet) contentSheet.style.display = 'block';
+    loadSheetMatrixView();
+  } else {
+    if (btnMenu) { btnMenu.className = 'btn btn-sm btn-primary'; }
+    if (btnSheet) { btnSheet.className = 'btn btn-sm btn-outline'; }
+    if (contentMenu) contentMenu.style.display = 'block';
+    if (contentSheet) contentSheet.style.display = 'none';
+    loadMenuMatrixView();
+  }
+}
+
+function reloadCurrentMatrixView() {
+  if (activeMatrixTab === 'sheet') {
+    loadSheetMatrixView();
+  } else {
+    loadMenuMatrixView();
+  }
+}
+
+function saveCurrentMatrixAction() {
+  if (activeMatrixTab === 'sheet') {
+    saveSheetMatrixAction();
+  } else {
+    saveMenuMatrixAction();
+  }
+}
+
+async function loadSheetMatrix() {
+  try {
+    const res = await apiFetch('/api/sheet-matrix');
+    if (res && res.matrix) {
+      AppState.sheetMatrix = res.matrix;
+    }
+  } catch (e) {
+    console.warn('[SHEET-MATRIX] Gagal memuat matriks sheet:', e);
+  }
+}
+
+async function loadSheetMatrixView() {
+  const tbody = document.getElementById('sheet-matrix-table-body');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="14" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses sheet...</td></tr>';
+  }
+  try {
+    const res = await apiFetch('/api/sheet-matrix');
+    if (res && res.matrix) {
+      AppState.sheetMatrix = res.matrix;
+      renderSheetMatrixTable();
+    }
+  } catch (err) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="14" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks: ' + escHtml(err.message) + '</td></tr>';
+  }
+}
+
+window.onSheetMatrixStatusChange = function(el) {
+  const val = el.value;
+  if (val === 'SWITCH') {
+    el.style.background = '#dcfce7';
+    el.style.color = '#166534';
+    el.style.borderColor = '#86efac';
+  } else if (val === 'LENGKAP') {
+    el.style.background = '#e0f2fe';
+    el.style.color = '#0369a1';
+    el.style.borderColor = '#7dd3fc';
+  } else {
+    el.style.background = '#fee2e2';
+    el.style.color = '#991b1b';
+    el.style.borderColor = '#fca5a5';
+  }
+};
+
+function renderSheetMatrixTable() {
+  const tbody = document.getElementById('sheet-matrix-table-body');
+  if (!tbody) return;
+
+  const matrix = AppState.sheetMatrix || [];
+  const countEl = document.getElementById('sheet-matrix-count');
+  if (countEl) countEl.textContent = matrix.length + ' Sheet Terdaftar';
+
+  if (matrix.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="14" class="text-center" style="padding: 24px; color: #64748b;">Tidak ada data sheet terdaftar.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = matrix.map((s, idx) => {
+    let levelCells = '';
+    for (let lvl = 0; lvl <= 10; lvl++) {
+      const modeVal = s['cs_mode_l' + lvl] || ((lvl <= 3 || lvl === 5) ? 'SWITCH' : 'LENGKAP');
+      const isAllowed = s['allow_l' + lvl] !== undefined ? Boolean(s['allow_l' + lvl]) : (modeVal !== 'TIDAK_BOLEH');
+      const currentMode = (!isAllowed || modeVal === 'TIDAK_BOLEH') ? 'TIDAK_BOLEH' : modeVal;
+
+      let bg = '#fee2e2';
+      let color = '#991b1b';
+      let border = '#fca5a5';
+      if (currentMode === 'SWITCH') {
+        bg = '#dcfce7'; color = '#166534'; border = '#86efac';
+      } else if (currentMode === 'LENGKAP') {
+        bg = '#e0f2fe'; color = '#0369a1'; border = '#7dd3fc';
+      }
+
+      const isSep = (lvl === 6);
+
+      levelCells += `
+        <td style="padding: 4px 2px; text-align: center; border-right: ${isSep ? '2px solid #6366f1' : '1px solid #e2e8f0'};">
+          <select class="input-select-sm" data-field="cs_mode_l${lvl}" onchange="window.onSheetMatrixStatusChange(this)" style="padding: 3px 2px; font-size: 10px; font-weight: 700; border-radius: 4px; border: 1px solid ${border}; background: ${bg}; color: ${color}; width: 100%; cursor: pointer;">
+            <option value="SWITCH" ${currentMode === 'SWITCH' ? 'selected' : ''}>🟢 Bisa Memilih</option>
+            <option value="LENGKAP" ${currentMode === 'LENGKAP' ? 'selected' : ''}>🔵 Dana Lengkap</option>
+            <option value="TIDAK_BOLEH" ${currentMode === 'TIDAK_BOLEH' ? 'selected' : ''}>❌ Tidak Boleh</option>
+          </select>
+        </td>
+      `;
+    }
+
+    const scopeBadge = (s.sheet_scope === 'NON_PIC')
+      ? '<span class="badge" style="background: #f1f5f9; color: #475569; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Satker (Non-PIC)</span>'
+      : '<span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Semua Unduhan</span>';
+
+    return `
+      <tr data-sheet-key="${escHtml(s.sheet_key)}" style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 8px 6px; text-align: center; color: #64748b; font-weight: 600; border-right: 1px solid #e2e8f0;">${idx + 1}</td>
+        <td style="padding: 8px 10px; border-right: 1px solid #e2e8f0;">
+          <div style="font-weight: 700; color: #0f172a; font-size: 11.5px;">${escHtml(s.sheet_label || s.sheet_key)}</div>
+          <div style="font-size: 10px; color: #64748b; font-family: var(--font-mono); margin-top: 1px;">
+            ${escHtml(s.sheet_key)}
+          </div>
+        </td>
+        <td style="padding: 8px 8px; color: #475569; border-right: 2px solid #cbd5e1; text-align: center;">
+          ${scopeBadge}
+        </td>
+        ${levelCells}
+      </tr>
+    `;
+  }).join('');
+}
+
+async function saveSheetMatrixAction() {
+  const btn = document.getElementById('btn-save-current-matrix') || document.getElementById('btn-save-menu-matrix');
+  if (btn) btn.disabled = true;
+
+  try {
+    const tbody = document.getElementById('sheet-matrix-table-body');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr[data-sheet-key]');
+    const matrixMap = {};
+    (AppState.sheetMatrix || []).forEach(s => {
+      matrixMap[s.sheet_key] = { ...s };
+    });
+
+    rows.forEach(tr => {
+      const sheetKey = tr.getAttribute('data-sheet-key');
+      if (matrixMap[sheetKey]) {
+        for (let lvl = 0; lvl <= 10; lvl++) {
+          const sel = tr.querySelector(`select[data-field="cs_mode_l${lvl}"]`);
+          const val = sel ? sel.value : 'SWITCH';
+          matrixMap[sheetKey]['cs_mode_l' + lvl] = val;
+          matrixMap[sheetKey]['allow_l' + lvl] = (val === 'TIDAK_BOLEH') ? 0 : 1;
+        }
+      }
+    });
+
+    const itemsToSave = Object.values(matrixMap);
+    const res = await apiFetch('/api/sheet-matrix', {
+      method: 'PUT',
+      body: JSON.stringify({ matrix: itemsToSave })
+    });
+
+    AppState.sheetMatrix = res.matrix || itemsToSave;
+    showToast(res.message || 'Matriks hak akses sheet & sumber dana berhasil disimpan.', 'success');
+  } catch (err) {
+    showToast('Gagal menyimpan matriks sheet: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function syncPenandatanganToUsers() {
   if (!confirm('Apakah Anda ingin menyinkronkan profil nama pejabat pada seluruh Akun Pengguna berdasarkan data Pejabat Penandatangan Sah?')) {
     return;
@@ -12417,6 +12686,15 @@ AppState.rekapState = {
 
 async function loadRekapView(mode = 'perencanaan') {
   const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  if (!AppState.rekapState) {
+    AppState.rekapState = {
+      perencanaan: { tab: 'EKSEKUTIF', data: null },
+      pelaksanaan: { tab: 'EKSEKUTIF', data: null }
+    };
+  }
+  if (!AppState.rekapState[cleanMode]) {
+    AppState.rekapState[cleanMode] = { tab: 'EKSEKUTIF', data: null };
+  }
   const selectEl = document.getElementById(`rekap-${cleanMode}-pic-select`);
   const picBox = document.getElementById(`rekap-${cleanMode}-pic-filter-box`);
   const lockedBadge = document.getElementById(`rekap-${cleanMode}-pic-locked-badge`);
@@ -12458,6 +12736,15 @@ async function loadRekapView(mode = 'perencanaan') {
 
 function switchRekapTab(mode, tabName) {
   const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  if (!AppState.rekapState) {
+    AppState.rekapState = {
+      perencanaan: { tab: 'EKSEKUTIF', data: null },
+      pelaksanaan: { tab: 'EKSEKUTIF', data: null }
+    };
+  }
+  if (!AppState.rekapState[cleanMode]) {
+    AppState.rekapState[cleanMode] = { tab: 'EKSEKUTIF', data: null };
+  }
   AppState.rekapState[cleanMode].tab = tabName;
   const tabContainer = document.getElementById(`rekap-${cleanMode}-tabs`);
   if (tabContainer) {
@@ -12471,6 +12758,7 @@ function switchRekapTab(mode, tabName) {
 
 function renderRekapTabContent(mode) {
   const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  if (!AppState.rekapState || !AppState.rekapState[cleanMode]) return;
   const state = AppState.rekapState[cleanMode];
   const contentBox = document.getElementById(`rekap-${cleanMode}-content`);
   if (!contentBox || !state || !state.data) return;
@@ -12946,6 +13234,16 @@ function printRekapPdf(mode = 'perencanaan') {
   const contentEl = document.getElementById(`rekap-${cleanMode}-content`);
   if (!state || !contentEl) return;
 
+  const s = (AppState.masters && AppState.masters.settings) || {};
+  const rawSatker = s.nama_satker || 'KPU KABUPATEN NGAWI';
+  const satkerName = rawSatker.toUpperCase().startsWith('KPU ') ? ('KOMISI PEMILIHAN UMUM ' + rawSatker.substring(4).toUpperCase()) : rawSatker.toUpperCase();
+  const alamatSatker = s.alamat_satker || 'Jl. Untung Suropati No. 48 Ngawi';
+  const telpSatker = s.telp_satker || '(0351) 743832';
+  const emailSatker = s.email_satker || 'kab_ngawi@kpu.go.id';
+  const agenda = (s.nama_agenda_pilkada || s.nama_agenda || 'PEMILIHAN BUPATI DAN WAKIL BUPATI NGAWI').toUpperCase();
+  const tahun = s.tahun_anggaran || '2029';
+  const agendaText = agenda.includes(tahun) ? `BELANJA HIBAH DALAM RANGKA ${agenda}` : `BELANJA HIBAH DALAM RANGKA ${agenda} TAHUN ${tahun}`;
+
   const win = window.open('', '_blank');
   if (!win) {
     window.print();
@@ -12957,19 +13255,33 @@ function printRekapPdf(mode = 'perencanaan') {
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>${escHtml(title)} - SI-PRABU KPU Kabupaten Ngawi</title>
+      <title>${escHtml(title)} - SI-PRABU ${escHtml(satkerName)}</title>
       <style>
         body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; font-size: 12px; }
-        h2 { margin: 0 0 4px 0; font-size: 16px; }
-        .meta { margin-bottom: 16px; font-size: 11.5px; color: #334155; }
+        .kop-instansi { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 16px; }
+        .kop-instansi h1 { margin: 0 0 2px 0; font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kop-instansi .kop-agenda { margin: 0 0 4px 0; font-size: 13px; font-weight: 700; color: #1e3a8a; }
+        .kop-instansi .kop-alamat { margin: 0; font-size: 10.5px; color: #475569; }
+        .doc-title { text-align: center; margin: 0 0 4px 0; font-size: 15px; font-weight: 800; color: #006699; }
+        .meta { margin-bottom: 16px; font-size: 11.5px; color: #334155; text-align: center; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #94a3b8; padding: 6px 8px; text-align: left; }
-        th { background: #f1f5f9; }
+        th { background: #f1f5f9; font-weight: bold; }
         .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        @media print {
+          body { padding: 0; }
+          button { display: none !important; }
+        }
       </style>
     </head>
     <body>
-      <h2>${escHtml(title)}</h2>
+      <div class="kop-instansi">
+        <h1>${escHtml(satkerName)}</h1>
+        <div class="kop-agenda">${escHtml(agendaText)}</div>
+        <div class="kop-alamat">${escHtml(alamatSatker)} | Telp: ${escHtml(telpSatker)} | Email: ${escHtml(emailSatker)}</div>
+      </div>
+      <div class="doc-title">${escHtml(title)}</div>
       <div class="meta">
         Dokumen: <strong>${escHtml(state.periode.nama_periode)} (${escHtml(state.periode.versi_revisi)})</strong> |
         Fase: <strong>${escHtml(state.periode.fase_perencanaan)}</strong> |
@@ -13039,6 +13351,17 @@ function printRekapCostSharingPdf(mode = 'perencanaan') {
   const contentEl = document.getElementById(`rekap-${cleanMode}-content`);
   if (!state || !contentEl) return;
 
+  const s = (AppState.masters && AppState.masters.settings) || {};
+  const rawSatker = s.nama_satker || 'KPU KABUPATEN NGAWI';
+  const satkerName = rawSatker.toUpperCase().startsWith('KPU ') ? ('KOMISI PEMILIHAN UMUM ' + rawSatker.substring(4).toUpperCase()) : rawSatker.toUpperCase();
+  const alamatSatker = s.alamat_satker || 'Jl. Untung Suropati No. 48 Ngawi';
+  const telpSatker = s.telp_satker || '(0351) 743832';
+  const emailSatker = s.email_satker || 'kab_ngawi@kpu.go.id';
+  const agenda = (s.nama_agenda_pilkada || s.nama_agenda || 'PEMILIHAN BUPATI DAN WAKIL BUPATI NGAWI').toUpperCase();
+  const tahun = s.tahun_anggaran || '2029';
+  const agendaText = agenda.includes(tahun) ? `BELANJA HIBAH DALAM RANGKA ${agenda}` : `BELANJA HIBAH DALAM RANGKA ${agenda} TAHUN ${tahun}`;
+  const kotaTtd = (s.kota_penandatangan || s.kota_ttd || 'Ngawi');
+
   const win = window.open('', '_blank');
   if (!win) {
     window.print();
@@ -13057,10 +13380,13 @@ function printRekapCostSharingPdf(mode = 'perencanaan') {
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>${escHtml(title)} - SI-PRABU KPU Kabupaten Ngawi</title>
+      <title>${escHtml(title)} - SI-PRABU ${escHtml(satkerName)}</title>
       <style>
         body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; font-size: 11px; line-height: 1.4; }
-        h2 { margin: 0 0 4px 0; font-size: 15px; text-align: center; }
+        .kop-instansi { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 14px; }
+        .kop-instansi h1 { margin: 0 0 2px 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kop-instansi .kop-agenda { margin: 0 0 3px 0; font-size: 12px; font-weight: 700; color: #1e3a8a; }
+        .kop-instansi .kop-alamat { margin: 0; font-size: 10px; color: #475569; }
         .sub-title { text-align: center; font-size: 13px; font-weight: bold; color: #1e3a8a; margin-bottom: 6px; }
         .meta { margin-bottom: 16px; font-size: 11px; color: #334155; text-align: center; }
         table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 16px; page-break-inside: auto; }
@@ -13076,7 +13402,11 @@ function printRekapCostSharingPdf(mode = 'perencanaan') {
       </style>
     </head>
     <body>
-      <h2>KOMISI PEMILIHAN UMUM KABUPATEN NGAWI</h2>
+      <div class="kop-instansi">
+        <h1>${escHtml(satkerName)}</h1>
+        <div class="kop-agenda">${escHtml(agendaText)}</div>
+        <div class="kop-alamat">${escHtml(alamatSatker)} | Telp: ${escHtml(telpSatker)} | Email: ${escHtml(emailSatker)}</div>
+      </div>
       <div class="sub-title">${escHtml(title)}</div>
       <div class="meta">
         Dokumen: <strong>${escHtml(state.periode.nama_periode)} (${escHtml(state.periode.versi_revisi || 'Induk')})</strong> |
@@ -13092,13 +13422,13 @@ function printRekapCostSharingPdf(mode = 'perencanaan') {
           <p style="margin: 0; font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'KETUA')?.nama_pejabat) || 'SAMSU MUSTAKIM')}</p>
         </div>
         <div style="width: 45%; text-align: center;">
-          <p style="margin: 0 0 54px 0;">Ngawi, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br><strong>Sekretaris KPU Kabupaten Ngawi<br>Selaku Kuasa Pengguna Anggaran (KPA)</strong></p>
+          <p style="margin: 0 0 54px 0;">${escHtml(kotaTtd)}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br><strong>Sekretaris KPU Kabupaten Ngawi<br>Selaku Kuasa Pengguna Anggaran (KPA)</strong></p>
           <p style="margin: 0; font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nama_pejabat) || 'BUDI RAHAYU')}</p>
           <p style="margin: 0; font-family: monospace; font-size: 11px;">NIP. ${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nip) || '19830503 200902 1 002')}</p>
         </div>
       </div>
       
-      <script>window.onload = function() { window.print(); };</script>
+      <script>window.onload = function() { window.print(); };<\/script>
     </body>
     </html>
   `);

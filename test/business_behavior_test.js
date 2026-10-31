@@ -77,7 +77,8 @@ async function runBusinessBehaviorTests() {
   const userL2Parsdm = { id: 103, username: 'operator_parsdm', nama_pejabat: 'Staf Parmas', level: 2, role_id: 'operator', pic_subbag: 'PARSDM' };
   const userL2Hukum = { id: 104, username: 'operator_hukum', nama_pejabat: 'Staf Hukum', level: 2, role_id: 'operator', pic_subbag: 'HUKUM' };
   const userL1 = { id: 201, username: 'kasubbag_rendatin', nama_pejabat: 'Kasubbag Perencanaan', level: 1, role_id: 'perencanaan' };
-  const userDev = { id: 1, username: 'emenje', nama_pejabat: 'Developer Sistem', level: 0, role_id: 'developer', is_developer: true };
+  const devDb = db.prepare("SELECT * FROM satker_users WHERE level = 0 LIMIT 1").get();
+  const userDev = devDb ? { ...devDb, is_developer: true } : { id: 10, username: 'emenje', nama_pejabat: 'Developer Sistem', level: 0, role_id: 'developer', is_developer: true, token_version: 1 };
 
   console.log('--- SIKLUS 1: PEMBUKAAN, ISOLASI, PENGAJUAN & VALIDASI ---');
 
@@ -1075,6 +1076,142 @@ async function runBusinessBehaviorTests() {
     pemilih: origPemilih33
   }, userDev);
   flushCalcCache();
+
+  // 34. EKSPOR RUH BELANJA & ANTREAN UNDUHAN BERDASARKAN PILIHAN SUMBER DANA (KABUPATEN VS PROVINSI)
+  console.log('\n--- [34] Ekspor RUH Belanja & Download Queue Berdasarkan Pilihan Sumber Dana (Kabupaten vs Provinsi) ---');
+
+  const { createDownloadRequest } = require('../src/db');
+  const { exportRkbToExcelBuffer } = require('../src/excel_io');
+  const { filterAndPruneRkbDataset, getCachedRkbDataset } = require('../src/calculation');
+
+  const reqKabTest = createDownloadRequest({
+    nama_file: 'Test_RUH_Kab.xlsx',
+    tipe_unduhan: 'EXCEL_RUH',
+    periode_id: 1,
+    filter_cost_sharing: 'KABUPATEN',
+    username: 'emenje'
+  });
+
+  const reqProvTest = createDownloadRequest({
+    nama_file: 'Test_RUH_Prov.xlsx',
+    tipe_unduhan: 'EXCEL_RUH',
+    periode_id: 1,
+    filter_cost_sharing: 'PROVINSI',
+    username: 'emenje'
+  });
+
+  assert(
+    reqKabTest && reqKabTest.filter_cost_sharing === 'KABUPATEN' &&
+    reqProvTest && reqProvTest.filter_cost_sharing === 'PROVINSI',
+    'Test 34.1: createDownloadRequest konsisten menyimpan parameter filter_cost_sharing (KABUPATEN & PROVINSI) ke tabel antrean unduhan.'
+  );
+
+  const fullDs34 = getCachedRkbDataset(1);
+  const kabPruned34 = filterAndPruneRkbDataset(fullDs34, { cost_sharing: 'KABUPATEN' });
+  const provPruned34 = filterAndPruneRkbDataset(fullDs34, { cost_sharing: 'PROVINSI' });
+
+  assert(
+    kabPruned34 && provPruned34 &&
+    (kabPruned34.summary.grandTotal + provPruned34.summary.grandTotal) === fullDs34.summary.grandTotal,
+    'Test 34.2: filterAndPruneRkbDataset memvalidasi presisi matematis: Subtotal APBD Kab + Subtotal Sharing APBD Prov tepat sama dengan Grand Total Pagu Utuh RKB.'
+  );
+
+  const bufKab34 = await exportRkbToExcelBuffer(1, { cost_sharing: 'KABUPATEN' });
+  const wbKab34 = new ExcelJS.Workbook();
+  await wbKab34.xlsx.load(bufKab34);
+  const ws1Kab34 = wbKab34.getWorksheet('RUH_Belanja_Resmi');
+  const txtKabA2 = ws1Kab34 ? String(ws1Kab34.getCell('A2').value) : '';
+
+  assert(
+    ws1Kab34 && txtKabA2.includes('[SUMBER DANA: APBD KABUPATEN]'),
+    'Test 34.3: exportRkbToExcelBuffer dengan cost_sharing = "KABUPATEN" menyematkan label resmi "[SUMBER DANA: APBD KABUPATEN]" pada kop judul dokumen Excel.'
+  );
+
+  const bufProv34 = await exportRkbToExcelBuffer(1, { cost_sharing: 'PROVINSI' });
+  const wbProv34 = new ExcelJS.Workbook();
+  await wbProv34.xlsx.load(bufProv34);
+  const ws1Prov34 = wbProv34.getWorksheet('RUH_Belanja_Resmi');
+  const txtProvA2 = ws1Prov34 ? String(ws1Prov34.getCell('A2').value) : '';
+
+  assert(
+    ws1Prov34 && txtProvA2.includes('[SUMBER DANA: SHARING APBD PROVINSI]'),
+    'Test 34.4: exportRkbToExcelBuffer dengan cost_sharing = "PROVINSI" menyematkan label resmi "[SUMBER DANA: SHARING APBD PROVINSI]" pada kop judul dokumen Excel.'
+  );
+
+  db.prepare('DELETE FROM download_requests WHERE id IN (?, ?)').run(reqKabTest.id, reqProvTest.id);
+
+  // 35. MATRIKS HAK AKSES SHEET DINAMIS & 3 KEBIJAKAN SUMBER DANA (LENGKAP, SWITCH, TIDAK_BOLEH)
+  console.log('\n--- [35] Matriks Hak Akses Sheet Dinamis & 3 Kebijakan Sumber Dana (LENGKAP, SWITCH, TIDAK_BOLEH) ---');
+  const { getSheetMatrix, saveSheetMatrix, getActivePeriode } = require('../src/db');
+
+  const sheets35 = getSheetMatrix();
+  assert(
+    Array.isArray(sheets35) && sheets35.length === 7,
+    'Test 35.1: getSheetMatrix() memuat tepat 7 canonical sheets resmi (RUH, Kertas Kerja, Matriks, 4 Rekap).'
+  );
+
+  const keys35 = sheets35.map(s => s.sheet_key);
+  assert(
+    keys35.includes('RUH_Belanja_Resmi') &&
+    keys35.includes('Data_Kertas_Kerja') &&
+    keys35.includes('Matriks_Revisi') &&
+    keys35.includes('Rekap_Eksekutif') &&
+    keys35.includes('Rekap_Kegiatan_RKB') &&
+    keys35.includes('Rekap_Subbagian') &&
+    keys35.includes('Rekap_Akun_BAS'),
+    'Test 35.2: Seluruh 7 canonical sheet keys terdaftar lengkap dan aktif pada app_sheet_matrix.'
+  );
+
+  // Verifikasi Ekspor Level 4 (Ketua KPU): Mode LENGKAP & TIDAK_BOLEH pada Data_Kertas_Kerja
+  const userL4Ketua = { id: 98, username: 'ketua', level: 4, role_id: 'viewer_ketua', pic_subbag: 'SEMUA' };
+  const bufKetua35 = await exportRkbToExcelBuffer(1, { cost_sharing: 'KABUPATEN' }, userL4Ketua);
+  const wbKetua35 = new ExcelJS.Workbook();
+  await wbKetua35.xlsx.load(bufKetua35);
+
+  const wsRuhKetua = wbKetua35.getWorksheet('RUH_Belanja_Resmi');
+  const wsDkkKetua = wbKetua35.getWorksheet('Data_Kertas_Kerja');
+  const txtKetuaA2 = wsRuhKetua ? String(wsRuhKetua.getCell('A2').value) : '';
+
+  assert(
+    wsDkkKetua === undefined,
+    'Test 35.3: Level 4 (Ketua KPU) dengan kebijakan Data_Kertas_Kerja = TIDAK_BOLEH secara otomatis TIDAK disertakan dalam workbook.'
+  );
+
+  assert(
+    wsRuhKetua && !txtKetuaA2.includes('[SUMBER DANA: APBD KABUPATEN]'),
+    'Test 35.4: Level 4 (Ketua KPU) dengan kebijakan RUH_Belanja_Resmi = LENGKAP mengunci dokumen pada pagu utuh (mengabaikan filter parsial APBD Kabupaten).'
+  );
+
+  // Verifikasi Ekspor Level 0 (Developer): Mode SWITCH mematuhi filter KABUPATEN
+  const userDev35 = { id: 10, username: 'emenje', level: 0, role_id: 'developer' };
+  const bufDev35 = await exportRkbToExcelBuffer(1, { cost_sharing: 'KABUPATEN' }, userDev35);
+  const wbDev35 = new ExcelJS.Workbook();
+  await wbDev35.xlsx.load(bufDev35);
+  const wsRuhDev = wbDev35.getWorksheet('RUH_Belanja_Resmi');
+  const wsDkkDev = wbDev35.getWorksheet('Data_Kertas_Kerja');
+  const txtDevA2 = wsRuhDev ? String(wsRuhDev.getCell('A2').value) : '';
+
+  assert(
+    wsDkkDev !== undefined && wsRuhDev && txtDevA2.includes('[SUMBER DANA: APBD KABUPATEN]'),
+    'Test 35.5: Level 0 (Lead Developer) dengan kebijakan SWITCH mematuhi filter sumber dana dan mengikutsertakan Data_Kertas_Kerja.'
+  );
+
+  // Verifikasi Penegakan Read-Only Level Pimpinan Baru (L4 Ketua, L5 Rendatin, L6 Komisioner, L7 Sekretaris)
+  const activeDraftP = getActivePeriode();
+  let blockedPimpinanCount = 0;
+  for (const lvl of [4, 5, 6, 7]) {
+    try {
+      checkRowEditPermission(activeDraftP.id, 'KUL', { id: 99, username: 'pimpinan_' + lvl, level: lvl });
+    } catch (e) {
+      if (e.message.includes('Read-Only')) blockedPimpinanCount++;
+    }
+  }
+
+  assert(
+    blockedPimpinanCount === 4,
+    'Test 35.6: checkRowEditPermission() menolak penyuntingan RKB untuk seluruh level Pimpinan & Peninjau Murni (L4 Ketua, L5 Divisi Rendatin, L6 Komisioner, L7 Sekretaris).'
+  );
+
 
   console.log('\n================================================================');
   console.log(`  HASIL AKHIR: ${passedTests} / ${totalTests} PENGUJIAN PERILAKU BISNIS LULUS (100% SUKSES)`);

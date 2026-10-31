@@ -128,8 +128,8 @@ async function runAllTests() {
   // --------------------------------------------------------------------------
   // TEST 5: Developer Role Switching Identity Preservation
   // --------------------------------------------------------------------------
-  const devOrigin = db.prepare("SELECT id, username, level, role_id FROM satker_users WHERE level = 0 LIMIT 1").get() || { id: 10, username: 'emenje', level: 0, role_id: 'developer' };
-  const targetRole = db.prepare("SELECT id, username, level, role_id, pic_subbag FROM satker_users WHERE level = 2 LIMIT 1").get() || { id: 3, username: 'op_perencanaan', level: 2, role_id: 'operator', pic_subbag: 'RENDATIN' };
+  const devOrigin = db.prepare("SELECT id, username, level, role_id, token_version FROM satker_users WHERE level = 0 LIMIT 1").get() || { id: 10, username: 'emenje', level: 0, role_id: 'developer' };
+  const targetRole = db.prepare("SELECT id, username, level, role_id, pic_subbag, token_version FROM satker_users WHERE level = 2 LIMIT 1").get() || { id: 3, username: 'op_perencanaan', level: 2, role_id: 'operator', pic_subbag: 'RENDATIN' };
   const switchedToken = createToken({
     ...targetRole,
     is_developer: true,

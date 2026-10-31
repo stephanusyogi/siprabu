@@ -520,7 +520,7 @@ function initDb() {
     { urutan: 19, menu_key: 'view-juknis-kegiatan', menu_label: 'Standar 28 Kegiatan (KPT 543)', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
     { urutan: 20, menu_key: 'view-users', menu_label: 'Pengguna', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 21, menu_key: 'view-penandatangan', menu_label: 'Penandatangan', folder_key: 'folder-administrasi', flags: [1,1,1,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 22, menu_key: 'view-menu-matrix', menu_label: 'Hak Akses Menu', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 22, menu_key: 'view-menu-matrix', menu_label: 'Hak Akses', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 23, menu_key: 'view-db-settings', menu_label: 'Pengaturan Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,0,1,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 24, menu_key: 'view-audit', menu_label: 'Log Aktivitas Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'VIEWER' },
     { urutan: 25, menu_key: 'view-monitoring', menu_label: 'Monitoring Unduhan', folder_key: 'folder-administrasi', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
@@ -600,11 +600,177 @@ function initDb() {
   } catch (e) {
     console.warn('[MENU-MATRIX] Inisialisasi seeding matrix:', e.message);
   }
+
+  // Tabel Matriks Hak Akses Sheet & Sumber Dana Dinamis Berbasis 11 Level (L0 s.d. L10) Decoupled RBAC
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_sheet_matrix (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sheet_key VARCHAR(64) NOT NULL UNIQUE,
+      sheet_label VARCHAR(128) NOT NULL,
+      urutan INTEGER DEFAULT 0,
+      sheet_scope VARCHAR(32) DEFAULT 'ALL',
+      allow_l0 INTEGER DEFAULT 1,
+      allow_l1 INTEGER DEFAULT 1,
+      allow_l2 INTEGER DEFAULT 1,
+      allow_l3 INTEGER DEFAULT 1,
+      allow_l4 INTEGER DEFAULT 1,
+      allow_l5 INTEGER DEFAULT 1,
+      allow_l6 INTEGER DEFAULT 1,
+      allow_l7 INTEGER DEFAULT 1,
+      allow_l8 INTEGER DEFAULT 1,
+      allow_l9 INTEGER DEFAULT 1,
+      allow_l10 INTEGER DEFAULT 1,
+      cs_mode_l0 TEXT DEFAULT 'SWITCH',
+      cs_mode_l1 TEXT DEFAULT 'SWITCH',
+      cs_mode_l2 TEXT DEFAULT 'SWITCH',
+      cs_mode_l3 TEXT DEFAULT 'SWITCH',
+      cs_mode_l4 TEXT DEFAULT 'LENGKAP',
+      cs_mode_l5 TEXT DEFAULT 'SWITCH',
+      cs_mode_l6 TEXT DEFAULT 'LENGKAP',
+      cs_mode_l7 TEXT DEFAULT 'LENGKAP',
+      cs_mode_l8 TEXT DEFAULT 'LENGKAP',
+      cs_mode_l9 TEXT DEFAULT 'LENGKAP',
+      cs_mode_l10 TEXT DEFAULT 'LENGKAP',
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  for (let i = 0; i <= 10; i++) {
+    safeAddColumn('app_sheet_matrix', `allow_l${i} INTEGER DEFAULT 1`);
+    const defaultCsMode = (i <= 3 || i === 5) ? 'SWITCH' : 'LENGKAP';
+    safeAddColumn('app_sheet_matrix', `cs_mode_l${i} TEXT DEFAULT '${defaultCsMode}'`);
+  }
+
+  const canonicalSheets = [
+    {
+      urutan: 1,
+      sheet_key: 'RUH_Belanja_Resmi',
+      sheet_label: 'RKB Belanja Resmi (Format Lembar Kerja A4)',
+      sheet_scope: 'ALL',
+      allows: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      modes: ['SWITCH', 'SWITCH', 'SWITCH', 'SWITCH', 'LENGKAP', 'SWITCH', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP']
+    },
+    {
+      urutan: 2,
+      sheet_key: 'Data_Kertas_Kerja',
+      sheet_label: 'Data Kertas Kerja (Flat Table / Raw Data)',
+      sheet_scope: 'NON_PIC',
+      allows: [1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0],
+      modes: ['SWITCH', 'SWITCH', 'SWITCH', 'TIDAK_BOLEH', 'TIDAK_BOLEH', 'SWITCH', 'TIDAK_BOLEH', 'LENGKAP', 'TIDAK_BOLEH', 'TIDAK_BOLEH', 'TIDAK_BOLEH']
+    },
+    {
+      urutan: 3,
+      sheet_key: 'Matriks_Revisi',
+      sheet_label: 'Matriks Revisi (Semula - Menjadi)',
+      sheet_scope: 'ALL',
+      allows: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      modes: ['SWITCH', 'SWITCH', 'SWITCH', 'SWITCH', 'LENGKAP', 'SWITCH', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP']
+    },
+    {
+      urutan: 4,
+      sheet_key: 'Rekap_Eksekutif',
+      sheet_label: 'Rekapitulasi Eksekutif (Sasaran & Pilar)',
+      sheet_scope: 'NON_PIC',
+      allows: [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
+      modes: ['SWITCH', 'SWITCH', 'SWITCH', 'TIDAK_BOLEH', 'LENGKAP', 'SWITCH', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP']
+    },
+    {
+      urutan: 5,
+      sheet_key: 'Rekap_Kegiatan_RKB',
+      sheet_label: 'Rekapitulasi per Kegiatan RKB',
+      sheet_scope: 'NON_PIC',
+      allows: [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
+      modes: ['SWITCH', 'SWITCH', 'SWITCH', 'TIDAK_BOLEH', 'LENGKAP', 'SWITCH', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP']
+    },
+    {
+      urutan: 6,
+      sheet_key: 'Rekap_Subbagian',
+      sheet_label: 'Rekapitulasi Portofolio Subbagian',
+      sheet_scope: 'NON_PIC',
+      allows: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      modes: ['SWITCH', 'SWITCH', 'SWITCH', 'SWITCH', 'LENGKAP', 'SWITCH', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP']
+    },
+    {
+      urutan: 7,
+      sheet_key: 'Rekap_Akun_BAS',
+      sheet_label: 'Rekapitulasi Kode Akun BAS',
+      sheet_scope: 'NON_PIC',
+      allows: [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
+      modes: ['SWITCH', 'SWITCH', 'SWITCH', 'TIDAK_BOLEH', 'LENGKAP', 'SWITCH', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP', 'LENGKAP']
+    }
+  ];
+
+  try {
+    const existingSheetCount = db.prepare('SELECT COUNT(*) as cnt FROM app_sheet_matrix').get()?.cnt || 0;
+    if (existingSheetCount === 0) {
+      const insertSheetStmt = db.prepare(`
+        INSERT INTO app_sheet_matrix (
+          sheet_key, sheet_label, urutan, sheet_scope,
+          allow_l0, allow_l1, allow_l2, allow_l3, allow_l4,
+          allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10,
+          cs_mode_l0, cs_mode_l1, cs_mode_l2, cs_mode_l3, cs_mode_l4,
+          cs_mode_l5, cs_mode_l6, cs_mode_l7, cs_mode_l8, cs_mode_l9, cs_mode_l10,
+          is_active
+        ) VALUES (
+          ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?,
+          1
+        )
+      `);
+      for (const s of canonicalSheets) {
+        try {
+          insertSheetStmt.run(
+            s.sheet_key, s.sheet_label, s.urutan, s.sheet_scope,
+            ...s.allows,
+            ...s.modes
+          );
+        } catch (e) {}
+      }
+    } else {
+      // Pastikan seluruh 7 canonical sheet terdaftar
+      for (const s of canonicalSheets) {
+        const row = db.prepare('SELECT id FROM app_sheet_matrix WHERE sheet_key = ?').get(s.sheet_key);
+        if (!row) {
+          try {
+            db.prepare(`
+              INSERT INTO app_sheet_matrix (
+                sheet_key, sheet_label, urutan, sheet_scope,
+                allow_l0, allow_l1, allow_l2, allow_l3, allow_l4,
+                allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10,
+                cs_mode_l0, cs_mode_l1, cs_mode_l2, cs_mode_l3, cs_mode_l4,
+                cs_mode_l5, cs_mode_l6, cs_mode_l7, cs_mode_l8, cs_mode_l9, cs_mode_l10,
+                is_active
+              ) VALUES (
+                ?, ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?,
+                1
+              )
+            `).run(
+              s.sheet_key, s.sheet_label, s.urutan, s.sheet_scope,
+              ...s.allows,
+              ...s.modes
+            );
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[SHEET-MATRIX] Inisialisasi seeding matrix:', e.message);
+  }
   safeAddColumn('periode_anggaran', 'pagu_nphd REAL DEFAULT 0');
   safeAddColumn('periode_anggaran', 'created_at TEXT DEFAULT CURRENT_TIMESTAMP');
   safeAddColumn('periode_anggaran', 'updated_at TEXT DEFAULT CURRENT_TIMESTAMP');
   safeAddColumn('download_requests', 'user_id INTEGER');
   safeAddColumn('download_requests', 'username TEXT');
+  safeAddColumn('download_requests', 'filter_cost_sharing TEXT DEFAULT "ALL"');
   safeAddColumn('master_desa', 'pemilih INTEGER DEFAULT 0');
   safeAddColumn('master_desa', 'kotak INTEGER DEFAULT 0');
   safeAddColumn('master_kecamatan', 'kode TEXT DEFAULT ""');
@@ -624,8 +790,10 @@ function initDb() {
     if (!hasMenuMatrixRow) {
       db.prepare(`
         INSERT INTO app_menu_matrix (menu_key, menu_label, folder_key, allow_l0, allow_l1, allow_l2, allow_l3, allow_l4, required_mode, urutan, is_active)
-        VALUES ('view-menu-matrix', 'Hak Akses Menu', 'folder-administrasi', 1, 0, 0, 0, 0, 'EDITOR', 24, 1)
+        VALUES ('view-menu-matrix', 'Hak Akses', 'folder-administrasi', 1, 0, 0, 0, 0, 'EDITOR', 24, 1)
       `).run();
+    } else {
+      db.prepare("UPDATE app_menu_matrix SET menu_label = 'Hak Akses' WHERE menu_key = 'view-menu-matrix'").run();
     }
   } catch (e) {}
 
@@ -691,6 +859,7 @@ function initDb() {
       periode_id INTEGER,
       filter_pic TEXT,
       filter_sasaran TEXT,
+      filter_cost_sharing TEXT DEFAULT 'ALL',
       request_time TEXT,
       status TEXT DEFAULT 'DIPROSES',
       file_path TEXT,
@@ -1671,8 +1840,8 @@ function checkRowEditPermission(periodeId, subbag, user = null) {
   const cleanSubbag = normalizePic(subbag || 'KUL');
   const proposal = db.prepare('SELECT * FROM revisi_pengajuan WHERE periode_id = ? AND subbag = ?').get(periodeId, cleanSubbag);
 
-  if (user && Number(user.level) === 3) {
-    throw new Error('Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat menyunting rincian RKB.');
+  if (user && ([4, 5, 6, 7].includes(Number(user.level)) || (Number(user.level) === 3 && (!user.pic_subbag || user.pic_subbag === 'SEMUA')))) {
+    throw new Error('Akses ditolak. Akun Pimpinan / Peninjau Murni bersifat Read-Only dan tidak dapat menyunting rincian RKB.');
   }
 
   if (user && user.level > 1) {
@@ -4003,6 +4172,85 @@ function saveMenuMatrix(items = []) {
   return getMenuMatrix();
 }
 
+/**
+ * Matriks Hak Akses Sheet Excel & Kebijakan Sumber Dana Dinamis (L0 s.d. L10)
+ */
+function getSheetMatrix() {
+  try {
+    const rows = db.prepare('SELECT * FROM app_sheet_matrix WHERE is_active = 1 ORDER BY urutan ASC, id ASC').all() || [];
+    return rows.map(r => ({
+      ...r,
+      allow_l0: Number(r.allow_l0 ?? 1),
+      allow_l1: Number(r.allow_l1 ?? 1),
+      allow_l2: Number(r.allow_l2 ?? 1),
+      allow_l3: Number(r.allow_l3 ?? 1),
+      allow_l4: Number(r.allow_l4 ?? 1),
+      allow_l5: Number(r.allow_l5 ?? 1),
+      allow_l6: Number(r.allow_l6 ?? 1),
+      allow_l7: Number(r.allow_l7 ?? 1),
+      allow_l8: Number(r.allow_l8 ?? 1),
+      allow_l9: Number(r.allow_l9 ?? 1),
+      allow_l10: Number(r.allow_l10 ?? 1),
+      cs_mode_l0: r.cs_mode_l0 || 'SWITCH',
+      cs_mode_l1: r.cs_mode_l1 || 'SWITCH',
+      cs_mode_l2: r.cs_mode_l2 || 'SWITCH',
+      cs_mode_l3: r.cs_mode_l3 || 'SWITCH',
+      cs_mode_l4: r.cs_mode_l4 || 'LENGKAP',
+      cs_mode_l5: r.cs_mode_l5 || 'SWITCH',
+      cs_mode_l6: r.cs_mode_l6 || 'LENGKAP',
+      cs_mode_l7: r.cs_mode_l7 || 'LENGKAP',
+      cs_mode_l8: r.cs_mode_l8 || 'LENGKAP',
+      cs_mode_l9: r.cs_mode_l9 || 'LENGKAP',
+      cs_mode_l10: r.cs_mode_l10 || 'LENGKAP'
+    }));
+  } catch (e) {
+    console.warn('[SHEET-MATRIX] Gagal ambil matrix:', e.message);
+    return [];
+  }
+}
+
+function saveSheetMatrix(items = []) {
+  if (!Array.isArray(items) || items.length === 0) return getSheetMatrix();
+  const updateStmt = db.prepare(`
+    UPDATE app_sheet_matrix 
+    SET allow_l0 = ?, cs_mode_l0 = ?,
+        allow_l1 = ?, cs_mode_l1 = ?,
+        allow_l2 = ?, cs_mode_l2 = ?,
+        allow_l3 = ?, cs_mode_l3 = ?,
+        allow_l4 = ?, cs_mode_l4 = ?,
+        allow_l5 = ?, cs_mode_l5 = ?,
+        allow_l6 = ?, cs_mode_l6 = ?,
+        allow_l7 = ?, cs_mode_l7 = ?,
+        allow_l8 = ?, cs_mode_l8 = ?,
+        allow_l9 = ?, cs_mode_l9 = ?,
+        allow_l10 = ?, cs_mode_l10 = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE sheet_key = ?
+  `);
+
+  items.forEach(item => {
+    try {
+      updateStmt.run(
+        item.allow_l0 ? 1 : 0, item.cs_mode_l0 || 'SWITCH',
+        item.allow_l1 ? 1 : 0, item.cs_mode_l1 || 'SWITCH',
+        item.allow_l2 ? 1 : 0, item.cs_mode_l2 || 'SWITCH',
+        item.allow_l3 ? 1 : 0, item.cs_mode_l3 || 'SWITCH',
+        item.allow_l4 ? 1 : 0, item.cs_mode_l4 || 'LENGKAP',
+        item.allow_l5 ? 1 : 0, item.cs_mode_l5 || 'SWITCH',
+        item.allow_l6 ? 1 : 0, item.cs_mode_l6 || 'LENGKAP',
+        item.allow_l7 ? 1 : 0, item.cs_mode_l7 || 'LENGKAP',
+        item.allow_l8 ? 1 : 0, item.cs_mode_l8 || 'LENGKAP',
+        item.allow_l9 ? 1 : 0, item.cs_mode_l9 || 'LENGKAP',
+        item.allow_l10 ? 1 : 0, item.cs_mode_l10 || 'LENGKAP',
+        item.sheet_key
+      );
+    } catch (e) {
+      console.warn('[SHEET-MATRIX] Gagal update matrix:', item.sheet_key, e.message);
+    }
+  });
+  return getSheetMatrix();
+}
+
 function getUsers() {
   const users = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode FROM satker_users ORDER BY level ASC, id ASC').all();
   try {
@@ -6046,7 +6294,7 @@ function appendDownloadTimestamp(filename, d = new Date()) {
   return `${base}_${ts}${ext}`;
 }
 
-function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran, user_id, username, user = null }) {
+function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran, filter_cost_sharing = 'ALL', user_id, username, user = null }) {
   const reqId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const dateObj = new Date();
   const requestTime = formatWaktuResmi(dateObj);
@@ -6055,15 +6303,16 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
   const cleanPeriodeId = periode_id ? Number(periode_id) : null;
   const cleanPic = filter_pic ? normalizePic(filter_pic) : 'SEMUA';
   const cleanSasaran = filter_sasaran || 'ALL';
+  const cleanCostSharing = (filter_cost_sharing && filter_cost_sharing !== 'ALL') ? filter_cost_sharing.toUpperCase() : 'ALL';
   const cleanUsername = username || (user ? user.username : null);
   const cleanUserId = user_id || (user ? user.id : null);
   const finalFilename = appendDownloadTimestamp(nama_file, dateObj);
 
   const stmt = db.prepare(`
     INSERT INTO download_requests (
-      request_id, nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran,
+      request_id, nama_file, tipe_unduhan, periode_id, filter_pic, filter_sasaran, filter_cost_sharing,
       request_time, status, expires_at, user_id, username
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'DIPROSES', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'DIPROSES', ?, ?, ?)
   `);
 
   const res = stmt.run(
@@ -6073,6 +6322,7 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
     cleanPeriodeId,
     cleanPic,
     cleanSasaran,
+    cleanCostSharing,
     requestTime,
     expiresAt,
     cleanUserId,
@@ -6092,10 +6342,11 @@ function createDownloadRequest({ nama_file, tipe_unduhan, periode_id, filter_pic
       periode_id: cleanPeriodeId,
       filter_pic: cleanPic,
       filter_sasaran: cleanSasaran,
+      filter_cost_sharing: cleanCostSharing,
       status: 'DIPROSES',
       expires_at: expiresAt
     },
-    notes: `Permintaan unduhan [${cleanTipe}] "${finalFilename}" (Siklus ID: ${cleanPeriodeId || '-'}, PIC: ${cleanPic}, Sasaran: ${cleanSasaran})`
+    notes: `Permintaan unduhan [${cleanTipe}] "${finalFilename}" (Siklus ID: ${cleanPeriodeId || '-'}, PIC: ${cleanPic}, Sasaran: ${cleanSasaran}, Sumber Dana: ${cleanCostSharing})`
   });
 
   return created;
@@ -7376,6 +7627,8 @@ module.exports = {
   checkpointAndSyncDatabase,
   getMenuMatrix,
   saveMenuMatrix,
+  getSheetMatrix,
+  saveSheetMatrix,
   updateUserRoleMode,
   repairCorruptedDuplicateFactors,
   autoBindRabVariables,
