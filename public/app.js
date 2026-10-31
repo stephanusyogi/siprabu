@@ -4229,9 +4229,15 @@ function renderRkbTable() {
             <button type="button" class="btn btn-xs btn-primary" onclick="${editFn}" title="${editTitle}" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;margin-left:2px;">
               ✏️
             </button>
-            <button type="button" class="btn btn-xs btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="${delTitle}" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;">
-              🗑️
-            </button>
+            ${(!user || user.can_delete === undefined || Number(user.can_delete) === 1) ? `
+              <button type="button" class="btn btn-xs btn-outline-danger" onclick="deleteRow(${r.id}, event)" title="${delTitle}" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;">
+                🗑️
+              </button>
+            ` : `
+              <button type="button" class="btn btn-xs btn-outline-secondary" disabled title="Akun Anda tidak memiliki hak akses menghapus data" style="font-size:10px;padding:2px 5px;line-height:1;border-radius:3px;font-weight:700;opacity:0.35;cursor:not-allowed;">
+                🗑️
+              </button>
+            `}
           </div>
         `;
       } else {
@@ -5398,6 +5404,12 @@ async function deleteRow(rowId, event) {
   if (event) {
     event.preventDefault();
     event.stopPropagation();
+  }
+
+  const currentUser = AppState.currentUser;
+  if (currentUser && currentUser.can_delete !== undefined && Number(currentUser.can_delete) === 0) {
+    alert('Akses Ditolak: Akun Anda tidak memiliki hak akses untuk menghapus data anggaran (Izin hapus data dinonaktifkan oleh Administrator).');
+    return;
   }
 
   const allRows = AppState.rkbData?.rows || [];
@@ -9910,6 +9922,9 @@ function openAddUserModal() {
     is_default: 1
   }];
 
+  const chkAddCanDel = document.getElementById('modal-user-can-delete');
+  if (chkAddCanDel) chkAddCanDel.checked = true;
+
   renderModalUserRolesTable();
   const modal = document.getElementById('modal-user');
   if (modal) modal.style.display = 'flex';
@@ -9930,6 +9945,10 @@ function openEditUserModal(userId) {
   setElVal('modal-user-jabatan', user.jabatan || '');
   setElVal('modal-user-status', String(user.is_active));
   setElVal('modal-user-role-mode', user.role_mode || 'SWITCH');
+  const chkEditCanDel = document.getElementById('modal-user-can-delete');
+  if (chkEditCanDel) {
+    chkEditCanDel.checked = (user.can_delete !== undefined ? Boolean(Number(user.can_delete)) : true);
+  }
   const isDevUser = (Number(user.level) === 0 || user.username === 'emenje');
   const roleModeGroup = document.getElementById('modal-user-role-mode')?.closest('.form-group');
   if (roleModeGroup) roleModeGroup.style.display = isDevUser ? 'none' : 'block';
@@ -9996,6 +10015,7 @@ async function submitUserForm() {
     email,
     is_active: Number(document.getElementById('modal-user-status')?.value || 1),
     role_mode: (username === 'emenje' || (id && AppState.usersList.find(u => u.id === Number(id))?.level === 0)) ? 'KUMULATIF' : (document.getElementById('modal-user-role-mode')?.value || 'SWITCH'),
+    can_delete: document.getElementById('modal-user-can-delete')?.checked ? 1 : 0,
     roles: sanitizedRoles
   };
 

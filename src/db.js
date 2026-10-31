@@ -496,6 +496,8 @@ function initDb() {
   }
   safeAddColumn('satker_users', "role_mode TEXT DEFAULT 'SWITCH'");
   safeAddColumn('satker_users', "mode_akses TEXT DEFAULT 'VIEWER'");
+  safeAddColumn('satker_users', 'can_delete INTEGER DEFAULT 1');
+  safeAddColumn('satker_user_roles', 'can_delete INTEGER DEFAULT 1');
 
   // Registri 27 Halaman Resmi & Matriks Standar (Sesuai Blueprint Master Excel)
   const canonicalMenus = [
@@ -4252,7 +4254,7 @@ function saveSheetMatrix(items = []) {
 }
 
 function getUsers() {
-  const users = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode FROM satker_users ORDER BY level ASC, id ASC').all();
+  const users = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode, can_delete FROM satker_users ORDER BY level ASC, id ASC').all();
   try {
     const allRoles = db.prepare('SELECT id, user_id, level, pic, mode_akses, is_default, label_peran, created_at FROM satker_user_roles ORDER BY is_default DESC, level ASC, id ASC').all() || [];
     const roleMap = {};
@@ -4290,7 +4292,7 @@ function getUsers() {
 }
 
 function getUserById(id) {
-  const u = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode FROM satker_users WHERE id = ?').get(id);
+  const u = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode, can_delete FROM satker_users WHERE id = ?').get(id);
   if (u) {
     u.roles = getUserRoles(u.id);
     if (u.roles.length === 0) {
@@ -4388,12 +4390,13 @@ function saveUser(userData, actorUser = null) {
     const nextTokenVer = isSecurityChanged ? (Number(existing.token_version || 1) + 1) : (Number(existing.token_version || 1));
 
     const role_mode = userData.role_mode ? (String(userData.role_mode).toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH') : (existing.role_mode || 'SWITCH');
+    const can_delete = userData.can_delete !== undefined ? (Number(userData.can_delete) ? 1 : 0) : (existing.can_delete !== undefined ? Number(existing.can_delete) : 1);
     db.prepare(`
       UPDATE satker_users
       SET username = ?, password = ?, nama_pejabat = ?, nip = ?, jabatan = ?, email = ?, 
-          role_id = ?, level = ?, pic_subbag = ?, is_active = ?, token_version = ?, role_mode = ?
+          role_id = ?, level = ?, pic_subbag = ?, is_active = ?, token_version = ?, role_mode = ?, can_delete = ?
       WHERE id = ?
-    `).run(username, passToSave, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, nextTokenVer, role_mode, id);
+    `).run(username, passToSave, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, nextTokenVer, role_mode, can_delete, id);
 
     // Simpan peran ke satker_user_roles
     saveUserRoles(id, roles);
@@ -4414,10 +4417,11 @@ function saveUser(userData, actorUser = null) {
     if (exist) throw new Error(`Username "${username}" sudah terdaftar.`);
 
     const role_mode = userData.role_mode ? (String(userData.role_mode).toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH') : 'SWITCH';
+    const can_delete = userData.can_delete !== undefined ? (Number(userData.can_delete) ? 1 : 0) : 1;
     const res = db.prepare(`
-      INSERT INTO satker_users (username, password, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, token_version, role_mode)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-    `).run(username, finalPassword, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, role_mode);
+      INSERT INTO satker_users (username, password, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, token_version, role_mode, can_delete)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    `).run(username, finalPassword, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, role_mode, can_delete);
 
     const newId = res.lastInsertRowid;
     saveUserRoles(newId, roles);

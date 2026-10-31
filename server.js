@@ -974,12 +974,24 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/menu-matrix' && (method === 'PUT' || method === 'POST')) {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      if (Number(currentUser.level) !== 0) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Pengubahan matriks hak akses hanya diizinkan untuk Akun Developer (Level 0).' });
+      if (Number(currentUser.level) !== 0 && Number(currentUser.level) !== 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengubahan matriks hak akses hanya diizinkan untuk Akun Developer (Level 0) dan Administrator Utama Satker (Level 1).' });
       }
       const body = await parseJsonBody(req);
       const items = Array.isArray(body) ? body : (body.matrix || []);
       const updated = saveMenuMatrix(items);
+
+      const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
+      recordAuditLog({
+        username: currentUser.username || 'admin',
+        role_id: currentUser.role_id || String(currentUser.level),
+        ip: clientIp,
+        action: 'UPDATE_MENU_MATRIX',
+        entity: 'app_menu_matrix',
+        status: 'SUCCESS',
+        notes: `Memperbarui matriks hak akses menu dinamis (${updated.length} modul terkonfigurasi untuk 11 Level).`
+      });
+
       return sendJson(res, 200, { success: true, matrix: updated, message: 'Matriks hak akses menu berhasil diperbarui.' });
     }
 

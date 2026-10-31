@@ -4875,6 +4875,18 @@
                   • <strong>Sistem Wewenang Kumulatif:</strong> Seluruh wewenang subbagian aktif serentak dan pengguna langsung diarahkan ke Dashboard.
                 </div>
               </div>
+
+              <!-- PROTEKSI HAK HAPUS DATA -->
+              <div class="form-group full-width" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-top: 6px;">
+                <label style="font-weight: 700; color: #0f172a; margin-bottom: 4px; display: block;">🛡️ Proteksi Aksi &amp; Hak Hapus Data:</label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 12px; font-weight: 600; color: #334155;">
+                  <input type="checkbox" id="modal-user-can-delete" style="width: 16px; height: 16px; cursor: pointer; accent-color: #dc2626;" checked>
+                  <span>Izinkan Pengguna Ini Menghapus Data (Delete Permission)</span>
+                </label>
+                <small style="font-size: 10.5px; color: #64748b; margin-top: 4px; display: block; line-height: 1.4;">
+                  Bila dimatikan, pengguna tetap dapat mengedit data (jika bertipe Editor) namun tidak dapat menghapus baris anggaran RKB, nomor pengajuan, atau data master untuk mencegah kesalahan fatal (*anti-accidental deletion*).
+                </small>
+              </div>
             </div>
 
             <!-- BLOK PENGATURAN PERAN PENGGUNA -->
@@ -6174,7 +6186,7 @@
     </div>
 
     <script src="/data_juknis.js?v=1.0.0"></script>
-    <script src="/app.js?v=4.5.1"></script>
+<script src="/app.js?v=4.5.2"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
