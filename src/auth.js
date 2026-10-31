@@ -358,7 +358,7 @@ function canEditRow(user, row, isPeriodeLocked) {
   if (userLvl === 1) return true;
 
   // Jika hak aksi VIEWER atau Pimpinan Level 4, 5, 6 (Ketua, Komisioner, KPA): Read-Only mutlak
-  if (user.mode_akses === 'VIEWER' || [4, 5, 6].includes(userLvl)) return false;
+  if (user.mode_akses === 'VIEWER' || [4, 5, 6, 7].includes(userLvl)) return false;
 
   // Level 2 (Pengolah Data), Level 3 (Operator Subbag), Level 7..10:
   // Hanya baris PIC miliknya yang boleh diedit jika berstatus EDITOR
@@ -413,8 +413,8 @@ function validateUserCoherence(userData, isCreating = false) {
       if (Number.isNaN(lvl) || lvl < 0 || lvl > 10) {
         return { valid: false, error: 'Level peran tidak valid (harus antara 0 s.d. 10).' };
       }
-      if ([4, 5, 6].includes(lvl) && r.mode_akses && r.mode_akses.toUpperCase() !== 'VIEWER') {
-        return { valid: false, error: 'Pengguna Pimpinan / Komisioner / KPA (Level 4, 5, atau 6) wajib berstatus VIEWER.' };
+      if ([4, 5, 6, 7].includes(lvl) && r.mode_akses && r.mode_akses.toUpperCase() !== 'VIEWER') {
+        return { valid: false, error: 'Pengguna Pimpinan / Komisioner / KPA (Level 4 s.d. Level 7) wajib berstatus VIEWER.' };
       }
     }
     return { valid: true };

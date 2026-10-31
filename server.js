@@ -702,9 +702,9 @@ const server = http.createServer(async (req, res) => {
           { id: 1002, level: 2, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pengolah Data Perencanaan Anggaran' },
           { id: 1003, level: 3, pic: 'TEKNIS', mode_akses: 'EDITOR', label_peran: 'Operator Pengelola Subbagian (Teknis)' },
           { id: 1004, level: 4, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Ketua KPU (Kepala Lembaga)' },
-          { id: 1005, level: 5, pic: 'TEKNIS', mode_akses: 'VIEWER', label_peran: 'Anggota Komisioner KPU' },
-          { id: 1006, level: 6, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Kuasa Pengguna Anggaran (KPA)' },
-          { id: 1007, level: 7, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pejabat Perbendaharaan Keuangan' },
+          { id: 1005, level: 5, pic: 'RENDATIN', mode_akses: 'VIEWER', label_peran: 'Divisi Rendatin (Anggota KPU Pengampu Perencanaan)' },
+          { id: 1006, level: 6, pic: 'TEKNIS', mode_akses: 'VIEWER', label_peran: 'Anggota Komisioner KPU' },
+          { id: 1007, level: 7, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)' },
           { id: 1008, level: 8, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pejabat Pembuat Komitmen & PBJ' },
           { id: 1009, level: 9, pic: 'KECAMATAN', mode_akses: 'EDITOR', label_peran: 'Badan Ad Hoc — PPK (Kecamatan)' },
           { id: 1010, level: 10, pic: 'DESA', mode_akses: 'EDITOR', label_peran: 'Badan Ad Hoc — PPS (Desa/Kelurahan)' }

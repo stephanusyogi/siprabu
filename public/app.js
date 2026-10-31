@@ -872,9 +872,9 @@ function getSelectableRolesForUser(user) {
       { id: 1002, level: 2, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pengolah Data Perencanaan Anggaran" },
       { id: 1003, level: 3, pic: "TEKNIS", mode_akses: "EDITOR", label_peran: "Operator Subbag Teknis" },
       { id: 1004, level: 4, pic: "SEMUA", mode_akses: "VIEWER", label_peran: "Ketua KPU (Kepala Lembaga)" },
-      { id: 1005, level: 5, pic: "TEKNIS", mode_akses: "VIEWER", label_peran: "Anggota Komisioner KPU" },
-      { id: 1006, level: 6, pic: "SEMUA", mode_akses: "VIEWER", label_peran: "Kuasa Pengguna Anggaran (KPA)" },
-      { id: 1007, level: 7, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pejabat Perbendaharaan Keuangan" },
+      { id: 1005, level: 5, pic: "RENDATIN", mode_akses: "VIEWER", label_peran: "Divisi Rendatin (Anggota KPU Pengampu Perencanaan)" },
+      { id: 1006, level: 6, pic: "TEKNIS", mode_akses: "VIEWER", label_peran: "Anggota Komisioner KPU" },
+      { id: 1007, level: 7, pic: "SEMUA", mode_akses: "VIEWER", label_peran: "Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)" },
       { id: 1008, level: 8, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pejabat Pembuat Komitmen & PBJ" },
       { id: 1009, level: 9, pic: "KECAMATAN", mode_akses: "EDITOR", label_peran: "Badan Ad Hoc — PPK (Kecamatan)" },
       { id: 1010, level: 10, pic: "DESA", mode_akses: "EDITOR", label_peran: "Badan Ad Hoc — PPS (Desa/Kelurahan)" }
@@ -938,17 +938,17 @@ function getRoleNomenclature(role, user) {
     roleCode = "ROLE_APPROVER_KETUA";
     prefix = "app";
   } else if (lvl === 5) {
+    peranLabel = "APPROVER (DIVISI RENDATIN)";
+    roleCode = "ROLE_APPROVER_RENDATIN";
+    prefix = "app";
+  } else if (lvl === 6) {
     peranLabel = pic !== "SEMUA" ? `APPROVER (KOMISIONER ${pic})` : "APPROVER (KOMISIONER)";
     roleCode = "ROLE_APPROVER_KOM";
     prefix = "app";
-  } else if (lvl === 6) {
-    peranLabel = "APPROVER (KPA)";
+  } else if (lvl === 7) {
+    peranLabel = "APPROVER (SEKRETARIS/KPA)";
     roleCode = "ROLE_APPROVER_KPA";
     prefix = "app";
-  } else if (lvl === 7) {
-    peranLabel = "VALIDATOR (KEUANGAN)";
-    roleCode = "ROLE_VALIDATOR_KEU";
-    prefix = "val";
   } else if (lvl === 8) {
     peranLabel = "OPERATOR (PPK/PBJ)";
     roleCode = "ROLE_OPERATOR_PPK";
@@ -996,10 +996,10 @@ function getRoleHeaderSub(role, user) {
     const pic = role ? String(role.pic).toUpperCase() : String(user?.pic_subbag || "TEKNIS").toUpperCase();
     return `OPERATOR ${pic} SATKER 657811`;
   }
-  if (lvl === 4) return "APPROVER (KETUA KPU) SATKER 657811";
-  if (lvl === 5) return "APPROVER (KOMISIONER) SATKER 657811";
-  if (lvl === 6) return "APPROVER (KPA) SATKER 657811";
-  if (lvl === 7) return "VALIDATOR (KEUANGAN) SATKER 657811";
+    if (lvl === 4) return "APPROVER (KETUA KPU) SATKER 657811";
+  if (lvl === 5) return "APPROVER (DIVISI RENDATIN) SATKER 657811";
+  if (lvl === 6) return "APPROVER (KOMISIONER) SATKER 657811";
+  if (lvl === 7) return "APPROVER (SEKRETARIS/KPA) SATKER 657811";
   if (lvl === 8) return "OPERATOR (PPK/PBJ) SATKER 657811";
   if (lvl === 9) return "OPERATOR AD HOC PPK (KECAMATAN)";
   if (lvl === 10) return "OPERATOR AD HOC PPS (DESA)";
@@ -9683,9 +9683,9 @@ function renderUsersTable() {
       else if (lvl === 2) lvlBadge = `<span class="badge" style="background:#0284c7;color:#fff;font-weight:700;font-size:10px;">L2 PENGOLAH</span>`;
       else if (lvl === 3) lvlBadge = `<span class="badge badge-success" style="font-weight:700;font-size:10px;">L3 OPERATOR</span>`;
       else if (lvl === 4) lvlBadge = `<span class="badge" style="background:#fff7ed;color:#c2410c;font-weight:800;font-size:10px;border:1px solid #fed7aa;">L4 KETUA</span>`;
-      else if (lvl === 5) lvlBadge = `<span class="badge" style="background:#fdf4ff;color:#86198f;font-weight:800;font-size:10px;border:1px solid #f5d0fe;">L5 KOMISIONER</span>`;
-      else if (lvl === 6) lvlBadge = `<span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:800;font-size:10px;border:1px solid #c7d2fe;">L6 KPA</span>`;
-      else if (lvl === 7) lvlBadge = `<span class="badge" style="background:#ecfdf5;color:#047857;font-weight:800;font-size:10px;border:1px solid #a7f3d0;">L7 KEUANGAN</span>`;
+      else if (lvl === 5) lvlBadge = `<span class="badge" style="background:#fdf4ff;color:#86198f;font-weight:800;font-size:10px;border:1px solid #f5d0fe;">L5 RENDATIN</span>`;
+      else if (lvl === 6) lvlBadge = `<span class="badge" style="background:#f5f3ff;color:#6b21a8;font-weight:800;font-size:10px;border:1px solid #e9d5ff;">L6 KOMISIONER</span>`;
+      else if (lvl === 7) lvlBadge = `<span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:800;font-size:10px;border:1px solid #c7d2fe;">L7 SEKRETARIS/KPA</span>`;
       else if (lvl === 8) lvlBadge = `<span class="badge" style="background:#fffbeb;color:#b45309;font-weight:800;font-size:10px;border:1px solid #fde68a;">L8 PBJ</span>`;
       else if (lvl === 9) lvlBadge = `<span class="badge" style="background:#f8fafc;color:#334155;font-weight:800;font-size:10px;border:1px solid #cbd5e1;">L9 PPK</span>`;
       else if (lvl === 10) lvlBadge = `<span class="badge" style="background:#f1f5f9;color:#475569;font-weight:800;font-size:10px;border:1px solid #cbd5e1;">L10 PPS</span>`;
@@ -9783,10 +9783,10 @@ function renderModalUserRolesTable() {
     1: 'L1: Admin Satker',
     2: 'L2: Pengolah Data',
     3: 'L3: Operator Subbag',
-    4: 'L4: Ketua KPU',
-    5: 'L5: Anggota KPU',
-    6: 'L6: Sekretaris/KPA',
-    7: 'L7: Perbendaharaan',
+        4: 'L4: Ketua KPU',
+    5: 'L5: Divisi Rendatin',
+    6: 'L6: Anggota KPU',
+    7: 'L7: Sekretaris/KPA',
     8: 'L8: PPK/PBJ',
     9: 'L9: Ad Hoc PPK',
     10: 'L10: Ad Hoc PPS'
@@ -9818,13 +9818,13 @@ function onModalNewRoleLevelChange() {
   const picSelect = document.getElementById('modal-newrole-pic');
   if (!picSelect) return;
 
-  if ([0, 1, 2, 4, 6, 7, 8].includes(lvl)) {
+  if ([0, 1, 2, 4, 7, 8].includes(lvl)) {
     picSelect.value = 'SEMUA';
-  } else if (lvl === 3) {
+  } else if (lvl === 5) {
+    picSelect.value = 'RENDATIN';
+  } else if (lvl === 3 || lvl === 6) {
     if (picSelect.value === 'SEMUA') picSelect.value = 'TEKNIS';
-  } else if (lvl === 9) {
-    picSelect.value = 'SEMUA';
-  } else if (lvl === 10) {
+  } else if (lvl === 9 || lvl === 10) {
     picSelect.value = 'SEMUA';
   }
 }
@@ -9834,8 +9834,10 @@ function addRoleToModalUser() {
   let pic = (document.getElementById('modal-newrole-pic')?.value || 'TEKNIS').toUpperCase();
   const label = (document.getElementById('modal-newrole-label')?.value || '').trim();
 
-  if ([0, 1, 2, 4, 6, 7, 8].includes(lvl)) {
+  if ([0, 1, 2, 4, 7, 8].includes(lvl)) {
     pic = 'SEMUA';
+  } else if (lvl === 5) {
+    pic = 'RENDATIN';
   }
 
   // Cek duplikasi peran (level & pic sama)
@@ -9845,7 +9847,7 @@ function addRoleToModalUser() {
     return;
   }
 
-  const defaultMode = [4, 5, 6].includes(lvl) ? 'VIEWER' : 'EDITOR';
+  const defaultMode = [4, 5, 6, 7].includes(lvl) ? 'VIEWER' : 'EDITOR';
   const isFirst = AppState.modalUserRoles.length === 0;
 
   AppState.modalUserRoles.push({
@@ -9858,9 +9860,9 @@ function addRoleToModalUser() {
       lvl === 2 ? 'Pengolah Data Perencanaan Anggaran' :
       lvl === 3 ? `Operator Pengelola Subbagian (${pic})` :
       lvl === 4 ? 'Ketua KPU (Kepala Lembaga)' :
-      lvl === 5 ? `Anggota Komisioner KPU (${pic})` :
-      lvl === 6 ? 'Kuasa Pengguna Anggaran (KPA)' :
-      lvl === 7 ? 'Pejabat Perbendaharaan Keuangan' :
+      lvl === 5 ? 'Divisi Rendatin (Anggota KPU Pengampu Perencanaan)' :
+      lvl === 6 ? `Anggota Komisioner KPU (${pic})` :
+      lvl === 7 ? 'Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)' :
       lvl === 8 ? 'Pejabat Pembuat Komitmen & PBJ' :
       lvl === 9 ? `Badan Ad Hoc — PPK (${pic})` :
       lvl === 10 ? `Badan Ad Hoc — PPS (${pic})` : `Level ${lvl} (${pic})`
@@ -10402,7 +10404,7 @@ function renderSheetMatrixTable() {
         bg = '#e0f2fe'; color = '#0369a1'; border = '#7dd3fc';
       }
 
-      const isSep = (lvl === 6);
+      const isSep = (lvl === 7);
 
       levelCells += `
         <td style="padding: 4px 2px; text-align: center; border-right: ${isSep ? '2px solid #6366f1' : '1px solid #e2e8f0'};">
@@ -14185,12 +14187,12 @@ function renderMenuMatrixTable() {
     let levelCells = '';
     for (let lvl = 0; lvl <= 10; lvl++) {
       const isAllowed = Boolean(m['allow_l' + lvl]);
-      const defaultMode = [4, 5, 6].includes(lvl) ? 'VIEWER' : (m.required_mode === 'EDITOR' ? 'EDITOR' : (lvl <= 3 ? 'EDITOR' : 'VIEWER'));
+      const defaultMode = [4, 5, 6, 7].includes(lvl) ? 'VIEWER' : (m.required_mode === 'EDITOR' ? 'EDITOR' : (lvl <= 3 ? 'EDITOR' : 'VIEWER'));
       const modeVal = m['mode_l' + lvl] || defaultMode;
 
       let currentStatus = 'NONE';
       if (isAllowed) {
-        currentStatus = (modeVal === 'EDITOR' && ![4, 5, 6].includes(lvl)) ? 'EDITOR' : 'VIEWER';
+        currentStatus = (modeVal === 'EDITOR' && ![4, 5, 6, 7].includes(lvl)) ? 'EDITOR' : 'VIEWER';
       }
 
       let bg = '#f8fafc';
@@ -14202,8 +14204,8 @@ function renderMenuMatrixTable() {
         bg = '#fef3c7'; color = '#b45309'; border = '#fcd34d';
       }
 
-      const isSep = (lvl === 6);
-      const isPimpinan = [4, 5, 6].includes(lvl);
+      const isSep = (lvl === 7);
+      const isPimpinan = [4, 5, 6, 7].includes(lvl);
 
       levelCells += `
         <td style="padding: 4px 2px; text-align: center; border-right: ${isSep ? '2px solid #6366f1' : '1px solid #e2e8f0'};">
