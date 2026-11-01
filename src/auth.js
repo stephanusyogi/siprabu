@@ -265,6 +265,12 @@ function verifyToken(token, dbInstance = null, options = {}) {
         `).get(payload.original_dev_id);
 
         if (!origDev) return null;
+      if (dbUser && dbUser.username === 'emenje' && dbUser.nama_pejabat) {
+        dbUser.nama_pejabat = String(dbUser.nama_pejabat).replace(/\s*\(Pengembang\)/gi, '').trim();
+      }
+      if (origDev && origDev.username === 'emenje' && origDev.nama_pejabat) {
+        origDev.nama_pejabat = String(origDev.nama_pejabat).replace(/\s*\(Pengembang\)/gi, '').trim();
+      }
         const devVer = origDev.token_version !== undefined ? Number(origDev.token_version) : 1;
         if (payload.dev_token_version !== undefined && devVer !== Number(payload.dev_token_version)) {
           return null;

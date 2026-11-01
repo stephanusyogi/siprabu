@@ -1276,7 +1276,9 @@ function updateUserNavbar() {
   const permanentDevAvatar = user.original_dev_avatar || devAccount?.avatar_url || '';
 
   // Bab 11.2 & FR-14: Saat login sebagai Developer (termasuk saat ganti peran), badge login kanan atas TIDAK BERUBAH
-  setElText('user-nama-pejabat', (isDev && !isDevSimulating) ? permanentDevNama : (user.nama_pejabat || user.username || 'Tamu'));
+  const cleanProfileName = (val) => String(val || '').replace(/\s*\(Pengembang\)/gi, '').trim();
+  const safeDevNama = cleanProfileName(permanentDevNama) || 'emenje';
+  setElText('user-nama-pejabat', (isDev && !isDevSimulating) ? safeDevNama : (cleanProfileName(user.nama_pejabat) || user.username || 'Tamu'));
   const switcher = document.getElementById('user-switcher');
   if (switcher) switcher.value = user.username;
 

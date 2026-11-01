@@ -1084,6 +1084,11 @@ function initDb() {
     console.warn('[AUTH] Gagal menerapkan konfigurasi kata sandi environment:', e.message);
   }
 
+  // Normalisasi akun utama emenje di database (Pembersihan residu label "(Pengembang)" di MySQL online)
+  try {
+    db.prepare("UPDATE satker_users SET nama_pejabat = 'emenje', jabatan = 'Level 0 Satker 657811' WHERE username = 'emenje' AND (nama_pejabat LIKE '%Pengembang%' OR jabatan LIKE '%Developer%')").run();
+  } catch (e) {}
+
   // Sinkronisasi status Google Sign-In via Environment Variable jika disediakan
   try {
     if (process.env.GOOGLE_AUTH_ENABLED !== undefined) {
