@@ -88,10 +88,12 @@
 - Pleno dinyatakan selesai hanya setelah semua PIC peserta mendapat persetujuan.
 - Level 2 hanya membaca data pada Tahap 3. Level 1 dapat menyesuaikan RUH nonkonseptual yang disepakati dalam pleno dan wajib mencatat audit perubahan.
 
-### 4.3 Detail Tahap 4
-- Tiga tautan Google Drive terpisah dan wajib: **BA Pleno**, **RKB final bertanda tangan**, dan **KAK gabungan**.
+### 4.3 Detail Tahap 4 (Pengesahan BA Pleno)
+- **Kedudukan Approver Substantif vs Pencatatan Sistem:** Pengesahan revisi anggaran hibah Pilkada di dunia nyata merupakan kewenangan **kolektif kolegial 5 Komisioner KPU** (Ketua KPU + 4 Anggota Komisioner) melalui forum resmi **Rapat Pleno**. Bukti sah yuridis persetujuan (*approval*) mereka dituangkan dalam **Naskah Fisik Berita Acara (BA) Rapat Pleno** dan RKB Final bertandatangan basah/elektronik resmi.
+- Di dalam software SI-PRABU, **tidak disediakan approval workflow engine bertingkat** (tidak ada tombol klik persetujuan mandiri per komisioner di aplikasi).
+- Pencatatan pengesahan ke dalam sistem dieksekusi secara administratif oleh **Administrator Utama Satker (Rendatin / Level 1)** atau Level 0 dengan menginput Nomor BA Pleno, Tanggal BA Pleno, serta tiga tautan Google Drive terpisah dan wajib: **BA Pleno bertanda tangan**, **RKB final bertanda tangan**, dan **KAK gabungan**.
 - Tautan diverifikasi secara manual sebelum pengesahan.
-- Sesudah pengesahan, hanya **Level 1 Kasubag Rendatin** dapat mengoreksi tautan dokumen, dengan audit log; koreksi tautan tidak mengubah baseline.
+- Sesudah pengesahan, hanya **Level 1 (Administrator Utama Satker / Rendatin)** dapat mengoreksi tautan dokumen, dengan audit log; koreksi tautan tidak mengubah baseline data RKB yang sudah berstatus *immutable*.
 
 ---
 
@@ -167,32 +169,46 @@
 
 ---
 
-## 10. Matriks Kewenangan Inti
+## 10. Matriks Kewenangan Inti & 11 Tingkat Kewenangan Satker
 
-| Fitur | Kewenangan Canon |
-| :--- | :--- |
-| **Manajemen User** | **Level 0** dan **Kasubag Rendatin** saja; kewenangan Rendatin ini melekat pada jabatan Kasubag, bukan seluruh akun divisi. |
-| **Log Aktivitas** | **Level 0** dan **Kasubag Rendatin** saja (Bab 14.1). |
-| **Blueprint & PRD (DEV)** | **Level 0** saja. |
-| **Ganti Peran untuk uji** | **Level 0** saja. |
-| **Validasi Tahap 2 dan 3** | **Level 1**. |
-| **Pengesahan Tahap 4** | **Level 1**. |
-| **Revisi PIC pada Tahap 0** | **Level 2** hanya PIC masing-masing; pengecualian Level 1 sebagaimana aturan. |
-| **REFERENSI — edit** | **Level 0** dan **Level 1**. |
-| **DATABASE — edit** | **Level 1**. |
-| **Unduh XLSX semua PIC dan ZIP** | **Level 1**. |
-| **Unduh Level 2** | Hanya RUH dan Matriks Revisi sesuai PIC. |
+Sistem menerapkan **Decoupled Dynamic RBAC & ABAC** yang membagi kewenangan pengguna ke dalam 11 level baku berbasis struktur kedinasan resmi KPU Kabupaten Ngawi:
 
-- Semua pembatasan harus ditegakkan di backend, bukan hanya dengan menyembunyikan menu atau kontrol antarmuka.
+| Level | Nomenklatur Jabatan Resmi KPU | Peran Bisnis & Hak Akses | Cakupan Subbagian (`pic_subbag`) |
+| :---: | :--- | :--- | :---: |
+| **Level 0** | **Lead Developer & System Architect** | Akses Penuh Sistem, bypass darurat, CRUD konfigurasi DB, Blueprint & PRD, simulasi multi-peran QC. | `SEMUA` (Lintas 5 Subbag) |
+| **Level 1** | **Administrator Utama Satker (Rendatin)** | Pengelola Utama Satker, Manajemen User, Log Audit, Validasi Tahap 2 & 3, Pencatatan Pengesahan Tahap 4, Edit Master Referensi & DB, Ekspor ZIP & Seluruh PIC. | `SEMUA` (Rendatin & Satker) |
+| **Level 2** | **Pengolah Data Perencanaan Anggaran** | Penyusunan RUH Belanja RKB, Pengajuan Usulan Revisi, Monitoring Revisi 4 Tahap, Pusat Siklus Dokumen. Seluruh folder **ADMINISTRASI** tersembunyi 100%. | `SEMUA` (Perencanaan Satker) |
+| **Level 3** | **Operator Pengelola Subbagian** | Penyusunan RUH Belanja RKB & Pengajuan Usulan Revisi khusus subbagian yang ditugaskan (`KUL`, `RENDATIN`, `TEKNIS`, `HUKUM`, `PARSDM`). | Terisolasi per Subbagian |
+| **Level 4** | **Ketua KPU (Kepala Lembaga)** | **Executive Viewer:** Peninjau Pimpinan Tertinggi Satker (Pagu Utuh / Konsolidasi, RUH Belanja, Monitoring Revisi, Rekap Anggaran). *Read-Only*. | `SEMUA` (Konsolidasi Satker) |
+| **Level 5** | **Anggota KPU Divisi Rendatin** | **Executive Viewer:** Pengampu Kebijakan Divisi Perencanaan, Data & Informasi. Peninjau pagu, RUH belanja, usulan revisi, dan rekapitulasi. *Read-Only*. | `SEMUA` (Pengampu Perencanaan) |
+| **Level 6** | **Anggota Komisioner KPU** | **Executive Viewer:** Peninjau Kolektif Kolegial (Divisi Teknis, Hukum, Parmas). Peninjau pagu utuh, RUH belanja, monitoring usulan, dan rekapitulasi. *Read-Only*. | `SEMUA` (Konsolidasi Satker) |
+| **Level 7** | **Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)** | **Executive Viewer:** Penanggung Jawab Keuangan & Administrasi Satker. Peninjau pagu utuh, RUH belanja, rekapitulasi pelaksanaan anggaran. *Read-Only*. | `SEMUA` (Konsolidasi Satker) |
+| **Level 8** | **Pejabat Pembuat Komitmen & PBJ** | Pengelola Pengadaan Barang/Jasa & Komitmen Belanja (Pelaksanaan Anggaran). | `SEMUA` |
+| **Level 9** | **Badan Ad Hoc — PPK (Kecamatan)** | Operator Belanja Hibah Tingkat Panitia Pemilihan Kecamatan (PPK). | Terisolasi per Kecamatan |
+| **Level 10** | **Badan Ad Hoc — PPS (Desa/Kelurahan)** | Operator Belanja Hibah Tingkat Panitia Pemungutan Suara (PPS Desa). | Terisolasi per Desa/Kelurahan |
+
+- **Matriks Hak Akses Menu Dinamis (`app_menu_matrix`):** Seluruh hak akses visibilitas 27 menu per tingkat kewenangan (L0 s.d. L10) dikonfigurasi secara terpusat di database.
+- **Penyembunyian Folder Otomatis (*Auto-Collapse Empty Folders*):** Folder navigasi sidebar (seperti folder ADMINISTRASI) secara otomatis disembunyikan dari antarmuka jika seluruh tombol menu anak di dalamnya berstatus `display: none` (`allow_lX = 0`).
+- **Penegakan di Backend:** Semua pembatasan kewenangan wajib ditegakkan di backend (`src/auth.js` dan endpoint API `server.js`), bukan hanya penyembunyian elemen visual di antarmuka web.
 
 ---
 
-## 11. Ganti Peran untuk Pengujian
-1. Fitur **Ganti Peran** hanya tersedia bagi **Level 0** sebagai alat uji fitur web.
-2. **Badge Login Tetap Permanen:** Akun login, nama profil (`emenje (Pengembang)`), avatar, dan badge kanan atas tetap **LEVEL 0: DEVELOPER** (tidak ikut berubah menjadi nama/badge peran simulasi); hanya pemilih `Ganti Peran`, tampilan halaman, menu navigasi, filter, dan fitur aplikasi yang menyesuaikan peran baru.
-3. **Pop-Up Validasi Ganti Peran & Start dari Dashboard:** Saat memilih peran simulasi pada dropdown `Ganti Peran`, sistem memunculkan **Pop-Up Validasi Ganti Peran** yang menampilkan detail peran tujuan beserta cakupan hak aksesnya. Sementara Pop-Up tampil, sistem di latar belakang menyiapkan penyegaran sesi, menyesuaikan hak akses fitur/menu serta filter subbagian, dan memuat halaman baru dimulai dari **Beranda / Dashboard (`#view-dashboard`)** sesuai peran yang dipilih.
-4. Simulasi tidak mengubah data akun permanen dan tidak dapat meningkatkan kewenangan backend di luar ketentuan peran uji.
-5. Audit tindakan selama simulasi membedakan identitas asli dan peran simulasi; logout menghapus simulasi.
+## 11. Ganti Peran untuk Pengujian & Tata Kelola Multi-Peran
+
+1. Fitur **Ganti Peran** hanya tersedia bagi **Level 0** sebagai alat uji fitur web (Quality Control / QC).
+2. **Penonaktifan Total Mode Kumulatif (*Strict Single Active Role / Switch Mode*):**
+   - Mode kumulatif (*Cumulative Multi-Role*) dilarang dan dinonaktifkan total di seluruh sistem (`role_mode = 'SWITCH'`).
+   - Setiap pengguna multi-peran hanya dapat beroperasi dalam **satu peran aktif tunggal** (`active_role`) pada satu waktu.
+   - Dilarang keras menggabungkan wewenang lintas peran (`Math.min(levels)` dihapus). Tingkat kewenangan, mode akses (`EDITOR` vs `VIEWER`), dan subbagian (`pic_subbag`) murni mengacu pada satu peran yang sedang aktif.
+3. **Pembersihan Nomenklatur SAKTI & Standardisasi Jabatan KPU:**
+   - Seluruh istilah asing bawaan SAKTI (`APPROVER`, `VALIDATOR`, `OPERATOR (PERENCANAAN)`) dibersihkan total dari modal Ganti Peran dan Sub-text Header.
+   - Antarmuka sistem wajib menampilkan nama kedinasan resmi KPU (*Ketua KPU (Kepala Lembaga)*, *Anggota KPU Divisi Rendatin*, *Anggota Komisioner KPU*, *Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)*, *Administrator Utama Satker*, dll).
+4. **Badge Login Tetap Permanen & UX Header:**
+   - Akun login, nama profil (`emenje`), avatar, dan badge kanan atas tetap mengidentifikasi akun Developer (`LEVEL 0 SATKER 657811 2026`); kata "Pengembang" atau "Lead Developer" tidak dimunculkan pada navigasi saat beralih peran untuk menjaga keselarasan antarmuka dinamis.
+   - Hanya pemilih peran aktif, tampilan halaman, menu navigasi, filter subbagian, dan fitur aplikasi yang menyesuaikan peran baru.
+5. **Pop-Up Validasi Ganti Peran & Start dari Dashboard:** Saat memilih peran simulasi pada daftar `Ganti Peran`, sistem memunculkan Pop-Up Validasi Ganti Peran yang menampilkan detail peran tujuan beserta cakupan hak aksesnya. Sementara Pop-Up tampil, sistem di latar belakang menyiapkan penyegaran sesi, menyesuaikan hak akses fitur/menu serta filter subbagian, dan memuat halaman baru dimulai dari **Beranda / Dashboard (`#view-dashboard`)** sesuai peran yang dipilih.
+6. Simulasi tidak mengubah data akun permanen dan tidak dapat meningkatkan kewenangan backend di luar ketentuan peran uji.
+7. Audit tindakan selama simulasi membedakan identitas asli dan peran simulasi; logout menghapus simulasi.
 
 ---
 
@@ -588,4 +604,45 @@ L3   [4]       Sosialisasi/Penyuluhan/Bimbingan Teknis
      └─ L4.2 [1)]      Pembentukan dan Kegiatan Relawan Demokrasi -> L5 [521211 / 521213]
 ```
 
+---
 
+## 26. Standar Tata Kelola Peran, Matriks Hak Akses Dinamis, dan Pengesahan Anggaran (Approver Substantif vs Sistem)
+
+### 26.1 Hierarki 11 Tingkat Kewenangan Satker KPU Kabupaten Ngawi
+Struktur otorisasi SI-PRABU menerapkan 11 tingkatan kewenangan berjenjang yang mencakup level Developer, Pejabat Satker, Pejabat Pimpinan/Komisioner, hingga Badan Ad Hoc:
+1. **Level 0 — Lead Developer & System Architect (Sistem):** Superuser sistem dengan hak akses penuh, bypass pemeliharaan darurat, dan pengujian peran.
+2. **Level 1 — Administrator Utama Satker (Rendatin):** Administrator teknis operasional satker, penanggung jawab manajemen pengguna, audit log, validasi usulan (Tahap 2 & 3), dan pencatatan pengesahan (Tahap 4).
+3. **Level 2 — Pengolah Data Perencanaan Anggaran:** Tim penyusun dokumen anggaran RKB dan usulan revisi satker. Terisolasi dari menu administrasi sistem.
+4. **Level 3 — Operator Pengelola Subbagian:** Operator penyusun anggaran tingkat subbagian pelaksana (`KUL`, `RENDATIN`, `TEKNIS`, `HUKUM`, `PARSDM`).
+5. **Level 4 — Ketua KPU (Kepala Lembaga):** Peninjau eksekutif (*Executive Viewer*) pimpinan tertinggi satker atas konsolidasi anggaran hibah Pilkada.
+6. **Level 5 — Anggota KPU Divisi Rendatin:** Peninjau eksekutif (*Executive Viewer*) pengampu divisi perencanaan dan anggaran satker.
+7. **Level 6 — Anggota Komisioner KPU:** Peninjau eksekutif (*Executive Viewer*) kolektif kolegial divisi teknis, hukum, dan parmas.
+8. **Level 7 — Sekretaris KPU / Kuasa Pengguna Anggaran (KPA):** Peninjau eksekutif (*Executive Viewer*) administrasi dan pertanggungjawaban keuangan satker.
+9. **Level 8 — Pejabat Pembuat Komitmen & PBJ:** Pengelola komitmen belanja dan pengadaan barang/jasa satker.
+10. **Level 9 — Badan Ad Hoc — PPK (Kecamatan):** Operator anggaran hibah di tingkat 19 Kecamatan se-Kabupaten Ngawi.
+11. **Level 10 — Badan Ad Hoc — PPS (Desa/Kelurahan):** Operator anggaran hibah di tingkat 217 Desa/Kelurahan se-Kabupaten Ngawi.
+
+### 26.2 Ketetapan Approver Substantif (Kolektif Kolegial) vs Pencatat Sistem (Rendatin Level 1)
+1. **Prinsip Hukum Tata Kelola (Substantif):** Persetujuan (*approval*) perubahan RKB hibah NPHD sah secara hukum melalui **Rapat Pleno 5 Komisioner KPU** dan dituangkan dalam dokumen Berita Acara (BA) Pleno serta naskah RKB Final bertandatangan basah/elektronik resmi.
+2. **Prinsip Operasional Software (Sistem):** Aplikasi SI-PRABU tidak menyediakan alur persetujuan digital bertingkat (tidak ada tombol approve per komisioner di aplikasi). Pencatatan hasil pengesahan fisik ke dalam sistem dilakukan secara terpusat oleh **Level 1 (Administrator Utama Satker / Rendatin)** atau Level 0 melalui pengunggahan nomor BA Pleno, tanggal, dan tautan scan naskah BA Pleno serta RKB Final.
+3. **Status Pimpinan di Aplikasi:** Level 4 (Ketua KPU), Level 5 (Divisi Rendatin), Level 6 (Komisioner), dan Level 7 (Sekretaris/KPA) berkedudukan sebagai **Executive Viewer (Peninjau Eksekutif)** dengan hak akses *Read-Only* penuh terhadap monitoring revisi, RUH belanja konsolidasi, dan rekap anggaran.
+
+### 26.3 Penegakan Peran Tunggal Aktif (*Strict Single Active Role / Anti-Cumulative Mode*)
+1. Mode multi-peran kumulatif (*cumulative permissions*) dilarang keras di seluruh modul sistem (`role_mode = 'SWITCH'`).
+2. Setiap pengguna dengan multi-peran hanya memiliki tepat satu peran aktif pada satu sesi.
+3. Fungsi agregasi wewenang seperti `Math.min(levels)` dihapus secara permanen; seluruh evaluasi menu, hak edit, dan filter subbagian murni mengacu pada `active_role` tunggal.
+4. Token otentikasi sesi menyimpan identitas peran aktif (`active_role`), dan developer yang beralih peran tetap mempertahankan verifikasi akun pengembang asal sehingga tidak ter-reset secara sepihak.
+
+### 26.4 Matriks Hak Akses Menu Dinamis (*Decoupled Dynamic Menu Matrix* — `app_menu_matrix`)
+1. Hak akses visibilitas terhadap 27 menu aplikasi diatur secara dinamis per tingkat kewenangan (L0 s.d. L10) melalui tabel `app_menu_matrix`.
+2. Setiap kali peran pengguna berubah, antarmuka mengevaluasi matriks (`applyDynamicMenuMatrix`) dan menyembunyikan tombol navigasi yang tidak diizinkan (`allow_lX = 0`).
+3. Jika pengguna berada pada tampilan yang tidak diizinkan untuk perannya saat ini, sistem secara otomatis mengalihkan navigasi ke Beranda/Dashboard (`view-dashboard`).
+
+### 26.5 Isolasi Folder Navigasi Berdasarkan Hak Akses Anak (*Auto-Collapse Empty Folders*)
+1. Folder navigasi grup (seperti *PENGANGGARAN*, *REKAP ANGGARAN*, *REFERENSI*, *DATABASE*, *PANDUAN*, dan *ADMINISTRASI*) secara otomatis memeriksa visibilitas seluruh menu anak di dalamnya.
+2. Jika seluruh menu anak di dalam suatu folder berstatus `display: none`, folder induk tersebut wajib disembunyikan (`folder.style.display = 'none'`).
+3. Khusus untuk Level 2 (Pengolah Data Perencanaan Anggaran), seluruh menu di dalam folder ADMINISTRASI (`view-penandatangan`, `view-db-settings`, `view-menu-matrix`, `view-audit`, `view-users`) diset `allow_l2 = 0`, sehingga folder ADMINISTRASI tersembunyi 100% dari pandangan Level 2.
+
+### 26.6 Standardisasi Nomenklatur Jabatan Resmi KPU
+1. Seluruh antarmuka pengguna (modal Ganti Peran, profil navbar, tabel hak akses, dan manajemen pengguna) wajib menggunakan sebutan kedinasan resmi KPU.
+2. Istilah teknis SAKTI Kemenkeu seperti `APPROVER (KETUA KPU)`, `APPROVER (KOMISIONER TEKNIS)`, `VALIDATOR`, dan `OPERATOR (PERENCANAAN)` dilarang digunakan di antarmuka pengguna.

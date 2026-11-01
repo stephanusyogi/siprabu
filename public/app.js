@@ -138,7 +138,7 @@ const PRABU_VIEW_TITLES = {
   'view-monitoring': 'Executive Real-Time Monitoring',
   'view-users': 'Manajemen Pengguna & Otoritas',
   'view-penandatangan': 'Pejabat Penandatangan Satker',
-  'view-developer': 'Ruang Pengembang & Blueprint PRD',
+  'view-developer': 'Konsol Arsitektur & Blueprint Sistem',
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
   'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
@@ -778,41 +778,16 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   }
 
   const isDevOrigin = sessionStorage.getItem('siprabu_is_developer_origin') === 'true' || user.username === 'emenje';
-  const isDevUnrestricted = isDevOrigin && (Number(user.level) === 0 && (!user.active_role || Number(user.active_role.level) === 0));
-
-  // Kumpulkan level kewenangan berdasarkan mode peran (SAKTI vs KUMULATIF)
+  // JANGAN BERLAKUKAN MODE KUMULATIF: Strict Single Active Role (SAKTI Mode Switch)
   const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
-  const userLevels = new Set();
-  const isKumulatif = (user.role_mode === 'KUMULATIF');
-  if (isKumulatif) {
-    userLevels.add(Number(user.level));
-    if (Array.isArray(user.roles)) {
-      user.roles.forEach(r => userLevels.add(Number(r.level)));
-    }
-  } else {
-    // Mode SAKTI: Tampilkan menu sesuai peran aktif saja
-    userLevels.add(activeLevel);
-  }
-  const isDev = isDevUnrestricted || userLevels.has(0) || user.role_id === 'developer' || user.username === 'emenje';
 
   // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Strict RBAC Peran Aktif)
   matrix.forEach(item => {
     const btn = document.querySelector('button[data-view="' + item.menu_key + '"]');
     if (!btn) return;
 
-    let isAllowed = false;
-    if (isKumulatif) {
-      for (const lvl of userLevels) {
-        if (item['allow_l' + lvl]) {
-          isAllowed = true;
-          break;
-        }
-      }
-    } else {
-      // Dinamis mengevaluasi peran aktif yang sedang dipilih (activeLevel, termasuk L0 Developer)
-      isAllowed = Boolean(item['allow_l' + activeLevel]);
-    }
-
+    // Evaluasi murni sesuai peran aktif yang sedang dipilih (activeLevel 0 s.d. 10)
+    const isAllowed = Boolean(item['allow_l' + activeLevel]);
     btn.style.display = isAllowed ? 'flex' : 'none';
   });
 
@@ -835,17 +810,7 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   // Jika view aktif saat ini tidak diizinkan untuk peran saat ini, alihkan otomatis ke view-dashboard
   const currentMatrixItem = matrix.find(m => m.menu_key === AppState.activeView);
   if (currentMatrixItem) {
-    let currentAllowed = false;
-    if (isKumulatif) {
-      for (const lvl of userLevels) {
-        if (currentMatrixItem['allow_l' + lvl]) {
-          currentAllowed = true;
-          break;
-        }
-      }
-    } else {
-      currentAllowed = Boolean(currentMatrixItem['allow_l' + activeLevel]);
-    }
+    const currentAllowed = Boolean(currentMatrixItem['allow_l' + activeLevel]);
     if (!currentAllowed) {
       switchView('view-dashboard', true);
     }
@@ -872,8 +837,8 @@ function getSelectableRolesForUser(user) {
       { id: 1002, level: 2, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pengolah Data Perencanaan Anggaran" },
       { id: 1003, level: 3, pic: "TEKNIS", mode_akses: "EDITOR", label_peran: "Operator Subbag Teknis" },
       { id: 1004, level: 4, pic: "SEMUA", mode_akses: "VIEWER", label_peran: "Ketua KPU (Kepala Lembaga)" },
-      { id: 1005, level: 5, pic: "RENDATIN", mode_akses: "VIEWER", label_peran: "Divisi Rendatin (Anggota KPU Pengampu Perencanaan)" },
-      { id: 1006, level: 6, pic: "TEKNIS", mode_akses: "VIEWER", label_peran: "Anggota Komisioner KPU" },
+      { id: 1005, level: 5, pic: "RENDATIN", mode_akses: "VIEWER", label_peran: "Anggota KPU Divisi Rendatin" },
+      { id: 1006, level: 6, pic: "TEKNIS", mode_akses: "VIEWER", label_peran: "Anggota Komisioner KPU (Divisi Teknis)" },
       { id: 1007, level: 7, pic: "SEMUA", mode_akses: "VIEWER", label_peran: "Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)" },
       { id: 1008, level: 8, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pejabat Pembuat Komitmen & PBJ" },
       { id: 1009, level: 9, pic: "KECAMATAN", mode_akses: "EDITOR", label_peran: "Badan Ad Hoc — PPK (Kecamatan)" },
@@ -881,7 +846,7 @@ function getSelectableRolesForUser(user) {
     ];
     // Jika Developer sedang dalam mode simulasi peran (level > 0), sertakan opsi reset kembali ke Developer Level 0
     if (Number(user.level) > 0) {
-      simRoles.unshift({ id: 10, level: 0, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Kembali ke Lead Developer (Akses Penuh Level 0)" });
+      simRoles.unshift({ id: 10, level: 0, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Kembali ke Level 0 (Akses Penuh)" });
     }
     // Jika Developer sedang di Level 0 asli, JANGAN sertakan Level 0 di daftar pilihan ganti peran!
     return simRoles;
@@ -912,54 +877,54 @@ function getRoleNomenclature(role, user) {
   let prefix = "opr";
 
   if (lvl === 0) {
-    if (role.id === 10 || (role.label_peran && role.label_peran.includes("Developer"))) {
-      peranLabel = "KEMBALI KE DEVELOPER (AKSES PENUH)";
-      roleCode = "ROLE_DEVELOPER";
-      prefix = "dev";
+    if (role.id === 10 || (role.label_peran && (role.label_peran.includes("Developer") || role.label_peran.includes("Level 0")))) {
+      peranLabel = "KEMBALI KE LEVEL 0 (AKSES PENUH)";
+      roleCode = "ROLE_LEVEL_0";
+      prefix = "l0";
     } else {
-      peranLabel = "ADMINISTRATOR";
-      roleCode = "ROLE_ADMINISTRATOR";
-      prefix = "adm";
+      peranLabel = "LEVEL 0: AKSES PENUH SISTEM";
+      roleCode = "ROLE_LEVEL_0";
+      prefix = "l0";
     }
   } else if (lvl === 1) {
-    peranLabel = "VALIDATOR";
-    roleCode = "ROLE_VALIDATOR";
-    prefix = "val";
+    peranLabel = "ADMINISTRATOR UTAMA SATKER (RENDATIN)";
+    roleCode = "ROLE_ADMIN_SATKER";
+    prefix = "adm";
   } else if (lvl === 2) {
-    peranLabel = "OPERATOR (PERENCANAAN)";
-    roleCode = "ROLE_OPERATOR_PERENCANAAN";
+    peranLabel = "PENGOLAH DATA PERENCANAAN ANGGARAN";
+    roleCode = "ROLE_PENGOLAH_DATA";
     prefix = "opr";
   } else if (lvl === 3) {
-    peranLabel = pic !== "SEMUA" ? `OPERATOR (${pic})` : "OPERATOR";
+    peranLabel = pic !== "SEMUA" ? `OPERATOR SUBBAG ${pic}` : "OPERATOR PENGELOLA SUBBAGIAN";
     roleCode = pic !== "SEMUA" ? `ROLE_OPERATOR_${pic}` : "ROLE_OPERATOR";
     prefix = "opr";
   } else if (lvl === 4) {
-    peranLabel = "APPROVER (KETUA KPU)";
-    roleCode = "ROLE_APPROVER_KETUA";
-    prefix = "app";
+    peranLabel = "KETUA KPU (KEPALA LEMBAGA)";
+    roleCode = "ROLE_KETUA_KPU";
+    prefix = "lead";
   } else if (lvl === 5) {
-    peranLabel = "APPROVER (DIVISI RENDATIN)";
-    roleCode = "ROLE_APPROVER_RENDATIN";
-    prefix = "app";
+    peranLabel = "ANGGOTA KPU DIVISI RENDATIN";
+    roleCode = "ROLE_DIVISI_RENDATIN";
+    prefix = "lead";
   } else if (lvl === 6) {
-    peranLabel = pic !== "SEMUA" ? `APPROVER (KOMISIONER ${pic})` : "APPROVER (KOMISIONER)";
-    roleCode = "ROLE_APPROVER_KOM";
-    prefix = "app";
+    peranLabel = (pic !== "SEMUA" && pic !== "TEKNIS") ? `ANGGOTA KOMISIONER (DIVISI ${pic})` : (pic === "TEKNIS" ? "ANGGOTA KOMISIONER KPU (DIVISI TEKNIS)" : "ANGGOTA KOMISIONER KPU");
+    roleCode = "ROLE_KOMISIONER";
+    prefix = "lead";
   } else if (lvl === 7) {
-    peranLabel = "APPROVER (SEKRETARIS/KPA)";
-    roleCode = "ROLE_APPROVER_KPA";
-    prefix = "app";
+    peranLabel = "SEKRETARIS KPU / KUASA PENGGUNA ANGGARAN (KPA)";
+    roleCode = "ROLE_SEKRETARIS_KPA";
+    prefix = "lead";
   } else if (lvl === 8) {
-    peranLabel = "OPERATOR (PPK/PBJ)";
-    roleCode = "ROLE_OPERATOR_PPK";
+    peranLabel = "PEJABAT PEMBUAT KOMITMEN & PBJ";
+    roleCode = "ROLE_PPK_PBJ";
     prefix = "opr";
   } else if (lvl === 9) {
-    peranLabel = pic !== "SEMUA" ? `OPERATOR (PPK ${pic})` : "OPERATOR (PPK KEC)";
-    roleCode = "ROLE_OPERATOR_KEC";
+    peranLabel = pic !== "SEMUA" ? `BADAN AD HOC — PPK (${pic})` : "BADAN AD HOC — PPK (KECAMATAN)";
+    roleCode = "ROLE_PPK_KEC";
     prefix = "opr";
   } else if (lvl === 10) {
-    peranLabel = pic !== "SEMUA" ? `OPERATOR (PPS ${pic})` : "OPERATOR (PPS DESA)";
-    roleCode = "ROLE_OPERATOR_DESA";
+    peranLabel = pic !== "SEMUA" ? `BADAN AD HOC — PPS (${pic})` : "BADAN AD HOC — PPS (DESA/KELURAHAN)";
+    roleCode = "ROLE_PPS_DESA";
     prefix = "opr";
   } else {
     peranLabel = role.label_peran ? role.label_peran.toUpperCase() : `LEVEL ${lvl}`;
@@ -975,7 +940,7 @@ function getRoleNomenclature(role, user) {
   return {
     kodeSatker: "657811",
     peran: peranLabel,
-    tipe: (lvl === 0 && (role.id === 10 || role.label_peran?.includes("Developer"))) ? "SISTEM" : "SATKER",
+    tipe: (lvl === 0) ? "SISTEM" : "SATKER",
     roleCode: roleCode,
     deskripsiSatker: "KPU KABUPATEN NGAWI",
     kodeUakpb: "076010500657811000KD",
@@ -989,20 +954,23 @@ window.getSaktiRoleNomenclature = getRoleNomenclature;
 
 function getRoleHeaderSub(role, user) {
   const lvl = role ? Number(role.level) : Number(user?.level ?? 1);
-  if (lvl === 0) return "LEAD DEVELOPER SATKER 657811";
-  if (lvl === 1) return "VALIDATOR SATKER 657811";
-  if (lvl === 2) return "OPERATOR PERENCANAAN SATKER 657811";
+  if (lvl === 0) return "LEVEL 0 SATKER 657811";
+  if (lvl === 1) return "ADMINISTRATOR UTAMA SATKER 657811";
+  if (lvl === 2) return "PENGOLAH DATA PERENCANAAN SATKER 657811";
   if (lvl === 3) {
     const pic = role ? String(role.pic).toUpperCase() : String(user?.pic_subbag || "TEKNIS").toUpperCase();
-    return `OPERATOR ${pic} SATKER 657811`;
+    return `OPERATOR SUBBAG ${pic} SATKER 657811`;
   }
-    if (lvl === 4) return "APPROVER (KETUA KPU) SATKER 657811";
-  if (lvl === 5) return "APPROVER (DIVISI RENDATIN) SATKER 657811";
-  if (lvl === 6) return "APPROVER (KOMISIONER) SATKER 657811";
-  if (lvl === 7) return "APPROVER (SEKRETARIS/KPA) SATKER 657811";
-  if (lvl === 8) return "OPERATOR (PPK/PBJ) SATKER 657811";
-  if (lvl === 9) return "OPERATOR AD HOC PPK (KECAMATAN)";
-  if (lvl === 10) return "OPERATOR AD HOC PPS (DESA)";
+  if (lvl === 4) return "KETUA KPU SATKER 657811";
+  if (lvl === 5) return "ANGGOTA KPU DIVISI RENDATIN SATKER 657811";
+  if (lvl === 6) {
+    const pic = role ? String(role.pic).toUpperCase() : String(user?.pic_subbag || "SEMUA").toUpperCase();
+    return (pic !== "SEMUA" && pic !== "TEKNIS") ? `ANGGOTA KPU DIVISI ${pic} SATKER 657811` : "ANGGOTA KOMISIONER SATKER 657811";
+  }
+  if (lvl === 7) return "SEKRETARIS / KPA SATKER 657811";
+  if (lvl === 8) return "PEJABAT PEMBUAT KOMITMEN & PBJ SATKER 657811";
+  if (lvl === 9) return "BADAN AD HOC PPK (KECAMATAN)";
+  if (lvl === 10) return "BADAN AD HOC PPS (DESA)";
   return "SATKER 657811";
 }
 const getSaktiRoleHeaderSub = getRoleHeaderSub;
@@ -1337,16 +1305,12 @@ function updateUserNavbar() {
   // Sub-text Peran Aktif: VALIDATOR SATKER 657811 2026 (Gambar 2)
   const activeRoleSub = document.getElementById('user-active-role-sub');
   if (activeRoleSub) {
-    if (user.role_mode === 'KUMULATIF') {
-      activeRoleSub.textContent = 'HAK KUMULATIF SATKER 657811 2026';
-    } else {
-      const activeRole = user.active_role || (Array.isArray(user.roles) ? user.roles[0] : null);
-      const subText = getSaktiRoleHeaderSub(activeRole, user);
-      activeRoleSub.textContent = `${subText} 2026`;
-    }
-    const dropdownGantiPeran = document.getElementById('sakti-dropdown-ganti-peran');
+    const activeRole = user.active_role || (Array.isArray(user.roles) ? user.roles[0] : null);
+    const subText = getSaktiRoleHeaderSub(activeRole, user);
+    activeRoleSub.textContent = `${subText} 2026`;
+    const dropdownGantiPeran = document.getElementById('sakti-dropdown-ganti-peran') || document.getElementById('prabu-dropdown-ganti-peran');
     if (dropdownGantiPeran) {
-      const canSwitchRole = !isDev && user.level > 0 && Array.isArray(user.roles) && user.roles.length > 1 && user.role_mode !== 'KUMULATIF';
+      const canSwitchRole = isDev || (Array.isArray(user.roles) && user.roles.length > 1);
       dropdownGantiPeran.style.display = canSwitchRole ? 'flex' : 'none';
     }
   }
@@ -1354,7 +1318,7 @@ function updateUserNavbar() {
   const roleEl = document.getElementById('user-role-badge');
   if (roleEl) {
     if (isDev) {
-      roleEl.textContent = 'LEVEL 0: DEVELOPER';
+      roleEl.textContent = 'LEVEL 0';
       roleEl.className = 'user-role badge';
       roleEl.style.background = '#0f172a';
       roleEl.style.color = '#fff';
@@ -1427,29 +1391,26 @@ function applyRolePermissionsToUI() {
   // 1. Terapkan Matriks Hak Akses Menu Dinamis Berbasis Level (0-4) dari Database
   applyDynamicMenuMatrix(user);
 
-  // Kumpulkan level pengguna (aktif & multi-peran)
-  const userLevels = new Set();
-  userLevels.add(Number(user.level));
-  if (Array.isArray(user.roles)) {
-    user.roles.forEach(r => userLevels.add(Number(r.level)));
-  }
+  // JANGAN BERLAKUKAN MODE KUMULATIF: Strict Peran Aktif Tunggal (SAKTI)
+  const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
+  const activePic = user.active_role ? String(user.active_role.pic).toUpperCase() : String(user.pic_subbag || 'SEMUA').toUpperCase();
 
-  // 2. Akses Tombol Tambah Pengguna di view-users (Level 0 dan Level 1)
-  const canAccessUserMgmt = userLevels.has(0) || userLevels.has(1);
+  // 2. Akses Tombol Tambah Pengguna di view-users (HANYA Level 0 Asli dan Level 1)
+  const canAccessUserMgmt = (activeLevel === 0 || activeLevel === 1);
   const btnTambahUser = document.getElementById('btn-tambah-user');
   if (btnTambahUser) {
     btnTambahUser.style.display = canAccessUserMgmt ? 'inline-flex' : 'none';
   }
 
   // 3. Pembatasan Subbag RKB:
-  // Jika user memiliki pic_subbag spesifik (bukan 'SEMUA'), kunci filter RKB ke subbagnya
+  // Jika peran aktif memiliki pic spesifik (bukan 'SEMUA'), kunci filter RKB ke subbagnya
   const filterPicEl = document.getElementById('filter-pic');
   if (filterPicEl) {
-    if (user.pic_subbag && user.pic_subbag !== 'SEMUA') {
-      filterPicEl.value = user.pic_subbag;
+    if (activePic && activePic !== 'SEMUA') {
+      filterPicEl.value = activePic;
       filterPicEl.disabled = true;
-      filterPicEl.title = `Terkunci: Anda bertugas pada Subbagian/Divisi ${user.pic_subbag}`;
-      AppState.filters.pic = user.pic_subbag;
+      filterPicEl.title = `Terkunci: Anda bertugas pada Subbagian/Divisi ${activePic}`;
+      AppState.filters.pic = activePic;
     } else {
       if (filterPicEl.disabled) {
         filterPicEl.value = 'SEMUA';
@@ -1461,7 +1422,7 @@ function applyRolePermissionsToUI() {
   }
 
   // 4. Read-Only Protection di Referensi (SBM, BAS, SSOT) & Database Master (PPK, PPS, Paslon, Settings)
-  const isLevel1OrDev = userLevels.has(0) || userLevels.has(1);
+  const isLevel1OrDev = (activeLevel === 0 || activeLevel === 1);
   const masterActionSelectors = [
     '#view-db-sbm button[onclick*="openModalSbm"]',
     '#view-db-sbm button[onclick*="triggerImportSbm"]',
@@ -1514,12 +1475,8 @@ function canAccessModulPerencanaan(user = AppState.currentUser) {
 
 function canAccessModulPelaksanaan(user = AppState.currentUser) {
   if (!user) return false;
-  const userLevels = new Set();
-  userLevels.add(Number(user.level));
-  if (Array.isArray(user.roles)) {
-    user.roles.forEach(r => userLevels.add(Number(r.level)));
-  }
-  return userLevels.has(0) || userLevels.has(1) || userLevels.has(4);
+  const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
+  return activeLevel === 0 || activeLevel === 1 || activeLevel === 4;
 }
 
 /**
@@ -9690,7 +9647,7 @@ function renderUsersTable() {
     roles.forEach(r => {
       const lvl = Number(r.level);
       let lvlBadge = '';
-      if (lvl === 0) lvlBadge = `<span class="badge" style="background:#0f172a;color:#fff;font-weight:800;font-size:10px;">L0 DEV</span>`;
+      if (lvl === 0) lvlBadge = `<span class="badge" style="background:#0f172a;color:#fff;font-weight:800;font-size:10px;">L0 UTAMA</span>`;
       else if (lvl === 1) lvlBadge = `<span class="badge badge-primary" style="font-weight:700;font-size:10px;">L1 ADMIN</span>`;
       else if (lvl === 2) lvlBadge = `<span class="badge" style="background:#0284c7;color:#fff;font-weight:700;font-size:10px;">L2 PENGOLAH</span>`;
       else if (lvl === 3) lvlBadge = `<span class="badge badge-success" style="font-weight:700;font-size:10px;">L3 OPERATOR</span>`;
@@ -9791,7 +9748,7 @@ function renderModalUserRolesTable() {
   }
 
   const lvlNames = {
-    0: 'L0: Developer',
+    0: 'L0: Level 0',
     1: 'L1: Admin Satker',
     2: 'L2: Pengolah Data',
     3: 'L3: Operator Subbag',
@@ -9867,7 +9824,7 @@ function addRoleToModalUser() {
     pic,
     mode_akses: defaultMode,
     label_peran: label || (
-      lvl === 0 ? 'Lead Developer & System Architect' :
+      lvl === 0 ? 'Level 0 (Akses Penuh)' :
       lvl === 1 ? 'Administrator Utama Satker (Rendatin)' :
       lvl === 2 ? 'Pengolah Data Perencanaan Anggaran' :
       lvl === 3 ? `Operator Pengelola Subbagian (${pic})` :
@@ -10014,7 +9971,7 @@ async function submitUserForm() {
     jabatan: document.getElementById('modal-user-jabatan')?.value || '',
     email,
     is_active: Number(document.getElementById('modal-user-status')?.value || 1),
-    role_mode: (username === 'emenje' || (id && AppState.usersList.find(u => u.id === Number(id))?.level === 0)) ? 'KUMULATIF' : (document.getElementById('modal-user-role-mode')?.value || 'SWITCH'),
+    role_mode: 'SWITCH',
     can_delete: document.getElementById('modal-user-can-delete')?.checked ? 1 : 0,
     roles: sanitizedRoles
   };
@@ -14193,7 +14150,7 @@ function renderMenuMatrixTable() {
     'folder-database': 'Database Master Adhoc',
     'folder-panduan': 'Panduan & Regulasi',
     'folder-administrasi': 'Administrasi & Pengaturan',
-    'folder-developer': 'Ruang Pengembang DEV'
+    'folder-developer': 'Konsol Arsitektur Sistem'
   };
 
   tbody.innerHTML = filtered.map((m, idx) => {

@@ -112,7 +112,8 @@ function createToken(user, originalDevUser = null, options = {}) {
   const isDirectLevel0 = Number(user.level) === 0 && (user.role_id === 'developer' || user.username === 'emenje');
   const isSimulatedFromDev = Boolean(
     (originalDevUser && Number(originalDevUser.level) === 0 && (originalDevUser.role_id === 'developer' || originalDevUser.username === 'emenje')) ||
-    (user.is_developer === true && user.original_dev_id)
+    (user.is_developer === true && (user.original_dev_id || user.username === 'emenje')) ||
+    (user.username === 'emenje')
   );
   const isDev = Boolean(isDirectLevel0 || isSimulatedFromDev);
 
@@ -273,8 +274,14 @@ function verifyToken(token, dbInstance = null, options = {}) {
         payload.is_developer = false;
       }
 
+      // PERINGATAN: TIDAK BERLAKU MODE KUMULATIF. Mode operasional SELALU SWITCH (Peran Tunggal Aktif SAKTI).
       const roleMode = String(dbUser.role_mode || payload.role_mode || 'SWITCH').toUpperCase();
-      const isKumulatif = (roleMode === 'KUMULATIF');
+
+      const activeLevel = activeRole ? Number(activeRole.level) : Number(dbUser.level);
+      const activePic = activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase();
+      const activeModeAkses = activeRole 
+        ? String(activeRole.mode_akses).toUpperCase() 
+        : (Number(dbUser.level) === 3 ? 'VIEWER' : 'EDITOR');
 
       return {
         ...dbUser,
@@ -282,15 +289,9 @@ function verifyToken(token, dbInstance = null, options = {}) {
         roles: userRoles,
         active_role: activeRole,
         role_mode: roleMode,
-        level: isKumulatif 
-          ? Math.min(...userRoles.map(r => Number(r.level))) 
-          : (activeRole ? Number(activeRole.level) : Number(dbUser.level)),
-        pic_subbag: isKumulatif
-          ? (userRoles.some(r => r.pic === 'SEMUA') ? 'SEMUA' : (activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase()))
-          : (activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase()),
-        mode_akses: isKumulatif
-          ? (userRoles.some(r => String(r.mode_akses).toUpperCase() === 'EDITOR') ? 'EDITOR' : 'VIEWER')
-          : (activeRole ? String(activeRole.mode_akses).toUpperCase() : (Number(dbUser.level) === 3 ? 'VIEWER' : 'EDITOR')),
+        level: activeLevel,
+        pic_subbag: activePic,
+        mode_akses: activeModeAkses,
         sid: payload.sid || null,
         iat: payload.iat || null,
         exp: payload.exp || null,

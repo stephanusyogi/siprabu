@@ -503,7 +503,7 @@ function initDb() {
   const canonicalMenus = [
     { urutan: 1, menu_key: 'view-dashboard', menu_label: 'Beranda (Dashboard)', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
     { urutan: 2, menu_key: 'view-rkb', menu_label: 'RUH Belanja RKB', folder_key: null, flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 3, menu_key: 'view-revisi-pengajuan', menu_label: 'Pengajuan Usulan Revisi', folder_key: 'folder-perencanaan', flags: [1,1,0,1,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 3, menu_key: 'view-revisi-pengajuan', menu_label: 'Pengajuan Usulan Revisi', folder_key: 'folder-perencanaan', flags: [1,1,1,1,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 4, menu_key: 'view-revisi-validasi', menu_label: 'Validasi Revisi', folder_key: 'folder-perencanaan', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 5, menu_key: 'view-revisi-tahap4', menu_label: 'Pengesahan BA Pleno (Tahap 4)', folder_key: 'folder-perencanaan', flags: [1,1,0,0,1,1,1,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 6, menu_key: 'view-revisi-monitoring', menu_label: 'Monitoring Revisi (4 Tahap)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
@@ -521,7 +521,7 @@ function initDb() {
     { urutan: 18, menu_key: 'view-db-regulasi', menu_label: 'Regulasi & Dasar Hukum JDIH', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
     { urutan: 19, menu_key: 'view-juknis-kegiatan', menu_label: 'Standar 28 Kegiatan (KPT 543)', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
     { urutan: 20, menu_key: 'view-users', menu_label: 'Pengguna', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 21, menu_key: 'view-penandatangan', menu_label: 'Penandatangan', folder_key: 'folder-administrasi', flags: [1,1,1,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 21, menu_key: 'view-penandatangan', menu_label: 'Penandatangan', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
     { urutan: 22, menu_key: 'view-menu-matrix', menu_label: 'Hak Akses', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 23, menu_key: 'view-db-settings', menu_label: 'Pengaturan Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,0,1,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 24, menu_key: 'view-audit', menu_label: 'Log Aktivitas Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'VIEWER' },

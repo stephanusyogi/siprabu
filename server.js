@@ -621,7 +621,7 @@ const server = http.createServer(async (req, res) => {
       // Tetap sematkan is_developer: true dan simpan identitas asal developer (tidak memperpanjang batas waktu mutlak 8 jam)
       const originalDevId = origDevRow.id;
       const originalDevUsername = origDevRow.username || 'emenje';
-      const originalDevNama = origDevRow.nama_pejabat || 'emenje (Pengembang)';
+      const originalDevNama = origDevRow.nama_pejabat || 'emenje';
       const originalDevAvatar = origDevRow.avatar_url || '';
 
       const token = createToken({
@@ -697,13 +697,13 @@ const server = http.createServer(async (req, res) => {
       // Jika Developer melakukan simulasi peran satker
       if (!matchedRole && (currentUser.is_developer || currentUser.level === 0 || currentUser.username === 'emenje')) {
         const simRoles = [
-          { id: 10, level: 0, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Lead Developer & System Architect' },
+          { id: 10, level: 0, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Level 0 (Akses Penuh)' },
           { id: 1001, level: 1, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Administrator Utama Satker (Rendatin)' },
           { id: 1002, level: 2, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pengolah Data Perencanaan Anggaran' },
           { id: 1003, level: 3, pic: 'TEKNIS', mode_akses: 'EDITOR', label_peran: 'Operator Pengelola Subbagian (Teknis)' },
           { id: 1004, level: 4, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Ketua KPU (Kepala Lembaga)' },
-          { id: 1005, level: 5, pic: 'RENDATIN', mode_akses: 'VIEWER', label_peran: 'Divisi Rendatin (Anggota KPU Pengampu Perencanaan)' },
-          { id: 1006, level: 6, pic: 'TEKNIS', mode_akses: 'VIEWER', label_peran: 'Anggota Komisioner KPU' },
+          { id: 1005, level: 5, pic: 'RENDATIN', mode_akses: 'VIEWER', label_peran: 'Anggota KPU Divisi Rendatin' },
+          { id: 1006, level: 6, pic: 'TEKNIS', mode_akses: 'VIEWER', label_peran: 'Anggota Komisioner KPU (Divisi Teknis)' },
           { id: 1007, level: 7, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)' },
           { id: 1008, level: 8, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pejabat Pembuat Komitmen & PBJ' },
           { id: 1009, level: 9, pic: 'KECAMATAN', mode_akses: 'EDITOR', label_peran: 'Badan Ad Hoc — PPK (Kecamatan)' },
@@ -726,7 +726,10 @@ const server = http.createServer(async (req, res) => {
       };
 
       const currentDbUser = getUserById(currentUser.id);
-      const persistentMode = currentDbUser?.role_mode || currentUser.role_mode || 'SWITCH';
+      const persistentMode = 'SWITCH'; // JANGAN BERLAKUKAN MODE KUMULATIF
+
+      const isDevUser = Boolean(currentUser.is_developer || currentUser.level === 0 || currentUser.username === 'emenje');
+      const origDevUser = isDevUser ? (currentUser.original_dev_id ? getUserById(currentUser.original_dev_id) : (currentDbUser || currentUser)) : null;
 
       const updatedUser = {
         ...currentUser,
@@ -734,10 +737,13 @@ const server = http.createServer(async (req, res) => {
         level: Number(activeRole.level),
         pic_subbag: String(activeRole.pic || 'SEMUA').toUpperCase(),
         mode_akses: String(activeRole.mode_akses || 'VIEWER').toUpperCase(),
-        active_role: activeRole
+        active_role: activeRole,
+        is_developer: isDevUser,
+        original_dev_id: origDevUser ? origDevUser.id : currentUser.id,
+        original_dev_username: origDevUser ? origDevUser.username : currentUser.username
       };
 
-      const token = createToken(updatedUser, null, {
+      const token = createToken(updatedUser, origDevUser, {
         preserveIat: currentUser.iat,
         preserveExp: currentUser.exp,
         preserveSid: currentUser.sid
