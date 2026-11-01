@@ -646,3 +646,67 @@ Struktur otorisasi SI-PRABU menerapkan 11 tingkatan kewenangan berjenjang yang m
 ### 26.6 Standardisasi Nomenklatur Jabatan Resmi KPU
 1. Seluruh antarmuka pengguna (modal Ganti Peran, profil navbar, tabel hak akses, dan manajemen pengguna) wajib menggunakan sebutan kedinasan resmi KPU.
 2. Istilah teknis SAKTI Kemenkeu seperti `APPROVER (KETUA KPU)`, `APPROVER (KOMISIONER TEKNIS)`, `VALIDATOR`, dan `OPERATOR (PERENCANAAN)` dilarang digunakan di antarmuka pengguna.
+
+## BAB 27: STANDAR PENGUMUMAN SAKTI KEDINASAN, PENARGETAN LEVEL, DAN PROFIL MANDIRI PENGGUNA
+
+### 27.1 Arsitektur Pemisahan Tegas: Pre-Login (Publik) vs Post-Login (Surat Dinas Kedinasan)
+Sesuai arahan arsitektur Mas emenje, sistem mengimplementasikan pemisahan tegas (Strict Separation of Concerns) menjadi **hanya 2 habitat kategori**:
+1. **Sebelum Login (`PRELOGIN` / Tamu & Publik):**
+   - **Karakteristik Sesi:** Sistem belum mengenali siapa yang akan login (belum ada token, sesi, atau tingkat level akses).
+   - **Peruntukan Konten:** Dikhususkan untuk informasi publik / tamu awal sesi (misal: himbauan integritas anti-gratifikasi UPG KPU RI, jadwal pemeliharaan server, dan kontak bantuan Helpdesk SI-PRABU).
+   - **Ketentuan Tampil:** Pop-up pengumuman awal sesi **wajib selalu tampil sebelum login** bagi siapapun yang mengakses sistem.
+   - **TIDAK ADA checkbox "Jangan tampilkan pesan ini lagi"**. Akses penutupan modal dilakukan eksklusif melalui tombol `[✖ Tutup]` atau ikon silang di sudut kanan atas.
+   - **Tata Letak Dua Kolom:**
+     - **Kolom Kiri (Branding & Contact Center):** Logo aplikasi SI-PRABU KPU Kabupaten Ngawi, judul "PENGUMUMAN", ilustrasi grafis SVG modern, dan kontainer kontak helpdesk kedinasan (Nama layanan, Call center/WhatsApp, email, dan portal resmi) dengan fitur *auto-hide*.
+     - **Kolom Kanan (Kontainer Kartu Pengumuman):** Menampilkan kartu berbingkai modern dengan Tag Perihal (`#HIMBAUAN INTEGRITAS`, dll.), judul tebal, deteksi link otomatis, dan tombol lampiran dokumen.
+   - **Isolasi Penuh:** Pengumuman Pre-Login tidak menyela dan tidak tayang berulang di dalam area kerja dashboard setelah pengguna login.
+
+2. **Setelah Login (`POSTLOGIN` / Surat Kedinasan & Korespondensi Rentang Level):**
+   - **Karakteristik Sesi:** Sistem telah mengautentikasi identitas pengguna, mengetahui NIK, nama pejabat, dan Level kewenangannya (Level 0 s.d. 10).
+   - **Peruntukan Konten:** Dikhususkan untuk **korespondensi kedinasan internal satker** (perihal revisi anggaran, penatausahaan belanja RKB, arahan rapat pleno, disposisi pimpinan, dsb).
+   - **Penyaringan Presisi Berbasis Level:** Begitu pengguna berhasil login (atau beralih peran), sistem memanggil `/api/announcements/my` dan menyaring pengumuman di mana `target_level_min <= userLevel AND target_level_max >= userLevel`.
+   - **Isolasi Mutlak dari Publik:** Surat kedinasan Post-Login **100% diisolasi** dan tidak akan pernah bocor ke publik sebelum login.
+   - **Modal Korespondensi Dinas:** Menampilkan identitas penerima (`👤 Ditujukan Kepada: [Nama Pejabat] • Level [X] - [Peran]`), label sasaran dinas, dan rincian arahan kedinasan.
+   - **Pemberitahuan Terintegrasi di Dashboard & Navbar:**
+     - **Banner Beranda:** Kotak pengumuman kedinasan elegan di bagian atas Dashboard Beranda (`#dashboard-announcement-banner`).
+     - **Tombol Notifikasi Navbar:** Tombol `[📢 Pengumuman (N)]` di samping profil pengguna beserta item menu di profil dropdown untuk membaca ulang surat dinas sewaktu-waktu.
+     - **Sesi Bebas Gangguan:** Status baca disimpan per sesi tab browser (`sessionStorage`), sehingga pop-up tidak berulang kali menyela navigasi halaman kecuali terdapat surat pengumuman baru.
+
+3. **Masa Berlaku Dinamis (*Evergreen Support*):**
+   - Pengumuman mendukung konfigurasi rentang tanggal penayangan (`tanggal_mulai` dan `tanggal_selesai`).
+   - **Aturan Tanggal Kosong (Evergreen):** Apabila tanggal mulai dan tanggal selesai tidak diatur (kosong/null), pengumuman otomatis berstatus *Evergreen* (selalu tayang tanpa batas waktu selama status `is_active = 1`).
+
+4. **Kategori Penayangan & Penargetan Level (Hapus Opsi Dual Layer):**
+   - Opsi *Dual Layer* (campur aduk pre & post) dihapus total dari formulir dan logika sistem.
+   - Formulir hanya menyediakan 2 pilihan murni:
+     - `PRELOGIN`: 🚪 **Sebelum Login** — Khusus halaman awal sesi sebelum login (Papan Pengumuman Tamu / Publik). Pengaturan level otomatis dinonaktifkan (Level 0 s.d. 10).
+     - `POSTLOGIN`: 🏛️ **Setelah Login** — Khusus setelah login untuk korespondensi kedinasan internal satker. Kotak pengaturan level otomatis muncul dengan pilihan preset cepat:
+       - `[Semua Level (0-10)]`: Menjangkau seluruh jajaran satker.
+       - `[Level 1–6 (Operator/Perencana)]`: Khusus operator, perencana, dan PPK.
+       - `[Level 7–10 (Pimpinan/Pengesah)]`: Khusus pejabat penandatangan, sekretaris, dan komisioner pleno.
+       - Serta selektor kustom Level Min s.d. Level Max.
+
+### 27.2 Halaman Manajemen Pengumuman Satker (`view-pengumuman`)
+1. **Lokasi & Otoritas Akses:**
+   - Terdaftar sebagai menu ke-28 resmi di dalam folder `ADMINISTRASI` (`folder-administrasi`).
+   - Otoritas akses dikunci eksklusif untuk **Level 0 (Lead Developer)** dan **Level 1 (Administrator Utama Satker / Rendatin)** melalui konfigurasi `allow_l0 = 1, allow_l1 = 1, allow_l2..10 = 0` pada tabel `app_menu_matrix`.
+2. **Fitur Pengelolaan:**
+   - Formulir konfigurasi kontak helpdesk kedinasan dinamis dengan tombol simpan langsung.
+   - Tabel ringkasan seluruh pengumuman satker (Urutan, Perihal/Tag, Judul, Sasaran Pengguna, Masa Berlaku, Status Aktif, dan Aksi).
+   - Modal form tambah & edit pengumuman dengan saran perihal cepat.
+   - Tombol "Pratinjau Pop-Up (Preview)" untuk menguji tampilan pop-up awal sesi sebelum dipublikasikan.
+
+### 27.3 Modal Profil Pengguna Modern ala SAKTI Kemenkeu & Kemandirian Profil (Self-Service)
+1. **Desain Visual:**
+   - Menggantikan dialog pop-up teks primitif lama (`alert()`) dengan modal kartu profil pegawai modern ala SAKTI Kemenkeu.
+   - Header banner gradasi biru elegan dengan teks watermark peran kedinasan (`sakti developer`, `sakti administrator`, `sakti operator`, atau `sakti pimpinan`).
+   - Avatar melayang (*floating circular avatar*) di tengah kartu, nama pejabat tebal, simbol gender kedinasan (`♂`/`♀`), dan badge biru `[✔] Akun Terverifikasi`.
+2. **Koreksi Data Kedinasan (Koreksi Mas emenje):**
+   - **TIDAK ADA Tanggal Lahir** dan **TIDAK ADA Kode UAKPB**.
+   - Menyajikan data esensial 2 kolom:
+     - Kolom Kiri (Data Pegawai): NIP Pegawai, NIK (KTP 16 digit), Email Terdaftar, Nomor HP / WhatsApp.
+     - Kolom Kanan (Data Satker): Lembaga (`KOMISI PEMILIHAN UMUM`), Unit Kerja (`Komisi Pemilihan Umum`), Satker (`KPU KABUPATEN NGAWI`), Tingkat Kewenangan & Peran Aktif, Kode Satker (`657811`).
+3. **Kemandirian Profil Pengguna (Self-Service):**
+   - Pengguna sistem dapat melengkapi dan mengubah sendiri **Nomor HP / WhatsApp** dan **NIK** langsung dari modal profil melalui mode "Perbarui No HP & NIK".
+   - **Proteksi Integritas RBAC:** Parameter sensitif sistem kedinasan lainnya (**Level Otoritas**, **Email Akun SSO Google**, **Username**, **Role ID**, **PIC Subbagian**) terkunci mati (*Read-Only*) dari perubahan mandiri pengguna guna mencegah eskalasi wewenang sepihak.
+   - Validasi ketat diterapkan pada backend: NIK wajib berupa 16 digit angka jika diisi, dan nomor HP wajib berupa nomor telepon yang valid.

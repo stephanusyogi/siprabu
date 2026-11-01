@@ -57,7 +57,16 @@ async function runBusinessBehaviorTests() {
     getRevisionCycleStatus,
     saveRabRow,
     getRabRowById,
-    checkRowEditPermission
+    checkRowEditPermission,
+    getPublicAnnouncements,
+    getActiveAnnouncementsForLevel,
+    getAllAnnouncementsAdmin,
+    saveAnnouncement,
+    deleteAnnouncement,
+    getAnnouncementHelpdeskConfig,
+    saveAnnouncementHelpdeskConfig,
+    updateUserProfileSelf,
+    getUserById
   } = require('../src/db');
 
   const { getRevisionComparison } = require('../src/calculation');
@@ -1211,6 +1220,140 @@ async function runBusinessBehaviorTests() {
     blockedPimpinanCount === 4,
     'Test 35.6: checkRowEditPermission() menolak penyuntingan RKB untuk seluruh level Pimpinan & Peninjau Murni (L4 Ketua, L5 Divisi Rendatin, L6 Komisioner, L7 Sekretaris).'
   );
+
+
+  
+  // --- [36] Pengumuman SAKTI Dinamis & Profil Mandiri (Self-Service NIK & No HP) ---
+  console.log('\n--- [36] Pengumuman SAKTI Dinamis & Profil Mandiri (Self-Service NIK & No HP) ---');
+
+  // Test 36.1: getPublicAnnouncements mengembalikan pengumuman aktif dan menyaring nonaktif
+  const publicBefore = getPublicAnnouncements();
+  assert(
+    Array.isArray(publicBefore) && publicBefore.length > 0,
+    'Test 36.1: getPublicAnnouncements() mengembalikan daftar pengumuman aktif untuk publik / pre-login.'
+  );
+
+  // Test 36.2: Pengumuman evergreen (tanggal kosong/null) selalu tayang untuk Pre-Login
+  const testEvergreen = saveAnnouncement({
+    perihal: '#PENGUMUMAN EVERGREEN',
+    judul: 'Informasi Tanpa Batas Waktu',
+    isi: 'Pengumuman ini selalu aktif karena tanggal mulai dan selesai dikosongkan.',
+    target_type: 'PRELOGIN',
+    tanggal_mulai: null,
+    tanggal_selesai: null,
+    is_active: 1
+  }, { id: 10, username: 'emenje', level: 0 });
+
+  const publicEvergreen = getPublicAnnouncements();
+  const foundEvergreen = publicEvergreen.find(a => a.id === testEvergreen.id);
+  assert(
+    Boolean(foundEvergreen) && foundEvergreen.judul === 'Informasi Tanpa Batas Waktu',
+    'Test 36.2: Pengumuman dengan tanggal kosong (null) berstatus evergreen (selalu tayang tanpa batas waktu).'
+  );
+
+  // Test 36.3: Penargetan level pada getActiveAnnouncementsForLevel
+  const testLevelAnnounce = saveAnnouncement({
+    perihal: '#JUKNIS OPERATOR',
+    judul: 'Juknis Khusus Level 2 s.d. 3',
+    isi: 'Hanya tampil untuk operator dan pimpinan.',
+    target_type: 'RANGE_LEVEL',
+    target_level_min: 2,
+    target_level_max: 3,
+    is_active: 1
+  }, { id: 10, username: 'emenje', level: 0 });
+
+  const announceForL2 = getActiveAnnouncementsForLevel(2);
+  const announceForL7 = getActiveAnnouncementsForLevel(7);
+  assert(
+    announceForL2.some(a => a.id === testLevelAnnounce.id) && !announceForL7.some(a => a.id === testLevelAnnounce.id),
+    'Test 36.3: getActiveAnnouncementsForLevel() menyaring pengumuman sesuai rentang level sasaran pengguna.'
+  );
+
+  const publicForCheck = getPublicAnnouncements();
+  assert(
+    !publicForCheck.some(a => a.id === testLevelAnnounce.id),
+    'Test 36.4: Pengumuman RANGE_LEVEL 100% terisolasi dan tidak bocor ke publik pre-login.'
+  );
+
+  // Test POSTLOGIN_ALL: Terisolasi dari publik pre-login tapi tampil untuk seluruh level setelah login
+  const testPostLoginAll = saveAnnouncement({
+    perihal: '#EDIKAN INTERNAL',
+    judul: 'Informasi Khusus Pengguna Terdaftar',
+    isi: 'Hanya tayang setelah login untuk seluruh level 0 s.d. 10.',
+    target_type: 'POSTLOGIN_ALL',
+    is_active: 1
+  }, { id: 10, username: 'emenje', level: 0 });
+
+  const publicForPostLoginCheck = getPublicAnnouncements();
+  const announcePostLoginL2 = getActiveAnnouncementsForLevel(2);
+  const announcePostLoginL7 = getActiveAnnouncementsForLevel(7);
+
+  assert(
+    !publicForPostLoginCheck.some(a => a.id === testPostLoginAll.id) &&
+    announcePostLoginL2.some(a => a.id === testPostLoginAll.id) &&
+    announcePostLoginL7.some(a => a.id === testPostLoginAll.id),
+    'Test 36.5: POSTLOGIN_ALL terisolasi dari pre-login dan tampil untuk seluruh level setelah login.'
+  );
+
+  try {
+    deleteAnnouncement(testPostLoginAll.id, { id: 10, username: 'emenje', level: 0 });
+  } catch (_) {}
+
+  // Test 36.6: Pengaturan Kontak Helpdesk Dinamis & Auto-hide
+  saveAnnouncementHelpdeskConfig({
+    nama: 'Helpdesk Satker Ngawi Test',
+    phone: '0899-1234-5678',
+    email: 'helpdesk.test@kpu.go.id',
+    portal: 'https://test.kpu.go.id',
+    enabled: 1
+  }, { id: 10, username: 'emenje', level: 0 });
+
+  const hdSaved = getAnnouncementHelpdeskConfig();
+  assert(
+    hdSaved.nama === 'Helpdesk Satker Ngawi Test' && hdSaved.phone === '0899-1234-5678' && hdSaved.enabled === 1,
+    'Test 36.6: saveAnnouncementHelpdeskConfig() dan getAnnouncementHelpdeskConfig() menyimpan dan membaca konfigurasi kontak bantuan secara dinamis.'
+  );
+
+  // Test 36.7: Pembaruan Profil Mandiri (Self-Service: NIK & No HP)
+  const updatedUser = updateUserProfileSelf(1, {
+    nik: '3521010101850001',
+    no_hp: '081234567890'
+  }, { id: 1, username: 'admin', level: 1 });
+
+  assert(
+    updatedUser.nik === '3521010101850001' && updatedUser.no_hp === '081234567890',
+    'Test 36.7: updateUserProfileSelf() berhasil memperbarui NIK dan Nomor HP pengguna mandiri.'
+  );
+
+  // Test 36.8: Validasi NIK wajib 16 digit angka jika diisi
+  let nikRejected = false;
+  try {
+    updateUserProfileSelf(1, { nik: '12345' }, { id: 1, username: 'admin' });
+  } catch (e) {
+    if (e.message.includes('16 digit')) nikRejected = true;
+  }
+  assert(
+    nikRejected === true,
+    'Test 36.8: updateUserProfileSelf() menolak NIK yang tidak terdiri dari tepat 16 digit angka.'
+  );
+
+  // Test 36.9: Validasi Nomor HP dan pencatatan audit log UPDATE_PROFILE_SELF
+  let phoneRejected = false;
+  try {
+    updateUserProfileSelf(1, { no_hp: '123' }, { id: 1, username: 'admin' });
+  } catch (e) {
+    if (e.message.includes('telepon')) phoneRejected = true;
+  }
+  assert(
+    phoneRejected === true,
+    'Test 36.9: updateUserProfileSelf() menolak nomor telepon tidak valid dan melindungi integritas field profil mandiri.'
+  );
+
+  // Bersihkan data dummy pengumuman uji
+  try {
+    deleteAnnouncement(testEvergreen.id, { id: 10, username: 'emenje', level: 0 });
+    deleteAnnouncement(testLevelAnnounce.id, { id: 10, username: 'emenje', level: 0 });
+  } catch (e) {}
 
 
   console.log('\n================================================================');

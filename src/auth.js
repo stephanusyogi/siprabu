@@ -208,7 +208,7 @@ function verifyToken(token, dbInstance = null, options = {}) {
     // 3. Jika koneksi database diberikan, verifikasi integritas status user real-time
     if (dbInstance && payload.id) {
       const dbUser = dbInstance.prepare(`
-        SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, avatar_url, is_active, token_version
+        SELECT id, username, nama_pejabat, nip, nik, no_hp, jabatan, role_id, level, pic_subbag, email, avatar_url, is_active, token_version
         FROM satker_users
         WHERE id = ?
       `).get(payload.id);

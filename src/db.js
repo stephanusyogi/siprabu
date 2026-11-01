@@ -436,6 +436,8 @@ function initDb() {
   safeAddColumn('satker_users', 'email TEXT');
   safeAddColumn('satker_users', 'google_id TEXT');
   safeAddColumn('satker_users', 'avatar_url TEXT');
+  safeAddColumn('satker_users', 'no_hp TEXT');
+  safeAddColumn('satker_users', 'nik TEXT');
 
   // Tabel Manajemen Peran Multi-Kewenangan Pengguna (3 Komponen: Level, PIC, Mode Akses)
   db.exec(`
@@ -527,7 +529,8 @@ function initDb() {
     { urutan: 24, menu_key: 'view-audit', menu_label: 'Log Aktivitas Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'VIEWER' },
     { urutan: 25, menu_key: 'view-monitoring', menu_label: 'Monitoring Unduhan', folder_key: 'folder-administrasi', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
     { urutan: 26, menu_key: 'view-developer', menu_label: 'Blueprint & PRD (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 27, menu_key: 'view-dev-push', menu_label: 'Pusat Rilis & Push GitHub (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' }
+    { urutan: 27, menu_key: 'view-dev-push', menu_label: 'Pusat Rilis & Push GitHub (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 28, menu_key: 'view-pengumuman', menu_label: 'Pengumuman', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' }
   ];
 
   try {
@@ -785,6 +788,26 @@ function initDb() {
   safeAddColumn('rab_baris', 'sbm_id INTEGER DEFAULT NULL');
   safeAddColumn('satker_users', "role_mode TEXT DEFAULT 'SWITCH'");
   // mode_l0..mode_l10 handled in loop above
+
+  
+  try {
+    const hasPengumumanRow = db.prepare('SELECT id FROM app_menu_matrix WHERE menu_key = ?').get('view-pengumuman');
+    if (!hasPengumumanRow) {
+      db.prepare(`
+        INSERT INTO app_menu_matrix (
+          menu_key, menu_label, folder_key,
+          allow_l0, allow_l1, allow_l2, allow_l3, allow_l4,
+          allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10,
+          required_mode, urutan, is_active
+        ) VALUES (
+          'view-pengumuman', 'Pengumuman', 'folder-administrasi',
+          1, 1, 0, 0, 0,
+          0, 0, 0, 0, 0, 0,
+          'EDITOR', 28, 1
+        )
+      `).run();
+    }
+  } catch (e) {}
 
   // Pastikan menu matriks hak akses menu terdaftar di app_menu_matrix
   try {
@@ -1047,6 +1070,78 @@ function initDb() {
   `);
   safeAddColumn('revisi_pengajuan_log', 'versi_usulan INTEGER DEFAULT 1');
   safeAddColumn('revisi_pengajuan_log', "dokumen_kak_link TEXT DEFAULT ''");
+
+  // Tabel Pengumuman Satker (Dinamis, Penargetan Level, Masa Berlaku & Perihal Surat)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS satker_announcements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      perihal VARCHAR(128) NOT NULL,
+      judul VARCHAR(255) NOT NULL,
+      isi TEXT NOT NULL,
+      link_url TEXT,
+      link_label VARCHAR(100),
+      target_type VARCHAR(32) DEFAULT 'ALL',
+      target_level_min INTEGER DEFAULT 0,
+      target_level_max INTEGER DEFAULT 10,
+      target_levels TEXT,
+      tanggal_mulai TEXT,
+      tanggal_selesai TEXT,
+      urutan INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_by VARCHAR(64),
+      updated_by VARCHAR(64),
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  safeAddColumn('satker_announcements', 'target_levels TEXT');
+
+
+  
+  // Konfigurasi Bawaan Helpdesk Pengumuman & Contoh Pengumuman Perdana
+  try {
+    const sIns = db.prepare('INSERT OR IGNORE INTO settings_satker (key, value) VALUES (?, ?)');
+    sIns.run('announcement_helpdesk_nama', 'Helpdesk SI-PRABU KPU Ngawi');
+    sIns.run('announcement_helpdesk_phone', '0812-3456-7890 / (0351) 749000');
+    sIns.run('announcement_helpdesk_email', 'kpu.ngawi@kpu.go.id');
+    sIns.run('announcement_helpdesk_portal', 'https://kab-ngawi.kpu.go.id');
+    sIns.run('announcement_helpdesk_enabled', '1');
+
+    const existingAnnounceCount = db.prepare('SELECT COUNT(*) as cnt FROM satker_announcements').get()?.cnt || 0;
+    if (existingAnnounceCount === 0) {
+      const insAnnounce = db.prepare(`
+        INSERT INTO satker_announcements (
+          perihal, judul, isi, link_url, link_label,
+          target_type, target_level_min, target_level_max,
+          tanggal_mulai, tanggal_selesai, urutan, is_active, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'emenje')
+      `);
+      insAnnounce.run(
+        '#REVISI ANGGARAN',
+        'Penyesuaian Alokasi Anggaran Hibah Pilkada & Administrasi RKB',
+        'Yth. Pengguna Aplikasi SI-PRABU KPU Kabupaten Ngawi,\n\nSehubungan dengan pelaksanaan penatausahaan dan tahapan Pilkada, seluruh operator subbagian pelaksana dimohon untuk menyelesaikan penyesuaian belanja RKB.\n\nPastikan usulan revisi telah dilengkapi dengan Dokumen Pendukung dan Catatan Perubahan sebelum diajukan ke Rapat Pleno Komisioner.',
+        'https://kab-ngawi.kpu.go.id',
+        'Kunjungi Portal KPU Ngawi',
+        'POSTLOGIN', 1, 6,
+        null, null, 1, 1
+      );
+      insAnnounce.run(
+        '#HIMBAUAN INTEGRITAS',
+        'Tolak dan Lapor Segala Bentuk Gratifikasi !!!',
+        'Komisi Pemilihan Umum Kabupaten Ngawi berkomitmen penuh dalam mewujudkan Wilayah Bebas dari Korupsi (WBK) dan Wilayah Birokrasi Bersih dan Melayani (WBBM).\n\nLaporkan setiap indikasi kecurangan, pungutan liar, atau gratifikasi melalui saluran resmi Unit Pengendalian Gratifikasi (UPG) KPU RI.',
+        'https://upg.kpu.go.id',
+        'Portal UPG KPU RI',
+        'PRELOGIN', 0, 10,
+        null, null, 2, 1
+      );
+    } else {
+      // Migrasi pemisahan tegas PRELOGIN dan POSTLOGIN (Hapus Dual Layer)
+      try {
+        db.prepare("UPDATE satker_announcements SET target_type = 'PRELOGIN' WHERE target_type = 'ALL' AND (perihal LIKE '%INTEGRITAS%' OR judul LIKE '%Gratifikasi%')").run();
+        db.prepare("UPDATE satker_announcements SET target_type = 'POSTLOGIN' WHERE target_type = 'ALL'").run();
+      } catch (_) {}
+    }
+  } catch (e) {}
 
   // Default settings untuk Google Sign-In jika belum ada
   try {
@@ -4259,7 +4354,7 @@ function saveSheetMatrix(items = []) {
 }
 
 function getUsers() {
-  const users = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode, can_delete FROM satker_users ORDER BY level ASC, id ASC').all();
+  const users = db.prepare('SELECT id, username, nama_pejabat, nip, nik, no_hp, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode, can_delete FROM satker_users ORDER BY level ASC, id ASC').all();
   try {
     const allRoles = db.prepare('SELECT id, user_id, level, pic, mode_akses, is_default, label_peran, created_at FROM satker_user_roles ORDER BY is_default DESC, level ASC, id ASC').all() || [];
     const roleMap = {};
@@ -4297,7 +4392,7 @@ function getUsers() {
 }
 
 function getUserById(id) {
-  const u = db.prepare('SELECT id, username, nama_pejabat, nip, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode, can_delete FROM satker_users WHERE id = ?').get(id);
+  const u = db.prepare('SELECT id, username, nama_pejabat, nip, nik, no_hp, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode, can_delete FROM satker_users WHERE id = ?').get(id);
   if (u) {
     u.roles = getUserRoles(u.id);
     if (u.roles.length === 0) {
@@ -4323,6 +4418,9 @@ function saveUser(userData, actorUser = null) {
   const rawPassword = (userData.password || '').trim();
   const nama_pejabat = (userData.nama_pejabat || '').trim();
   const nip = (userData.nip || '').trim();
+  let nik = (userData.nik !== undefined ? userData.nik : '').toString().trim().replace(/[^0-9]/g, '');
+  if (nik.length > 16) nik = nik.slice(0, 16);
+  let no_hp = (userData.no_hp !== undefined ? userData.no_hp : '').toString().trim();
   const jabatan = (userData.jabatan || '').trim();
   const is_active = userData.is_active !== undefined ? (Number(userData.is_active) ? 1 : 0) : 1;
 
@@ -4398,10 +4496,10 @@ function saveUser(userData, actorUser = null) {
     const can_delete = userData.can_delete !== undefined ? (Number(userData.can_delete) ? 1 : 0) : (existing.can_delete !== undefined ? Number(existing.can_delete) : 1);
     db.prepare(`
       UPDATE satker_users
-      SET username = ?, password = ?, nama_pejabat = ?, nip = ?, jabatan = ?, email = ?, 
+      SET username = ?, password = ?, nama_pejabat = ?, nip = ?, nik = ?, no_hp = ?, jabatan = ?, email = ?, 
           role_id = ?, level = ?, pic_subbag = ?, is_active = ?, token_version = ?, role_mode = ?, can_delete = ?
       WHERE id = ?
-    `).run(username, passToSave, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, nextTokenVer, role_mode, can_delete, id);
+    `).run(username, passToSave, nama_pejabat, nip, nik, no_hp, jabatan, email, role_id, level, pic_subbag, is_active, nextTokenVer, role_mode, can_delete, id);
 
     // Simpan peran ke satker_user_roles
     saveUserRoles(id, roles);
@@ -4424,9 +4522,9 @@ function saveUser(userData, actorUser = null) {
     const role_mode = userData.role_mode ? (String(userData.role_mode).toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH') : 'SWITCH';
     const can_delete = userData.can_delete !== undefined ? (Number(userData.can_delete) ? 1 : 0) : 1;
     const res = db.prepare(`
-      INSERT INTO satker_users (username, password, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, token_version, role_mode, can_delete)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-    `).run(username, finalPassword, nama_pejabat, nip, jabatan, email, role_id, level, pic_subbag, is_active, role_mode, can_delete);
+      INSERT INTO satker_users (username, password, nama_pejabat, nip, nik, no_hp, jabatan, email, role_id, level, pic_subbag, is_active, token_version, role_mode, can_delete)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    `).run(username, finalPassword, nama_pejabat, nip, nik, no_hp, jabatan, email, role_id, level, pic_subbag, is_active, role_mode, can_delete);
 
     const newId = res.lastInsertRowid;
     saveUserRoles(newId, roles);
@@ -7525,6 +7623,313 @@ function getArsipRevisiList() {
 }
 
 const formatWaktuSakti = formatWaktuResmi;
+
+/**
+ * Mengambil pengumuman aktif untuk publik / pre-login
+ * Pemisahan Mutlak: Hanya pengumuman bertipe 'PRELOGIN' (atau legacy 'PRELOGIN_ONLY')
+ */
+function getPublicAnnouncements() {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const rows = db.prepare(`
+      SELECT * FROM satker_announcements
+      WHERE is_active = 1
+        AND (tanggal_mulai IS NULL OR tanggal_mulai = '' OR tanggal_mulai <= ?)
+        AND (tanggal_selesai IS NULL OR tanggal_selesai = '' OR tanggal_selesai >= ?)
+        AND (target_type = 'PRELOGIN' OR target_type = 'PRELOGIN_ONLY')
+      ORDER BY urutan ASC, id DESC
+    `).all(today, today) || [];
+    return rows;
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Mengambil pengumuman aktif untuk pengguna setelah login berdasarkan level aktif
+ * Pemisahan Mutlak: Hanya pengumuman bertipe 'POSTLOGIN' (atau legacy 'RANGE_LEVEL'/'POSTLOGIN_ALL')
+ */
+function getActiveAnnouncementsForLevel(userLevel = 0) {
+  const today = new Date().toISOString().slice(0, 10);
+  const lvl = Number(userLevel);
+  const isDev = lvl === 0 ? 1 : 0;
+  try {
+    const rows = db.prepare(`
+      SELECT * FROM satker_announcements
+      WHERE is_active = 1
+        AND (tanggal_mulai IS NULL OR tanggal_mulai = '' OR tanggal_mulai <= ?)
+        AND (tanggal_selesai IS NULL OR tanggal_selesai = '' OR tanggal_selesai >= ?)
+        AND (target_type = 'POSTLOGIN' OR target_type = 'POSTLOGIN_ALL' OR target_type = 'RANGE_LEVEL' OR target_type = 'ALL')
+      ORDER BY urutan ASC, id DESC
+    `).all(today, today) || [];
+
+    return rows.filter(r => {
+      if (isDev) return true; // Developer Level 0 dapat memantau seluruh pengumuman
+      if (r.target_levels) {
+        try {
+          const list = Array.isArray(r.target_levels) ? r.target_levels : JSON.parse(r.target_levels);
+          if (Array.isArray(list) && list.length > 0) {
+            return list.map(Number).includes(lvl);
+          }
+        } catch (e) {
+          const list = String(r.target_levels).split(',').map(s => Number(s.trim()));
+          if (list.length > 0 && !isNaN(list[0])) {
+            return list.includes(lvl);
+          }
+        }
+      }
+      // Fallback ke rentang level min/max jika target_levels belum diisi
+      const min = r.target_level_min !== undefined && r.target_level_min !== null ? Number(r.target_level_min) : 0;
+      const max = r.target_level_max !== undefined && r.target_level_max !== null ? Number(r.target_level_max) : 10;
+      return lvl >= min && lvl <= max;
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Mengambil seluruh pengumuman untuk antarmuka admin (Level 0 & 1)
+ */
+function getAllAnnouncementsAdmin() {
+  try {
+    return db.prepare('SELECT * FROM satker_announcements ORDER BY urutan ASC, id DESC').all() || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function getAnnouncementById(id) {
+  try {
+    return db.prepare('SELECT * FROM satker_announcements WHERE id = ?').get(id) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveAnnouncement(data, actorUser = null) {
+  const id = data.id ? Number(data.id) : null;
+  const perihal = (data.perihal || '#PENGUMUMAN').trim();
+  const judul = (data.judul || '').trim();
+  const isi = (data.isi || '').trim();
+  const link_url = (data.link_url || '').trim();
+  const link_label = (data.link_label || '').trim();
+  const target_type = (data.target_type || 'ALL').trim().toUpperCase();
+  
+  // Normalisasi checklist target_levels
+  let target_levels = null;
+  let computedMin = 0;
+  let computedMax = 10;
+  if (data.target_levels) {
+    let arr = [];
+    if (Array.isArray(data.target_levels)) {
+      arr = data.target_levels.map(Number).filter(n => !isNaN(n));
+    } else if (typeof data.target_levels === 'string') {
+      try {
+        arr = JSON.parse(data.target_levels).map(Number).filter(n => !isNaN(n));
+      } catch (e) {
+        arr = data.target_levels.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
+      }
+    }
+    if (arr.length > 0) {
+      const uniqueSorted = Array.from(new Set(arr)).sort((a, b) => a - b);
+      target_levels = JSON.stringify(uniqueSorted);
+      computedMin = Math.min(...uniqueSorted);
+      computedMax = Math.max(...uniqueSorted);
+    }
+  }
+
+  const target_level_min = data.target_level_min !== undefined ? Math.max(0, Math.min(10, Number(data.target_level_min))) : computedMin;
+  const target_level_max = data.target_level_max !== undefined ? Math.max(0, Math.min(10, Number(data.target_level_max))) : computedMax;
+  const tanggal_mulai = (data.tanggal_mulai || '').trim() || null;
+  const tanggal_selesai = (data.tanggal_selesai || '').trim() || null;
+  const urutan = data.urutan !== undefined ? Number(data.urutan) : 0;
+  const is_active = data.is_active !== undefined ? (Number(data.is_active) ? 1 : 0) : 1;
+  const actorName = actorUser ? (actorUser.username || actorUser.nama_pejabat || 'sistem') : 'sistem';
+
+  if (!judul) throw new Error('Judul pengumuman tidak boleh kosong.');
+  if (!isi) throw new Error('Isi pengumuman tidak boleh kosong.');
+
+  if (id) {
+    const existing = db.prepare('SELECT * FROM satker_announcements WHERE id = ?').get(id);
+    if (!existing) throw new Error(`Pengumuman ID ${id} tidak ditemukan.`);
+
+    db.prepare(`
+      UPDATE satker_announcements
+      SET perihal = ?, judul = ?, isi = ?, link_url = ?, link_label = ?,
+          target_type = ?, target_level_min = ?, target_level_max = ?, target_levels = ?,
+          tanggal_mulai = ?, tanggal_selesai = ?, urutan = ?, is_active = ?,
+          updated_by = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      perihal, judul, isi, link_url, link_label,
+      target_type, target_level_min, target_level_max, target_levels,
+      tanggal_mulai, tanggal_selesai, urutan, is_active,
+      actorName, id
+    );
+
+    recordAuditLog({
+      user: actorUser,
+      action: 'UPDATE_ANNOUNCEMENT',
+      entity: 'satker_announcements',
+      entity_id: id,
+      new_values: { perihal, judul, target_type, is_active },
+      notes: `Pengumuman "${judul}" diperbarui.`
+    });
+
+    return getAnnouncementById(id);
+  } else {
+    const res = db.prepare(`
+      INSERT INTO satker_announcements (
+        perihal, judul, isi, link_url, link_label,
+        target_type, target_level_min, target_level_max, target_levels,
+        tanggal_mulai, tanggal_selesai, urutan, is_active,
+        created_by, updated_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      perihal, judul, isi, link_url, link_label,
+      target_type, target_level_min, target_level_max, target_levels,
+      tanggal_mulai, tanggal_selesai, urutan, is_active,
+      actorName, actorName
+    );
+
+    const newId = res.lastInsertRowid;
+    recordAuditLog({
+      user: actorUser,
+      action: 'CREATE_ANNOUNCEMENT',
+      entity: 'satker_announcements',
+      entity_id: newId,
+      new_values: { perihal, judul, target_type, is_active },
+      notes: `Pengumuman baru "${judul}" dibuat.`
+    });
+
+    return getAnnouncementById(newId);
+  }
+}
+
+function deleteAnnouncement(id, actorUser = null) {
+  const target = getAnnouncementById(id);
+  if (!target) throw new Error(`Pengumuman ID ${id} tidak ditemukan.`);
+
+  db.prepare('DELETE FROM satker_announcements WHERE id = ?').run(id);
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'DELETE_ANNOUNCEMENT',
+    entity: 'satker_announcements',
+    entity_id: id,
+    notes: `Pengumuman "${target.judul}" dihapus.`
+  });
+
+  return { success: true, message: `Pengumuman "${target.judul}" berhasil dihapus.` };
+}
+
+function getAnnouncementHelpdeskConfig() {
+  try {
+    const rows = db.prepare(`
+      SELECT key, value FROM settings_satker
+      WHERE key IN (
+        'announcement_helpdesk_nama',
+        'announcement_helpdesk_phone',
+        'announcement_helpdesk_email',
+        'announcement_helpdesk_portal',
+        'announcement_helpdesk_enabled'
+      )
+    `).all() || [];
+    const cfg = {
+      nama: 'Helpdesk SI-PRABU KPU Ngawi',
+      phone: '0812-3456-7890 / (0351) 749000',
+      email: 'kpu.ngawi@kpu.go.id',
+      portal: 'https://kab-ngawi.kpu.go.id',
+      enabled: 1
+    };
+    for (const r of rows) {
+      if (r.key === 'announcement_helpdesk_nama') cfg.nama = r.value;
+      if (r.key === 'announcement_helpdesk_phone') cfg.phone = r.value;
+      if (r.key === 'announcement_helpdesk_email') cfg.email = r.value;
+      if (r.key === 'announcement_helpdesk_portal') cfg.portal = r.value;
+      if (r.key === 'announcement_helpdesk_enabled') cfg.enabled = Number(r.value) ? 1 : 0;
+    }
+    return cfg;
+  } catch (e) {
+    return { nama: '', phone: '', email: '', portal: '', enabled: 0 };
+  }
+}
+
+function saveAnnouncementHelpdeskConfig(cfg, actorUser = null) {
+  const nama = (cfg.nama || '').trim();
+  const phone = (cfg.phone || '').trim();
+  const email = (cfg.email || '').trim();
+  const portal = (cfg.portal || '').trim();
+  const enabled = cfg.enabled !== undefined ? (Number(cfg.enabled) ? '1' : '0') : '1';
+
+  const upsert = db.prepare('INSERT OR REPLACE INTO settings_satker (key, value) VALUES (?, ?)');
+  upsert.run('announcement_helpdesk_nama', nama);
+  upsert.run('announcement_helpdesk_phone', phone);
+  upsert.run('announcement_helpdesk_email', email);
+  upsert.run('announcement_helpdesk_portal', portal);
+  upsert.run('announcement_helpdesk_enabled', enabled);
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'UPDATE_HELPDESK_CONFIG',
+    entity: 'settings_satker',
+    new_values: { nama, phone, email, portal, enabled },
+    notes: 'Konfigurasi helpdesk pengumuman diperbarui.'
+  });
+
+  return getAnnouncementHelpdeskConfig();
+}
+
+/**
+ * Pembaruan profil mandiri (Self-Service) oleh pengguna
+ * Hanya mengizinkan perubahan No HP/WhatsApp dan NIK
+ */
+function updateUserProfileSelf(userId, data, actorUser = null) {
+  const uid = Number(userId);
+  const existing = db.prepare('SELECT id, username, nama_pejabat, nip, nik, no_hp, email, level, role_id FROM satker_users WHERE id = ?').get(uid);
+  if (!existing) throw new Error(`Pengguna dengan ID ${uid} tidak ditemukan.`);
+
+  // Validasi & sanitasi NIK (jika diisi, hanya angka, tepat 16 karakter)
+  let cleanNik = (data.nik !== undefined ? data.nik : (existing.nik || '')).toString().trim();
+  if (cleanNik) {
+    cleanNik = cleanNik.replace(/[^0-9]/g, '');
+    if (cleanNik.length > 16) {
+      cleanNik = cleanNik.slice(0, 16);
+    }
+    if (cleanNik.length > 0 && cleanNik.length !== 16) {
+      throw new Error(`NIK harus terdiri dari tepat 16 digit angka (aktual: ${cleanNik.length} digit).`);
+    }
+  }
+
+  // Validasi & sanitasi Nomor HP (format umum Indonesia atau internasional)
+  let cleanPhone = (data.no_hp !== undefined ? data.no_hp : (existing.no_hp || '')).toString().trim();
+  if (cleanPhone) {
+    cleanPhone = cleanPhone.replace(/[^0-9+\s\-()]/g, '');
+    if (cleanPhone.length < 8 || cleanPhone.length > 20) {
+      throw new Error(`Nomor telepon/HP tidak valid (panjang 8-20 karakter).`);
+    }
+  }
+
+  db.prepare(`
+    UPDATE satker_users
+    SET nik = ?, no_hp = ?
+    WHERE id = ?
+  `).run(cleanNik, cleanPhone, uid);
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'UPDATE_PROFILE_SELF',
+    entity: 'satker_users',
+    entity_id: uid,
+    old_values: { nik: existing.nik, no_hp: existing.no_hp },
+    new_values: { nik: cleanNik, no_hp: cleanPhone },
+    notes: `Pembaruan profil mandiri (NIK/No HP) oleh "${existing.username}".`
+  });
+
+  return getUserById(uid);
+}
+
 module.exports = {
   db,
   safeAddColumn,
@@ -7642,5 +8047,14 @@ module.exports = {
   repairCorruptedDuplicateFactors,
   autoBindRabVariables,
   autoBindRabSbm,
+  updateUserProfileSelf,
+  saveAnnouncementHelpdeskConfig,
+  getAnnouncementHelpdeskConfig,
+  deleteAnnouncement,
+  saveAnnouncement,
+  getAnnouncementById,
+  getAllAnnouncementsAdmin,
+  getActiveAnnouncementsForLevel,
+  getPublicAnnouncements,
   USE_MYSQL
 };

@@ -129,7 +129,16 @@ const {
   getAuditLogs,
   getPenandatanganList,
   updatePenandatangan,
-  syncPenandatanganToUsers
+  syncPenandatanganToUsers,
+  getPublicAnnouncements,
+  updateUserProfileSelf,
+  saveAnnouncementHelpdeskConfig,
+  getAnnouncementHelpdeskConfig,
+  deleteAnnouncement,
+  saveAnnouncement,
+  getAnnouncementById,
+  getAllAnnouncementsAdmin,
+  getActiveAnnouncementsForLevel
 } = require('./src/db');
 
 const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset, auditRkbIntegrity } = require('./src/calculation');
@@ -858,6 +867,121 @@ const server = http.createServer(async (req, res) => {
       }
       return sendJson(res, 200, { user });
     }
+
+    // 2B. PEMBARUAN PROFIL MANDIRI (SELF-SERVICE: NIK & NO HP)
+    if (pathname === '/api/me/profile' && (method === 'POST' || method === 'PUT')) {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const body = await parseJsonBody(req);
+      try {
+        const updated = updateUserProfileSelf(currentUser.id, body, currentUser);
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Profil mandiri (NIK dan Nomor HP/WhatsApp) berhasil diperbarui.',
+          user: updated
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    // 2C. PENGUMUMAN PUBLIK & PRE-LOGIN (TANPA PERLU LOGIN)
+    if (pathname === '/api/announcements/public' && method === 'GET') {
+      const announcements = getPublicAnnouncements();
+      const helpdesk = getAnnouncementHelpdeskConfig();
+      return sendJson(res, 200, {
+        success: true,
+        announcements,
+        helpdesk
+      });
+    }
+
+    // 2D. PENGUMUMAN SESUAI TINGKAT KEWENANGAN PENGGUNA
+    if (pathname === '/api/announcements/my' && method === 'GET') {
+      const currentUser = getUserFromReq(req);
+      const userLevel = currentUser ? Number(currentUser.level) : 0;
+      const announcements = getActiveAnnouncementsForLevel(userLevel);
+      const helpdesk = getAnnouncementHelpdeskConfig();
+      return sendJson(res, 200, {
+        success: true,
+        announcements,
+        helpdesk
+      });
+    }
+
+    // 2E. MANAJEMEN PENGUMUMAN SATKER (LEVEL 0 DEVELOPER & LEVEL 1 RENDATIN)
+    if (pathname === '/api/admin/announcements' && method === 'GET') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!canManageUsers(currentUser) && Number(currentUser.level) > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan pengumuman hanya diizinkan untuk Level 0 dan Level 1.' });
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        announcements: getAllAnnouncementsAdmin(),
+        helpdesk: getAnnouncementHelpdeskConfig()
+      });
+    }
+
+    if (pathname === '/api/admin/announcements' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!canManageUsers(currentUser) && Number(currentUser.level) > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengelolaan pengumuman hanya diizinkan untuk Level 0 dan Level 1.' });
+      }
+
+      const body = await parseJsonBody(req);
+      try {
+        const saved = saveAnnouncement(body, currentUser);
+        return sendJson(res, 200, {
+          success: true,
+          message: `Pengumuman "${saved.judul}" berhasil disimpan.`,
+          announcement: saved
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    const delAnnounceMatch = pathname.match(/^\/api\/admin\/announcements\/(\d+)$/);
+    if (delAnnounceMatch && method === 'DELETE') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!canManageUsers(currentUser) && Number(currentUser.level) > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Penghapusan pengumuman hanya diizinkan untuk Level 0 dan Level 1.' });
+      }
+
+      const announceId = Number(delAnnounceMatch[1]);
+      try {
+        const result = deleteAnnouncement(announceId, currentUser);
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
+    if (pathname === '/api/admin/announcements/helpdesk' && method === 'POST') {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (!canManageUsers(currentUser) && Number(currentUser.level) > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengaturan helpdesk hanya diizinkan untuk Level 0 dan Level 1.' });
+      }
+
+      const body = await parseJsonBody(req);
+      try {
+        const updated = saveAnnouncementHelpdeskConfig(body, currentUser);
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Konfigurasi Helpdesk pengumuman berhasil disimpan.',
+          helpdesk: updated
+        });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
 
     // 3. DAFTAR & MANAJEMEN PENGGUNA SATKER & DEVELOPER
     if (pathname === '/api/users' && method === 'GET') {

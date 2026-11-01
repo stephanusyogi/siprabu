@@ -23,6 +23,18 @@
           document.write('<style>#login-screen { display: none !important; } #app-loading-splash { display: flex !important; }</style>');
         }
       } catch (e) {}
+      // Watchdog pengaman anti-tertahan: jika splash masih muncul > 3.5 detik, paksa buka
+      setTimeout(function() {
+        var splash = document.getElementById('app-loading-splash');
+        if (splash && getComputedStyle(splash).display !== 'none') {
+          splash.style.setProperty('display', 'none', 'important');
+          var app = document.getElementById('app');
+          var login = document.getElementById('login-screen');
+          if (app && getComputedStyle(app).display === 'none' && login) {
+            login.style.setProperty('display', 'flex', 'important');
+          }
+        }
+      }, 3500);
     })();
   </script>
 
@@ -79,6 +91,14 @@
           <span style="font-size: 11px; color: #64748b;">
             Akses masuk sistem saat ini <strong>hanya menggunakan Akun Google</strong> yang telah terdaftar pada Manajemen Pengguna Satker. Login akun lokal dinonaktifkan.
           </span>
+        </div>
+
+        <!-- Tombol Akses Pengumuman Publik & Kontak Layanan (Pre-Login) -->
+        <div id="login-screen-announcement-btn-box" style="display: none; margin-top: 10px; text-align: center;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="openPreLoginAnnouncementModal()" style="width: 100%; font-size: 11.5px; font-weight: 700; color: #0369a1; border: 1px solid #bae6fd; padding: 7px 10px; border-radius: 6px; background: #f0f9ff; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" title="Lihat Informasi & Pengumuman Publik KPU Ngawi">
+            <span>📢</span>
+            <span id="login-screen-announcement-btn-text">Buka Pengumuman Publik</span>
+          </button>
         </div>
 
         <!-- Divider (Dinonaktifkan Permanen) -->
@@ -152,6 +172,13 @@
       <div class="nav-right">
         <div id="user-switcher-container" style="display:none!important;"><select id="user-switcher" style="display:none!important;"></select></div>
 
+        <!-- Tombol Notifikasi Pengumuman Dinas (Post-Login) -->
+        <button type="button" class="btn btn-outline btn-sm" id="btn-navbar-pengumuman" onclick="openMyAnnouncementsModal(event)" title="Surat & Pengumuman Kedinasan" style="display: none; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-weight: 700; font-size: 11.5px; margin-right: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; cursor: pointer;">
+          <span>📢</span>
+          <span id="btn-navbar-pengumuman-text">Pengumuman</span>
+          <span class="badge badge-danger badge-sm" id="badge-navbar-pengumuman" style="display: none; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 800;">0</span>
+        </button>
+
         <!-- User Profile Pill (Informasi Akun, Peran Aktif & Dropdown Menu) -->
         <div class="user-pill prabu-user-pill" id="user-profile-pill" onclick="handleUserProfileClick(event)" title="Menu Akun &amp; Ganti Peran">
           <div class="prabu-navbar-grid-icon" title="Aplikasi SI-PRABU">
@@ -180,6 +207,10 @@
             <button type="button" class="prabu-dropdown-item" onclick="openProfileInfoModal(event)">
               <span>Profile</span>
               <span class="prabu-dropdown-icon">🪪</span>
+            </button>
+            <button type="button" class="prabu-dropdown-item" onclick="openMyAnnouncementsModal(event)">
+              <span>Pengumuman Dinas</span>
+              <span class="prabu-dropdown-icon">📢</span>
             </button>
             <button type="button" class="prabu-dropdown-item" id="prabu-dropdown-ganti-peran" onclick="openGantiPeranModal(event)">
               <span>Ganti Peran</span>
@@ -389,6 +420,12 @@
                 <span class="icon">⚙️</span>
                 <span class="label">Pengaturan Satker</span>
               </button>
+              <!-- Pengumuman Satker (Level 0 Developer & Level 1 Administrator Rendatin) -->
+              <button class="nav-item" data-view="view-pengumuman" onclick="switchView('view-pengumuman')" id="nav-item-pengumuman">
+                <span class="icon">📢</span>
+                <span class="label">Pengumuman</span>
+                <span class="badge badge-info badge-sm" id="badge-total-pengumuman">0</span>
+              </button>
               <!-- Log Aktivitas (Hanya Developer & Kasubbag Perencanaan) -->
               <button class="nav-item" data-view="view-audit" onclick="switchView('view-audit')" id="nav-item-audit" style="display: none;">
                 <span class="icon">🛡️</span>
@@ -488,6 +525,9 @@
               </div>
             </div>
           </div>
+
+          <!-- DOKUMEN & KORESPONDENSI DINAS BANNER DI BERANDA -->
+          <div id="dashboard-announcement-banner" style="display: none; margin-bottom: 20px;"></div>
 
           <!-- KPI STAT CARDS -->
           <div class="kpi-grid">
@@ -3052,6 +3092,7 @@
                   <tr style="background:#f8fafc; border-bottom: 2px solid #cbd5e1;">
                     <th style="width:40px;text-align:center;">No</th>
                     <th>Nama Pejabat / Pegawai</th>
+                    <th style="min-width:150px;">NIK</th>
                     <th>Jabatan</th>
                     <th style="min-width:240px;">Peran &amp; Hak Akses (3 Komponen)</th>
                     <th style="width:90px;text-align:center;">Status</th>
@@ -3610,6 +3651,120 @@
         <!-- ================================================================= -->
         <!-- VIEW: RUANG PENGEMBANG (BLUEPRINT & PRD ARSITEKTUR) - HANYA LEVEL 0 -->
         <!-- ================================================================= -->
+        
+        <!-- ================================================================= -->
+        <!-- VIEW: MANAJEMEN PENGUMUMAN SATKER (LEVEL 0 & LEVEL 1)              -->
+        <!-- ================================================================= -->
+        <section id="view-pengumuman" class="app-view">
+          <div class="view-header">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>📢 ANNOUNCEMENT &amp; NOTIFICATION MANAGEMENT</span>
+              </div>
+              <h2 class="view-title">Manajemen Pengumuman Satker</h2>
+              <p class="view-desc">
+                Pusat pengaturan pengumuman sistem, durasi penayangan, perihal kedinasan, penargetan per-level, serta kontak helpdesk awal sesi.
+              </p>
+            </div>
+            <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline-primary" onclick="previewAnnouncementModal()" title="Lihat tampilan pop-up awal sesi persis seperti yang dilihat pengguna">
+                👁️ Pratinjau Pop-Up (Preview)
+              </button>
+              <button type="button" class="btn btn-primary" onclick="openAddAnnouncementModal()" id="btn-tambah-pengumuman">
+                ➕ Tambah Pengumuman Baru
+              </button>
+            </div>
+          </div>
+
+          <!-- SUMMARY & PANDUAN PENGUMUMAN -->
+          <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:26px;">📬</span>
+              <div>
+                <strong style="font-size:13px;display:block;color:#0f172a;">Pemisahan Tegas Pengumuman: Sebelum Login (Pre-Login) vs Setelah Login (Post-Login)</strong>
+                <span style="font-size:12px;color:#64748b;line-height:1.5;">Pengumuman <strong>Sebelum Login</strong> tampil di halaman depan untuk publik/tamu (himbauan integritas &amp; helpdesk). Pengumuman <strong>Setelah Login</strong> khusus internal satker untuk korespondensi kedinasan yang disaring presisi sesuai rentang level jabatan penerima.</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <span class="badge badge-info" id="badge-stat-pengumuman-aktif" style="font-size:12px;padding:6px 12px;">0 Aktif</span>
+            </div>
+          </div>
+
+          <!-- 2 GRID: FORM PENGATURAN HELPDESK & DAFTAR PENGUMUMAN -->
+          <div style="display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start;">
+            
+            <!-- KARTU KONFIGURASI HELPDESK -->
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                <h4 style="margin: 0; font-size: 13.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                  <span>🎧</span>
+                  <span>Kontak Helpdesk</span>
+                </h4>
+                <span class="badge badge-primary" style="font-size: 10px;">Dinamis</span>
+              </div>
+              <p style="font-size: 11px; color: #64748b; margin: 0 0 14px 0; line-height: 1.45;">
+                Kontak bantuan di kolom kiri pop-up. Jika dikosongkan atau dinonaktifkan, kontainer kontak di pop-up otomatis disembunyikan (<em>auto-hide</em>).
+              </p>
+              <form id="form-helpdesk-config" onsubmit="event.preventDefault(); saveHelpdeskConfigSubmit();">
+                <div class="form-group mb-2">
+                  <label style="font-size: 11px; font-weight: 700; color: #334155;">Nama Layanan:</label>
+                  <input type="text" id="helpdesk-nama" class="input-text" placeholder="Contoh: Helpdesk SI-PRABU KPU Ngawi">
+                </div>
+                <div class="form-group mb-2">
+                  <label style="font-size: 11px; font-weight: 700; color: #334155;">Telepon / Call Center / WA:</label>
+                  <input type="text" id="helpdesk-phone" class="input-text" placeholder="Contoh: 0812-3456-7890 / 0351-749000">
+                </div>
+                <div class="form-group mb-2">
+                  <label style="font-size: 11px; font-weight: 700; color: #334155;">Email Layanan:</label>
+                  <input type="email" id="helpdesk-email" class="input-text" placeholder="Contoh: kpu.ngawi@kpu.go.id">
+                </div>
+                <div class="form-group mb-2">
+                  <label style="font-size: 11px; font-weight: 700; color: #334155;">URL Portal / JDIH:</label>
+                  <input type="text" id="helpdesk-portal" class="input-text" placeholder="Contoh: https://kab-ngawi.kpu.go.id">
+                </div>
+                <div class="form-group mb-3">
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11.5px; font-weight: 700; color: #1e293b; margin: 6px 0 0 0;">
+                    <input type="checkbox" id="helpdesk-enabled" style="width: 16px; height: 16px; accent-color: #0284c7;" checked>
+                    <span>Tampilkan Panel Kontak di Pop-Up</span>
+                  </label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm" style="width: 100%; justify-content: center;">
+                  💾 Simpan Pengaturan Helpdesk
+                </button>
+              </form>
+            </div>
+
+            <!-- TABEL DAFTAR PENGUMUMAN -->
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <div style="padding: 14px 18px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <h4 style="margin: 0; font-size: 14px; font-weight: 800; color: #0f172a;">Daftar Konten Pengumuman</h4>
+                <span id="pengumuman-total-count" style="font-size: 12px; color: #64748b; font-weight: 600;">Total: 0 pengumuman</span>
+              </div>
+              <div class="table-container" style="overflow-x: auto;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                  <thead>
+                    <tr style="background: #f1f5f9; color: #334155; text-align: left; font-weight: 700;">
+                      <th style="padding: 10px 12px; width: 45px; text-align: center;">Urutan</th>
+                      <th style="padding: 10px 12px; width: 140px;">Perihal / Tag</th>
+                      <th style="padding: 10px 12px;">Judul &amp; Ringkasan</th>
+                      <th style="padding: 10px 12px; width: 130px;">Sasaran</th>
+                      <th style="padding: 10px 12px; width: 130px;">Masa Berlaku</th>
+                      <th style="padding: 10px 12px; width: 75px; text-align: center;">Status</th>
+                      <th style="padding: 10px 12px; width: 90px; text-align: center;">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pengumuman-table-body">
+                    <tr>
+                      <td colspan="7" class="text-center" style="padding: 30px; color: #64748b;">Memuat data pengumuman...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
         <section id="view-developer" class="app-view">
           <div class="view-header">
             <div>
@@ -4822,6 +4977,442 @@
     <!-- ===================================================================== -->
     <!-- MODAL: TAMBAH / EDIT PENGGUNA SATKER & DEVELOPER                      -->
     <!-- ===================================================================== -->
+    
+    <!-- ===================================================================== -->
+    <!-- MODAL: FORM TAMBAH / EDIT PENGUMUMAN SATKER                           -->
+    <!-- ===================================================================== -->
+    <div id="modal-announcement-form" class="modal-backdrop" style="display: none; align-items: center; justify-content: center; z-index: 100000; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);">
+      <div class="modal-box" style="max-width: 650px; width: 94%; border-radius: 12px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+        <div class="modal-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #fff; padding: 14px 20px;">
+          <h3 id="modal-announcement-title" style="margin: 0; font-size: 15px; font-weight: 800; color: #fff;">Tambah Pengumuman Baru</h3>
+          <button class="btn-close" style="color: #fff;" onclick="closeAnnouncementFormModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+          <form id="form-announcement" onsubmit="event.preventDefault(); submitAnnouncementForm();">
+            <input type="hidden" id="modal-announcement-id">
+
+            <div class="form-row-grid">
+              <!-- Perihal / Tag -->
+              <div class="form-group">
+                <label style="font-weight: 700; color: #0f172a; font-size: 12px;">Perihal / Tag Surat: <span style="color: #ef4444;">*</span></label>
+                <input type="text" id="modal-announcement-perihal" list="announcement-perihal-suggestions" class="input-text" required placeholder="Contoh: #REVISI ANGGARAN">
+                <datalist id="announcement-perihal-suggestions">
+                  <option value="#REVISI ANGGARAN"></option>
+                  <option value="#JUKNIS KEGIATAN"></option>
+                  <option value="#HIMBAUAN INTEGRITAS"></option>
+                  <option value="#INFORMASI KEDINASAN"></option>
+                  <option value="#RAPAT PLENO KOMISIONER"></option>
+                  <option value="#TEKNIS PENYELENGGARAAN"></option>
+                  <option value="#ADMINISTRASI SATKER"></option>
+                </datalist>
+                <small style="font-size: 10.5px; color: #64748b;">Tag header yang muncul di kartu pengumuman (menggantikan #ANG/#ADM).</small>
+              </div>
+
+              <!-- Urutan & Status -->
+              <div class="form-group" style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                  <label style="font-weight: 700; color: #0f172a; font-size: 12px;">Urutan Tampil:</label>
+                  <input type="number" id="modal-announcement-urutan" class="input-text" value="1" min="1" max="999">
+                </div>
+                <div style="flex: 1.2;">
+                  <label style="font-weight: 700; color: #0f172a; font-size: 12px;">Status Aktif:</label>
+                  <select id="modal-announcement-status" class="input-select">
+                    <option value="1">Aktif (Tayang)</option>
+                    <option value="0">Nonaktif (Arsip)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Judul -->
+              <div class="form-group full-width">
+                <label style="font-weight: 700; color: #0f172a; font-size: 12px;">Judul Pengumuman: <span style="color: #ef4444;">*</span></label>
+                <input type="text" id="modal-announcement-judul" class="input-text" required placeholder="Contoh: Penyesuaian Anggaran Hibah Pilkada &amp; RKB">
+              </div>
+
+              <!-- Isi -->
+              <div class="form-group full-width">
+                <label style="font-weight: 700; color: #0f172a; font-size: 12px;">Isi Pengumuman: <span style="color: #ef4444;">*</span></label>
+                <textarea id="modal-announcement-isi" class="input-text" rows="5" required placeholder="Tuliskan isi pengumuman lengkap. Format baris baru dan tautan URL otomatis dideteksi menjadi link aktif..." style="font-family: inherit; font-size: 12px; line-height: 1.5; resize: vertical;"></textarea>
+              </div>
+
+              <!-- Tautan Dokumen Eksternal -->
+              <div class="form-group">
+                <label style="font-weight: 600; color: #334155; font-size: 12px;">Tautan Dokumen / URL Eksternal (Opsional):</label>
+                <input type="text" id="modal-announcement-link-url" class="input-text" placeholder="https://drive.google.com/... atau https://jdih.kpu.go.id">
+              </div>
+
+              <!-- Label Tombol Tautan -->
+              <div class="form-group">
+                <label style="font-weight: 600; color: #334155; font-size: 12px;">Teks Tombol Tautan:</label>
+                <input type="text" id="modal-announcement-link-label" class="input-text" placeholder="Contoh: Unduh Dokumen Juknis / Buka Link">
+              </div>
+
+              <!-- Sasaran Pengguna -->
+              <div class="form-group full-width" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+                <label style="font-weight: 800; color: #0f172a; font-size: 12.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                  <span>🎯</span>
+                  <span>Sasaran &amp; Penayangan Pengumuman:</span>
+                </label>
+                <p style="font-size: 11px; color: #64748b; margin: 0 0 10px 0; line-height: 1.45;">
+                  Pilih habitat penayangan: <strong>Sebelum Login</strong> (khusus publik/tamu di halaman depan) atau <strong>Setelah Login</strong> (khusus pengguna internal satker untuk korespondensi kedinasan sesuai level).
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                  <div>
+                    <select id="modal-announcement-target-type" class="input-select" onchange="onAnnouncementTargetTypeChange()" style="font-size: 12px; font-weight: 700; padding: 8px 12px; border-color: #0284c7;">
+                      <option value="PRELOGIN">🚪 Sebelum Login (Pre-Login / Tamu &amp; Publik)</option>
+                      <option value="POSTLOGIN">🏛️ Setelah Login (Post-Login / Korespondensi Kedinasan Sesuai Level)</option>
+                    </select>
+                  </div>
+                  
+                  <div id="modal-announcement-level-checklist-box" style="display: none; background: #ffffff; border: 1px dashed #0284c7; border-radius: 8px; padding: 12px; margin-top: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 11.5px; font-weight: 800; color: #0369a1;">⚙️ Sasaran Target Level Penerima:</span>
+                        <span id="announcement-levels-selected-summary" class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 700; padding: 2px 7px;">0 Level Dipilih</span>
+                      </div>
+                      <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('ALL')" style="font-size: 10px; padding: 2px 7px; font-weight: 700;">✓ Semua</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setAnnouncementLevelsPreset('NONE')" style="font-size: 10px; padding: 2px 7px;">✗ Kosongkan</button>
+                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('PIMPINAN')" style="font-size: 10px; padding: 2px 7px;" title="L4 Ketua, L5 Rendatin, L6 Komisioner, L7 Sekretaris">Pimpinan (L4–7)</button>
+                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('OPERATOR')" style="font-size: 10px; padding: 2px 7px;" title="L1 Kasubbag, L2 Pengolah, L3 Operator">Pelaksana (L1–3)</button>
+                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('KEUANGAN')" style="font-size: 10px; padding: 2px 7px;" title="L8 PPK, L9 Bendahara">Keuangan (L8–9)</button>
+                      </div>
+                    </div>
+                    <div id="announcement-level-checklist-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; max-height: 190px; overflow-y: auto; padding: 4px; border: 1px solid #f1f5f9; border-radius: 6px; background: #fafafa;">
+                      <!-- Populated via renderAnnouncementLevelChecklist() -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Durasi & Masa Berlaku -->
+              <div class="form-group full-width" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <label style="font-weight: 700; color: #0f172a; font-size: 12px; margin: 0;">⏱️ Masa Berlaku / Durasi Pengumuman:</label>
+                  <span class="badge badge-info" style="font-size: 10px;">Kosongkan untuk Evergreen</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div>
+                    <label style="font-size: 11px; color: #64748b; display: block; margin-bottom: 2px;">Tanggal Mulai Tayang:</label>
+                    <input type="date" id="modal-announcement-tanggal-mulai" class="input-text" style="font-size: 12px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; color: #64748b; display: block; margin-bottom: 2px;">Tanggal Selesai Tayang:</label>
+                    <input type="date" id="modal-announcement-tanggal-selesai" class="input-text" style="font-size: 12px;">
+                  </div>
+                </div>
+                <small style="font-size: 10.5px; color: #64748b; margin-top: 5px; display: block;">Jika tanggal mulai dan tanggal selesai dikosongkan, pengumuman otomatis aktif selamanya (<em>evergreen</em>).</small>
+              </div>
+
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <button type="button" class="btn btn-outline" onclick="closeAnnouncementFormModal()">Batal</button>
+              <button type="submit" class="btn btn-primary" id="btn-save-announcement">Simpan Pengumuman</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ===================================================================== -->
+    <!-- MODAL: POP-UP PENGUMUMAN & KORESPONDENSI DINAS ALA SAKTI (BESAR & RESMI) -->
+    <!-- Dimensi Besar & Frame Wadah Persis Seperti SAKTI Kemenkeu               -->
+    <!-- ===================================================================== -->
+    <div id="modal-announcement-prelogin" class="modal-backdrop" style="display: none; align-items: center; justify-content: center; z-index: 200000; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);">
+      <div class="sakti-announcement-dialog" style="background: #ffffff; border-radius: 12px; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35); max-width: 1140px; width: 92vw; height: 82vh; max-height: 85vh; min-height: 560px; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+        
+        <!-- Top Close Button (x) -->
+        <button type="button" onclick="closePreLoginAnnouncementModal()" style="position: absolute; top: 12px; right: 14px; background: none; border: none; font-size: 22px; color: #94a3b8; cursor: pointer; z-index: 10; line-height: 1;" title="Tutup">✕</button>
+
+        <!-- Main Body: Two Columns (Left Branding/Helpdesk, Right Announcements List) -->
+        <div style="display: flex; flex-direction: row; flex: 1; overflow: hidden;" id="announcement-modal-body-layout">
+          
+          <!-- Kolom Kiri: Branding & Helpdesk (Auto-hide if helpdesk is empty/disabled) -->
+          <div id="announcement-left-panel" style="width: 330px; background: #ffffff; border-right: 1px solid #e2e8f0; padding: 26px 24px; display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0; overflow-y: auto;">
+            <div>
+              <!-- Brand Logo & Header ala SAKTI -->
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <svg width="22" height="32" viewBox="0 0 22 32" fill="none">
+                  <path d="M3 2C3 2 10 5 10 13C10 21 3 24 3 30C3 30 14 27 14 17C14 7 3 2 3 2Z" fill="#00A2EA"/>
+                  <path d="M12 4C12 4 19 8 19 15C19 22 12 26 12 28C12 28 21 24 21 17C21 10 12 4 12 4Z" fill="#38BDF8" opacity="0.8"/>
+                </svg>
+                <span style="font-size: 24px; font-weight: 800; color: #0077b6; letter-spacing: -0.5px; font-family: 'Segoe UI', system-ui, sans-serif;">si-prabu</span>
+              </div>
+              <h2 id="announcement-modal-main-title" style="font-size: 22px; font-weight: 900; color: #1e293b; margin: 0 0 6px 0; text-transform: uppercase; letter-spacing: 0.5px;">PENGUMUMAN</h2>
+              <div id="announcement-modal-user-target-badge" style="display: none; font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 6px 10px; border-radius: 6px; font-weight: 700; margin-bottom: 10px; border: 1px solid #bae6fd; line-height: 1.4;"></div>
+              
+              <!-- SAKTI Style Vector Illustration (Monitor + Gears + Red Alert + Cones) -->
+              <div style="text-align: center; margin: 12px 0 16px 0;">
+                <svg width="250" height="140" viewBox="0 0 250 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Monitor / Window Base & Drop Shadow -->
+                  <rect x="22" y="14" width="186" height="102" rx="6" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+                  <rect x="22" y="14" width="186" height="22" rx="6" fill="#1E293B"/>
+                  
+                  <!-- 3 Dots (Red, Yellow, Green) -->
+                  <circle cx="34" cy="25" r="3.5" fill="#EF4444"/>
+                  <circle cx="45" cy="25" r="3.5" fill="#F59E0B"/>
+                  <circle cx="56" cy="25" r="3.5" fill="#10B981"/>
+                  <rect x="72" y="20" width="85" height="10" rx="3" fill="#0284C7"/>
+
+                  <!-- Inner Screen Content Frame -->
+                  <rect x="34" y="44" width="162" height="62" rx="4" fill="#F0F9FF" stroke="#E0F2FE"/>
+                  <rect x="44" y="54" width="75" height="5" rx="2.5" fill="#BAE6FD"/>
+                  <rect x="44" y="64" width="115" height="4" rx="2" fill="#CBD5E1"/>
+                  <rect x="44" y="72" width="95" height="4" rx="2" fill="#CBD5E1"/>
+                  <rect x="44" y="80" width="125" height="4" rx="2" fill="#E2E8F0"/>
+
+                  <!-- Left Rotating Blue Gears (⚙️) -->
+                  <g transform="translate(50, 102)">
+                    <rect x="-18" y="-4" width="36" height="8" rx="2" fill="#00A2EA"/>
+                    <rect x="-4" y="-18" width="8" height="36" rx="2" fill="#00A2EA"/>
+                    <rect x="-14" y="-14" width="28" height="28" rx="2" transform="rotate(45)" fill="#00A2EA"/>
+                    <circle cx="0" cy="0" r="14" fill="#00A2EA"/>
+                    <circle cx="0" cy="0" r="6" fill="#FFFFFF"/>
+                  </g>
+
+                  <!-- Gear 2 Interlocking (Deep Blue) -->
+                  <g transform="translate(80, 115)">
+                    <rect x="-14" y="-3.5" width="28" height="7" rx="1.5" fill="#0369A1"/>
+                    <rect x="-3.5" y="-14" width="7" height="28" rx="1.5" fill="#0369A1"/>
+                    <rect x="-11" y="-11" width="22" height="22" rx="1.5" transform="rotate(45)" fill="#0369A1"/>
+                    <circle cx="0" cy="0" r="11" fill="#0369A1"/>
+                    <circle cx="0" cy="0" r="4.5" fill="#FFFFFF"/>
+                  </g>
+
+                  <!-- Big Red Alert Sign (Octagon with !) on Top Right -->
+                  <g transform="translate(198, 44)">
+                    <polygon points="-16,-6 -6,-16 6,-16 16,-6 16,6 6,16 -6,16 -16,6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2.5"/>
+                    <rect x="-2" y="-9" width="4" height="11" rx="2" fill="#FFFFFF"/>
+                    <circle cx="0" cy="6.5" r="2" fill="#FFFFFF"/>
+                  </g>
+
+                  <!-- Traffic / Construction Cones on Right Base (🚧) -->
+                  <!-- Cone 1 (Back) -->
+                  <path d="M148 124 L168 124" stroke="#0F172A" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M150 123 L157 94 L159 94 L166 123 Z" fill="#F59E0B"/>
+                  <path d="M153 112 L163 112 L161 104 L155 104 Z" fill="#FFFFFF"/>
+                  
+                  <!-- Cone 2 (Front) -->
+                  <path d="M174 126 L196 126" stroke="#0F172A" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M176 125 L184 92 L186 92 L194 125 Z" fill="#F59E0B"/>
+                  <path d="M179 113 L191 113 L189 104 L181 104 Z" fill="#FFFFFF"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Helpdesk / Contact Center (Dinamis & Auto-hide) -->
+            <div id="announcement-helpdesk-container" style="border-top: 1px dashed #cbd5e1; padding-top: 14px;">
+              <div style="font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase;">Contact Center</div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <div style="display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0284c7; font-weight: 900; font-size: 13.5px; padding: 4px 10px; border-radius: 6px; border: 1px solid #bae6fd;">
+                  prabu
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <div style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid #00a2ea; display: flex; align-items: center; justify-content: center; color: #00a2ea; font-size: 13px; font-weight: 800;">📞</div>
+                  <div>
+                    <div style="font-size: 10.5px; color: #64748b; font-weight: 600;">call center:</div>
+                    <div id="announcement-helpdesk-phone" style="font-size: 13px; font-weight: 800; color: #0f172a; line-height: 1.1;">0812-3456-7890</div>
+                  </div>
+                </div>
+              </div>
+              <div id="announcement-helpdesk-portal-row" style="font-size: 11.5px; color: #0077b6; margin-top: 5px;">
+                🌐 <a id="announcement-helpdesk-portal" href="https://kab-ngawi.kpu.go.id" target="_blank" rel="noopener noreferrer" style="color: #0077b6; text-decoration: none; font-weight: 700;">kab-ngawi.kpu.go.id</a>
+              </div>
+              <div id="announcement-helpdesk-email-row" style="font-size: 11px; color: #64748b; margin-top: 3px;">
+                📧 <span id="announcement-helpdesk-email">kpu.ngawi@kpu.go.id</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kolom Kanan: Frame Wadah Daftar Pengumuman ala SAKTI -->
+          <div style="flex: 1; background: #ffffff; padding: 20px 24px; overflow: hidden; display: flex; flex-direction: column;">
+            <div id="announcement-cards-container" style="flex: 1; background: #eef6fd; border: 1px solid #c8def3; border-radius: 8px; padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+              <!-- Rendered dynamically via openAnnouncementModal() -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer: SAKTI Style Footer (HANYA TOMBOL TUTUP, TANPA CHECKBOX) -->
+        <div style="background: #ffffff; border-top: 1px solid #e2e8f0; padding: 14px 24px; display: flex; justify-content: flex-end; align-items: center;">
+          <button type="button" onclick="closePreLoginAnnouncementModal()" style="background: #00a2ea; color: #ffffff; border: none; border-radius: 6px; padding: 10px 32px; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0, 162, 234, 0.35); transition: all 0.2s;">
+            <span>✖</span>
+            <span>Tutup</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+    
+    <!-- ===================================================================== -->
+    <!-- MODAL: PROFIL PENGGUNA ALA SAKTI (SELF-SERVICE NIK & NO HP)           -->
+    <!-- Catatan: Tanpa Tanggal Lahir, Tanpa Kode UAKPB (Koreksi Mas emenje)    -->
+    <!-- ===================================================================== -->
+    <div id="modal-user-profile-sakti" class="modal-backdrop" style="display: none; align-items: center; justify-content: center; z-index: 100000; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);">
+      <div class="sakti-profile-dialog" style="background: #ffffff; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3); max-width: 580px; width: 92%; overflow: hidden; position: relative;">
+        
+        <!-- Modal Title Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 22px; border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+          <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a;">Profile Pengguna</h3>
+          <button type="button" onclick="closeUserProfileSaktiModal()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; line-height: 1;" title="Tutup">✕</button>
+        </div>
+
+        <!-- Header Graphic with SAKTI Watermark & Waves -->
+        <div style="position: relative; height: 145px; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; width: 220px; height: 220px; border-radius: 50%; background: rgba(255, 255, 255, 0.4); top: -60px; left: -40px;"></div>
+          <div style="position: absolute; width: 180px; height: 180px; border-radius: 50%; background: rgba(56, 189, 248, 0.25); bottom: -70px; right: -30px;"></div>
+          
+          <!-- Blue Ribbon Brand mark -->
+          <div style="position: absolute; left: 24px; top: 16px; display: flex; align-items: center; gap: 8px;">
+            <svg width="26" height="38" viewBox="0 0 28 42" fill="none">
+              <path d="M0 6C0 2.68629 2.68629 0 6 0H14C21.732 0 28 6.26801 28 14V36C28 39.3137 25.3137 42 22 42H14C6.26801 42 0 35.732 0 28V6Z" fill="#0284c7" fill-opacity="0.9"/>
+              <path d="M6 10H14C19.5228 10 24 14.4772 24 20V32C24 35.3137 21.3137 38 18 38H14C8.47715 38 4 33.5228 4 28V12C4 10.8954 4.89543 10 6 10Z" fill="#38bdf8"/>
+            </svg>
+          </div>
+
+          <!-- Watermark Text -->
+          <div id="sakti-profile-watermark" style="font-size: 46px; font-weight: 900; color: rgba(2, 132, 199, 0.22); letter-spacing: 2px; text-transform: lowercase; user-select: none; line-height: 0.95; text-align: center;">
+            sakti<br>operator
+          </div>
+        </div>
+
+        <!-- Floating Avatar in Center (Cartoon character with udeng ala SAKTI) -->
+        <div style="position: relative; margin-top: -46px; display: flex; justify-content: center; z-index: 5;">
+          <div style="width: 92px; height: 92px; border-radius: 50%; background: #ffffff; padding: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);">
+            <div id="sakti-profile-avatar-circle" style="width: 100%; height: 100%; border-radius: 50%; background: #e0f2fe; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+              <svg width="84" height="84" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="48" fill="#F0F9FF"/>
+                <path d="M28 46C26 30 36 18 50 18C64 18 74 30 72 46C70 48 68 50 68 50C68 50 32 50 32 50C32 50 30 48 28 46Z" fill="#1E293B"/>
+                <circle cx="31" cy="48" r="6" fill="#FBD5B5"/>
+                <circle cx="69" cy="48" r="6" fill="#FBD5B5"/>
+                <path d="M33 42C33 34 38 28 50 28C62 28 67 34 67 42C67 56 61 65 50 65C39 65 33 56 33 42Z" fill="#FDE2CA"/>
+                <ellipse cx="43" cy="46" rx="2.5" ry="3" fill="#0F172A"/>
+                <ellipse cx="57" cy="46" rx="2.5" ry="3" fill="#0F172A"/>
+                <circle cx="44" cy="45" r="1" fill="#FFFFFF"/>
+                <circle cx="58" cy="45" r="1" fill="#FFFFFF"/>
+                <path d="M40 40Q43 38 46 40" stroke="#0F172A" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M54 40Q57 38 60 40" stroke="#0F172A" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="38" cy="51" r="3" fill="#FCA5A5" fill-opacity="0.6"/>
+                <circle cx="62" cy="51" r="3" fill="#FCA5A5" fill-opacity="0.6"/>
+                <path d="M46 53Q50 58 54 53" stroke="#DC2626" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                <path d="M30 35C33 33 40 31 50 31C60 31 67 33 70 35L71 41C67 39 59 37 50 37C41 37 33 39 29 41L30 35Z" fill="#0284C7"/>
+                <path d="M31 37C34 35 41 33 50 33C59 33 66 35 69 37" stroke="#EF4444" stroke-width="2"/>
+                <path d="M32 39C35 37 42 35 50 35C58 35 65 37 68 39" stroke="#FFFFFF" stroke-width="1.5"/>
+                <polygon points="50,29 46,35 54,35" fill="#DC2626"/>
+                <path d="M22 88C22 75 33 69 50 69C67 69 78 75 78 88V100H22V88Z" fill="#0284C7"/>
+                <path d="M44 69L50 80L56 69" fill="#FDE2CA"/>
+                <path d="M50 80V96" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="2 2"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pejabat Name, Gender & Badge -->
+        <div style="text-align: center; padding: 8px 24px 6px 24px;">
+          <div style="display: inline-flex; align-items: center; gap: 8px;">
+            <span id="sakti-profile-name" style="font-size: 16px; font-weight: 900; color: #0f172a; letter-spacing: 0.5px;">MOHAMMAD NOOR JIHAN</span>
+            <span id="sakti-profile-gender" style="font-size: 18px; color: #0284c7; font-weight: 800;">♂</span>
+          </div>
+          <div style="margin-top: 6px;">
+            <span style="display: inline-flex; align-items: center; gap: 6px; background: #00a2ea; color: #ffffff; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+              <span>✔</span>
+              <span>Akun Terverifikasi</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Two-Column Information (Susunan Awal Sesuai Gambar SAKTI) -->
+        <div style="padding: 16px 30px 20px 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; font-size: 13px;">
+          
+          <!-- Left Column: Data Personal / Pegawai (NIP ASN, NIK, Email, No HP) -->
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- NIP ASN (Khusus ASN Sekretariat - Otomatis tersembunyi untuk Komisioner / Adhoc non-ASN) -->
+            <div id="sakti-profile-nip-row" style="display: none; align-items: center; gap: 10px; min-height: 28px;" title="NIP ASN (Khusus Sekretariat KPU)">
+              <span style="font-size: 18px; width: 24px; text-align: center; flex-shrink: 0;" title="NIP ASN">🪪</span>
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <span class="badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-size:10px;padding:1px 5px;font-weight:700;">ASN</span>
+                <span id="sakti-profile-nip" style="font-weight: 600; color: #1e293b; font-family: var(--font-mono, monospace);">-</span>
+              </span>
+            </div>
+
+            <!-- NIK (Self-service editable) -->
+            <div style="display: flex; align-items: center; gap: 10px; min-height: 28px;" title="NIK (Nomor Induk Kependudukan KTP)">
+              <span style="font-size: 18px; width: 24px; text-align: center; flex-shrink: 0;" title="NIK (Nomor Induk Kependudukan KTP)">💳</span>
+              <span id="sakti-profile-nik-view" style="font-weight: 600; color: #1e293b;">-</span>
+              <input type="text" id="sakti-profile-nik-input" class="input-text" maxlength="16" placeholder="16 digit NIK" style="display: none; font-size: 12px; padding: 4px 8px; width: 170px; font-weight: 700; letter-spacing: 0.5px;">
+            </div>
+
+            <!-- Email -->
+            <div style="display: flex; align-items: center; gap: 10px; min-height: 28px;" title="Email Terdaftar">
+              <span style="font-size: 18px; width: 24px; text-align: center; flex-shrink: 0;" title="Email Terdaftar">✉️</span>
+              <span id="sakti-profile-email" style="font-weight: 600; color: #1e293b; word-break: break-all;">-</span>
+            </div>
+
+            <!-- No HP / WhatsApp (Self-service editable) -->
+            <div style="display: flex; align-items: center; gap: 10px; min-height: 28px;" title="Nomor HP / WhatsApp">
+              <span style="font-size: 18px; width: 24px; text-align: center; flex-shrink: 0;" title="Nomor HP / WhatsApp">📞</span>
+              <span id="sakti-profile-phone-view" style="font-weight: 600; color: #1e293b;">-</span>
+              <input type="text" id="sakti-profile-phone-input" class="input-text" maxlength="20" placeholder="Nomor HP/WA" style="display: none; font-size: 12px; padding: 4px 8px; width: 170px; font-weight: 700;">
+            </div>
+          </div>
+
+          <!-- Right Column: Data Satker & Penugasan -->
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- Lembaga -->
+            <div style="display: flex; align-items: center; gap: 10px; min-height: 28px;" title="Lembaga">
+              <span style="font-size: 18px; width: 24px; text-align: center; flex-shrink: 0;" title="Lembaga">🏢</span>
+              <span style="font-weight: 700; color: #1e293b;">KOMISI PEMILIHAN UMUM</span>
+            </div>
+
+            <!-- Unit Organisasi -->
+            <div style="display: flex; align-items: center; gap: 10px; min-height: 28px;" title="Unit Kerja">
+              <span style="font-size: 18px; width: 24px; text-align: center; flex-shrink: 0;" title="Unit Kerja">🏛️</span>
+              <span style="font-weight: 600; color: #1e293b;">Komisi Pemilihan Umum</span>
+            </div>
+
+            <!-- Satker -->
+            <div style="display: flex; align-items: center; gap: 10px; min-height: 28px;" title="Satker Penugasan">
+              <span style="font-size: 18px; width: 24px; text-align: center; flex-shrink: 0;" title="Satker Penugasan">🏠</span>
+              <span style="font-weight: 700; color: #1e293b;">KPU KABUPATEN NGAWI</span>
+            </div>
+
+            <!-- Kode Satker -->
+            <div style="display: flex; align-items: center; gap: 10px; min-height: 28px;" title="Kode Satker KPU Kabupaten Ngawi">
+              <span style="font-size: 18px; width: 24px; text-align: center; flex-shrink: 0;" title="Kode Satker">🪙</span>
+              <span id="sakti-profile-kdsatker" style="font-weight: 700; color: #1e293b;">657811</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Feedback Alert Container -->
+        <div id="sakti-profile-alert" style="display: none; margin: 0 24px 10px 24px; padding: 8px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 600;"></div>
+
+        <!-- Modal Footer Actions -->
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button type="button" id="btn-sakti-edit-toggle" onclick="toggleEditProfileSelf()" style="background: #ffffff; border: 1px solid #cbd5e1; color: #334155; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+              <span>✏️</span>
+              <span id="btn-sakti-edit-text">Ubah NIK &amp; No HP</span>
+            </button>
+            <button type="button" id="btn-sakti-save-self" onclick="saveProfileSelf()" style="display: none; background: #16a34a; border: none; color: #ffffff; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+              <span>💾</span>
+              <span>Simpan</span>
+            </button>
+            <button type="button" id="btn-sakti-cancel-self" onclick="cancelEditProfileSelf()" style="display: none; background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;">
+              <span>Batal</span>
+            </button>
+          </div>
+          <div>
+            <button type="button" onclick="closeUserProfileSaktiModal()" style="background: #00a2ea; color: #ffffff; border: none; border-radius: 6px; padding: 8px 26px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0, 162, 234, 0.3);">
+              <span>✖</span>
+              <span>Tutup</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
     <div id="modal-user" class="modal-backdrop" style="display: none;">
       <div class="modal-box" style="max-width: 680px; width: 95%;">
         <div class="modal-header">
@@ -4847,8 +5438,18 @@
               </div>
 
               <div class="form-group">
-                <label style="font-weight:600;color:#334155;">NIP / NIK:</label>
-                <input type="text" id="modal-user-nip" class="input-text" placeholder="Contoh: 198501012010011001 (opsional)">
+                <label style="font-weight:600;color:#334155;">NIK (Nomor Induk Kependudukan): <span style="font-size:11px;color:#0369a1;font-weight:600;">(16 Digit Universal)</span></label>
+                <input type="text" id="modal-user-nik" class="input-text" maxlength="16" placeholder="Contoh: 3521012345670001 (Universal: Komisioner, ASN, Adhoc)">
+              </div>
+
+              <div class="form-group">
+                <label style="font-weight:600;color:#334155;">NIP (Nomor Induk Pegawai): <span style="font-size:11px;color:#0284c7;font-weight:700;">(Wajib ASN Sekretariat)</span></label>
+                <input type="text" id="modal-user-nip" class="input-text" maxlength="18" placeholder="Contoh: 198501012010011001 (Kosongkan jika Komisioner/Adhoc)">
+              </div>
+
+              <div class="form-group">
+                <label style="font-weight:600;color:#334155;">No HP / WhatsApp:</label>
+                <input type="text" id="modal-user-phone" class="input-text" maxlength="20" placeholder="Contoh: 085228699640">
               </div>
 
               <div class="form-group">
@@ -6184,7 +6785,7 @@
     </div>
 
     <script src="/data_juknis.js?v=1.0.0"></script>
-    <script src="/app.js?v=4.5.5"></script>
+    <script src="/app.js?v=4.6.0"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

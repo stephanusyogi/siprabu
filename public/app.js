@@ -82,7 +82,9 @@ const PRABU_VIEW_CODES = {
   'view-audit': 23,
   'view-panduan-pelaksanaan': 24,
   'view-menu-matrix': 25,
-  'view-juknis-kegiatan': 26
+  'view-juknis-kegiatan': 26,
+  'view-penandatangan': 27,
+  'view-pengumuman': 28
 };
 
 const PRABU_CODE_TO_VIEW = {
@@ -111,7 +113,9 @@ const PRABU_CODE_TO_VIEW = {
   23: 'view-audit',
   24: 'view-panduan-pelaksanaan',
   25: 'view-menu-matrix',
-  26: 'view-juknis-kegiatan'
+  26: 'view-juknis-kegiatan',
+  27: 'view-penandatangan',
+  28: 'view-pengumuman'
 };
 
 const PRABU_VIEW_TITLES = {
@@ -142,7 +146,8 @@ const PRABU_VIEW_TITLES = {
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
   'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
-  'view-menu-matrix': 'Manajemen Hak Akses'
+  'view-menu-matrix': 'Manajemen Hak Akses',
+  'view-pengumuman': 'Manajemen Pengumuman Satker'
 };
 
 function bufferToBase64Url(uint8Array) {
@@ -629,6 +634,11 @@ function showLoginScreen(updateHistory = true) {
     }
     document.title = 'Masuk Sistem | SI-PRABU KPU Kabupaten Ngawi';
   }
+
+  // Dual-Layer Korespondensi: Pemicu Pengumuman Pre-Login
+  if (typeof checkAndShowPreLoginAnnouncements === 'function') {
+    checkAndShowPreLoginAnnouncements();
+  }
 }
 
 function showMainApp() {
@@ -644,6 +654,11 @@ function showMainApp() {
   const user = AppState.currentUser;
   if (typeof renderActiveRoleSwitcher === 'function') renderActiveRoleSwitcher(user);
   applyRolePermissionsToUI();
+
+  // Dual-Layer Korespondensi: Pemicu Surat Dinas Post-Login
+  if (typeof checkAndShowPostLoginAnnouncements === 'function') {
+    checkAndShowPostLoginAnnouncements();
+  }
 }
 
 function toggleScreenPasswordVisibility() {
@@ -1002,13 +1017,189 @@ function openProfileInfoModal(event) {
   const dropdown = document.getElementById("prabu-profile-dropdown") || document.getElementById("sakti-profile-dropdown");
   if (dropdown) dropdown.style.display = "none";
 
+  openUserProfileSaktiModal();
+}
+
+/**
+ * =============================================================================
+ * MODAL PROFIL PENGGUNA RESMI ALA SAKTI KEMENKEU (SELF-SERVICE NIK & NO HP)
+ * Susunan Awal: NIP, NIK, Email, No HP (Kolom Kiri) & Lembaga, Unit, Satker,
+ * Kode Satker (Kolom Kanan). Tanpa Tanggal Lahir & Tanpa Kode UAKPB.
+ * =============================================================================
+ */
+function openUserProfileSaktiModal() {
   const user = AppState.currentUser;
   if (!user) return;
-  const activeRole = user.active_role || (user.roles ? user.roles[0] : null);
-  const nom = getRoleNomenclature(activeRole, user);
 
-  alert(`[PROFIL PENGGUNA SI-PRABU]\n\nNama: ${user.nama_pejabat || user.username}\nUsername: ${user.username}\nNIP: ${user.nip || "-"}\nPeran Aktif: ${nom.peran}\nKode Satker: 657811 (KPU KABUPATEN NGAWI)\nKode UAKPB: 076010500657811000KD\nMode Akses: ${user.mode_akses || "VIEWER"}`);
+  const modal = document.getElementById('modal-user-profile-sakti');
+  if (!modal) return;
+
+  // Nama Pejabat / Pengguna & Gender
+  const displayName = (user.nama_pejabat || user.nama_lengkap || user.username || '').toUpperCase();
+  setElText('sakti-profile-name', displayName);
+  const gender = (user.gender === 'P' || user.jenis_kelamin === 'P') ? '♀' : '♂';
+  setElText('sakti-profile-gender', gender);
+
+  // Watermark Peran Kedinasan Dinamis (developer / administrator / operator / pimpinan / pengawas)
+  const watermarkEl = document.getElementById('sakti-profile-watermark');
+  if (watermarkEl) {
+    const lvl = Number(user.level !== undefined ? user.level : 2);
+    let roleWord = 'operator';
+    if (lvl === 0) roleWord = 'developer';
+    else if (lvl === 1) roleWord = 'administrator';
+    else if (lvl >= 4 && lvl <= 7) roleWord = 'pimpinan';
+    else if (lvl >= 8) roleWord = 'pengawas';
+    watermarkEl.innerHTML = `sakti<br>${roleWord}`;
+  }
+
+  // Kolom Kiri: NIP ASN (Kondisional jika ASN Sekretariat) & NIK Universal, Email, No HP
+  const nipRow = document.getElementById('sakti-profile-nip-row');
+  if (nipRow) {
+    const hasNip = user.nip && String(user.nip).trim() !== '' && String(user.nip).trim() !== '-';
+    if (hasNip) {
+      nipRow.style.display = 'flex';
+      setElText('sakti-profile-nip', user.nip);
+    } else {
+      nipRow.style.display = 'none'; // Komisioner / Adhoc non-ASN: tampil hanya NIK
+    }
+  }
+  setElText('sakti-profile-nik-view', user.nik || '-');
+  setElText('sakti-profile-email', user.email || (user.username + '@kpu.go.id'));
+  setElText('sakti-profile-phone-view', user.no_hp || '-');
+
+  // Kolom Kanan: Kode Satker (Murni 657811 tanpa akhiran 00)
+  let kdSatker = (user.kode_satker || '657811').toString();
+  if (kdSatker.endsWith('00') && kdSatker.length > 6) {
+    kdSatker = kdSatker.replace(/00$/, '');
+  }
+  setElText('sakti-profile-kdsatker', kdSatker);
+
+  // Reset ke Mode Tampil (View Mode)
+  setProfileSelfEditMode(false);
+
+  // Tampilkan Modal
+  modal.style.display = 'flex';
 }
+
+function closeUserProfileSaktiModal() {
+  const modal = document.getElementById('modal-user-profile-sakti');
+  if (modal) modal.style.display = 'none';
+}
+
+function setProfileSelfEditMode(isEditing) {
+  const nikView = document.getElementById('sakti-profile-nik-view');
+  const nikInput = document.getElementById('sakti-profile-nik-input');
+  const phoneView = document.getElementById('sakti-profile-phone-view');
+  const phoneInput = document.getElementById('sakti-profile-phone-input');
+  const btnEditToggle = document.getElementById('btn-sakti-edit-toggle');
+  const btnSave = document.getElementById('btn-sakti-save-self');
+  const btnCancel = document.getElementById('btn-sakti-cancel-self');
+  const alertBox = document.getElementById('sakti-profile-alert');
+
+  if (alertBox) alertBox.style.display = 'none';
+
+  if (isEditing) {
+    if (nikView) nikView.style.display = 'none';
+    if (nikInput) {
+      nikInput.style.display = 'inline-block';
+      nikInput.value = AppState.currentUser?.nik || '';
+    }
+    if (phoneView) phoneView.style.display = 'none';
+    if (phoneInput) {
+      phoneInput.style.display = 'inline-block';
+      phoneInput.value = AppState.currentUser?.no_hp || '';
+    }
+    if (btnEditToggle) btnEditToggle.style.display = 'none';
+    if (btnSave) btnSave.style.display = 'inline-flex';
+    if (btnCancel) btnCancel.style.display = 'inline-flex';
+    setTimeout(() => nikInput && nikInput.focus(), 100);
+  } else {
+    if (nikView) nikView.style.display = 'inline-block';
+    if (nikInput) nikInput.style.display = 'none';
+    if (phoneView) phoneView.style.display = 'inline-block';
+    if (phoneInput) phoneInput.style.display = 'none';
+    if (btnEditToggle) btnEditToggle.style.display = 'inline-flex';
+    if (btnSave) btnSave.style.display = 'none';
+    if (btnCancel) btnCancel.style.display = 'none';
+  }
+}
+
+function toggleEditProfileSelf() {
+  setProfileSelfEditMode(true);
+}
+
+function cancelEditProfileSelf() {
+  setProfileSelfEditMode(false);
+}
+
+async function saveProfileSelf() {
+  const user = AppState.currentUser;
+  if (!user) return;
+
+  const nikInput = document.getElementById('sakti-profile-nik-input')?.value || '';
+  const phoneInput = document.getElementById('sakti-profile-phone-input')?.value || '';
+  const alertBox = document.getElementById('sakti-profile-alert');
+
+  // Validasi di sisi klien
+  let cleanNik = nikInput.trim().replace(/[^0-9]/g, '');
+  if (cleanNik.length > 0 && cleanNik.length !== 16) {
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.style.background = '#fef2f2';
+      alertBox.style.color = '#991b1b';
+      alertBox.style.border = '1px solid #fecaca';
+      alertBox.textContent = `NIK harus terdiri dari tepat 16 digit angka (aktual: ${cleanNik.length} digit).`;
+    }
+    document.getElementById('sakti-profile-nik-input')?.focus();
+    return;
+  }
+
+  let cleanPhone = phoneInput.trim();
+  if (cleanPhone.length > 0 && (cleanPhone.length < 8 || cleanPhone.length > 20)) {
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.style.background = '#fef2f2';
+      alertBox.style.color = '#991b1b';
+      alertBox.style.border = '1px solid #fecaca';
+      alertBox.textContent = 'Nomor HP/WhatsApp tidak valid (panjang 8 s.d. 20 digit).';
+    }
+    document.getElementById('sakti-profile-phone-input')?.focus();
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/me/profile', {
+      method: 'POST',
+      body: JSON.stringify({ nik: cleanNik, no_hp: cleanPhone })
+    });
+
+    if (AppState.currentUser) {
+      AppState.currentUser.nik = cleanNik;
+      AppState.currentUser.no_hp = cleanPhone;
+    }
+
+    setElText('sakti-profile-nik-view', cleanNik || '-');
+    setElText('sakti-profile-phone-view', cleanPhone || '-');
+
+    setProfileSelfEditMode(false);
+    showToast('Profil Anda (NIK & No HP) berhasil diperbarui!', 'success');
+  } catch (err) {
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.style.background = '#fef2f2';
+      alertBox.style.color = '#991b1b';
+      alertBox.style.border = '1px solid #fecaca';
+      alertBox.textContent = 'Gagal menyimpan profil: ' + err.message;
+    }
+  }
+}
+
+window.openUserProfileSaktiModal = openUserProfileSaktiModal;
+window.closeUserProfileSaktiModal = closeUserProfileSaktiModal;
+window.toggleEditProfileSelf = toggleEditProfileSelf;
+window.cancelEditProfileSelf = cancelEditProfileSelf;
+window.saveProfileSelf = saveProfileSelf;
+window.openProfileInfoModal = openProfileInfoModal;
 
 function openGantiPeranModal(event) {
   if (event) event.stopPropagation();
@@ -1288,16 +1479,16 @@ function updateUserNavbar() {
     verifiedBadge.style.display = 'inline-block';
   }
 
-  // Masked NIP / Username (Gambar 2: | 140902******0012)
+  // Masked NIK / Username ala SAKTI (Contoh: | 140902******0012)
   const nipBadge = document.getElementById('user-nip-badge');
   if (nipBadge) {
-    if (user.nip) {
-      const cleanNip = String(user.nip).trim();
-      if (cleanNip.length >= 10) {
-        const masked = cleanNip.substring(0, 6) + '******' + cleanNip.substring(cleanNip.length - 4);
+    if (user.nik) {
+      const cleanNik = String(user.nik).trim();
+      if (cleanNik.length === 16) {
+        const masked = cleanNik.substring(0, 6) + '******' + cleanNik.substring(12);
         nipBadge.textContent = ` | ${masked}`;
       } else {
-        nipBadge.textContent = ` | ${cleanNip}`;
+        nipBadge.textContent = ` | ${cleanNik}`;
       }
     } else {
       nipBadge.textContent = ` | ${user.username}`;
@@ -2484,6 +2675,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-menu-matrix') loadMenuMatrixView();
   else if (viewId === 'view-penandatangan') loadPenandatanganView();
   else if (viewId === 'view-audit') loadAuditLogsView();
+  else if (viewId === 'view-pengumuman') loadAdminAnnouncements();
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
   else if (viewId === 'view-rekap-perencanaan') loadRekapView('perencanaan');
   else if (viewId === 'view-rekap-pelaksanaan') loadRekapView('pelaksanaan');
@@ -9726,8 +9918,14 @@ function renderUsersTable() {
         <td class="text-center" style="font-weight:600; color:#64748b; padding: 14px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">${idx + 1}</td>
         <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
           <strong style="color:#0f172a; font-size: 13.5px;">${escHtml(u.nama_pejabat)}</strong>
-          ${u.nip ? `<div style="font-size:11px;color:#64748b;font-family:var(--font-mono);margin-top:2px;">NIP: ${escHtml(u.nip)}</div>` : ''}
+          ${u.nip ? `<div style="font-size:11px;color:#1e40af;font-family:var(--font-mono, monospace);margin-top:2px;display:flex;align-items:center;gap:4px;">
+            <span class="badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-size:9.5px;padding:0px 4px;font-weight:700;">ASN</span>
+            <span>NIP: ${escHtml(u.nip)}</span>
+          </div>` : ''}
           ${u.email ? `<div style="font-size:11px;color:#0284c7;font-family:var(--font-mono);margin-top:2px;">📧 ${escHtml(u.email)}</div>` : ''}
+        </td>
+        <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">
+          ${u.nik ? `<span class="badge" style="background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;font-family:var(--font-mono, monospace);font-weight:700;font-size:11.5px;letter-spacing:0.5px;padding:4px 8px;border-radius:4px;">💳 ${escHtml(u.nik)}</span>` : `<span style="color:#94a3b8;font-size:11px;font-style:italic;">Belum diisi</span>`}
         </td>
         <td style="color:#475569; padding: 14px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">${escHtml(u.jabatan || '-')}</td>
         <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle;">${rolesHtml}</td>
@@ -9867,6 +10065,8 @@ function openAddUserModal() {
   setElVal('modal-user-email', '');
   setElVal('modal-user-nama', '');
   setElVal('modal-user-nip', '');
+  setElVal('modal-user-nik', '');
+  setElVal('modal-user-phone', '');
   setElVal('modal-user-jabatan', '');
   setElVal('modal-user-status', '1');
   setElVal('modal-user-role-mode', 'SWITCH');
@@ -9901,6 +10101,8 @@ function openEditUserModal(userId) {
   setElVal('modal-user-email', user.email || '');
   setElVal('modal-user-nama', user.nama_pejabat);
   setElVal('modal-user-nip', user.nip || '');
+  setElVal('modal-user-nik', user.nik || '');
+  setElVal('modal-user-phone', user.no_hp || '');
   setElVal('modal-user-jabatan', user.jabatan || '');
   setElVal('modal-user-status', String(user.is_active));
   setElVal('modal-user-role-mode', user.role_mode || 'SWITCH');
@@ -9970,6 +10172,8 @@ async function submitUserForm() {
     password: document.getElementById('modal-user-password')?.value || undefined,
     nama_pejabat,
     nip: document.getElementById('modal-user-nip')?.value || '',
+    nik: (document.getElementById('modal-user-nik')?.value || '').trim(),
+    no_hp: (document.getElementById('modal-user-phone')?.value || '').trim(),
     jabatan: document.getElementById('modal-user-jabatan')?.value || '',
     email,
     is_active: Number(document.getElementById('modal-user-status')?.value || 1),
@@ -14316,3 +14520,644 @@ async function handleKumulatifToggle(checked) {
     showToast(`Gagal mengubah preferensi peran: ${err.message}`, 'error');
   }
 }
+
+
+// ============================================================================
+// MODUL PENGUMUMAN SATKER: AWAL SESI PRE-LOGIN & MANAJEMEN ADMIN (BAB 27)
+// ============================================================================
+
+let preLoginAnnouncementsList = [];
+let preLoginHelpdeskConfig = null;
+let myAnnouncementsList = [];
+let myHelpdeskConfig = null;
+let currentAnnouncementModalMode = 'PRELOGIN';
+let adminAnnouncementsList = [];
+
+/**
+ * Format teks pengumuman: proteksi XSS + markdown tebal + konversi URL otomatis menjadi tautan klik
+ */
+function formatAnnouncementText(text) {
+  if (!text) return '';
+  let escaped = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  // Dukung format markdown tebal **kata** menjadi <strong>kata</strong>
+  escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  return escaped.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #0284c7; text-decoration: underline; font-weight: 700;">${url}</a>`);
+}
+
+/**
+ * =============================================================================
+ * DUAL-LAYER KORESPONDENSI & PENGUMUMAN DINAS SI-PRABU
+ * Lapis 1: Pre-Login (Papan Pengumuman Publik & Helpdesk SAKTI)
+ * Lapis 2: Post-Login (Surat Kedinasan & Penargetan Level Jabatan)
+ * =============================================================================
+ */
+
+/**
+ * LAPIS 1: Memeriksa dan menampilkan pengumuman publik awal sesi (pre-login)
+ * Selalu muncul otomatis saat halaman login dimuat
+ */
+async function checkAndShowPreLoginAnnouncements() {
+  const btnBox = document.getElementById('login-screen-announcement-btn-box');
+  try {
+    const res = await apiFetch('/api/announcements/public');
+    if (!res || !res.announcements || res.announcements.length === 0) {
+      preLoginAnnouncementsList = [];
+      preLoginHelpdeskConfig = res ? res.helpdesk : null;
+      if (btnBox) btnBox.style.display = 'none';
+      return;
+    }
+    preLoginAnnouncementsList = res.announcements;
+    preLoginHelpdeskConfig = res.helpdesk || null;
+    if (btnBox) {
+      btnBox.style.display = 'block';
+      const btnText = document.getElementById('login-screen-announcement-btn-text');
+      if (btnText) btnText.textContent = `Buka Pengumuman Publik (${preLoginAnnouncementsList.length})`;
+    }
+
+    // Selalu tampilkan pop up pengumuman pre-login saat halaman dibuka
+    openAnnouncementModal(preLoginAnnouncementsList, preLoginHelpdeskConfig, 'PRELOGIN');
+  } catch (e) {
+    if (btnBox) btnBox.style.display = 'none';
+    // Fail silently agar halaman masuk tetap responsif
+  }
+}
+
+/**
+ * LAPIS 2: Memeriksa dan menampilkan surat dinas & pengumuman pasca-login
+ * Selalu muncul otomatis saat pengguna masuk ke sistem
+ */
+async function checkAndShowPostLoginAnnouncements() {
+  const user = AppState.currentUser;
+  if (!user) return;
+  try {
+    const res = await apiFetch('/api/announcements/my');
+    myAnnouncementsList = (res && res.announcements) ? res.announcements : [];
+    myHelpdeskConfig = (res && res.helpdesk) ? res.helpdesk : null;
+
+    updateNavbarAnnouncementButton();
+    renderDashboardAnnouncementBanner();
+
+    // Selalu tampilkan pop up surat dinas / korespondensi saat pengguna membuka sistem
+    if (myAnnouncementsList.length > 0) {
+      openAnnouncementModal(myAnnouncementsList, myHelpdeskConfig, 'POSTLOGIN', user);
+    }
+  } catch (e) {
+    // Fail silently
+  }
+}
+
+function updateNavbarAnnouncementButton() {
+  const navBtn = document.getElementById('btn-navbar-pengumuman');
+  const badge = document.getElementById('badge-navbar-pengumuman');
+  if (!navBtn) return;
+  if (!AppState.currentUser) {
+    navBtn.style.display = 'none';
+    return;
+  }
+  navBtn.style.display = 'inline-flex';
+  if (badge) {
+    if (myAnnouncementsList && myAnnouncementsList.length > 0) {
+      badge.style.display = 'inline-block';
+      badge.textContent = myAnnouncementsList.length;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+function renderDashboardAnnouncementBanner() {
+  const banner = document.getElementById('dashboard-announcement-banner');
+  if (!banner) return;
+  if (!AppState.currentUser || !myAnnouncementsList || myAnnouncementsList.length === 0) {
+    banner.style.display = 'none';
+    banner.innerHTML = '';
+    return;
+  }
+
+  const latest = myAnnouncementsList[0];
+  const total = myAnnouncementsList.length;
+  const tagPerihal = (latest.perihal || '#PENGUMUMAN').toUpperCase();
+
+  banner.style.display = 'block';
+  banner.innerHTML = `
+    <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #7dd3fc; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.08); flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 260px; flex: 1;">
+        <span style="font-size: 26px; line-height: 1;">📬</span>
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <strong style="font-size: 13px; color: #0369a1; text-transform: uppercase; letter-spacing: 0.3px;">Surat &amp; Pengumuman Kedinasan</strong>
+            <span class="badge" style="background: #0284c7; color: #ffffff; font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 800;">${total} Aktif</span>
+          </div>
+          <div style="font-size: 12.5px; color: #1e293b; margin-top: 3px; line-height: 1.4;">
+            <span style="font-weight: 800; color: #0284c7;">${tagPerihal}:</span> ${latest.judul}
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button type="button" class="btn btn-primary btn-sm" onclick="openMyAnnouncementsModal()" style="font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);">
+          <span>👁️</span>
+          <span>Buka Pengumuman (${total})</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function openMyAnnouncementsModal(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const dropdown = document.getElementById('prabu-profile-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+
+  if (!AppState.currentUser) {
+    openAnnouncementModal(preLoginAnnouncementsList, preLoginHelpdeskConfig, 'PRELOGIN');
+  } else {
+    openAnnouncementModal(myAnnouncementsList, myHelpdeskConfig, 'POSTLOGIN', AppState.currentUser);
+  }
+}
+
+/**
+ * Membuka Modal Pop-Up Pengumuman (Mendukung PRELOGIN dan POSTLOGIN Korespondensi)
+ */
+function openAnnouncementModal(announcements = null, helpdesk = null, mode = 'PRELOGIN', user = null) {
+  const modal = document.getElementById('modal-announcement-prelogin');
+  if (!modal) return;
+
+  currentAnnouncementModalMode = mode;
+  const items = announcements || (mode === 'POSTLOGIN' ? myAnnouncementsList : preLoginAnnouncementsList);
+  const hd = helpdesk || (mode === 'POSTLOGIN' ? myHelpdeskConfig : preLoginHelpdeskConfig);
+  const activeUser = user || AppState.currentUser;
+
+  // Header Title & Recipient Badge
+  const titleEl = document.getElementById('announcement-modal-main-title');
+  const userTargetBadge = document.getElementById('announcement-modal-user-target-badge');
+
+  if (mode === 'POSTLOGIN' && activeUser) {
+    if (titleEl) titleEl.textContent = 'KORESPONDENSI';
+    if (userTargetBadge) {
+      userTargetBadge.style.display = 'block';
+      userTargetBadge.innerHTML = `👤 Ditujukan Kepada: <strong>${activeUser.nama_pejabat || activeUser.username}</strong><br><span style="font-size:10.5px;color:#0284c7;">Level ${activeUser.level} &bull; ${activeUser.role_name || activeUser.role_id || 'Pengguna Satker'}</span>`;
+    }
+  } else {
+    if (titleEl) titleEl.textContent = 'PENGUMUMAN';
+    if (userTargetBadge) userTargetBadge.style.display = 'none';
+  }
+
+  // Helpdesk Left Panel: Dinamis & Auto-hide bila data kosong/disabled
+  const hdContainer = document.getElementById('announcement-helpdesk-container');
+  const hasHelpdeskData = hd && Boolean(Number(hd.enabled)) && Boolean((hd.phone || '').trim() || (hd.email || '').trim());
+
+  if (hdContainer) {
+    if (hasHelpdeskData) {
+      hdContainer.style.display = 'block';
+      setElText('announcement-helpdesk-name', hd.nama || 'Helpdesk SI-PRABU');
+      setElText('announcement-helpdesk-phone', hd.phone || '-');
+      setElText('announcement-helpdesk-email', hd.email || 'kpu.ngawi@kpu.go.id');
+      const portalEl = document.getElementById('announcement-helpdesk-portal');
+      if (portalEl) {
+        portalEl.textContent = (hd.portal || 'kab-ngawi.kpu.go.id').replace(/^https?:\/\//, '');
+        portalEl.href = hd.portal || 'https://kab-ngawi.kpu.go.id';
+      }
+    } else {
+      hdContainer.style.display = 'none';
+    }
+  }
+
+  // Render Kartu Pengumuman
+  const cardsContainer = document.getElementById('announcement-cards-container');
+  if (cardsContainer) {
+    if (!items || items.length === 0) {
+      cardsContainer.innerHTML = `
+        <div style="text-align: center; padding: 48px 20px; color: #64748b; background: #ffffff; border-radius: 8px; border: 1px dashed #cbd5e1;">
+          <div style="font-size: 38px; margin-bottom: 10px;">📭</div>
+          <div style="font-size: 15px; font-weight: 800; color: #1e293b;">Belum Ada Pengumuman ${mode === 'POSTLOGIN' ? 'Khusus Level Anda' : 'Aktif'}</div>
+          <p style="font-size: 12.5px; margin: 6px 0 0 0; color: #64748b;">Seluruh sistem perencanaan dan belanja SI-PRABU beroperasi normal.</p>
+        </div>
+      `;
+    } else {
+      cardsContainer.innerHTML = items.map(item => {
+        const tagPerihal = (item.perihal || '#PENGUMUMAN').toUpperCase();
+        const formattedIsi = formatAnnouncementText(item.isi);
+
+        return `
+          <div class="sakti-announcement-card" style="border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <div style="background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 14px 26px; font-weight: 800; font-size: 15px; color: #0284c7; display: flex; align-items: center; letter-spacing: 0.4px;">
+              <span>${tagPerihal}</span>
+            </div>
+            <div style="padding: 24px 28px 28px 28px; font-size: 15px; color: #1e293b; line-height: 1.8;">
+              <h3 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.4; letter-spacing: -0.2px;">${item.judul}</h3>
+              <div style="white-space: pre-wrap; word-break: break-word; font-size: 15.5px; line-height: 1.8; color: #334155;">${formattedIsi}</div>
+              ${item.link_url ? `
+                <div style="margin-top: 20px;">
+                  <a href="${item.link_url}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: #f0f9ff; border: 1.5px solid #00a2ea; color: #0077b6; padding: 10px 22px; border-radius: 6px; font-weight: 700; font-size: 13.5px; text-decoration: none; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0, 162, 234, 0.15);">
+                    <span>📎</span>
+                    <span>${item.link_label || 'Buka Tautan / Unduh Dokumen'}</span>
+                    <span>↗</span>
+                  </a>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  modal.style.display = 'flex';
+}
+
+function openPreLoginAnnouncementModal(announcements = null, helpdesk = null) {
+  openAnnouncementModal(announcements, helpdesk, 'PRELOGIN');
+}
+
+function closePreLoginAnnouncementModal() {
+  const modal = document.getElementById('modal-announcement-prelogin');
+  if (modal) modal.style.display = 'none';
+}
+
+async function loadAdminAnnouncements() {
+  try {
+    const res = await apiFetch('/api/admin/announcements');
+    adminAnnouncementsList = res.announcements || [];
+    const hd = res.helpdesk || {};
+
+    // Isi formulir helpdesk
+    setElVal('helpdesk-nama', hd.nama || '');
+    setElVal('helpdesk-phone', hd.phone || '');
+    setElVal('helpdesk-email', hd.email || '');
+    setElVal('helpdesk-portal', hd.portal || '');
+    const chkHd = document.getElementById('helpdesk-enabled');
+    if (chkHd) chkHd.checked = Boolean(Number(hd.enabled));
+
+    // Render tabel
+    renderAdminAnnouncementsTable();
+  } catch (err) {
+    showToast('Gagal memuat pengumuman: ' + err.message, 'error');
+  }
+}
+
+function renderAdminAnnouncementsTable() {
+  const tbody = document.getElementById('pengumuman-table-body');
+  if (!tbody) return;
+
+  const activeCount = adminAnnouncementsList.filter(a => Number(a.is_active) === 1).length;
+  setElText('badge-stat-pengumuman-aktif', `${activeCount} Aktif`);
+  setElText('badge-total-pengumuman', `${adminAnnouncementsList.length}`);
+  setElText('pengumuman-total-count', `Total: ${adminAnnouncementsList.length} pengumuman (${activeCount} tayang aktif)`);
+
+  if (adminAnnouncementsList.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center" style="padding: 30px; color: #64748b;">
+          Belum ada pengumuman yang dibuat. Klik tombol <b>➕ Tambah Pengumuman Baru</b> di atas untuk membuat pengumuman pertama.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = adminAnnouncementsList.map((item, idx) => {
+    let sasaranLabel = '';
+    const isPre = item.target_type === 'PRELOGIN' || item.target_type === 'PRELOGIN_ONLY';
+    if (isPre) {
+      sasaranLabel = '<span class="badge" style="background:#fef3c7;color:#92400e;font-size:10.5px;font-weight:700;">🚪 Sebelum Login (Publik)</span>';
+    } else {
+      let levelsArr = [];
+      if (item.target_levels) {
+        try {
+          levelsArr = Array.isArray(item.target_levels) ? item.target_levels : JSON.parse(item.target_levels);
+        } catch (_) {}
+      }
+      if (levelsArr && levelsArr.length > 0) {
+        if (levelsArr.length === 11) {
+          sasaranLabel = '<span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:10.5px;font-weight:700;">🏛️ Setelah Login (Semua Level)</span>';
+        } else {
+          sasaranLabel = `<span class="badge" style="background:#e0e7ff;color:#3730a3;font-size:10.5px;font-weight:700;" title="Level: ${levelsArr.join(', ')}">🎯 Setelah Login (L${levelsArr.join(', L')})</span>`;
+        }
+      } else {
+        const min = Number(item.target_level_min !== undefined ? item.target_level_min : 0);
+        const max = Number(item.target_level_max !== undefined ? item.target_level_max : 10);
+        if (min === 0 && max === 10) {
+          sasaranLabel = '<span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:10.5px;font-weight:700;">🏛️ Setelah Login (Semua Level)</span>';
+        } else {
+          sasaranLabel = `<span class="badge" style="background:#e0e7ff;color:#3730a3;font-size:10.5px;font-weight:700;">🎯 Setelah Login (L${min}–L${max})</span>`;
+        }
+      }
+    }
+
+    let masaLabel = '<span class="badge badge-info" style="font-size:10px;">⚡ Evergreen (Selamanya)</span>';
+    if (item.tanggal_mulai && item.tanggal_selesai) {
+      masaLabel = `<span style="font-size:11px;">${item.tanggal_mulai} s.d. ${item.tanggal_selesai}</span>`;
+    } else if (item.tanggal_mulai) {
+      masaLabel = `<span style="font-size:11px;">Mulai: ${item.tanggal_mulai}</span>`;
+    } else if (item.tanggal_selesai) {
+      masaLabel = `<span style="font-size:11px;">S.d.: ${item.tanggal_selesai}</span>`;
+    }
+
+    const statusBadge = Number(item.is_active) === 1
+      ? '<span class="badge badge-success" style="font-size:10.5px;">Aktif</span>'
+      : '<span class="badge badge-secondary" style="font-size:10.5px;">Nonaktif</span>';
+
+    return `
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #64748b;">${item.urutan || (idx + 1)}</td>
+        <td style="padding: 10px 12px; font-weight: 800; color: #0284c7;">${item.perihal || '#PENGUMUMAN'}</td>
+        <td style="padding: 10px 12px;">
+          <div style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">${item.judul}</div>
+          <div style="font-size: 11px; color: #64748b; max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${(item.isi || '').replace(/\n/g, ' ')}
+          </div>
+          ${item.link_url ? `<div style="font-size: 10.5px; margin-top: 3px;"><a href="${item.link_url}" target="_blank" style="color: #0284c7; text-decoration: underline;">🔗 ${item.link_label || 'Tautan Dokumen'}</a></div>` : ''}
+        </td>
+        <td style="padding: 10px 12px;">
+          <span style="font-size: 11px; font-weight: 600; color: #334155; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">
+            ${sasaranLabel}
+          </span>
+        </td>
+        <td style="padding: 10px 12px;">${masaLabel}</td>
+        <td style="padding: 10px 12px; text-align: center;">${statusBadge}</td>
+        <td style="padding: 10px 12px; text-align: center;">
+          <div style="display: flex; gap: 4px; justify-content: center;">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditAnnouncementModal(${item.id})" style="padding: 3px 8px; font-size: 11px;" title="Edit Pengumuman">
+              ✏️
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteAnnouncementConfirm(${item.id}, '${(item.judul || '').replace(/'/g, "\\'")}')" style="padding: 3px 8px; font-size: 11px;" title="Hapus Pengumuman">
+              🗑️
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openAddAnnouncementModal() {
+  setElText('modal-announcement-title', 'Tambah Pengumuman Baru Satker');
+  setElVal('modal-announcement-id', '');
+  setElVal('modal-announcement-perihal', '#REVISI ANGGARAN');
+  setElVal('modal-announcement-urutan', String(adminAnnouncementsList.length + 1));
+  setElVal('modal-announcement-status', '1');
+  setElVal('modal-announcement-judul', '');
+  setElVal('modal-announcement-isi', '');
+  setElVal('modal-announcement-link-url', '');
+  setElVal('modal-announcement-link-label', '');
+  setElVal('modal-announcement-target-type', 'POSTLOGIN');
+  setElVal('modal-announcement-tanggal-mulai', '');
+  setElVal('modal-announcement-tanggal-selesai', '');
+  onAnnouncementTargetTypeChange();
+  renderAnnouncementLevelChecklist([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+  const modal = document.getElementById('modal-announcement-form');
+  if (modal) modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('modal-announcement-judul')?.focus(), 150);
+}
+
+function openEditAnnouncementModal(id) {
+  const item = adminAnnouncementsList.find(a => a.id === id);
+  if (!item) return;
+
+  setElText('modal-announcement-title', `Edit Pengumuman: ${item.judul}`);
+  setElVal('modal-announcement-id', String(item.id));
+  setElVal('modal-announcement-perihal', item.perihal || '#PENGUMUMAN');
+  setElVal('modal-announcement-urutan', String(item.urutan || 1));
+  setElVal('modal-announcement-status', String(item.is_active));
+  setElVal('modal-announcement-judul', item.judul || '');
+  setElVal('modal-announcement-isi', item.isi || '');
+  setElVal('modal-announcement-link-url', item.link_url || '');
+  setElVal('modal-announcement-link-label', item.link_label || '');
+  const isPre = item.target_type === 'PRELOGIN' || item.target_type === 'PRELOGIN_ONLY';
+  setElVal('modal-announcement-target-type', isPre ? 'PRELOGIN' : 'POSTLOGIN');
+  setElVal('modal-announcement-tanggal-mulai', item.tanggal_mulai || '');
+  setElVal('modal-announcement-tanggal-selesai', item.tanggal_selesai || '');
+  onAnnouncementTargetTypeChange();
+
+  let selectedLevels = [];
+  if (item.target_levels) {
+    try {
+      selectedLevels = Array.isArray(item.target_levels) ? item.target_levels : JSON.parse(item.target_levels);
+    } catch (e) {
+      selectedLevels = String(item.target_levels).split(',').map(s => Number(s.trim()));
+    }
+  } else {
+    const min = item.target_level_min !== undefined ? Number(item.target_level_min) : 0;
+    const max = item.target_level_max !== undefined ? Number(item.target_level_max) : 10;
+    for (let l = min; l <= max; l++) selectedLevels.push(l);
+  }
+  renderAnnouncementLevelChecklist(selectedLevels);
+
+  const modal = document.getElementById('modal-announcement-form');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeAnnouncementFormModal() {
+  const modal = document.getElementById('modal-announcement-form');
+  if (modal) modal.style.display = 'none';
+}
+
+const ANNOUNCEMENT_LEVEL_DEFS = [
+  { level: 0, badge: 'L0', bg: '#0f172a', color: '#fff', label: 'Developer Utama' },
+  { level: 1, badge: 'L1', bg: '#0284c7', color: '#fff', label: 'Kasubbag Rendatin (Admin Satker)' },
+  { level: 2, badge: 'L2', bg: '#0ea5e9', color: '#fff', label: 'Pengolah Data Perencanaan' },
+  { level: 3, badge: 'L3', bg: '#10b981', color: '#fff', label: 'Operator Subbag (Pelaksana)' },
+  { level: 4, badge: 'L4', bg: '#ea580c', color: '#fff', label: 'Ketua KPU' },
+  { level: 5, badge: 'L5', bg: '#c026d3', color: '#fff', label: 'Divisi Rendatin (Komisioner)' },
+  { level: 6, badge: 'L6', bg: '#9333ea', color: '#fff', label: 'Komisioner Divisi (Pleno)' },
+  { level: 7, badge: 'L7', bg: '#4f46e5', color: '#fff', label: 'Sekretaris / KPA' },
+  { level: 8, badge: 'L8', bg: '#d97706', color: '#fff', label: 'Pejabat Pembuat Komitmen (PPK)' },
+  { level: 9, badge: 'L9', bg: '#475569', color: '#fff', label: 'Bendahara Pengeluaran' },
+  { level: 10, badge: 'L10', bg: '#64748b', color: '#fff', label: 'Auditor / Pengawas / Adhoc' }
+];
+
+function renderAnnouncementLevelChecklist(selectedLevels = []) {
+  const container = document.getElementById('announcement-level-checklist-container');
+  if (!container) return;
+  const selSet = new Set((selectedLevels || []).map(Number));
+  container.innerHTML = ANNOUNCEMENT_LEVEL_DEFS.map(item => {
+    const checked = selSet.has(item.level);
+    return `
+      <label class="announcement-level-check-card" style="display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid ${checked ? '#7dd3fc' : '#e2e8f0'};border-radius:6px;background:${checked ? '#f0f9ff' : '#ffffff'};cursor:pointer;user-select:none;transition:all 0.15s ease;">
+        <input type="checkbox" class="announcement-level-checkbox" value="${item.level}" ${checked ? 'checked' : ''} onchange="onAnnouncementCheckboxChange(this)" style="accent-color:#0284c7;width:15px;height:15px;cursor:pointer;">
+        <span class="badge" style="background:${item.bg};color:${item.color};font-size:9.5px;font-weight:800;padding:1px 5px;">${item.badge}</span>
+        <span style="font-size:11px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.label}</span>
+      </label>
+    `;
+  }).join('');
+  updateAnnouncementSelectedLevelsSummary();
+}
+
+function onAnnouncementCheckboxChange(cb) {
+  const card = cb.closest('.announcement-level-check-card');
+  if (card) {
+    card.style.background = cb.checked ? '#f0f9ff' : '#ffffff';
+    card.style.borderColor = cb.checked ? '#7dd3fc' : '#e2e8f0';
+  }
+  updateAnnouncementSelectedLevelsSummary();
+}
+
+function updateAnnouncementSelectedLevelsSummary() {
+  const summaryEl = document.getElementById('announcement-levels-selected-summary');
+  if (!summaryEl) return;
+  const checked = Array.from(document.querySelectorAll('.announcement-level-checkbox:checked')).map(c => Number(c.value));
+  if (checked.length === 11) {
+    summaryEl.textContent = 'Semua Level (0–10)';
+    summaryEl.style.background = '#e0f2fe';
+    summaryEl.style.color = '#0369a1';
+  } else if (checked.length === 0) {
+    summaryEl.textContent = '0 Level (Pilih Minimal 1)';
+    summaryEl.style.background = '#fef2f2';
+    summaryEl.style.color = '#dc2626';
+  } else {
+    summaryEl.textContent = `${checked.length} Level Dipilih (L${checked.join(', L')})`;
+    summaryEl.style.background = '#e0e7ff';
+    summaryEl.style.color = '#3730a3';
+  }
+}
+
+function setAnnouncementLevelsPreset(preset) {
+  let target = [];
+  if (preset === 'ALL') target = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  else if (preset === 'NONE') target = [];
+  else if (preset === 'PIMPINAN') target = [4, 5, 6, 7];
+  else if (preset === 'OPERATOR') target = [1, 2, 3];
+  else if (preset === 'KEUANGAN') target = [8, 9];
+  renderAnnouncementLevelChecklist(target);
+}
+
+function onAnnouncementTargetTypeChange() {
+  const type = document.getElementById('modal-announcement-target-type')?.value;
+  const box = document.getElementById('modal-announcement-level-checklist-box');
+  if (box) {
+    box.style.display = (type === 'POSTLOGIN') ? 'block' : 'none';
+  }
+}
+
+async function submitAnnouncementForm() {
+  const id = document.getElementById('modal-announcement-id')?.value;
+  const perihal = (document.getElementById('modal-announcement-perihal')?.value || '').trim();
+  const judul = (document.getElementById('modal-announcement-judul')?.value || '').trim();
+  const isi = (document.getElementById('modal-announcement-isi')?.value || '').trim();
+  const link_url = (document.getElementById('modal-announcement-link-url')?.value || '').trim();
+  const link_label = (document.getElementById('modal-announcement-link-label')?.value || '').trim();
+  const selectedType = document.getElementById('modal-announcement-target-type')?.value || 'POSTLOGIN';
+  const target_type = selectedType === 'PRELOGIN' ? 'PRELOGIN' : 'POSTLOGIN';
+  
+  let checkedLevels = [];
+  if (target_type === 'POSTLOGIN') {
+    checkedLevels = Array.from(document.querySelectorAll('.announcement-level-checkbox:checked')).map(cb => Number(cb.value));
+    if (checkedLevels.length === 0) {
+      alert('Silakan pilih minimal satu target level penerima surat kedinasan pada checklist sasaran.');
+      return;
+    }
+  } else {
+    checkedLevels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  }
+
+  const target_level_min = Math.min(...checkedLevels);
+  const target_level_max = Math.max(...checkedLevels);
+  const tanggal_mulai = document.getElementById('modal-announcement-tanggal-mulai')?.value || '';
+  const tanggal_selesai = document.getElementById('modal-announcement-tanggal-selesai')?.value || '';
+  const urutan = Number(document.getElementById('modal-announcement-urutan')?.value || 1);
+  const is_active = Number(document.getElementById('modal-announcement-status')?.value || 1);
+
+  if (!judul) {
+    alert('Judul pengumuman tidak boleh kosong.');
+    document.getElementById('modal-announcement-judul')?.focus();
+    return;
+  }
+  if (!isi) {
+    alert('Isi pengumuman tidak boleh kosong.');
+    document.getElementById('modal-announcement-isi')?.focus();
+    return;
+  }
+
+  const payload = {
+    id: id ? Number(id) : undefined,
+    perihal,
+    judul,
+    isi,
+    link_url,
+    link_label,
+    target_type,
+    target_levels: checkedLevels,
+    target_level_min,
+    target_level_max,
+    tanggal_mulai,
+    tanggal_selesai,
+    urutan,
+    is_active
+  };
+
+  try {
+    const res = await apiFetch('/api/admin/announcements', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    showToast(res.message || 'Pengumuman berhasil disimpan.', 'success');
+    closeAnnouncementFormModal();
+    await loadAdminAnnouncements();
+  } catch (err) {
+    alert('Gagal menyimpan pengumuman: ' + err.message);
+  }
+}
+
+async function deleteAnnouncementConfirm(id, title) {
+  if (!confirm(`Apakah Anda yakin ingin MENGHAPUS pengumuman:\n"${title}"?`)) {
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`/api/admin/announcements/${id}`, {
+      method: 'DELETE'
+    });
+    showToast(res.message || 'Pengumuman berhasil dihapus.', 'success');
+    await loadAdminAnnouncements();
+  } catch (err) {
+    alert('Gagal menghapus pengumuman: ' + err.message);
+  }
+}
+
+async function saveHelpdeskConfigSubmit() {
+  const nama = (document.getElementById('helpdesk-nama')?.value || '').trim();
+  const phone = (document.getElementById('helpdesk-phone')?.value || '').trim();
+  const email = (document.getElementById('helpdesk-email')?.value || '').trim();
+  const portal = (document.getElementById('helpdesk-portal')?.value || '').trim();
+  const enabled = document.getElementById('helpdesk-enabled')?.checked ? 1 : 0;
+
+  try {
+    const res = await apiFetch('/api/admin/announcements/helpdesk', {
+      method: 'POST',
+      body: JSON.stringify({ nama, phone, email, portal, enabled })
+    });
+    showToast(res.message || 'Konfigurasi Helpdesk berhasil disimpan.', 'success');
+  } catch (err) {
+    alert('Gagal menyimpan Helpdesk: ' + err.message);
+  }
+}
+
+function previewAnnouncementModal() {
+  const activeItems = adminAnnouncementsList.filter(a => Number(a.is_active) === 1);
+  const hd = {
+    nama: document.getElementById('helpdesk-nama')?.value || '',
+    phone: document.getElementById('helpdesk-phone')?.value || '',
+    email: document.getElementById('helpdesk-email')?.value || '',
+    portal: document.getElementById('helpdesk-portal')?.value || '',
+    enabled: document.getElementById('helpdesk-enabled')?.checked ? 1 : 0
+  };
+  openPreLoginAnnouncementModal(activeItems, hd);
+}
+
+window.openMyAnnouncementsModal = openMyAnnouncementsModal;
+window.checkAndShowPostLoginAnnouncements = checkAndShowPostLoginAnnouncements;
+window.checkAndShowPreLoginAnnouncements = checkAndShowPreLoginAnnouncements;
+window.openAnnouncementModal = openAnnouncementModal;
+window.openPreLoginAnnouncementModal = openPreLoginAnnouncementModal;
+window.closePreLoginAnnouncementModal = closePreLoginAnnouncementModal;
+window.renderDashboardAnnouncementBanner = renderDashboardAnnouncementBanner;
+
+window.setAnnouncementLevelPreset = setAnnouncementLevelPreset;
