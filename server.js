@@ -1,3 +1,4 @@
+const { initDatabaseSchemaAndSeed: initCakraDatabase, handleCakraApiRequest } = require('./src/cakra/router');
 /**
  * SI-PRABU Clean Web Edition v3.0
  * Server Utama Node.js (Siap untuk Hostinger Cloud / hPanel & Local Development)
@@ -714,9 +715,11 @@ const server = http.createServer(async (req, res) => {
           { id: 1005, level: 5, pic: 'RENDATIN', mode_akses: 'VIEWER', label_peran: 'Anggota KPU Divisi Rendatin' },
           { id: 1006, level: 6, pic: 'TEKNIS', mode_akses: 'VIEWER', label_peran: 'Anggota Komisioner KPU (Divisi Teknis)' },
           { id: 1007, level: 7, pic: 'SEMUA', mode_akses: 'VIEWER', label_peran: 'Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)' },
-          { id: 1008, level: 8, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pejabat Pembuat Komitmen & PBJ' },
-          { id: 1009, level: 9, pic: 'KECAMATAN', mode_akses: 'EDITOR', label_peran: 'Badan Ad Hoc — PPK (Kecamatan)' },
-          { id: 1010, level: 10, pic: 'DESA', mode_akses: 'EDITOR', label_peran: 'Badan Ad Hoc — PPS (Desa/Kelurahan)' }
+          { id: 1008, level: 8, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pejabat Pembuat Komitmen (PPK)' },
+          { id: 1009, level: 9, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Pejabat Pengadaan' },
+          { id: 1010, level: 10, pic: 'SEMUA', mode_akses: 'EDITOR', label_peran: 'Bendahara Pengeluaran' },
+          { id: 1011, level: 11, pic: 'KECAMATAN', mode_akses: 'EDITOR', label_peran: 'Panitia Pemilihan Kecamatan (PPK)' },
+          { id: 1012, level: 12, pic: 'DESA', mode_akses: 'EDITOR', label_peran: 'Panitia Pemungutan Suara (PPS)' }
         ];
         matchedRole = simRoles.find(r => Number(r.id) === targetRoleId);
       }
@@ -3470,6 +3473,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ========================================================================
+    // MODUL PENGADAAN 18 TAHAP HULU-KE-HILIR (CAKRA ENGINE)
+    // ========================================================================
+    if (pathname.startsWith('/api/cakra/')) {
+      return await handleCakraApiRequest(req, res, pathname, query);
+    }
+
+    // ========================================================================
     // STATIC ASSETS (FRONTEND)
     // ========================================================================
     return serveStatic(req, res, pathname);
@@ -3483,6 +3493,8 @@ const server = http.createServer(async (req, res) => {
     }
   }
 });
+
+initCakraDatabase().catch(err => console.warn('[PENGADAAN-INIT]', err.message));
 
 server.listen(PORT, () => {
   console.log(`================================================================`);

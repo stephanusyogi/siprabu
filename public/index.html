@@ -311,6 +311,31 @@
             </div>
           </div>
 
+          <!-- 2C. PENGADAAN (18 TAHAP HULU-KE-HILIR) -->
+          <div class="prabu-tree-group collapsed" id="folder-pengadaan">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-pengadaan', event)">
+              <span class="prabu-folder-label">
+                <span>📁 Pengadaan</span>
+              </span>
+              <span class="prabu-chevron">▾</span>
+            </button>
+            <div class="prabu-tree-children">
+              <button class="nav-item" data-view="view-pengadaan-paket" id="nav-item-pengadaan-paket" onclick="switchView('view-pengadaan-paket')">
+                <span class="icon">📦</span>
+                <span class="label">Daftar Paket Pengadaan</span>
+                <span class="badge badge-primary badge-sm" id="badge-pengadaan-paket">6</span>
+              </button>
+              <button class="nav-item" data-view="view-pengadaan-kokpit" id="nav-item-pengadaan-kokpit" onclick="switchView('view-pengadaan-kokpit')">
+                <span class="icon">🧭</span>
+                <span class="label">Kokpit 18 Tahap</span>
+              </button>
+              <button class="nav-item" data-view="view-pengadaan-penyedia" id="nav-item-pengadaan-penyedia" onclick="switchView('view-pengadaan-penyedia')">
+                <span class="icon">🏢</span>
+                <span class="label">Direktori Penyedia</span>
+              </button>
+            </div>
+          </div>
+
           <!-- 3. REFERENSI (SSOT, SBM, BAS) -->
           <div class="prabu-tree-group collapsed" id="folder-referensi">
             <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-referensi', event)">
@@ -376,6 +401,10 @@
                 <span class="icon">💳</span>
                 <span class="label">Panduan Pelaksanaan</span>
               </button>
+              <button class="nav-item" data-view="view-panduan-pengadaan" id="nav-item-panduan-pengadaan" onclick="switchView('view-panduan-pengadaan')">
+                <span class="icon">📘</span>
+                <span class="label">Panduan Pengadaan</span>
+              </button>
               <!-- Regulasi & Dasar Hukum JDIH KPU -->
               <button class="nav-item" data-view="view-db-regulasi" id="nav-item-regulasi" onclick="switchView('view-db-regulasi')">
                 <span class="icon">📜</span>
@@ -408,7 +437,7 @@
               <button class="nav-item" data-view="view-penandatangan" onclick="switchView('view-penandatangan')" id="nav-item-penandatangan">
                 <span class="icon">✍️</span>
                 <span class="label">Penandatangan</span>
-                <span class="badge badge-primary badge-sm" id="badge-total-penandatangan">14</span>
+                <span class="badge badge-primary badge-sm" id="badge-total-penandatangan">15</span>
               </button>
               <!-- Hak Akses Menu Satker (RBAC Dinamis) -->
               <button class="nav-item" data-view="view-menu-matrix" onclick="switchView('view-menu-matrix')" id="nav-item-menu-matrix">
@@ -3222,19 +3251,29 @@
                         <div style="font-weight: 800; color: #4338ca; font-size: 11px;">L7</div>
                         <div style="font-size: 9px; color: #4f46e5;">Sekr / KPA</div>
                       </th>
-                      <!-- L8 Keuangan / PBJ -->
-                      <th style="padding: 8px 4px; text-align: center; background: #ecfdf5; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 8: Pejabat Perbendaharaan / PPK / PBJ">
+                      <!-- L8 PPK (Pejabat Pembuat Komitmen) -->
+                      <th style="padding: 8px 4px; text-align: center; background: #ecfdf5; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 76px;" title="Level 8: Pejabat Pembuat Komitmen (PPK)">
                         <div style="font-weight: 800; color: #047857; font-size: 11px;">L8</div>
-                        <div style="font-size: 9px; color: #059669;">Keuangan</div>
+                        <div style="font-size: 9px; color: #059669;">PPK</div>
                       </th>
-                      <!-- L9 Badan Ad Hoc PPK -->
-                      <th style="padding: 8px 4px; text-align: center; background: #fffbeb; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 80px;" title="Level 9: Badan Ad Hoc — PPK (Kecamatan)">
-                        <div style="font-weight: 800; color: #b45309; font-size: 11px;">L9</div>
+                      <!-- L9 Pejabat Pengadaan -->
+                      <th style="padding: 8px 4px; text-align: center; background: #f0fdfa; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 78px;" title="Level 9: Pejabat Pengadaan (PPBJ)">
+                        <div style="font-weight: 800; color: #0f766e; font-size: 11px;">L9</div>
+                        <div style="font-size: 9px; color: #0d9488;">Pengadaan</div>
+                      </th>
+                      <!-- L10 Bendahara Pengeluaran -->
+                      <th style="padding: 8px 4px; text-align: center; background: #ecfeff; border-bottom: 2px solid #cbd5e1; border-right: 2px solid #0891b2; width: 78px;" title="Level 10: Bendahara Pengeluaran (BP)">
+                        <div style="font-weight: 800; color: #0e7490; font-size: 11px;">L10</div>
+                        <div style="font-size: 9px; color: #0891b2;">Bendahara</div>
+                      </th>
+                      <!-- L11 Panitia Pemilihan Kecamatan (PPK) -->
+                      <th style="padding: 8px 4px; text-align: center; background: #fffbeb; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 78px;" title="Level 11: Panitia Pemilihan Kecamatan (PPK)">
+                        <div style="font-weight: 800; color: #b45309; font-size: 11px;">L11</div>
                         <div style="font-size: 9px; color: #d97706;">PPK (Kec)</div>
                       </th>
-                      <!-- L10 Badan Ad Hoc PPS -->
-                      <th style="padding: 8px 4px; text-align: center; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; width: 80px;" title="Level 10: Badan Ad Hoc — PPS (Desa/Kelurahan)">
-                        <div style="font-weight: 800; color: #475569; font-size: 11px;">L10</div>
+                      <!-- L12 Panitia Pemungutan Suara (PPS) -->
+                      <th style="padding: 8px 4px; text-align: center; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; width: 78px;" title="Level 12: Panitia Pemungutan Suara (PPS)">
+                        <div style="font-weight: 800; color: #475569; font-size: 11px;">L12</div>
                         <div style="font-size: 9px; color: #64748b;">PPS (Desa)</div>
                       </th>
                     </tr>
@@ -3318,19 +3357,29 @@
                         <div style="font-weight: 800; color: #4338ca; font-size: 11px;">L7</div>
                         <div style="font-size: 9px; color: #4f46e5;">Sekr / KPA</div>
                       </th>
-                      <!-- L8 Keuangan / PBJ -->
-                      <th style="padding: 8px 4px; text-align: center; background: #ecfdf5; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 90px;" title="Level 8: Pejabat Perbendaharaan / PPK / PBJ">
+                      <!-- L8 PPK (Pejabat Pembuat Komitmen) -->
+                      <th style="padding: 8px 4px; text-align: center; background: #ecfdf5; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 85px;" title="Level 8: Pejabat Pembuat Komitmen (PPK)">
                         <div style="font-weight: 800; color: #047857; font-size: 11px;">L8</div>
-                        <div style="font-size: 9px; color: #059669;">Keuangan</div>
+                        <div style="font-size: 9px; color: #059669;">PPK</div>
                       </th>
-                      <!-- L9 Badan Ad Hoc PPK -->
-                      <th style="padding: 8px 4px; text-align: center; background: #fffbeb; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 90px;" title="Level 9: Badan Ad Hoc — PPK (Kecamatan)">
-                        <div style="font-weight: 800; color: #b45309; font-size: 11px;">L9</div>
+                      <!-- L9 Pejabat Pengadaan -->
+                      <th style="padding: 8px 4px; text-align: center; background: #f0fdfa; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 85px;" title="Level 9: Pejabat Pengadaan (PPBJ)">
+                        <div style="font-weight: 800; color: #0f766e; font-size: 11px;">L9</div>
+                        <div style="font-size: 9px; color: #0d9488;">Pengadaan</div>
+                      </th>
+                      <!-- L10 Bendahara Pengeluaran -->
+                      <th style="padding: 8px 4px; text-align: center; background: #ecfeff; border-bottom: 2px solid #cbd5e1; border-right: 2px solid #0891b2; width: 85px;" title="Level 10: Bendahara Pengeluaran (BP)">
+                        <div style="font-weight: 800; color: #0e7490; font-size: 11px;">L10</div>
+                        <div style="font-size: 9px; color: #0891b2;">Bendahara</div>
+                      </th>
+                      <!-- L11 Panitia Pemilihan Kecamatan (PPK) -->
+                      <th style="padding: 8px 4px; text-align: center; background: #fffbeb; border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; width: 85px;" title="Level 11: Panitia Pemilihan Kecamatan (PPK)">
+                        <div style="font-weight: 800; color: #b45309; font-size: 11px;">L11</div>
                         <div style="font-size: 9px; color: #d97706;">PPK (Kec)</div>
                       </th>
-                      <!-- L10 Badan Ad Hoc PPS -->
-                      <th style="padding: 8px 4px; text-align: center; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; width: 90px;" title="Level 10: Badan Ad Hoc — PPS (Desa/Kelurahan)">
-                        <div style="font-weight: 800; color: #334155; font-size: 11px;">L10</div>
+                      <!-- L12 Panitia Pemungutan Suara (PPS) -->
+                      <th style="padding: 8px 4px; text-align: center; background: #f1f5f9; border-bottom: 2px solid #cbd5e1; width: 85px;" title="Level 12: Panitia Pemungutan Suara (PPS)">
+                        <div style="font-weight: 800; color: #334155; font-size: 11px;">L12</div>
                         <div style="font-size: 9px; color: #475569;">PPS (Desa)</div>
                       </th>
                     </tr>
@@ -3411,8 +3460,8 @@
                 Ketua KPU bersama 4 Anggota Komisioner (RKB Tahap 4 &amp; Berita Acara Pleno).
               </div>
               <div style="background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #dbeafe;">
-                <strong>2. Pengelola Keuangan &amp; SPBy:</strong><br>
-                Sekretaris KPU (KPA), Pejabat Pembuat Komitmen (PPK), dan Bendahara Pengeluaran (BP).
+                <strong>2. Pengelola Keuangan, Pengadaan &amp; SPBy:</strong><br>
+                Sekretaris KPU (KPA), Pejabat Pembuat Komitmen (PPK), Bendahara Pengeluaran (BP), dan Pejabat Pengadaan (PPBJ).
               </div>
               <div style="background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #dbeafe;">
                 <strong>3. Pengusulan Subbagian (PIC):</strong><br>
@@ -3424,8 +3473,8 @@
           <!-- BILAH FILTER & PENCARIAN PENANDATANGAN -->
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
             <div style="display:flex; gap:6px; flex-wrap:wrap;" id="filter-penandatangan-tabs">
-              <button type="button" class="btn btn-sm btn-primary" data-filter="ALL" onclick="filterPenandatanganTable('ALL')">Semua Penandatangan (14)</button>
-              <button type="button" class="btn btn-sm btn-outline-primary" data-filter="KEUANGAN_LEMBAGA" onclick="filterPenandatanganTable('KEUANGAN_LEMBAGA')">Keuangan &amp; Lembaga (4)</button>
+              <button type="button" class="btn btn-sm btn-primary" data-filter="ALL" onclick="filterPenandatanganTable('ALL')">Semua Penandatangan (15)</button>
+              <button type="button" class="btn btn-sm btn-outline-primary" data-filter="KEUANGAN_LEMBAGA" onclick="filterPenandatanganTable('KEUANGAN_LEMBAGA')">Keuangan &amp; Lembaga (5)</button>
               <button type="button" class="btn btn-sm btn-outline-primary" data-filter="KOMISIONER" onclick="filterPenandatanganTable('KOMISIONER')">Komisioner / Kadiv (5)</button>
               <button type="button" class="btn btn-sm btn-outline-primary" data-filter="SUBBAGIAN" onclick="filterPenandatanganTable('SUBBAGIAN')">Kasubbag Pelaksana (5)</button>
             </div>
@@ -3812,6 +3861,171 @@
                 <button type="button" class="btn btn-primary btn-sm" onclick="saveDeveloperBlueprint()">💾 Simpan Dokumen Blueprint</button>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- MODUL PENGADAAN 18 TAHAP HULU-KE-HILIR                                -->
+        <!-- ===================================================================== -->
+
+        <!-- VIEW PENGADAAN 1: DAFTAR PAKET PENGADAAN -->
+        <section id="view-pengadaan-paket" class="app-view">
+          <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📦 Daftar Paket Pengadaan Barang/Jasa &amp; Konstruksi</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Manajemen Administrasi Kontrak &amp; Rekam Pengadaan 18 Tahap Hulu–Hilir KPU Kabupaten Ngawi (Perpres 46/2025, Perlem LKPP 2/2026 &amp; 3/2026)</p>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="toggleCakraRkbDrawer()">📥 Tarik Mata Anggaran dari RKB</button>
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="createNewPaketPrompt()">➕ Buat Paket Pengadaan Baru</button>
+            </div>
+          </div>
+
+          <!-- Drawer Tarik Mata Anggaran langsung dari RKB SI-PRABU -->
+          <div id="cakra-rkb-pull-drawer" class="cakra-card" style="display:none; border:2px solid #2563eb; margin-bottom:16px;">
+            <div class="cakra-card-header" style="background:#eff6ff;">
+              <div class="cakra-card-title" style="color:#1e3a8a;">📥 Tarik Mata Anggaran langsung dari Tabel RUH Belanja RKB (`siprabu_db`)</div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="cakra-btn cakra-btn-info cakra-btn-sm" onclick="loadSiprabuRkbItems()">🔄 Muat Ulang RKB</button>
+                <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="toggleCakraRkbDrawer()">✖ Tutup</button>
+              </div>
+            </div>
+            <div class="cakra-card-body">
+              <div class="cakra-alert-regulasi">
+                💡 <strong>Zero Re-Entry (Single Source of Truth):</strong> Klik tombol <strong>"⚡ Jadikan Paket Pengadaan"</strong> pada baris belanja RKB di bawah ini untuk langsung membuat paket beserta jadwal 18 tahap otomatis.
+              </div>
+              <div style="max-height:340px; overflow-y:auto;">
+                <table class="cakra-data-table">
+                  <thead>
+                    <tr>
+                      <th>ID Baris</th>
+                      <th>Kode MAK</th>
+                      <th>Subbagian (PIC)</th>
+                      <th>Uraian Komponen / Item Belanja RKB</th>
+                      <th>Volume &amp; Satuan</th>
+                      <th>Harga Satuan (Rp)</th>
+                      <th>Total Pagu (Rp)</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cakra-table-siprabu-rkb-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="cakra-kpi-grid" id="cakra-dashboard-kpi-grid"></div>
+
+          <div class="cakra-card">
+            <div class="cakra-card-header">
+              <div class="cakra-card-title">📋 Rekapitulasi Paket Pengadaan Satker 657811 (Barang, Jasa Lainnya, Konsultansi, Konstruksi, Swakelola &amp; Dikecualikan)</div>
+            </div>
+            <div class="cakra-card-body" style="padding:0; overflow-x:auto;">
+              <table class="cakra-data-table">
+                <thead>
+                  <tr>
+                    <th>Kode &amp; RUP</th>
+                    <th>Nama Paket &amp; Subbagian</th>
+                    <th>Jenis &amp; Jalur Pemilihan</th>
+                    <th>Bentuk Kontrak &amp; Kertas Harga</th>
+                    <th>Pagu / HPS / Kontrak</th>
+                    <th>Penyedia &amp; Status</th>
+                    <th style="text-align:center;">Aksi Cepat (Kokpit / Word / Excel / ZIP)</th>
+                  </tr>
+                </thead>
+                <tbody id="cakra-table-paket-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW PENGADAAN 2: KOKPIT 18 TAHAP FULL-WIDTH -->
+        <section id="view-pengadaan-kokpit" class="app-view">
+          <div class="cakra-cockpit-command-bar" id="cakra-cockpit-top-banner"></div>
+
+          <div class="cakra-phase-ribbon-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+              <span style="font-size:11.5px; font-weight:800; color:#0f172a;">🧭 PETA NAVIGASI 18 TAHAP HULU–HILIR (KLIK TAHAP UNTUK MEMILIH DOKUMEN CETAK):</span>
+              <span style="font-size:11px; color:#64748b;">💡 <em>Tahap bergaris putus-putus otomatis dilewati (Smart Bypass) sesuai nilai &amp; jenis paket</em></span>
+            </div>
+            <div id="cakra-cockpit-stepper-list"></div>
+          </div>
+
+          <div class="cakra-active-stage-action-bar" id="cakra-cockpit-dock-right"></div>
+
+          <div class="cakra-card">
+            <div class="cakra-card-body">
+              <div class="cakra-sub-tabs">
+                <button type="button" class="cakra-sub-tab-btn active" id="cakra-subtab-btn-form" onclick="switchCockpitTab('form')">📝 1. Data Paket, Regulasi &amp; Kontrak</button>
+                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-items" onclick="switchCockpitTab('items')">📊 2. Tabel Item, Survei HPS/Ref. Harga, AHSP &amp; SBOB (Full-Width)</button>
+                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-jadwal" onclick="switchCockpitTab('jadwal')">⏱️ 3. Time-Machine (Nomor &amp; Tanggal 18 Tahap)</button>
+                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-pajak" onclick="switchCockpitTab('pajak')">🧮 4. Kalkulator Pajak, Retensi 5% PHO/FHO, Denda 1‰ &amp; Skor Kinerja</button>
+              </div>
+              <div id="cakra-cockpit-tab-content"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW PENGADAAN 3: DIREKTORI PENYEDIA & PEJABAT PENGADAAN -->
+        <section id="view-pengadaan-penyedia" class="app-view">
+          <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">🏢 Direktori Penyedia / Vendor &amp; Pejabat Pengadaan Satker</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Data KPA, PPK, Bendahara, PPSPM, Pejabat Pengadaan (INDRAYU FATIKA MAHARDIKA), serta Direktori Penyedia (UMK, SBU Konstruksi, Beneficial Ownership &amp; Skor Kinerja).</p>
+            </div>
+            <button type="button" class="cakra-btn cakra-btn-primary" onclick="openAddPenyediaModal()">➕ Tambah Penyedia / Vendor Baru</button>
+          </div>
+
+          <div class="cakra-form-grid">
+            <div class="cakra-card">
+              <div class="cakra-card-header">
+                <div class="cakra-card-title">🏢 Direktori Penyedia / Vendor (UMK, SBU Konstruksi, Beneficial Ownership &amp; Skor Kinerja)</div>
+              </div>
+              <div class="cakra-card-body" style="padding:0; overflow-x:auto;">
+                <table class="cakra-data-table">
+                  <thead>
+                    <tr>
+                      <th>Nama Perusahaan &amp; Kualifikasi</th>
+                      <th>Direktur &amp; NPWP</th>
+                      <th>Beneficial Ownership (BO)</th>
+                      <th>Skor Kinerja</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cakra-table-master-penyedia"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="cakra-card">
+              <div class="cakra-card-header">
+                <div class="cakra-card-title">👤 Pejabat Pengadaan &amp; Pengelola Keuangan Satker KPU Kabupaten Ngawi</div>
+              </div>
+              <div class="cakra-card-body" style="padding:0; overflow-x:auto;">
+                <table class="cakra-data-table">
+                  <thead>
+                    <tr>
+                      <th>Peran</th>
+                      <th>Nama Lengkap &amp; NIP</th>
+                      <th>No. SK &amp; Sertifikat Kompetensi PBJ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cakra-table-master-pejabat"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW PENGADAAN 4: PANDUAN PENGADAAN 18 TAHAP -->
+        <section id="view-panduan-pengadaan" class="app-view">
+          <div class="view-header" style="margin-bottom:16px;">
+            <div>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📘 Panduan Pengadaan 18 Tahap Hulu–Hilir (Regulasi 2025/2026)</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Panduan lengkap Nonkonstruksi, Pekerjaan Konstruksi, Konsultansi Konstruksi, Rancang Bangun, Swakelola, &amp; PBJ Dikecualikan.</p>
+            </div>
+          </div>
+          <div class="cakra-card">
+            <div class="cakra-card-body" id="cakra-panduan-18-tahap-container"></div>
           </div>
         </section>
       </main>
@@ -5075,7 +5289,8 @@
                         <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setAnnouncementLevelsPreset('NONE')" style="font-size: 10px; padding: 2px 7px;">✗ Kosongkan</button>
                         <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('PIMPINAN')" style="font-size: 10px; padding: 2px 7px;" title="L4 Ketua, L5 Rendatin, L6 Komisioner, L7 Sekretaris">Pimpinan (L4–7)</button>
                         <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('OPERATOR')" style="font-size: 10px; padding: 2px 7px;" title="L1 Kasubbag, L2 Pengolah, L3 Operator">Pelaksana (L1–3)</button>
-                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('KEUANGAN')" style="font-size: 10px; padding: 2px 7px;" title="L8 PPK, L9 Bendahara">Keuangan (L8–9)</button>
+                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('KEUANGAN')" style="font-size: 10px; padding: 2px 7px;" title="L8 PPK, L9 Pejabat Pengadaan, L10 Bendahara">Keuangan &amp; PBJ (L8–10)</button>
+                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAnnouncementLevelsPreset('ADHOC')" style="font-size: 10px; padding: 2px 7px;" title="L11 PPK Kecamatan, L12 PPS Desa">Ad Hoc (L11–12)</button>
                       </div>
                     </div>
                     <div id="announcement-level-checklist-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; max-height: 190px; overflow-y: auto; padding: 4px; border: 1px solid #f1f5f9; border-radius: 6px; background: #fafafa;">
@@ -5535,9 +5750,11 @@
                       <option value="5">Level 5: Divisi Rendatin (Anggota KPU Pengampu Perencanaan)</option>
                       <option value="6">Level 6: Anggota Komisioner KPU</option>
                       <option value="7">Level 7: Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)</option>
-                      <option value="8">Level 8: Pejabat Pembuat Komitmen &amp; PBJ</option>
-                      <option value="9">Level 9: Badan Ad Hoc — PPK (Kecamatan)</option>
-                      <option value="10">Level 10: Badan Ad Hoc — PPS (Desa/Kelurahan)</option>
+                      <option value="8">Level 8: Pejabat Pembuat Komitmen (PPK)</option>
+                      <option value="9">Level 9: Pejabat Pengadaan</option>
+                      <option value="10">Level 10: Bendahara Pengeluaran</option>
+                      <option value="11">Level 11: Panitia Pemilihan Kecamatan (PPK)</option>
+                      <option value="12">Level 12: Panitia Pemungutan Suara (PPS)</option>
                     </select>
                   </div>
 
@@ -6786,6 +7003,7 @@
 
     <script src="/data_juknis.js?v=1.0.0"></script>
     <script src="/app.js?v=4.6.0"></script>
+    <script src="/cakra_module.js?v=1.0.0"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

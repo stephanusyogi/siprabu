@@ -3465,3 +3465,372 @@ tr.rkb-row-lvl-41.table-row-selected td {
 #table-users tbody tr:hover {
   background-color: #f8fafc !important;
 }
+
+
+/* ========================================================================= */
+/* MODUL PENGADAAN 18 TAHAP HULU-KE-HILIR (SCOPED .cakra-*)                  */
+/* ========================================================================= */
+.cakra-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cakra-kpi-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #991b1b;
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.cakra-kpi-card.amber { border-left-color: #d97706; }
+.cakra-kpi-card.green { border-left-color: #059669; }
+.cakra-kpi-card.blue { border-left-color: #2563eb; }
+
+.cakra-kpi-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.cakra-kpi-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+}
+
+.cakra-kpi-sub {
+  font-size: 11px;
+  color: #475569;
+  margin-top: 3px;
+}
+
+.cakra-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.cakra-card-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cakra-card-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cakra-card-body {
+  padding: 16px;
+}
+
+.cakra-cockpit-command-bar {
+  background: #0f172a;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.cakra-phase-ribbon-box {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.cakra-phase-group-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.cakra-phase-badge-header {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #334155;
+  text-align: center;
+  border: 1px solid #cbd5e1;
+}
+
+.cakra-stage-pills-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.cakra-stage-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  min-width: 0;
+}
+
+.cakra-stage-pill-btn:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.cakra-stage-pill-btn.active {
+  background: #eff6ff;
+  border: 2px solid #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.18);
+}
+
+.cakra-stage-pill-btn.bypass {
+  opacity: 0.48;
+  background: #f8fafc;
+  border-style: dashed;
+}
+
+.cakra-stage-pill-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cakra-stage-pill-btn.active .cakra-stage-pill-num {
+  background: #2563eb;
+}
+
+.cakra-stage-pill-text {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+}
+
+.cakra-stage-pill-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cakra-stage-pill-date {
+  font-size: 9.5px;
+  color: #475569;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cakra-active-stage-action-bar {
+  background: linear-gradient(90deg, #eff6ff, #f8fafc);
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #2563eb;
+  border-radius: 9px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cakra-sub-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 2px solid #cbd5e1;
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.cakra-sub-tab-btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+}
+
+.cakra-sub-tab-btn.active {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.cakra-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cakra-data-table th {
+  background: #0f172a;
+  color: #fff;
+  font-weight: 700;
+  text-align: left;
+  padding: 9px 10px;
+  border: 1px solid #334155;
+}
+
+.cakra-data-table td {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  vertical-align: top;
+}
+
+.cakra-data-table tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.cakra-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.cakra-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.cakra-badge-blue { background: #dbeafe; color: #1e40af; }
+.cakra-badge-green { background: #d1fae5; color: #065f46; }
+.cakra-badge-amber { background: #fef3c7; color: #92400e; }
+.cakra-badge-red { background: #fee2e2; color: #991b1b; }
+.cakra-badge-purple { background: #f3e8ff; color: #6b21a8; }
+.cakra-badge-slate { background: #e2e8f0; color: #334155; }
+
+.cakra-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.cakra-btn-sm { padding: 5px 10px; font-size: 11px; }
+.cakra-btn-primary { background: #991b1b; color: #fff; }
+.cakra-btn-primary:hover { background: #7f1d1d; }
+.cakra-btn-info { background: #2563eb; color: #fff; }
+.cakra-btn-info:hover { background: #1e40af; }
+.cakra-btn-success { background: #059669; color: #fff; }
+.cakra-btn-success:hover { background: #047857; }
+.cakra-btn-warning { background: #d97706; color: #fff; }
+.cakra-btn-outline { background: #fff; border-color: #94a3b8; color: #0f172a; }
+.cakra-btn-outline:hover { background: #f1f5f9; }
+.cakra-btn-danger { background: #dc2626; color: #fff; }
+
+.cakra-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.cakra-form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.cakra-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.cakra-form-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.cakra-form-control {
+  padding: 7px 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.cakra-form-control:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.cakra-alert-regulasi {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  font-size: 12px;
+  color: #1e3a8a;
+  margin-bottom: 12px;
+}
+
+.cakra-doc-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}

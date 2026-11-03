@@ -32,7 +32,14 @@ const PRABU_VIEW_CODES = {
   'view-rekap-pelaksanaan': 22,
   'view-audit': 23,
   'view-panduan-pelaksanaan': 24,
-  'view-menu-matrix': 25
+  'view-menu-matrix': 25,
+  'view-juknis-kegiatan': 26,
+  'view-penandatangan': 27,
+  'view-pengumuman': 28,
+  'view-pengadaan-paket': 29,
+  'view-pengadaan-kokpit': 30,
+  'view-pengadaan-penyedia': 31,
+  'view-panduan-pengadaan': 32
 };
 
 const PRABU_CODE_TO_VIEW = {
@@ -60,7 +67,14 @@ const PRABU_CODE_TO_VIEW = {
   22: 'view-rekap-pelaksanaan',
   23: 'view-audit',
   24: 'view-panduan-pelaksanaan',
-  25: 'view-menu-matrix'
+  25: 'view-menu-matrix',
+  26: 'view-juknis-kegiatan',
+  27: 'view-penandatangan',
+  28: 'view-pengumuman',
+  29: 'view-pengadaan-paket',
+  30: 'view-pengadaan-kokpit',
+  31: 'view-pengadaan-penyedia',
+  32: 'view-panduan-pengadaan'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -89,7 +103,14 @@ const SAKTI_VIEW_TITLES = {
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
   'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
-  'view-menu-matrix': 'Manajemen Hak Akses'
+  'view-menu-matrix': 'Manajemen Hak Akses',
+  'view-juknis-kegiatan': 'Standar 28 Kegiatan KPT 543/2022',
+  'view-penandatangan': 'Pejabat Penandatangan Satker',
+  'view-pengumuman': 'Manajemen Pengumuman Satker',
+  'view-pengadaan-paket': 'Daftar Paket Pengadaan',
+  'view-pengadaan-kokpit': 'Kokpit 18 Tahap Pengadaan',
+  'view-pengadaan-penyedia': 'Direktori Penyedia & UMK',
+  'view-panduan-pengadaan': 'Panduan Pengadaan 18 Tahap'
 };
 
 function bufferToBase64Url(buf) {
@@ -158,7 +179,6 @@ function parseRouteToken(tokenPath) {
   }
 }
 
-
 // Backward-compatibility aliases for SI-PRABU Core
 const SAKTI_VIEW_CODES = PRABU_VIEW_CODES;
 const SAKTI_CODE_TO_VIEW = PRABU_CODE_TO_VIEW;
@@ -174,8 +194,6 @@ module.exports = {
   generateRouteToken,
   generateLoginToken,
   parseRouteToken,
-  PRABU_VIEW_CODES,
-  PRABU_CODE_TO_VIEW,
   SAKTI_VIEW_TITLES,
   generateSaktiLoginToken,
   generateSaktiRouteToken,

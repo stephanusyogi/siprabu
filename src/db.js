@@ -490,10 +490,10 @@ function initDb() {
     );
   `);
 
-  // Migrasi Kolom Dinamis Level 0-10 untuk app_menu_matrix & satker_users
-  for (let i = 0; i <= 10; i++) {
+  // Migrasi Kolom Dinamis Level 0-12 untuk app_menu_matrix & satker_users
+  for (let i = 0; i <= 12; i++) {
     safeAddColumn('app_menu_matrix', `allow_l${i} INTEGER DEFAULT ${i === 0 ? 1 : 0}`);
-    const defaultMode = [0, 1, 2, 3, 7, 8, 9, 10].includes(i) ? 'EDITOR' : 'VIEWER';
+    const defaultMode = [0, 1, 2, 3, 7, 8, 9, 10, 11, 12].includes(i) ? 'EDITOR' : 'VIEWER';
     safeAddColumn('app_menu_matrix', `mode_l${i} TEXT DEFAULT '${defaultMode}'`);
   }
   safeAddColumn('satker_users', "role_mode TEXT DEFAULT 'SWITCH'");
@@ -530,7 +530,11 @@ function initDb() {
     { urutan: 25, menu_key: 'view-monitoring', menu_label: 'Monitoring Unduhan', folder_key: 'folder-administrasi', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
     { urutan: 26, menu_key: 'view-developer', menu_label: 'Blueprint & PRD (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
     { urutan: 27, menu_key: 'view-dev-push', menu_label: 'Pusat Rilis & Push GitHub (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 28, menu_key: 'view-pengumuman', menu_label: 'Pengumuman', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' }
+    { urutan: 28, menu_key: 'view-pengumuman', menu_label: 'Pengumuman', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 29, menu_key: 'view-pengadaan-paket', menu_label: 'Daftar Paket Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
+    { urutan: 30, menu_key: 'view-pengadaan-kokpit', menu_label: 'Kokpit 18 Tahap', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
+    { urutan: 31, menu_key: 'view-pengadaan-penyedia', menu_label: 'Direktori Penyedia', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
+    { urutan: 32, menu_key: 'view-panduan-pengadaan', menu_label: 'Panduan Pengadaan', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' }
   ];
 
   try {
@@ -642,7 +646,7 @@ function initDb() {
     );
   `);
 
-  for (let i = 0; i <= 10; i++) {
+  for (let i = 0; i <= 12; i++) {
     safeAddColumn('app_sheet_matrix', `allow_l${i} INTEGER DEFAULT 1`);
     const defaultCsMode = (i <= 3 || i === 5) ? 'SWITCH' : 'LENGKAP';
     safeAddColumn('app_sheet_matrix', `cs_mode_l${i} TEXT DEFAULT '${defaultCsMode}'`);
@@ -1153,6 +1157,117 @@ function initDb() {
 
   // Migrasi password lama ke scrypt hash secara aman tanpa mereset akun
   migratePasswordsToScrypt();
+
+  // Migrasi 13-Level RBAC (L0-L12) & Pemisahan Akun Perencanaan (L1), PPK (L8), PPBJ (L9), Bendahara (L10)
+  try {
+    const rbac13Flag = db.prepare("SELECT value FROM settings_satker WHERE `key` = 'rbac_13_levels_v1'").get();
+    if (!rbac13Flag || rbac13Flag.value !== '1') {
+      const sIns = db.prepare('INSERT OR REPLACE INTO settings_satker (`key`, value) VALUES (?, ?)');
+      sIns.run('ppkom_username', 'ppk_ngawi');
+      sIns.run('ppbj_nama', 'INDRAYU FATIKA MAHARDIKA');
+      sIns.run('ppbj_jabatan', 'Pejabat Pengadaan Barang/Jasa');
+      sIns.run('ppbj_username', 'ppbj_ngawi');
+      sIns.run('bp_username', 'bp_ngawi');
+
+      // 1. Pastikan @perencanaan hanya memiliki 1 peran (Level 1)
+      const uPerencanaan = getUsers().find(u => u.username === 'perencanaan');
+      if (uPerencanaan) {
+        saveUser({
+          id: uPerencanaan.id,
+          username: 'perencanaan',
+          nama_pejabat: uPerencanaan.nama_pejabat || 'MOHAMMAD NOOR JIHAN',
+          nip: uPerencanaan.nip || '19840101 200912 1 001',
+          jabatan: 'Kepala Sub Bagian Perencanaan, Data dan Informasi',
+          level: 1,
+          pic_subbag: 'SEMUA',
+          mode_akses: 'EDITOR',
+          roles: [{ level: 1, pic: 'SEMUA', label_peran: 'Kepala Sub Bagian Perencanaan, Data dan Informasi', mode_akses: 'EDITOR', is_default: 1 }]
+        });
+      }
+
+      // 2. Pastikan @ppk_ngawi (Level 8) tersedia sebagai akun terpisah
+      const uPpk = getUsers().find(u => u.username === 'ppk_ngawi');
+      saveUser({
+        id: uPpk?.id || null,
+        username: 'ppk_ngawi',
+        password: uPpk ? '' : 'kpu12345',
+        nama_pejabat: 'MOHAMMAD NOOR JIHAN',
+        nip: '19840101 200912 1 001',
+        jabatan: 'Pejabat Pembuat Komitmen (PPK)',
+        level: 8,
+        pic_subbag: 'SEMUA',
+        mode_akses: 'EDITOR',
+        roles: [{ level: 8, pic: 'SEMUA', label_peran: 'Pejabat Pembuat Komitmen (PPK)', mode_akses: 'EDITOR', is_default: 1 }]
+      });
+
+      // 3. Pastikan @ppbj_ngawi (Level 9) tersedia
+      const uPpbj = getUsers().find(u => u.username === 'ppbj_ngawi');
+      saveUser({
+        id: uPpbj?.id || null,
+        username: 'ppbj_ngawi',
+        password: uPpbj ? '' : 'kpu12345',
+        nama_pejabat: 'INDRAYU FATIKA MAHARDIKA',
+        nip: '-',
+        jabatan: 'Pejabat Pengadaan Barang/Jasa',
+        level: 9,
+        pic_subbag: 'SEMUA',
+        mode_akses: 'EDITOR',
+        roles: [{ level: 9, pic: 'SEMUA', label_peran: 'Pejabat Pengadaan Barang/Jasa', mode_akses: 'EDITOR', is_default: 1 }]
+      });
+
+      // 4. Pastikan @bp_ngawi (Level 10) tersedia
+      const uBp = getUsers().find(u => u.username === 'bp_ngawi');
+      saveUser({
+        id: uBp?.id || null,
+        username: 'bp_ngawi',
+        password: uBp ? '' : 'kpu12345',
+        nama_pejabat: 'IMAS MAESAROH',
+        nip: '19850615 200902 2 013',
+        jabatan: 'Bendahara Pengeluaran',
+        level: 10,
+        pic_subbag: 'SEMUA',
+        mode_akses: 'EDITOR',
+        roles: [{ level: 10, pic: 'SEMUA', label_peran: 'Bendahara Pengeluaran', mode_akses: 'EDITOR', is_default: 1 }]
+      });
+
+      // 5. Sinkronisasi matriks L8-L12 pada app_menu_matrix
+      const menuRows = db.prepare('SELECT * FROM app_menu_matrix').all();
+      const updMenu13 = db.prepare(`
+        UPDATE app_menu_matrix
+        SET allow_l8 = ?, mode_l8 = ?,
+            allow_l9 = ?, mode_l9 = ?,
+            allow_l10 = ?, mode_l10 = ?,
+            allow_l11 = ?, mode_l11 = ?,
+            allow_l12 = ?, mode_l12 = ?
+        WHERE id = ?
+      `);
+      for (const m of menuRows) {
+        const isPengadaan = m.folder_key === 'folder-pengadaan' || m.menu_key === 'view-panduan-pengadaan';
+        const isDashboardOrCommon = ['view-dashboard', 'view-db-regulasi', 'view-juknis-kegiatan', 'view-monitoring'].includes(m.menu_key);
+        const isRkbOrRekap = ['view-rkb', 'view-rekap-perencanaan', 'view-rekap-pelaksanaan', 'view-db-sbm', 'view-db-bas', 'view-db-kuantitas', 'view-penandatangan', 'view-panduan-pelaksanaan'].includes(m.menu_key);
+        const isPpkMenu = ['view-dashboard', 'view-db-ppk', 'view-db-pps', 'view-db-regulasi', 'view-juknis-kegiatan', 'view-monitoring'].includes(m.menu_key);
+        const isPpsMenu = ['view-dashboard', 'view-db-pps', 'view-db-regulasi', 'view-juknis-kegiatan', 'view-monitoring'].includes(m.menu_key);
+
+        const allow8 = (isPengadaan || isDashboardOrCommon || isRkbOrRekap) ? 1 : 0;
+        const mode8 = isPengadaan ? 'EDITOR' : 'VIEWER';
+        const allow9 = (isPengadaan || isDashboardOrCommon || ['view-db-sbm', 'view-db-bas', 'view-db-kuantitas', 'view-penandatangan'].includes(m.menu_key)) ? 1 : 0;
+        const mode9 = isPengadaan ? 'EDITOR' : 'VIEWER';
+        const allow10 = (isPengadaan || isDashboardOrCommon || isRkbOrRekap) ? 1 : 0;
+        const mode10 = (m.menu_key === 'view-pengadaan-kokpit') ? 'EDITOR' : 'VIEWER';
+        const allow11 = isPpkMenu ? 1 : 0;
+        const mode11 = m.menu_key === 'view-db-ppk' ? 'EDITOR' : 'VIEWER';
+        const allow12 = isPpsMenu ? 1 : 0;
+        const mode12 = m.menu_key === 'view-db-pps' ? 'EDITOR' : 'VIEWER';
+
+        updMenu13.run(allow8, mode8, allow9, mode9, allow10, mode10, allow11, mode11, allow12, mode12, m.id);
+      }
+
+      sIns.run('rbac_13_levels_v1', '1');
+      console.log('[RBAC-13] Migrasi 13-Level (L0-L12) & akun mandiri PPK/PPBJ/Bendahara selesai.');
+    }
+  } catch (e) {
+    console.warn('[RBAC-13] Peringatan migrasi 13-level:', e.message);
+  }
 
   // Konfigurasi / Pemulihan Kata Sandi Admin via Environment Variable (P0 Mandate)
   try {
@@ -4186,6 +4301,8 @@ function getMenuMatrix() {
       allow_l8: Number(r.allow_l8 ?? 0),
       allow_l9: Number(r.allow_l9 ?? 0),
       allow_l10: Number(r.allow_l10 ?? 0),
+      allow_l11: Number(r.allow_l11 ?? 0),
+      allow_l12: Number(r.allow_l12 ?? 0),
       mode_l0: r.mode_l0 || (r.required_mode === 'EDITOR' ? 'EDITOR' : 'VIEWER'),
       mode_l1: r.mode_l1 || (r.required_mode === 'EDITOR' ? 'EDITOR' : 'VIEWER'),
       mode_l2: r.mode_l2 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
@@ -4194,9 +4311,11 @@ function getMenuMatrix() {
       mode_l5: r.mode_l5 || 'VIEWER',
       mode_l6: r.mode_l6 || 'VIEWER',
       mode_l7: r.mode_l7 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
-      mode_l8: r.mode_l8 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
-      mode_l9: r.mode_l9 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER'),
-      mode_l10: r.mode_l10 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan') ? 'EDITOR' : 'VIEWER')
+      mode_l8: r.mode_l8 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan' || String(r.menu_key).startsWith('view-pengadaan')) ? 'EDITOR' : 'VIEWER'),
+      mode_l9: r.mode_l9 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan' || String(r.menu_key).startsWith('view-pengadaan')) ? 'EDITOR' : 'VIEWER'),
+      mode_l10: r.mode_l10 || ((r.menu_key === 'view-rkb' || r.menu_key === 'view-revisi-pengajuan' || String(r.menu_key).startsWith('view-pengadaan')) ? 'EDITOR' : 'VIEWER'),
+      mode_l11: r.mode_l11 || 'VIEWER',
+      mode_l12: r.mode_l12 || 'VIEWER'
     }));
   } catch (e) {
     console.warn('[MENU-MATRIX] Gagal ambil matrix:', e.message);
@@ -4207,7 +4326,7 @@ function getMenuMatrix() {
 function saveMenuMatrix(items = []) {
   if (!Array.isArray(items) || items.length === 0) return getMenuMatrix();
   let updateStmt;
-  let has11Levels = true;
+  let has13Levels = true;
   try {
     updateStmt = db.prepare(`
       UPDATE app_menu_matrix 
@@ -4222,11 +4341,13 @@ function saveMenuMatrix(items = []) {
           allow_l8 = ?, mode_l8 = ?,
           allow_l9 = ?, mode_l9 = ?,
           allow_l10 = ?, mode_l10 = ?,
+          allow_l11 = ?, mode_l11 = ?,
+          allow_l12 = ?, mode_l12 = ?,
           required_mode = ?, updated_at = CURRENT_TIMESTAMP
       WHERE menu_key = ?
     `);
   } catch (err) {
-    has11Levels = false;
+    has13Levels = false;
     updateStmt = db.prepare(`
       UPDATE app_menu_matrix 
       SET allow_l0 = ?, mode_l0 = ?,
@@ -4240,7 +4361,7 @@ function saveMenuMatrix(items = []) {
   }
   items.forEach(item => {
     try {
-      if (has11Levels) {
+      if (has13Levels) {
         updateStmt.run(
           item.allow_l0 ? 1 : 0, item.mode_l0 || 'EDITOR',
           item.allow_l1 ? 1 : 0, item.mode_l1 || 'EDITOR',
@@ -4253,6 +4374,8 @@ function saveMenuMatrix(items = []) {
           item.allow_l8 ? 1 : 0, item.mode_l8 || 'VIEWER',
           item.allow_l9 ? 1 : 0, item.mode_l9 || 'VIEWER',
           item.allow_l10 ? 1 : 0, item.mode_l10 || 'VIEWER',
+          item.allow_l11 ? 1 : 0, item.mode_l11 || 'VIEWER',
+          item.allow_l12 ? 1 : 0, item.mode_l12 || 'VIEWER',
           item.required_mode || item.mode_l1 || 'VIEWER',
           item.menu_key
         );
@@ -4293,6 +4416,8 @@ function getSheetMatrix() {
       allow_l8: Number(r.allow_l8 ?? 1),
       allow_l9: Number(r.allow_l9 ?? 1),
       allow_l10: Number(r.allow_l10 ?? 1),
+      allow_l11: Number(r.allow_l11 ?? 1),
+      allow_l12: Number(r.allow_l12 ?? 1),
       cs_mode_l0: r.cs_mode_l0 || 'SWITCH',
       cs_mode_l1: r.cs_mode_l1 || 'SWITCH',
       cs_mode_l2: r.cs_mode_l2 || 'SWITCH',
@@ -4303,7 +4428,9 @@ function getSheetMatrix() {
       cs_mode_l7: r.cs_mode_l7 || 'LENGKAP',
       cs_mode_l8: r.cs_mode_l8 || 'LENGKAP',
       cs_mode_l9: r.cs_mode_l9 || 'LENGKAP',
-      cs_mode_l10: r.cs_mode_l10 || 'LENGKAP'
+      cs_mode_l10: r.cs_mode_l10 || 'LENGKAP',
+      cs_mode_l11: r.cs_mode_l11 || 'LENGKAP',
+      cs_mode_l12: r.cs_mode_l12 || 'LENGKAP'
     }));
   } catch (e) {
     console.warn('[SHEET-MATRIX] Gagal ambil matrix:', e.message);
@@ -4326,6 +4453,8 @@ function saveSheetMatrix(items = []) {
         allow_l8 = ?, cs_mode_l8 = ?,
         allow_l9 = ?, cs_mode_l9 = ?,
         allow_l10 = ?, cs_mode_l10 = ?,
+        allow_l11 = ?, cs_mode_l11 = ?,
+        allow_l12 = ?, cs_mode_l12 = ?,
         updated_at = CURRENT_TIMESTAMP
     WHERE sheet_key = ?
   `);
@@ -4344,6 +4473,8 @@ function saveSheetMatrix(items = []) {
         item.allow_l8 ? 1 : 0, item.cs_mode_l8 || 'LENGKAP',
         item.allow_l9 ? 1 : 0, item.cs_mode_l9 || 'LENGKAP',
         item.allow_l10 ? 1 : 0, item.cs_mode_l10 || 'LENGKAP',
+        item.allow_l11 ? 1 : 0, item.cs_mode_l11 || 'LENGKAP',
+        item.allow_l12 ? 1 : 0, item.cs_mode_l12 || 'LENGKAP',
         item.sheet_key
       );
     } catch (e) {
@@ -4373,7 +4504,7 @@ function getUsers() {
     for (const u of users) {
       u.roles = roleMap[u.id] || [];
       if (u.roles.length === 0) {
-        let defaultMode = [0, 1, 2, 3, 7, 8, 9, 10].includes(Number(u.level)) && !u.username.startsWith('divisi_') ? 'EDITOR' : 'VIEWER';
+        let defaultMode = [0, 1, 2, 3, 7, 8, 9, 10, 11, 12].includes(Number(u.level)) && !u.username.startsWith('divisi_') ? 'EDITOR' : 'VIEWER';
         u.roles = [{
           id: 0,
           user_id: u.id,
@@ -4396,7 +4527,7 @@ function getUserById(id) {
   if (u) {
     u.roles = getUserRoles(u.id);
     if (u.roles.length === 0) {
-      let defaultMode = [0, 1, 2, 3, 7, 8, 9, 10].includes(Number(u.level)) && !u.username.startsWith('divisi_') ? 'EDITOR' : 'VIEWER';
+      let defaultMode = [0, 1, 2, 3, 7, 8, 9, 10, 11, 12].includes(Number(u.level)) && !u.username.startsWith('divisi_') ? 'EDITOR' : 'VIEWER';
       u.roles = [{
         id: 0,
         user_id: u.id,
@@ -4523,7 +4654,7 @@ function saveUser(userData, actorUser = null) {
     const can_delete = userData.can_delete !== undefined ? (Number(userData.can_delete) ? 1 : 0) : 1;
     const res = db.prepare(`
       INSERT INTO satker_users (username, password, nama_pejabat, nip, nik, no_hp, jabatan, email, role_id, level, pic_subbag, is_active, token_version, role_mode, can_delete)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
     `).run(username, finalPassword, nama_pejabat, nip, nik, no_hp, jabatan, email, role_id, level, pic_subbag, is_active, role_mode, can_delete);
 
     const newId = res.lastInsertRowid;
@@ -4887,9 +5018,9 @@ function getPenandatanganList() {
       jabatan_penandatangan: 'Pejabat Pembuat Komitmen (PPK)',
       nama_pejabat: settings.ppkom_nama || 'MOHAMMAD NOOR JIHAN',
       nip: settings.ppkom_nip || '19840101 200912 1 001',
-      jabatan_dinas: settings.ppkom_jabatan || 'Kasubbag Perencanaan, Data dan Informasi',
-      username_terkait: 'perencanaan',
-      user_id: userMap['perencanaan']?.id || null,
+      jabatan_dinas: settings.ppkom_jabatan || 'Pejabat Pembuat Komitmen (PPK)',
+      username_terkait: settings.ppkom_username || 'ppk_ngawi',
+      user_id: userMap[settings.ppkom_username || 'ppk_ngawi']?.id || null,
       status: 'AKTIF',
       deskripsi: 'Pejabat penguji tagihan, penerbit perikatan/kontrak, dan validasi perintah bayar (SPBy).'
     },
@@ -4904,14 +5035,30 @@ function getPenandatanganList() {
       nama_pejabat: settings.bp_nama || settings.bendahara_nama || 'IMAS MAESAROH',
       nip: settings.bp_nip || settings.bendahara_nip || '19850615 200902 2 013',
       jabatan_dinas: settings.bp_jabatan || settings.bendahara_jabatan || 'Bendahara Pengeluaran KPU Kabupaten Ngawi',
-      username_terkait: 'bp_ngawi',
-      user_id: userMap['bp_ngawi']?.id || userMap['op_kul']?.id || null,
+      username_terkait: settings.bp_username || 'bp_ngawi',
+      user_id: userMap[settings.bp_username || 'bp_ngawi']?.id || userMap['op_kul']?.id || null,
       status: 'AKTIF',
       deskripsi: 'Pengelola Uang Persediaan (UP/GUP/TUP/LS) dan verifikasi bukti pengeluaran kuitansi.'
+    },
+    // 5. PEJABAT PENGADAAN (PPBJ)
+    {
+      id: 'PEJABAT_PENGADAAN',
+      urutan: 5,
+      kategori: 'KEUANGAN',
+      kategori_label: 'Pengelola Keuangan & Perbendaharaan',
+      kode_jabatan: 'PEJABAT_PENGADAAN',
+      jabatan_penandatangan: 'Pejabat Pengadaan (PPBJ)',
+      nama_pejabat: settings.ppbj_nama || 'INDRAYU FATIKA MAHARDIKA',
+      nip: settings.ppbj_nip || '-',
+      jabatan_dinas: settings.ppbj_jabatan || 'Pejabat Pengadaan Barang/Jasa',
+      username_terkait: settings.ppbj_username || 'ppbj_ngawi',
+      user_id: userMap[settings.ppbj_username || 'ppbj_ngawi']?.id || null,
+      status: 'AKTIF',
+      deskripsi: 'Pelaksana pemilihan penyedia E-Purchasing Katalog Elektronik dan Pengadaan Langsung (s.d. Rp200 Juta).'
     }
   ];
 
-  let uIdx = 5;
+  let uIdx = 6;
   const divOrder = ['RENDATIN', 'TEKNIS', 'PARSDM', 'KUL', 'HUKUM'];
   const userDivMap = {
     RENDATIN: 'divisi_rendatin',
@@ -4998,6 +5145,7 @@ function updatePenandatangan(id, data, actorUser = null) {
     stmtSet.run('ppkom_nama', nama);
     stmtSet.run('ppkom_nip', nip);
     if (jabatan) stmtSet.run('ppkom_jabatan', jabatan);
+    if (username) stmtSet.run('ppkom_username', username);
   } else if (id === 'BENDAHARA') {
     stmtSet.run('bp_nama', nama);
     stmtSet.run('bp_nip', nip);
@@ -5007,6 +5155,12 @@ function updatePenandatangan(id, data, actorUser = null) {
       stmtSet.run('bp_jabatan', jabatan);
       stmtSet.run('bendahara_jabatan', jabatan);
     }
+    if (username) stmtSet.run('bp_username', username);
+  } else if (id === 'PEJABAT_PENGADAAN') {
+    stmtSet.run('ppbj_nama', nama);
+    stmtSet.run('ppbj_nip', nip);
+    if (jabatan) stmtSet.run('ppbj_jabatan', jabatan);
+    if (username) stmtSet.run('ppbj_username', username);
   } else if (id.startsWith('KOM_')) {
     const subCode = id.replace('KOM_', '');
     db.prepare(`
@@ -5023,14 +5177,32 @@ function updatePenandatangan(id, data, actorUser = null) {
     `).run(nama, nip, jabatan, subCode);
   }
 
+  // Sinkronkan juga ke tabel pbj_pejabat (Modul Pengadaan 18 Tahap) agar 100% SSOT
+  try {
+    const peranMap = {
+      SEKRETARIS: 'KPA',
+      PPK: 'PPK',
+      PEJABAT_PENGADAAN: 'PEJABAT_PENGADAAN',
+      BENDAHARA: 'BENDAHARA',
+      KAS_KUL: 'PPSPM'
+    };
+    if (peranMap[id]) {
+      db.prepare(`
+        UPDATE pbj_pejabat
+        SET nama_lengkap = ?, nip = ?, jabatan_struktural = COALESCE(NULLIF(?, ''), jabatan_struktural)
+        WHERE peran = ?
+      `).run(nama, nip || '-', jabatan, peranMap[id]);
+    }
+  } catch (e) {}
+
   // Jika username_terkait ditentukan, update juga data satker_users agar sinkron!
   if (username) {
     try {
       db.prepare(`
         UPDATE satker_users
-        SET nama_pejabat = ?, jabatan = COALESCE(NULLIF(?, ''), jabatan)
+        SET nama_pejabat = ?, nip = ?, jabatan = COALESCE(NULLIF(?, ''), jabatan)
         WHERE username = ?
-      `).run(nama, jabatan, username);
+      `).run(nama, nip, jabatan, username);
     } catch (e) {}
   }
 
@@ -7680,7 +7852,7 @@ function getActiveAnnouncementsForLevel(userLevel = 0) {
       }
       // Fallback ke rentang level min/max jika target_levels belum diisi
       const min = r.target_level_min !== undefined && r.target_level_min !== null ? Number(r.target_level_min) : 0;
-      const max = r.target_level_max !== undefined && r.target_level_max !== null ? Number(r.target_level_max) : 10;
+      const max = r.target_level_max !== undefined && r.target_level_max !== null ? Number(r.target_level_max) : 12;
       return lvl >= min && lvl <= max;
     });
   } catch (e) {
@@ -7719,7 +7891,7 @@ function saveAnnouncement(data, actorUser = null) {
   // Normalisasi checklist target_levels
   let target_levels = null;
   let computedMin = 0;
-  let computedMax = 10;
+  let computedMax = 12;
   if (data.target_levels) {
     let arr = [];
     if (Array.isArray(data.target_levels)) {
@@ -7739,8 +7911,8 @@ function saveAnnouncement(data, actorUser = null) {
     }
   }
 
-  const target_level_min = data.target_level_min !== undefined ? Math.max(0, Math.min(10, Number(data.target_level_min))) : computedMin;
-  const target_level_max = data.target_level_max !== undefined ? Math.max(0, Math.min(10, Number(data.target_level_max))) : computedMax;
+  const target_level_min = data.target_level_min !== undefined ? Math.max(0, Math.min(12, Number(data.target_level_min))) : computedMin;
+  const target_level_max = data.target_level_max !== undefined ? Math.max(0, Math.min(12, Number(data.target_level_max))) : computedMax;
   const tanggal_mulai = (data.tanggal_mulai || '').trim() || null;
   const tanggal_selesai = (data.tanggal_selesai || '').trim() || null;
   const urutan = data.urutan !== undefined ? Number(data.urutan) : 0;

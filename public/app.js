@@ -84,7 +84,11 @@ const PRABU_VIEW_CODES = {
   'view-menu-matrix': 25,
   'view-juknis-kegiatan': 26,
   'view-penandatangan': 27,
-  'view-pengumuman': 28
+  'view-pengumuman': 28,
+  'view-pengadaan-paket': 29,
+  'view-pengadaan-kokpit': 30,
+  'view-pengadaan-penyedia': 31,
+  'view-panduan-pengadaan': 32
 };
 
 const PRABU_CODE_TO_VIEW = {
@@ -115,7 +119,11 @@ const PRABU_CODE_TO_VIEW = {
   25: 'view-menu-matrix',
   26: 'view-juknis-kegiatan',
   27: 'view-penandatangan',
-  28: 'view-pengumuman'
+  28: 'view-pengumuman',
+  29: 'view-pengadaan-paket',
+  30: 'view-pengadaan-kokpit',
+  31: 'view-pengadaan-penyedia',
+  32: 'view-panduan-pengadaan'
 };
 
 const PRABU_VIEW_TITLES = {
@@ -147,7 +155,11 @@ const PRABU_VIEW_TITLES = {
   'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
   'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
   'view-menu-matrix': 'Manajemen Hak Akses',
-  'view-pengumuman': 'Manajemen Pengumuman Satker'
+  'view-pengumuman': 'Manajemen Pengumuman Satker',
+  'view-pengadaan-paket': 'Daftar Paket Pengadaan',
+  'view-pengadaan-kokpit': 'Kokpit 18 Tahap Pengadaan',
+  'view-pengadaan-penyedia': 'Direktori Penyedia & UMK',
+  'view-panduan-pengadaan': 'Panduan Pengadaan 18 Tahap'
 };
 
 function bufferToBase64Url(uint8Array) {
@@ -855,9 +867,11 @@ function getSelectableRolesForUser(user) {
       { id: 1005, level: 5, pic: "RENDATIN", mode_akses: "VIEWER", label_peran: "Anggota KPU Divisi Rendatin" },
       { id: 1006, level: 6, pic: "TEKNIS", mode_akses: "VIEWER", label_peran: "Anggota Komisioner KPU (Divisi Teknis)" },
       { id: 1007, level: 7, pic: "SEMUA", mode_akses: "VIEWER", label_peran: "Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)" },
-      { id: 1008, level: 8, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pejabat Pembuat Komitmen & PBJ" },
-      { id: 1009, level: 9, pic: "KECAMATAN", mode_akses: "EDITOR", label_peran: "Badan Ad Hoc — PPK (Kecamatan)" },
-      { id: 1010, level: 10, pic: "DESA", mode_akses: "EDITOR", label_peran: "Badan Ad Hoc — PPS (Desa/Kelurahan)" }
+      { id: 1008, level: 8, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pejabat Pembuat Komitmen (PPK)" },
+      { id: 1009, level: 9, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Pejabat Pengadaan" },
+      { id: 1010, level: 10, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Bendahara Pengeluaran" },
+      { id: 1011, level: 11, pic: "KECAMATAN", mode_akses: "EDITOR", label_peran: "Panitia Pemilihan Kecamatan (PPK)" },
+      { id: 1012, level: 12, pic: "DESA", mode_akses: "EDITOR", label_peran: "Panitia Pemungutan Suara (PPS)" }
     ];
     // Jika Developer sedang dalam mode simulasi peran (level > 0), sertakan opsi reset kembali ke Developer Level 0
     if (Number(user.level) > 0) {
@@ -930,17 +944,25 @@ function getRoleNomenclature(role, user) {
     roleCode = "ROLE_SEKRETARIS_KPA";
     prefix = "lead";
   } else if (lvl === 8) {
-    peranLabel = "PEJABAT PEMBUAT KOMITMEN & PBJ";
-    roleCode = "ROLE_PPK_PBJ";
-    prefix = "opr";
+    peranLabel = "PEJABAT PEMBUAT KOMITMEN (PPK)";
+    roleCode = "ROLE_PPK";
+    prefix = "ppk";
   } else if (lvl === 9) {
-    peranLabel = pic !== "SEMUA" ? `BADAN AD HOC — PPK (${pic})` : "BADAN AD HOC — PPK (KECAMATAN)";
-    roleCode = "ROLE_PPK_KEC";
-    prefix = "opr";
+    peranLabel = "PEJABAT PENGADAAN";
+    roleCode = "ROLE_PEJABAT_PENGADAAN";
+    prefix = "pbj";
   } else if (lvl === 10) {
-    peranLabel = pic !== "SEMUA" ? `BADAN AD HOC — PPS (${pic})` : "BADAN AD HOC — PPS (DESA/KELURAHAN)";
+    peranLabel = "BENDAHARA PENGELUARAN";
+    roleCode = "ROLE_BENDAHARA";
+    prefix = "bp";
+  } else if (lvl === 11) {
+    peranLabel = pic !== "SEMUA" ? `PANITIA PEMILIHAN KECAMATAN — PPK (${pic})` : "PANITIA PEMILIHAN KECAMATAN (PPK)";
+    roleCode = "ROLE_PPK_KEC";
+    prefix = "ppk_kec";
+  } else if (lvl === 12) {
+    peranLabel = pic !== "SEMUA" ? `PANITIA PEMUNGUTAN SUARA — PPS (${pic})` : "PANITIA PEMUNGUTAN SUARA (PPS)";
     roleCode = "ROLE_PPS_DESA";
-    prefix = "opr";
+    prefix = "pps_desa";
   } else {
     peranLabel = role.label_peran ? role.label_peran.toUpperCase() : `LEVEL ${lvl}`;
     roleCode = `ROLE_LEVEL_${lvl}`;
@@ -983,9 +1005,11 @@ function getRoleHeaderSub(role, user) {
     return (pic !== "SEMUA" && pic !== "TEKNIS") ? `ANGGOTA KPU DIVISI ${pic} SATKER 657811` : "ANGGOTA KOMISIONER SATKER 657811";
   }
   if (lvl === 7) return "SEKRETARIS / KPA SATKER 657811";
-  if (lvl === 8) return "PEJABAT PEMBUAT KOMITMEN & PBJ SATKER 657811";
-  if (lvl === 9) return "BADAN AD HOC PPK (KECAMATAN)";
-  if (lvl === 10) return "BADAN AD HOC PPS (DESA)";
+  if (lvl === 8) return "PEJABAT PEMBUAT KOMITMEN (PPK) SATKER 657811";
+  if (lvl === 9) return "PEJABAT PENGADAAN SATKER 657811";
+  if (lvl === 10) return "BENDAHARA PENGELUARAN SATKER 657811";
+  if (lvl === 11) return "PANITIA PEMILIHAN KECAMATAN (PPK)";
+  if (lvl === 12) return "PANITIA PEMUNGUTAN SUARA (PPS)";
   return "SATKER 657811";
 }
 const getSaktiRoleHeaderSub = getRoleHeaderSub;
@@ -2679,6 +2703,9 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
   else if (viewId === 'view-rekap-perencanaan') loadRekapView('perencanaan');
   else if (viewId === 'view-rekap-pelaksanaan') loadRekapView('pelaksanaan');
+  else if (['view-pengadaan-paket', 'view-pengadaan-kokpit', 'view-pengadaan-penyedia', 'view-panduan-pengadaan'].includes(viewId)) {
+    if (typeof window.onEnterPengadaanView === 'function') window.onEnterPengadaanView(viewId);
+  }
 }
 
 function renderAllViews() {
@@ -9849,9 +9876,11 @@ function renderUsersTable() {
       else if (lvl === 5) lvlBadge = `<span class="badge" style="background:#fdf4ff;color:#86198f;font-weight:800;font-size:10px;border:1px solid #f5d0fe;">L5 RENDATIN</span>`;
       else if (lvl === 6) lvlBadge = `<span class="badge" style="background:#f5f3ff;color:#6b21a8;font-weight:800;font-size:10px;border:1px solid #e9d5ff;">L6 KOMISIONER</span>`;
       else if (lvl === 7) lvlBadge = `<span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:800;font-size:10px;border:1px solid #c7d2fe;">L7 SEKRETARIS/KPA</span>`;
-      else if (lvl === 8) lvlBadge = `<span class="badge" style="background:#fffbeb;color:#b45309;font-weight:800;font-size:10px;border:1px solid #fde68a;">L8 PBJ</span>`;
-      else if (lvl === 9) lvlBadge = `<span class="badge" style="background:#f8fafc;color:#334155;font-weight:800;font-size:10px;border:1px solid #cbd5e1;">L9 PPK</span>`;
-      else if (lvl === 10) lvlBadge = `<span class="badge" style="background:#f1f5f9;color:#475569;font-weight:800;font-size:10px;border:1px solid #cbd5e1;">L10 PPS</span>`;
+      else if (lvl === 8) lvlBadge = `<span class="badge" style="background:#ecfdf5;color:#047857;font-weight:800;font-size:10px;border:1px solid #a7f3d0;">L8 PPK</span>`;
+      else if (lvl === 9) lvlBadge = `<span class="badge" style="background:#f0fdfa;color:#0f766e;font-weight:800;font-size:10px;border:1px solid #99f6e4;">L9 PEJ. PENGADAAN</span>`;
+      else if (lvl === 10) lvlBadge = `<span class="badge" style="background:#ecfeff;color:#0e7490;font-weight:800;font-size:10px;border:1px solid #a5f3fc;">L10 BENDAHARA</span>`;
+      else if (lvl === 11) lvlBadge = `<span class="badge" style="background:#fffbeb;color:#b45309;font-weight:800;font-size:10px;border:1px solid #fde68a;">L11 PPK (KEC)</span>`;
+      else if (lvl === 12) lvlBadge = `<span class="badge" style="background:#f1f5f9;color:#475569;font-weight:800;font-size:10px;border:1px solid #cbd5e1;">L12 PPS (DESA)</span>`;
       else lvlBadge = `<span class="badge" style="background:#e2e8f0;color:#334155;font-weight:700;font-size:10px;">L${lvl}</span>`;
 
       let pic = String(r.pic || 'SEMUA').toUpperCase();
@@ -9952,13 +9981,15 @@ function renderModalUserRolesTable() {
     1: 'L1: Admin Satker',
     2: 'L2: Pengolah Data',
     3: 'L3: Operator Subbag',
-        4: 'L4: Ketua KPU',
+    4: 'L4: Ketua KPU',
     5: 'L5: Divisi Rendatin',
     6: 'L6: Anggota KPU',
     7: 'L7: Sekretaris/KPA',
-    8: 'L8: PPK/PBJ',
-    9: 'L9: Ad Hoc PPK',
-    10: 'L10: Ad Hoc PPS'
+    8: 'L8: Pejabat Pembuat Komitmen (PPK)',
+    9: 'L9: Pejabat Pengadaan',
+    10: 'L10: Bendahara Pengeluaran',
+    11: 'L11: Panitia Pemilihan Kecamatan (PPK)',
+    12: 'L12: Panitia Pemungutan Suara (PPS)'
   };
 
   let html = '';
@@ -9987,13 +10018,13 @@ function onModalNewRoleLevelChange() {
   const picSelect = document.getElementById('modal-newrole-pic');
   if (!picSelect) return;
 
-  if ([0, 1, 2, 4, 7, 8].includes(lvl)) {
+  if ([0, 1, 2, 4, 7, 8, 9, 10].includes(lvl)) {
     picSelect.value = 'SEMUA';
   } else if (lvl === 5) {
     picSelect.value = 'RENDATIN';
   } else if (lvl === 3 || lvl === 6) {
     if (picSelect.value === 'SEMUA') picSelect.value = 'TEKNIS';
-  } else if (lvl === 9 || lvl === 10) {
+  } else if (lvl === 11 || lvl === 12) {
     picSelect.value = 'SEMUA';
   }
 }
@@ -10003,7 +10034,7 @@ function addRoleToModalUser() {
   let pic = (document.getElementById('modal-newrole-pic')?.value || 'TEKNIS').toUpperCase();
   const label = (document.getElementById('modal-newrole-label')?.value || '').trim();
 
-  if ([0, 1, 2, 4, 7, 8].includes(lvl)) {
+  if ([0, 1, 2, 4, 7, 8, 9, 10].includes(lvl)) {
     pic = 'SEMUA';
   } else if (lvl === 5) {
     pic = 'RENDATIN';
@@ -10032,9 +10063,11 @@ function addRoleToModalUser() {
       lvl === 5 ? 'Divisi Rendatin (Anggota KPU Pengampu Perencanaan)' :
       lvl === 6 ? `Anggota Komisioner KPU (${pic})` :
       lvl === 7 ? 'Sekretaris KPU / Kuasa Pengguna Anggaran (KPA)' :
-      lvl === 8 ? 'Pejabat Pembuat Komitmen & PBJ' :
-      lvl === 9 ? `Badan Ad Hoc — PPK (${pic})` :
-      lvl === 10 ? `Badan Ad Hoc — PPS (${pic})` : `Level ${lvl} (${pic})`
+      lvl === 8 ? 'Pejabat Pembuat Komitmen (PPK)' :
+      lvl === 9 ? 'Pejabat Pengadaan' :
+      lvl === 10 ? 'Bendahara Pengeluaran' :
+      lvl === 11 ? `Panitia Pemilihan Kecamatan (PPK)` :
+      lvl === 12 ? `Panitia Pemungutan Suara (PPS)` : `Level ${lvl} (${pic})`
     ),
     is_default: isFirst ? 1 : 0
   });
@@ -10281,16 +10314,32 @@ function renderPenandatanganTable(filterKategori = null) {
 
   const activeFilter = AppState.penandatanganFilter || 'ALL';
   const search = (AppState.penandatanganSearch || '').toLowerCase().trim();
+  const allList = AppState.penandatanganList || [];
+
+  const badgeEl = document.getElementById('badge-total-penandatangan');
+  if (badgeEl && allList.length > 0) {
+    badgeEl.textContent = String(allList.length);
+  }
 
   const tabContainer = document.getElementById('filter-penandatangan-tabs');
   if (tabContainer) {
+    const cntKeuLem = allList.filter(p => p.kategori === 'LEMBAGA' || p.kategori === 'KEUANGAN').length;
+    const cntKom = allList.filter(p => p.kategori === 'KOMISIONER').length;
+    const cntSub = allList.filter(p => p.kategori === 'SUBBAGIAN').length;
     tabContainer.querySelectorAll('button[data-filter]').forEach(btn => {
-      const isAct = btn.getAttribute('data-filter') === activeFilter;
+      const f = btn.getAttribute('data-filter');
+      const isAct = f === activeFilter;
       btn.className = isAct ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-primary';
+      if (allList.length > 0) {
+        if (f === 'ALL') btn.textContent = `Semua Penandatangan (${allList.length})`;
+        else if (f === 'KEUANGAN_LEMBAGA') btn.textContent = `Keuangan & Lembaga (${cntKeuLem})`;
+        else if (f === 'KOMISIONER') btn.textContent = `Komisioner / Kadiv (${cntKom})`;
+        else if (f === 'SUBBAGIAN') btn.textContent = `Kasubbag Pelaksana (${cntSub})`;
+      }
     });
   }
 
-  let list = AppState.penandatanganList || [];
+  let list = allList;
 
   if (activeFilter === 'KEUANGAN_LEMBAGA') {
     list = list.filter(p => p.kategori === 'LEMBAGA' || p.kategori === 'KEUANGAN');
@@ -10573,7 +10622,7 @@ function renderSheetMatrixTable() {
 
   tbody.innerHTML = matrix.map((s, idx) => {
     let levelCells = '';
-    for (let lvl = 0; lvl <= 10; lvl++) {
+    for (let lvl = 0; lvl <= 12; lvl++) {
       const modeVal = s['cs_mode_l' + lvl] || ((lvl <= 3 || lvl === 5) ? 'SWITCH' : 'LENGKAP');
       const isAllowed = s['allow_l' + lvl] !== undefined ? Boolean(s['allow_l' + lvl]) : (modeVal !== 'TIDAK_BOLEH');
       const currentMode = (!isAllowed || modeVal === 'TIDAK_BOLEH') ? 'TIDAK_BOLEH' : modeVal;
@@ -10587,7 +10636,7 @@ function renderSheetMatrixTable() {
         bg = '#e0f2fe'; color = '#0369a1'; border = '#7dd3fc';
       }
 
-      const isSep = (lvl === 7);
+      const isSep = (lvl === 7 || lvl === 10);
 
       levelCells += `
         <td style="padding: 4px 2px; text-align: center; border-right: ${isSep ? '2px solid #6366f1' : '1px solid #e2e8f0'};">
@@ -10639,7 +10688,7 @@ async function saveSheetMatrixAction() {
     rows.forEach(tr => {
       const sheetKey = tr.getAttribute('data-sheet-key');
       if (matrixMap[sheetKey]) {
-        for (let lvl = 0; lvl <= 10; lvl++) {
+        for (let lvl = 0; lvl <= 12; lvl++) {
           const sel = tr.querySelector(`select[data-field="cs_mode_l${lvl}"]`);
           const val = sel ? sel.value : 'SWITCH';
           matrixMap[sheetKey]['cs_mode_l' + lvl] = val;
@@ -14352,6 +14401,7 @@ function renderMenuMatrixTable() {
   const folderLabels = {
     'folder-perencanaan': 'Perencanaan & Revisi',
     'folder-rekap': 'Rekapitulasi Anggaran',
+    'folder-pengadaan': 'Pengadaan',
     'folder-referensi': 'Referensi Standar (SBM, BAS)',
     'folder-database': 'Database Master Adhoc',
     'folder-panduan': 'Panduan & Regulasi',
@@ -14368,7 +14418,7 @@ function renderMenuMatrixTable() {
       : 'border-bottom: 1px solid #f1f5f9;';
 
     let levelCells = '';
-    for (let lvl = 0; lvl <= 10; lvl++) {
+    for (let lvl = 0; lvl <= 12; lvl++) {
       const isAllowed = Boolean(m['allow_l' + lvl]);
       const defaultMode = [4, 5, 6, 7].includes(lvl) ? 'VIEWER' : (m.required_mode === 'EDITOR' ? 'EDITOR' : (lvl <= 3 ? 'EDITOR' : 'VIEWER'));
       const modeVal = m['mode_l' + lvl] || defaultMode;
@@ -14387,7 +14437,7 @@ function renderMenuMatrixTable() {
         bg = '#fef3c7'; color = '#b45309'; border = '#fcd34d';
       }
 
-      const isSep = (lvl === 7);
+      const isSep = (lvl === 7 || lvl === 10);
       const isPimpinan = [4, 5, 6, 7].includes(lvl);
 
       levelCells += `
@@ -14441,7 +14491,7 @@ async function saveMenuMatrixAction() {
     rows.forEach(tr => {
       const menuKey = tr.getAttribute('data-menu-key');
       if (matrixMap[menuKey]) {
-        for (let lvl = 0; lvl <= 10; lvl++) {
+        for (let lvl = 0; lvl <= 12; lvl++) {
           const sel = tr.querySelector(`select[data-field="status_l${lvl}"]`);
           const val = sel ? sel.value : 'NONE';
           if (val === 'NONE') {
@@ -14911,7 +14961,7 @@ function openAddAnnouncementModal() {
   setElVal('modal-announcement-tanggal-mulai', '');
   setElVal('modal-announcement-tanggal-selesai', '');
   onAnnouncementTargetTypeChange();
-  renderAnnouncementLevelChecklist([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  renderAnnouncementLevelChecklist([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 
   const modal = document.getElementById('modal-announcement-form');
   if (modal) modal.style.display = 'flex';
@@ -14969,9 +15019,11 @@ const ANNOUNCEMENT_LEVEL_DEFS = [
   { level: 5, badge: 'L5', bg: '#c026d3', color: '#fff', label: 'Divisi Rendatin (Komisioner)' },
   { level: 6, badge: 'L6', bg: '#9333ea', color: '#fff', label: 'Komisioner Divisi (Pleno)' },
   { level: 7, badge: 'L7', bg: '#4f46e5', color: '#fff', label: 'Sekretaris / KPA' },
-  { level: 8, badge: 'L8', bg: '#d97706', color: '#fff', label: 'Pejabat Pembuat Komitmen (PPK)' },
-  { level: 9, badge: 'L9', bg: '#475569', color: '#fff', label: 'Bendahara Pengeluaran' },
-  { level: 10, badge: 'L10', bg: '#64748b', color: '#fff', label: 'Auditor / Pengawas / Adhoc' }
+  { level: 8, badge: 'L8', bg: '#047857', color: '#fff', label: 'Pejabat Pembuat Komitmen (PPK)' },
+  { level: 9, badge: 'L9', bg: '#0f766e', color: '#fff', label: 'Pejabat Pengadaan' },
+  { level: 10, badge: 'L10', bg: '#0e7490', color: '#fff', label: 'Bendahara Pengeluaran' },
+  { level: 11, badge: 'L11', bg: '#b45309', color: '#fff', label: 'Panitia Pemilihan Kecamatan (PPK)' },
+  { level: 12, badge: 'L12', bg: '#475569', color: '#fff', label: 'Panitia Pemungutan Suara (PPS)' }
 ];
 
 function renderAnnouncementLevelChecklist(selectedLevels = []) {
@@ -15004,8 +15056,8 @@ function updateAnnouncementSelectedLevelsSummary() {
   const summaryEl = document.getElementById('announcement-levels-selected-summary');
   if (!summaryEl) return;
   const checked = Array.from(document.querySelectorAll('.announcement-level-checkbox:checked')).map(c => Number(c.value));
-  if (checked.length === 11) {
-    summaryEl.textContent = 'Semua Level (0–10)';
+  if (checked.length === 13) {
+    summaryEl.textContent = 'Semua Level (0–12)';
     summaryEl.style.background = '#e0f2fe';
     summaryEl.style.color = '#0369a1';
   } else if (checked.length === 0) {
@@ -15021,11 +15073,12 @@ function updateAnnouncementSelectedLevelsSummary() {
 
 function setAnnouncementLevelsPreset(preset) {
   let target = [];
-  if (preset === 'ALL') target = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  if (preset === 'ALL') target = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   else if (preset === 'NONE') target = [];
   else if (preset === 'PIMPINAN') target = [4, 5, 6, 7];
   else if (preset === 'OPERATOR') target = [1, 2, 3];
-  else if (preset === 'KEUANGAN') target = [8, 9];
+  else if (preset === 'KEUANGAN') target = [8, 9, 10];
+  else if (preset === 'ADHOC') target = [11, 12];
   renderAnnouncementLevelChecklist(target);
 }
 
@@ -15055,7 +15108,7 @@ async function submitAnnouncementForm() {
       return;
     }
   } else {
-    checkedLevels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    checkedLevels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   }
 
   const target_level_min = Math.min(...checkedLevels);

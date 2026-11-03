@@ -369,7 +369,7 @@ function canEditRow(user, row, isPeriodeLocked) {
 
   // Level 2 (Pengolah Data), Level 3 (Operator Subbag), Level 7..10:
   // Hanya baris PIC miliknya yang boleh diedit jika berstatus EDITOR
-  if ([2, 3, 7, 8, 9, 10].includes(userLvl) || userLvl > 1) {
+  if ([2, 3, 7, 8, 9, 10, 11, 12].includes(userLvl) || userLvl > 1) {
     if (user.mode_akses && user.mode_akses !== 'EDITOR') return false;
     const userPic = normalizePic(user.pic_subbag);
     const rowPic = normalizePic(row.pic_bagian);
@@ -417,8 +417,8 @@ function validateUserCoherence(userData, isCreating = false) {
   if (Array.isArray(userData.roles) && userData.roles.length > 0) {
     for (const r of userData.roles) {
       const lvl = Number(r.level);
-      if (Number.isNaN(lvl) || lvl < 0 || lvl > 10) {
-        return { valid: false, error: 'Level peran tidak valid (harus antara 0 s.d. 10).' };
+      if (Number.isNaN(lvl) || lvl < 0 || lvl > 12) {
+        return { valid: false, error: 'Level peran tidak valid (harus antara 0 s.d. 12).' };
       }
       if ([4, 5, 6, 7].includes(lvl) && r.mode_akses && r.mode_akses.toUpperCase() !== 'VIEWER') {
         return { valid: false, error: 'Pengguna Pimpinan / Komisioner / KPA (Level 4 s.d. Level 7) wajib berstatus VIEWER.' };
@@ -431,8 +431,8 @@ function validateUserCoherence(userData, isCreating = false) {
   const roleId = String(userData.role_id || '').trim().toLowerCase();
   const pic = normalizePic(userData.pic_subbag);
 
-  if (Number.isNaN(level) || level < 0 || level > 10) {
-    return { valid: false, error: 'Level pengguna tidak valid (harus antara 0 s.d. 10).' };
+  if (Number.isNaN(level) || level < 0 || level > 12) {
+    return { valid: false, error: 'Level pengguna tidak valid (harus antara 0 s.d. 12).' };
   }
 
   if (level === 0 && roleId !== 'developer' && userData.username !== 'emenje') {
