@@ -4325,71 +4325,48 @@ function getMenuMatrix() {
 
 function saveMenuMatrix(items = []) {
   if (!Array.isArray(items) || items.length === 0) return getMenuMatrix();
-  let updateStmt;
-  let has13Levels = true;
-  try {
-    updateStmt = db.prepare(`
-      UPDATE app_menu_matrix 
-      SET allow_l0 = ?, mode_l0 = ?,
-          allow_l1 = ?, mode_l1 = ?,
-          allow_l2 = ?, mode_l2 = ?,
-          allow_l3 = ?, mode_l3 = ?,
-          allow_l4 = ?, mode_l4 = ?,
-          allow_l5 = ?, mode_l5 = ?,
-          allow_l6 = ?, mode_l6 = ?,
-          allow_l7 = ?, mode_l7 = ?,
-          allow_l8 = ?, mode_l8 = ?,
-          allow_l9 = ?, mode_l9 = ?,
-          allow_l10 = ?, mode_l10 = ?,
-          allow_l11 = ?, mode_l11 = ?,
-          allow_l12 = ?, mode_l12 = ?,
-          required_mode = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE menu_key = ?
-    `);
-  } catch (err) {
-    has13Levels = false;
-    updateStmt = db.prepare(`
-      UPDATE app_menu_matrix 
-      SET allow_l0 = ?, mode_l0 = ?,
-          allow_l1 = ?, mode_l1 = ?,
-          allow_l2 = ?, mode_l2 = ?,
-          allow_l3 = ?, mode_l3 = ?,
-          allow_l4 = ?, mode_l4 = ?,
-          required_mode = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE menu_key = ?
-    `);
+  for (let i = 0; i <= 12; i++) {
+    safeAddColumn('app_menu_matrix', `allow_l${i} INTEGER DEFAULT ${i === 0 ? 1 : 0}`);
+    const defaultMode = [0, 1, 2, 3, 7, 8, 9, 10, 11, 12].includes(i) ? 'EDITOR' : 'VIEWER';
+    safeAddColumn('app_menu_matrix', `mode_l${i} TEXT DEFAULT '${defaultMode}'`);
   }
+  const updateStmt = db.prepare(`
+    UPDATE app_menu_matrix 
+    SET allow_l0 = ?, mode_l0 = ?,
+        allow_l1 = ?, mode_l1 = ?,
+        allow_l2 = ?, mode_l2 = ?,
+        allow_l3 = ?, mode_l3 = ?,
+        allow_l4 = ?, mode_l4 = ?,
+        allow_l5 = ?, mode_l5 = ?,
+        allow_l6 = ?, mode_l6 = ?,
+        allow_l7 = ?, mode_l7 = ?,
+        allow_l8 = ?, mode_l8 = ?,
+        allow_l9 = ?, mode_l9 = ?,
+        allow_l10 = ?, mode_l10 = ?,
+        allow_l11 = ?, mode_l11 = ?,
+        allow_l12 = ?, mode_l12 = ?,
+        required_mode = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE menu_key = ?
+  `);
   items.forEach(item => {
     try {
-      if (has13Levels) {
-        updateStmt.run(
-          item.allow_l0 ? 1 : 0, item.mode_l0 || 'EDITOR',
-          item.allow_l1 ? 1 : 0, item.mode_l1 || 'EDITOR',
-          item.allow_l2 ? 1 : 0, item.mode_l2 || 'VIEWER',
-          item.allow_l3 ? 1 : 0, item.mode_l3 || 'VIEWER',
-          item.allow_l4 ? 1 : 0, item.mode_l4 || 'VIEWER',
-          item.allow_l5 ? 1 : 0, item.mode_l5 || 'VIEWER',
-          item.allow_l6 ? 1 : 0, item.mode_l6 || 'VIEWER',
-          item.allow_l7 ? 1 : 0, item.mode_l7 || 'VIEWER',
-          item.allow_l8 ? 1 : 0, item.mode_l8 || 'VIEWER',
-          item.allow_l9 ? 1 : 0, item.mode_l9 || 'VIEWER',
-          item.allow_l10 ? 1 : 0, item.mode_l10 || 'VIEWER',
-          item.allow_l11 ? 1 : 0, item.mode_l11 || 'VIEWER',
-          item.allow_l12 ? 1 : 0, item.mode_l12 || 'VIEWER',
-          item.required_mode || item.mode_l1 || 'VIEWER',
-          item.menu_key
-        );
-      } else {
-        updateStmt.run(
-          item.allow_l0 ? 1 : 0, item.mode_l0 || 'EDITOR',
-          item.allow_l1 ? 1 : 0, item.mode_l1 || 'EDITOR',
-          item.allow_l2 ? 1 : 0, item.mode_l2 || 'VIEWER',
-          item.allow_l3 ? 1 : 0, item.mode_l3 || 'VIEWER',
-          item.allow_l4 ? 1 : 0, item.mode_l4 || 'VIEWER',
-          item.required_mode || item.mode_l1 || 'VIEWER',
-          item.menu_key
-        );
-      }
+      updateStmt.run(
+        item.allow_l0 ? 1 : 0, item.mode_l0 || 'EDITOR',
+        item.allow_l1 ? 1 : 0, item.mode_l1 || 'EDITOR',
+        item.allow_l2 ? 1 : 0, item.mode_l2 || 'VIEWER',
+        item.allow_l3 ? 1 : 0, item.mode_l3 || 'VIEWER',
+        item.allow_l4 ? 1 : 0, item.mode_l4 || 'VIEWER',
+        item.allow_l5 ? 1 : 0, item.mode_l5 || 'VIEWER',
+        item.allow_l6 ? 1 : 0, item.mode_l6 || 'VIEWER',
+        item.allow_l7 ? 1 : 0, item.mode_l7 || 'VIEWER',
+        item.allow_l8 ? 1 : 0, item.mode_l8 || 'VIEWER',
+        item.allow_l9 ? 1 : 0, item.mode_l9 || 'VIEWER',
+        item.allow_l10 ? 1 : 0, item.mode_l10 || 'VIEWER',
+        item.allow_l11 ? 1 : 0, item.mode_l11 || 'VIEWER',
+        item.allow_l12 ? 1 : 0, item.mode_l12 || 'VIEWER',
+        item.required_mode || item.mode_l1 || 'VIEWER',
+        item.menu_key
+      );
     } catch (e) {
       console.warn('[MENU-MATRIX] Gagal update matrix:', item.menu_key, e.message);
     }
@@ -4440,6 +4417,11 @@ function getSheetMatrix() {
 
 function saveSheetMatrix(items = []) {
   if (!Array.isArray(items) || items.length === 0) return getSheetMatrix();
+  for (let i = 0; i <= 12; i++) {
+    safeAddColumn('app_sheet_matrix', `allow_l${i} INTEGER DEFAULT 1`);
+    const defaultCsMode = (i <= 3 || i === 5) ? 'SWITCH' : 'LENGKAP';
+    safeAddColumn('app_sheet_matrix', `cs_mode_l${i} TEXT DEFAULT '${defaultCsMode}'`);
+  }
   const updateStmt = db.prepare(`
     UPDATE app_sheet_matrix 
     SET allow_l0 = ?, cs_mode_l0 = ?,

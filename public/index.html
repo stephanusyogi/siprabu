@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png?v=3.5.0">
   <link rel="shortcut icon" type="image/png" href="/favicon.ico?v=3.5.0">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png?v=3.5.0">
-  <link rel="stylesheet" href="/style.css?v=4.4.1">
+  <link rel="stylesheet" href="/style.css?v=5.0.1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -3179,7 +3179,7 @@
               <span style="font-size:24px;">🛡️</span>
               <div>
                 <strong style="font-size:13px;display:block;color:#14532d;">Manajemen Matriks Hak Akses Menu Dinamis</strong>
-                <span style="font-size:12px;color:#15803d;">Seluruh hak akses menu per tingkat kewenangan (Level 0 Developer hingga Level 10 PPS Desa) bersifat dinamis penuh dan dapat dimatikan/dinyalakan sesuai kebutuhan satker. Perubahan yang Anda simpan langsung berlaku seketika pada menu navigasi pengguna.</span>
+                <span style="font-size:12px;color:#15803d;">Seluruh hak akses menu per tingkat kewenangan (Level 0 Developer hingga Level 12 PPS Desa) bersifat dinamis penuh dan dapat dimatikan/dinyalakan sesuai kebutuhan satker. Perubahan yang Anda simpan langsung berlaku seketika pada menu navigasi pengguna.</span>
               </div>
             </div>
 
@@ -3192,6 +3192,8 @@
                     <option value="ALL">Semua Kategori Menu</option>
                     <option value="ROOT">Menu Utama (Beranda &amp; RKB)</option>
                     <option value="folder-perencanaan">Perencanaan &amp; Revisi</option>
+                    <option value="folder-rekap">Rekapitulasi Anggaran</option>
+                    <option value="folder-pengadaan">Pengadaan</option>
                     <option value="folder-referensi">Referensi Standar (SBM, BAS, Kuantitas)</option>
                     <option value="folder-database">Database Adhoc &amp; Paslon</option>
                     <option value="folder-panduan">Panduan &amp; Regulasi</option>
@@ -3295,7 +3297,7 @@
               <span style="font-size:24px;">📊</span>
               <div>
                 <strong style="font-size:13px;display:block;color:#1e3a8a;">Manajemen Hak Akses Sheet &amp; Kebijakan Sumber Dana Dinamis</strong>
-                <span style="font-size:12px;color:#2563eb;">Konfigurasikan apakah tiap lembar kerja Excel (7 Canonical Sheets) boleh diunduh, dikunci pada Sumber Dana Lengkap (APBD Gabungan), atau diizinkan memilih (Switch APBD Kab / Sharing Prov) per tingkat kewenangan (L0 s.d. L10).</span>
+                <span style="font-size:12px;color:#2563eb;">Konfigurasikan apakah tiap lembar kerja Excel (7 Canonical Sheets) boleh diunduh, dikunci pada Sumber Dana Lengkap (APBD Gabungan), atau diizinkan memilih (Switch APBD Kab / Sharing Prov) per tingkat kewenangan (L0 s.d. L12).</span>
               </div>
             </div>
 
@@ -3416,7 +3418,7 @@
             <div style="background: #fff; border: 1px solid #cbd5e1; border-left: 4px solid #0f172a; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
               <strong style="display: block; font-size: 12.5px; color: #0f172a; margin-bottom: 8px;">🛡️ Hak Akses Menu (Decoupled RBAC) :</strong>
               <p style="margin: 0; font-size: 11.5px; color: #475569; line-height: 1.65;">
-                Matriks di atas murni mengatur izin <strong>visibilitas dan pembukaan menu</strong> untuk masing-masing tingkatan level pengguna (L0 s.d. L10). Menu yang tidak dicentang akan otomatis disembunyikan dari sidebar navigasi pengguna terkait.
+                Matriks di atas murni mengatur izin <strong>visibilitas dan pembukaan menu</strong> untuk masing-masing tingkatan level pengguna (L0 s.d. L12). Menu yang tidak dicentang akan otomatis disembunyikan dari sidebar navigasi pengguna terkait.
               </p>
             </div>
             <div style="background: #fff; border: 1px solid #cbd5e1; border-left: 4px solid #2563eb; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
@@ -7001,9 +7003,9 @@
       </div>
     </div>
 
-    <script src="/data_juknis.js?v=1.0.0"></script>
-    <script src="/app.js?v=4.6.0"></script>
-    <script src="/cakra_module.js?v=1.0.0"></script>
+    <script src="/data_juknis.js?v=5.0.1"></script>
+    <script src="/app.js?v=5.0.1"></script>
+    <script src="/cakra_module.js?v=5.0.1"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

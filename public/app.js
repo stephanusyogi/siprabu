@@ -10577,7 +10577,7 @@ async function loadSheetMatrix() {
 async function loadSheetMatrixView() {
   const tbody = document.getElementById('sheet-matrix-table-body');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="14" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses sheet...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="16" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses sheet...</td></tr>';
   }
   try {
     const res = await apiFetch('/api/sheet-matrix');
@@ -10586,7 +10586,7 @@ async function loadSheetMatrixView() {
       renderSheetMatrixTable();
     }
   } catch (err) {
-    if (tbody) tbody.innerHTML = '<tr><td colspan="14" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks: ' + escHtml(err.message) + '</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="16" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks: ' + escHtml(err.message) + '</td></tr>';
   }
 }
 
@@ -14342,7 +14342,7 @@ async function toggleRoleModeCheckbox(checked) {
 async function loadMenuMatrixView() {
   const tbody = document.getElementById('menu-matrix-table-body');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="13" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses menu...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="16" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses menu...</td></tr>';
   }
   try {
     const res = await apiFetch('/api/menu-matrix');
@@ -14351,7 +14351,7 @@ async function loadMenuMatrixView() {
       renderMenuMatrixTable();
     }
   } catch (err) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="13" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks: ${escHtml(err.message)}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="16" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks: ${escHtml(err.message)}</td></tr>`;
   }
 }
 
