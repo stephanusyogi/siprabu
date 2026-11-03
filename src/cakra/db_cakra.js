@@ -176,13 +176,17 @@ async function seedRegulasiPengadaanToMasterRegulasi(pool) {
   }
 }
 
+let schemaInitDone = false;
+
 async function initDatabaseSchemaAndSeed() {
+  if (schemaInitDone) return;
   const pool = getCakraPool();
   const sqlFilePath = path.resolve(__dirname, 'cakra_schema_seed.sql');
 
   try {
     const [rows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_paket');
-    if (rows && rows[0] && rows[0].cnt >= 6) {
+    const [sRows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_settings');
+    if (rows && rows[0] && rows[0].cnt >= 6 && sRows && sRows[0] && sRows[0].cnt > 0) {
       // Pastikan koreksi pejabat pengadaan (Indrayu Fatika Mahardika) & hapus Tim Teknis selalu terjaga
       await pool.query("DELETE FROM pbj_pejabat WHERE id = 6 OR peran = 'TIM_TEKNIS'");
       await pool.query(
@@ -190,17 +194,27 @@ async function initDatabaseSchemaAndSeed() {
       );
       await ensureAllPaketsHave18Stages();
       await seedRegulasiPengadaanToMasterRegulasi(pool);
+      schemaInitDone = true;
       return;
     }
   } catch (e) {
-    // Tabel belum ada, jalankan inisialisasi dari cakra_schema_seed.sql
+    // Tabel belum ada, jalankan inisialisasi dari cakra_schema_seed
   }
 
-  if (fs.existsSync(sqlFilePath)) {
-    const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
+  let sqlContent = '';
+  try {
+    sqlContent = require('./cakra_schema_seed');
+  } catch (e) {
+    if (fs.existsSync(sqlFilePath)) {
+      sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
+    }
+  }
+
+  if (sqlContent) {
     await pool.query(sqlContent);
     await ensureAllPaketsHave18Stages();
     await seedRegulasiPengadaanToMasterRegulasi(pool);
+    schemaInitDone = true;
     console.log('[SI-PRABU PENGADAAN] Skema pbj_* & 6 Paket Percontohan KPU Kabupaten Ngawi berhasil dimuat ke siprabu_db.');
   }
 }

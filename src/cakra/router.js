@@ -74,6 +74,8 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
   const method = req.method.toUpperCase();
 
   try {
+    await initDatabaseSchemaAndSeed();
+
     // 1. Bootstrap Data Dashboard & Master Pengadaan
     if (pathname === '/api/cakra/bootstrap' && method === 'GET') {
       const [settings, pejabats, penyedias, pakets] = await Promise.all([
