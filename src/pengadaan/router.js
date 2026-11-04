@@ -21,7 +21,7 @@ const {
   savePaketTahaps,
   autoGeneratePaketTahaps,
   fetchRkbItemsFromSiprabu
-} = require('./db_cakra');
+} = require('./db_pengadaan');
 
 const {
   DEFINISI_18_TAHAP,
@@ -228,10 +228,11 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
 
       const buffer = await generateWordBuffer(ctx, stage);
       const def = DEFINISI_18_TAHAP.find(d => d.no === Number(stage));
+      const cleanKode = sanitizeFilename(String(ctx.paket.kode_paket_internal || '').replace(/^CAKRA-/i, 'PBJ-'));
       const suffix = stage === 'ALL'
-        ? 'BUNDEL_LENGKAP_18_TAHAP_HULU_HILIR'
-        : `Tahap_${String(stage).padStart(2, '0')}_${sanitizeFilename(def?.kode || 'DOK')}`;
-      const filename = `${sanitizeFilename(ctx.paket.kode_paket_internal)}_${suffix}.docx`;
+        ? `Bundel_Naskah_Pengadaan_18_Tahap_${cleanKode}`
+        : `Naskah_Pengadaan_${cleanKode}_Tahap_${String(stage).padStart(2, '0')}_${sanitizeFilename(def?.kode || 'DOK')}`;
+      const filename = `${suffix}.docx`;
 
       res.writeHead(200, {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -249,10 +250,11 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
       if (!ctx) return sendJson(res, 404, { ok: false, error: 'Paket tidak ditemukan' });
 
       const buffer = await generateExcelBuffer(ctx, stage);
+      const cleanKode = sanitizeFilename(String(ctx.paket.kode_paket_internal || '').replace(/^CAKRA-/i, 'PBJ-'));
       const suffix = stage === 'ALL'
-        ? 'KERTAS_KERJA_MASTER_HULU_HILIR'
-        : `Kertas_Kerja_Tahap_${String(stage).padStart(2, '0')}`;
-      const filename = `${sanitizeFilename(ctx.paket.kode_paket_internal)}_${suffix}.xlsx`;
+        ? `Kertas_Kerja_Pengadaan_Master_${cleanKode}`
+        : `Kertas_Kerja_Pengadaan_${cleanKode}_Tahap_${String(stage).padStart(2, '0')}`;
+      const filename = `${suffix}.xlsx`;
 
       res.writeHead(200, {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -268,7 +270,8 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
       const ctx = await getPaketFullById(paketId);
       if (!ctx) return sendJson(res, 404, { ok: false, error: 'Paket tidak ditemukan' });
 
-      const zipFilename = `ARSIP_LENGKAP_${sanitizeFilename(ctx.paket.kode_paket_internal)}_HULU_HILIR.zip`;
+      const cleanKode = sanitizeFilename(String(ctx.paket.kode_paket_internal || '').replace(/^CAKRA-/i, 'PBJ-'));
+      const zipFilename = `Bundel_Arsip_Pengadaan_18_Tahap_${cleanKode}.zip`;
       res.writeHead(200, {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${zipFilename}"`
@@ -278,10 +281,10 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
       archive.pipe(res);
 
       const xlsxMaster = await generateExcelBuffer(ctx, 'ALL');
-      archive.append(xlsxMaster, { name: `00_KERTAS_KERJA_EXCEL_MASTER_${sanitizeFilename(ctx.paket.kode_paket_internal)}.xlsx` });
+      archive.append(xlsxMaster, { name: `00_Kertas_Kerja_Pengadaan_Master_${cleanKode}.xlsx` });
 
       const docxAll = await generateWordBuffer(ctx, 'ALL');
-      archive.append(docxAll, { name: `00_BUNDEL_WORD_18_TAHAP_GABUNGAN_${sanitizeFilename(ctx.paket.kode_paket_internal)}.docx` });
+      archive.append(docxAll, { name: `00_Bundel_Naskah_Pengadaan_18_Tahap_${cleanKode}.docx` });
 
       for (const d of DEFINISI_18_TAHAP) {
         const docBuf = await generateWordBuffer(ctx, d.no);
@@ -300,7 +303,113 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
   }
 }
 
+/**
+ * Generator Buffer Berkas Pengadaan untuk Antrean Monitoring Unduhan SI-PRABU (`processDownloadJob`)
+ */
+async function generatePengadaanDownloadBuffer(job) {
+  let meta = {};
+  if (job.filter_sasaran && String(job.filter_sasaran).startsWith('{')) {
+    try {
+      meta = JSON.parse(job.filter_sasaran);
+    } catch (e) {}
+  }
+
+  const paketId = Number(meta.paket_id || job.periode_id || 1);
+  const stage = meta.tahap || 'ALL';
+
+  if (job.tipe_unduhan === 'DOCX_PENGADAAN') {
+    const ctx = await getPaketFullById(paketId);
+    if (!ctx) throw new Error('Paket pengadaan tidak ditemukan.');
+    return await generateWordBuffer(ctx, stage);
+  }
+
+  if (job.tipe_unduhan === 'EXCEL_PENGADAAN') {
+    const ctx = await getPaketFullById(paketId);
+    if (!ctx) throw new Error('Paket pengadaan tidak ditemukan.');
+    return await generateExcelBuffer(ctx, stage);
+  }
+
+  if (job.tipe_unduhan === 'ZIP_PENGADAAN') {
+    const ctx = await getPaketFullById(paketId);
+    if (!ctx) throw new Error('Paket pengadaan tidak ditemukan.');
+    const cleanKode = sanitizeFilename(String(ctx.paket.kode_paket_internal || '').replace(/^CAKRA-/i, 'PBJ-'));
+
+    const xlsxMaster = await generateExcelBuffer(ctx, 'ALL');
+    const docxAll = await generateWordBuffer(ctx, 'ALL');
+    const stageDocs = [];
+    for (const d of DEFINISI_18_TAHAP) {
+      const docBuf = await generateWordBuffer(ctx, d.no);
+      const fName = `Word_Per_Tahap/${String(d.no).padStart(2, '0')}_${sanitizeFilename(d.kode)}_${sanitizeFilename(d.nama)}.docx`;
+      stageDocs.push({ name: fName, data: docBuf });
+    }
+
+    return await new Promise((resolve, reject) => {
+      const archive = archiver('zip', { zlib: { level: 6 } });
+      const bufs = [];
+      archive.on('data', d => bufs.push(d));
+      archive.on('end', () => resolve(Buffer.concat(bufs)));
+      archive.on('error', err => reject(err));
+
+      archive.append(xlsxMaster, { name: `00_Kertas_Kerja_Pengadaan_Master_${cleanKode}.xlsx` });
+      archive.append(docxAll, { name: `00_Bundel_Naskah_Pengadaan_18_Tahap_${cleanKode}.docx` });
+      for (const sd of stageDocs) {
+        archive.append(sd.data, { name: sd.name });
+      }
+      archive.finalize();
+    });
+  }
+
+  if (job.tipe_unduhan === 'CSV_REKAP_PENGADAAN') {
+    const allPakets = await getPaketList();
+    const filterSubbag = (job.filter_pic && job.filter_pic !== 'SEMUA' && job.filter_pic !== 'ALL') ? job.filter_pic : 'ALL';
+    const filterMetode = meta.metode || 'ALL';
+    const pakets = (allPakets || []).filter(p => {
+      if (filterSubbag !== 'ALL' && p.pic_subbag !== filterSubbag) return false;
+      if (filterMetode !== 'ALL' && p.metode_pemilihan !== filterMetode) return false;
+      return true;
+    });
+
+    const headers = [
+      'No', 'Kode Paket', 'Kode RUP', 'Subbagian PIC', 'Kode Akun MAK',
+      'Nama Paket', 'Jenis Pengadaan', 'Metode Pemilihan', 'Bentuk Kontrak',
+      'Penyedia', 'Nilai Pagu', 'Nilai HPS', 'Nilai Kontrak', 'Efisiensi', 'Tahap Aktif', 'Status'
+    ];
+    const lines = [headers.join(';')];
+    pakets.forEach((p, idx) => {
+      const pagu = Number(p.nilai_pagu) || 0;
+      const hps = Number(p.nilai_hps) || 0;
+      const kontrak = Number(p.nilai_kontrak) || 0;
+      const ef = Math.max(0, pagu - kontrak);
+      const cleanKode = String(p.kode_paket_internal || '').replace(/^CAKRA-/i, 'PBJ-');
+      const row = [
+        idx + 1,
+        `"${cleanKode.replace(/"/g, '""')}"`,
+        `"${String(p.kode_rup || '').replace(/"/g, '""')}"`,
+        `"${String(p.pic_subbag || '').replace(/"/g, '""')}"`,
+        `"${String(p.kode_akun_mak || '').replace(/"/g, '""')}"`,
+        `"${String(p.nama_paket || '').replace(/"/g, '""')}"`,
+        `"${String(p.jenis_pengadaan || '').replace(/"/g, '""')}"`,
+        `"${String(p.metode_pemilihan || '').replace(/"/g, '""')}"`,
+        `"${String(p.bentuk_kontrak || '').replace(/"/g, '""')}"`,
+        `"${String(p.nama_penyedia || p.nama_perusahaan || '').replace(/"/g, '""')}"`,
+        pagu,
+        hps,
+        kontrak,
+        ef,
+        p.tahap_aktif || 18,
+        `"${String(p.status_paket || 'SELESAI').replace(/"/g, '""')}"`
+      ];
+      lines.push(row.join(';'));
+    });
+
+    return Buffer.from('\uFEFF' + lines.join('\r\n'), 'utf8');
+  }
+
+  throw new Error(`Tipe unduhan pengadaan tidak dikenali: ${job.tipe_unduhan}`);
+}
+
 module.exports = {
   initDatabaseSchemaAndSeed,
-  handleCakraApiRequest
+  handleCakraApiRequest,
+  generatePengadaanDownloadBuffer
 };

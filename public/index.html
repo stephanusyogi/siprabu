@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png?v=3.5.0">
   <link rel="shortcut icon" type="image/png" href="/favicon.ico?v=3.5.0">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png?v=3.5.0">
-  <link rel="stylesheet" href="/style.css?v=5.0.1">
+  <link rel="stylesheet" href="/style.css?v=5.0.7">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -241,11 +241,18 @@
             <span class="label">Beranda</span>
           </button>
 
-          <!-- 2. PENGANGGARAN -->
-          <div class="prabu-tree-group collapsed" id="folder-penganggaran">
-            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-penganggaran', event)">
+          <!-- 2. DOKUMEN ANGGARAN (SUMBER DATA LINTAS MODUL: SIKLUS AKTIF PERENCANAAN & BASELINE TERKUNCI PENGADAAN/PEMBAYARAN) -->
+          <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" id="nav-item-siklus">
+            <span class="icon">📚</span>
+            <span class="label">Dokumen Anggaran</span>
+          </button>
+
+          <!-- 3. PERENCANAAN (TAHAP 1 HULU: RKB, REVISI, REKAP, JUKNIS KPT 543 & PANDUAN) -->
+          <div class="prabu-tree-group collapsed" id="folder-perencanaan">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-perencanaan', event)">
               <span class="prabu-folder-label">
-                <span>📁 Penganggaran</span>
+                <span class="icon">📁</span>
+                <span class="label">Perencanaan</span>
               </span>
               <span class="prabu-chevron">▾</span>
             </button>
@@ -283,39 +290,32 @@
                 <span class="badge badge-success badge-sm" id="badge-revisi-aktif">0</span>
               </button>
 
-              <!-- Pusat Siklus & Arsip Dokumen Terpadu (Semua Level) -->
-              <button class="nav-item" data-view="view-siklus" onclick="switchView('view-siklus')" id="nav-item-siklus" style="margin-bottom: 2px;">
-                <span class="icon">🔄</span>
-                <span class="label">Pusat Siklus Dokumen</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 2B. REKAP ANGGARAN (BAB 21 CANON: REKAP PERENCANAAN & REKAP PELAKSANAAN) -->
-          <div class="prabu-tree-group collapsed" id="folder-rekap">
-            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-rekap', event)">
-              <span class="prabu-folder-label">
-                <span>📁 Rekap Anggaran</span>
-              </span>
-              <span class="prabu-chevron">▾</span>
-            </button>
-            <div class="prabu-tree-children">
+              <!-- Rekap Perencanaan -->
               <button class="nav-item" data-view="view-rekap-perencanaan" id="nav-item-rekap-perencanaan" onclick="switchView('view-rekap-perencanaan')">
-                <span class="icon">📊</span>
+                <span class="icon">📈</span>
                 <span class="label">Rekap Perencanaan</span>
               </button>
-              <button class="nav-item" data-view="view-rekap-pelaksanaan" id="nav-item-rekap-pelaksanaan" onclick="switchView('view-rekap-pelaksanaan')">
-                <span class="icon">🏛️</span>
-                <span class="label">Rekap Pelaksanaan</span>
+
+              <!-- Standar 28 Kegiatan KPT KPU 543/2022 -->
+              <button class="nav-item" data-view="view-juknis-kegiatan" id="nav-item-juknis-kegiatan" onclick="switchView('view-juknis-kegiatan')">
+                <span class="icon">📋</span>
+                <span class="label">Standar 28 Kegiatan (KPT 543)</span>
+              </button>
+
+              <!-- Panduan Perencanaan -->
+              <button class="nav-item" data-view="view-panduan" id="nav-item-panduan-perencanaan" onclick="switchView('view-panduan')" style="margin-bottom: 2px;">
+                <span class="icon">📘</span>
+                <span class="label">Panduan Perencanaan</span>
               </button>
             </div>
           </div>
 
-          <!-- 2C. PENGADAAN (18 TAHAP HULU-KE-HILIR) -->
+          <!-- 3. PENGADAAN (TAHAP 2 TENGAH: 18 TAHAP HULU-KE-HILIR, REKAP & PANDUAN) -->
           <div class="prabu-tree-group collapsed" id="folder-pengadaan">
             <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-pengadaan', event)">
               <span class="prabu-folder-label">
-                <span>📁 Pengadaan</span>
+                <span class="icon">📁</span>
+                <span class="label">Pengadaan</span>
               </span>
               <span class="prabu-chevron">▾</span>
             </button>
@@ -329,25 +329,51 @@
                 <span class="icon">🧭</span>
                 <span class="label">Kokpit 18 Tahap</span>
               </button>
-              <button class="nav-item" data-view="view-pengadaan-penyedia" id="nav-item-pengadaan-penyedia" onclick="switchView('view-pengadaan-penyedia')">
-                <span class="icon">🏢</span>
-                <span class="label">Direktori Penyedia</span>
+              <button class="nav-item" data-view="view-rekap-pengadaan" id="nav-item-rekap-pengadaan" onclick="switchView('view-rekap-pengadaan')">
+                <span class="icon">📈</span>
+                <span class="label">Rekap Pengadaan</span>
+              </button>
+              <button class="nav-item" data-view="view-panduan-pengadaan" id="nav-item-panduan-pengadaan" onclick="switchView('view-panduan-pengadaan')">
+                <span class="icon">📘</span>
+                <span class="label">Panduan Pengadaan</span>
               </button>
             </div>
           </div>
 
-          <!-- 3. REFERENSI (SSOT, SBM, BAS) -->
+          <!-- 4. PEMBAYARAN (TAHAP 3 HILIR: PAGU BASELINE SAH, REKAP & PANDUAN PEMBAYARAN) -->
+          <div class="prabu-tree-group collapsed" id="folder-pembayaran">
+            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-pembayaran', event)">
+              <span class="prabu-folder-label">
+                <span class="icon">📁</span>
+                <span class="label">Pembayaran</span>
+              </span>
+              <span class="prabu-chevron">▾</span>
+            </button>
+            <div class="prabu-tree-children">
+              <button class="nav-item" data-view="view-rekap-pelaksanaan" id="nav-item-rekap-pelaksanaan" onclick="switchView('view-rekap-pelaksanaan')">
+                <span class="icon">🏛️</span>
+                <span class="label">Rekap Pembayaran</span>
+              </button>
+              <button class="nav-item" data-view="view-panduan-pelaksanaan" id="nav-item-panduan-pelaksanaan" onclick="switchView('view-panduan-pelaksanaan')">
+                <span class="icon">💳</span>
+                <span class="label">Panduan Pembayaran</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 5. REFERENSI (MURNI MASTER DATA RUJUKAN SISTEM: SSOT, SBM, BAS) -->
           <div class="prabu-tree-group collapsed" id="folder-referensi">
             <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-referensi', event)">
               <span class="prabu-folder-label">
-                <span>📁 Referensi</span>
+                <span class="icon">📁</span>
+                <span class="label">Referensi</span>
               </span>
               <span class="prabu-chevron">▾</span>
             </button>
             <div class="prabu-tree-children">
               <button class="nav-item" data-view="view-db-kuantitas" onclick="switchView('view-db-kuantitas')">
                 <span class="icon">📐</span>
-                <span class="label">Parameter & Kuantitas SSOT</span>
+                <span class="label">Parameter &amp; Kuantitas SSOT</span>
               </button>
               <button class="nav-item" data-view="view-db-sbm" onclick="switchView('view-db-sbm')">
                 <span class="icon">💰</span>
@@ -360,11 +386,12 @@
             </div>
           </div>
 
-          <!-- 4. DATABASE (3 MASTER WILAYAH & ELEKTORAL) -->
+          <!-- 6. DATABASE (4 MASTER ENTITAS EKSTERNAL: WILAYAH, ELEKTORAL & PENYEDIA) -->
           <div class="prabu-tree-group collapsed" id="folder-database">
             <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-database', event)">
               <span class="prabu-folder-label">
-                <span>📁 Database</span>
+                <span class="icon">📁</span>
+                <span class="label">Database</span>
               </span>
               <span class="prabu-chevron">▾</span>
             </button>
@@ -375,54 +402,31 @@
               </button>
               <button class="nav-item" data-view="view-db-pps" onclick="switchView('view-db-pps')">
                 <span class="icon">🏘️</span>
-                <span class="label">Master Desa & TPS (217 PPS)</span>
+                <span class="label">Master Desa &amp; TPS (217 PPS)</span>
               </button>
               <button class="nav-item" data-view="view-db-paslon" onclick="switchView('view-db-paslon')">
                 <span class="icon">🗳️</span>
                 <span class="label">Master Pasangan Calon (Paslon)</span>
               </button>
+              <button class="nav-item" data-view="view-pengadaan-penyedia" id="nav-item-pengadaan-penyedia" onclick="switchView('view-pengadaan-penyedia')">
+                <span class="icon">🏢</span>
+                <span class="label">Master Penyedia (Rekanan)</span>
+              </button>
             </div>
           </div>
 
-          <!-- 5. PANDUAN (PEDOMAN PENGGUNA & REGULASI DASAR HUKUM) -->
-          <div class="prabu-tree-group collapsed" id="folder-panduan">
-            <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-panduan', event)">
-              <span class="prabu-folder-label">
-                <span>📁 Panduan</span>
-              </span>
-              <span class="prabu-chevron">▾</span>
-            </button>
-            <div class="prabu-tree-children">
-              <button class="nav-item" data-view="view-panduan" id="nav-item-panduan-perencanaan" onclick="switchView('view-panduan')">
-                <span class="icon">📖</span>
-                <span class="label">Panduan Perencanaan</span>
-              </button>
-              <button class="nav-item" data-view="view-panduan-pelaksanaan" id="nav-item-panduan-pelaksanaan" onclick="switchView('view-panduan-pelaksanaan')">
-                <span class="icon">💳</span>
-                <span class="label">Panduan Pelaksanaan</span>
-              </button>
-              <button class="nav-item" data-view="view-panduan-pengadaan" id="nav-item-panduan-pengadaan" onclick="switchView('view-panduan-pengadaan')">
-                <span class="icon">📘</span>
-                <span class="label">Panduan Pengadaan</span>
-              </button>
-              <!-- Regulasi & Dasar Hukum JDIH KPU -->
-              <button class="nav-item" data-view="view-db-regulasi" id="nav-item-regulasi" onclick="switchView('view-db-regulasi')">
-                <span class="icon">📜</span>
-                <span class="label">Regulasi &amp; Dasar Hukum</span>
-              </button>
-              <!-- Standar 28 Kegiatan KPT KPU 543/2022 -->
-              <button class="nav-item" data-view="view-juknis-kegiatan" id="nav-item-juknis-kegiatan" onclick="switchView('view-juknis-kegiatan')">
-                <span class="icon">📋</span>
-                <span class="label">Standar 28 Kegiatan (KPT 543)</span>
-              </button>
-            </div>
-          </div>
+          <!-- 7. REGULASI & DASAR HUKUM JDIH (PORTAL 3 PILAR: PERENCANAAN, PENGADAAN, PEMBAYARAN) -->
+          <button class="nav-item" data-view="view-db-regulasi" id="nav-item-regulasi" onclick="switchView('view-db-regulasi')">
+            <span class="icon">📜</span>
+            <span class="label">Regulasi &amp; Dasar Hukum</span>
+          </button>
 
           <!-- 6. ADMINISTRASI (PENGGUNA, PENANDATANGAN, PENGATURAN & AUDIT LOG) -->
           <div class="prabu-tree-group collapsed" id="folder-administrasi">
             <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-administrasi', event)">
               <span class="prabu-folder-label">
-                <span>📁 Administrasi</span>
+                <span class="icon">📁</span>
+                <span class="label">Administrasi</span>
               </span>
               <span class="prabu-chevron">▾</span>
             </button>
@@ -475,7 +479,8 @@
           <div class="prabu-tree-group collapsed" id="folder-developer" style="display: none;">
             <button type="button" class="prabu-folder-toggle" onclick="toggleSidebarFolder('folder-developer', event)">
               <span class="prabu-folder-label">
-                <span>🛠️ Konsol Arsitektur (L0)</span>
+                <span class="icon">🛠️</span>
+                <span class="label">Konsol Arsitektur (L0)</span>
               </span>
               <span class="prabu-chevron">▾</span>
             </button>
@@ -520,13 +525,16 @@
         </div>
 
         <!-- ================================================================= -->
-        <!-- VIEW 1: DASHBOARD KPI -->
+        <!-- VIEW 1: BERANDA EKSEKUTIF — REKAP BESAR 3 MODUL SIKLUS ANGGARAN   -->
         <!-- ================================================================= -->
         <section id="view-dashboard" class="app-view active">
           <div class="view-header">
             <div>
-              <h2 class="view-title" id="dashboard-title">Dashboard Ringkasan Anggaran</h2>
-              <p class="view-desc" id="dashboard-desc">Ringkasan eksekutif alokasi Pagu NPHD Hibah Pilkada KPU Kabupaten Ngawi.</p>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.4px;margin-bottom:6px;">
+                <span>🏛️ EXECUTIVE COMMAND CENTER • HULU KE HILIR</span>
+              </div>
+              <h2 class="view-title" id="dashboard-title">📊 Beranda Eksekutif — Rekap Terpadu 3 Modul</h2>
+              <p class="view-desc" id="dashboard-desc">Konsolidasi eksekutif siklus anggaran: <strong>1. Perencanaan (RKB)</strong> &rarr; <strong>2. Pengadaan (18 Tahap)</strong> &rarr; <strong>3. Pembayaran (Baseline Sah)</strong>.</p>
             </div>
             <div class="header-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
               <!-- Selector Cakupan Subbagian untuk Level 0, Level 1, dan Pimpinan Satker -->
@@ -558,116 +566,193 @@
           <!-- DOKUMEN & KORESPONDENSI DINAS BANNER DI BERANDA -->
           <div id="dashboard-announcement-banner" style="display: none; margin-bottom: 20px;"></div>
 
-          <!-- KPI STAT CARDS -->
-          <div class="kpi-grid">
-            <div class="kpi-card highlight">
-              <div class="kpi-icon">💰</div>
-              <div class="kpi-info">
-                <span class="kpi-label" id="kpi-label-total-pagu">TOTAL PAGU DOKUMEN</span>
-                <span class="kpi-value" id="kpi-total-pagu">Memuat...</span>
-                <span class="kpi-sub" id="kpi-status-dokumen">Status: Draft Aktif</span>
-              </div>
-            </div>
+          <!-- =============================================================== -->
+          <!-- PANEL UTAMA: REKAP BESAR 3 MODUL SIKLUS ANGGARAN (HULU - HILIR) -->
+          <!-- =============================================================== -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; margin-bottom: 20px;" id="dashboard-3modul-grid">
 
-            <div class="kpi-card">
-              <div class="kpi-icon">📋</div>
-              <div class="kpi-info">
-                <span class="kpi-label" id="kpi-label-total-items">RINCIAN ITEM BELANJA</span>
-                <span class="kpi-value" id="kpi-total-items">Memuat...</span>
-                <span class="kpi-sub" id="kpi-total-rows">-</span>
+            <!-- PILAR 1: REKAP MODUL PERENCANAAN (HULU) -->
+            <div class="card" style="padding: 0; overflow: hidden; border: 1px solid #bfdbfe; border-top: 5px solid #2563eb; border-radius: 12px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08); display: flex; flex-direction: column; justify-content: space-between;">
+              <div style="padding: 16px 18px; background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%); border-bottom: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="background: #dbeafe; color: #1e40af; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.4px;">TAHAP I • HULU</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #2563eb;" id="kpi-status-dokumen">Status: Draft Aktif</span>
+                </div>
+                <h3 style="margin: 0; font-size: 15.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                  <span>📐 1. Rekap Perencanaan (RKB)</span>
+                </h3>
+                <div style="margin-top: 10px;">
+                  <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;" id="kpi-label-total-pagu">TOTAL PAGU PERENCANAAN</div>
+                  <div style="font-size: 23px; font-weight: 800; color: #1d4ed8; font-family: var(--font-mono); letter-spacing: -0.5px; margin-top: 2px;" id="kpi-total-pagu">Memuat...</div>
+                </div>
               </div>
-            </div>
 
-            <div class="kpi-card">
-              <div class="kpi-icon">🏛️</div>
-              <div class="kpi-info">
-                <span class="kpi-label" id="kpi-label-pagu-kab">LINGKUP KABUPATEN</span>
-                <span class="kpi-value" id="kpi-pagu-kab">Memuat...</span>
-                <span class="kpi-sub" id="kpi-pct-kab">-</span>
-              </div>
-            </div>
+              <div style="padding: 14px 18px; background: #ffffff; flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;" id="kpi-label-pagu-kab">LINGKUP KABUPATEN</div>
+                    <div style="font-size: 13px; font-weight: 800; color: #0f172a; font-family: var(--font-mono); margin-top: 2px;" id="kpi-pagu-kab">-</div>
+                    <div style="font-size: 10.5px; color: #2563eb; font-weight: 600;" id="kpi-pct-kab">-</div>
+                  </div>
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;" id="kpi-label-pagu-adhoc">ALOKASI BADAN ADHOC</div>
+                    <div style="font-size: 13px; font-weight: 800; color: #0f172a; font-family: var(--font-mono); margin-top: 2px;" id="kpi-pagu-adhoc">-</div>
+                    <div style="font-size: 10.5px; color: #047857; font-weight: 600;" id="kpi-pct-adhoc">-</div>
+                  </div>
+                </div>
 
-            <div class="kpi-card">
-              <div class="kpi-icon">👥</div>
-              <div class="kpi-info">
-                <span class="kpi-label" id="kpi-label-pagu-adhoc">ALOKASI BADAN ADHOC</span>
-                <span class="kpi-value" id="kpi-pagu-adhoc">Memuat...</span>
-                <span class="kpi-sub" id="kpi-pct-adhoc">-</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- SUBBAG DISTRIBUTION & AKUN MATRIX -->
-          <div class="dashboard-grid">
-            <!-- DISTRIBUSI SUBBAG -->
-            <div class="card">
-              <div class="card-header">
-                <h3 id="dashboard-subbag-card-title">Distribusi Pagu Per Subbagian Pelaksana</h3>
-              </div>
-              <div class="card-body">
-                <div class="subbag-progress-list" id="subbag-distribution-list">
-                  <!-- Populated via JS -->
+                <div style="background: #f1f5f9; border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+                  <span style="color: #475569; font-weight: 600;" id="kpi-label-total-items">Volume Rincian Belanja:</span>
+                  <div style="text-align: right;">
+                    <strong style="color: #0f172a; font-family: var(--font-mono);" id="kpi-total-items">0 Baris</strong>
+                    <div style="font-size: 10px; color: #64748b;" id="kpi-total-rows">-</div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- DISTRIBUSI SASARAN -->
-            <div class="card">
-              <div class="card-header">
-                <h3 id="dashboard-sasaran-card-title">Distribusi Alokasi Berdasarkan Sasaran</h3>
+            <!-- PILAR 2: REKAP MODUL PENGADAAN (TENGAH — 18 TAHAP) -->
+            <div class="card" style="padding: 0; overflow: hidden; border: 1px solid #fde68a; border-top: 5px solid #d97706; border-radius: 12px; box-shadow: 0 4px 14px rgba(217, 119, 6, 0.08); display: flex; flex-direction: column; justify-content: space-between;">
+              <div style="padding: 16px 18px; background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%); border-bottom: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="background: #fef3c7; color: #92400e; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.4px;">TAHAP II • TENGAH (PBJ)</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #b45309;" id="dash-pbj-paket-badge">6 Paket Aktif</span>
+                </div>
+                <h3 style="margin: 0; font-size: 15.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                  <span>📦 2. Rekap Pengadaan (18 Tahap)</span>
+                </h3>
+                <div style="margin-top: 10px;">
+                  <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">TOTAL NILAI KONTRAK PENGADAAN</div>
+                  <div style="font-size: 23px; font-weight: 800; color: #b45309; font-family: var(--font-mono); letter-spacing: -0.5px; margin-top: 2px;" id="dash-pbj-kontrak">Memuat...</div>
+                </div>
               </div>
-              <div class="card-body">
-                <div class="table-responsive">
-                  <table class="table table-bordered">
-                    <thead>
-                      <tr>
-                        <th>Sasaran</th>
-                        <th class="text-right">Alokasi Anggaran (Rp)</th>
-                        <th class="text-right">Porsi (%)</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-sasaran-body">
-                      <!-- Populated via JS -->
-                    </tbody>
-                  </table>
+
+              <div style="padding: 14px 18px; background: #ffffff; flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">PAGU PAKET &amp; HPS</div>
+                    <div style="font-size: 13px; font-weight: 800; color: #0f172a; font-family: var(--font-mono); margin-top: 2px;" id="dash-pbj-pagu">-</div>
+                    <div style="font-size: 10.5px; color: #047857; font-weight: 700;" id="dash-pbj-efisiensi">Efisiensi: -</div>
+                  </div>
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">KEPATUHAN UMK &amp; PDN</div>
+                    <div style="font-size: 13px; font-weight: 800; color: #047857; font-family: var(--font-mono); margin-top: 2px;" id="dash-pbj-umk-tkdn">100% UMK • 45% TKDN</div>
+                    <div style="font-size: 10.5px; color: #64748b; font-weight: 600;">Pasal 65 &amp; 66 Perpres 46/2025</div>
+                  </div>
+                </div>
+
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+                  <span style="color: #92400e; font-weight: 700;">Progres BAST &amp; 18 Tahap:</span>
+                  <div style="text-align: right;">
+                    <strong style="color: #b45309; font-family: var(--font-mono);" id="dash-pbj-progres">6 / 6 Paket Selesai</strong>
+                    <div style="font-size: 10px; color: #78350f;" id="dash-pbj-metode-sub">E-Purchasing, PL, Swakelola &amp; Konstruksi</div>
+                  </div>
                 </div>
               </div>
             </div>
+
+            <!-- PILAR 3: REKAP MODUL PEMBAYARAN (HILIR — BASELINE SAH) -->
+            <div class="card" style="padding: 0; overflow: hidden; border: 1px solid #a7f3d0; border-top: 5px solid #059669; border-radius: 12px; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.08); display: flex; flex-direction: column; justify-content: space-between;">
+              <div style="padding: 16px 18px; background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 100%); border-bottom: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="background: #d1fae5; color: #065f46; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.4px;">TAHAP III • HILIR (PEMBAYARAN)</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #047857;" id="dash-pay-status-badge">Baseline Sah Tahap 4</span>
+                </div>
+                <h3 style="margin: 0; font-size: 15.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                  <span>💳 3. Rekap Pembayaran (Baseline Sah)</span>
+                </h3>
+                <div style="margin-top: 10px;">
+                  <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">PAGU SAH DASAR PEMBAYARAN</div>
+                  <div style="font-size: 23px; font-weight: 800; color: #047857; font-family: var(--font-mono); letter-spacing: -0.5px; margin-top: 2px;" id="dash-pay-baseline">Memuat...</div>
+                </div>
+              </div>
+
+              <div style="padding: 14px 18px; background: #ffffff; flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">TAGIHAN KONTRAK (NETTO SP2D)</div>
+                    <div style="font-size: 13px; font-weight: 800; color: #047857; font-family: var(--font-mono); margin-top: 2px;" id="dash-pay-netto">-</div>
+                    <div style="font-size: 10.5px; color: #b45309; font-weight: 600;" id="dash-pay-pajak">Potongan Pajak: -</div>
+                  </div>
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;">
+                    <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">PENYALURAN BADAN ADHOC</div>
+                    <div style="font-size: 13px; font-weight: 800; color: #0f172a; font-family: var(--font-mono); margin-top: 2px;" id="dash-pay-adhoc">-</div>
+                    <div style="font-size: 10.5px; color: #64748b; font-weight: 600;">19 PPK &amp; 217 PPS se-Kab. Ngawi</div>
+                  </div>
+                </div>
+
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+                  <span style="color: #065f46; font-weight: 700;">Dasar Pengesahan Pleno:</span>
+                  <div style="text-align: right;">
+                    <strong style="color: #047857;" id="dash-pay-doc-name">RKB Baseline Sah</strong>
+                    <div style="font-size: 10px; color: #065f46;" id="dash-pay-selisih">Selisih thd RKB Aktif: Rp 0</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          <!-- DISTRIBUSI AKUN BAS -->
-          <div class="card mt-4">
-            <div class="card-header">
-              <h3 id="dashboard-bas-card-title">Distribusi Anggaran Berdasarkan Bagan Akun Standar (BAS)</h3>
-            </div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table class="table table-striped">
-                  <thead>
-                    <tr>
-                      <th style="width: 120px;">Kode Akun</th>
-                      <th>Uraian Akun</th>
-                      <th class="text-right" style="width: 240px;">Jumlah Anggaran (Rp)</th>
-                      <th class="text-right" style="width: 120px;">Persentase</th>
-                    </tr>
-                  </thead>
-                  <tbody id="table-akun-body">
-                    <!-- Populated via JS -->
-                  </tbody>
-                </table>
+          <!-- =============================================================== -->
+          <!-- BLOK BARIS 2: KONSOLIDASI 3 MODUL PER SUBBAGIAN (5 BLOCK CARDS) -->
+          <!-- =============================================================== -->
+          <div class="card" style="margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px; background: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
+              <div>
+                <div style="font-size: 10.5px; font-weight: 800; color: #4338ca; text-transform: uppercase; letter-spacing: 0.5px;">🏢 KONSOLIDASI LINTAS MODUL PER DIVISI / SUBBAGIAN</div>
+                <h3 style="margin: 2px 0 0 0; font-size: 15px; font-weight: 800; color: #0f172a;" id="dashboard-subbag-card-title">Resume Siklus 3 Modul Per Subbagian Pengampu (PIC)</h3>
               </div>
+              <span class="badge" style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; font-size: 11px; font-weight: 700;">5 Subbagian Pelaksana KPU</span>
+            </div>
+            <div id="dashboard-subbag-3modul-blocks" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px;">
+              <!-- Diisi otomatis oleh renderDashboard() dalam bentuk Block Cards -->
+            </div>
+          </div>
+
+          <!-- =============================================================== -->
+          <!-- BLOK BARIS 3: DISTRIBUSI SASARAN BELANJA (6 BLOCK CARDS)        -->
+          <!-- =============================================================== -->
+          <div class="card" style="margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px; background: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
+              <div>
+                <div style="font-size: 10.5px; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.5px;">🎯 DISTRIBUSI LINGKUP PENYELENGGARA &amp; BADAN ADHOC</div>
+                <h3 style="margin: 2px 0 0 0; font-size: 15px; font-weight: 800; color: #0f172a;" id="dashboard-sasaran-card-title">Resume Alokasi Anggaran Berdasarkan Sasaran</h3>
+              </div>
+              <span class="badge" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 11px; font-weight: 700;">6 Kelompok Sasaran Belanja</span>
+            </div>
+            <div id="dashboard-sasaran-blocks" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+              <!-- Diisi otomatis oleh renderDashboard() dalam bentuk Block Cards -->
+            </div>
+          </div>
+
+          <!-- =============================================================== -->
+          <!-- BLOK BARIS 4: DISTRIBUSI BAGAN AKUN STANDAR / BAS (BLOCK GRID)  -->
+          <!-- =============================================================== -->
+          <div class="card" style="margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px; background: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
+              <div>
+                <div style="font-size: 10.5px; font-weight: 800; color: #0369a1; text-transform: uppercase; letter-spacing: 0.5px;">💳 KOMPOSISI BELANJA MAKRO SATKER</div>
+                <h3 style="margin: 2px 0 0 0; font-size: 15px; font-weight: 800; color: #0f172a;" id="dashboard-bas-card-title">Resume Distribusi Bagan Akun Standar (BAS 6-Digit)</h3>
+              </div>
+              <span class="badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 11px; font-weight: 700;" id="dashboard-bas-count-badge">Akun BAS Aktif</span>
+            </div>
+            <div id="dashboard-akun-blocks" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
+              <!-- Diisi otomatis oleh renderDashboard() dalam bentuk Block Cards -->
             </div>
           </div>
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 2: PUSAT SIKLUS & RIWAYAT ARSIP DOKUMEN TERPADU -->
+        <!-- VIEW 2: DOKUMEN ANGGARAN (SUMBER DATA LINTAS MODUL: PERENCANAAN, PENGADAAN & PEMBAYARAN) -->
         <!-- ================================================================= -->
         <section id="view-siklus" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">Pusat Siklus Dokumen &amp; Riwayat Arsip Revisi</h2>
-              <p class="view-desc">Kelola siklus hidup dokumen RKB, komparasi pergeseran pagu terhadap rujukan induk, serta arsip permanen dokumen revisi yang telah disahkan beserta tautan bukti fisik (BA Pleno, RKB Final, KAK Gabungan).</p>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>📚 REPOSITORI INDUK DOKUMEN ANGGARAN LINTAS MODUL</span>
+              </div>
+              <h2 class="view-title">📚 Dokumen Anggaran (Siklus Aktif &amp; Baseline Terkunci)</h2>
+              <p class="view-desc">Pusat kendali versi dokumen anggaran lintas modul: menentukan <strong>Dokumen Siklus Aktif</strong> untuk <em>Perencanaan</em> sekaligus <strong>Dokumen Terkunci Terbaru (Baseline Sah)</strong> untuk <em>Pengadaan</em> &amp; <em>Pembayaran</em>, lengkap dengan tautan bukti fisik Google Drive (BA Pleno, RKB Final, KAK Gabungan).</p>
             </div>
             <div class="header-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button class="btn btn-outline-primary" onclick="switchView('view-revisi-monitoring')">
@@ -676,6 +761,19 @@
               <button class="btn btn-primary" onclick="openRevisionModal()" id="btn-buat-revisi">
                 ➕ Buat Usulan Revisi Baru
               </button>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:12px; margin-bottom:16px;">
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #2563eb; border-radius:10px; padding:12px 16px;">
+              <div style="font-size:11px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.4px;">📐 1. Sumber Data Modul Perencanaan</div>
+              <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:3px;" id="dok-anggaran-active-planning-label">Menggunakan Dokumen Siklus Aktif</div>
+              <div style="font-size:11.5px; color:#334155; margin-top:2px;">Digunakan oleh: <strong>RUH Belanja RKB, Pengajuan/Validasi Revisi, &amp; Rekap Perencanaan</strong>.</div>
+            </div>
+            <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-left:4px solid #059669; border-radius:10px; padding:12px 16px;">
+              <div style="font-size:11px; font-weight:800; color:#047857; text-transform:uppercase; letter-spacing:0.4px;">🔒 2. Sumber Data Modul Pengadaan &amp; Pembayaran</div>
+              <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:3px;" id="dok-anggaran-locked-exec-label">Menggunakan Dokumen Terkunci Paling Baru</div>
+              <div style="font-size:11.5px; color:#334155; margin-top:2px;">Digunakan oleh: <strong>Daftar Paket &amp; Kokpit 18 Tahap Pengadaan, Rekap Pengadaan, &amp; Rekap Pembayaran</strong>.</div>
             </div>
           </div>
 
@@ -1527,13 +1625,13 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW REKAP PELAKSANAAN (BAB 21.4 CANON: SUMBER BASELINE TAHAP 4)   -->
+        <!-- VIEW REKAP PEMBAYARAN (BAB 21.4 CANON: SUMBER BASELINE TAHAP 4)    -->
         <!-- ================================================================= -->
         <section id="view-rekap-pelaksanaan" class="app-view">
           <div class="view-header">
             <div>
-              <h2 class="view-title">🏛️ Rekap Pelaksanaan Anggaran (Sumber: Baseline Sah Terakhir)</h2>
-              <p class="view-desc">Acuan pagu pelaksanaan dari hasil pengesahan Tahap 4 terakhir yang terkunci (tidak terpengaruh draf revisi berjalan).</p>
+              <h2 class="view-title">🏛️ Rekap Pembayaran Anggaran (Sumber: Baseline Sah Terakhir)</h2>
+              <p class="view-desc">Acuan pagu pembayaran &amp; eksekusi belanja dari hasil pengesahan Tahap 4 terakhir yang terkunci (tidak terpengaruh draf revisi berjalan).</p>
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <div id="rekap-pelaksanaan-pic-filter-box" style="display: inline-flex; align-items: center; gap: 6px; background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
@@ -1561,7 +1659,7 @@
 
           <div class="alert alert-warning mb-3" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div>
-              <strong>Sumber Baseline Sah Terkunci (Otomatis tanpa pemilih versi manual):</strong> <span id="rekap-pelaksanaan-doc-label">Memuat...</span>
+              <strong>Sumber Baseline Sah Terkunci (Acuan Pembayaran Bendahara &amp; KPA):</strong> <span id="rekap-pelaksanaan-doc-label">Memuat...</span>
             </div>
             <span class="badge badge-danger">🔒 Baseline Sah Terkunci (VIEW ONLY)</span>
           </div>
@@ -1577,7 +1675,60 @@
 
           <div class="card">
             <div class="card-body" id="rekap-pelaksanaan-content">
-              <div class="text-center" style="padding: 28px;">Memuat data Rekap Pelaksanaan...</div>
+              <div class="text-center" style="padding: 28px;">Memuat data Rekap Pembayaran...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- VIEW REKAP PENGADAAN (18 TAHAP HULU-KE-HILIR PBJ SATKER)          -->
+        <!-- ================================================================= -->
+        <section id="view-rekap-pengadaan" class="app-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">📈 Rekap Pengadaan Barang/Jasa &amp; Konstruksi (18 Tahap Hulu–Hilir)</h2>
+              <p class="view-desc">Konsolidasi Pagu RUP, HPS, Nilai Kontrak, Efisiensi Belanja, Capaian PDN/TKDN &amp; UMK, serta Realisasi BAST &amp; Pembayaran Kontrak.</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div id="rekap-pengadaan-pic-filter-box" style="display: inline-flex; align-items: center; gap: 6px; background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px;">
+                <label for="rekap-pengadaan-pic-select" style="font-size: 11.5px; font-weight: 700; color: #334155; margin: 0;">Cakupan Subbagian:</label>
+                <select id="rekap-pengadaan-pic-select" class="input-select input-sm" onchange="if(window.renderRekapPengadaanView) window.renderRekapPengadaanView()" style="font-weight: 600;">
+                  <option value="SEMUA">🏛️ Seluruh Satker (Semua Subbag)</option>
+                  <option value="RENDATIN">RENDATIN</option>
+                  <option value="TEKNIS">TEKNIS</option>
+                  <option value="HUKUM">HUKUM</option>
+                  <option value="PARSDM">PARSDM</option>
+                  <option value="KUL">KUL</option>
+                </select>
+              </div>
+              <button type="button" class="btn btn-outline-success btn-sm" onclick="if(window.exportRekapPengadaanCsv) window.exportRekapPengadaanCsv()" style="font-weight: 700;" title="Unduh rekapitulasi paket &amp; kontrak pengadaan ke format spreadsheet">
+                📥 Unduh Rekap (.csv/.xlsx)
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="if(window.printRekapPengadaanPdf) window.printRekapPengadaanPdf()" style="font-weight: 700;">
+                🖨️ Cetak / PDF (.pdf)
+              </button>
+            </div>
+          </div>
+
+          <div class="alert alert-info mb-3" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <strong>Sumber Basis Data Pengadaan Terpadu:</strong> <span id="rekap-pengadaan-doc-label">Database Paket, Kontrak, BAST &amp; Pembayaran PBJ KPU Kabupaten Ngawi (Perpres 46/2025, Perlem LKPP 2/2026 &amp; 3/2026)</span>
+            </div>
+            <span class="badge badge-primary">📦 Real-Time 18 Tahap PBJ</span>
+          </div>
+
+          <!-- 5 Tab Sudut Pandang Rekap Pengadaan -->
+          <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;" id="rekap-pengadaan-tabs">
+            <button type="button" class="btn btn-sm btn-primary" data-tab="EKSEKUTIF" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('EKSEKUTIF')">1. Ringkasan Eksekutif PBJ</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="JENIS_METODE" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('JENIS_METODE')">2. Rekap Jenis &amp; Metode</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="SUBBAGIAN" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('SUBBAGIAN')">3. Rekap Subbagian &amp; Pejabat</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="AKUN_BAS" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('AKUN_BAS')">4. Rekap Akun BAS &amp; RUP</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="KONTRAK_BAST" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('KONTRAK_BAST')">5. Matriks Kontrak, BAST &amp; Pembayaran</button>
+          </div>
+
+          <div class="card">
+            <div class="card-body" id="rekap-pengadaan-content">
+              <div class="text-center" style="padding: 28px;">Memuat data Rekap Pengadaan...</div>
             </div>
           </div>
         </section>
@@ -2033,8 +2184,8 @@
               <div style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
                 <span>⚖️ JDIH KPU &bull; JARINGAN DOKUMENTASI DAN INFORMASI HUKUM</span>
               </div>
-              <h2 class="view-title">Regulasi &amp; Dasar Hukum Anggaran Pemilihan</h2>
-              <p class="view-desc">Katalog Terpadu Produk Hukum Penyusunan Anggaran (Perencanaan RKB) &amp; Pelaksanaan Anggaran Hibah Pemilihan.</p>
+              <h2 class="view-title">Regulasi &amp; Dasar Hukum (Perencanaan, Pengadaan &amp; Pembayaran)</h2>
+              <p class="view-desc">Katalog Terpadu Produk Hukum Perencanaan RKB, Pengadaan Barang/Jasa (PBJ), serta Pembayaran &amp; Pertanggungjawaban Anggaran Pemilihan.</p>
             </div>
             <div class="header-actions">
               <button class="btn btn-primary" id="btn-tambah-regulasi" onclick="openModalRegulasi()">
@@ -2047,23 +2198,28 @@
           <div class="penyelenggara-strip mb-3">
             <div class="penyelenggara-box" style="border-left: 4px solid #1e40af;">
               <div class="p-title">Total Koleksi JDIH</div>
-              <div class="p-val" id="jdih-stat-total">13 Produk Hukum</div>
+              <div class="p-val" id="jdih-stat-total">26 Produk Hukum</div>
               <div class="p-note">Terverifikasi Berlaku Aktif</div>
             </div>
             <div class="penyelenggara-box" style="border-left: 4px solid #0284c7;">
-              <div class="p-title">Penyusunan Anggaran</div>
+              <div class="p-title">Regulasi Perencanaan</div>
               <div class="p-val" id="jdih-stat-penyusunan">10 Regulasi</div>
-              <div class="p-note">Perencanaan RKB, SBM/SBML &amp; BAS</div>
+              <div class="p-note">Penyusunan RKB, SBM/SBML &amp; BAS</div>
+            </div>
+            <div class="penyelenggara-box" style="border-left: 4px solid #d97706;">
+              <div class="p-title">Regulasi Pengadaan</div>
+              <div class="p-val" id="jdih-stat-pengadaan">6 Regulasi</div>
+              <div class="p-note">Perpres 46/2025, LKPP &amp; Kontrak PBJ</div>
             </div>
             <div class="penyelenggara-box" style="border-left: 4px solid #059669;">
-              <div class="p-title">Pelaksanaan Anggaran</div>
+              <div class="p-title">Regulasi Pembayaran</div>
               <div class="p-val" id="jdih-stat-pelaksanaan">10 Regulasi</div>
-              <div class="p-note">Penatausahaan, SPJ, PBJ &amp; Hibah</div>
+              <div class="p-note">Penatausahaan, SPBy, SPJ &amp; Pajak</div>
             </div>
             <div class="penyelenggara-box" style="border-left: 4px solid #7c3aed;">
               <div class="p-title">Lintas Tahapan</div>
               <div class="p-val" id="jdih-stat-lintas">7 Regulasi</div>
-              <div class="p-note">Penyusunan &amp; Pelaksanaan</div>
+              <div class="p-note">Hulu s.d. Hilir Siklus Anggaran</div>
             </div>
           </div>
 
@@ -2075,17 +2231,20 @@
                   📚 Semua Produk Hukum
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-scope="PENYUSUNAN" onclick="setJdihScopeFilter('PENYUSUNAN')">
-                  📐 Penyusunan Anggaran (Perencanaan)
+                  📐 Perencanaan
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-scope="PENGADAAN" onclick="setJdihScopeFilter('PENGADAAN')">
+                  📦 Pengadaan
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-scope="PELAKSANAAN" onclick="setJdihScopeFilter('PELAKSANAAN')">
-                  ⚙️ Pelaksanaan &amp; Pertanggungjawaban Anggaran
+                  💳 Pembayaran
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-scope="PENYUSUNAN & PELAKSANAAN" onclick="setJdihScopeFilter('PENYUSUNAN & PELAKSANAAN')">
-                  🔄 Penyusunan &amp; Pelaksanaan (Lintas)
+                  🔄 Lintas Tahapan
                 </button>
               </div>
               <div style="font-size: 11.5px; color: #64748b; font-weight: 600;" id="jdih-showing-count">
-                Menampilkan 13 dari 13 produk hukum
+                Menampilkan produk hukum...
               </div>
             </div>
 
@@ -2096,18 +2255,18 @@
                   <option value="ALL">-- Semua Jenis Produk Hukum --</option>
                   <option value="UU / PERPPU">UU / PERPPU (Undang-Undang)</option>
                   <option value="PP / PERPRES">PP / PERPRES (Peraturan Pemerintah / Presiden)</option>
+                  <option value="PERLEM LKPP">PERLEM LKPP (Peraturan Lembaga Kebijakan PBJ)</option>
                   <option value="PERMENDAGRI">PERMENDAGRI (Kementerian Dalam Negeri)</option>
                   <option value="PMK">PMK (Peraturan Menteri Keuangan)</option>
                   <option value="PKPU">PKPU (Peraturan KPU)</option>
                   <option value="KPT KPU">KPT KPU (Keputusan KPU)</option>
-                  <option value="KEP GUBERNUR">KEP GUBERNUR (Keputusan Gubernur Jatim)</option>
                   <option value="KEP GUBERNUR">KEP GUBERNUR (Keputusan Gubernur / Pendanaan Bersama)</option>
-                  <option value="KEP / PEDOMAN">KEP / PEDOMAN (Keputusan Teknis / BAS)</option>
+                  <option value="KEP / PEDOMAN">KEP / PEDOMAN (Keputusan Teknis / BAS / Inpres)</option>
                 </select>
               </div>
               <div>
                 <label style="font-size: 11.5px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Pencarian Katalog JDIH (Nomor, Tahun, Tentang, atau Materi Pokok):</label>
-                <input type="text" id="filter-jdih-search" class="input-text input-sm" placeholder="Ketik nomor peraturan, tahun, kata kunci penyusunan RKB, SBM, SBML, SPJ, atau pengadaan..." onkeyup="filterDbRegulasi()">
+                <input type="text" id="filter-jdih-search" class="input-text input-sm" placeholder="Ketik nomor peraturan, tahun, kata kunci perencanaan, pengadaan, SPBy, SPJ, atau pembayaran..." onkeyup="filterDbRegulasi()">
               </div>
             </div>
           </div>
@@ -2317,7 +2476,7 @@
               <div style="display:inline-flex;align-items:center;gap:6px;background:#e0e7ff;color:#1e40af;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
                 <span id="panduan-perencanaan-role-badge">📖 MODUL PERENCANAAN • SESUAI KEWENANGAN PERAN</span>
               </div>
-              <h2 class="view-title" id="panduan-perencanaan-title">Panduan Perencanaan Anggaran SI-PRABU</h2>
+              <h2 class="view-title" id="panduan-perencanaan-title">📘 Panduan Perencanaan Anggaran SI-PRABU</h2>
               <p class="view-desc" id="panduan-perencanaan-desc">
                 <strong>Fokus Modul Perencanaan &amp; Revisi RKB</strong> &mdash; Panduan kerja yang difilter ketat sesuai kewenangan akun Anda pada sistem SI-PRABU.
               </p>
@@ -2755,17 +2914,17 @@
         </section>
 
         <!-- ================================================================= -->
-        <!-- VIEW 8B: PANDUAN PELAKSANAAN & PEMBAYARAN (BASELINE SAH & EKSEKUSI)-->
+        <!-- VIEW 8B: PANDUAN PEMBAYARAN (BASELINE SAH & EKSEKUSI BELANJA)     -->
         <!-- ================================================================= -->
         <section id="view-panduan-pelaksanaan" class="app-view">
           <div class="view-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
             <div>
               <div style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
-                <span id="panduan-pelaksanaan-role-badge">💳 MODUL PELAKSANAAN &amp; PEMBAYARAN • BASELINE SAH TAHAP 4</span>
+                <span id="panduan-pelaksanaan-role-badge">💳 MODUL PEMBAYARAN &amp; PERTANGGUNGJAWABAN • BASELINE SAH TAHAP 4</span>
               </div>
-              <h2 class="view-title">Panduan Pelaksanaan &amp; Pembayaran Anggaran SI-PRABU</h2>
+              <h2 class="view-title">Panduan Pembayaran Anggaran SI-PRABU</h2>
               <p class="view-desc" id="panduan-pelaksanaan-desc">
-                <strong>Khusus Otoritas Pelaksanaan Anggaran</strong> &mdash; Panduan penggunaan Rekap Pelaksanaan berbasis RKB Sah Terakhir (Tahap 4) serta tata kelola eksekusi &amp; pembayaran.
+                <strong>Khusus Otoritas Pembayaran &amp; Bendahara</strong> &mdash; Panduan penggunaan Rekap Pembayaran berbasis RKB Sah Terakhir (Tahap 4) serta tata kelola pencairan, SPBy, kuitansi, dan pertanggungjawaban belanja.
               </p>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
@@ -2775,11 +2934,11 @@
             </div>
           </div>
 
-          <!-- BANNER PRINSIP UTAMA PELAKSANAAN -->
+          <!-- BANNER PRINSIP UTAMA PEMBAYARAN -->
           <div class="card p-4 mb-4" style="background: linear-gradient(135deg, #064e3b 0%, #0f766e 60%, #0284c7 100%); color: #ffffff; border: none; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.25);">
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
               <h3 style="margin: 0; font-size: 16.5px; font-weight: 800; color: #ffffff; display:flex; align-items:center; gap:8px;">
-                <span>🏛️ Prinsip Utama Modul Pelaksanaan (Single Baseline of Execution)</span>
+                <span>🏛️ Prinsip Utama Modul Pembayaran (Single Baseline of Execution)</span>
               </h3>
               <span style="background:rgba(255,255,255,0.18); padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; color:#fde047;">SI-PRABU — Sistem Perencanaan dan Belanja Terpadu</span>
             </div>
@@ -2787,7 +2946,7 @@
               <div style="background: rgba(255,255,255,0.12); padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.22);">
                 <div style="font-size: 12px; font-weight: 800; color: #fde047; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">🔒 SUMBER DATA: RKB SAH TERAKHIR (TAHAP 4)</div>
                 <div style="font-size: 13px; line-height: 1.55; color: #f8fafc;">
-                  <strong>Rekap Pelaksanaan</strong> selalu mengacu pada <strong>RKB terakhir yang telah disahkan dan dikunci melalui Berita Acara Pleno (Tahap 4)</strong> &mdash; <u>bukan</u> draf revisi aktif yang masih dalam proses penyusunan/validasi.
+                  <strong>Rekap Pembayaran</strong> selalu mengacu pada <strong>RKB terakhir yang telah disahkan dan dikunci melalui Berita Acara Pleno (Tahap 4)</strong> &mdash; <u>bukan</u> draf revisi aktif yang masih dalam proses penyusunan/validasi.
                 </div>
               </div>
               <div style="background: rgba(255,255,255,0.12); padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.22);">
@@ -3190,13 +3349,12 @@
                   <span style="font-size: 12px; font-weight: 700; color: #475569;">Filter Kategori:</span>
                   <select id="menu-matrix-filter-folder" class="input-select-sm" onchange="filterMenuMatrixTable()" style="min-width: 180px;">
                     <option value="ALL">Semua Kategori Menu</option>
-                    <option value="ROOT">Menu Utama (Beranda &amp; RKB)</option>
-                    <option value="folder-perencanaan">Perencanaan &amp; Revisi</option>
-                    <option value="folder-rekap">Rekapitulasi Anggaran</option>
-                    <option value="folder-pengadaan">Pengadaan</option>
-                    <option value="folder-referensi">Referensi Standar (SBM, BAS, Kuantitas)</option>
-                    <option value="folder-database">Database Adhoc &amp; Paslon</option>
-                    <option value="folder-panduan">Panduan &amp; Regulasi</option>
+                    <option value="ROOT">Menu Utama (Beranda &amp; Regulasi JDIH)</option>
+                    <option value="folder-perencanaan">1. Perencanaan</option>
+                    <option value="folder-pengadaan">2. Pengadaan</option>
+                    <option value="folder-pembayaran">3. Pembayaran</option>
+                    <option value="folder-referensi">Referensi Standar (SSOT, SBM, BAS)</option>
+                    <option value="folder-database">Database Master Wilayah &amp; Paslon</option>
                     <option value="folder-administrasi">Administrasi &amp; Pengaturan</option>
                     <option value="folder-developer">Konsol Arsitektur Sistem</option>
                   </select>
@@ -3492,13 +3650,13 @@
                 <thead>
                   <tr style="background:#f1f5f9;">
                     <th style="width:45px; text-align:center;">No</th>
-                    <th style="width:130px; text-align:center;">Kategori</th>
+                    <th style="width:120px; text-align:center;">Kategori</th>
                     <th>Jabatan Penandatangan Dokumen</th>
                     <th>Nama Pejabat Sah</th>
-                    <th style="width:190px;">NIP</th>
-                    <th>Jabatan Kedinasan</th>
-                    <th style="width:130px; text-align:center;">Akun Terkait</th>
-                    <th style="width:90px; text-align:center;">Status</th>
+                    <th style="width:175px;">NIP</th>
+                    <th>Jabatan Kedinasan &amp; SK / Sertifikat PBJ</th>
+                    <th style="width:125px; text-align:center;">Akun Terkait</th>
+                    <th style="width:85px; text-align:center;">Status</th>
                     <th style="width:80px; text-align:center;">Aksi</th>
                   </tr>
                 </thead>
@@ -3514,10 +3672,10 @@
 
         <!-- MODAL EDIT PEJABAT PENANDATANGAN -->
         <div id="modal-edit-penandatangan" class="modal-backdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;">
-          <div style="background:#fff; border-radius:12px; max-width:550px; width:92%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); overflow:hidden;">
+          <div style="background:#fff; border-radius:12px; max-width:580px; width:92%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); overflow:hidden;">
             <div style="background:#1e293b; color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
               <div style="font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px;">
-                <span>✍️ Edit Pejabat Penandatangan</span>
+                <span>✍️ Edit Pejabat Penandatangan (Rujukan Tunggal Dokumen)</span>
               </div>
               <button type="button" onclick="closeEditPenandatanganModal()" style="background:transparent; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">&times;</button>
             </div>
@@ -3548,9 +3706,14 @@
                   <input type="text" id="edit-ttd-nip" class="input-text" placeholder="Contoh: 19840101 200912 1 001 atau - jika Komisioner">
                 </div>
 
-                <div class="form-group" style="margin-bottom:16px;">
+                <div class="form-group" style="margin-bottom:12px;">
                   <label style="font-size:12px; font-weight:700; color:#475569;">Jabatan Struktural / Dinas:</label>
                   <input type="text" id="edit-ttd-jabatan-dinas" class="input-text" required placeholder="Contoh: Kasubbag Perencanaan, Data dan Informasi">
+                </div>
+
+                <div class="form-group" style="margin-bottom:16px;">
+                  <label style="font-size:12px; font-weight:700; color:#475569;">Nomor SK Penetapan (KPA/PPK/PPBJ/BP):</label>
+                  <input type="text" id="edit-ttd-no-sk" class="input-text" placeholder="Contoh: SK-02/KPA/KPU-NGW/I/2026">
                 </div>
 
                 <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:14px;">
@@ -3968,51 +4131,218 @@
           </div>
         </section>
 
-        <!-- VIEW PENGADAAN 3: DIREKTORI PENYEDIA & PEJABAT PENGADAAN -->
+        <!-- VIEW DATABASE 4: MASTER PENYEDIA / REKANAN (LINTAS MODUL PENGADAAN & PEMBAYARAN) -->
         <section id="view-pengadaan-penyedia" class="app-view">
           <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
             <div>
-              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">🏢 Direktori Penyedia / Vendor &amp; Pejabat Pengadaan Satker</h1>
-              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Data KPA, PPK, Bendahara, PPSPM, Pejabat Pengadaan (INDRAYU FATIKA MAHARDIKA), serta Direktori Penyedia (UMK, SBU Konstruksi, Beneficial Ownership &amp; Skor Kinerja).</p>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>🏢 DATABASE MASTER REKANAN SATKER 657811</span>
+              </div>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">🏢 Master Penyedia (Rekanan / Supplier Terpadu)</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Basis data entitas pihak ketiga lintas modul: rujukan kontrak/BAST pada <strong>Pengadaan</strong> sekaligus rujukan Rekening Bank &amp; NPWP pemotongan pajak pada <strong>Pembayaran</strong>.</p>
             </div>
-            <button type="button" class="cakra-btn cakra-btn-primary" onclick="openAddPenyediaModal()">➕ Tambah Penyedia / Vendor Baru</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="openAddPenyediaModal()">➕ Tambah Penyedia / Rekanan Baru</button>
+            </div>
           </div>
 
-          <div class="cakra-form-grid">
-            <div class="cakra-card">
-              <div class="cakra-card-header">
-                <div class="cakra-card-title">🏢 Direktori Penyedia / Vendor (UMK, SBU Konstruksi, Beneficial Ownership &amp; Skor Kinerja)</div>
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div style="font-size:12px; color:#1e40af; line-height:1.5;">
+              <strong>✍️ Informasi Referensi Penandatangan Dokumen Satker:</strong> Data Pejabat Pengadaan (PPBJ), PPK, KPA, Bendahara Pengeluaran, PPSPM, Komisioner, dan Kasubbag kini terintegrasi 100% pada menu <strong>Administrasi &rarr; Penandatangan</strong> (terhubung langsung ke <strong>Pengguna</strong>) sebagai rujukan tunggal seluruh dokumen Perencanaan, Pengadaan 18 Tahap, dan Pembayaran.
+            </div>
+          </div>
+
+          <div class="cakra-card" style="width:100%;">
+            <div class="cakra-card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div class="cakra-card-title">🏢 Daftar Master Penyedia / Rekanan (Kualifikasi UMK/Non-UMK, Direktur, NPWP, Rekening Bank, Beneficial Ownership, Skor Kinerja &amp; Link Dokumen Google Drive)</div>
+            </div>
+            <div class="cakra-card-body" style="padding:0; overflow-x:auto;">
+              <table class="cakra-data-table">
+                <thead>
+                  <tr>
+                    <th style="width:42px; text-align:center;">No</th>
+                    <th>Nama Perusahaan &amp; Kualifikasi</th>
+                    <th>Direktur &amp; Jabatan Penandatangan</th>
+                    <th>NPWP &amp; Rekening Bank (SP2D/SPBy)</th>
+                    <th>Beneficial Ownership (BO)</th>
+                    <th>Skor Kinerja PPK</th>
+                    <th style="min-width:250px;">Link Dokumen (Google Drive)</th>
+                    <th style="width:86px; text-align:center;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="cakra-table-master-penyedia"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- MODAL EDIT / TAMBAH PEJABAT PENGADAAN & PENGELOLA KEUANGAN -->
+          <div id="modal-cakra-pejabat" class="modal-backdrop" style="display:none; z-index:1100;" onclick="if(event.target===this) closeCakraPejabatModal()">
+            <div class="modal-box" style="max-width:560px; width:95%;">
+              <div class="modal-header">
+                <div>
+                  <h3 style="margin:0; font-size:15.5px; font-weight:800; color:#0f172a;" id="modal-cakra-pejabat-title">✏️ Edit Pejabat Pengadaan &amp; Pengelola Keuangan</h3>
+                  <div style="font-size:11.5px; color:#64748b; margin-top:2px;">Tersinkronisasi otomatis dengan Dokumen 18 Tahap (.DOCX/.XLSX) &amp; Menu Penandatangan</div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeCakraPejabatModal()">✕</button>
               </div>
-              <div class="cakra-card-body" style="padding:0; overflow-x:auto;">
-                <table class="cakra-data-table">
-                  <thead>
-                    <tr>
-                      <th>Nama Perusahaan &amp; Kualifikasi</th>
-                      <th>Direktur &amp; NPWP</th>
-                      <th>Beneficial Ownership (BO)</th>
-                      <th>Skor Kinerja</th>
-                    </tr>
-                  </thead>
-                  <tbody id="cakra-table-master-penyedia"></tbody>
-                </table>
+              <div class="modal-body" style="display:grid; gap:12px;">
+                <input type="hidden" id="cakra-pejabat-id">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Peran Jabatan Pengadaan:</label>
+                    <select id="cakra-pejabat-peran" class="input-select">
+                      <option value="KPA">KPA (Kuasa Pengguna Anggaran)</option>
+                      <option value="PPK">PPK (Pejabat Pembuat Komitmen)</option>
+                      <option value="PEJABAT_PENGADAAN">PEJABAT_PENGADAAN (PPBJ)</option>
+                      <option value="BENDAHARA">BENDAHARA (Bendahara Pengeluaran)</option>
+                      <option value="PPSPM">PPSPM (Pejabat Penandatangan SPM)</option>
+                      <option value="POKJA_UKPBJ">POKJA_UKPBJ (Pokja Pemilihan)</option>
+                      <option value="TIM_SWAKELOLA">TIM_SWAKELOLA (Penyelenggara Swakelola)</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Tipologi PPK:</label>
+                    <select id="cakra-pejabat-tipologi" class="input-select">
+                      <option value="-">- (Bukan PPK)</option>
+                      <option value="Tipe A">Tipe A (Kompleks)</option>
+                      <option value="Tipe B">Tipe B (Umum)</option>
+                      <option value="Tipe C">Tipe C (Sederhana)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px; font-weight:700;">Nama Lengkap Pejabat (Tanpa/Dengan Gelar sesuai SK):</label>
+                  <input type="text" id="cakra-pejabat-nama" class="input-text" placeholder="Contoh: MOHAMMAD NOOR JIHAN">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">NIP:</label>
+                    <input type="text" id="cakra-pejabat-nip" class="input-text" placeholder="Contoh: 19840101 200912 1 001">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Pangkat / Golongan:</label>
+                    <input type="text" id="cakra-pejabat-pangkat" class="input-text" placeholder="Contoh: Penata Tk. I (III/d)">
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px; font-weight:700;">Jabatan Struktural / Kedinasan:</label>
+                  <input type="text" id="cakra-pejabat-jabatan" class="input-text" placeholder="Contoh: Pejabat Pembuat Komitmen (PPK)">
+                </div>
+                <div style="display:grid; grid-template-columns:1.3fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Nomor SK Penetapan:</label>
+                    <input type="text" id="cakra-pejabat-nosk" class="input-text" placeholder="SK-02/KPA/KPU-NGW/I/2026">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Tanggal SK:</label>
+                    <input type="date" id="cakra-pejabat-tglsk" class="input-text">
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px; font-weight:700;">Nomor Sertifikat Kompetensi PBJ (LKPP):</label>
+                  <input type="text" id="cakra-pejabat-sertifikat" class="input-text" placeholder="Contoh: SERT-PPK-LKPP-2025-88412 atau -">
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeCakraPejabatModal()">Batal</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveCakraPejabatModal()">💾 Simpan Pejabat</button>
               </div>
             </div>
+          </div>
 
-            <div class="cakra-card">
-              <div class="cakra-card-header">
-                <div class="cakra-card-title">👤 Pejabat Pengadaan &amp; Pengelola Keuangan Satker KPU Kabupaten Ngawi</div>
+          <!-- MODAL EDIT / TAMBAH PENYEDIA (VENDOR) -->
+          <div id="modal-cakra-penyedia" class="modal-backdrop" style="display:none; z-index:1100;" onclick="if(event.target===this) closeCakraPenyediaModal()">
+            <div class="modal-box" style="max-width:600px; width:95%;">
+              <div class="modal-header">
+                <div>
+                  <h3 style="margin:0; font-size:15.5px; font-weight:800; color:#0f172a;" id="modal-cakra-penyedia-title">🏢 Edit / Tambah Penyedia (Vendor)</h3>
+                  <div style="font-size:11.5px; color:#64748b; margin-top:2px;">Data identitas perusahaan, direktur penandatangan, rekening bank, Beneficial Ownership (BO), &amp; kinerja</div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeCakraPenyediaModal()">✕</button>
               </div>
-              <div class="cakra-card-body" style="padding:0; overflow-x:auto;">
-                <table class="cakra-data-table">
-                  <thead>
-                    <tr>
-                      <th>Peran</th>
-                      <th>Nama Lengkap &amp; NIP</th>
-                      <th>No. SK &amp; Sertifikat Kompetensi PBJ</th>
-                    </tr>
-                  </thead>
-                  <tbody id="cakra-table-master-pejabat"></tbody>
-                </table>
+              <div class="modal-body" style="display:grid; gap:10px; max-height:72vh; overflow-y:auto;">
+                <input type="hidden" id="cakra-penyedia-id">
+                <div style="display:grid; grid-template-columns:2fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Nama Perusahaan / Penyedia:</label>
+                    <input type="text" id="cakra-penyedia-nama" class="input-text" placeholder="CV. NGAWI GRAFIKA MANDIRI">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Bentuk Usaha:</label>
+                    <select id="cakra-penyedia-bentuk" class="input-select">
+                      <option value="CV">CV</option>
+                      <option value="PT">PT</option>
+                      <option value="UD">UD</option>
+                      <option value="Koperasi">Koperasi</option>
+                      <option value="Perorangan">Perorangan</option>
+                      <option value="Hotel / BUMN">Hotel / BUMN</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Kualifikasi Usaha:</label>
+                    <input type="text" id="cakra-penyedia-kualifikasi" class="input-text" placeholder="Usaha Kecil / Usaha Kecil (SBU K1)">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">NPWP:</label>
+                    <input type="text" id="cakra-penyedia-npwp" class="input-text" placeholder="01.234.567.8-646.000">
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Nama Direktur / Penandatangan:</label>
+                    <input type="text" id="cakra-penyedia-direktur" class="input-text" placeholder="HENDRA KUSUMA">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Jabatan Penandatangan:</label>
+                    <input type="text" id="cakra-penyedia-jabatan" class="input-text" placeholder="Direktur">
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Nama Bank:</label>
+                    <input type="text" id="cakra-penyedia-bank" class="input-text" placeholder="Bank Jatim Cabang Ngawi">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Nomor Rekening:</label>
+                    <input type="text" id="cakra-penyedia-rekening" class="input-text" placeholder="0311009988">
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Beneficial Ownership (BO) - Nama Pemilik Manfaat:</label>
+                    <input type="text" id="cakra-penyedia-bo-nama" class="input-text" placeholder="HENDRA KUSUMA">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Hubungan BO:</label>
+                    <input type="text" id="cakra-penyedia-bo-hubungan" class="input-text" placeholder="Pemilik Manfaat Langsung">
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Skor Kinerja Terakhir (0.00 - 3.00):</label>
+                    <input type="number" step="0.05" min="0" max="3" id="cakra-penyedia-skor" class="input-text" value="2.85">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Predikat Kinerja:</label>
+                    <select id="cakra-penyedia-predikat" class="input-select">
+                      <option value="Sangat Baik">Sangat Baik</option>
+                      <option value="Baik">Baik</option>
+                      <option value="Cukup">Cukup</option>
+                      <option value="Buruk">Buruk</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px; font-weight:700;">🔗 Link Berkas / Dokumen Penyedia (Google Drive):</label>
+                  <input type="url" id="cakra-penyedia-link-dokumen" class="input-text" placeholder="Tempelkan URL Google Drive (contoh: https://drive.google.com/drive/folders/...)">
+                  <small style="font-size:11px; color:#64748b;">Jika link diisi, tombol <strong>📂 Buka Dokumen</strong> pada tabel akan otomatis aktif.</small>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeCakraPenyediaModal()">Batal</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveCakraPenyediaModal()">💾 Simpan Penyedia</button>
               </div>
             </div>
           </div>
@@ -6634,6 +6964,7 @@
                   <option value="PP / PERPRES">PP / PERPRES (Peraturan Pemerintah / Presiden)</option>
                   <option value="PERMENDAGRI">PERMENDAGRI (Permendagri)</option>
                   <option value="PMK">PMK (Peraturan Menteri Keuangan)</option>
+                  <option value="PERLEM LKPP">PERLEM LKPP (Peraturan Lembaga Kebijakan PBJ)</option>
                   <option value="PKPU">PKPU (Peraturan KPU)</option>
                   <option value="KPT KPU">KPT KPU (Keputusan KPU)</option>
                   <option value="KEP / PEDOMAN">KEP / PEDOMAN (Keputusan Teknis / BAS)</option>
@@ -6656,9 +6987,10 @@
               <div class="form-group">
                 <label style="font-weight: 700;">Lingkup Tahapan Anggaran:</label>
                 <select id="regulasi-lingkup" class="input-select" required>
-                  <option value="PENYUSUNAN">Penyusunan Anggaran (Perencanaan RKB)</option>
-                  <option value="PELAKSANAAN">Pelaksanaan &amp; Pertanggungjawaban Anggaran</option>
-                  <option value="PENYUSUNAN & PELAKSANAAN">Penyusunan &amp; Pelaksanaan Anggaran (Lintas Tahapan)</option>
+                  <option value="PENYUSUNAN">Perencanaan Anggaran (RKB, SBM &amp; BAS)</option>
+                  <option value="PENGADAAN">Pengadaan Barang/Jasa (PBJ &amp; Kontrak)</option>
+                  <option value="PELAKSANAAN">Pembayaran &amp; Pertanggungjawaban Anggaran</option>
+                  <option value="PENYUSUNAN & PELAKSANAAN">Lintas Tahapan (Perencanaan, Pengadaan &amp; Pembayaran)</option>
                 </select>
               </div>
               <div class="form-group">
@@ -7003,9 +7335,9 @@
       </div>
     </div>
 
-    <script src="/data_juknis.js?v=5.0.1"></script>
-    <script src="/app.js?v=5.0.1"></script>
-    <script src="/cakra_module.js?v=5.0.1"></script>
+    <script src="/data_juknis.js?v=5.0.7"></script>
+    <script src="/app.js?v=5.0.7"></script>
+    <script src="/pengadaan.js?v=5.0.7"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

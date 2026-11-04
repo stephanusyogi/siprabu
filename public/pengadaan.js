@@ -18,9 +18,11 @@ const CakraState = {
   activePaketCtx: null,
   activeStageNo: 6,
   activeCockpitSubTab: 'form',
+  activeRekapTab: 'EKSEKUTIF',
   siprabuRkbItems: [],
   rkbDrawerOpen: false
 };
+window.CakraState = CakraState;
 
 function cakraFmtRp(val) {
   const n = Math.round(Number(val) || 0);
@@ -79,6 +81,7 @@ async function initCakraApp() {
     renderDashboardTable();
     renderMasterView();
     renderBukuPintar18Tahap();
+    renderRekapPengadaanView();
 
     const sbBadge = document.getElementById('badge-pengadaan-paket');
     if (sbBadge) sbBadge.textContent = CakraState.pakets.length;
@@ -86,10 +89,15 @@ async function initCakraApp() {
     if (CakraState.pakets.length > 0 && !CakraState.activePaketId) {
       CakraState.activePaketId = CakraState.pakets[0].id;
     }
+
+    if (typeof window.renderDashboard === 'function') {
+      window.renderDashboard();
+    }
   } catch (err) {
     console.error('[PENGADAAN INIT ERROR]', err);
   }
 }
+window.initCakraApp = initCakraApp;
 
 /**
  * Dipanggil otomatis dari switchView() di SI-PRABU (`app.js`)
@@ -102,6 +110,7 @@ async function onEnterPengadaanView(viewId) {
     renderDashboardTable();
     renderMasterView();
     renderBukuPintar18Tahap();
+    renderRekapPengadaanView();
   }
 
   if (viewId === 'view-pengadaan-kokpit') {
@@ -109,6 +118,8 @@ async function onEnterPengadaanView(viewId) {
     if (targetId) {
       await openPaketInCockpit(targetId, CakraState.activeStageNo || 6, false);
     }
+  } else if (viewId === 'view-rekap-pengadaan') {
+    renderRekapPengadaanView();
   }
 }
 
@@ -193,9 +204,9 @@ function renderDashboardTable() {
           <div style="display:flex; flex-direction:column; gap:5px; align-items:center;">
             <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" style="width:100%;" onclick="openPaketInCockpit(${p.id}, ${p.tahap_aktif || 6}, true)">🧭 Buka Kokpit 18 Tahap</button>
             <div style="display:flex; gap:4px; width:100%;">
-              <a href="/api/cakra/download/docx/${p.id}?tahap=ALL" class="cakra-btn cakra-btn-info cakra-btn-sm" style="flex:1;" title="Download Word 18 Tahap">📄 Word</a>
-              <a href="/api/cakra/download/xlsx/${p.id}?tahap=ALL" class="cakra-btn cakra-btn-success cakra-btn-sm" style="flex:1;" title="Download Excel Kertas Kerja">📊 Excel</a>
-              <a href="/api/cakra/download/zip/${p.id}" class="cakra-btn cakra-btn-warning cakra-btn-sm" style="flex:1;" title="Download Bundel Arsip ZIP">📦 ZIP</a>
+              <button type="button" class="cakra-btn cakra-btn-info cakra-btn-sm" style="flex:1;" onclick="queuePengadaanDownload('docx', ${p.id}, 'ALL')" title="Kirim Bundel Word 18 Tahap ke Monitoring Unduhan">📄 Word</button>
+              <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" style="flex:1;" onclick="queuePengadaanDownload('xlsx', ${p.id}, 'ALL')" title="Kirim Kertas Kerja Excel ke Monitoring Unduhan">📊 Excel</button>
+              <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" style="flex:1;" onclick="queuePengadaanDownload('zip', ${p.id}, 'ALL')" title="Kirim Bundel Arsip ZIP ke Monitoring Unduhan">📦 ZIP</button>
             </div>
           </div>
         </td>
@@ -1134,25 +1145,25 @@ function renderCockpitRightDock() {
     </div>
 
     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-      <a href="/api/cakra/download/docx/${paket.id}?tahap=${stageNo}" class="cakra-btn cakra-btn-info cakra-btn-sm" title="Cetak Naskah Word Tahap ${stageNo}">
+      <button type="button" class="cakra-btn cakra-btn-info cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '${stageNo}')" title="Kirim Naskah Word Tahap ${stageNo} ke Monitoring Unduhan">
         📄 Word Tahap ${stageNo} (.docx)
-      </a>
-      <a href="/api/cakra/download/xlsx/${paket.id}?tahap=${stageNo}" class="cakra-btn cakra-btn-success cakra-btn-sm" title="Cetak Kertas Kerja Excel Tahap ${stageNo}">
+      </button>
+      <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" onclick="queuePengadaanDownload('xlsx', ${paket.id}, '${stageNo}')" title="Kirim Kertas Kerja Excel Tahap ${stageNo} ke Monitoring Unduhan">
         📊 Excel Tahap ${stageNo} (.xlsx)
-      </a>
+      </button>
       <span style="color:#cbd5e1;">|</span>
-      <a href="/api/cakra/download/docx/${paket.id}?tahap=13" class="cakra-btn cakra-btn-outline cakra-btn-sm" title="Pintasan Cetak Kontrak / SPK / Surat Pesanan Final">
+      <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '13')" title="Kirim Kontrak / SPK / Surat Pesanan Final (Tahap 13) ke Monitoring Unduhan">
         📝 Naskah ${cakraEsc(paket.bentuk_kontrak)} (T13)
-      </a>
-      <a href="/api/cakra/download/docx/${paket.id}?tahap=16" class="cakra-btn cakra-btn-outline cakra-btn-sm" title="Pintasan Cetak BAPHP & BAST / PHO-FHO">
+      </button>
+      <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '16')" title="Kirim BAPHP & BAST / PHO-FHO (Tahap 16) ke Monitoring Unduhan">
         🤝 BAST / PHO (T16)
-      </a>
-      <a href="/api/cakra/download/docx/${paket.id}?tahap=ALL" class="cakra-btn cakra-btn-primary cakra-btn-sm" title="Unduh Gabungan 18 Tahap dalam 1 File Word">
+      </button>
+      <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, 'ALL')" title="Kirim Gabungan 18 Tahap dalam 1 File Word ke Monitoring Unduhan">
         📘 Word Master 18 Tahap
-      </a>
-      <a href="/api/cakra/download/zip/${paket.id}" class="cakra-btn cakra-btn-warning cakra-btn-sm" style="color:#0f172a; font-weight:800;" title="Unduh Bundel Arsip Lengkap 18 Tahap (.ZIP)">
+      </button>
+      <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" style="color:#0f172a; font-weight:800;" onclick="queuePengadaanDownload('zip', ${paket.id}, 'ALL')" title="Kirim Bundel Arsip Lengkap 18 Tahap (.ZIP) ke Monitoring Unduhan">
         📦 Unduh Arsip Lengkap (.ZIP)
-      </a>
+      </button>
     </div>
   `;
 }
@@ -1218,70 +1229,307 @@ async function createNewPaketPrompt() {
 }
 
 /**
- * VIEW 3: DIREKTORI PENYEDIA & PEJABAT PENGADAAN
+ * VIEW 3: MASTER PENYEDIA / REKANAN (DATABASE TERPADU PENGADAAN & PEMBAYARAN)
  */
 function renderMasterView() {
   const tbPenyedia = document.getElementById('cakra-table-master-penyedia');
   if (tbPenyedia) {
-    tbPenyedia.innerHTML = CakraState.penyedias.map(v => `
+    tbPenyedia.innerHTML = CakraState.penyedias.map((v, idx) => {
+      const rawLink = String(v.link_dokumen || '').trim();
+      const hasLink = rawLink.length > 0 && rawLink !== '-';
+      const safeHref = hasLink ? (/^https?:\/\//i.test(rawLink) ? rawLink : `https://${rawLink}`) : '';
+
+      return `
       <tr>
+        <td style="text-align:center; font-weight:700; color:#64748b;">${idx + 1}</td>
         <td>
-          <div style="font-weight:700;">${cakraEsc(v.nama_perusahaan)}</div>
-          <span class="cakra-badge cakra-badge-blue">${cakraEsc(v.kualifikasi_usaha)}</span>
+          <div style="font-weight:800; color:#0f172a; font-size:13px;">${cakraEsc(v.nama_perusahaan)}</div>
+          <div style="margin-top:3px; display:flex; gap:5px; flex-wrap:wrap; align-items:center;">
+            <span class="cakra-badge cakra-badge-blue">${cakraEsc(v.bentuk_usaha || 'CV')} • ${cakraEsc(v.kualifikasi_usaha)}</span>
+            <span style="font-size:10.5px; color:#64748b;">NIB: ${cakraEsc(v.nib || '-')}</span>
+          </div>
           <div style="font-size:10.5px; color:#64748b; margin-top:2px;">${cakraEsc(v.kbli)}</div>
         </td>
         <td>
-          <div style="font-weight:700;">${cakraEsc(v.nama_direktur)} (${cakraEsc(v.jabatan_penandatangan)})</div>
-          <div class="cakra-mono" style="font-size:11px;">NPWP: ${cakraEsc(v.npwp)}</div>
-          <div style="font-size:10.5px; color:#475569;">${cakraEsc(v.nama_bank)}: ${cakraEsc(v.no_rekening)}</div>
+          <div style="font-weight:700; color:#1e3a8a;">${cakraEsc(v.nama_direktur)}</div>
+          <div style="font-size:11px; color:#475569;">${cakraEsc(v.jabatan_penandatangan)}</div>
+          <div style="font-size:10.5px; color:#64748b;">${cakraEsc(v.alamat || v.kota || 'Kabupaten Ngawi')}</div>
         </td>
         <td>
-          <div style="font-weight:700;">${cakraEsc(v.bo_nama_pemilik_manfaat)}</div>
-          <div style="font-size:10.5px; color:#047857;">${cakraEsc(v.bo_hubungan)}</div>
+          <div class="cakra-mono" style="font-size:11.5px; font-weight:700; color:#0f172a;">NPWP: ${cakraEsc(v.npwp)}</div>
+          <div style="font-size:11px; color:#0369a1; font-weight:600; margin-top:2px;">🏦 ${cakraEsc(v.nama_bank)}: <span class="cakra-mono">${cakraEsc(v.no_rekening)}</span></div>
+          <div style="font-size:10.5px; color:#64748b;">a.n. ${cakraEsc(v.atas_nama_rekening || v.nama_perusahaan)} • ${Number(v.status_pkp ?? 1) === 1 ? 'PKP (Wajib PPN)' : 'Non-PKP'}</div>
+        </td>
+        <td>
+          <div style="font-weight:700; color:#0f172a;">${cakraEsc(v.bo_nama_pemilik_manfaat)}</div>
+          <div style="font-size:10.5px; color:#047857; font-weight:600;">${cakraEsc(v.bo_hubungan)}</div>
         </td>
         <td>
           <span class="cakra-badge cakra-badge-green">${Number(v.skor_kinerja_terakhir).toFixed(2)} — ${cakraEsc(v.kategori_kinerja)}</span>
         </td>
-      </tr>
-    `).join('');
-  }
-
-  const tbPejabat = document.getElementById('cakra-table-master-pejabat');
-  if (tbPejabat) {
-    tbPejabat.innerHTML = CakraState.pejabats.map(p => `
-      <tr>
-        <td><span class="cakra-badge cakra-badge-amber">${cakraEsc(p.peran)}</span></td>
-        <td>
-          <div style="font-weight:700;">${cakraEsc(p.nama_lengkap)}</div>
-          <div class="cakra-mono" style="font-size:11px;">NIP. ${cakraEsc(p.nip)}</div>
-          <div style="font-size:10.5px; color:#64748b;">${cakraEsc(p.jabatan_struktural)}</div>
+        <td style="vertical-align:middle;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; gap:5px; align-items:center;">
+              <input
+                type="url"
+                id="penyedia-link-input-${Number(v.id)}"
+                class="input-text"
+                value="${cakraEsc(rawLink)}"
+                placeholder="Tempel link Google Drive..."
+                oninput="onPenyediaLinkInputChange(${Number(v.id)}, this.value)"
+                onchange="saveQuickPenyediaLink(${Number(v.id)}, this.value)"
+                style="font-size:11.5px; padding:5px 8px; height:30px; flex:1; min-width:155px;"
+              />
+              <button
+                type="button"
+                class="cakra-btn cakra-btn-outline cakra-btn-xs"
+                onclick="saveQuickPenyediaLink(${Number(v.id)}, document.getElementById('penyedia-link-input-${Number(v.id)}').value)"
+                title="Simpan Link Google Drive"
+                style="height:30px; padding:0 8px;"
+              >💾</button>
+            </div>
+            <div>
+              <button
+                type="button"
+                id="penyedia-open-doc-btn-${Number(v.id)}"
+                class="cakra-btn ${hasLink ? 'cakra-btn-primary' : 'cakra-btn-outline'} cakra-btn-xs"
+                ${hasLink ? '' : 'disabled'}
+                onclick="openPenyediaDocLink(${Number(v.id)})"
+                style="width:100%; justify-content:center; font-weight:700; ${hasLink ? 'cursor:pointer;' : 'opacity:0.48; cursor:not-allowed; background:#f1f5f9; color:#94a3b8; border-color:#cbd5e1;'}"
+              >
+                ${hasLink ? '📂 Buka Dokumen' : '🔒 Buka Dokumen (Link Kosong)'}
+              </button>
+            </div>
+          </div>
         </td>
-        <td>
-          <div class="cakra-mono" style="font-size:11px;">${cakraEsc(p.no_sk)}</div>
-          <div style="font-size:10.5px; color:#1d4ed8;">Sertifikat PBJ: ${cakraEsc(p.no_sertifikat_pbj)}</div>
+        <td style="text-align:center; vertical-align:middle;">
+          <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-xs" onclick="openEditCakraPenyediaModal(${Number(v.id)})" title="Edit Penyedia">✏️ Edit</button>
         </td>
       </tr>
-    `).join('');
+      `;
+    }).join('');
   }
 }
 
-async function openAddPenyediaModal() {
-  const nama = prompt('Nama Perusahaan / Penyedia Baru (PT / CV / UD):', 'CV. NGAWI KONSTRUKSI JAYA');
-  if (!nama) return;
-  const direktur = prompt('Nama Direktur / Penandatangan Kontrak:', 'IR. BAMBANG HERMANTO');
-  const kualifikasi = prompt('Kualifikasi Usaha (Usaha Mikro / Usaha Kecil / Usaha Kecil (SBU K1) / Non-Kecil):', 'Usaha Kecil (SBU K1)');
-  const npwp = prompt('Nomor NPWP Penyedia:', '02.445.991.8-646.000');
+function onPenyediaLinkInputChange(id, val) {
+  const btn = document.getElementById(`penyedia-open-doc-btn-${Number(id)}`);
+  if (!btn) return;
+  const clean = String(val || '').trim();
+  const hasLink = clean.length > 0 && clean !== '-';
+  btn.disabled = !hasLink;
+  if (hasLink) {
+    btn.className = 'cakra-btn cakra-btn-primary cakra-btn-xs';
+    btn.style.cssText = 'width:100%; justify-content:center; font-weight:700; cursor:pointer;';
+    btn.textContent = '📂 Buka Dokumen';
+  } else {
+    btn.className = 'cakra-btn cakra-btn-outline cakra-btn-xs';
+    btn.style.cssText = 'width:100%; justify-content:center; font-weight:700; opacity:0.48; cursor:not-allowed; background:#f1f5f9; color:#94a3b8; border-color:#cbd5e1;';
+    btn.textContent = '🔒 Buka Dokumen (Link Kosong)';
+  }
+}
 
-  await cakraApiPost('/api/cakra/penyedia', {
-    nama_perusahaan: nama,
-    bentuk_usaha: nama.startsWith('PT') ? 'PT' : 'CV',
-    kualifikasi_usaha: kualifikasi || 'Usaha Kecil',
-    npwp: npwp || '-',
-    nama_direktur: direktur || '-',
-    bo_nama_pemilik_manfaat: direktur || '-'
-  });
-  await initCakraApp();
-  cakraNotify(`Penyedia "${nama}" berhasil ditambahkan ke direktori.`, 'success');
+function openPenyediaDocLink(id) {
+  const input = document.getElementById(`penyedia-link-input-${Number(id)}`);
+  const v = CakraState.penyedias.find(x => Number(x.id) === Number(id));
+  const raw = String(input ? input.value : (v?.link_dokumen || '')).trim();
+  if (!raw || raw === '-') return;
+  const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function saveQuickPenyediaLink(id, rawVal) {
+  const v = CakraState.penyedias.find(x => Number(x.id) === Number(id));
+  if (!v) return;
+  const link_dokumen = String(rawVal || '').trim();
+  if (String(v.link_dokumen || '').trim() === link_dokumen) {
+    onPenyediaLinkInputChange(id, link_dokumen);
+    return;
+  }
+  try {
+    await cakraApiPost('/api/cakra/penyedia', {
+      ...v,
+      id: Number(v.id),
+      link_dokumen
+    });
+    v.link_dokumen = link_dokumen;
+    onPenyediaLinkInputChange(id, link_dokumen);
+    cakraNotify(
+      link_dokumen
+        ? `Link dokumen "${v.nama_perusahaan}" tersimpan & tombol Buka Dokumen aktif.`
+        : `Link dokumen "${v.nama_perusahaan}" dikosongkan.`,
+      'success'
+    );
+  } catch (err) {
+    cakraNotify('Gagal menyimpan link dokumen: ' + err.message, 'error');
+  }
+}
+
+function openEditCakraPejabatModal(id = null) {
+  const modal = document.getElementById('modal-cakra-pejabat');
+  if (!modal) return;
+  const p = id ? CakraState.pejabats.find(x => Number(x.id) === Number(id)) : null;
+
+  const titleEl = document.getElementById('modal-cakra-pejabat-title');
+  if (titleEl) {
+    titleEl.textContent = p ? `✏️ Edit Pejabat (${p.peran})` : '➕ Tambah Pejabat Pengadaan / Pengelola Keuangan';
+  }
+
+  document.getElementById('cakra-pejabat-id').value = p ? p.id : '';
+  document.getElementById('cakra-pejabat-peran').value = p ? p.peran : 'PPK';
+  document.getElementById('cakra-pejabat-tipologi').value = p ? (p.tipologi_ppk || '-') : 'Tipe B';
+  document.getElementById('cakra-pejabat-nama').value = p ? (p.nama_lengkap || '') : '';
+  document.getElementById('cakra-pejabat-nip').value = p ? (p.nip || '-') : '-';
+  document.getElementById('cakra-pejabat-pangkat').value = p ? (p.pangkat_gol || '-') : '-';
+  document.getElementById('cakra-pejabat-jabatan').value = p ? (p.jabatan_struktural || '') : '';
+  document.getElementById('cakra-pejabat-nosk').value = p ? (p.no_sk || '') : 'SK-02/KPA/KPU-NGW/I/2026';
+  document.getElementById('cakra-pejabat-tglsk').value = p && p.tgl_sk ? p.tgl_sk : '2026-01-02';
+  document.getElementById('cakra-pejabat-sertifikat').value = p ? (p.no_sertifikat_pbj || '-') : '-';
+
+  modal.style.display = 'flex';
+}
+
+function closeCakraPejabatModal() {
+  const modal = document.getElementById('modal-cakra-pejabat');
+  if (modal) modal.style.display = 'none';
+}
+
+async function saveCakraPejabatModal() {
+  const idVal = document.getElementById('cakra-pejabat-id').value;
+  const peran = document.getElementById('cakra-pejabat-peran').value;
+  const tipologi_ppk = document.getElementById('cakra-pejabat-tipologi').value;
+  const nama_lengkap = (document.getElementById('cakra-pejabat-nama').value || '').trim();
+  const nip = (document.getElementById('cakra-pejabat-nip').value || '-').trim();
+  const pangkat_gol = (document.getElementById('cakra-pejabat-pangkat').value || '-').trim();
+  const jabatan_struktural = (document.getElementById('cakra-pejabat-jabatan').value || '').trim();
+  const no_sk = (document.getElementById('cakra-pejabat-nosk').value || '-').trim();
+  const tgl_sk = document.getElementById('cakra-pejabat-tglsk').value || '2026-01-02';
+  const no_sertifikat_pbj = (document.getElementById('cakra-pejabat-sertifikat').value || '-').trim();
+
+  if (!nama_lengkap) {
+    cakraNotify('Nama Lengkap Pejabat wajib diisi.', 'error');
+    return;
+  }
+
+  try {
+    await cakraApiPost('/api/cakra/pejabat', {
+      id: idVal ? Number(idVal) : undefined,
+      peran,
+      nama_lengkap,
+      nip,
+      pangkat_gol,
+      jabatan_struktural,
+      no_sk,
+      tgl_sk,
+      no_sertifikat_pbj,
+      tipologi_ppk,
+      is_active: 1
+    });
+
+    closeCakraPejabatModal();
+    CakraState.initialized = false;
+    await initCakraApp();
+    if (CakraState.activePaketId) {
+      await loadPaketIntoCockpit(CakraState.activePaketId);
+    }
+    if (typeof window.loadPenandatanganView === 'function') {
+      try { await window.loadPenandatanganView(); } catch (e) {}
+    }
+    cakraNotify(`Data pejabat ${peran} ("${nama_lengkap}") berhasil disimpan dan disinkronkan.`, 'success');
+  } catch (err) {
+    cakraNotify('Gagal menyimpan pejabat: ' + err.message, 'error');
+  }
+}
+
+function openAddPenyediaModal() {
+  openEditCakraPenyediaModal(null);
+}
+
+function openEditCakraPenyediaModal(id = null) {
+  const modal = document.getElementById('modal-cakra-penyedia');
+  if (!modal) return;
+  const v = id ? CakraState.penyedias.find(x => Number(x.id) === Number(id)) : null;
+
+  const titleEl = document.getElementById('modal-cakra-penyedia-title');
+  if (titleEl) {
+    titleEl.textContent = v ? `✏️ Edit Penyedia: ${v.nama_perusahaan}` : '➕ Tambah Penyedia / Vendor Baru';
+  }
+
+  document.getElementById('cakra-penyedia-id').value = v ? v.id : '';
+  document.getElementById('cakra-penyedia-nama').value = v ? (v.nama_perusahaan || '') : '';
+  document.getElementById('cakra-penyedia-bentuk').value = v ? (v.bentuk_usaha || 'CV') : 'CV';
+  document.getElementById('cakra-penyedia-kualifikasi').value = v ? (v.kualifikasi_usaha || 'Usaha Kecil') : 'Usaha Kecil';
+  document.getElementById('cakra-penyedia-npwp').value = v ? (v.npwp || '') : '';
+  document.getElementById('cakra-penyedia-direktur').value = v ? (v.nama_direktur || '') : '';
+  document.getElementById('cakra-penyedia-jabatan').value = v ? (v.jabatan_penandatangan || 'Direktur') : 'Direktur';
+  document.getElementById('cakra-penyedia-bank').value = v ? (v.nama_bank || 'Bank Jatim Cabang Ngawi') : 'Bank Jatim Cabang Ngawi';
+  document.getElementById('cakra-penyedia-rekening').value = v ? (v.no_rekening || '') : '';
+  document.getElementById('cakra-penyedia-bo-nama').value = v ? (v.bo_nama_pemilik_manfaat || v.nama_direktur || '') : '';
+  document.getElementById('cakra-penyedia-bo-hubungan').value = v ? (v.bo_hubungan || 'Pemilik Manfaat Langsung') : 'Pemilik Manfaat Langsung';
+  document.getElementById('cakra-penyedia-skor').value = v ? Number(v.skor_kinerja_terakhir || 2.85) : 2.85;
+  document.getElementById('cakra-penyedia-predikat').value = v ? (v.kategori_kinerja || 'Sangat Baik') : 'Sangat Baik';
+  const linkDocEl = document.getElementById('cakra-penyedia-link-dokumen');
+  if (linkDocEl) linkDocEl.value = v ? (v.link_dokumen || '') : '';
+
+  modal.style.display = 'flex';
+}
+
+function closeCakraPenyediaModal() {
+  const modal = document.getElementById('modal-cakra-penyedia');
+  if (modal) modal.style.display = 'none';
+}
+
+async function saveCakraPenyediaModal() {
+  const idVal = document.getElementById('cakra-penyedia-id').value;
+  const nama_perusahaan = (document.getElementById('cakra-penyedia-nama').value || '').trim();
+  const bentuk_usaha = document.getElementById('cakra-penyedia-bentuk').value;
+  const kualifikasi_usaha = (document.getElementById('cakra-penyedia-kualifikasi').value || 'Usaha Kecil').trim();
+  const npwp = (document.getElementById('cakra-penyedia-npwp').value || '-').trim();
+  const nama_direktur = (document.getElementById('cakra-penyedia-direktur').value || '-').trim();
+  const jabatan_penandatangan = (document.getElementById('cakra-penyedia-jabatan').value || 'Direktur').trim();
+  const nama_bank = (document.getElementById('cakra-penyedia-bank').value || '-').trim();
+  const no_rekening = (document.getElementById('cakra-penyedia-rekening').value || '-').trim();
+  const bo_nama_pemilik_manfaat = (document.getElementById('cakra-penyedia-bo-nama').value || nama_direktur || '-').trim();
+  const bo_hubungan = (document.getElementById('cakra-penyedia-bo-hubungan').value || 'Pemilik Manfaat Langsung').trim();
+  const skor_kinerja_terakhir = Number(document.getElementById('cakra-penyedia-skor').value || 2.85);
+  const kategori_kinerja = document.getElementById('cakra-penyedia-predikat').value || 'Sangat Baik';
+  const link_dokumen = (document.getElementById('cakra-penyedia-link-dokumen')?.value || '').trim();
+
+  if (!nama_perusahaan) {
+    cakraNotify('Nama Perusahaan / Penyedia wajib diisi.', 'error');
+    return;
+  }
+
+  try {
+    const existing = idVal ? CakraState.penyedias.find(x => Number(x.id) === Number(idVal)) : null;
+    await cakraApiPost('/api/cakra/penyedia', {
+      ...(existing || {}),
+      id: idVal ? Number(idVal) : undefined,
+      nama_perusahaan,
+      bentuk_usaha,
+      kualifikasi_usaha,
+      npwp,
+      nama_direktur,
+      jabatan_penandatangan,
+      nama_bank,
+      no_rekening,
+      atas_nama_rekening: existing?.atas_nama_rekening || nama_perusahaan,
+      bo_nama_pemilik_manfaat,
+      bo_hubungan,
+      skor_kinerja_terakhir,
+      kategori_kinerja,
+      link_dokumen
+    });
+
+    closeCakraPenyediaModal();
+    CakraState.initialized = false;
+    await initCakraApp();
+    if (CakraState.activePaketId) {
+      await loadPaketIntoCockpit(CakraState.activePaketId);
+    }
+    cakraNotify(`Penyedia "${nama_perusahaan}" berhasil disimpan.`, 'success');
+  } catch (err) {
+    cakraNotify('Gagal menyimpan penyedia: ' + err.message, 'error');
+  }
 }
 
 /**
@@ -1313,9 +1561,569 @@ function renderBukuPintar18Tahap() {
   `;
 }
 
+/**
+ * VIEW 5: REKAP PENGADAAN BARANG/JASA (5 PERSPEKTIF EKSEKUTIF)
+ */
+function switchRekapPengadaanTab(tabName) {
+  CakraState.activeRekapTab = tabName || 'EKSEKUTIF';
+  const tabs = document.querySelectorAll('#rekap-pengadaan-tabs button[data-tab]');
+  tabs.forEach(btn => {
+    const isAct = btn.getAttribute('data-tab') === CakraState.activeRekapTab;
+    btn.className = isAct ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-primary';
+  });
+  renderRekapPengadaanView();
+}
+
+function getFilteredRekapPakets() {
+  const picFilter = document.getElementById('rekap-pengadaan-filter-pic')?.value || 'ALL';
+  const all = Array.isArray(CakraState.pakets) ? CakraState.pakets : [];
+  if (picFilter === 'ALL') return all;
+  return all.filter(p => String(p.pic_subbag || '').toUpperCase() === picFilter);
+}
+
+function renderRekapPengadaanView() {
+  const kpiGrid = document.getElementById('rekap-pengadaan-kpi-grid');
+  const container = document.getElementById('rekap-pengadaan-table-container');
+  if (!kpiGrid || !container) return;
+
+  const pakets = getFilteredRekapPakets();
+  const totalPaket = pakets.length;
+  const totalPagu = pakets.reduce((s, p) => s + (Number(p.nilai_pagu) || 0), 0);
+  const totalHps = pakets.reduce((s, p) => s + (Number(p.nilai_hps) || 0), 0);
+  const totalKontrak = pakets.reduce((s, p) => s + (Number(p.nilai_kontrak) || 0), 0);
+  const totalEfisiensi = Math.max(0, totalPagu - totalKontrak);
+  const persenEfisiensi = totalPagu > 0 ? ((totalEfisiensi / totalPagu) * 100).toFixed(2) : '0.00';
+
+  const umkPakets = pakets.filter(p => {
+    const kual = String(p.kualifikasi_usaha || p.peruntukan_usaha || 'Kecil').toLowerCase();
+    return kual.includes('kecil') || kual.includes('mikro') || kual.includes('koperasi') || Number(p.is_umk ?? 1) === 1;
+  });
+  const nilaiUmk = umkPakets.reduce((s, p) => s + (Number(p.nilai_kontrak || p.nilai_pagu) || 0), 0);
+  const persenUmk = (totalKontrak || totalPagu) > 0
+    ? Math.round((nilaiUmk / (totalKontrak || totalPagu)) * 100)
+    : 100;
+
+  const rataTkdn = totalPaket > 0
+    ? Math.round(pakets.reduce((s, p) => s + (Number(p.komitmen_tkdn_persen) || 40), 0) / totalPaket)
+    : 45;
+
+  const selesaiCount = pakets.filter(p => Number(p.tahap_aktif) >= 16 || String(p.status_paket || '').toUpperCase().includes('SELESAI')).length;
+
+  kpiGrid.innerHTML = `
+    <div class="cakra-kpi-card">
+      <div class="cakra-kpi-label">Total Paket &amp; Pagu Pengadaan</div>
+      <div class="cakra-kpi-value">${totalPaket} Paket</div>
+      <div class="cakra-kpi-sub">Total Pagu RUP/DIPA: <strong>${cakraFmtRp(totalPagu)}</strong></div>
+    </div>
+    <div class="cakra-kpi-card amber">
+      <div class="cakra-kpi-label">Realisasi Kontrak &amp; Efisiensi</div>
+      <div class="cakra-kpi-value">${cakraFmtRp(totalKontrak)}</div>
+      <div class="cakra-kpi-sub">Efisiensi Pagu: <strong style="color:#047857;">${cakraFmtRp(totalEfisiensi)} (${persenEfisiensi}%)</strong></div>
+    </div>
+    <div class="cakra-kpi-card green">
+      <div class="cakra-kpi-label">Pemenuhan UMK-Koperasi &amp; PDN</div>
+      <div class="cakra-kpi-value">${persenUmk}% UMK | ${rataTkdn}% TKDN</div>
+      <div class="cakra-kpi-sub">Pasal 65 &amp; 66 Perpres 46/2025 (${umkPakets.length} Paket UMK)</div>
+    </div>
+    <div class="cakra-kpi-card blue">
+      <div class="cakra-kpi-label">Penyelesaian BAST &amp; Arsip 18 Tahap</div>
+      <div class="cakra-kpi-value">${selesaiCount} / ${totalPaket} Paket</div>
+      <div class="cakra-kpi-sub">Siap Masuk Tahap Pembayaran (SPP/SPM/SP2D)</div>
+    </div>
+  `;
+
+  const tab = CakraState.activeRekapTab || 'EKSEKUTIF';
+
+  if (tab === 'EKSEKUTIF') {
+    const rowsHtml = pakets.map((p, idx) => {
+      const pagu = Number(p.nilai_pagu) || 0;
+      const hps = Number(p.nilai_hps) || 0;
+      const kontrak = Number(p.nilai_kontrak) || 0;
+      const ef = Math.max(0, pagu - kontrak);
+      const efPct = pagu > 0 ? ((ef / pagu) * 100).toFixed(1) : '0.0';
+      const tkdn = Number(p.komitmen_tkdn_persen) || 40;
+      return `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td>
+            <div class="cakra-mono" style="font-weight:800; color:#991b1b;">${cakraEsc(p.kode_paket_internal)}</div>
+            <div style="font-size:11px; color:#64748b;">RUP: ${cakraEsc(p.kode_rup || '-')}</div>
+          </td>
+          <td>
+            <div style="font-weight:700; color:#0f172a;">${cakraEsc(p.nama_paket)}</div>
+            <div style="font-size:11px; color:#475569;">Subbag: <strong>${cakraEsc(p.pic_subbag)}</strong> | MAK: <span class="cakra-mono">${cakraEsc(p.kode_akun_mak)}</span></div>
+          </td>
+          <td>
+            <span class="cakra-badge ${getBadgeClassByJenis(p.jenis_pengadaan)}">${cakraEsc(p.jenis_pengadaan)}</span>
+            <div style="font-size:11px; font-weight:700; margin-top:3px;">${cakraEsc(p.metode_pemilihan)}</div>
+          </td>
+          <td class="cakra-mono" style="text-align:right;">${cakraFmtRp(pagu)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#1d4ed8;">${cakraFmtRp(hps)}</td>
+          <td class="cakra-mono" style="text-align:right; font-weight:800; color:#047857;">${cakraFmtRp(kontrak)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#b45309;">
+            ${cakraFmtRp(ef)}
+            <div style="font-size:10px; color:#64748b;">(${efPct}%)</div>
+          </td>
+          <td style="text-align:center;">
+            <span class="cakra-badge cakra-badge-green">UMK</span>
+            <div style="font-size:11px; font-weight:700; margin-top:2px;">TKDN ${tkdn}%</div>
+          </td>
+          <td style="text-align:center;">
+            <span class="cakra-badge cakra-badge-blue">Tahap ${p.tahap_aktif || 18}/18</span>
+            <div style="font-size:10.5px; color:#047857; font-weight:700; margin-top:2px;">${cakraEsc(p.status_paket || 'SELESAI')}</div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:800; font-size:13.5px; color:#0f172a;">📊 Matriks Rekap Eksekutif Paket Pengadaan (Pagu, HPS, Kontrak, Efisiensi, UMK &amp; TKDN)</div>
+        <span style="font-size:11.5px; color:#64748b;">Menampilkan ${pakets.length} Paket</span>
+      </div>
+      <div class="table-responsive">
+        <table class="cakra-table">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">No</th>
+              <th>Kode Paket &amp; RUP</th>
+              <th>Nama Paket Pengadaan</th>
+              <th>Jenis &amp; Metode</th>
+              <th style="text-align:right;">Nilai Pagu</th>
+              <th style="text-align:right;">HPS / Ref. Harga</th>
+              <th style="text-align:right;">Nilai Kontrak</th>
+              <th style="text-align:right;">Efisiensi</th>
+              <th style="text-align:center;">UMK &amp; TKDN</th>
+              <th style="text-align:center;">Progres 18 Tahap</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || '<tr><td colspan="10" style="text-align:center; padding:24px; color:#64748b;">Belum ada paket pengadaan pada filter ini.</td></tr>'}
+          </tbody>
+          <tfoot>
+            <tr style="background:#f8fafc; font-weight:800; border-top:2px solid #cbd5e1;">
+              <td colspan="4" style="text-align:right; padding:10px 12px;">TOTAL KESELURUHAN (${totalPaket} PAKET):</td>
+              <td class="cakra-mono" style="text-align:right; padding:10px 12px;">${cakraFmtRp(totalPagu)}</td>
+              <td class="cakra-mono" style="text-align:right; padding:10px 12px; color:#1d4ed8;">${cakraFmtRp(totalHps)}</td>
+              <td class="cakra-mono" style="text-align:right; padding:10px 12px; color:#047857;">${cakraFmtRp(totalKontrak)}</td>
+              <td class="cakra-mono" style="text-align:right; padding:10px 12px; color:#b45309;">${cakraFmtRp(totalEfisiensi)} (${persenEfisiensi}%)</td>
+              <td colspan="2" style="text-align:center; padding:10px 12px;">Rata-rata TKDN: ${rataTkdn}%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  } else if (tab === 'JENIS_METODE') {
+    const groups = {};
+    pakets.forEach(p => {
+      const key = `${p.jenis_pengadaan || 'Barang'} || ${p.metode_pemilihan || 'E-Purchasing'} || ${p.bentuk_kontrak || 'Surat Pesanan'}`;
+      if (!groups[key]) {
+        groups[key] = {
+          jenis: p.jenis_pengadaan || 'Barang',
+          metode: p.metode_pemilihan || 'E-Purchasing',
+          bentuk: p.bentuk_kontrak || 'Surat Pesanan',
+          pelaksana: p.pelaksana_pemilihan || 'Pejabat Pengadaan / PPK',
+          count: 0,
+          pagu: 0,
+          hps: 0,
+          kontrak: 0
+        };
+      }
+      groups[key].count++;
+      groups[key].pagu += Number(p.nilai_pagu) || 0;
+      groups[key].hps += Number(p.nilai_hps) || 0;
+      groups[key].kontrak += Number(p.nilai_kontrak) || 0;
+    });
+    const list = Object.values(groups);
+    const rowsHtml = list.map((g, idx) => {
+      const ef = Math.max(0, g.pagu - g.kontrak);
+      const porsi = totalKontrak > 0 ? ((g.kontrak / totalKontrak) * 100).toFixed(1) : '0.0';
+      return `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td><span class="cakra-badge ${getBadgeClassByJenis(g.jenis)}">${cakraEsc(g.jenis)}</span></td>
+          <td><strong>${cakraEsc(g.metode)}</strong></td>
+          <td><span class="cakra-badge cakra-badge-amber">${cakraEsc(g.bentuk)}</span></td>
+          <td>${cakraEsc(g.pelaksana)}</td>
+          <td class="cakra-mono" style="text-align:center; font-weight:800;">${g.count} Paket</td>
+          <td class="cakra-mono" style="text-align:right;">${cakraFmtRp(g.pagu)}</td>
+          <td class="cakra-mono" style="text-align:right; font-weight:800; color:#047857;">${cakraFmtRp(g.kontrak)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#b45309;">${cakraFmtRp(ef)}</td>
+          <td class="cakra-mono" style="text-align:center; font-weight:700;">${porsi}%</td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:10px; font-weight:800; font-size:13.5px; color:#0f172a;">📦 Rekapitulasi Berdasarkan Jenis Pengadaan, Metode Pemilihan &amp; Bentuk Kontrak (Perpres 46/2025 &amp; Perlem 3/2026)</div>
+      <div class="table-responsive">
+        <table class="cakra-table">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">No</th>
+              <th>Jenis Pengadaan</th>
+              <th>Metode Pemilihan</th>
+              <th>Bentuk Kontrak</th>
+              <th>Pelaksana Pemilihan</th>
+              <th style="text-align:center;">Jumlah Paket</th>
+              <th style="text-align:right;">Total Pagu</th>
+              <th style="text-align:right;">Total Nilai Kontrak</th>
+              <th style="text-align:right;">Efisiensi</th>
+              <th style="text-align:center;">Porsi Nilai</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml || '<tr><td colspan="10" style="text-align:center; padding:24px;">Tidak ada data.</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  } else if (tab === 'SUBBAGIAN') {
+    const subbags = [
+      { code: 'KUL', name: 'Subbag Keuangan, Umum & Logistik (KUL)' },
+      { code: 'TEKMAS', name: 'Subbag Teknis Penyelenggaraan & Parhupmas (TEKMAS)' },
+      { code: 'RENDATIN', name: 'Subbag Perencanaan, Data & Informasi (RENDATIN)' },
+      { code: 'HUKUM_SDM', name: 'Subbag Hukum & Sumber Daya Manusia (HUKUM & SDM)' }
+    ];
+    const rowsHtml = subbags.map((sb, idx) => {
+      const items = (CakraState.pakets || []).filter(p => String(p.pic_subbag || '').toUpperCase() === sb.code);
+      const pagu = items.reduce((s, p) => s + (Number(p.nilai_pagu) || 0), 0);
+      const hps = items.reduce((s, p) => s + (Number(p.nilai_hps) || 0), 0);
+      const kontrak = items.reduce((s, p) => s + (Number(p.nilai_kontrak) || 0), 0);
+      const ef = Math.max(0, pagu - kontrak);
+      const selesai = items.filter(p => Number(p.tahap_aktif) >= 16).length;
+      return `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td><strong>${cakraEsc(sb.code)}</strong></td>
+          <td>${cakraEsc(sb.name)}</td>
+          <td class="cakra-mono" style="text-align:center; font-weight:800;">${items.length} Paket</td>
+          <td class="cakra-mono" style="text-align:right;">${cakraFmtRp(pagu)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#1d4ed8;">${cakraFmtRp(hps)}</td>
+          <td class="cakra-mono" style="text-align:right; font-weight:800; color:#047857;">${cakraFmtRp(kontrak)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#b45309;">${cakraFmtRp(ef)}</td>
+          <td class="cakra-mono" style="text-align:center;"><span class="cakra-badge cakra-badge-green">${selesai} / ${items.length} BAST</span></td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:10px; font-weight:800; font-size:13.5px; color:#0f172a;">🏛️ Rekapitulasi Paket Pengadaan Per Subbagian Pengusul (PIC Teknis)</div>
+      <div class="table-responsive">
+        <table class="cakra-table">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">No</th>
+              <th>Kode PIC</th>
+              <th>Unit / Subbagian Pengusul</th>
+              <th style="text-align:center;">Jumlah Paket</th>
+              <th style="text-align:right;">Total Pagu</th>
+              <th style="text-align:right;">Total HPS / Ref</th>
+              <th style="text-align:right;">Total Kontrak</th>
+              <th style="text-align:right;">Efisiensi</th>
+              <th style="text-align:center;">Status BAST</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    `;
+  } else if (tab === 'AKUN_BAS') {
+    const akunMap = {
+      '521211': 'Belanja Bahan',
+      '521219': 'Belanja Barang Non Operasional Lainnya',
+      '521811': 'Belanja Barang Persediaan Barang Konsumsi',
+      '522141': 'Belanja Sewa',
+      '522151': 'Belanja Jasa Profesi',
+      '522191': 'Belanja Jasa Lainnya',
+      '523111': 'Belanja Pemeliharaan Gedung dan Bangunan',
+      '532111': 'Belanja Modal Peralatan dan Mesin',
+      '533111': 'Belanja Modal Gedung dan Bangunan'
+    };
+    const groups = {};
+    pakets.forEach(p => {
+      const mak = String(p.kode_akun_mak || '521219').trim();
+      if (!groups[mak]) {
+        groups[mak] = {
+          mak,
+          uraian: akunMap[mak] || 'Belanja Barang / Jasa Penyelenggaraan Tahapan',
+          count: 0,
+          pagu: 0,
+          kontrak: 0
+        };
+      }
+      groups[mak].count++;
+      groups[mak].pagu += Number(p.nilai_pagu) || 0;
+      groups[mak].kontrak += Number(p.nilai_kontrak) || 0;
+    });
+    const list = Object.values(groups).sort((a, b) => a.mak.localeCompare(b.mak));
+    const rowsHtml = list.map((g, idx) => {
+      const ef = Math.max(0, g.pagu - g.kontrak);
+      return `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td><span class="cakra-badge cakra-badge-blue cakra-mono" style="font-size:12px;">${cakraEsc(g.mak)}</span></td>
+          <td><strong>${cakraEsc(g.uraian)}</strong></td>
+          <td class="cakra-mono" style="text-align:center; font-weight:800;">${g.count} Paket</td>
+          <td class="cakra-mono" style="text-align:right;">${cakraFmtRp(g.pagu)}</td>
+          <td class="cakra-mono" style="text-align:right; font-weight:800; color:#047857;">${cakraFmtRp(g.kontrak)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#b45309;">${cakraFmtRp(ef)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:10px; font-weight:800; font-size:13.5px; color:#0f172a;">💳 Rekapitulasi Pengadaan Berdasarkan Kode Akun Belanja (Bagan Akun Standar / MAK 6 Digit)</div>
+      <div class="table-responsive">
+        <table class="cakra-table">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">No</th>
+              <th>Kode Akun (MAK)</th>
+              <th>Uraian Akun Standar (BAS)</th>
+              <th style="text-align:center;">Jumlah Paket</th>
+              <th style="text-align:right;">Total Pagu Paket</th>
+              <th style="text-align:right;">Total Nilai Kontrak</th>
+              <th style="text-align:right;">Sisa Pagu / Efisiensi</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml || '<tr><td colspan="7" style="text-align:center; padding:24px;">Tidak ada data.</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  } else if (tab === 'KONTRAK_BAST') {
+    const rowsHtml = pakets.map((p, idx) => {
+      const kontrak = Number(p.nilai_kontrak) || 0;
+      const dpp = Math.round(kontrak * (100 / 111));
+      const ppn = Math.max(0, kontrak - dpp);
+      const isKonst = String(p.jenis_pengadaan || '').includes('Konstruksi');
+      const pphLabel = isKonst ? 'PPh Final 4(2) (1,75%)' : (String(p.jenis_pengadaan || '').includes('Jasa') ? 'PPh 23 (2%)' : 'PPh 22 (1,5%)');
+      const pphRate = isKonst ? 0.0175 : (String(p.jenis_pengadaan || '').includes('Jasa') ? 0.02 : 0.015);
+      const pphNom = Math.round(dpp * pphRate);
+      const nettoSp2d = Math.max(0, kontrak - ppn - pphNom);
+
+      return `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td>
+            <div style="font-weight:700; color:#0f172a;">${cakraEsc(p.nama_paket)}</div>
+            <div class="cakra-mono" style="font-size:11px; color:#64748b;">${cakraEsc(p.kode_paket_internal)} | MAK ${cakraEsc(p.kode_akun_mak)}</div>
+          </td>
+          <td>
+            <div style="font-weight:700;">${cakraEsc(p.nama_penyedia || p.nama_perusahaan || '-')}</div>
+            <span class="cakra-badge cakra-badge-amber" style="margin-top:2px;">${cakraEsc(p.bentuk_kontrak)}</span>
+          </td>
+          <td class="cakra-mono" style="text-align:right; font-weight:800;">${cakraFmtRp(kontrak)}</td>
+          <td class="cakra-mono" style="text-align:right;">${cakraFmtRp(dpp)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#b45309;">${cakraFmtRp(ppn)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#991b1b;">
+            ${cakraFmtRp(pphNom)}
+            <div style="font-size:10px; color:#64748b;">${pphLabel}</div>
+          </td>
+          <td class="cakra-mono" style="text-align:right; font-weight:800; color:#047857;">${cakraFmtRp(nettoSp2d)}</td>
+          <td style="text-align:center;">
+            <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="openPaketInCockpit(${p.id}, 17, true)">💳 Kokpit Tahap 17</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:10px; font-weight:800; font-size:13.5px; color:#0f172a;">📑 Rekapitulasi Kontrak, BAST, Simulasi Pajak (PPN &amp; PPh) &amp; Nilai Bersih Siap Bayar (Hilir ke Bendahara/PPSPM)</div>
+      <div class="table-responsive">
+        <table class="cakra-table">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">No</th>
+              <th>Paket Pengadaan &amp; MAK</th>
+              <th>Penyedia &amp; Bentuk Kontrak</th>
+              <th style="text-align:right;">Nilai Bruto Kontrak</th>
+              <th style="text-align:right;">Estimasi DPP</th>
+              <th style="text-align:right;">PPN 11%</th>
+              <th style="text-align:right;">Potongan PPh</th>
+              <th style="text-align:right;">Estimasi Netto SP2D</th>
+              <th style="text-align:center;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml || '<tr><td colspan="9" style="text-align:center; padding:24px;">Tidak ada data.</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  }
+}
+
+function formatPengadaanDownloadTimestamp(d = new Date()) {
+  if (typeof window.formatClientDownloadTimestamp === 'function') {
+    return window.formatClientDownloadTimestamp(d);
+  }
+  const parts = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(d);
+  const get = type => parts.find(p => p.type === type)?.value || '';
+  return `${get('day')}${get('month')}${get('year')}_${get('hour')}${get('minute')}`;
+}
+
+async function queuePengadaanDownload(format, paketId, stage = 'ALL') {
+  const fmt = String(format || 'docx').toLowerCase();
+  const stageStr = String(stage || 'ALL').toUpperCase();
+  const paket = (CakraState.paketList || []).find(p => Number(p.id) === Number(paketId)) ||
+    (CakraState.activePaketFull?.paket?.id === Number(paketId) ? CakraState.activePaketFull.paket : null);
+
+  const rawKode = String(paket?.kode_paket_internal || `PBJ-2026-${String(paketId).padStart(3, '0')}`).replace(/^CAKRA-/i, 'PBJ-');
+  const cleanKode = rawKode.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const ts = formatPengadaanDownloadTimestamp();
+
+  let baseDocName = '';
+  let ext = '.docx';
+  let tipeUnduhan = 'DOCX_PENGADAAN';
+  let labelToast = 'Naskah Word Pengadaan';
+
+  if (fmt === 'docx') {
+    ext = '.docx';
+    tipeUnduhan = 'DOCX_PENGADAAN';
+    if (stageStr === 'ALL') {
+      baseDocName = `Bundel_Naskah_Pengadaan_18_Tahap_${cleanKode}`;
+      labelToast = `Bundel Word 18 Tahap (${rawKode})`;
+    } else {
+      const def = (CakraState.definisi18Tahap || []).find(d => Number(d.no) === Number(stageStr));
+      const kodeTahap = String(def?.kode || `Tahap_${stageStr}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+      baseDocName = `Naskah_Pengadaan_${cleanKode}_Tahap_${String(stageStr).padStart(2, '0')}_${kodeTahap}`;
+      labelToast = `Naskah Word Tahap ${stageStr} (${rawKode})`;
+    }
+  } else if (fmt === 'xlsx') {
+    ext = '.xlsx';
+    tipeUnduhan = 'EXCEL_PENGADAAN';
+    if (stageStr === 'ALL') {
+      baseDocName = `Kertas_Kerja_Pengadaan_Master_${cleanKode}`;
+      labelToast = `Kertas Kerja Excel Master (${rawKode})`;
+    } else {
+      baseDocName = `Kertas_Kerja_Pengadaan_${cleanKode}_Tahap_${String(stageStr).padStart(2, '0')}`;
+      labelToast = `Kertas Kerja Excel Tahap ${stageStr} (${rawKode})`;
+    }
+  } else if (fmt === 'zip') {
+    ext = '.zip';
+    tipeUnduhan = 'ZIP_PENGADAAN';
+    baseDocName = `Bundel_Arsip_Pengadaan_18_Tahap_${cleanKode}`;
+    labelToast = `Bundel Arsip ZIP 18 Tahap (${rawKode})`;
+  }
+
+  const filename = `${baseDocName}_${ts}${ext}`;
+  const baselinePeriode = (typeof window.getLockedExecutionPeriode === 'function' ? window.getLockedExecutionPeriode() : null) ||
+    window.AppState?.lockedPeriode || null;
+
+  try {
+    cakraNotify(`Mengirim permintaan unduh ${labelToast} ke Monitoring Unduhan...`, 'info');
+    const fnFetch = typeof window.apiFetch === 'function'
+      ? window.apiFetch
+      : async (u, o) => {
+          const r = await fetch(u, { ...o, headers: { 'Content-Type': 'application/json', ...(o?.headers || {}) } });
+          return r.json();
+        };
+
+    const res = await fnFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: filename,
+        tipe_unduhan: tipeUnduhan,
+        periode_id: baselinePeriode?.id || window.AppState?.activePeriodeId || null,
+        filter_pic: paket?.pic_subbag || 'SEMUA',
+        filter_sasaran: JSON.stringify({
+          modul: 'PENGADAAN',
+          paket_id: Number(paketId),
+          kode_paket: rawKode,
+          nama_paket: paket?.nama_paket || '',
+          tahap: stageStr
+        })
+      })
+    });
+
+    if (res && res.success) {
+      cakraNotify('Permintaan unduh berhasil dikirim ke antrean. Mengalihkan ke Monitoring Unduhan...', 'success');
+      if (typeof window.switchView === 'function') {
+        window.switchView('view-monitoring');
+      }
+    } else {
+      cakraNotify((res && res.error) || 'Gagal membuat antrean unduhan dokumen pengadaan.', 'error');
+    }
+  } catch (err) {
+    cakraNotify('Gagal memproses unduhan: ' + err.message, 'error');
+  }
+}
+
+async function exportRekapPengadaanCsv() {
+  const filterSubbag = document.getElementById('rekap-pengadaan-filter-subbag')?.value || 'ALL';
+  const filterMetode = document.getElementById('rekap-pengadaan-filter-metode')?.value || 'ALL';
+  const picLabel = filterSubbag === 'ALL' ? 'SEMUA' : filterSubbag;
+  const ts = formatPengadaanDownloadTimestamp();
+  const filename = `Rekap_Pengadaan_${picLabel}_${ts}.csv`;
+  const baselinePeriode = (typeof window.getLockedExecutionPeriode === 'function' ? window.getLockedExecutionPeriode() : null) ||
+    window.AppState?.lockedPeriode || null;
+
+  try {
+    cakraNotify('Mengirim permintaan unduh Rekap Pengadaan ke Monitoring Unduhan...', 'info');
+    const fnFetch = typeof window.apiFetch === 'function'
+      ? window.apiFetch
+      : async (u, o) => {
+          const r = await fetch(u, { ...o, headers: { 'Content-Type': 'application/json', ...(o?.headers || {}) } });
+          return r.json();
+        };
+
+    const res = await fnFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: filename,
+        tipe_unduhan: 'CSV_REKAP_PENGADAAN',
+        periode_id: baselinePeriode?.id || window.AppState?.activePeriodeId || null,
+        filter_pic: picLabel,
+        filter_sasaran: JSON.stringify({
+          modul: 'PENGADAAN_REKAP',
+          metode: filterMetode
+        })
+      })
+    });
+
+    if (res && res.success) {
+      cakraNotify('Permintaan unduh Rekap Pengadaan berhasil dikirim ke antrean. Mengalihkan ke Monitoring Unduhan...', 'success');
+      if (typeof window.switchView === 'function') {
+        window.switchView('view-monitoring');
+      }
+    } else {
+      cakraNotify((res && res.error) || 'Gagal membuat antrean unduh Rekap Pengadaan.', 'error');
+    }
+  } catch (err) {
+    cakraNotify('Gagal memproses unduhan: ' + err.message, 'error');
+  }
+}
+
+function printRekapPengadaanPdf() {
+  const filterSubbag = document.getElementById('rekap-pengadaan-filter-subbag')?.value || 'ALL';
+  const filterMetode = document.getElementById('rekap-pengadaan-filter-metode')?.value || 'ALL';
+  if (typeof window.apiFetch === 'function') {
+    window.apiFetch('/api/audit-logs/client-event', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'EXPORT_REKAP_PENGADAAN_PDF',
+        entity: 'download_requests',
+        new_values: { pic_subbag: filterSubbag, metode_pemilihan: filterMetode },
+        notes: `Cetak / Ekspor PDF Rekap Pengadaan (PIC: ${filterSubbag}, Metode: ${filterMetode}).`
+      })
+    }).catch(() => {});
+  }
+  window.print();
+}
+
 // Ekspos ke global window untuk pemanggilan dari atribut onclick & switchView SI-PRABU
 window.initCakraApp = initCakraApp;
 window.onEnterPengadaanView = onEnterPengadaanView;
+window.renderRekapPengadaanView = renderRekapPengadaanView;
+window.switchRekapPengadaanTab = switchRekapPengadaanTab;
+window.queuePengadaanDownload = queuePengadaanDownload;
+window.exportRekapPengadaanCsv = exportRekapPengadaanCsv;
+window.printRekapPengadaanPdf = printRekapPengadaanPdf;
 window.openPaketInCockpit = openPaketInCockpit;
 window.selectCockpitStage = selectCockpitStage;
 window.switchCockpitTab = switchCockpitTab;
@@ -1333,6 +2141,15 @@ window.toggleCakraRkbDrawer = toggleCakraRkbDrawer;
 window.loadSiprabuRkbItems = loadSiprabuRkbItems;
 window.importRkbItemToCakra = importRkbItemToCakra;
 window.openAddPenyediaModal = openAddPenyediaModal;
+window.openEditCakraPenyediaModal = openEditCakraPenyediaModal;
+window.closeCakraPenyediaModal = closeCakraPenyediaModal;
+window.saveCakraPenyediaModal = saveCakraPenyediaModal;
+window.onPenyediaLinkInputChange = onPenyediaLinkInputChange;
+window.openPenyediaDocLink = openPenyediaDocLink;
+window.saveQuickPenyediaLink = saveQuickPenyediaLink;
+window.openEditCakraPejabatModal = openEditCakraPejabatModal;
+window.closeCakraPejabatModal = closeCakraPejabatModal;
+window.saveCakraPejabatModal = saveCakraPejabatModal;
 
 window.addEventListener('DOMContentLoaded', () => {
   setTimeout(initCakraApp, 350);

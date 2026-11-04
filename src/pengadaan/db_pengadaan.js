@@ -178,32 +178,62 @@ async function seedRegulasiPengadaanToMasterRegulasi(pool) {
 
 let schemaInitDone = false;
 
+async function migratePejabatTanpaGelarOnce(pool) {
+  try {
+    const [flagRows] = await pool.query("SELECT `value` FROM pbj_settings WHERE `key` = 'pejabat_tanpa_gelar_v1'");
+    if (!flagRows || !flagRows.length || flagRows[0].value !== '1') {
+      await pool.query("DELETE FROM pbj_pejabat WHERE id = 6 OR peran = 'TIM_TEKNIS'");
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = 'BUDI RAHAYU' WHERE peran = 'KPA' AND nama_lengkap LIKE 'BUDI RAHAYU,%'"
+      );
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = 'MOHAMMAD NOOR JIHAN', jabatan_struktural = 'Pejabat Pembuat Komitmen (PPK)' WHERE peran = 'PPK' AND (nama_lengkap LIKE 'MOHAMMAD NOOR JIHAN%' OR jabatan_struktural LIKE '%Perencanaan%')"
+      );
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = 'INDRAYU FATIKA MAHARDIKA', nip = '-', pangkat_gol = '-' WHERE peran = 'PEJABAT_PENGADAAN' AND nama_lengkap != 'INDRAYU FATIKA MAHARDIKA'"
+      );
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = 'IMAS MAESAROH' WHERE peran = 'BENDAHARA' AND nama_lengkap LIKE 'IMAS MAESAROH,%'"
+      );
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = 'NURFANTI SULISTYO W.' WHERE peran = 'PPSPM' AND nama_lengkap LIKE 'NURFANTI SULISTYO W.,%'"
+      );
+      await pool.query("REPLACE INTO pbj_settings (`key`, `value`) VALUES ('pejabat_tanpa_gelar_v1', '1')");
+    }
+  } catch (e) {}
+}
+
+async function ensurePenyediaLinkDokumenColumn(pool) {
+  try {
+    await pool.query("ALTER TABLE pbj_penyedia ADD COLUMN link_dokumen VARCHAR(500) DEFAULT ''");
+  } catch (e) {
+    // Abaikan jika kolom link_dokumen sudah ada
+  }
+}
+
 async function initDatabaseSchemaAndSeed() {
   if (schemaInitDone) return;
   const pool = getCakraPool();
-  const sqlFilePath = path.resolve(__dirname, 'cakra_schema_seed.sql');
+  const sqlFilePath = path.resolve(__dirname, 'pengadaan_schema_seed.sql');
 
   try {
     const [rows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_paket');
     const [sRows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_settings');
     if (rows && rows[0] && rows[0].cnt >= 6 && sRows && sRows[0] && sRows[0].cnt > 0) {
-      // Pastikan koreksi pejabat pengadaan (Indrayu Fatika Mahardika) & hapus Tim Teknis selalu terjaga
-      await pool.query("DELETE FROM pbj_pejabat WHERE id = 6 OR peran = 'TIM_TEKNIS'");
-      await pool.query(
-        "UPDATE pbj_pejabat SET nama_lengkap = 'INDRAYU FATIKA MAHARDIKA', nip = '-', pangkat_gol = '-' WHERE id = 3 AND peran = 'PEJABAT_PENGADAAN'"
-      );
+      await ensurePenyediaLinkDokumenColumn(pool);
+      await migratePejabatTanpaGelarOnce(pool);
       await ensureAllPaketsHave18Stages();
       await seedRegulasiPengadaanToMasterRegulasi(pool);
       schemaInitDone = true;
       return;
     }
   } catch (e) {
-    // Tabel belum ada, jalankan inisialisasi dari cakra_schema_seed
+    // Tabel belum ada, jalankan inisialisasi dari pengadaan_schema_seed
   }
 
   let sqlContent = '';
   try {
-    sqlContent = require('./cakra_schema_seed');
+    sqlContent = require('./pengadaan_schema_seed');
   } catch (e) {
     if (fs.existsSync(sqlFilePath)) {
       sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
@@ -212,6 +242,8 @@ async function initDatabaseSchemaAndSeed() {
 
   if (sqlContent) {
     await pool.query(sqlContent);
+    await ensurePenyediaLinkDokumenColumn(pool);
+    await migratePejabatTanpaGelarOnce(pool);
     await ensureAllPaketsHave18Stages();
     await seedRegulasiPengadaanToMasterRegulasi(pool);
     schemaInitDone = true;
@@ -221,6 +253,10 @@ async function initDatabaseSchemaAndSeed() {
 
 async function ensureAllPaketsHave18Stages() {
   const pool = getCakraPool();
+  // Migrasi kode paket legacy CAKRA- menjadi PBJ- agar nama dokumen unduhan resmi sesuai standar SI-PRABU
+  try {
+    await pool.query("UPDATE pbj_paket SET kode_paket_internal = REPLACE(kode_paket_internal, 'CAKRA-', 'PBJ-') WHERE kode_paket_internal LIKE 'CAKRA-%'");
+  } catch (e) {}
   const [pakets] = await pool.query('SELECT * FROM pbj_paket ORDER BY id ASC');
   for (const p of pakets) {
     const [existing] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_paket_tahap WHERE paket_id = ?', [p.id]);
@@ -264,28 +300,105 @@ async function saveSettingsMap(payload) {
   return getSettingsMap();
 }
 
+async function syncPejabatFromAdministrasi() {
+  const pool = getCakraPool();
+  try {
+    const [sRows] = await pool.query('SELECT `key`, `value` FROM settings_satker');
+    const s = {};
+    sRows.forEach(r => { s[r.key] = r.value; });
+
+    const [subRows] = await pool.query("SELECT kasubag_nama, kasubag_nip, kasubag_jabatan FROM master_subbagian WHERE kode = 'KUL' LIMIT 1");
+    const kul = subRows[0] || {};
+
+    if (s.kpa_nama) {
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = ?, nip = ?, jabatan_struktural = COALESCE(NULLIF(?, ''), jabatan_struktural), no_sk = COALESCE(NULLIF(?, ''), no_sk), no_sertifikat_pbj = COALESCE(NULLIF(?, ''), no_sertifikat_pbj) WHERE peran = 'KPA'",
+        [s.kpa_nama, s.kpa_nip || '-', s.kpa_jabatan || '', s.kpa_no_sk || '', s.kpa_sertifikat_pbj || '']
+      );
+    }
+    if (s.ppkom_nama) {
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = ?, nip = ?, jabatan_struktural = COALESCE(NULLIF(?, ''), jabatan_struktural), no_sk = COALESCE(NULLIF(?, ''), no_sk), no_sertifikat_pbj = COALESCE(NULLIF(?, ''), no_sertifikat_pbj) WHERE peran = 'PPK'",
+        [s.ppkom_nama, s.ppkom_nip || '-', s.ppkom_jabatan || '', s.ppkom_no_sk || '', s.ppkom_sertifikat_pbj || '']
+      );
+    }
+    if (s.ppbj_nama) {
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = ?, nip = ?, jabatan_struktural = COALESCE(NULLIF(?, ''), jabatan_struktural), no_sk = COALESCE(NULLIF(?, ''), no_sk), no_sertifikat_pbj = COALESCE(NULLIF(?, ''), no_sertifikat_pbj) WHERE peran = 'PEJABAT_PENGADAAN'",
+        [s.ppbj_nama, s.ppbj_nip || '-', s.ppbj_jabatan || '', s.ppbj_no_sk || '', s.ppbj_sertifikat_pbj || '']
+      );
+    }
+    const bpNama = s.bp_nama || s.bendahara_nama;
+    if (bpNama) {
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = ?, nip = ?, jabatan_struktural = COALESCE(NULLIF(?, ''), jabatan_struktural), no_sk = COALESCE(NULLIF(?, ''), no_sk), no_sertifikat_pbj = COALESCE(NULLIF(?, ''), no_sertifikat_pbj) WHERE peran = 'BENDAHARA'",
+        [bpNama, s.bp_nip || s.bendahara_nip || '-', s.bp_jabatan || s.bendahara_jabatan || '', s.bp_no_sk || '', s.bp_sertifikat_pbj || '']
+      );
+    }
+    if (kul.kasubag_nama) {
+      await pool.query(
+        "UPDATE pbj_pejabat SET nama_lengkap = ?, nip = ?, jabatan_struktural = COALESCE(NULLIF(?, ''), jabatan_struktural) WHERE peran = 'PPSPM'",
+        [kul.kasubag_nama, kul.kasubag_nip || '-', kul.kasubag_jabatan || '']
+      );
+    }
+  } catch (e) {}
+}
+
 async function getPejabatList() {
   const pool = getCakraPool();
+  await syncPejabatFromAdministrasi();
   const [rows] = await pool.query("SELECT * FROM pbj_pejabat WHERE peran != 'TIM_TEKNIS' ORDER BY id ASC");
   return rows;
 }
 
 async function savePejabat(data) {
   const pool = getCakraPool();
+  const cleanPeran = String(data.peran || 'PPK').trim().toUpperCase();
+  const cleanNama = String(data.nama_lengkap || '').trim();
+  const cleanNip = String(data.nip || '-').trim();
+  const cleanJabatan = String(data.jabatan_struktural || '').trim();
+
+  let savedId;
   if (data.id) {
     await pool.query(
       `UPDATE pbj_pejabat SET peran=?, nama_lengkap=?, nip=?, pangkat_gol=?, jabatan_struktural=?, no_sk=?, tgl_sk=?, no_sertifikat_pbj=?, tipologi_ppk=?, is_active=? WHERE id=?`,
-      [data.peran, data.nama_lengkap, data.nip || '', data.pangkat_gol || '', data.jabatan_struktural || '', data.no_sk || '', data.tgl_sk || '', data.no_sertifikat_pbj || '', data.tipologi_ppk || 'Tipe B', data.is_active ?? 1, data.id]
+      [cleanPeran, cleanNama, cleanNip, data.pangkat_gol || '-', cleanJabatan, data.no_sk || '-', data.tgl_sk || '', data.no_sertifikat_pbj || '-', data.tipologi_ppk || '-', data.is_active ?? 1, data.id]
     );
-    return data.id;
+    savedId = data.id;
   } else {
     const [res] = await pool.query(
       `INSERT INTO pbj_pejabat (peran, nama_lengkap, nip, pangkat_gol, jabatan_struktural, no_sk, tgl_sk, no_sertifikat_pbj, tipologi_ppk, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [data.peran || 'PPK', data.nama_lengkap, data.nip || '', data.pangkat_gol || '', data.jabatan_struktural || '', data.no_sk || '', data.tgl_sk || '', data.no_sertifikat_pbj || '', data.tipologi_ppk || 'Tipe B', 1]
+      [cleanPeran, cleanNama, cleanNip, data.pangkat_gol || '-', cleanJabatan, data.no_sk || '-', data.tgl_sk || '', data.no_sertifikat_pbj || '-', data.tipologi_ppk || '-', 1]
     );
-    return res.insertId;
+    savedId = res.insertId;
   }
+
+  // Sinkronkan 2 arah ke settings_satker, master_subbagian, & satker_users agar menu Penandatangan & Pengguna selalu selaras
+  try {
+    if (cleanPeran === 'KPA') {
+      await pool.query("REPLACE INTO settings_satker (`key`, `value`) VALUES ('kpa_nama', ?), ('kpa_nip', ?)", [cleanNama, cleanNip]);
+      if (cleanJabatan) await pool.query("REPLACE INTO settings_satker (`key`, `value`) VALUES ('kpa_jabatan', ?)", [cleanJabatan]);
+      await pool.query("UPDATE satker_users SET nama_pejabat = ?, nip = ? WHERE username = 'sekretaris'", [cleanNama, cleanNip]);
+    } else if (cleanPeran === 'PPK') {
+      await pool.query("REPLACE INTO settings_satker (`key`, `value`) VALUES ('ppkom_nama', ?), ('ppkom_nip', ?)", [cleanNama, cleanNip]);
+      if (cleanJabatan) await pool.query("REPLACE INTO settings_satker (`key`, `value`) VALUES ('ppkom_jabatan', ?)", [cleanJabatan]);
+      await pool.query("UPDATE satker_users SET nama_pejabat = ?, nip = ?, jabatan = COALESCE(NULLIF(?, ''), jabatan) WHERE username = 'ppk_ngawi'", [cleanNama, cleanNip, cleanJabatan]);
+    } else if (cleanPeran === 'PEJABAT_PENGADAAN') {
+      await pool.query("REPLACE INTO settings_satker (`key`, `value`) VALUES ('ppbj_nama', ?), ('ppbj_nip', ?)", [cleanNama, cleanNip]);
+      if (cleanJabatan) await pool.query("REPLACE INTO settings_satker (`key`, `value`) VALUES ('ppbj_jabatan', ?)", [cleanJabatan]);
+      await pool.query("UPDATE satker_users SET nama_pejabat = ?, nip = ?, jabatan = COALESCE(NULLIF(?, ''), jabatan) WHERE username = 'ppbj_ngawi'", [cleanNama, cleanNip, cleanJabatan]);
+    } else if (cleanPeran === 'BENDAHARA') {
+      await pool.query("REPLACE INTO settings_satker (`key`, `value`) VALUES ('bp_nama', ?), ('bp_nip', ?), ('bendahara_nama', ?), ('bendahara_nip', ?)", [cleanNama, cleanNip, cleanNama, cleanNip]);
+      if (cleanJabatan) await pool.query("REPLACE INTO settings_satker (`key`, `value`) VALUES ('bp_jabatan', ?), ('bendahara_jabatan', ?)", [cleanJabatan, cleanJabatan]);
+      await pool.query("UPDATE satker_users SET nama_pejabat = ?, nip = ?, jabatan = COALESCE(NULLIF(?, ''), jabatan) WHERE username = 'bp_ngawi'", [cleanNama, cleanNip, cleanJabatan]);
+    } else if (cleanPeran === 'PPSPM') {
+      await pool.query("UPDATE master_subbagian SET kasubag_nama = ?, kasubag_nip = ? WHERE kode = 'KUL'", [cleanNama, cleanNip]);
+      await pool.query("UPDATE satker_users SET nama_pejabat = ?, nip = ? WHERE username = 'kul'", [cleanNama, cleanNip]);
+    }
+  } catch (e) {}
+
+  return savedId;
 }
 
 async function getPenyediaList() {
@@ -296,6 +409,7 @@ async function getPenyediaList() {
 
 async function savePenyedia(data) {
   const pool = getCakraPool();
+  await ensurePenyediaLinkDokumenColumn(pool);
   if (data.id) {
     await pool.query(
       `UPDATE pbj_penyedia SET
@@ -303,7 +417,7 @@ async function savePenyedia(data) {
         alamat=?, kota=?, email=?, telepon=?, nama_direktur=?, jabatan_penandatangan=?, nik_direktur=?,
         no_akta_pendirian=?, nama_bank=?, no_rekening=?, atas_nama_rekening=?,
         bo_nama_pemilik_manfaat=?, bo_nik_pemilik_manfaat=?, bo_hubungan=?,
-        skor_kinerja_terakhir=?, kategori_kinerja=?, jumlah_repeat_order=?
+        skor_kinerja_terakhir=?, kategori_kinerja=?, jumlah_repeat_order=?, link_dokumen=?
        WHERE id=?`,
       [
         data.nama_perusahaan, data.bentuk_usaha || 'CV', data.kualifikasi_usaha || 'Usaha Kecil',
@@ -313,7 +427,8 @@ async function savePenyedia(data) {
         data.no_akta_pendirian || '', data.nama_bank || '', data.no_rekening || '', data.atas_nama_rekening || '',
         data.bo_nama_pemilik_manfaat || data.nama_direktur || '', data.bo_nik_pemilik_manfaat || data.nik_direktur || '',
         data.bo_hubungan || 'Pemilik Manfaat Langsung', Number(data.skor_kinerja_terakhir || 2.85),
-        data.kategori_kinerja || 'Sangat Baik', Number(data.jumlah_repeat_order || 0), data.id
+        data.kategori_kinerja || 'Sangat Baik', Number(data.jumlah_repeat_order || 0),
+        String(data.link_dokumen || '').trim(), data.id
       ]
     );
     return data.id;
@@ -324,8 +439,8 @@ async function savePenyedia(data) {
         alamat, kota, email, telepon, nama_direktur, jabatan_penandatangan, nik_direktur,
         no_akta_pendirian, nama_bank, no_rekening, atas_nama_rekening,
         bo_nama_pemilik_manfaat, bo_nik_pemilik_manfaat, bo_hubungan,
-        skor_kinerja_terakhir, kategori_kinerja, jumlah_repeat_order
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        skor_kinerja_terakhir, kategori_kinerja, jumlah_repeat_order, link_dokumen
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.nama_perusahaan, data.bentuk_usaha || 'CV', data.kualifikasi_usaha || 'Usaha Kecil',
         data.npwp || '', data.nib || '', data.kbli || '', Number(data.status_pkp ?? 1),
@@ -334,7 +449,8 @@ async function savePenyedia(data) {
         data.no_akta_pendirian || '', data.nama_bank || '', data.no_rekening || '', data.atas_nama_rekening || '',
         data.bo_nama_pemilik_manfaat || data.nama_direktur || '', data.bo_nik_pemilik_manfaat || data.nik_direktur || '',
         data.bo_hubungan || 'Pemilik Manfaat Langsung', Number(data.skor_kinerja_terakhir || 2.85),
-        data.kategori_kinerja || 'Sangat Baik', Number(data.jumlah_repeat_order || 0)
+        data.kategori_kinerja || 'Sangat Baik', Number(data.jumlah_repeat_order || 0),
+        String(data.link_dokumen || '').trim()
       ]
     );
     return res.insertId;
@@ -358,6 +474,7 @@ async function getPaketList() {
 
 async function getPaketFullById(paketId) {
   const pool = getCakraPool();
+  await syncPejabatFromAdministrasi();
   const [pakets] = await pool.query('SELECT * FROM pbj_paket WHERE id = ?', [paketId]);
   if (!pakets.length) return null;
   const paket = pakets[0];
@@ -479,7 +596,7 @@ async function savePaket(data) {
   } else {
     const [cntRows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_paket');
     const nextNum = (cntRows[0]?.cnt || 0) + 1;
-    const kodeInternal = data.kode_paket_internal || `CAKRA-2026-${String(nextNum).padStart(3, '0')}`;
+    const kodeInternal = data.kode_paket_internal || `PBJ-2026-${String(nextNum).padStart(3, '0')}`;
     const kodeRup = data.kode_rup || `RUP-2026-657811-${String(nextNum).padStart(2, '0')}`;
 
     const [res] = await pool.query(
@@ -629,19 +746,29 @@ async function autoGeneratePaketTahaps(paketId, tanggalMulai = '2026-05-04') {
 
 /**
  * Tarik langsung mata anggaran RUH Belanja RKB dari tabel `rab_baris` di database yang sama (`siprabu_db`)
+ * WAJIB bersumber dari Dokumen Terkunci Paling Baru (`is_locked = 1`) sesuai kesepakatan arsitektur.
  */
 async function fetchRkbItemsFromSiprabu() {
   try {
     const pool = getCakraPool();
+    const [lockedPeriodes] = await pool.query(`
+      SELECT id, nama_periode, versi_revisi, revisi_ke
+      FROM periode_anggaran
+      WHERE is_locked = 1
+      ORDER BY revisi_ke DESC, id DESC
+      LIMIT 1
+    `);
+    const lockedPeriode = (lockedPeriodes && lockedPeriodes[0]) ? lockedPeriodes[0] : { id: 1, nama_periode: 'RKB Pilkada 2024', versi_revisi: 'Baseline Sah' };
+
     const [rows] = await pool.query(`
       SELECT id, periode_id, urutan, row_type, kode, uraian, kode_akun,
              f1_val, f1_unit, f2_val, f2_unit, f3_val, f3_unit, f4_val, f4_unit,
              satuan_vol, harga_satuan, pic_bagian, jenis_biaya
       FROM rab_baris
-      WHERE row_type = 'item' AND harga_satuan > 0
+      WHERE periode_id = ? AND row_type = 'item' AND harga_satuan > 0
       ORDER BY urutan ASC
-      LIMIT 150
-    `);
+      LIMIT 250
+    `, [lockedPeriode.id]);
 
     return rows.map(r => {
       const f1 = Number(r.f1_val) || 1;
@@ -652,6 +779,8 @@ async function fetchRkbItemsFromSiprabu() {
       const paguTotal = Math.round(totalVol * (Number(r.harga_satuan) || 0));
       return {
         siprabu_rab_id: r.id,
+        periode_id: r.periode_id,
+        nama_dokumen_sumber: `${lockedPeriode.nama_periode} (${lockedPeriode.versi_revisi})`,
         kode_akun: r.kode_akun || '521211',
         uraian_bersih: String(r.uraian || '').replace(/^[-.\d)\s]+/, '').trim(),
         volume: totalVol,

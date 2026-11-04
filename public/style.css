@@ -308,7 +308,12 @@ html, body {
 }
 
 .nav-item .icon {
-  font-size: 18px;
+  font-size: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  flex-shrink: 0;
 }
 
 .nav-item .label {
@@ -1306,17 +1311,18 @@ tr.rkb-row-lvl-4:hover {
 /* PRABU SIDEBAR FOLDER & TREE GROUPS                                         */
 /* ========================================================================== */
 .prabu-tree-group {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
-.prabu-folder-toggle {
+.prabu-folder-toggle,
+#sidebar-nav-menu > .nav-item {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
+  padding: 9px 12px;
   background: transparent;
   border: none;
+  border-left: 3px solid transparent;
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 700;
@@ -1326,17 +1332,48 @@ tr.rkb-row-lvl-4:hover {
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
+  box-sizing: border-box;
+  margin-bottom: 2px;
 }
 
-.prabu-folder-toggle:hover {
+.prabu-folder-toggle {
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+#sidebar-nav-menu > .nav-item {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.prabu-folder-toggle:hover,
+#sidebar-nav-menu > .nav-item:hover {
   background: rgba(15, 23, 42, 0.04);
   color: var(--primary);
 }
 
+#sidebar-nav-menu > .nav-item.active {
+  background-color: #eff6ff;
+  color: var(--accent);
+  font-weight: 800;
+  border-left-color: var(--accent);
+}
+
 .prabu-folder-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.prabu-folder-label .icon,
+#sidebar-nav-menu > .nav-item > .icon {
+  font-size: 15px;
+  width: 20px;
+  min-width: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .prabu-chevron {
@@ -1350,9 +1387,12 @@ tr.rkb-row-lvl-4:hover {
 }
 
 .prabu-tree-children {
-  padding-left: 8px;
+  padding-left: 10px;
+  margin-left: 12px;
+  border-left: 2px solid #e2e8f0;
   margin-top: 2px;
-  max-height: 450px;
+  margin-bottom: 6px;
+  max-height: 950px;
   opacity: 1;
   overflow: hidden;
   transform: translateY(0);
@@ -1362,10 +1402,18 @@ tr.rkb-row-lvl-4:hover {
               margin-top 0.28s ease;
 }
 
+.prabu-tree-children .nav-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  gap: 10px;
+  border-radius: 6px;
+}
+
 .prabu-tree-group.collapsed .prabu-tree-children {
   max-height: 0;
   opacity: 0;
   margin-top: 0;
+  margin-bottom: 0;
   transform: translateY(-6px);
   pointer-events: none;
 }
@@ -2061,7 +2109,7 @@ tr.rkb-row-lvl-41.table-row-selected td {
 .sidebar.collapsed .prabu-chevron,
 .sidebar.collapsed .badge,
 .sidebar.collapsed .label,
-.sidebar.collapsed .prabu-folder-label span {
+.sidebar.collapsed .prabu-folder-label .label {
   display: none !important;
 }
 

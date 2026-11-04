@@ -88,7 +88,8 @@ const PRABU_VIEW_CODES = {
   'view-pengadaan-paket': 29,
   'view-pengadaan-kokpit': 30,
   'view-pengadaan-penyedia': 31,
-  'view-panduan-pengadaan': 32
+  'view-panduan-pengadaan': 32,
+  'view-rekap-pengadaan': 33
 };
 
 const PRABU_CODE_TO_VIEW = {
@@ -123,13 +124,14 @@ const PRABU_CODE_TO_VIEW = {
   29: 'view-pengadaan-paket',
   30: 'view-pengadaan-kokpit',
   31: 'view-pengadaan-penyedia',
-  32: 'view-panduan-pengadaan'
+  32: 'view-panduan-pengadaan',
+  33: 'view-rekap-pengadaan'
 };
 
 const PRABU_VIEW_TITLES = {
   'view-dashboard': 'Dashboard KPI Eksekutif',
   'view-rkb': 'RUH Belanja RKB Pilkada',
-  'view-siklus': 'Pusat Siklus & Tata Kelola Anggaran',
+  'view-siklus': 'Dokumen Anggaran (Siklus Aktif & Baseline Terkunci)',
   'view-revisi-pengajuan': 'Pengajuan Usulan Revisi (Tahap 1)',
   'view-revisi-validasi': 'Validasi & Telaah Usulan Revisi (Tahap 2-3)',
   'view-revisi-tahap4': 'Pengesahan BA Pleno Revisi (Tahap 4)',
@@ -141,24 +143,25 @@ const PRABU_VIEW_TITLES = {
   'view-db-kuantitas': 'Master Database Kuantitas',
   'view-db-sbm': 'Master Standar Biaya Masukan (SBM)',
   'view-db-bas': 'Master Bagan Akun Standar (BAS)',
-  'view-db-regulasi': 'Regulasi & Dasar Hukum KPU',
+  'view-db-regulasi': 'Regulasi & Dasar Hukum JDIH',
   'view-juknis-kegiatan': 'Standar 28 Kegiatan KPT 543/2022',
   'view-db-settings': 'Pengaturan Sistem & Parameter',
   'view-settings': 'Pengaturan Sistem & Parameter',
   'view-panduan': 'Panduan Perencanaan Anggaran',
-  'view-panduan-pelaksanaan': 'Panduan Pelaksanaan & Pembayaran Anggaran',
+  'view-panduan-pelaksanaan': 'Panduan Pembayaran Anggaran',
   'view-monitoring': 'Executive Real-Time Monitoring',
   'view-users': 'Manajemen Pengguna & Otoritas',
   'view-penandatangan': 'Pejabat Penandatangan Satker',
   'view-developer': 'Konsol Arsitektur & Blueprint Sistem',
   'view-rekap-perencanaan': 'Rekap Perencanaan Anggaran',
-  'view-rekap-pelaksanaan': 'Rekap Pelaksanaan Anggaran (Baseline Sah)',
+  'view-rekap-pelaksanaan': 'Rekap Pembayaran Anggaran (Baseline Sah)',
+  'view-rekap-pengadaan': 'Rekap Pengadaan Barang/Jasa',
   'view-audit': 'Log Aktivitas & Rekam Jejak Audit Sistem',
   'view-menu-matrix': 'Manajemen Hak Akses',
   'view-pengumuman': 'Manajemen Pengumuman Satker',
   'view-pengadaan-paket': 'Daftar Paket Pengadaan',
   'view-pengadaan-kokpit': 'Kokpit 18 Tahap Pengadaan',
-  'view-pengadaan-penyedia': 'Direktori Penyedia & UMK',
+  'view-pengadaan-penyedia': 'Master Penyedia (Rekanan)',
   'view-panduan-pengadaan': 'Panduan Pengadaan 18 Tahap'
 };
 
@@ -2690,7 +2693,10 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-db-sbm') { renderDbSbm(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-bas') { renderDbBas(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-regulasi') { renderDbRegulasi(); renderContextualMasterReminderBanner(viewId); }
-  else if (viewId === 'view-juknis-kegiatan') { renderJuknisKegiatan(); }
+  else if (viewId === 'view-juknis-kegiatan') {
+    if (AppState.juknisExpandedSet) AppState.juknisExpandedSet.clear();
+    renderJuknisKegiatan();
+  }
   else if (viewId === 'view-db-settings' || viewId === 'view-settings') { renderSettings(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-panduan') { renderPanduanByRole(); }
   else if (viewId === 'view-panduan-pelaksanaan') { renderPanduanByRole(); }
@@ -2703,7 +2709,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
   else if (viewId === 'view-rekap-perencanaan') loadRekapView('perencanaan');
   else if (viewId === 'view-rekap-pelaksanaan') loadRekapView('pelaksanaan');
-  else if (['view-pengadaan-paket', 'view-pengadaan-kokpit', 'view-pengadaan-penyedia', 'view-panduan-pengadaan'].includes(viewId)) {
+  else if (['view-pengadaan-paket', 'view-pengadaan-kokpit', 'view-pengadaan-penyedia', 'view-panduan-pengadaan', 'view-rekap-pengadaan'].includes(viewId)) {
     if (typeof window.onEnterPengadaanView === 'function') window.onEnterPengadaanView(viewId);
   }
 }
@@ -2750,19 +2756,37 @@ function handleDashboardSubbagChange(val) {
 function renderDashboard() {
   if (!AppState.rkbData || !AppState.rkbData.summary) return;
   const user = AppState.currentUser;
-  const { summary: docSummary, subbag_summaries, periode } = AppState.rkbData;
+  const {
+    summary: docSummary,
+    subbag_summaries,
+    periode,
+    locked_periode,
+    locked_summary,
+    locked_subbag_summaries
+  } = AppState.rkbData;
 
   // 1. Tentukan konteks scoping (Apakah scoped ke Subbag tertentu?)
   const isUserLockedSubbag = Boolean(user && user.pic_subbag && user.pic_subbag !== 'SEMUA');
   let selectedSubbag = isUserLockedSubbag ? user.pic_subbag : (AppState.dashboardSubbag || 'SEMUA');
   
-  // Jika subbag_summaries tersedia dan dipilih subbag tertentu
+  // Sumber Data 1: PERENCANAAN -> Dokumen RKB dari Pusat Siklus Aktif
   const isScoped = selectedSubbag !== 'SEMUA';
   const subbagMeta = isScoped ? (SUBBAG_META[selectedSubbag] || { name: selectedSubbag, color: '#6366f1' }) : null;
   const summaries = subbag_summaries || (docSummary.subbagSummaries || {});
   const activeSummary = (isScoped && summaries[selectedSubbag])
     ? summaries[selectedSubbag]
     : ((isScoped && AppState.rkbData.filtered_summary) ? AppState.rkbData.filtered_summary : docSummary);
+
+  // Sumber Data 2: PENGADAAN & PEMBAYARAN -> Dokumen Terkunci Paling Baru (is_locked = 1)
+  const lockedDocSummary = locked_summary || docSummary;
+  const lockedSummaries = locked_subbag_summaries || (lockedDocSummary.subbagSummaries || summaries);
+  const lockedActiveSummary = (isScoped && lockedSummaries[selectedSubbag])
+    ? lockedSummaries[selectedSubbag]
+    : lockedDocSummary;
+  const baselinePeriode = locked_periode
+    || ((Array.isArray(AppState.periodesList) && AppState.periodesList.length > 0)
+        ? (AppState.periodesList.find(x => Number(x.is_locked) === 1) || AppState.periodesList[0])
+        : periode);
 
   // 2. Sinkronkan Filter Dropdown di Header Dashboard
   const filterContainer = document.getElementById('dashboard-subbag-filter-container');
@@ -2849,113 +2873,270 @@ function renderDashboard() {
   setElText('kpi-pct-kab', `${pctKab}% dari Pagu ${isScoped ? 'Subbag' : 'Satker'}`);
   setElText('kpi-pct-adhoc', `${pctAdhoc}% (${isScoped ? 'PPK, PPS, TPS, Pantarlih, Peserta' : 'PPK, PPS, TPS, Pantarlih'})`);
 
-  // 5. Card 1: Distribusi Subbag
+  // 4B. PILAR 2: REKAP PENGADAAN (18 TAHAP HULU-KE-HILIR)
+  if (window.CakraState && !window.CakraState.initialized && !window._cakraBooting && typeof window.initCakraApp === 'function') {
+    window._cakraBooting = true;
+    window.initCakraApp().finally(() => { window._cakraBooting = false; });
+  }
+  const mapCakraSubbag = (sb) => {
+    const u = String(sb || '').toUpperCase();
+    if (u === 'TEKMAS' || u === 'TEKNIS') return 'TEKNIS';
+    if (u === 'HUKUM_SDM' || u === 'HUKUM') return 'HUKUM';
+    if (u === 'PARSDM' || u === 'PARMAS') return 'PARSDM';
+    if (u === 'RENDATIN' || u === 'PERENCANAAN') return 'RENDATIN';
+    return 'KUL';
+  };
+  const allPakets = (window.CakraState && Array.isArray(window.CakraState.pakets)) ? window.CakraState.pakets : [];
+  const scopedPakets = isScoped
+    ? allPakets.filter(p => mapCakraSubbag(p.subbag) === selectedSubbag)
+    : allPakets;
+
+  let pbjPagu = 0, pbjHps = 0, pbjKontrak = 0, pbjUmkCount = 0, pbjTkdnSum = 0, pbjProgressSum = 0;
+  const metodeCounts = {};
+  scopedPakets.forEach(p => {
+    const pg = Number(p.pagu_anggaran) || 0;
+    const hp = Number(p.nilai_hps) || pg;
+    const kt = Number(p.nilai_kontrak) || hp;
+    pbjPagu += pg;
+    pbjHps += hp;
+    pbjKontrak += kt;
+    if (String(p.pdn_tkdn_status || '').toUpperCase().includes('UMK') || String(p.usaha_kecil_status || '') === 'UMK' || pg <= 15000000000) {
+      pbjUmkCount++;
+    }
+    pbjTkdnSum += Number(p.tkdn_persen || 45);
+    pbjProgressSum += Number(p.progress_fisik || 100);
+    const m = p.metode_pemilihan || 'E-Purchasing';
+    metodeCounts[m] = (metodeCounts[m] || 0) + 1;
+  });
+  const pbjEfisiensi = Math.max(0, pbjPagu - pbjKontrak);
+  const pbjEfisiensiPct = pbjPagu > 0 ? ((pbjEfisiensi / pbjPagu) * 100).toFixed(2) : '0.00';
+  const pbjAvgTkdn = scopedPakets.length > 0 ? (pbjTkdnSum / scopedPakets.length).toFixed(1) : '0.0';
+  const pbjAvgProg = scopedPakets.length > 0 ? (pbjProgressSum / scopedPakets.length).toFixed(0) : '0';
+  const pbjUmkPct = scopedPakets.length > 0 ? Math.round((pbjUmkCount / scopedPakets.length) * 100) : 100;
+
+  setElText('dash-pbj-paket-badge', `${scopedPakets.length} Paket Aktif${isScoped ? ' (' + selectedSubbag + ')' : ''}`);
+  setElText('dash-pbj-kontrak', formatRupiah(pbjKontrak));
+  setElText('dash-pbj-pagu', `Dari Pagu Paket PBJ: ${formatRupiah(pbjPagu)} (HPS: ${formatRupiah(pbjHps)})`);
+  setElText('dash-pbj-efisiensi', `${formatRupiah(pbjEfisiensi)} (${pbjEfisiensiPct}%)`);
+  setElText('dash-pbj-umk-tkdn', `${pbjUmkPct}% UMK • ${pbjAvgTkdn}%`);
+  setElText('dash-pbj-progres', `${pbjAvgProg}% Tuntas (18/18 Tahap)`);
+  const metodeSummaryStr = Object.entries(metodeCounts).map(([k, v]) => `${k}: ${v}`).join(' • ') || 'E-Purchasing • Pengadaan Langsung • Swakelola';
+  setElText('dash-pbj-metode-sub', metodeSummaryStr);
+
+  // 4C. PILAR 3: REKAP PEMBAYARAN (WAJIB DARI DOKUMEN TERKUNCI PALING BARU / is_locked = 1)
+  const payBaselineTotal = Number(lockedActiveSummary.grandTotal) || 0;
+  const lockedAdhocTotal = ((lockedActiveSummary.bySasaran && lockedActiveSummary.bySasaran.PPK) || 0) +
+                           ((lockedActiveSummary.bySasaran && lockedActiveSummary.bySasaran.PPS) || 0) +
+                           ((lockedActiveSummary.bySasaran && lockedActiveSummary.bySasaran.TPS) || 0) +
+                           ((lockedActiveSummary.bySasaran && lockedActiveSummary.bySasaran.PANTARLIH) || 0) +
+                           ((lockedActiveSummary.bySasaran && lockedActiveSummary.bySasaran.PESERTA) || 0);
+  // Estimasi Pajak & Netto SP2D berdasarkan komposisi Akun BAS pada Dokumen Terkunci Terbaru
+  const byAkunMap = lockedActiveSummary.byAkun || {};
+  const belanjaHonor = (Number(byAkunMap['521213']) || 0) + (Number(byAkunMap['521115']) || 0) + (Number(byAkunMap['522151']) || 0);
+  const belanjaNonHonor = Math.max(0, payBaselineTotal - belanjaHonor);
+  const estPajakHonor = Math.round(belanjaHonor * 0.025); // Rata-rata efektif PPh 21
+  const estPajakBarangJasa = Math.round(belanjaNonHonor * 0.085); // Rata-rata efektif PPN 11% + PPh 22/23
+  const estTotalPajak = estPajakHonor + estPajakBarangJasa;
+  const estNettoSp2d = Math.max(0, payBaselineTotal - estTotalPajak);
+
+  setElText('dash-pay-status-badge', `🔒 Dokumen Terkunci Terbaru`);
+  setElText('dash-pay-baseline', formatRupiah(payBaselineTotal));
+  setElText('dash-pay-doc-name', `${baselinePeriode ? baselinePeriode.nama_periode : periode.nama_periode} (${baselinePeriode ? baselinePeriode.versi_revisi : periode.versi_revisi})`);
+  setElText('dash-pay-netto', formatRupiah(estNettoSp2d));
+  setElText('dash-pay-pajak', `Potongan Pajak: ${formatRupiah(estTotalPajak)}`);
+  setElText('dash-pay-adhoc', formatRupiah(lockedAdhocTotal));
+  const selisihRkbVsPay = (Number(activeSummary.grandTotal) || 0) - payBaselineTotal;
+  setElText('dash-pay-selisih', selisihRkbVsPay === 0
+    ? 'Selisih thd RKB Siklus Aktif: Rp 0 (Sinkron)'
+    : `Selisih thd RKB Siklus Aktif: ${selisihRkbVsPay > 0 ? '+' : ''}${formatRupiah(selisihRkbVsPay)}`);
+
+  // 5. BLOK BARIS 2: RESUME SIKLUS 3 MODUL PER SUBBAGIAN (5 BLOCK CARDS)
   const subbagCardTitle = document.getElementById('dashboard-subbag-card-title');
   if (subbagCardTitle) {
     subbagCardTitle.textContent = isScoped 
-      ? `Posisi Alokasi Anggaran Subbag ${selectedSubbag} Terhadap Satker` 
-      : 'Distribusi Pagu Per Subbagian Pelaksana';
+      ? `Resume Siklus 3 Modul — Subbag ${selectedSubbag} Terhadap Satker` 
+      : 'Resume Siklus 3 Modul Per Subbagian Pengampu (PIC)';
   }
 
-  const subbagList = document.getElementById('subbag-distribution-list');
-  if (subbagList && docSummary.bySubbag) {
-    let subbagHtml = '';
-    if (isScoped) {
-      subbagHtml += `
-        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #1e1b4b; display: flex; align-items: center; justify-content: space-between;">
-          <div>
-            <strong>🏢 Subbagian ${subbagMeta ? subbagMeta.name : selectedSubbag}</strong>
-            <div style="font-size: 11px; color: #4338ca; margin-top: 2px;">
-              Mengelola <b>${formatRupiah(activeSummary.grandTotal)}</b> atau <b>${pctOfTotal}%</b> dari total pagu Satker KPU Kabupaten Ngawi.
-            </div>
-          </div>
-          <span class="badge" style="background:#6366f1; color:#fff; font-size: 11px;">Tanggung Jawab Subbag</span>
-        </div>
-      `;
-    }
+  const subbagBlocksEl = document.getElementById('dashboard-subbag-3modul-blocks');
+  if (subbagBlocksEl && docSummary.bySubbag) {
+    const subbagOrder = ['TEKNIS', 'HUKUM', 'PARSDM', 'KUL', 'RENDATIN'];
+    const subbagIcons = {
+      TEKNIS: '🗳️',
+      HUKUM: '⚖️',
+      PARSDM: '📢',
+      KUL: '💼',
+      RENDATIN: '📊'
+    };
 
-    subbagHtml += Object.entries(docSummary.bySubbag).map(([pic, amt]) => {
-      const meta = SUBBAG_META[pic] || { name: pic, color: '#64748b' };
-      const pct = docSummary.grandTotal > 0 ? ((amt / docSummary.grandTotal) * 100).toFixed(2) : '0';
-      const isCurrent = isScoped && (pic === selectedSubbag);
+    subbagBlocksEl.innerHTML = subbagOrder.map(sbCode => {
+      const meta = SUBBAG_META[sbCode] || { name: sbCode, color: '#64748b' };
+      // 1. Perencanaan: dari Pusat Siklus Aktif
+      const rkbAmt = Number(docSummary.bySubbag[sbCode]) || 0;
+      const sbSummary = summaries[sbCode] || {};
+      const sbItems = Number(sbSummary.totalItems) || 0;
+      // 2. Pengadaan: dari Paket Pengadaan (Dokumen Terkunci Terbaru)
+      const sbPakets = allPakets.filter(p => mapCakraSubbag(p.subbag) === sbCode);
+      const sbPaketCount = sbPakets.length;
+      const sbPaguPbj = sbPakets.reduce((acc, p) => acc + (Number(p.pagu_anggaran) || 0), 0);
+      const sbKontrakPbj = sbPakets.reduce((acc, p) => acc + (Number(p.nilai_kontrak) || Number(p.nilai_hps) || 0), 0);
+      const sbEfisiensi = Math.max(0, sbPaguPbj - sbKontrakPbj);
+      // 3. Pembayaran: dari Dokumen Terkunci Paling Baru (is_locked = 1)
+      const payAmt = Number((lockedDocSummary.bySubbag && lockedDocSummary.bySubbag[sbCode]) ?? rkbAmt) || 0;
+      const lockedSbSummary = lockedSummaries[sbCode] || {};
+      const lockedSbItems = Number(lockedSbSummary.totalItems) || sbItems;
+
+      const pctSatker = docSummary.grandTotal > 0 ? ((rkbAmt / docSummary.grandTotal) * 100).toFixed(2) : '0.00';
+      const isCurrentRow = isScoped && sbCode === selectedSubbag;
+
       return `
-        <div class="subbag-progress-item ${isCurrent ? 'subbag-current-active' : ''}" style="${isCurrent ? 'background: #f8fafc; border: 1.5px solid ' + meta.color + '; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px;' : 'margin-bottom: 8px;'}">
-          <div class="subbag-meta">
-            <span class="subbag-name">${meta.name} ${isCurrent ? '⭐ (Subbag Anda)' : ''}</span>
-            <span class="subbag-amount" style="font-weight: 700; color: ${isCurrent ? meta.color : 'inherit'};">${formatRupiah(amt)} (${pct}%)</span>
+        <div style="background: ${isCurrentRow ? '#f5f3ff' : '#f8fafc'}; border: ${isCurrentRow ? '2px solid ' + meta.color : '1px solid #e2e8f0'}; border-top: 4px solid ${meta.color}; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 6px rgba(15,23,42,0.04);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">${subbagIcons[sbCode] || '🏢'}</span>
+              <div>
+                <div style="font-size: 13px; font-weight: 800; color: #0f172a; line-height: 1.25;">${meta.name} ${isCurrentRow ? '⭐' : ''}</div>
+                <div style="font-size: 10.5px; color: #64748b; margin-top: 2px;">Kode PIC: <b>${sbCode}</b></div>
+              </div>
+            </div>
+            <span style="background: ${meta.color}18; color: ${meta.color}; border: 1px solid ${meta.color}40; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; font-family: var(--font-mono); white-space: nowrap;">
+              ${pctSatker}% Satker
+            </span>
           </div>
-          <div class="progress-track" style="height: ${isCurrent ? '8px' : '6px'};">
-            <div class="progress-bar" style="width: ${pct}%; background-color: ${meta.color};"></div>
+
+          <div class="progress-track" style="height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden;">
+            <div class="progress-bar" style="width: ${pctSatker}%; background-color: ${meta.color}; height: 100%;"></div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 2px;">
+            <div style="background: #ffffff; border: 1px solid #dbeafe; border-left: 3px solid #2563eb; border-radius: 7px; padding: 7px 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 9.5px; font-weight: 800; color: #1d4ed8; text-transform: uppercase;">📐 1. Perencanaan (Siklus Aktif)</div>
+                <div style="font-size: 10px; color: #64748b;">${sbItems > 0 ? formatNumber(sbItems) + ' Baris RKB Aktif' : 'Alokasi RKB Aktif'}</div>
+              </div>
+              <div style="font-size: 12.5px; font-weight: 800; color: #1e3a8a; font-family: var(--font-mono);">${formatRupiah(rkbAmt)}</div>
+            </div>
+
+            <div style="background: #ffffff; border: 1px solid #fde68a; border-left: 3px solid #d97706; border-radius: 7px; padding: 7px 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 9.5px; font-weight: 800; color: #b45309; text-transform: uppercase;">📦 2. Pengadaan (${sbPaketCount} Paket)</div>
+                <div style="font-size: 10px; color: #047857; font-weight: 600;">Efisiensi: ${formatRupiah(sbEfisiensi)}</div>
+              </div>
+              <div style="font-size: 12.5px; font-weight: 800; color: #92400e; font-family: var(--font-mono);">${formatRupiah(sbKontrakPbj)}</div>
+            </div>
+
+            <div style="background: #ffffff; border: 1px solid #a7f3d0; border-left: 3px solid #059669; border-radius: 7px; padding: 7px 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 9.5px; font-weight: 800; color: #047857; text-transform: uppercase;">💳 3. Pembayaran (Dok. Terkunci)</div>
+                <div style="font-size: 10px; color: #64748b;">${lockedSbItems > 0 ? formatNumber(lockedSbItems) + ' Baris Sah Terkunci' : 'Pagu Sah Siap Bayar'}</div>
+              </div>
+              <div style="font-size: 12.5px; font-weight: 800; color: #065f46; font-family: var(--font-mono);">${formatRupiah(payAmt)}</div>
+            </div>
           </div>
         </div>
       `;
     }).join('');
-
-    subbagList.innerHTML = subbagHtml;
   }
 
-  // 6. Card 2: Distribusi Sasaran
+  // 6. BLOK BARIS 3: RESUME DISTRIBUSI SASARAN (SANDINGKAN PERENCANAAN SIKLUS AKTIF vs PEMBAYARAN TERKUNCI)
   const sasaranCardTitle = document.getElementById('dashboard-sasaran-card-title');
   if (sasaranCardTitle) {
     sasaranCardTitle.textContent = isScoped 
-      ? `Distribusi Sasaran Belanja Subbag ${selectedSubbag}` 
-      : 'Distribusi Alokasi Berdasarkan Sasaran';
+      ? `Resume Alokasi Sasaran (Siklus Aktif vs Dokumen Terkunci) — Subbag ${selectedSubbag}` 
+      : 'Resume Alokasi Anggaran Berdasarkan Sasaran (Perencanaan vs Dokumen Terkunci)';
   }
 
-  const sasaranBody = document.getElementById('table-sasaran-body');
-  if (sasaranBody && activeSummary.bySasaran) {
-    const sasaranOrder = ['KAB', 'PPK', 'PPS', 'TPS', 'PANTARLIH', 'PESERTA'];
-    sasaranBody.innerHTML = sasaranOrder.map(s => {
-      const amt = activeSummary.bySasaran[s] || 0;
-      const pct = activeSummary.grandTotal > 0 ? ((amt / activeSummary.grandTotal) * 100).toFixed(2) : '0.00';
+  const sasaranBlocksEl = document.getElementById('dashboard-sasaran-blocks');
+  if (sasaranBlocksEl && activeSummary.bySasaran) {
+    const sasaranMeta = [
+      { key: 'KAB', label: 'KPU Kabupaten', desc: 'Satker Tingkat Kabupaten Ngawi', icon: '🏛️', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+      { key: 'PPK', label: 'Badan Adhoc PPK', desc: '19 Panitia Pemilihan Kecamatan', icon: '🏢', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+      { key: 'PPS', label: 'Badan Adhoc PPS', desc: '217 Panitia Pemungutan Suara Desa', icon: '🏘️', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+      { key: 'TPS', label: 'KPPS / Tingkat TPS', desc: 'Kelompok Penyelenggara Pemungutan Suara', icon: '🗳️', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+      { key: 'PANTARLIH', label: 'Pantarlih / PPDP', desc: 'Petugas Pemutakhiran Data Pemilih', icon: '📋', color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd' },
+      { key: 'PESERTA', label: 'Peserta / Paslon', desc: 'Fasilitasi Pasangan Calon & Pemangku', icon: '👥', color: '#db2777', bg: '#fdf2f8', border: '#fbcfe8' }
+    ];
+
+    sasaranBlocksEl.innerHTML = sasaranMeta.map(sm => {
+      const amtPlan = Number(activeSummary.bySasaran[sm.key]) || 0;
+      const amtLocked = Number((lockedActiveSummary.bySasaran && lockedActiveSummary.bySasaran[sm.key]) ?? amtPlan) || 0;
+      const pct = activeSummary.grandTotal > 0 ? ((amtPlan / activeSummary.grandTotal) * 100).toFixed(2) : '0.00';
       return `
-        <tr>
-          <td><span class="badge badge-sasaran-${s.toLowerCase()}">${s}</span></td>
-          <td class="text-right" style="font-family: var(--font-mono); font-weight: 600;">${formatRupiah(amt)}</td>
-          <td class="text-right" style="font-family: var(--font-mono);">${pct}%</td>
-        </tr>
+        <div style="background: ${sm.bg}; border: 1px solid ${sm.border}; border-left: 4px solid ${sm.color}; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: #0f172a;">
+              <span>${sm.icon}</span>
+              <span>${sm.label}</span>
+            </span>
+            <span style="background: #ffffff; color: ${sm.color}; border: 1px solid ${sm.border}; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; font-family: var(--font-mono);">${pct}%</span>
+          </div>
+          <div>
+            <div style="font-size: 9.5px; font-weight: 700; color: #475569; text-transform: uppercase;">📐 Perencanaan (Siklus Aktif):</div>
+            <div style="font-size: 15px; font-weight: 800; color: ${sm.color}; font-family: var(--font-mono); letter-spacing: -0.3px;">${formatRupiah(amtPlan)}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.75); border: 1px dashed ${sm.border}; border-radius: 6px; padding: 4px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px;">
+            <span style="color: #065f46; font-weight: 700;">🔒 Dok. Terkunci:</span>
+            <strong style="color: #047857; font-family: var(--font-mono);">${formatRupiah(amtLocked)}</strong>
+          </div>
+          <div class="progress-track" style="height: 5px; background: rgba(15,23,42,0.08); border-radius: 999px; overflow: hidden;">
+            <div class="progress-bar" style="width: ${pct}%; background-color: ${sm.color}; height: 100%;"></div>
+          </div>
+          <div style="font-size: 10.5px; color: #475569; font-weight: 500;">${sm.desc}</div>
+        </div>
       `;
     }).join('');
   }
 
-  // 7. Card 3: Distribusi Akun BAS
+  // 7. BLOK BARIS 4: RESUME DISTRIBUSI AKUN BAS (SANDINGKAN PERENCANAAN SIKLUS AKTIF vs DOKUMEN TERKUNCI)
   const basCardTitle = document.getElementById('dashboard-bas-card-title');
   if (basCardTitle) {
     basCardTitle.textContent = isScoped 
-      ? `Distribusi Bagan Akun Standar (BAS Subbag ${selectedSubbag})` 
-      : 'Distribusi Anggaran Berdasarkan Bagan Akun Standar (BAS)';
+      ? `Resume Distribusi Bagan Akun Standar (BAS Subbag ${selectedSubbag})` 
+      : 'Resume Distribusi Bagan Akun Standar (Perencanaan vs Dokumen Terkunci)';
   }
 
-  const akunBody = document.getElementById('table-akun-body');
-  if (akunBody && activeSummary.byAkun) {
+  const akunBlocksEl = document.getElementById('dashboard-akun-blocks');
+  if (akunBlocksEl && activeSummary.byAkun) {
     const akunsMap = {};
     if (AppState.masters && AppState.masters.akuns) {
       for (const a of AppState.masters.akuns) akunsMap[a.kode] = a.uraian;
     }
-    const sortedAkun = Object.entries(activeSummary.byAkun).filter(([_, amt]) => amt > 0).sort((a, b) => a[0].localeCompare(b[0]));
-    let totAkun = 0;
-    const rowsHtml = sortedAkun.map(([code, amt]) => {
-      totAkun += amt;
-      const desc = akunsMap[code] || 'Belanja Terkait';
-      const pct = activeSummary.grandTotal > 0 ? ((amt / activeSummary.grandTotal) * 100).toFixed(2) : '0.00';
+    const sortedAkun = Object.entries(activeSummary.byAkun)
+      .filter(([_, amt]) => amt > 0)
+      .sort((a, b) => b[1] - a[1]);
+
+    const basCountBadge = document.getElementById('dashboard-bas-count-badge');
+    if (basCountBadge) {
+      basCountBadge.textContent = `${sortedAkun.length} Akun BAS Aktif`;
+    }
+
+    akunBlocksEl.innerHTML = sortedAkun.map(([code, amtPlan]) => {
+      const desc = akunsMap[code] || 'Belanja Operasional / Hibah Terkait';
+      const amtLocked = Number((lockedActiveSummary.byAkun && lockedActiveSummary.byAkun[code]) ?? amtPlan) || 0;
+      const pct = activeSummary.grandTotal > 0 ? ((amtPlan / activeSummary.grandTotal) * 100).toFixed(2) : '0.00';
       return `
-        <tr>
-          <td><code style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${code}</code></td>
-          <td>${desc}</td>
-          <td class="text-right" style="font-family: var(--font-mono); font-weight: 700;">${formatRupiah(amt)}</td>
-          <td class="text-right" style="font-family: var(--font-mono);">${pct}%</td>
-        </tr>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: 3px solid #0284c7; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <code style="background: #e0f2fe; color: #0369a1; font-family: var(--font-mono); font-size: 11.5px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">${code}</code>
+              <span style="font-size: 11px; font-weight: 800; color: #0284c7; font-family: var(--font-mono);">${pct}%</span>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #1e293b; line-height: 1.35;">${desc}</div>
+          </div>
+          <div>
+            <div style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">📐 Perencanaan (Siklus Aktif):</div>
+            <div style="font-size: 14.5px; font-weight: 800; color: #0f172a; font-family: var(--font-mono); margin-bottom: 4px;">${formatRupiah(amtPlan)}</div>
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 3px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-bottom: 5px;">
+              <span style="color: #065f46; font-weight: 700;">🔒 Dok. Terkunci:</span>
+              <strong style="color: #047857; font-family: var(--font-mono);">${formatRupiah(amtLocked)}</strong>
+            </div>
+            <div class="progress-track" style="height: 5px; background: #e2e8f0; border-radius: 999px; overflow: hidden;">
+              <div class="progress-bar" style="width: ${pct}%; background-color: #0284c7; height: 100%;"></div>
+            </div>
+          </div>
+        </div>
       `;
     }).join('');
-
-    const totalRowHtml = `
-      <tr style="background: rgba(14, 165, 233, 0.12); font-weight: 700; border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);">
-        <td colspan="2" style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">TOTAL BAGAN AKUN STANDAR (BAS ${isScoped ? selectedSubbag : 'SATKER'})</td>
-        <td class="text-right" style="font-family: var(--font-mono); font-size: 1rem; color: var(--accent);">${formatRupiah(totAkun)}</td>
-        <td class="text-right" style="font-family: var(--font-mono); font-size: 1rem; color: var(--accent);">100.00%</td>
-      </tr>
-    `;
-    akunBody.innerHTML = rowsHtml + totalRowHtml;
   }
 
   if (AppState.masters && AppState.masters.settings) {
@@ -3129,11 +3310,26 @@ function renderSiklus() {
   }
 
   // History Table
+  const activePlanDoc = AppState.activeDraftPeriode || AppState.periodesList[AppState.periodesList.length - 1] || p;
+  const lockedDocs = (AppState.periodesList || []).filter(x => Number(x.is_locked) === 1);
+  const latestLockedDoc = lockedDocs.length > 0 ? lockedDocs[lockedDocs.length - 1] : baselineItem;
+
+  const planLabelEl = document.getElementById('dok-anggaran-active-planning-label');
+  if (planLabelEl && activePlanDoc) {
+    planLabelEl.textContent = `${activePlanDoc.nama_periode} (${activePlanDoc.versi_revisi || '-'}) — ${formatRupiah(activePlanDoc.total_pagu || 0)}`;
+  }
+  const execLabelEl = document.getElementById('dok-anggaran-locked-exec-label');
+  if (execLabelEl && latestLockedDoc) {
+    execLabelEl.textContent = `${latestLockedDoc.nama_periode} (${latestLockedDoc.versi_revisi || '-'}) — ${formatRupiah(latestLockedDoc.total_pagu || 0)}`;
+  }
+
   const historyTbody = document.getElementById('table-periode-history');
   if (historyTbody) {
     historyTbody.innerHTML = AppState.periodesList.map((item, idx) => {
       const isCurrent = item.id === p.id;
       const isItemBaseline = item.revisi_ke === 0;
+      const isActivePlanningSource = activePlanDoc && Number(item.id) === Number(activePlanDoc.id);
+      const isLatestLockedSource = latestLockedDoc && Number(item.id) === Number(latestLockedDoc.id);
       const itemPagu = item.total_pagu || 0;
       const itemDiff = isItemBaseline ? 0 : (itemPagu - baselinePagu);
 
@@ -3162,6 +3358,11 @@ function renderSiklus() {
         kakLink ? `<a href="${escHtml(kakLink)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#7c3aed; text-decoration:none; font-weight:600;">📑 KAK Gabungan</a>` : ''
       ].filter(Boolean).join(' &bull; ');
 
+      const sourcePills = [
+        isActivePlanningSource ? `<span class="badge" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;font-size:10px;font-weight:800;">📐 Dipakai Modul Perencanaan</span>` : '',
+        isLatestLockedSource ? `<span class="badge" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-size:10px;font-weight:800;">🔒 Dipakai Pengadaan &amp; Pembayaran</span>` : ''
+      ].filter(Boolean).join(' ');
+
       return `
         <tr class="${isCurrent ? 'table-row-selected' : ''}" style="cursor: pointer;" onclick="selectPeriode(${item.id})">
           <td class="text-center" style="font-family: var(--font-mono);">
@@ -3171,6 +3372,7 @@ function renderSiklus() {
           </td>
           <td>
             <strong>${escHtml(item.nama_periode)}</strong>
+            ${sourcePills ? `<div style="margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">${sourcePills}</div>` : ''}
             ${item.catatan_revisi ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">💬 ${escHtml(item.catatan_revisi)}</div>` : ''}
             ${linksHtml ? `<div style="margin-top:4px;" onclick="event.stopPropagation()">${linksHtml}</div>` : ''}
           </td>
@@ -7592,12 +7794,31 @@ function renderMonitoringTable() {
       dlBtn = `<button class="btn-sakti-download disabled" disabled title="${escapeHtml(item.error_message || 'Gagal')}">Gagal</button>`;
     }
 
-    const siklusInfo = item.siklus_versi || item.siklus_nama || 'Siklus Aktif';
-    const scopeInfo = item.tipe_unduhan === 'ZIP_SUBBAGIAN'
+    let siklusInfo = item.siklus_versi || item.siklus_nama || 'Siklus Aktif';
+    let scopeInfo = item.tipe_unduhan === 'ZIP_SUBBAGIAN'
       ? 'Paket ZIP 5 Subbagian (@ 2 Sheet Fokus)'
       : (item.filter_pic && item.filter_pic !== 'SEMUA'
           ? `Fokus PIC: ${item.filter_pic} (2 Sheet)`
           : 'Satker Penuh (7 Sheet)');
+
+    if (['DOCX_PENGADAAN', 'EXCEL_PENGADAAN', 'ZIP_PENGADAAN', 'CSV_REKAP_PENGADAAN'].includes(item.tipe_unduhan)) {
+      let pbjMeta = {};
+      if (item.filter_sasaran && String(item.filter_sasaran).startsWith('{')) {
+        try { pbjMeta = JSON.parse(item.filter_sasaran); } catch (e) {}
+      }
+      siklusInfo = item.siklus_versi || item.siklus_nama || 'Modul Pengadaan (Baseline Sah)';
+      if (item.tipe_unduhan === 'DOCX_PENGADAAN') {
+        const thpLabel = pbjMeta.tahap === 'ALL' ? 'Bundel 18 Tahap' : `Tahap ${pbjMeta.tahap || '-'}`;
+        scopeInfo = `Naskah Word Pengadaan • ${pbjMeta.kode_paket || 'Paket'} (${thpLabel})`;
+      } else if (item.tipe_unduhan === 'EXCEL_PENGADAAN') {
+        const thpLabel = pbjMeta.tahap === 'ALL' ? 'Master Hulu-Hilir' : `Tahap ${pbjMeta.tahap || '-'}`;
+        scopeInfo = `Kertas Kerja Excel Pengadaan • ${pbjMeta.kode_paket || 'Paket'} (${thpLabel})`;
+      } else if (item.tipe_unduhan === 'ZIP_PENGADAAN') {
+        scopeInfo = `Bundel Arsip 18 Tahap (.ZIP) • ${pbjMeta.kode_paket || 'Paket'}`;
+      } else if (item.tipe_unduhan === 'CSV_REKAP_PENGADAAN') {
+        scopeInfo = `Rekapitulasi Paket & Kontrak Pengadaan • PIC: ${item.filter_pic || 'SEMUA'}`;
+      }
+    }
 
     return `
       <tr>
@@ -8981,6 +9202,7 @@ function getJdihJenisStyle(jenis) {
   if (j.includes('PP') || j.includes('PERPRES')) return { bg: '#fef3c7', color: '#92400e', border: '#d97706', icon: '📜' };
   if (j.includes('PERMENDAGRI')) return { bg: '#e0e7ff', color: '#3730a3', border: '#4f46e5', icon: '🏢' };
   if (j.includes('PMK')) return { bg: '#dcfce7', color: '#166534', border: '#16a34a', icon: '💰' };
+  if (j.includes('LKPP')) return { bg: '#ffedd5', color: '#9a3412', border: '#ea580c', icon: '📦' };
   if (j.includes('PKPU')) return { bg: '#dbeafe', color: '#1e40af', border: '#2563eb', icon: '🗳️' };
   if (j.includes('KPT KPU')) return { bg: '#f3e8ff', color: '#6b21a8', border: '#9333ea', icon: '⚖️' };
   if (j.includes('GUBERNUR')) return { bg: '#e0f2fe', color: '#0369a1', border: '#0284c7', icon: '🏛️' };
@@ -8990,12 +9212,15 @@ function getJdihJenisStyle(jenis) {
 function getJdihScopeBadge(lingkup) {
   const l = String(lingkup || '').toUpperCase();
   if (l === 'PENYUSUNAN') {
-    return `<span class="badge badge-info" style="font-size:11px; padding:3px 9px; font-weight:700;">📐 Penyusunan Anggaran (Perencanaan)</span>`;
+    return `<span class="badge badge-info" style="font-size:11px; padding:3px 9px; font-weight:700;">📐 Perencanaan Anggaran</span>`;
+  }
+  if (l === 'PENGADAAN') {
+    return `<span class="badge badge-warning" style="font-size:11px; padding:3px 9px; font-weight:700; background:#fef3c7; color:#b45309; border:1px solid #f59e0b;">📦 Pengadaan Barang/Jasa</span>`;
   }
   if (l === 'PELAKSANAAN') {
-    return `<span class="badge badge-success" style="font-size:11px; padding:3px 9px; font-weight:700;">⚙️ Pelaksanaan &amp; Pertanggungjawaban</span>`;
+    return `<span class="badge badge-success" style="font-size:11px; padding:3px 9px; font-weight:700;">💳 Pembayaran &amp; Pertanggungjawaban</span>`;
   }
-  return `<span class="badge badge-primary" style="font-size:11px; padding:3px 9px; font-weight:700;">🔄 Penyusunan &amp; Pelaksanaan</span>`;
+  return `<span class="badge badge-primary" style="font-size:11px; padding:3px 9px; font-weight:700;">🔄 Lintas Tahapan</span>`;
 }
 
 
@@ -9017,11 +9242,13 @@ function renderDbRegulasi() {
 
   const totalCount = regulasis.length;
   const penyusunanCount = regulasis.filter(r => r.lingkup_anggaran === 'PENYUSUNAN' || r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
+  const pengadaanCount = regulasis.filter(r => r.lingkup_anggaran === 'PENGADAAN' || r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
   const pelaksanaanCount = regulasis.filter(r => r.lingkup_anggaran === 'PELAKSANAAN' || r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
   const lintasCount = regulasis.filter(r => r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
 
   setElText('jdih-stat-total', `${totalCount} Produk Hukum`);
   setElText('jdih-stat-penyusunan', `${penyusunanCount} Regulasi`);
+  setElText('jdih-stat-pengadaan', `${pengadaanCount} Regulasi`);
   setElText('jdih-stat-pelaksanaan', `${pelaksanaanCount} Regulasi`);
   setElText('jdih-stat-lintas', `${lintasCount} Regulasi`);
 
@@ -9053,6 +9280,8 @@ function filterDbRegulasi() {
   const filtered = regulasis.filter(r => {
     if (currentJdihScopeFilter === 'PENYUSUNAN') {
       if (r.lingkup_anggaran !== 'PENYUSUNAN' && r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
+    } else if (currentJdihScopeFilter === 'PENGADAAN') {
+      if (r.lingkup_anggaran !== 'PENGADAAN' && r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
     } else if (currentJdihScopeFilter === 'PELAKSANAAN') {
       if (r.lingkup_anggaran !== 'PELAKSANAAN' && r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
     } else if (currentJdihScopeFilter === 'PENYUSUNAN & PELAKSANAAN') {
@@ -9326,7 +9555,7 @@ async function deleteRegulasi(id) {
 // ============================================================================
 
 AppState.juknisTahapanFilter = 'ALL';
-AppState.juknisExpandedSet = new Set([1]); // Kegiatan No. 1 terbuka secara default
+AppState.juknisExpandedSet = new Set(); // Seluruh kegiatan tertutup secara default saat menu dibuka
 
 function setJuknisTahapanFilter(tahapan) {
   AppState.juknisTahapanFilter = tahapan;
@@ -10394,7 +10623,10 @@ function renderPenandatanganTable(filterKategori = null) {
         </td>
         <td><strong style="color:#1e3a8a;">${escHtml(p.nama_pejabat)}</strong></td>
         <td style="font-family:var(--font-mono); font-size:11.5px;">${escHtml(p.nip || '-')}</td>
-        <td style="font-size:12px; color:#334155;">${escHtml(p.jabatan_dinas || '-')}</td>
+        <td style="font-size:12px; color:#334155;">
+          <div>${escHtml(p.jabatan_dinas || '-')}</div>
+          ${(p.no_sk && p.no_sk !== '-') ? `<div style="font-size:10.5px; color:#0369a1; font-family:var(--font-mono); margin-top:2px;">SK: ${escHtml(p.no_sk)}</div>` : ''}
+        </td>
         <td class="text-center">${linkedUserBadge}</td>
         <td class="text-center">
           <span class="badge badge-success" style="font-size:10.5px;">Aktif</span>
@@ -10429,6 +10661,10 @@ function openEditPenandatanganModal(id) {
   document.getElementById('edit-ttd-nama').value = item.nama_pejabat === '-' ? '' : item.nama_pejabat;
   document.getElementById('edit-ttd-nip').value = item.nip === '-' ? '' : item.nip;
   document.getElementById('edit-ttd-jabatan-dinas').value = item.jabatan_dinas;
+  const skEl = document.getElementById('edit-ttd-no-sk');
+  if (skEl) skEl.value = (!item.no_sk || item.no_sk === '-') ? '' : item.no_sk;
+  const sertEl = document.getElementById('edit-ttd-sertifikat-pbj');
+  if (sertEl) sertEl.value = (!item.no_sertifikat_pbj || item.no_sertifikat_pbj === '-') ? '' : item.no_sertifikat_pbj;
 
   const userSelect = document.getElementById('edit-ttd-user-select');
   if (userSelect) {
@@ -10466,6 +10702,8 @@ async function savePenandatanganModal(e) {
   const nip = document.getElementById('edit-ttd-nip').value.trim();
   const jabatan = document.getElementById('edit-ttd-jabatan-dinas').value.trim();
   const username = document.getElementById('edit-ttd-user-select').value;
+  const no_sk = (document.getElementById('edit-ttd-no-sk')?.value || '').trim();
+  const no_sertifikat_pbj = (document.getElementById('edit-ttd-sertifikat-pbj')?.value || '').trim();
 
   const btn = document.getElementById('btn-save-penandatangan');
   if (btn) btn.disabled = true;
@@ -10478,7 +10716,9 @@ async function savePenandatanganModal(e) {
         nama_pejabat: nama,
         nip,
         jabatan_dinas: jabatan,
-        username_terkait: username
+        username_terkait: username,
+        no_sk,
+        no_sertifikat_pbj
       })
     });
 
@@ -10486,6 +10726,9 @@ async function savePenandatanganModal(e) {
     closeEditPenandatanganModal();
     await loadPenandatanganView();
     if (typeof loadUsers === 'function') await loadUsers();
+    if (typeof window.initCakraApp === 'function') {
+      try { await window.initCakraApp(); } catch (e) {}
+    }
   } catch (err) {
     showToast('Gagal menyimpan penandatangan: ' + err.message, 'error');
   } finally {
@@ -13522,6 +13765,25 @@ function printRekapPdf(mode = 'perencanaan') {
         Cakupan PIC: <strong>${escHtml(state.filter_pic)}</strong>
       </div>
       ${contentEl.innerHTML}
+      <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 36px; page-break-inside: avoid;">
+        <tr style="border: none;">
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px; vertical-align: top;">Mengetahui,</td>
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px; vertical-align: top;">${escHtml(s.kota_penandatangan || s.kota_ttd || 'Ngawi')}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
+        </tr>
+        <tr style="border: none;">
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px 56px 8px; vertical-align: top; font-weight: bold;">Ketua Komisi Pemilihan Umum<br>Kabupaten Ngawi</td>
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px 56px 8px; vertical-align: top; font-weight: bold;">Sekretaris KPU Kabupaten Ngawi<br>Selaku Kuasa Pengguna Anggaran (KPA)</td>
+        </tr>
+        <tr style="border: none;">
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px; vertical-align: top;">
+            <div style="font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'KETUA')?.nama_pejabat) || 'SAMSU MUSTAKIM')}</div>
+          </td>
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px; vertical-align: top;">
+            <div style="font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nama_pejabat) || 'BUDI RAHAYU')}</div>
+            <div style="font-family: monospace; font-size: 11px; margin-top: 2px;">NIP. ${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nip) || '19830503 200902 1 002')}</div>
+          </td>
+        </tr>
+      </table>
       <script>window.onload = function() { window.print(); };<\/script>
     </body>
     </html>
@@ -13649,18 +13911,26 @@ function printRekapCostSharingPdf(mode = 'perencanaan') {
       </div>
       ${clone.innerHTML}
       
-      <!-- Blok Tanda Tangan Resmi SAKTI Bab 22 -->
-      <div style="margin-top: 36px; display: flex; justify-content: space-between; page-break-inside: avoid;">
-        <div style="width: 45%; text-align: center;">
-          <p style="margin: 0 0 54px 0;">Mengetahui,<br><strong>Ketua Komisi Pemilihan Umum<br>Kabupaten Ngawi</strong></p>
-          <p style="margin: 0; font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'KETUA')?.nama_pejabat) || 'SAMSU MUSTAKIM')}</p>
-        </div>
-        <div style="width: 45%; text-align: center;">
-          <p style="margin: 0 0 54px 0;">${escHtml(kotaTtd)}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br><strong>Sekretaris KPU Kabupaten Ngawi<br>Selaku Kuasa Pengguna Anggaran (KPA)</strong></p>
-          <p style="margin: 0; font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nama_pejabat) || 'BUDI RAHAYU')}</p>
-          <p style="margin: 0; font-family: monospace; font-size: 11px;">NIP. ${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nip) || '19830503 200902 1 002')}</p>
-        </div>
-      </div>
+      <!-- Blok Tanda Tangan Resmi SAKTI Bab 22 (Tabel Baris Terpisah -> Nama 100% Sejajar) -->
+      <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 36px; page-break-inside: avoid;">
+        <tr style="border: none;">
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px; vertical-align: top;">Mengetahui,</td>
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px; vertical-align: top;">${escHtml(kotaTtd)}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
+        </tr>
+        <tr style="border: none;">
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px 56px 8px; vertical-align: top; font-weight: bold;">Ketua Komisi Pemilihan Umum<br>Kabupaten Ngawi</td>
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px 56px 8px; vertical-align: top; font-weight: bold;">Sekretaris KPU Kabupaten Ngawi<br>Selaku Kuasa Pengguna Anggaran (KPA)</td>
+        </tr>
+        <tr style="border: none;">
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px; vertical-align: top;">
+            <div style="font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'KETUA')?.nama_pejabat) || 'SAMSU MUSTAKIM')}</div>
+          </td>
+          <td style="width: 50%; border: none; text-align: center; padding: 2px 8px; vertical-align: top;">
+            <div style="font-weight: bold; text-decoration: underline;">${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nama_pejabat) || 'BUDI RAHAYU')}</div>
+            <div style="font-family: monospace; font-size: 11px; margin-top: 2px;">NIP. ${escHtml((AppState.penandatanganList?.find(p => p.id === 'SEKRETARIS')?.nip) || '19830503 200902 1 002')}</div>
+          </td>
+        </tr>
+      </table>
       
       <script>window.onload = function() { window.print(); };<\/script>
     </body>
@@ -13775,7 +14045,8 @@ const AUDIT_ACTION_LABELS = {
   DOWNLOAD_FILE: 'Unduh Berkas Selesai',
   EXPORT_EXCEL_RKB: 'Unduh Excel RUH Belanja',
   EXPORT_ZIP_SUBBAG: 'Unduh Paket ZIP 5 Subbag',
-  EXPORT_REKAP_PDF: 'Cetak / Ekspor PDF Rekap'
+  EXPORT_REKAP_PDF: 'Cetak / Ekspor PDF Rekap',
+  EXPORT_REKAP_PENGADAAN_PDF: 'Cetak / Ekspor PDF Rekap Pengadaan'
 };
 
 async function loadAuditLogsView(showFeedback = false) {
@@ -14399,11 +14670,12 @@ function renderMenuMatrixTable() {
   }
 
   const folderLabels = {
-    'folder-perencanaan': 'Perencanaan & Revisi',
+    'folder-perencanaan': '1. Perencanaan',
+    'folder-pengadaan': '2. Pengadaan',
+    'folder-pembayaran': '3. Pembayaran',
     'folder-rekap': 'Rekapitulasi Anggaran',
-    'folder-pengadaan': 'Pengadaan',
-    'folder-referensi': 'Referensi Standar (SBM, BAS)',
-    'folder-database': 'Database Master Adhoc',
+    'folder-referensi': 'Referensi Standar (SSOT, SBM, BAS)',
+    'folder-database': 'Database Master Wilayah & Paslon',
     'folder-panduan': 'Panduan & Regulasi',
     'folder-administrasi': 'Administrasi & Pengaturan',
     'folder-developer': 'Konsol Arsitektur Sistem'

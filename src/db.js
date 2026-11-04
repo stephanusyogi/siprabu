@@ -501,40 +501,47 @@ function initDb() {
   safeAddColumn('satker_users', 'can_delete INTEGER DEFAULT 1');
   safeAddColumn('satker_user_roles', 'can_delete INTEGER DEFAULT 1');
 
-  // Registri 27 Halaman Resmi & Matriks Standar (Sesuai Blueprint Master Excel)
+  // Registri 33 Halaman Resmi & Matriks Standar Siklus Hulu-ke-Hilir (Perencanaan - Pengadaan - Pembayaran)
   const canonicalMenus = [
     { urutan: 1, menu_key: 'view-dashboard', menu_label: 'Beranda (Dashboard)', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
-    { urutan: 2, menu_key: 'view-rkb', menu_label: 'RUH Belanja RKB', folder_key: null, flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 3, menu_key: 'view-revisi-pengajuan', menu_label: 'Pengajuan Usulan Revisi', folder_key: 'folder-perencanaan', flags: [1,1,1,1,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 4, menu_key: 'view-revisi-validasi', menu_label: 'Validasi Revisi', folder_key: 'folder-perencanaan', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 5, menu_key: 'view-revisi-tahap4', menu_label: 'Pengesahan BA Pleno (Tahap 4)', folder_key: 'folder-perencanaan', flags: [1,1,0,0,1,1,1,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 6, menu_key: 'view-revisi-monitoring', menu_label: 'Monitoring Revisi (4 Tahap)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 7, menu_key: 'view-siklus', menu_label: 'Pusat Siklus Dokumen', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 8, menu_key: 'view-rekap-perencanaan', menu_label: 'Rekap Perencanaan', folder_key: 'folder-rekap', flags: [1,1,1,0,1,1,1,1,1,1,0], req_mode: 'VIEWER' },
-    { urutan: 9, menu_key: 'view-rekap-pelaksanaan', menu_label: 'Rekap Pelaksanaan', folder_key: 'folder-rekap', flags: [1,1,1,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 10, menu_key: 'view-db-kuantitas', menu_label: 'Parameter & Kuantitas SSOT', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 11, menu_key: 'view-db-sbm', menu_label: 'Standar Biaya Masukan (SBM)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 12, menu_key: 'view-db-bas', menu_label: 'Bagan Akun Standar (BAS)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 13, menu_key: 'view-db-ppk', menu_label: 'Master Kecamatan (19 PPK)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,0], req_mode: 'VIEWER' },
-    { urutan: 14, menu_key: 'view-db-pps', menu_label: 'Master Desa & TPS (217 PPS)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,1], req_mode: 'VIEWER' },
-    { urutan: 15, menu_key: 'view-db-paslon', menu_label: 'Master Pasangan Calon (Paslon)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 16, menu_key: 'view-panduan', menu_label: 'Panduan Perencanaan', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 17, menu_key: 'view-panduan-pelaksanaan', menu_label: 'Panduan Pelaksanaan', folder_key: 'folder-panduan', flags: [1,1,1,0,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 18, menu_key: 'view-db-regulasi', menu_label: 'Regulasi & Dasar Hukum JDIH', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
-    { urutan: 19, menu_key: 'view-juknis-kegiatan', menu_label: 'Standar 28 Kegiatan (KPT 543)', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
-    { urutan: 20, menu_key: 'view-users', menu_label: 'Pengguna', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 21, menu_key: 'view-penandatangan', menu_label: 'Penandatangan', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 22, menu_key: 'view-menu-matrix', menu_label: 'Hak Akses', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 23, menu_key: 'view-db-settings', menu_label: 'Pengaturan Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,0,1,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 24, menu_key: 'view-audit', menu_label: 'Log Aktivitas Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 25, menu_key: 'view-monitoring', menu_label: 'Monitoring Unduhan', folder_key: 'folder-administrasi', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
-    { urutan: 26, menu_key: 'view-developer', menu_label: 'Blueprint & PRD (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 27, menu_key: 'view-dev-push', menu_label: 'Pusat Rilis & Push GitHub (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 28, menu_key: 'view-pengumuman', menu_label: 'Pengumuman', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 29, menu_key: 'view-pengadaan-paket', menu_label: 'Daftar Paket Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
-    { urutan: 30, menu_key: 'view-pengadaan-kokpit', menu_label: 'Kokpit 18 Tahap', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
-    { urutan: 31, menu_key: 'view-pengadaan-penyedia', menu_label: 'Direktori Penyedia', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
-    { urutan: 32, menu_key: 'view-panduan-pengadaan', menu_label: 'Panduan Pengadaan', folder_key: 'folder-panduan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' }
+    { urutan: 2, menu_key: 'view-siklus', menu_label: 'Dokumen Anggaran', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    // 1. TAHAP PERENCANAAN
+    { urutan: 3, menu_key: 'view-rkb', menu_label: 'RUH Belanja RKB', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 4, menu_key: 'view-revisi-pengajuan', menu_label: 'Pengajuan Usulan Revisi', folder_key: 'folder-perencanaan', flags: [1,1,1,1,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 5, menu_key: 'view-revisi-validasi', menu_label: 'Validasi Revisi', folder_key: 'folder-perencanaan', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 6, menu_key: 'view-revisi-tahap4', menu_label: 'Pengesahan BA Pleno (Tahap 4)', folder_key: 'folder-perencanaan', flags: [1,1,0,0,1,1,1,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 7, menu_key: 'view-revisi-monitoring', menu_label: 'Monitoring Revisi (4 Tahap)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 8, menu_key: 'view-rekap-perencanaan', menu_label: 'Rekap Perencanaan', folder_key: 'folder-perencanaan', flags: [1,1,1,0,1,1,1,1,1,1,0], req_mode: 'VIEWER' },
+    { urutan: 9, menu_key: 'view-juknis-kegiatan', menu_label: 'Standar 28 Kegiatan (KPT 543)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    { urutan: 10, menu_key: 'view-panduan', menu_label: 'Panduan Perencanaan', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    // 2. TAHAP PENGADAAN
+    { urutan: 11, menu_key: 'view-pengadaan-paket', menu_label: 'Daftar Paket Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
+    { urutan: 12, menu_key: 'view-pengadaan-kokpit', menu_label: 'Kokpit 18 Tahap', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
+    { urutan: 13, menu_key: 'view-rekap-pengadaan', menu_label: 'Rekap Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 14, menu_key: 'view-panduan-pengadaan', menu_label: 'Panduan Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    // 3. TAHAP PEMBAYARAN
+    { urutan: 15, menu_key: 'view-rekap-pelaksanaan', menu_label: 'Rekap Pembayaran', folder_key: 'folder-pembayaran', flags: [1,1,1,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 16, menu_key: 'view-panduan-pelaksanaan', menu_label: 'Panduan Pembayaran', folder_key: 'folder-pembayaran', flags: [1,1,1,0,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    // 4. REFERENSI & DATABASE MASTER (LINTAS MODUL)
+    { urutan: 17, menu_key: 'view-db-kuantitas', menu_label: 'Parameter & Kuantitas SSOT', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 18, menu_key: 'view-db-sbm', menu_label: 'Standar Biaya Masukan (SBM)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 19, menu_key: 'view-db-bas', menu_label: 'Bagan Akun Standar (BAS)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 20, menu_key: 'view-db-ppk', menu_label: 'Master Kecamatan (19 PPK)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,0], req_mode: 'VIEWER' },
+    { urutan: 21, menu_key: 'view-db-pps', menu_label: 'Master Desa & TPS (217 PPS)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,1], req_mode: 'VIEWER' },
+    { urutan: 22, menu_key: 'view-db-paslon', menu_label: 'Master Pasangan Calon (Paslon)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 23, menu_key: 'view-pengadaan-penyedia', menu_label: 'Master Penyedia (Rekanan)', folder_key: 'folder-database', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
+    // 5. REGULASI JDIH TERPADU (ROOT MENU)
+    { urutan: 24, menu_key: 'view-db-regulasi', menu_label: 'Regulasi & Dasar Hukum JDIH', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    // 6. ADMINISTRASI & KONSOL ARSITEKTUR
+    { urutan: 25, menu_key: 'view-users', menu_label: 'Pengguna', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 26, menu_key: 'view-penandatangan', menu_label: 'Penandatangan', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 27, menu_key: 'view-menu-matrix', menu_label: 'Hak Akses', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 28, menu_key: 'view-db-settings', menu_label: 'Pengaturan Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,0,1,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 29, menu_key: 'view-audit', menu_label: 'Log Aktivitas Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 30, menu_key: 'view-pengumuman', menu_label: 'Pengumuman', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 31, menu_key: 'view-monitoring', menu_label: 'Monitoring Unduhan', folder_key: 'folder-administrasi', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    { urutan: 32, menu_key: 'view-developer', menu_label: 'Blueprint & PRD (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 33, menu_key: 'view-dev-push', menu_label: 'Pusat Rilis & Push GitHub (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' }
   ];
 
   try {
@@ -572,7 +579,7 @@ function initDb() {
         } catch (e) {}
       }
     } else {
-      // Pastikan seluruh 27 menu terdaftar dan kolom baru tersinkronisasi
+      // Pastikan seluruh 33 menu terdaftar dan struktur folder/label Siklus 3 Tahap tersinkronisasi
       for (const m of canonicalMenus) {
         const row = db.prepare('SELECT id, allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10 FROM app_menu_matrix WHERE menu_key = ?').get(m.menu_key);
         if (!row) {
@@ -590,18 +597,26 @@ function initDb() {
               m.req_mode, m.urutan
             );
           } catch (e) {}
-        } else if (row.allow_l5 === null || row.allow_l5 === undefined || (row.allow_l5 === 0 && row.allow_l6 === 0 && row.allow_l7 === 0 && row.allow_l8 === 0 && row.allow_l9 === 0 && row.allow_l10 === 0 && m.flags.slice(5).some(f => f === 1))) {
+        } else {
           try {
-            db.prepare(`
-              UPDATE app_menu_matrix SET
-                allow_l5 = ?, allow_l6 = ?, allow_l7 = ?, allow_l8 = ?, allow_l9 = ?, allow_l10 = ?,
-                urutan = ?, menu_label = ?, folder_key = ?
-              WHERE menu_key = ?
-            `).run(
-              m.flags[5], m.flags[6], m.flags[7], m.flags[8], m.flags[9], m.flags[10],
-              m.urutan, m.menu_label, m.folder_key,
-              m.menu_key
-            );
+            if (row.allow_l5 === null || row.allow_l5 === undefined || (row.allow_l5 === 0 && row.allow_l6 === 0 && row.allow_l7 === 0 && row.allow_l8 === 0 && row.allow_l9 === 0 && row.allow_l10 === 0 && m.flags.slice(5).some(f => f === 1))) {
+              db.prepare(`
+                UPDATE app_menu_matrix SET
+                  allow_l5 = ?, allow_l6 = ?, allow_l7 = ?, allow_l8 = ?, allow_l9 = ?, allow_l10 = ?,
+                  urutan = ?, menu_label = ?, folder_key = ?
+                WHERE menu_key = ?
+              `).run(
+                m.flags[5], m.flags[6], m.flags[7], m.flags[8], m.flags[9], m.flags[10],
+                m.urutan, m.menu_label, m.folder_key,
+                m.menu_key
+              );
+            } else {
+              db.prepare(`
+                UPDATE app_menu_matrix SET
+                  urutan = ?, menu_label = ?, folder_key = ?
+                WHERE menu_key = ?
+              `).run(m.urutan, m.menu_label, m.folder_key, m.menu_key);
+            }
           } catch (e) {}
         }
       }
@@ -1722,10 +1737,94 @@ function seedMasterRegulasiJdih() {
         lingkup_anggaran: 'PELAKSANAAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Komisi Pemilihan Umum RI',
-        modul_terkait: 'Rekap Pelaksanaan, Penyaluran Dana Adhoc, Bukti SPJ, Pajak & Pengembalian Sisa Hibah',
-        abstrak: 'Pedoman operasional pelaksanaan anggaran hibah Pemilihan oleh KPA, PPK, dan Bendahara Pengeluaran, mencakup mekanisme penyaluran dana operasional dan honorarium ke PPK/PPS/KPPS, kelengkapan bukti pertanggungjawaban (SPJ), pemungutan pajak, pengesahan anggaran, hingga pelaporan dan pengembalian sisa dana hibah.',
+        modul_terkait: 'Rekap Pembayaran, Penyaluran Dana Adhoc, Bukti SPJ, Pajak & Pengembalian Sisa Hibah',
+        abstrak: 'Pedoman operasional pembayaran dan pertanggungjawaban anggaran hibah Pemilihan oleh KPA, PPK, dan Bendahara Pengeluaran, mencakup mekanisme penyaluran dana operasional dan honorarium ke PPK/PPS/KPPS, kelengkapan bukti pertanggungjawaban (SPJ), pemungutan pajak, pengesahan anggaran, hingga pelaporan dan pengembalian sisa dana hibah.',
         tautan_dokumen: 'https://jdih.kpu.go.id/',
         file_pdf_nama: 'https://drive.google.com/file/d/1Nia5CcEHqFImESaMpWzf8xeDhfQ7OEhL/view?usp=sharing'
+      },
+      {
+        no_urut: 17,
+        jenis_produk: 'PP / PERPRES',
+        nomor_peraturan: 'Peraturan Presiden Nomor 46 Tahun 2025 jo. Perpres Nomor 16 Tahun 2018 & Perpres Nomor 12 Tahun 2021',
+        tahun: 2025,
+        tentang: 'Perubahan Kedua atas Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah',
+        lingkup_anggaran: 'PENGADAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Presiden Republik Indonesia',
+        modul_terkait: 'Kokpit 18 Tahap Pengadaan, Rekap Pengadaan, Pemenuhan PDN/TKDN & Alokasi UMK 40%',
+        abstrak: 'Payung hukum utama Pengadaan Barang/Jasa Pemerintah terbaru. Mengatur kewajiban hierarki Produk Dalam Negeri (PDN) dengan TKDN + BMP minimal 40% (Pasal 66), alokasi minimal 40% anggaran barang/jasa untuk Usaha Mikro, Usaha Kecil, dan Koperasi (Pasal 65), uang muka wajib bagi penyedia UMK (Pasal 29), penguatan E-Purchasing Katalog Elektronik, serta kenaikan batas Pengadaan Langsung Pekerjaan Konstruksi menjadi sampai dengan Rp400.000.000.',
+        tautan_dokumen: 'https://jdih.lkpp.go.id/',
+        file_pdf_nama: ''
+      },
+      {
+        no_urut: 18,
+        jenis_produk: 'PERLEM LKPP',
+        nomor_peraturan: 'Peraturan LKPP Nomor 2 Tahun 2026',
+        tahun: 2026,
+        tentang: 'Pedoman Penyelenggaraan E-Purchasing Katalog Elektronik Generasi Terbaru (v6) dan Toko Daring',
+        lingkup_anggaran: 'PENGADAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP)',
+        modul_terkait: 'Kokpit 18 Tahap (E-Purchasing Katalog v6), Referensi Harga & Surat Pesanan',
+        abstrak: 'Mengatur tata cara pemilihan penyedia melalui E-Purchasing Katalog Elektronik (Negosiasi Harga dan Mini-Kompetisi), pembebasan kewajiban penyusunan HPS untuk E-Purchasing bernilai sampai dengan Rp100.000.000 (digantikan kertas kerja Referensi Harga & Bukti Survei Etalase sesuai Pasal 9), kewajiban penilaian kinerja penyedia oleh PPK di sistem katalog sebelum pembayaran (Pasal 8), serta ketentuan Jaminan Pelaksanaan 5% untuk E-Purchasing di atas Rp200.000.000.',
+        tautan_dokumen: 'https://jdih.lkpp.go.id/',
+        file_pdf_nama: ''
+      },
+      {
+        no_urut: 19,
+        jenis_produk: 'PERLEM LKPP',
+        nomor_peraturan: 'Peraturan LKPP Nomor 3 Tahun 2026 (Lampiran I, II, & III)',
+        tahun: 2026,
+        tentang: 'Pedoman Pengadaan Barang/Jasa Melalui Penyedia (Barang, Jasa Lainnya, Konsultansi Nonkonstruksi, Pekerjaan Konstruksi & Konsultansi Konstruksi)',
+        lingkup_anggaran: 'PENGADAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP)',
+        modul_terkait: 'Kokpit 18 Tahap, HPS/AHSP, Bentuk Kontrak (Bukti Pembelian/Kuitansi/SPK/Surat Perjanjian) & Konstruksi',
+        abstrak: 'Pedoman teknis operasional hulu-ke-hilir Pengadaan Barang/Jasa melalui Penyedia. Mencakup penyusunan Spesifikasi Teknis/KAK, HPS/Kertas Kerja AHSP Konstruksi, Dokumen Pemilihan, Evaluasi Penawaran, Penetapan Bentuk Kontrak berdasarkan nilai (Bukti Pembelian/Kuitansi, SPK, Surat Perjanjian, Surat Pesanan), pengendalian kontrak kritis (Show Cause Meeting/SCM), Serah Terima Pekerjaan (BAST / PHO & FHO Konstruksi), hingga masa pemeliharaan dan retensi 5%.',
+        tautan_dokumen: 'https://jdih.lkpp.go.id/',
+        file_pdf_nama: ''
+      },
+      {
+        no_urut: 20,
+        jenis_produk: 'PERLEM LKPP',
+        nomor_peraturan: 'Peraturan LKPP Nomor 3 Tahun 2021 & Peraturan LKPP Nomor 5 Tahun 2021',
+        tahun: 2021,
+        tentang: 'Pedoman Swakelola (Tipe I, II, III, dan IV) serta Pedoman Pengadaan Barang/Jasa yang Dikecualikan pada Pengadaan Barang/Jasa Pemerintah',
+        lingkup_anggaran: 'PENGADAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP)',
+        modul_terkait: 'Kokpit Pengadaan Swakelola Tipe I–IV & Pengadaan Dikecualikan (Tarif Resmi/Lelang/Praktik Bisnis)',
+        abstrak: 'Mengatur penyelenggaraan kegiatan secara Swakelola Tipe I (dikerjakan sendiri oleh Satker KPU/Pokja), Tipe II (Instansi Pemerintah Lain), Tipe III (Ormas/Perguruan Tinggi Swasta), dan Tipe IV (Kelompok Masyarakat), serta tata cara pengadaan barang/jasa yang dikecualikan (tarif barang/jasa yang dipublikasikan secara luas atau praktik bisnis yang mapan).',
+        tautan_dokumen: 'https://jdih.lkpp.go.id/',
+        file_pdf_nama: ''
+      },
+      {
+        no_urut: 21,
+        jenis_produk: 'KPT KPU',
+        nomor_peraturan: 'Keputusan KPU Nomor 534 Tahun 2022 jo. Pedoman Teknis PBJ & Logistik Pemilihan di Lingkungan KPU',
+        tahun: 2022,
+        tentang: 'Pedoman Teknis Tata Kelola Pengadaan Barang/Jasa dan Distribusi Logistik Pemilihan Umum serta Pemilihan Serentak di Lingkungan Komisi Pemilihan Umum',
+        lingkup_anggaran: 'PENGADAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Komisi Pemilihan Umum RI',
+        modul_terkait: 'Daftar Paket Pengadaan, KAK & Spesifikasi Teknis Logistik/operasional Tahapan Pilkada',
+        abstrak: 'Pedoman internal KPU mengenai sinkronisasi mata anggaran RKB/DIPA ke dalam Rencana Umum Pengadaan (RUP SiRUP), pembagian kewenangan KPA, PPK, dan Pejabat Pengadaan di tingkat KPU Kabupaten/Kota, pengendalian mutu perlengkapan pemungutan suara dan barang/jasa tahapan Pemilihan, serta tertib arsip 18 tahap pengadaan.',
+        tautan_dokumen: 'https://jdih.kpu.go.id/',
+        file_pdf_nama: ''
+      },
+      {
+        no_urut: 22,
+        jenis_produk: 'PP / PERPRES',
+        nomor_peraturan: 'Instruksi Presiden Nomor 2 Tahun 2022',
+        tahun: 2022,
+        tentang: 'Percepatan Peningkatan Penggunaan Produk Dalam Negeri dan Produk Usaha Mikro, Usaha Kecil, dan Koperasi dalam Rangka Menyukseskan Gerakan Nasional Bangga Buatan Indonesia pada Pelaksanaan Pengadaan Barang/Jasa Pemerintah',
+        lingkup_anggaran: 'PENGADAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Presiden Republik Indonesia',
+        modul_terkait: 'Rekap Pengadaan (Indikator Kepatuhan P3DN/TKDN & Porsi UMK-Koperasi)',
+        abstrak: 'Menginstruksikan seluruh Kementerian/Lembaga dan Pemerintah Daerah untuk merencanakan, mengalokasikan, dan merealisasikan paling sedikit 40% nilai anggaran belanja barang/jasa untuk produk Usaha Mikro, Usaha Kecil, dan Koperasi dari hasil produksi dalam negeri, serta mengutamakan transaksi melalui Katalog Elektronik dan Toko Daring.',
+        tautan_dokumen: 'https://jdih.setneg.go.id/',
+        file_pdf_nama: ''
       }
     ];
 
@@ -4954,6 +5053,14 @@ function getPenandatanganList() {
   const subbags = db.prepare('SELECT * FROM master_subbagian ORDER BY id ASC').all();
   const users = db.prepare('SELECT id, username, nama_pejabat, jabatan, role_id, level, pic_subbag FROM satker_users').all();
 
+  const pbjMap = {};
+  try {
+    const pbjRows = db.prepare('SELECT peran, no_sk, tgl_sk, no_sertifikat_pbj, pangkat_gol, tipologi_ppk FROM pbj_pejabat').all();
+    pbjRows.forEach(r => {
+      if (r.peran && !pbjMap[r.peran]) pbjMap[r.peran] = r;
+    });
+  } catch (e) {}
+
   const userMap = {};
   users.forEach(u => { userMap[u.username] = u; });
 
@@ -4969,6 +5076,8 @@ function getPenandatanganList() {
       nama_pejabat: settings.ketua_nama || 'SAMSU MUSTAKIM',
       nip: '-',
       jabatan_dinas: settings.ketua_jabatan || 'Ketua Komisi Pemilihan Umum Kabupaten Ngawi',
+      no_sk: settings.ketua_no_sk || '-',
+      no_sertifikat_pbj: '-',
       username_terkait: 'ketua',
       user_id: userMap['ketua']?.id || null,
       status: 'AKTIF',
@@ -4985,10 +5094,12 @@ function getPenandatanganList() {
       nama_pejabat: settings.kpa_nama || 'BUDI RAHAYU',
       nip: settings.kpa_nip || '19830503 200902 1 002',
       jabatan_dinas: settings.kpa_jabatan || 'Sekretaris Komisi Pemilihan Umum Kabupaten Ngawi',
+      no_sk: settings.kpa_no_sk || pbjMap['KPA']?.no_sk || 'SK-01/KPU-RI/I/2026',
+      no_sertifikat_pbj: settings.kpa_sertifikat_pbj || pbjMap['KPA']?.no_sertifikat_pbj || '-',
       username_terkait: 'sekretaris',
       user_id: userMap['sekretaris']?.id || null,
       status: 'AKTIF',
-      deskripsi: 'Penanggung jawab eksekusi DIPA/NPHD dan pengesahan komitmen anggaran.'
+      deskripsi: 'Penanggung jawab eksekusi DIPA/NPHD, RUP SIRUP, dan pengesahan komitmen anggaran.'
     },
     // 3. PPK
     {
@@ -5001,10 +5112,12 @@ function getPenandatanganList() {
       nama_pejabat: settings.ppkom_nama || 'MOHAMMAD NOOR JIHAN',
       nip: settings.ppkom_nip || '19840101 200912 1 001',
       jabatan_dinas: settings.ppkom_jabatan || 'Pejabat Pembuat Komitmen (PPK)',
+      no_sk: settings.ppkom_no_sk || pbjMap['PPK']?.no_sk || 'SK-02/KPA/KPU-NGW/I/2026',
+      no_sertifikat_pbj: settings.ppkom_sertifikat_pbj || pbjMap['PPK']?.no_sertifikat_pbj || 'SERT-PPK-LKPP-2025-88412',
       username_terkait: settings.ppkom_username || 'ppk_ngawi',
       user_id: userMap[settings.ppkom_username || 'ppk_ngawi']?.id || null,
       status: 'AKTIF',
-      deskripsi: 'Pejabat penguji tagihan, penerbit perikatan/kontrak, dan validasi perintah bayar (SPBy).'
+      deskripsi: 'Penandatangan KAK, HPS, SPK/Kontrak, SPMK, BAST/PHO/FHO, dan pengesahan SPP/SPBy (18 Tahap).'
     },
     // 4. BENDAHARA PENGELUARAN
     {
@@ -5017,10 +5130,12 @@ function getPenandatanganList() {
       nama_pejabat: settings.bp_nama || settings.bendahara_nama || 'IMAS MAESAROH',
       nip: settings.bp_nip || settings.bendahara_nip || '19850615 200902 2 013',
       jabatan_dinas: settings.bp_jabatan || settings.bendahara_jabatan || 'Bendahara Pengeluaran KPU Kabupaten Ngawi',
+      no_sk: settings.bp_no_sk || pbjMap['BENDAHARA']?.no_sk || 'SK-04/KPA/KPU-NGW/I/2026',
+      no_sertifikat_pbj: settings.bp_sertifikat_pbj || pbjMap['BENDAHARA']?.no_sertifikat_pbj || 'BNT-10942/Kemenkeu/2023',
       username_terkait: settings.bp_username || 'bp_ngawi',
       user_id: userMap[settings.bp_username || 'bp_ngawi']?.id || userMap['op_kul']?.id || null,
       status: 'AKTIF',
-      deskripsi: 'Pengelola Uang Persediaan (UP/GUP/TUP/LS) dan verifikasi bukti pengeluaran kuitansi.'
+      deskripsi: 'Pengelola Uang Persediaan (UP/GUP/TUP/LS), pemungut pajak PPN/PPh, dan verifikator kuitansi.'
     },
     // 5. PEJABAT PENGADAAN (PPBJ)
     {
@@ -5033,10 +5148,12 @@ function getPenandatanganList() {
       nama_pejabat: settings.ppbj_nama || 'INDRAYU FATIKA MAHARDIKA',
       nip: settings.ppbj_nip || '-',
       jabatan_dinas: settings.ppbj_jabatan || 'Pejabat Pengadaan Barang/Jasa',
+      no_sk: settings.ppbj_no_sk || pbjMap['PEJABAT_PENGADAAN']?.no_sk || 'SK-03/KPA/KPU-NGW/I/2026',
+      no_sertifikat_pbj: settings.ppbj_sertifikat_pbj || pbjMap['PEJABAT_PENGADAAN']?.no_sertifikat_pbj || 'SERT-PBJ-LKPP-2024-77129',
       username_terkait: settings.ppbj_username || 'ppbj_ngawi',
       user_id: userMap[settings.ppbj_username || 'ppbj_ngawi']?.id || null,
       status: 'AKTIF',
-      deskripsi: 'Pelaksana pemilihan penyedia E-Purchasing Katalog Elektronik dan Pengadaan Langsung (s.d. Rp200 Juta).'
+      deskripsi: 'Pelaksana pemilihan penyedia E-Purchasing Katalog v6 & Pengadaan Langsung (BA Negosiasi & BAHP).'
     }
   ];
 
@@ -5109,6 +5226,8 @@ function updatePenandatangan(id, data, actorUser = null) {
   const nip = String(data.nip || '').trim();
   const jabatan = String(data.jabatan_dinas || '').trim();
   const username = String(data.username_terkait || '').trim();
+  const noSk = data.no_sk !== undefined ? String(data.no_sk || '').trim() : undefined;
+  const noSertifikat = data.no_sertifikat_pbj !== undefined ? String(data.no_sertifikat_pbj || '').trim() : undefined;
 
   if (!nama) {
     throw new Error('Nama Pejabat wajib diisi.');
@@ -5119,15 +5238,20 @@ function updatePenandatangan(id, data, actorUser = null) {
   if (id === 'KETUA') {
     stmtSet.run('ketua_nama', nama);
     if (jabatan) stmtSet.run('ketua_jabatan', jabatan);
+    if (noSk !== undefined) stmtSet.run('ketua_no_sk', noSk);
   } else if (id === 'SEKRETARIS') {
     stmtSet.run('kpa_nama', nama);
     stmtSet.run('kpa_nip', nip);
     if (jabatan) stmtSet.run('kpa_jabatan', jabatan);
+    if (noSk !== undefined) stmtSet.run('kpa_no_sk', noSk);
+    if (noSertifikat !== undefined) stmtSet.run('kpa_sertifikat_pbj', noSertifikat);
   } else if (id === 'PPK') {
     stmtSet.run('ppkom_nama', nama);
     stmtSet.run('ppkom_nip', nip);
     if (jabatan) stmtSet.run('ppkom_jabatan', jabatan);
     if (username) stmtSet.run('ppkom_username', username);
+    if (noSk !== undefined) stmtSet.run('ppkom_no_sk', noSk);
+    if (noSertifikat !== undefined) stmtSet.run('ppkom_sertifikat_pbj', noSertifikat);
   } else if (id === 'BENDAHARA') {
     stmtSet.run('bp_nama', nama);
     stmtSet.run('bp_nip', nip);
@@ -5138,11 +5262,15 @@ function updatePenandatangan(id, data, actorUser = null) {
       stmtSet.run('bendahara_jabatan', jabatan);
     }
     if (username) stmtSet.run('bp_username', username);
+    if (noSk !== undefined) stmtSet.run('bp_no_sk', noSk);
+    if (noSertifikat !== undefined) stmtSet.run('bp_sertifikat_pbj', noSertifikat);
   } else if (id === 'PEJABAT_PENGADAAN') {
     stmtSet.run('ppbj_nama', nama);
     stmtSet.run('ppbj_nip', nip);
     if (jabatan) stmtSet.run('ppbj_jabatan', jabatan);
     if (username) stmtSet.run('ppbj_username', username);
+    if (noSk !== undefined) stmtSet.run('ppbj_no_sk', noSk);
+    if (noSertifikat !== undefined) stmtSet.run('ppbj_sertifikat_pbj', noSertifikat);
   } else if (id.startsWith('KOM_')) {
     const subCode = id.replace('KOM_', '');
     db.prepare(`
@@ -5171,9 +5299,13 @@ function updatePenandatangan(id, data, actorUser = null) {
     if (peranMap[id]) {
       db.prepare(`
         UPDATE pbj_pejabat
-        SET nama_lengkap = ?, nip = ?, jabatan_struktural = COALESCE(NULLIF(?, ''), jabatan_struktural)
+        SET nama_lengkap = ?,
+            nip = ?,
+            jabatan_struktural = COALESCE(NULLIF(?, ''), jabatan_struktural),
+            no_sk = COALESCE(NULLIF(?, ''), no_sk),
+            no_sertifikat_pbj = COALESCE(NULLIF(?, ''), no_sertifikat_pbj)
         WHERE peran = ?
-      `).run(nama, nip || '-', jabatan, peranMap[id]);
+      `).run(nama, nip || '-', jabatan, noSk || '', noSertifikat || '', peranMap[id]);
     }
   } catch (e) {}
 

@@ -19,15 +19,19 @@
 
 ## DAFTAR KESEPAKATAN ARSITEKTUR & ATURAN SISTEM
 
-### [KESEPAKATAN-01] Visi, Ruang Lingkup & Fondasi Modul SI-PRABU
-- **Definisi Aplikasi:** **SI-PRABU** (*Sistem Perencanaan dan Belanja Terpadu*) adalah aplikasi yang dirancang untuk **Perencanaan** dan **Pelaksanaan** Anggaran **Pilkada Serentak Tahun 2029**.
-- **Struktur Modul Perencanaan:** Terdiri dari 2 (dua) fase utama ditambah fase penetapan NPHD:
-  1. **Pra-NPHD (Pagu Dinamis):** Plafon/pagu anggaran bersifat dinamis (mengikuti perubahan/akumulasi rincian kebutuhan yang disusun).
-  2. **NPHD (Penetapan Pagu Resmi):** Penetapan pagu resmi berdasarkan dokumen NPHD yang ditandatangani.
-  3. **Pasca-NPHD (Pagu Statis):** Plafon/pagu anggaran bersifat statis (terkunci tetap pada nilai NPHD yang telah disahkan).
-- **Fokus Pengembangan Saat Ini:**
-  - **Fokus Aktif:** **Modul Perencanaan** (Pra-NPHD, NPHD & Pasca-NPHD) beserta **Menu Mandiri Rekap Anggaran (Perencanaan & Pelaksanaan)**.
-  - **Target Pengembangan Ke Depan:** **Modul Pelaksanaan Transaksional**.
+### [KESEPAKATAN-01] Visi, Ruang Lingkup & Fondasi Arsitektur 3 Tahap Siklus SI-PRABU
+- **Definisi Aplikasi:** **SI-PRABU** (*Sistem Perencanaan dan Belanja Terpadu*) adalah aplikasi terintegrasi yang dirancang untuk mengelola **Perencanaan**, **Pengadaan**, dan **Pembayaran** Anggaran **Pilkada Serentak** secara utuh dari hulu ke hilir (*Single Source of Truth*).
+- **Pola Arsitektur Navigasi Berdasarkan Siklus Tahapan Pekerjaan (3 Pilar Utama):**
+  1. **Tahap 1 — 📁 PERENCANAAN (Hulu):** Mencakup penyusunan `RUH Belanja RKB`, `Pengajuan Usulan Revisi`, `Validasi Revisi`, `Pengesahan BA Pleno (Tahap 4)`, `Monitoring Revisi (4 Tahap)`, `Rekap Perencanaan`, `Standar 28 Kegiatan (KPT 543)`, dan `📘 Panduan Perencanaan`.
+  2. **Tahap 2 — 📁 PENGADAAN (Tengah — `pengadaan.js`):** Mencakup `Daftar Paket Pengadaan`, `Kokpit 18 Tahap`, `Rekap Pengadaan` (5 Tab Komprehensif: Ringkasan Eksekutif, Progres 18 Tahap, Metode & Jenis PBJ, Per Subbagian & PPK, serta PDN/TKDN/UMK & Efisiensi), dan `📘 Panduan Pengadaan`.
+  3. **Tahap 3 — 📁 PEMBAYARAN (Hilir — Bendahara & Pertanggungjawaban):** Mencakup `Rekap Pembayaran` (berbasis Pagu Baseline Sah) dan `💳 Panduan Pembayaran`.
+- **Menu Pendukung & Fondasi Rujukan Lintas Modul:**
+  - **📊 BERANDA:** Papan Kendali Eksekutif yang merangkum **Rekap Besar 3 Modul Sekaligus** (`1. Rekap Perencanaan (RKB)`, `2. Rekap Pengadaan (18 Tahap)`, `3. Rekap Pembayaran (Baseline Sah)`) beserta **Matriks Konsolidasi Hulu-ke-Hilir 3 Modul Per Subbagian**.
+  - **📚 DOKUMEN ANGGARAN (`view-siklus`):** Menu Besar Mandiri (*Top-Level Menu*) tepat di bawah Beranda yang mengelola siklus hidup dan versi dokumen anggaran lintas modul — menentukan **Dokumen Siklus Aktif** bagi *Perencanaan* serta **Dokumen Terkunci Terbaru (Baseline Sah)** bagi *Pengadaan* dan *Pembayaran*, lengkap dengan tautan bukti fisik Google Drive (BA Pleno, RKB Final, KAK Gabungan).
+  - **📁 REFERENSI:** Rujukan master data murni lintas modul (`Parameter & Kuantitas SSOT`, `Standar Biaya Masukan (SBM)`, `Bagan Akun Standar (BAS)`) yang dipakai bersama oleh Perencanaan, Pengadaan, dan Pembayaran.
+  - **📁 DATABASE:** Data entitas master eksternal (`Master Kecamatan (19 PPK)`, `Master Desa & TPS (217 PPS)`, `Master Pasangan Calon (Paslon)`, dan `🏢 Master Penyedia (Rekanan)` sebagai rujukan kontrak Pengadaan sekaligus rekening bank, NPWP pajak, & link berkas Google Drive Pembayaran).
+  - **📜 REGULASI & DASAR HUKUM:** Menu Besar Mandiri (*Top-Level Menu*) di bawah Database yang memuat Portal JDIH 3 Pilar (`Perencanaan`, `Pengadaan`, `Pembayaran`), dilengkapi fitur pencarian, tambah, edit, dan hapus regulasi.
+  - **📁 ADMINISTRASI & 📥 MONITORING UNDUHAN:** Tata kelola `👥 Pengguna`, **`✍️ Penandatangan`** (Single Source of Truth seluruh pejabat penandatangan dokumen Perencanaan, Pengadaan 18 Tahap, dan Pembayaran termasuk No. SK & Sertifikat PBJ), matriks hak akses 33 menu (`app_menu_matrix`), pengaturan satker, pengumuman kedinasan, log aktivitas, dan histori unduhan.
 
 ---
 
@@ -97,16 +101,34 @@
 
 ---
 
-## 5. Modul Penganggaran
+## 5. Arsitektur 3 Modul Siklus Utama (Perencanaan • Pengadaan • Pembayaran)
 
+### 5.1 Modul 1 — 📁 PERENCANAAN (Hulu)
 | Menu | Fungsi utama |
 | :--- | :--- |
-| **RUH Belanja RKB** | Menampilkan/mengedit satu RKB terpadu, hierarki L1–L6, PIC, subtotal, dan ekspor sesuai hak. |
-| **Pengajuan Usulan Revisi** | Pengajuan Tahap 1, dokumen wajib, konfirmasi, dan penguncian PIC. |
-| **Validasi Revisi** | Validasi Tahap 2 dan Tahap 3 beserta keputusan, alasan penolakan, dan status PIC. |
-| **Pengesahan BA Pleno** | Verifikasi dokumen Tahap 4, pengesahan baseline, dan penutupan siklus. |
-| **Monitoring Revisi** | Status per PIC, alasan penolakan, jejak tahap, dan pemantauan siklus. |
-| **Pusat Siklus Dokumen** | Arsip anggaran awal dan seluruh baseline disahkan beserta dokumen pendukung; menyatukan fungsi riwayat arsip revisi dalam satu tampilan terpadu (dilengkapi aksi buka rincian RKB, sanding semula vs menjadi, unduh Excel, dan koreksi tautan). |
+| **📘 RUH Belanja RKB** | Menampilkan/mengedit satu RKB terpadu, hierarki L1–L6, PIC, subtotal, dan ekspor sesuai hak. |
+| **📝 Pengajuan Usulan Revisi** | Pengajuan Tahap 1, dokumen wajib, konfirmasi, dan penguncian PIC. |
+| **🔍 Validasi Revisi** | Validasi Tahap 2 dan Tahap 3 beserta keputusan, alasan penolakan, dan status PIC. |
+| **🔒 Pengesahan BA Pleno** | Verifikasi dokumen Tahap 4, pengesahan baseline, dan penutupan siklus. |
+| **📊 Monitoring Revisi (4 Tahap)** | Status per PIC, alasan penolakan, jejak tahap, dan pemantauan siklus. |
+| **🔄 Pusat Siklus Dokumen** | Arsip anggaran awal dan seluruh baseline disahkan beserta dokumen pendukung; dilengkapi aksi buka rincian RKB, sanding semula vs menjadi, unduh Excel, dan koreksi tautan. |
+| **📈 Rekap Perencanaan** | Rekapitulasi komprehensif pagu perencanaan RKB (Per Bagian, 28 Kegiatan, Subbagian, Sasaran, dan BAS). |
+| **📋 Standar 28 Kegiatan (KPT 543)** | Standar tahapan dan 28 kegiatan anggaran hibah Pemilihan sesuai KPT KPU Nomor 543 Tahun 2022. |
+| **📘 Panduan Perencanaan** | Buku panduan teknis tata kelola perencanaan anggaran RKB dan siklus revisi 4 tahap. |
+
+### 5.2 Modul 2 — 📁 PENGADAAN (Tengah — `public/pengadaan.js`)
+| Menu | Fungsi utama |
+| :--- | :--- |
+| **📦 Daftar Paket Pengadaan** | Registri paket pengadaan barang/jasa/konstruksi/swakelola yang terhubung langsung dengan item RKB (`Penarik Item RKB SI-PRABU` dari Dokumen Terkunci Terbaru). |
+| **🧭 Kokpit 18 Tahap** | Ruang kendali 18 tahapan pengadaan hulu-ke-hilir (Perpres 46/2025, Perlem LKPP 2 & 3/2026, Kepsekjen KPU 1272/2025) beserta generator berita acara & pakta integritas. |
+| **📈 Rekap Pengadaan** | Pusat analitik 5 tab pengadaan: **(1) Ringkasan Eksekutif**, **(2) Progres 18 Tahap**, **(3) Metode & Jenis PBJ**, **(4) Per Subbagian & PPK**, dan **(5) PDN/TKDN/UMK & Efisiensi**. |
+| **📘 Panduan Pengadaan** | Buku pintar pedoman 18 tahapan pengadaan barang/jasa, matriks metode pemilihan, dan kepatuhan regulasi PBJ. |
+
+### 5.3 Modul 3 — 📁 PEMBAYARAN (Hilir — Bendahara & Pertanggungjawaban)
+| Menu | Fungsi utama |
+| :--- | :--- |
+| **🏛️ Rekap Pembayaran** | Rekapitulasi pelaksanaan pembayaran anggaran berbasis **Pagu Baseline Sah** (terpisah dari draft simulasi perencanaan yang belum disahkan). |
+| **💳 Panduan Pembayaran** | Pedoman tata kelola pencairan, pengujian tagihan SPP/SPM/SP2D, pemungutan pajak (PPN/PPh), dan pertanggungjawaban belanja hibah oleh Bendahara/KPA. |
 
 ---
 
@@ -124,7 +146,7 @@
 | Kelompok | Submenu / objek | Akses pengelolaan |
 | :--- | :--- | :--- |
 | **REFERENSI** | Parameter & Kuantitas SSOT; SBM; BAS | **Level 0** dan **Level 1**. Pengguna lain dapat melihat sesuai aturan Referensi. |
-| **DATABASE** | Master Kecamatan (19 PPK); Master Desa & TPS (217 PPS); Master Pasangan Calon; Pengaturan Satker KPU | **Level 1**; **Level 3 Sekretaris** dan **Divisi Rendatin** melihat saja. |
+| **DATABASE** | Master Kecamatan (19 PPK); Master Desa & TPS (217 PPS); Master Pasangan Calon (Paslon); Master Penyedia (Rekanan) | **Level 0**, **Level 1**, dan Pejabat Pengadaan/PPK (untuk Master Penyedia); pengguna lain melihat sesuai matriks hak akses. |
 
 - Kuantitas SSOT sebagian berasal dari DATABASE; parameter mandiri memiliki fasilitas edit. SBM dan BAS adalah referensi tersendiri.
 - Perubahan referensi/database memperbarui perhitungan hanya pada baris RKB aktif yang sah masih terbuka; baris terkunci dan baseline immutable.
@@ -144,9 +166,10 @@
 
 ---
 
-## 8. PANDUAN dan Menu Mandiri
-1. **PANDUAN** terbagi menjadi 3 menu navigasi mandiri terpisah: **Panduan Perencanaan**, **Panduan Pelaksanaan**, dan **Regulasi & Dasar Hukum** (Bab 23). Seluruh pengguna dapat membaca; **Level 0** dan **Level 1** berwenang mengelola konten.
-2. **Monitoring Unduhan**, **Manajemen User**, **Log Aktivitas**, serta **Blueprint & PRD (DEV)** adalah menu mandiri pada navigasi utama, bukan submenu PANDUAN.
+## 8. Menu Mandiri & Tata Letak Navigasi Sejajar
+1. **Panduan Kontekstual Per Modul:** Setiap modul tahapan siklus memiliki menu panduan kontekstual di dalam foldernya masing-masing dengan ikon seragam: **📘 Panduan Perencanaan** (di dalam `📁 Perencanaan`), **📘 Panduan Pengadaan** (di dalam `📁 Pengadaan`), dan **💳 Panduan Pembayaran** (di dalam `📁 Pembayaran`). Seluruh pengguna dapat membaca; **Level 0** dan **Level 1** berwenang mengelola konten.
+2. **Menu Besar Mandiri Sejajar (*Top-Level Standalone Menu*):** **📊 Beranda**, **📜 Regulasi & Dasar Hukum** (ditempatkan tepat di bawah `📁 Database`), serta **📥 Monitoring Unduhan** (di bawah `📁 Administrasi`) merupakan menu besar mandiri yang posisi kirinya (ikon `20px` + `gap 8px` + label huruf kapital tebal) **sejajar persis** dengan grup folder utama.
+3. **Portal Regulasi & Dasar Hukum 3 Pilar (`view-db-regulasi`):** Mengelompokkan produk hukum ke dalam 3 pilar tahapan siklus (**Pilar 1: Perencanaan Anggaran**, **Pilar 2: Pengadaan Barang/Jasa**, **Pilar 3: Pembayaran & Pertanggungjawaban**), dilengkapi pencarian instan serta fitur CRUD (`Tambah`, `Edit`, `Hapus`).
 
 ---
 
@@ -710,3 +733,42 @@ Sesuai arahan arsitektur Mas emenje, sistem mengimplementasikan pemisahan tegas 
    - Pengguna sistem dapat melengkapi dan mengubah sendiri **Nomor HP / WhatsApp** dan **NIK** langsung dari modal profil melalui mode "Perbarui No HP & NIK".
    - **Proteksi Integritas RBAC:** Parameter sensitif sistem kedinasan lainnya (**Level Otoritas**, **Email Akun SSO Google**, **Username**, **Role ID**, **PIC Subbagian**) terkunci mati (*Read-Only*) dari perubahan mandiri pengguna guna mencegah eskalasi wewenang sepihak.
    - Validasi ketat diterapkan pada backend: NIK wajib berupa 16 digit angka jika diisi, dan nomor HP wajib berupa nomor telepon yang valid.
+
+---
+
+## BAB 28: ARSITEKTUR SIKLUS 3 MODUL HULU-KE-HILIR (PERENCANAAN • PENGADAAN • PEMBAYARAN) & BERANDA EKSEKUTIF 3 PILAR
+
+### 28.1 Filosofi UX Berbasis Siklus Tahapan Pekerjaan (*End-to-End Lifecycle Navigation*)
+1. Mengikuti standar UX sistem *Enterprise Government Financial Management* modern, navigasi SI-PRABU disusun mengikuti urutan kronologis siklus anggaran:
+   - **Hulu (`📁 Perencanaan`):** Penyusunan RKB, revisi 4 tahap, standar 28 kegiatan KPT 543/2022, rekap perencanaan, dan panduan perencanaan.
+   - **Tengah (`📁 Pengadaan` — `public/pengadaan.js`):** Pelaksanaan pengadaan barang/jasa 18 tahap hulu-ke-hilir, direktori penyedia, rekap pengadaan 5 tab, dan panduan pengadaan.
+   - **Hilir (`📁 Pembayaran`):** Rekapitulasi pembayaran berbasis Pagu Baseline Sah, estimasi pajak/SP2D bendahara, dan panduan pembayaran.
+2. **Kedudukan `📁 Referensi` sebagai Fondasi Rujukan Bersama:**
+   - Menu `📁 Referensi` (`Parameter & Kuantitas SSOT`, `Standar Biaya Masukan (SBM)`, dan `Bagan Akun Standar (BAS)`) dipertahankan sebagai master referensi lintas modul yang menjadi rujukan bersama bagi **Perencanaan**, **Pengadaan**, maupun **Pembayaran**.
+   - Sementara itu, `Standar 28 Kegiatan (KPT 543)` ditempatkan di dalam `📁 Perencanaan` karena merupakan pedoman struktur penyusunan program/kegiatan RKB.
+
+### 28.2 Beranda Eksekutif Rekap 3 Modul (`#view-dashboard` — 100% Model Block Tanpa Tabel & Tanpa Tombol Pintasan)
+1. Karena halaman **Beranda (`📊 Beranda`)** diakses oleh seluruh tingkatan pengguna (Level 0 s.d. Level 12), Beranda dirancang **100% berbasis Model Block (*Bento Card Grid*)**, **tanpa tabel data (`<table>`)**, dan **tanpa tombol pintasan menu** di dalam blok agar netral terhadap perbedaan hak akses menu per level.
+2. Beranda menampilkan **4 Baris Blok Resume Besar**:
+   - **Blok Baris 1 — 3 Kartu Utama Rekap Siklus Anggaran (`#dashboard-3modul-grid`):**
+     - **Pilar 1 (`📐 1. Rekap Perencanaan (RKB)`):** Total Pagu Perencanaan, Lingkup Kabupaten vs Badan Adhoc, serta Volume Baris Rincian Belanja.
+     - **Pilar 2 (`📦 2. Rekap Pengadaan (18 Tahap)`):** Total Nilai Kontrak Pengadaan, Pagu Paket & HPS, Efisiensi Pengadaan (Rp & %), Kepatuhan UMK & TKDN, serta Progres BAST & 18 Tahap.
+     - **Pilar 3 (`💳 3. Rekap Pembayaran (Baseline Sah)`):** Pagu Sah Dasar Pembayaran, Estimasi Tagihan Netto SP2D & Potongan Pajak (PPN/PPh), Penyaluran Badan Adhoc, serta Dokumen Dasar Pengesahan Pleno.
+   - **Blok Baris 2 — 5 Blok Resume Siklus 3 Modul Per Subbagian (`#dashboard-subbag-3modul-blocks`):**
+     - Menampilkan 5 kartu blok (`TEKNIS`, `HUKUM`, `PARSDM`, `KUL`, `RENDATIN`) yang masing-masing merangkum porsi pagu satker (`%`) serta angka Perencanaan, Pengadaan (`Paket`, `Kontrak`, `Efisiensi`), dan Pembayaran (`Baseline Sah`).
+   - **Blok Baris 3 — 6 Blok Resume Alokasi Berdasarkan Sasaran (`#dashboard-sasaran-blocks`):**
+     - Menampilkan 6 kartu blok sasaran (`KPU Kabupaten`, `PPK 19 Kecamatan`, `PPS 217 Desa`, `KPPS / TPS`, `Pantarlih / PPDP`, dan `Peserta / Paslon`).
+   - **Blok Baris 4 — Blok Grid Distribusi Bagan Akun Standar / BAS (`#dashboard-akun-blocks`):**
+     - Menampilkan kartu-kartu blok per kode akun belanja 6-digit (`52xxxx`) beserta porsi persentase dan bar proporsi anggaran.
+
+### 28.3 Pemisahan Tegas Sumber Data Modul & Konsolidasi Penamaan (`public/pengadaan.js` & `src/pengadaan/db_pengadaan.js`)
+1. **Hukum Pemisahan Sumber Data Lintas Modul:**
+   - **Modul 1 — Perencanaan (`📐 Perencanaan`):** Wajib menggunakan dokumen **RKB dari Pusat Siklus Aktif** (`getActivePeriode()`, baik berstatus draft revisi berjalan maupun aktif).
+   - **Modul 2 — Pengadaan (`📦 Pengadaan`) & Modul 3 — Pembayaran (`💳 Pembayaran`):** Wajib menggunakan **Dokumen Terkunci Paling Baru (`getLatestRatifiedPeriode()`, `is_locked = 1`)** sebagai dasar hukum eksekusi kontrak dan pencairan anggaran.
+   - Pada halaman **Beranda (`#view-dashboard`)**, angka **Perencanaan (Siklus Aktif)** dan angka **Pengadaan / Pembayaran (Dokumen Terkunci Terbaru)** ditampilkan terpisah sekaligus disandingkan pada setiap blok Subbagian, Sasaran, dan Bagan Akun Standar (BAS).
+2. **Konsolidasi Penamaan Berkas Pengadaan & Pembersihan Kontainer Lama:**
+   - Berkas frontend modul pengadaan menggunakan nama resmi **`public/pengadaan.js`** (menggantikan `cakra_module.js`), dan modul backend menggunakan folder **`src/pengadaan/`** (`src/pengadaan/db_pengadaan.js`, `src/pengadaan/pengadaan_schema_seed.js`, `src/pengadaan/pengadaan_schema_seed.sql`, `src/pengadaan/router.js`).
+   - Seluruh kontainer Docker terpisah dari prototipe lama (`cakra_phpmyadmin`, `cakra_mysql`) telah dihapus permanen sehingga seluruh modul berjalan terpadu di dalam satu aplikasi **SI-PRABU v3.0** (`siprabu_db`).
+3. **Unifikasi Pejabat Penandatangan (`📁 Administrasi > ✍️ Penandatangan`) & Penempatan `🏢 Master Penyedia (Rekanan)` di `📁 Database`:**
+   - Seluruh pejabat penandatangan dokumen Satker (Ketua KPU, Sekretaris/KPA, PPK, Pejabat Pengadaan/PPBJ, Bendahara Pengeluaran, PPSPM/Kasubbag KUL, Komisioner Divisi, dan Kasubbag) dikelola terpusat pada **`📁 Administrasi > ✍️ Penandatangan`** (terhubung langsung ke `👥 Pengguna`), lengkap dengan **Nomor SK Penetapan** dan **Nomor Sertifikat Kompetensi PBJ (LKPP)** sebagai rujukan tunggal (*Single Source of Truth*) bagi seluruh cetakan dokumen `.docx` dan `.xlsx` pada Perencanaan, Pengadaan 18 Tahap, dan Pembayaran.
+   - Direktori perusahaan rekanan ditempatkan di dalam **`📁 Database > 🏢 Master Penyedia (Rekanan)`** sebagai basis data entitas eksternal ke-4 yang melayani **Pengadaan** (kontrak, kualifikasi UMK, Beneficial Ownership, skor kinerja PPK) sekaligus **Pembayaran** (rekening bank tujuan SP2D/SPBy dan NPWP pemotongan pajak PPN/PPh).

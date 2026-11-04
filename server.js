@@ -1,4 +1,4 @@
-const { initDatabaseSchemaAndSeed: initCakraDatabase, handleCakraApiRequest } = require('./src/cakra/router');
+const { initDatabaseSchemaAndSeed: initCakraDatabase, handleCakraApiRequest, generatePengadaanDownloadBuffer } = require('./src/pengadaan/router');
 /**
  * SI-PRABU Clean Web Edition v3.0
  * Server Utama Node.js (Siap untuk Hostinger Cloud / hPanel & Local Development)
@@ -249,6 +249,8 @@ async function processDownloadJob(jobId) {
         tab,
         fullCompilation
       });
+    } else if (['DOCX_PENGADAAN', 'EXCEL_PENGADAAN', 'ZIP_PENGADAAN', 'CSV_REKAP_PENGADAAN'].includes(job.tipe_unduhan)) {
+      buffer = await generatePengadaanDownloadBuffer(job);
     } else {
       // Standar RUH Excel, Rekap Excel, Arsip Excel (EXCEL_RUH, EXCEL_REKAP, EXCEL_ARSIP, EXCEL_RKB)
       const query = {};
@@ -1760,12 +1762,31 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      // 4. Ambil dataset & summary DOKUMEN TERKUNCI PALING BARU (is_locked = 1) untuk Modul Pengadaan & Pembayaran
+      const latestLockedPeriode = getLatestRatifiedPeriode() || periode;
+      const lockedFullResult = (latestLockedPeriode && latestLockedPeriode.id === periode.id)
+        ? fullResult
+        : getCachedRkbDataset(latestLockedPeriode ? latestLockedPeriode.id : periodeId);
+      const lockedDocSummary = lockedFullResult.summary;
+      const lockedSubbagSummaries = lockedDocSummary.subbagSummaries || {};
+      const lockedActiveSummary = (activeSubbag && lockedSubbagSummaries[activeSubbag])
+        ? lockedSubbagSummaries[activeSubbag]
+        : lockedDocSummary;
+      const outLockedSummary = isLevel2PicScoped ? lockedActiveSummary : lockedDocSummary;
+      const outLockedSubbagSummaries = isLevel2PicScoped
+        ? { [user.pic_subbag]: lockedSubbagSummaries[user.pic_subbag] || lockedActiveSummary }
+        : lockedSubbagSummaries;
+
       return sendJson(res, 200, {
         periode,
         summary: outSummary,
         active_summary: activeSummary,
         subbag_summaries: outSubbagSummaries,
         filtered_summary: filteredSummary,
+        locked_periode: latestLockedPeriode,
+        locked_summary: outLockedSummary,
+        locked_active_summary: lockedActiveSummary,
+        locked_subbag_summaries: outLockedSubbagSummaries,
         scoped_pic: activeSubbag,
         is_user_scoped: Boolean(user && user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA'),
         user_pic: (user && user.pic_subbag) || 'SEMUA',
@@ -3343,8 +3364,17 @@ const server = http.createServer(async (req, res) => {
       }
 
       const stat = fs.statSync(job.file_path);
-      const isZip = job.tipe_unduhan === 'ZIP_SUBBAGIAN' || job.nama_file.endsWith('.zip');
-      const contentType = isZip ? 'application/zip' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const lowerName = String(job.nama_file || '').toLowerCase();
+      const isZip = job.tipe_unduhan === 'ZIP_SUBBAGIAN' || job.tipe_unduhan === 'ZIP_PENGADAAN' || lowerName.endsWith('.zip');
+      const isDocx = job.tipe_unduhan === 'DOCX_PENGADAAN' || lowerName.endsWith('.docx');
+      const isCsv = job.tipe_unduhan === 'CSV_REKAP_PENGADAAN' || lowerName.endsWith('.csv');
+      const contentType = isZip
+        ? 'application/zip'
+        : isDocx
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : isCsv
+            ? 'text/csv; charset=utf-8'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
       res.writeHead(200, {
         'Content-Type': contentType,

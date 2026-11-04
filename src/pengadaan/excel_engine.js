@@ -89,26 +89,72 @@ function setupKopSheet(ws, settings, judulUtama, subJudul, paket, tahapRow, tota
   return rIdx + 1;
 }
 
-function appendTandaTanganPPK(ws, startRow, ppk, settings, tanggalStr, colKanan = 'F') {
+function appendTandaTanganPPK(ws, startRow, ppk, settings, tanggalStr, colKanan = 'F', pihakKiri = null, colKiri = 'B') {
   let r = startRow + 2;
+  if (pihakKiri && pihakKiri.barisAtas) {
+    ws.getCell(`${colKiri}${r}`).value = pihakKiri.barisAtas;
+    ws.getCell(`${colKiri}${r}`).font = { name: 'Arial', size: 10 };
+  }
   ws.getCell(`${colKanan}${r}`).value = `${settings.kota_satker || 'Ngawi'}, ${formatTanggalIndo(tanggalStr)}`;
   ws.getCell(`${colKanan}${r}`).font = { name: 'Arial', size: 10 };
   r++;
+  if (pihakKiri) {
+    ws.getCell(`${colKiri}${r}`).value = pihakKiri.judulAtas || '';
+    ws.getCell(`${colKiri}${r}`).font = { name: 'Arial', size: 10, bold: true };
+  }
   ws.getCell(`${colKanan}${r}`).value = 'Pejabat Pembuat Komitmen (PPK)';
   ws.getCell(`${colKanan}${r}`).font = { name: 'Arial', size: 10, bold: true };
   r++;
+  if (pihakKiri) {
+    ws.getCell(`${colKiri}${r}`).value = pihakKiri.subJudul || '';
+    ws.getCell(`${colKiri}${r}`).font = { name: 'Arial', size: 10, bold: true };
+  }
   ws.getCell(`${colKanan}${r}`).value = settings.nama_satker || 'KPU Kabupaten Ngawi';
   ws.getCell(`${colKanan}${r}`).font = { name: 'Arial', size: 10, bold: true };
   r += 4;
-  ws.getCell(`${colKanan}${r}`).value = ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN, S.Kom.';
+  // Baris Nama Pejabat (Kiri & Kanan pada baris `r` yang sama -> 100% Sejajar)
+  if (pihakKiri) {
+    ws.getCell(`${colKiri}${r}`).value = pihakKiri.nama || '-';
+    ws.getCell(`${colKiri}${r}`).font = { name: 'Arial', size: 10, bold: true, underline: true };
+  }
+  ws.getCell(`${colKanan}${r}`).value = ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN';
   ws.getCell(`${colKanan}${r}`).font = { name: 'Arial', size: 10, bold: true, underline: true };
   r++;
+  // Baris NIP / Identitas (Kiri & Kanan pada baris `r` yang sama -> 100% Sejajar)
+  if (pihakKiri && pihakKiri.identitas) {
+    ws.getCell(`${colKiri}${r}`).value = pihakKiri.identitas;
+    ws.getCell(`${colKiri}${r}`).font = { name: 'Arial', size: 9 };
+  }
   ws.getCell(`${colKanan}${r}`).value = `NIP. ${ppk.nip || '19840101 200912 1 001'}`;
   ws.getCell(`${colKanan}${r}`).font = { name: 'Arial', size: 9 };
-  if (ppk.no_sertifikat_pbj && ppk.no_sertifikat_pbj !== '-') {
-    r++;
-    ws.getCell(`${colKanan}${r}`).value = `No. Sertifikat PPK: ${ppk.no_sertifikat_pbj} (${ppk.tipologi_ppk || 'Tipe B'})`;
-    ws.getCell(`${colKanan}${r}`).font = { name: 'Arial', size: 8, italic: true, color: { argb: 'FF475569' } };
+
+  // Prinsip Anti Tanda Tangan Gantung & Kotak Paraf Footer pada Excel
+  if (startRow <= 32) {
+    // 1 Halaman utuh (memuat tanda tangan) -> kunci fitToHeight: 1 agar tidak ada tanda tangan gantung & tanpa kotak paraf
+    ws.pageSetup = {
+      ...(ws.pageSetup || {}),
+      paperSize: 9,
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 1
+    };
+    ws.headerFooter = {
+      oddFooter: '&L&"Arial,Italic"&8Dokumen Pengadaan SI-PRABU KPU Kabupaten Ngawi&R&"Arial,Regular"&8Halaman &P dari &N'
+    };
+  } else {
+    // Lebih dari 1 halaman -> pastikan halaman terakhir membawa baris rincian + Total + Tanda Tangan (anti gantung)
+    // dan halaman pertama (di luar halaman tanda tangan) memuat Kotak Paraf pada footer
+    const breakRow = Math.max(12, startRow - 6);
+    ws.rowBreaks = [{ id: breakRow, max: 9, man: 1 }];
+    const labelParafFooter = pihakKiri
+      ? `[ PARAF KEDUA BELAH PIHAK — ${pihakKiri.judulAtas || 'PIHAK I'}: _________ | PPK: _________ ]`
+      : `[ PARAF MANDIRI — PPK: _________ ]`;
+    ws.headerFooter = {
+      differentFirst: true,
+      firstFooter: `&L&"Arial,Italic"&8Dokumen Pengadaan SI-PRABU&R&"Arial,Bold"&8${labelParafFooter}`,
+      oddFooter: '&L&"Arial,Italic"&8Dokumen Pengadaan SI-PRABU KPU Kabupaten Ngawi&R&"Arial,Regular"&8Halaman &P dari &N'
+    };
   }
 }
 
@@ -117,7 +163,7 @@ function appendTandaTanganPPK(ws, startRow, ppk, settings, tanggalStr, colKanan 
  */
 async function generateExcelBuffer(ctx, modeOrStage = 6) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'CAKRA KPU Kabupaten Ngawi (by emenje)';
+  wb.creator = 'SI-PRABU KPU Kabupaten Ngawi (by emenje)';
   wb.created = new Date();
 
   const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, bendahara, settings } = ctx;
@@ -195,7 +241,13 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
       totRow.getCell(c).border = BORDER_THIN;
     }
 
-    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[1]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'F');
+    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[1]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'F', {
+      barisAtas: 'Mengetahui / Menyetujui:',
+      judulAtas: 'Kuasa Pengguna Anggaran (Sekretaris KPU)',
+      subJudul: settings.nama_satker || 'KPU Kabupaten Ngawi',
+      nama: kpa?.nama_lengkap || 'BUDI RAHAYU',
+      identitas: `NIP. ${kpa?.nip || '19830503 200902 1 002'}`
+    }, 'B');
   }
 
   // -------------------------------------------------------------------------
@@ -302,7 +354,12 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
     ws.getCell(`A${rowIdx}`).value = `Catatan Regulasi & Penilaian PPK atas Katalog Elektronik (Pasal 8 Perlem 2/2026): ${paket.tersedia_di_katalog} — ${paket.alasan_penilaian_ppk_katalog || '-'} | Rumus Konversi Konsultansi: SBOM = SBOB/4,1 (Rp ${sbobSample.sbom.toLocaleString('id-ID')}), SBOH = (SBOB/22)*1,1 (Rp ${sbobSample.sboh.toLocaleString('id-ID')}), SBOJ = (SBOH/8)*1,3 (Rp ${sbobSample.sboj.toLocaleString('id-ID')}).`;
     ws.getCell(`A${rowIdx}`).font = { name: 'Arial', size: 8, italic: true, color: { argb: 'FF334155' } };
 
-    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[6]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'H');
+    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[6]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'H', {
+      judulAtas: 'Pejabat Pengadaan',
+      subJudul: settings.nama_satker || 'KPU Kabupaten Ngawi',
+      nama: pejabatPengadaan?.nama_lengkap || 'INDRAYU FATIKA MAHARDIKA',
+      identitas: `NIP. ${pejabatPengadaan?.nip || '-'}`
+    }, 'B');
   }
 
   // -------------------------------------------------------------------------
@@ -387,7 +444,12 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
       totRow.getCell(c).border = BORDER_THIN;
     }
 
-    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[13]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'G');
+    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[13]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'G', {
+      judulAtas: 'Untuk dan Atas Nama Penyedia',
+      subJudul: penyedia?.nama_perusahaan || 'Penyedia',
+      nama: penyedia?.nama_direktur || '-',
+      identitas: penyedia?.jabatan_penandatangan || 'Direktur'
+    }, 'B');
   }
 
   // -------------------------------------------------------------------------
@@ -495,7 +557,13 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
       rowIdx++;
     }
 
-    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[18]?.tanggal_dokumen || paket.tgl_realisasi_selesai, 'F');
+    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[18]?.tanggal_dokumen || paket.tgl_realisasi_selesai, 'F', {
+      barisAtas: 'Mengetahui / Menyetujui:',
+      judulAtas: 'Kuasa Pengguna Anggaran (Sekretaris KPU)',
+      subJudul: settings.nama_satker || 'KPU Kabupaten Ngawi',
+      nama: kpa?.nama_lengkap || 'BUDI RAHAYU',
+      identitas: `NIP. ${kpa?.nip || '19830503 200902 1 002'}`
+    }, 'B');
   }
 
   const buffer = await wb.xlsx.writeBuffer();
