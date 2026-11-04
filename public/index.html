@@ -2198,27 +2198,27 @@
           <div class="penyelenggara-strip mb-3">
             <div class="penyelenggara-box" style="border-left: 4px solid #1e40af;">
               <div class="p-title">Total Koleksi JDIH</div>
-              <div class="p-val" id="jdih-stat-total">26 Produk Hukum</div>
+              <div class="p-val" id="jdih-stat-total">22 Produk Hukum</div>
               <div class="p-note">Terverifikasi Berlaku Aktif</div>
             </div>
             <div class="penyelenggara-box" style="border-left: 4px solid #0284c7;">
               <div class="p-title">Regulasi Perencanaan</div>
-              <div class="p-val" id="jdih-stat-penyusunan">10 Regulasi</div>
+              <div class="p-val" id="jdih-stat-penyusunan">12 Regulasi</div>
               <div class="p-note">Penyusunan RKB, SBM/SBML &amp; BAS</div>
             </div>
             <div class="penyelenggara-box" style="border-left: 4px solid #d97706;">
               <div class="p-title">Regulasi Pengadaan</div>
-              <div class="p-val" id="jdih-stat-pengadaan">6 Regulasi</div>
+              <div class="p-val" id="jdih-stat-pengadaan">7 Regulasi</div>
               <div class="p-note">Perpres 46/2025, LKPP &amp; Kontrak PBJ</div>
             </div>
             <div class="penyelenggara-box" style="border-left: 4px solid #059669;">
               <div class="p-title">Regulasi Pembayaran</div>
-              <div class="p-val" id="jdih-stat-pelaksanaan">10 Regulasi</div>
+              <div class="p-val" id="jdih-stat-pelaksanaan">9 Regulasi</div>
               <div class="p-note">Penatausahaan, SPBy, SPJ &amp; Pajak</div>
             </div>
             <div class="penyelenggara-box" style="border-left: 4px solid #7c3aed;">
               <div class="p-title">Lintas Tahapan</div>
-              <div class="p-val" id="jdih-stat-lintas">7 Regulasi</div>
+              <div class="p-val" id="jdih-stat-lintas">6 Regulasi</div>
               <div class="p-note">Hulu s.d. Hilir Siklus Anggaran</div>
             </div>
           </div>
@@ -6015,10 +6015,12 @@
               <div class="form-group full-width">
                 <label style="font-weight:700;color:#0f172a;">Mekanisme Pelaksanaan Multi-Peran:</label>
                 <select id="modal-user-role-mode" class="input-select" style="font-weight:600;">
-                  <option value="SWITCH" selected>🎭 Sistem Peran Tunggal Bergantian (Strict RBAC SAKTI)</option>
+                  <option value="SWITCH">🎭 Sistem Peran Tunggal Bergantian (Pilih Peran Saat Login)</option>
+                  <option value="KUMULATIF">⚡ Sistem Wewenang Kumulatif (Perangkapan Subbagian Aktif Serentak)</option>
                 </select>
                 <div style="font-size:10.5px;color:#64748b;margin-top:5px;line-height:1.45;background:#f8fafc;padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0;">
-                  • <strong>Sistem Peran Bergantian (Strict RBAC):</strong> Sesuai arsitektur SAKTI Kemenkeu, setiap pengguna aktif dalam 1 peran tunggal saat bekerja untuk menjamin integritas data dan pemisahan kewenangan. Mode kumulatif tidak diberlakukan.
+                  • <strong>Sistem Peran Bergantian:</strong> Saat login, pengguna yang memiliki lebih dari 1 peran disuguhkan layar pemilihan 1 peran aktif dan dapat berganti peran kapan saja sesuai register pengguna.<br>
+                  • <strong>Sistem Wewenang Kumulatif:</strong> Seluruh wewenang peran &amp; subbagian yang terdaftar aktif secara serentak dan pengguna langsung diarahkan ke Dashboard.
                 </div>
               </div>
 
@@ -7335,9 +7337,9 @@
       </div>
     </div>
 
-    <script src="/data_juknis.js?v=5.0.7"></script>
-    <script src="/app.js?v=5.0.7"></script>
-    <script src="/pengadaan.js?v=5.0.7"></script>
+    <script src="/data_juknis.js?v=5.0.9"></script>
+    <script src="/app.js?v=5.0.9"></script>
+    <script src="/pengadaan.js?v=5.0.9"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

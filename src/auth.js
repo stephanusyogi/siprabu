@@ -208,7 +208,7 @@ function verifyToken(token, dbInstance = null, options = {}) {
     // 3. Jika koneksi database diberikan, verifikasi integritas status user real-time
     if (dbInstance && payload.id) {
       const dbUser = dbInstance.prepare(`
-        SELECT id, username, nama_pejabat, nip, nik, no_hp, jabatan, role_id, level, pic_subbag, email, avatar_url, is_active, token_version
+        SELECT id, username, nama_pejabat, nip, nik, no_hp, jabatan, role_id, level, pic_subbag, email, avatar_url, is_active, token_version, role_mode, can_delete
         FROM satker_users
         WHERE id = ?
       `).get(payload.id);
@@ -280,14 +280,22 @@ function verifyToken(token, dbInstance = null, options = {}) {
         payload.is_developer = false;
       }
 
-      // PERINGATAN: TIDAK BERLAKU MODE KUMULATIF. Mode operasional SELALU SWITCH (Peran Tunggal Aktif SAKTI).
-      const roleMode = String(dbUser.role_mode || payload.role_mode || 'SWITCH').toUpperCase();
+      // Evaluasi Mode Operasional Multi-Peran: KUMULATIF vs SWITCH (Peran Tunggal Bergantian)
+      const roleMode = String(payload.role_mode || dbUser.role_mode || 'SWITCH').toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH';
+      const isKumulatif = (roleMode === 'KUMULATIF');
+      const uniquePics = Array.from(new Set(userRoles.map(r => String(r.pic || 'SEMUA').toUpperCase())));
 
-      const activeLevel = activeRole ? Number(activeRole.level) : Number(dbUser.level);
-      const activePic = activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase();
-      const activeModeAkses = activeRole 
-        ? String(activeRole.mode_akses).toUpperCase() 
-        : (Number(dbUser.level) === 3 ? 'VIEWER' : 'EDITOR');
+      const activeLevel = isKumulatif
+        ? Math.min(...userRoles.map(r => Number(r.level)))
+        : (activeRole ? Number(activeRole.level) : Number(dbUser.level));
+      const activePic = isKumulatif
+        ? (uniquePics.includes('SEMUA') || uniquePics.length > 1 ? 'SEMUA' : (uniquePics[0] || String(dbUser.pic_subbag || 'SEMUA').toUpperCase()))
+        : (activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase());
+      const activeModeAkses = isKumulatif
+        ? (userRoles.some(r => String(r.mode_akses).toUpperCase() === 'EDITOR') ? 'EDITOR' : 'VIEWER')
+        : (activeRole 
+          ? String(activeRole.mode_akses).toUpperCase() 
+          : ([4, 5, 6, 7].includes(Number(dbUser.level)) ? 'VIEWER' : 'EDITOR'));
 
       return {
         ...dbUser,

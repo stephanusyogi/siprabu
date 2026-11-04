@@ -808,16 +808,34 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   }
 
   const isDevOrigin = sessionStorage.getItem('siprabu_is_developer_origin') === 'true' || user.username === 'emenje';
-  // JANGAN BERLAKUKAN MODE KUMULATIF: Strict Single Active Role (SAKTI Mode Switch)
   const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
+  const isKumulatif = (String(user.role_mode || '').toUpperCase() === 'KUMULATIF');
+  const userLevels = new Set();
+  if (isKumulatif) {
+    userLevels.add(Number(user.level));
+    if (Array.isArray(user.roles)) {
+      user.roles.forEach(r => userLevels.add(Number(r.level)));
+    }
+  } else {
+    userLevels.add(activeLevel);
+  }
 
-  // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Strict RBAC Peran Aktif)
+  // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Mendukung Mode Peran Bergantian & Kumulatif)
   matrix.forEach(item => {
     const btn = document.querySelector('button[data-view="' + item.menu_key + '"]');
     if (!btn) return;
 
-    // Evaluasi murni sesuai peran aktif yang sedang dipilih (activeLevel 0 s.d. 10)
-    const isAllowed = Boolean(item['allow_l' + activeLevel]);
+    let isAllowed = false;
+    if (isKumulatif) {
+      for (const lvl of userLevels) {
+        if (item['allow_l' + lvl]) {
+          isAllowed = true;
+          break;
+        }
+      }
+    } else {
+      isAllowed = Boolean(item['allow_l' + activeLevel]);
+    }
     btn.style.display = isAllowed ? 'flex' : 'none';
   });
 
@@ -840,7 +858,17 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   // Jika view aktif saat ini tidak diizinkan untuk peran saat ini, alihkan otomatis ke view-dashboard
   const currentMatrixItem = matrix.find(m => m.menu_key === AppState.activeView);
   if (currentMatrixItem) {
-    const currentAllowed = Boolean(currentMatrixItem['allow_l' + activeLevel]);
+    let currentAllowed = false;
+    if (isKumulatif) {
+      for (const lvl of userLevels) {
+        if (currentMatrixItem['allow_l' + lvl]) {
+          currentAllowed = true;
+          break;
+        }
+      }
+    } else {
+      currentAllowed = Boolean(currentMatrixItem['allow_l' + activeLevel]);
+    }
     if (!currentAllowed) {
       switchView('view-dashboard', true);
     }
@@ -861,6 +889,27 @@ let SaktiRoleState = RoleSelectionState; // Alias backward-compatibility
 
 function getSelectableRolesForUser(user) {
   if (!user) return [];
+
+  // Pastikan daftar peran ter-hydrate dari daftar pengguna jika belum melekat pada objek sesi
+  if ((!Array.isArray(user.roles) || user.roles.length === 0) && Array.isArray(AppState.usersList) && AppState.usersList.length > 0) {
+    const matchedUser = AppState.usersList.find(u => Number(u.id) === Number(user.id) || u.username === user.username);
+    if (matchedUser && Array.isArray(matchedUser.roles) && matchedUser.roles.length > 0) {
+      user.roles = JSON.parse(JSON.stringify(matchedUser.roles));
+    }
+  }
+
+  const registeredRoles = Array.isArray(user.roles) ? user.roles.filter(r => Number(r.level) !== 0) : [];
+
+  // Jika pengguna (baik login langsung maupun yang sedang disimulasikan) terdaftar memiliki > 1 peran di satker_user_roles,
+  // tampilkan daftar peran sesuai data register pengguna tersebut
+  if (user.username !== 'emenje' && registeredRoles.length > 1) {
+    const list = [...registeredRoles];
+    if (isDeveloperSession() && Number(user.level) > 0) {
+      list.unshift({ id: 10, level: 0, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Kembali ke Level 0 (Akses Penuh)" });
+    }
+    return list;
+  }
+
   if (isDeveloperSession()) {
     const simRoles = [
       { id: 1001, level: 1, pic: "SEMUA", mode_akses: "EDITOR", label_peran: "Administrator Utama Satker (Rendatin)" },
@@ -885,8 +934,7 @@ function getSelectableRolesForUser(user) {
   }
 
   // Untuk Pengguna Non-Developer (Satker):
-  let roles = Array.isArray(user.roles) ? [...user.roles] : [];
-  return roles.filter(r => Number(r.level) !== 0);
+  return registeredRoles;
 }
 
 function getRoleNomenclature(role, user) {
@@ -1522,12 +1570,25 @@ function updateUserNavbar() {
     }
   }
 
+  // Pastikan user.roles ter-hydrate dari AppState.usersList apabila belum melekat
+  if ((!Array.isArray(user.roles) || user.roles.length === 0) && Array.isArray(AppState.usersList) && AppState.usersList.length > 0) {
+    const matchedUser = AppState.usersList.find(u => Number(u.id) === Number(user.id) || u.username === user.username);
+    if (matchedUser && Array.isArray(matchedUser.roles) && matchedUser.roles.length > 0) {
+      user.roles = JSON.parse(JSON.stringify(matchedUser.roles));
+      if (!user.role_mode && matchedUser.role_mode) user.role_mode = matchedUser.role_mode;
+    }
+  }
+
   // Sub-text Peran Aktif: VALIDATOR SATKER 657811 2026 (Gambar 2)
   const activeRoleSub = document.getElementById('user-active-role-sub');
   if (activeRoleSub) {
-    const activeRole = user.active_role || (Array.isArray(user.roles) ? user.roles[0] : null);
-    const subText = getSaktiRoleHeaderSub(activeRole, user);
-    activeRoleSub.textContent = `${subText} 2026`;
+    if (String(user.role_mode || '').toUpperCase() === 'KUMULATIF' && Array.isArray(user.roles) && user.roles.length > 1) {
+      activeRoleSub.textContent = 'HAK KUMULATIF SATKER 657811 2026';
+    } else {
+      const activeRole = user.active_role || (Array.isArray(user.roles) ? user.roles[0] : null);
+      const subText = getSaktiRoleHeaderSub(activeRole, user);
+      activeRoleSub.textContent = `${subText} 2026`;
+    }
     const dropdownGantiPeran = document.getElementById('sakti-dropdown-ganti-peran') || document.getElementById('prabu-dropdown-ganti-peran');
     if (dropdownGantiPeran) {
       const canSwitchRole = isDev || (Array.isArray(user.roles) && user.roles.length > 1);
@@ -1608,25 +1669,35 @@ function applyRolePermissionsToUI() {
     roleBanner.style.display = 'none';
   }
 
-  // 1. Terapkan Matriks Hak Akses Menu Dinamis Berbasis Level (0-4) dari Database
+  // 1. Terapkan Matriks Hak Akses Menu Dinamis Berbasis Level dari Database
   applyDynamicMenuMatrix(user);
 
-  // JANGAN BERLAKUKAN MODE KUMULATIF: Strict Peran Aktif Tunggal (SAKTI)
+  const isKumulatif = (String(user.role_mode || '').toUpperCase() === 'KUMULATIF');
   const activeLevel = user.active_role ? Number(user.active_role.level) : Number(user.level);
   const activePic = user.active_role ? String(user.active_role.pic).toUpperCase() : String(user.pic_subbag || 'SEMUA').toUpperCase();
 
-  // 2. Akses Tombol Tambah Pengguna di view-users (HANYA Level 0 Asli dan Level 1)
-  const canAccessUserMgmt = (activeLevel === 0 || activeLevel === 1);
+  const userLevels = new Set([activeLevel, Number(user.level)]);
+  const userPics = new Set([activePic]);
+  if (isKumulatif && Array.isArray(user.roles)) {
+    user.roles.forEach(r => {
+      userLevels.add(Number(r.level));
+      userPics.add(String(r.pic || 'SEMUA').toUpperCase());
+    });
+  }
+
+  // 2. Akses Tombol Tambah Pengguna di view-users (Level 0 dan Level 1)
+  const canAccessUserMgmt = isKumulatif ? (userLevels.has(0) || userLevels.has(1)) : (activeLevel === 0 || activeLevel === 1);
   const btnTambahUser = document.getElementById('btn-tambah-user');
   if (btnTambahUser) {
     btnTambahUser.style.display = canAccessUserMgmt ? 'inline-flex' : 'none';
   }
 
   // 3. Pembatasan Subbag RKB:
-  // Jika peran aktif memiliki pic spesifik (bukan 'SEMUA'), kunci filter RKB ke subbagnya
+  // Jika dalam mode SWITCH memiliki pic spesifik (bukan 'SEMUA'), atau mode KUMULATIF hanya 1 subbag spesifik, kunci filter RKB ke subbagnya
   const filterPicEl = document.getElementById('filter-pic');
   if (filterPicEl) {
-    if (activePic && activePic !== 'SEMUA') {
+    const isMultiSubbagKumulatif = isKumulatif && (userPics.has('SEMUA') || userPics.size > 1);
+    if (!isMultiSubbagKumulatif && activePic && activePic !== 'SEMUA') {
       filterPicEl.value = activePic;
       filterPicEl.disabled = true;
       filterPicEl.title = `Terkunci: Anda bertugas pada Subbagian/Divisi ${activePic}`;
@@ -1642,7 +1713,7 @@ function applyRolePermissionsToUI() {
   }
 
   // 4. Read-Only Protection di Referensi (SBM, BAS, SSOT) & Database Master (PPK, PPS, Paslon, Settings)
-  const isLevel1OrDev = (activeLevel === 0 || activeLevel === 1);
+  const isLevel1OrDev = isKumulatif ? (userLevels.has(0) || userLevels.has(1)) : (activeLevel === 0 || activeLevel === 1);
   const masterActionSelectors = [
     '#view-db-sbm button[onclick*="openModalSbm"]',
     '#view-db-sbm button[onclick*="triggerImportSbm"]',
@@ -9242,7 +9313,7 @@ function renderDbRegulasi() {
 
   const totalCount = regulasis.length;
   const penyusunanCount = regulasis.filter(r => r.lingkup_anggaran === 'PENYUSUNAN' || r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
-  const pengadaanCount = regulasis.filter(r => r.lingkup_anggaran === 'PENGADAAN' || r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
+  const pengadaanCount = regulasis.filter(r => r.lingkup_anggaran === 'PENGADAAN').length;
   const pelaksanaanCount = regulasis.filter(r => r.lingkup_anggaran === 'PELAKSANAAN' || r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
   const lintasCount = regulasis.filter(r => r.lingkup_anggaran === 'PENYUSUNAN & PELAKSANAAN').length;
 
@@ -9281,7 +9352,7 @@ function filterDbRegulasi() {
     if (currentJdihScopeFilter === 'PENYUSUNAN') {
       if (r.lingkup_anggaran !== 'PENYUSUNAN' && r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
     } else if (currentJdihScopeFilter === 'PENGADAAN') {
-      if (r.lingkup_anggaran !== 'PENGADAAN' && r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
+      if (r.lingkup_anggaran !== 'PENGADAAN') return false;
     } else if (currentJdihScopeFilter === 'PELAKSANAAN') {
       if (r.lingkup_anggaran !== 'PELAKSANAAN' && r.lingkup_anggaran !== 'PENYUSUNAN & PELAKSANAAN') return false;
     } else if (currentJdihScopeFilter === 'PENYUSUNAN & PELAKSANAAN') {
@@ -10439,7 +10510,7 @@ async function submitUserForm() {
     jabatan: document.getElementById('modal-user-jabatan')?.value || '',
     email,
     is_active: Number(document.getElementById('modal-user-status')?.value || 1),
-    role_mode: 'SWITCH',
+    role_mode: (document.getElementById('modal-user-role-mode')?.value || 'SWITCH').toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH',
     can_delete: document.getElementById('modal-user-can-delete')?.checked ? 1 : 0,
     roles: sanitizedRoles
   };

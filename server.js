@@ -627,8 +627,12 @@ const server = http.createServer(async (req, res) => {
       }
 
       const { username } = await parseJsonBody(req);
-      const targetUser = db.prepare('SELECT * FROM satker_users WHERE username = ? AND is_active = 1').get(username);
-      if (!targetUser) return sendJson(res, 404, { error: 'Pengguna target tidak ditemukan atau dinonaktifkan.' });
+      const rawTarget = db.prepare('SELECT * FROM satker_users WHERE username = ? AND is_active = 1').get(username);
+      if (!rawTarget) return sendJson(res, 404, { error: 'Pengguna target tidak ditemukan atau dinonaktifkan.' });
+      const targetUser = getUserById(rawTarget.id) || rawTarget;
+      const targetRoles = Array.isArray(targetUser.roles) ? targetUser.roles : [];
+      const targetActiveRole = targetRoles.find(r => Number(r.is_default) === 1) || targetRoles[0] || null;
+      const targetRoleMode = String(targetUser.role_mode || 'SWITCH').toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH';
 
       // Tetap sematkan is_developer: true dan simpan identitas asal developer (tidak memperpanjang batas waktu mutlak 8 jam)
       const originalDevId = origDevRow.id;
@@ -638,6 +642,8 @@ const server = http.createServer(async (req, res) => {
 
       const token = createToken({
         ...targetUser,
+        active_role: targetActiveRole,
+        role_mode: targetRoleMode,
         is_developer: true,
         original_dev_id: originalDevId,
         original_dev_username: originalDevUsername,
@@ -680,8 +686,15 @@ const server = http.createServer(async (req, res) => {
           id: targetUser.id,
           username: targetUser.username,
           nama_pejabat: targetUser.nama_pejabat,
+          nip: targetUser.nip || '',
+          nik: targetUser.nik || '',
+          no_hp: targetUser.no_hp || '',
           jabatan: targetUser.jabatan,
           role_id: targetUser.role_id,
+          roles: targetRoles,
+          active_role: targetActiveRole,
+          role_mode: targetRoleMode,
+          can_delete: targetUser.can_delete !== undefined ? Number(targetUser.can_delete) : 1,
           level: targetUser.level,
           pic_subbag: targetUser.pic_subbag,
           email: targetUser.email || '',
@@ -740,21 +753,22 @@ const server = http.createServer(async (req, res) => {
       };
 
       const currentDbUser = getUserById(currentUser.id);
-      const persistentMode = 'SWITCH'; // JANGAN BERLAKUKAN MODE KUMULATIF
+      const persistentMode = 'SWITCH';
 
       const isDevUser = Boolean(currentUser.is_developer || currentUser.level === 0 || currentUser.username === 'emenje');
       const origDevUser = isDevUser ? (currentUser.original_dev_id ? getUserById(currentUser.original_dev_id) : (currentDbUser || currentUser)) : null;
+      const baseUser = (targetRoleId === 10 && Number(activeRole.level) === 0 && origDevUser) ? origDevUser : currentUser;
 
       const updatedUser = {
-        ...currentUser,
+        ...baseUser,
         role_mode: persistentMode,
         level: Number(activeRole.level),
         pic_subbag: String(activeRole.pic || 'SEMUA').toUpperCase(),
         mode_akses: String(activeRole.mode_akses || 'VIEWER').toUpperCase(),
-        active_role: activeRole,
+        active_role: { ...activeRole, user_id: baseUser.id },
         is_developer: isDevUser,
-        original_dev_id: origDevUser ? origDevUser.id : currentUser.id,
-        original_dev_username: origDevUser ? origDevUser.username : currentUser.username
+        original_dev_id: origDevUser ? origDevUser.id : baseUser.id,
+        original_dev_username: origDevUser ? origDevUser.username : baseUser.username
       };
 
       const token = createToken(updatedUser, origDevUser, {

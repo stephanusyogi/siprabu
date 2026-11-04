@@ -1502,13 +1502,17 @@ function seedMasterRegulasiJdih() {
   try {
     // Pastikan NPHD tidak pernah masuk ke dalam daftar produk hukum / regulasi
     db.prepare("DELETE FROM master_regulasi WHERE UPPER(COALESCE(jenis_produk,'')) LIKE '%NPHD%' OR UPPER(COALESCE(nomor_peraturan,'')) LIKE '%NPHD%' OR UPPER(COALESCE(nomor_regulasi,'')) LIKE '%NPHD%' OR UPPER(COALESCE(tentang,'')) LIKE '%NASKAH PERJANJIAN HIBAH DAERAH%'").run();
+    // Bersihkan duplikat historis dari db_pengadaan.js (no_urut >= 90 / REGULASI_NASIONAL), Perpres 16/2018 terpisah, dan gabungan LKPP 3 & 5 Tahun 2021
+    db.prepare("DELETE FROM master_regulasi WHERE kategori = 'REGULASI_NASIONAL' OR no_urut >= 90").run();
+    db.prepare("DELETE FROM master_regulasi WHERE nomor_peraturan = 'Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021'").run();
+    db.prepare("DELETE FROM master_regulasi WHERE nomor_peraturan LIKE '%Peraturan LKPP Nomor 3 Tahun 2021 & Peraturan LKPP Nomor 5 Tahun 2021%'").run();
 
     // Hapus duplikasi historis jika nomor_peraturan atau BAS sama persis
     try {
       const allRegs = db.prepare("SELECT id, nomor_peraturan, tentang FROM master_regulasi ORDER BY id ASC").all();
       const seenKey = new Set();
       for (const reg of allRegs) {
-        const key = reg.tentang.includes('Bagan Akun Standar') ? 'BAS' : reg.nomor_peraturan.trim();
+        const key = (reg.tentang || '').includes('Bagan Akun Standar') ? 'BAS' : (reg.nomor_peraturan || '').trim();
         if (key && seenKey.has(key)) {
           db.prepare("DELETE FROM master_regulasi WHERE id = ?").run(reg.id);
         } else if (key) {
@@ -1548,20 +1552,6 @@ function seedMasterRegulasiJdih() {
       },
       {
         no_urut: 3,
-        jenis_produk: 'PP / PERPRES',
-        nomor_peraturan: 'Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021',
-        tahun: 2021,
-        tentang: 'Pengadaan Barang/Jasa Pemerintah',
-        lingkup_anggaran: 'PELAKSANAAN',
-        status_berlaku: 'Berlaku',
-        instansi_penetap: 'Presiden Republik Indonesia',
-        modul_terkait: 'Pelaksanaan Pengadaan Logistik Pemilihan, APK/BK & Kontrak Belanja Barang/Jasa',
-        abstrak: 'Mengatur tata cara pemilihan penyedia, e-Purchasing melalui Katalog Elektronik, pengadaan langsung, tender cepat, pengelolaan kontrak oleh Pejabat Pembuat Komitmen (PPK), serta serah terima hasil pekerjaan barang/jasa dan logistik Pemilihan.',
-        tautan_dokumen: 'https://jdih.lkpp.go.id/',
-        file_pdf_nama: ''
-      },
-      {
-        no_urut: 4,
         jenis_produk: 'PERMENDAGRI',
         nomor_peraturan: 'Permendagri Nomor 54 Tahun 2019 jo. Permendagri Nomor 41 Tahun 2020',
         tahun: 2020,
@@ -1575,12 +1565,12 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: 'https://drive.google.com/file/d/1s87pXNi51FtRylk1-LSCWvAInXhPK-r8/view?usp=sharing'
       },
       {
-        no_urut: 5,
+        no_urut: 4,
         jenis_produk: 'KEP GUBERNUR',
         nomor_peraturan: 'Keputusan Gubernur Jawa Timur Nomor 188/87/KPTS/013/2022',
         tahun: 2022,
         tentang: 'Komponen Pendanaan Bersama Antara Pemerintah Provinsi Jawa Timur dan Pemerintah Kabupaten/Kota dalam Penyelenggaraan Pilkada Serentak Tahun 2024 di Provinsi Jawa Timur',
-        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        lingkup_anggaran: 'PENYUSUNAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Gubernur Jawa Timur',
         modul_terkait: 'Cost Sharing (Rekap Sumber Dana APBD Jatim vs APBD Kab Ngawi) & Beban Adhoc',
@@ -1589,7 +1579,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: 'https://drive.google.com/file/d/1YA8kAwXGXC-8gb6EIeWYaae-fTNq5KoK/view?usp=sharing'
       },
       {
-        no_urut: 6,
+        no_urut: 5,
         jenis_produk: 'PMK',
         nomor_peraturan: 'PMK Nomor 62 Tahun 2023',
         tahun: 2023,
@@ -1603,7 +1593,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: ''
       },
       {
-        no_urut: 7,
+        no_urut: 6,
         jenis_produk: 'PMK',
         nomor_peraturan: 'PMK Nomor 49 Tahun 2023 / PMK Nomor 39 Tahun 2024',
         tahun: 2024,
@@ -1617,7 +1607,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: ''
       },
       {
-        no_urut: 8,
+        no_urut: 7,
         jenis_produk: 'PMK',
         nomor_peraturan: 'PMK Nomor 181/PMK.05/2022 jo. PMK Nomor 204/PMK.05/2020',
         tahun: 2022,
@@ -1631,7 +1621,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: ''
       },
       {
-        no_urut: 9,
+        no_urut: 8,
         jenis_produk: 'KEP / PEDOMAN',
         nomor_peraturan: 'PMK Nomor 214/PMK.05/2013 jo. PER-13/PB/2023 & KEP-331/PB/2021',
         tahun: 2023,
@@ -1645,7 +1635,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: ''
       },
       {
-        no_urut: 10,
+        no_urut: 9,
         jenis_produk: 'PKPU',
         nomor_peraturan: 'PKPU Nomor 2 Tahun 2024',
         tahun: 2024,
@@ -1659,12 +1649,12 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: ''
       },
       {
-        no_urut: 11,
+        no_urut: 10,
         jenis_produk: 'PKPU',
         nomor_peraturan: 'PKPU Nomor 8 Tahun 2022',
         tahun: 2022,
         tentang: 'Pembentukan dan Tata Kerja Badan Adhoc Penyelenggara Pemilihan Umum dan Pemilihan Gubernur dan Wakil Gubernur, Bupati dan Wakil Bupati, dan Walikota dan Wakil Walikota',
-        lingkup_anggaran: 'PENYUSUNAN & PELAKSANAAN',
+        lingkup_anggaran: 'PENYUSUNAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Komisi Pemilihan Umum RI',
         modul_terkait: 'Kuantitas SSOT Personil Adhoc (PPK, PPS, KPPS, Pantarlih & Sekretariat)',
@@ -1673,7 +1663,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: ''
       },
       {
-        no_urut: 12,
+        no_urut: 11,
         jenis_produk: 'KPT KPU',
         nomor_peraturan: 'Keputusan KPU Nomor 543 Tahun 2022',
         tahun: 2022,
@@ -1687,7 +1677,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: 'https://drive.google.com/file/d/1q5PVr1ikAkowK9_OvQDMMGlegibM22E_/view?usp=sharing'
       },
       {
-        no_urut: 13,
+        no_urut: 12,
         jenis_produk: 'KPT KPU',
         nomor_peraturan: 'Keputusan KPU Nomor 472 Tahun 2022 jo. Surat Menkeu S-647/MK.02/2022',
         tahun: 2022,
@@ -1701,7 +1691,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: 'https://drive.google.com/file/d/1l_jFMEWkPS64eECp2sbYZHg9RlFfh8nX/view?usp=sharing'
       },
       {
-        no_urut: 14,
+        no_urut: 13,
         jenis_produk: 'KPT KPU',
         nomor_peraturan: 'Keputusan KPU Nomor 59 Tahun 2023',
         tahun: 2023,
@@ -1715,7 +1705,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: 'https://drive.google.com/file/d/1zluapzNFPCuDhBnPuY1yzmPt1Shs5emd/view?usp=sharing'
       },
       {
-        no_urut: 15,
+        no_urut: 14,
         jenis_produk: 'KPT KPU',
         nomor_peraturan: 'Keputusan KPU Nomor 574 Tahun 2023 jo. Keputusan KPU Nomor 188 Tahun 2024',
         tahun: 2024,
@@ -1729,7 +1719,7 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: ''
       },
       {
-        no_urut: 16,
+        no_urut: 15,
         jenis_produk: 'KPT KPU',
         nomor_peraturan: 'Keputusan KPU Nomor 1394 Tahun 2023 & Keputusan KPU Nomor 1396 Tahun 2023',
         tahun: 2023,
@@ -1743,58 +1733,72 @@ function seedMasterRegulasiJdih() {
         file_pdf_nama: 'https://drive.google.com/file/d/1Nia5CcEHqFImESaMpWzf8xeDhfQ7OEhL/view?usp=sharing'
       },
       {
-        no_urut: 17,
+        no_urut: 16,
         jenis_produk: 'PP / PERPRES',
-        nomor_peraturan: 'Peraturan Presiden Nomor 46 Tahun 2025 jo. Perpres Nomor 16 Tahun 2018 & Perpres Nomor 12 Tahun 2021',
+        nomor_peraturan: 'Peraturan Presiden Nomor 46 Tahun 2025 jo. Perpres Nomor 12 Tahun 2021 jo. Perpres Nomor 16 Tahun 2018',
         tahun: 2025,
         tentang: 'Perubahan Kedua atas Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah',
         lingkup_anggaran: 'PENGADAAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Presiden Republik Indonesia',
         modul_terkait: 'Kokpit 18 Tahap Pengadaan, Rekap Pengadaan, Pemenuhan PDN/TKDN & Alokasi UMK 40%',
-        abstrak: 'Payung hukum utama Pengadaan Barang/Jasa Pemerintah terbaru. Mengatur kewajiban hierarki Produk Dalam Negeri (PDN) dengan TKDN + BMP minimal 40% (Pasal 66), alokasi minimal 40% anggaran barang/jasa untuk Usaha Mikro, Usaha Kecil, dan Koperasi (Pasal 65), uang muka wajib bagi penyedia UMK (Pasal 29), penguatan E-Purchasing Katalog Elektronik, serta kenaikan batas Pengadaan Langsung Pekerjaan Konstruksi menjadi sampai dengan Rp400.000.000.',
+        abstrak: 'Payung hukum utama Pengadaan Barang/Jasa Pemerintah terbaru. Mengatur kewajiban hierarki Produk Dalam Negeri (PDN) dengan TKDN + BMP minimal 40% (Pasal 66), alokasi minimal 40% anggaran barang/jasa untuk Usaha Mikro, Usaha Kecil, dan Koperasi (Pasal 65), uang muka wajib bagi penyedia UMK (Pasal 29), penguatan E-Purchasing Katalog Elektronik Generasi Terbaru (v6), serta kenaikan batas Pengadaan Langsung Pekerjaan Konstruksi menjadi sampai dengan Rp400.000.000.',
+        tautan_dokumen: 'https://jdih.lkpp.go.id/',
+        file_pdf_nama: ''
+      },
+      {
+        no_urut: 17,
+        jenis_produk: 'PERLEM LKPP',
+        nomor_peraturan: 'Peraturan LKPP Nomor 2 Tahun 2026',
+        tahun: 2026,
+        tentang: 'Pedoman Perencanaan Pengadaan Barang/Jasa Pemerintah',
+        lingkup_anggaran: 'PENGADAAN',
+        status_berlaku: 'Berlaku',
+        instansi_penetap: 'Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP)',
+        modul_terkait: 'Kokpit 18 Tahap (Fase I: Tahap 1 s.d. Tahap 5 — Identifikasi Kebutuhan, Pemaketan, Konsolidasi & RUP SiRUP)',
+        abstrak: 'Pedoman operasional Fase I Perencanaan Pengadaan Barang/Jasa Pemerintah (Tahap 1 s.d. Tahap 5), mencakup identifikasi kebutuhan barang/jasa dari RKB/DIPA, penetapan jenis barang/jasa, penetapan cara pengadaan (Penyedia/Swakelola), pemaketan & konsolidasi (larangan memecah paket untuk menghindari tender), pemenuhan porsi PDN/UMK-Koperasi, serta penayangan Rencana Umum Pengadaan (RUP) pada aplikasi SiRUP.',
         tautan_dokumen: 'https://jdih.lkpp.go.id/',
         file_pdf_nama: ''
       },
       {
         no_urut: 18,
         jenis_produk: 'PERLEM LKPP',
-        nomor_peraturan: 'Peraturan LKPP Nomor 2 Tahun 2026',
+        nomor_peraturan: 'Peraturan LKPP Nomor 3 Tahun 2026 (Lampiran I, II, & III)',
         tahun: 2026,
-        tentang: 'Pedoman Penyelenggaraan E-Purchasing Katalog Elektronik Generasi Terbaru (v6) dan Toko Daring',
+        tentang: 'Pedoman Pengadaan Barang/Jasa Pemerintah Melalui Penyedia (Lampiran I Nonkonstruksi, Lampiran II Pekerjaan Konstruksi, Lampiran III Pelaksanaan Kontrak & E-Purchasing Katalog Elektronik v6)',
         lingkup_anggaran: 'PENGADAAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP)',
-        modul_terkait: 'Kokpit 18 Tahap (E-Purchasing Katalog v6), Referensi Harga & Surat Pesanan',
-        abstrak: 'Mengatur tata cara pemilihan penyedia melalui E-Purchasing Katalog Elektronik (Negosiasi Harga dan Mini-Kompetisi), pembebasan kewajiban penyusunan HPS untuk E-Purchasing bernilai sampai dengan Rp100.000.000 (digantikan kertas kerja Referensi Harga & Bukti Survei Etalase sesuai Pasal 9), kewajiban penilaian kinerja penyedia oleh PPK di sistem katalog sebelum pembayaran (Pasal 8), serta ketentuan Jaminan Pelaksanaan 5% untuk E-Purchasing di atas Rp200.000.000.',
+        modul_terkait: 'Kokpit 18 Tahap (Fase II–V: Tahap 6 s.d. Tahap 18 — Persiapan PPK, HPS/Referensi Harga, Pemilihan Penyedia, Kontrak, BAST/PHO/FHO & Evaluasi Kinerja)',
+        abstrak: 'Pedoman teknis operasional hulu-ke-hilir Pengadaan Barang/Jasa melalui Penyedia (Fase II s.d. Fase V: Tahap 6 s.d. Tahap 18). Mencakup penyusunan Spesifikasi Teknis/KAK, Kertas Kerja HPS vs Referensi Harga Pasar (pembebasan HPS untuk E-Purchasing <= Rp100 Juta), E-Purchasing Katalog Elektronik v6 (Negosiasi Harga & Mini-Kompetisi), Pengadaan Langsung Barang/Jasa Lainnya/Konsultansi & Konstruksi s.d. Rp400 Juta, Penetapan Bentuk Kontrak (Bukti Pembelian, Kuitansi, SPK, Surat Perjanjian, Surat Pesanan), pengendalian kontrak kritis (SCM), BAST/PHO/FHO, hingga penilaian kinerja penyedia.',
         tautan_dokumen: 'https://jdih.lkpp.go.id/',
         file_pdf_nama: ''
       },
       {
         no_urut: 19,
         jenis_produk: 'PERLEM LKPP',
-        nomor_peraturan: 'Peraturan LKPP Nomor 3 Tahun 2026 (Lampiran I, II, & III)',
-        tahun: 2026,
-        tentang: 'Pedoman Pengadaan Barang/Jasa Melalui Penyedia (Barang, Jasa Lainnya, Konsultansi Nonkonstruksi, Pekerjaan Konstruksi & Konsultansi Konstruksi)',
+        nomor_peraturan: 'Peraturan LKPP Nomor 3 Tahun 2021',
+        tahun: 2021,
+        tentang: 'Pedoman Swakelola',
         lingkup_anggaran: 'PENGADAAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP)',
-        modul_terkait: 'Kokpit 18 Tahap, HPS/AHSP, Bentuk Kontrak (Bukti Pembelian/Kuitansi/SPK/Surat Perjanjian) & Konstruksi',
-        abstrak: 'Pedoman teknis operasional hulu-ke-hilir Pengadaan Barang/Jasa melalui Penyedia. Mencakup penyusunan Spesifikasi Teknis/KAK, HPS/Kertas Kerja AHSP Konstruksi, Dokumen Pemilihan, Evaluasi Penawaran, Penetapan Bentuk Kontrak berdasarkan nilai (Bukti Pembelian/Kuitansi, SPK, Surat Perjanjian, Surat Pesanan), pengendalian kontrak kritis (Show Cause Meeting/SCM), Serah Terima Pekerjaan (BAST / PHO & FHO Konstruksi), hingga masa pemeliharaan dan retensi 5%.',
+        modul_terkait: 'Kokpit Pengadaan Swakelola (Tipe I Internal KPU/Pokja, Tipe II Instansi Pemerintah Lain, Tipe III PTN/Ormas & Tipe IV Pokmas)',
+        abstrak: 'Mengatur perencanaan, persiapan, pelaksanaan, pengawasan, penyerahan hasil pekerjaan, dan pertanggungjawaban kegiatan yang diselenggarakan secara Swakelola Tipe I (direncanakan, dilaksanakan, dan diawasi sendiri oleh Satker KPU/Pokja), Tipe II (K/L/PD Lain), Tipe III (PTN/Ormas), dan Tipe IV (Kelompok Masyarakat).',
         tautan_dokumen: 'https://jdih.lkpp.go.id/',
         file_pdf_nama: ''
       },
       {
         no_urut: 20,
         jenis_produk: 'PERLEM LKPP',
-        nomor_peraturan: 'Peraturan LKPP Nomor 3 Tahun 2021 & Peraturan LKPP Nomor 5 Tahun 2021',
+        nomor_peraturan: 'Peraturan LKPP Nomor 5 Tahun 2021',
         tahun: 2021,
-        tentang: 'Pedoman Swakelola (Tipe I, II, III, dan IV) serta Pedoman Pengadaan Barang/Jasa yang Dikecualikan pada Pengadaan Barang/Jasa Pemerintah',
+        tentang: 'Pedoman Pengadaan Barang/Jasa yang Dikecualikan pada Pengadaan Barang/Jasa Pemerintah',
         lingkup_anggaran: 'PENGADAAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP)',
-        modul_terkait: 'Kokpit Pengadaan Swakelola Tipe I–IV & Pengadaan Dikecualikan (Tarif Resmi/Lelang/Praktik Bisnis)',
-        abstrak: 'Mengatur penyelenggaraan kegiatan secara Swakelola Tipe I (dikerjakan sendiri oleh Satker KPU/Pokja), Tipe II (Instansi Pemerintah Lain), Tipe III (Ormas/Perguruan Tinggi Swasta), dan Tipe IV (Kelompok Masyarakat), serta tata cara pengadaan barang/jasa yang dikecualikan (tarif barang/jasa yang dipublikasikan secara luas atau praktik bisnis yang mapan).',
+        modul_terkait: 'Kokpit Pengadaan Dikecualikan (Tarif Resmi Pemerintah/Publik & Praktik Bisnis yang Sudah Mapan)',
+        abstrak: 'Mengatur tata cara pengadaan barang/jasa yang dikecualikan dari prosedur umum PBJ Pemerintah, meliputi barang/jasa yang tarifnya ditetapkan pemerintah atau dipublikasikan secara luas (Listrik PLN, Air PDAM, Telepon/Internet, BBM, Publikasi Media) serta barang/jasa yang pelaksanaannya mengikuti praktik bisnis yang sudah mapan (sewa hotel/gedung pertemuan, jasa profesi narasumber/moderator/juri).',
         tautan_dokumen: 'https://jdih.lkpp.go.id/',
         file_pdf_nama: ''
       },
@@ -1807,7 +1811,7 @@ function seedMasterRegulasiJdih() {
         lingkup_anggaran: 'PENGADAAN',
         status_berlaku: 'Berlaku',
         instansi_penetap: 'Komisi Pemilihan Umum RI',
-        modul_terkait: 'Daftar Paket Pengadaan, KAK & Spesifikasi Teknis Logistik/operasional Tahapan Pilkada',
+        modul_terkait: 'Daftar Paket Pengadaan, KAK & Spesifikasi Teknis Logistik/Operasional Tahapan Pilkada',
         abstrak: 'Pedoman internal KPU mengenai sinkronisasi mata anggaran RKB/DIPA ke dalam Rencana Umum Pengadaan (RUP SiRUP), pembagian kewenangan KPA, PPK, dan Pejabat Pengadaan di tingkat KPU Kabupaten/Kota, pengendalian mutu perlengkapan pemungutan suara dan barang/jasa tahapan Pemilihan, serta tertib arsip 18 tahap pengadaan.',
         tautan_dokumen: 'https://jdih.kpu.go.id/',
         file_pdf_nama: ''
@@ -1835,8 +1839,8 @@ function seedMasterRegulasiJdih() {
         existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%543%'").get();
       } else if (r.nomor_peraturan.includes('472')) {
         existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%472%'").get();
-      } else if (r.nomor_peraturan.includes('59 Tahun 2023') || r.nomor_peraturan.includes('59')) {
-        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%59%'").get();
+      } else if (r.nomor_peraturan.includes('59 Tahun 2023')) {
+        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%59 Tahun 2023%'").get();
       } else if (r.nomor_peraturan.includes('188/87')) {
         existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%188/87%' OR tentang LIKE '%Pendanaan Bersama%'").get();
       } else if (r.nomor_peraturan.includes('574')) {
@@ -1853,6 +1857,20 @@ function seedMasterRegulasiJdih() {
         existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%PKPU Nomor 2%'").get();
       } else if (r.nomor_peraturan.includes('PKPU Nomor 8')) {
         existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%PKPU Nomor 8%'").get();
+      } else if (r.nomor_peraturan.includes('46 Tahun 2025')) {
+        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%46 Tahun 2025%'").get();
+      } else if (r.nomor_peraturan.includes('LKPP Nomor 2 Tahun 2026')) {
+        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%LKPP Nomor 2 Tahun 2026%'").get();
+      } else if (r.nomor_peraturan.includes('LKPP Nomor 3 Tahun 2026')) {
+        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%LKPP Nomor 3 Tahun 2026%'").get();
+      } else if (r.nomor_peraturan === 'Peraturan LKPP Nomor 3 Tahun 2021') {
+        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan = 'Peraturan LKPP Nomor 3 Tahun 2021'").get();
+      } else if (r.nomor_peraturan === 'Peraturan LKPP Nomor 5 Tahun 2021') {
+        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan = 'Peraturan LKPP Nomor 5 Tahun 2021'").get();
+      } else if (r.nomor_peraturan.includes('534 Tahun 2022')) {
+        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%534 Tahun 2022%'").get();
+      } else if (r.nomor_peraturan.includes('Instruksi Presiden Nomor 2 Tahun 2022')) {
+        existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan LIKE '%Instruksi Presiden Nomor 2 Tahun 2022%'").get();
       } else {
         existing = db.prepare("SELECT id FROM master_regulasi WHERE nomor_peraturan = ?").get(r.nomor_peraturan);
       }
@@ -2170,7 +2188,7 @@ function checkRowEditPermission(periodeId, subbag, user = null) {
       isAuthorized = user.roles.some(r => {
         const rPic = normalizePic(r.pic);
         const isEditor = String(r.mode_akses).toUpperCase() !== 'VIEWER';
-        const isLevelOk = Number(r.level) <= 2;
+        const isLevelOk = Number(r.level) <= 3;
         return isEditor && isLevelOk && (rPic === cleanSubbag || rPic === 'SEMUA');
       });
     }
@@ -4806,6 +4824,53 @@ function toggleUserStatus(userId, actorUser = null) {
   return { success: true, is_active: newStatus, message: `Status akun "${target.username}" diubah menjadi ${newStatus ? 'Aktif' : 'Nonaktif'}.` };
 }
 
+function buildAuthenticatedUserPayload(u, tokenVersion, overrideEmail = null, overrideAvatar = null) {
+  let userRoles = getUserRoles(u.id);
+  if (!Array.isArray(userRoles) || userRoles.length === 0) {
+    const defaultMode = [0, 1, 2, 3, 8, 9, 10, 11, 12].includes(Number(u.level)) && !String(u.username || '').startsWith('divisi_') ? 'EDITOR' : 'VIEWER';
+    userRoles = [{
+      id: 0,
+      user_id: u.id,
+      level: Number(u.level),
+      pic: String(u.pic_subbag || 'SEMUA').toUpperCase(),
+      mode_akses: defaultMode,
+      is_default: 1,
+      label_peran: u.jabatan || u.nama_pejabat
+    }];
+  }
+  const activeRole = userRoles.find(r => Number(r.is_default) === 1) || userRoles[0];
+  const roleMode = String(u.role_mode || 'SWITCH').toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH';
+  const isKumulatif = (roleMode === 'KUMULATIF');
+  const uniquePics = Array.from(new Set(userRoles.map(r => String(r.pic || 'SEMUA').toUpperCase())));
+
+  return {
+    id: u.id,
+    username: u.username,
+    nama_pejabat: u.nama_pejabat,
+    jabatan: u.jabatan,
+    nip: u.nip || '',
+    nik: u.nik || '',
+    no_hp: u.no_hp || '',
+    role_id: u.role_id,
+    roles: userRoles,
+    active_role: activeRole,
+    role_mode: roleMode,
+    can_delete: u.can_delete !== undefined ? Number(u.can_delete) : 1,
+    level: isKumulatif
+      ? Math.min(...userRoles.map(r => Number(r.level)))
+      : (activeRole ? Number(activeRole.level) : Number(u.level)),
+    pic_subbag: isKumulatif
+      ? (uniquePics.includes('SEMUA') || uniquePics.length > 1 ? 'SEMUA' : (uniquePics[0] || String(u.pic_subbag || 'SEMUA').toUpperCase()))
+      : (activeRole ? String(activeRole.pic || 'SEMUA').toUpperCase() : String(u.pic_subbag || 'SEMUA').toUpperCase()),
+    mode_akses: isKumulatif
+      ? (userRoles.some(r => String(r.mode_akses).toUpperCase() === 'EDITOR') ? 'EDITOR' : 'VIEWER')
+      : (activeRole ? String(activeRole.mode_akses || 'VIEWER').toUpperCase() : ([4, 5, 6, 7].includes(Number(u.level)) ? 'VIEWER' : 'EDITOR')),
+    email: overrideEmail || u.email || '',
+    avatar_url: overrideAvatar || u.avatar_url || '',
+    token_version: tokenVersion
+  };
+}
+
 function authenticateUser(username, password) {
   if (!username || !password) return null;
   const u = db.prepare('SELECT * FROM satker_users WHERE username = ? AND is_active = 1').get(username);
@@ -4839,7 +4904,7 @@ function authenticateUser(username, password) {
     pic_subbag: u.pic_subbag,
     email: u.email || '',
     avatar_url: u.avatar_url || '',
-    token_version: nextTokenVersion,
+    token_version: nextTokenVersion, ...buildAuthenticatedUserPayload(u, nextTokenVersion),
     role_mode: u.role_mode || 'SWITCH'
   };
 }
@@ -4881,7 +4946,7 @@ function authenticateGoogleUser(googleProfile) {
     pic_subbag: u.pic_subbag,
     email: u.email || email,
     avatar_url: googleProfile.picture || u.avatar_url || '',
-    token_version: nextGoogleTokenVersion,
+    token_version: nextGoogleTokenVersion, ...buildAuthenticatedUserPayload(u, nextGoogleTokenVersion, u.email || email, googleProfile.picture || u.avatar_url || ''),
     role_mode: u.role_mode || 'SWITCH'
   };
 }
