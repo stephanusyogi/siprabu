@@ -1696,11 +1696,24 @@ function applyRolePermissionsToUI() {
   // Jika dalam mode SWITCH memiliki pic spesifik (bukan 'SEMUA'), atau mode KUMULATIF hanya 1 subbag spesifik, kunci filter RKB ke subbagnya
   const filterPicEl = document.getElementById('filter-pic');
   if (filterPicEl) {
+    const matrix = AppState.ruhPicMatrix || (AppState.masters && AppState.masters.ruhPicMatrix);
+    const ruhRow = (Array.isArray(matrix) && matrix.length > 0)
+      ? (matrix.find(m => String(m.pic_key).toUpperCase() === 'RUH_BELANJA_AGREGASI' || String(m.pic_key).toUpperCase() === 'RUH_BELANJA') || matrix[0])
+      : null;
+    let ruhMode = ruhRow ? String(ruhRow['mode_l' + activeLevel] || '').toUpperCase() : '';
+    if (ruhMode === 'VIEWER') ruhMode = 'VIEWER_ALL';
+    if (!ruhMode) {
+      ruhMode = (activeLevel <= 1) ? 'EDITOR_ALL' : ((activeLevel <= 3) ? 'EDITOR_PIC' : 'VIEWER_ALL');
+    }
+
     const isMultiSubbagKumulatif = isKumulatif && (userPics.has('SEMUA') || userPics.size > 1);
-    if (!isMultiSubbagKumulatif && activePic && activePic !== 'SEMUA') {
+    const isScopedPic = (ruhMode === 'EDITOR_PIC' || ruhMode === 'VIEWER_PIC') && !isMultiSubbagKumulatif && activePic && activePic !== 'SEMUA';
+
+    if (isScopedPic) {
+      // Disaring / disembunyikan subbag lain sesuai arahan Mas emenje
       filterPicEl.value = activePic;
       filterPicEl.disabled = true;
-      filterPicEl.title = `Terkunci: Anda bertugas pada Subbagian/Divisi ${activePic}`;
+      filterPicEl.title = `Terkunci: Berdasarkan Matriks RUH (${ruhMode}), wewenang Anda disaring khusus Subbagian ${activePic}`;
       AppState.filters.pic = activePic;
     } else {
       if (filterPicEl.disabled) {
@@ -3288,7 +3301,7 @@ function renderSiklus() {
 
   const btnBuatRevisi = document.getElementById('btn-buat-revisi');
   if (btnBuatRevisi) {
-    btnBuatRevisi.style.display = (user && user.level === 2) ? 'inline-flex' : 'none';
+    btnBuatRevisi.style.display = (user && (user.level === 2 || user.level === 3) && user.mode_akses !== 'VIEWER') ? 'inline-flex' : 'none';
   }
 
   if (actionContainer) {
@@ -4519,7 +4532,10 @@ function renderRkbTable() {
       : `<span style="display:inline-block;width:24px;"></span>`;
 
     const pic = (r.pic_bagian || 'KUL').toUpperCase();
-    const picChip = `<span class="pic-chip pic-${pic}" onclick="openQuickPicModal(${r.id}, event)" title="Klik untuk mengubah Subbagian PIC baris ini">${pic}</span>`;
+    const canChangePic = Boolean(user && Number(user.level) <= 1);
+    const picChip = canChangePic
+      ? `<span class="pic-chip pic-${pic}" onclick="openQuickPicModal(${r.id}, event)" title="Klik untuk mengubah Subbagian PIC baris ini">${pic}</span>`
+      : `<span class="pic-chip pic-${pic}" style="cursor: default;" title="Subbagian PIC: ${pic}">${pic}</span>`;
     const showPic = lvl >= 2 || isItem;
 
     const targetSas = (r.effective_target_scope || r.target_scope || (r.is_header ? 'NONE' : 'KAB')).toUpperCase();
@@ -4739,27 +4755,42 @@ function renderRkbTable() {
 function checkCanEditRow(user, row, isLocked) {
   if (!user) return false;
   if (isLocked) {
-    if (Number(user.level) === 0) return true; // Developer bypass
+    if (Number(user.level) === 0) return true; // Developer emergency bypass
     return false;
   }
-  if (Number(user.level) === 0 || Number(user.level) === 1) return true;
-  if (Number(user.level) === 3 || user.mode_akses === 'VIEWER') return false;
-  if (Number(user.level) === 2) {
-    if (user.mode_akses && user.mode_akses !== 'EDITOR') return false;
-    let userSub = (user.pic_subbag || '').toUpperCase();
-    if (userSub === 'PERENCANAAN') userSub = 'RENDATIN';
-    if (userSub === 'KEUANGAN') userSub = 'KUL';
-    if (userSub === 'PARMAS') userSub = 'PARSDM';
-    if (userSub === 'SEMUA') return true;
+  if (Number(user.level) === 0) return true;
+  if (user.mode_akses === 'VIEWER') return false;
 
-    let rowPic = (row.pic_bagian || '').toUpperCase();
-    if (rowPic === 'PERENCANAAN') rowPic = 'RENDATIN';
-    if (rowPic === 'KEUANGAN') rowPic = 'KUL';
-    if (rowPic === 'PARMAS') rowPic = 'PARSDM';
+  const rowPic = (row.pic_bagian || 'KUL').toUpperCase();
+  const userPic = (user.pic_subbag || (user.active_role ? user.active_role.pic : 'SEMUA')).toUpperCase();
+  const userLvl = Number(user.level);
 
-    return userSub === rowPic;
+  // 1. Evaluasi berbasis Matriks Hak Akses RUH Dinamis (app_ruh_pic_matrix)
+  const matrix = AppState.ruhPicMatrix || (AppState.masters && AppState.masters.ruhPicMatrix);
+  if (Array.isArray(matrix) && matrix.length > 0) {
+    const ruhRow = matrix.find(m => String(m.pic_key).toUpperCase() === 'RUH_BELANJA_AGREGASI' || String(m.pic_key).toUpperCase() === 'RUH_BELANJA')
+                || matrix[0];
+    if (ruhRow) {
+      const isAllowed = Boolean(ruhRow['allow_l' + userLvl]);
+      let mode = String(ruhRow['mode_l' + userLvl] || 'VIEWER_ALL').toUpperCase();
+      if (mode === 'VIEWER') mode = 'VIEWER_ALL';
+
+      if (!isAllowed || mode === 'NONE' || mode === 'VIEWER_PIC' || mode === 'VIEWER_ALL') {
+        return false;
+      }
+      if (mode === 'EDITOR_ALL') return true; // Mandat Konsolidator Lintas PIC
+      if (mode === 'EDITOR_PIC') {
+        if (userPic === 'SEMUA') return true;
+        return userPic === rowPic; // Isolasi Subbagian (subbag lain disaring/disembunyikan)
+      }
+    }
   }
-  return false;
+
+  // 2. Fallback konservatif jika matriks belum termuat di memori
+  if (userLvl === 1) return true;
+  if ([4, 5, 6, 7].includes(userLvl)) return false;
+  if (userPic === 'SEMUA') return true;
+  return userPic === rowPic;
 }
 
 function applyRkbFilters() {
@@ -10843,26 +10874,32 @@ function switchMatrixTab(tab) {
   activeMatrixTab = tab;
   const btnMenu = document.getElementById('tab-btn-matrix-menu');
   const btnSheet = document.getElementById('tab-btn-matrix-sheet');
+  const btnRuh = document.getElementById('tab-btn-matrix-ruh');
   const contentMenu = document.getElementById('matrix-tab-content-menu');
   const contentSheet = document.getElementById('matrix-tab-content-sheet');
+  const contentRuh = document.getElementById('matrix-tab-content-ruh');
 
-  if (tab === 'sheet') {
-    if (btnMenu) { btnMenu.className = 'btn btn-sm btn-outline'; }
-    if (btnSheet) { btnSheet.className = 'btn btn-sm btn-primary'; }
-    if (contentMenu) contentMenu.style.display = 'none';
-    if (contentSheet) contentSheet.style.display = 'block';
+  if (btnMenu) btnMenu.className = (tab === 'menu') ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  if (btnSheet) btnSheet.className = (tab === 'sheet') ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  if (btnRuh) btnRuh.className = (tab === 'ruh') ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+
+  if (contentMenu) contentMenu.style.display = (tab === 'menu') ? 'block' : 'none';
+  if (contentSheet) contentSheet.style.display = (tab === 'sheet') ? 'block' : 'none';
+  if (contentRuh) contentRuh.style.display = (tab === 'ruh') ? 'block' : 'none';
+
+  if (tab === 'ruh') {
+    loadRuhPicMatrixView();
+  } else if (tab === 'sheet') {
     loadSheetMatrixView();
   } else {
-    if (btnMenu) { btnMenu.className = 'btn btn-sm btn-primary'; }
-    if (btnSheet) { btnSheet.className = 'btn btn-sm btn-outline'; }
-    if (contentMenu) contentMenu.style.display = 'block';
-    if (contentSheet) contentSheet.style.display = 'none';
     loadMenuMatrixView();
   }
 }
 
 function reloadCurrentMatrixView() {
-  if (activeMatrixTab === 'sheet') {
+  if (activeMatrixTab === 'ruh') {
+    loadRuhPicMatrixView();
+  } else if (activeMatrixTab === 'sheet') {
     loadSheetMatrixView();
   } else {
     loadMenuMatrixView();
@@ -10870,7 +10907,9 @@ function reloadCurrentMatrixView() {
 }
 
 function saveCurrentMatrixAction() {
-  if (activeMatrixTab === 'sheet') {
+  if (activeMatrixTab === 'ruh') {
+    saveRuhPicMatrixAction();
+  } else if (activeMatrixTab === 'sheet') {
     saveSheetMatrixAction();
   } else {
     saveMenuMatrixAction();
@@ -11021,6 +11060,171 @@ async function saveSheetMatrixAction() {
     showToast(res.message || 'Matriks hak akses sheet & sumber dana berhasil disimpan.', 'success');
   } catch (err) {
     showToast('Gagal menyimpan matriks sheet: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ============================================================================
+// MODUL MANAJEMEN MATRIKS HAK AKSES RUH BELANJA (PIC VS LEVEL) - BAB 26 CANON
+// ============================================================================
+
+async function loadRuhPicMatrix() {
+  try {
+    const res = await apiFetch('/api/ruh-pic-matrix');
+    if (res && res.matrix) {
+      AppState.ruhPicMatrix = res.matrix;
+    }
+  } catch (e) {
+    console.warn('[RUH-PIC-MATRIX] Gagal memuat matriks RUH:', e);
+  }
+}
+
+async function loadRuhPicMatrixView() {
+  const tbody = document.getElementById('ruh-matrix-table-body');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="16" class="text-center" style="padding: 24px; color: #64748b;">Memuat konfigurasi hak akses RUH belanja...</td></tr>';
+  }
+  try {
+    const res = await apiFetch('/api/ruh-pic-matrix');
+    if (res && res.matrix) {
+      AppState.ruhPicMatrix = res.matrix;
+      renderRuhPicMatrixTable();
+    }
+  } catch (err) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="16" class="text-center" style="padding: 24px; color: #dc2626;">Gagal memuat matriks RUH: ' + escHtml(err.message) + '</td></tr>';
+  }
+}
+
+window.onRuhMatrixStatusChange = function(el) {
+  const val = el.value;
+  if (val === 'EDITOR_ALL') {
+    el.style.background = '#dbeafe';
+    el.style.color = '#1e40af';
+    el.style.borderColor = '#93c5fd';
+  } else if (val === 'EDITOR_PIC') {
+    el.style.background = '#fef3c7';
+    el.style.color = '#b45309';
+    el.style.borderColor = '#fcd34d';
+  } else if (val === 'VIEWER_ALL') {
+    el.style.background = '#ccfbf1';
+    el.style.color = '#0f766e';
+    el.style.borderColor = '#99f6e4';
+  } else if (val === 'VIEWER_PIC') {
+    el.style.background = '#dcfce7';
+    el.style.color = '#15803d';
+    el.style.borderColor = '#86efac';
+  } else {
+    el.style.background = '#fee2e2';
+    el.style.color = '#991b1b';
+    el.style.borderColor = '#fca5a5';
+  }
+};
+
+function renderRuhPicMatrixTable() {
+  const tbody = document.getElementById('ruh-matrix-table-body');
+  if (!tbody) return;
+
+  const matrix = AppState.ruhPicMatrix || [];
+  const countEl = document.getElementById('ruh-matrix-count');
+  if (countEl) countEl.textContent = '1 Entitas Belanja Terpadu (Seluruh PIC)';
+
+  if (matrix.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="15" class="text-center" style="padding: 24px; color: #64748b;">Tidak ada data entitas RUH belanja terdaftar.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = matrix.map((p, idx) => {
+    let levelCells = '';
+    for (let lvl = 0; lvl <= 12; lvl++) {
+      let modeVal = String(p['mode_l' + lvl] || ((lvl <= 1) ? 'EDITOR_ALL' : ((lvl <= 3) ? 'EDITOR_PIC' : 'VIEWER_ALL'))).toUpperCase();
+      if (modeVal === 'VIEWER') modeVal = 'VIEWER_ALL';
+      const isAllowed = p['allow_l' + lvl] !== undefined ? Boolean(p['allow_l' + lvl]) : (modeVal !== 'NONE');
+      const currentMode = (!isAllowed || modeVal === 'NONE') ? 'NONE' : modeVal;
+
+      let bg = '#fee2e2';
+      let color = '#991b1b';
+      let border = '#fca5a5';
+      if (currentMode === 'EDITOR_ALL') {
+        bg = '#dbeafe'; color = '#1e40af'; border = '#93c5fd';
+      } else if (currentMode === 'EDITOR_PIC') {
+        bg = '#fef3c7'; color = '#b45309'; border = '#fcd34d';
+      } else if (currentMode === 'VIEWER_ALL') {
+        bg = '#ccfbf1'; color = '#0f766e'; border = '#99f6e4';
+      } else if (currentMode === 'VIEWER_PIC') {
+        bg = '#dcfce7'; color = '#15803d'; border = '#86efac';
+      }
+
+      const isSep = (lvl === 7 || lvl === 10);
+      const isPimpinan = [4, 5, 6, 7].includes(lvl);
+
+      levelCells += `
+        <td style="padding: 4px 2px; text-align: center; border-right: ${isSep ? '2px solid #6366f1' : '1px solid #e2e8f0'};">
+          <select class="input-select-sm" data-field="mode_l${lvl}" onchange="window.onRuhMatrixStatusChange(this)" style="padding: 3px 2px; font-size: 10px; font-weight: 700; border-radius: 4px; border: 1px solid ${border}; background: ${bg}; color: ${color}; width: 100%; cursor: pointer;">
+            <option value="NONE" ${currentMode === 'NONE' ? 'selected' : ''}>❌ Tutup</option>
+            <option value="VIEWER_PIC" ${currentMode === 'VIEWER_PIC' ? 'selected' : ''}>👁️ View PIC</option>
+            <option value="VIEWER_ALL" ${currentMode === 'VIEWER_ALL' ? 'selected' : ''}>🌐 View Semua</option>
+            <option value="EDITOR_PIC" ${currentMode === 'EDITOR_PIC' ? 'selected' : ''}>🔒 Edit PIC</option>
+            ${!isPimpinan ? `<option value="EDITOR_ALL" ${currentMode === 'EDITOR_ALL' ? 'selected' : ''}>✏️ Edit Semua</option>` : ''}
+          </select>
+        </td>
+      `;
+    }
+
+    return `
+      <tr data-pic-key="${escHtml(p.pic_key)}" style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px 6px; text-align: center; color: #64748b; font-weight: 600; border-right: 1px solid #e2e8f0;">${idx + 1}</td>
+        <td style="padding: 10px 12px; border-right: 2px solid #cbd5e1;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="background: #e0e7ff; color: #3730a3; font-weight: 800; font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid #c7d2fe;">RUH-AGREGASI</span>
+            <div>
+              <div style="font-weight: 800; color: #0f172a; font-size: 12px;">${escHtml(p.pic_label || 'Rincian Usulan Belanja (Agregasi 5 Subbagian)')}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Payung wewenang agregasi: KUL, RENDATIN, TEKNIS, HUKUM, PARSDM</div>
+            </div>
+          </div>
+        </td>
+        ${levelCells}
+      </tr>
+    `;
+  }).join('');
+}
+
+async function saveRuhPicMatrixAction() {
+  const btn = document.getElementById('btn-save-current-matrix') || document.getElementById('btn-save-menu-matrix');
+  if (btn) btn.disabled = true;
+
+  try {
+    const tbody = document.getElementById('ruh-matrix-table-body');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr[data-pic-key]');
+    const matrixMap = {};
+    (AppState.ruhPicMatrix || []).forEach(p => {
+      matrixMap[p.pic_key] = { ...p };
+    });
+
+    rows.forEach(tr => {
+      const picKey = tr.getAttribute('data-pic-key');
+      if (matrixMap[picKey]) {
+        for (let lvl = 0; lvl <= 12; lvl++) {
+          const sel = tr.querySelector(`select[data-field="mode_l${lvl}"]`);
+          const val = sel ? sel.value : 'VIEWER_ALL';
+          matrixMap[picKey]['mode_l' + lvl] = val;
+          matrixMap[picKey]['allow_l' + lvl] = (val === 'NONE') ? 0 : 1;
+        }
+      }
+    });
+
+    const itemsToSave = Object.values(matrixMap);
+    const res = await apiFetch('/api/ruh-pic-matrix', {
+      method: 'PUT',
+      body: JSON.stringify({ matrix: itemsToSave })
+    });
+
+    AppState.ruhPicMatrix = res.matrix || itemsToSave;
+    showToast(res.message || 'Matriks hak akses RUH belanja berhasil disimpan.', 'success');
+  } catch (err) {
+    showToast('Gagal menyimpan matriks RUH belanja: ' + err.message, 'error');
   } finally {
     if (btn) btn.disabled = false;
   }

@@ -64,6 +64,8 @@ const {
   saveMenuMatrix,
   getSheetMatrix,
   saveSheetMatrix,
+  getRuhPicMatrix,
+  saveRuhPicMatrix,
   updateUserRoleMode,
   authenticateUser,
   authenticateGoogleUser,
@@ -1162,6 +1164,36 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { success: true, matrix: updated, message: 'Matriks hak akses sheet & sumber dana berhasil diperbarui.' });
     }
 
+    // 3d. MATRIKS HAK AKSES RUH BELANJA SUBBAGIAN (PIC VS LEVEL) DINAMIS (BAB 26 CANON)
+    if (pathname === '/api/ruh-pic-matrix' && method === 'GET') {
+      const matrix = getRuhPicMatrix();
+      return sendJson(res, 200, { success: true, matrix });
+    }
+
+    if (pathname === '/api/ruh-pic-matrix' && (method === 'PUT' || method === 'POST')) {
+      const currentUser = getUserFromReq(req);
+      if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+      if (Number(currentUser.level) > 1) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Pengubahan matriks hak akses RUH belanja hanya diizinkan untuk Otoritas Level 0 dan Level 1.' });
+      }
+      const body = await parseJsonBody(req);
+      const items = Array.isArray(body) ? body : (body.matrix || []);
+      const updated = saveRuhPicMatrix(items);
+
+      const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
+      recordAuditLog({
+        username: currentUser.username || 'admin',
+        role_id: currentUser.role_id || String(currentUser.level),
+        ip: clientIp,
+        action: 'UPDATE_RUH_PIC_MATRIX',
+        entity: 'app_ruh_pic_matrix',
+        status: 'SUCCESS',
+        notes: `Memperbarui matriks hak akses RUH belanja (5 Subbagian x 13 Level).`
+      });
+
+      return sendJson(res, 200, { success: true, matrix: updated, message: 'Matriks hak akses RUH belanja berhasil diperbarui.' });
+    }
+
     // 3b. ADMINISTRASI PEJABAT PENANDATANGAN DOKUMEN SATKER (BAB 22 CANON)
     if (pathname === '/api/administrasi/penandatangan' && method === 'GET') {
       const currentUser = getUserFromReq(req);
@@ -1714,8 +1746,21 @@ const server = http.createServer(async (req, res) => {
       const periodeId = Number(rkbMatch[1]);
       let { pic, target_scope, cost_sharing, search } = query;
       
-      if (user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
-        // Enforce subbag scoping: User hanya melihat subbag yang ditugaskan
+      const matrix = getRuhPicMatrix();
+      const ruhRow = (Array.isArray(matrix) && matrix.length > 0)
+        ? (matrix.find(m => m.pic_key === 'RUH_BELANJA_AGREGASI' || m.pic_key === 'ruh_belanja') || matrix[0])
+        : null;
+      const userLvl = Number(user.level);
+      const isAllowed = ruhRow ? Boolean(ruhRow[`allow_l${userLvl}`]) : true;
+      let ruhMode = ruhRow ? String(ruhRow[`mode_l${userLvl}`] || (userLvl <= 1 ? 'EDITOR_ALL' : (userLvl <= 3 ? 'EDITOR_PIC' : 'VIEWER_ALL'))).toUpperCase() : 'VIEWER_ALL';
+      if (ruhMode === 'VIEWER') ruhMode = 'VIEWER_ALL';
+
+      if (!isAllowed || ruhMode === 'NONE') {
+        return sendJson(res, 403, { error: 'Akses ditolak. Tingkat kewenangan Anda tidak memiliki izin untuk melihat rincian usulan belanja.' });
+      }
+
+      if ((ruhMode === 'EDITOR_PIC' || ruhMode === 'VIEWER_PIC') && userLvl > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        // Enforce subbag scoping: User hanya melihat subbag yang ditugaskan (subbag lain disaring/disembunyikan)
         pic = user.pic_subbag;
       }
       
@@ -1826,7 +1871,21 @@ const server = http.createServer(async (req, res) => {
       const ops = Array.isArray(body.ops) ? body.ops : [];
       let { pic, target_scope, cost_sharing, search, compare_with } = body;
 
-      if (user.level > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+      const matrix = getRuhPicMatrix();
+      const ruhRow = (Array.isArray(matrix) && matrix.length > 0)
+        ? (matrix.find(m => m.pic_key === 'RUH_BELANJA_AGREGASI' || m.pic_key === 'ruh_belanja') || matrix[0])
+        : null;
+      const userLvl = Number(user.level);
+      const isAllowed = ruhRow ? Boolean(ruhRow[`allow_l${userLvl}`]) : true;
+      let ruhMode = ruhRow ? String(ruhRow[`mode_l${userLvl}`] || (userLvl <= 1 ? 'EDITOR_ALL' : (userLvl <= 3 ? 'EDITOR_PIC' : 'VIEWER_ALL'))).toUpperCase() : 'VIEWER_ALL';
+      if (ruhMode === 'VIEWER') ruhMode = 'VIEWER_ALL';
+
+      if (!isAllowed || ruhMode === 'NONE') {
+        return sendJson(res, 403, { error: 'Akses ditolak. Tingkat kewenangan Anda tidak memiliki izin untuk melihat rincian usulan belanja.' });
+      }
+
+      if ((ruhMode === 'EDITOR_PIC' || ruhMode === 'VIEWER_PIC') && userLvl > 0 && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        // Enforce subbag scoping: User hanya melihat subbag yang ditugaskan (subbag lain disaring/disembunyikan)
         pic = user.pic_subbag;
       }
 
@@ -2230,8 +2289,8 @@ const server = http.createServer(async (req, res) => {
     if (usulanAjukanMatch && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      if (Number(user.level) === 3) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat mengajukan usulan revisi.' });
+      if (user.mode_akses === 'VIEWER' || [4, 5, 6, 7].includes(Number(user.level))) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Akun Peninjau / Pimpinan bersifat Read-Only dan tidak dapat mengajukan usulan revisi.' });
       }
       const periodeId = Number(usulanAjukanMatch[1]);
       const body = await parseJsonBody(req);
@@ -2485,8 +2544,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/revisi/pengajuan' && method === 'POST') {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu untuk mengajukan usulan revisi.' });
-      if (Number(user.level) === 3) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only dan tidak dapat mengajukan usulan revisi.' });
+      if (user.mode_akses === 'VIEWER' || [4, 5, 6, 7].includes(Number(user.level))) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Akun Peninjau / Pimpinan bersifat Read-Only dan tidak dapat mengajukan usulan revisi.' });
       }
 
       const body = await parseJsonBody(req);
@@ -2581,8 +2640,8 @@ const server = http.createServer(async (req, res) => {
     if (revisiDetailMatch && method === 'DELETE') {
       const user = getUserFromReq(req);
       if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
-      if (Number(user.level) === 3) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Akun Pimpinan / Viewer (Level 3) bersifat Read-Only.' });
+      if (user.mode_akses === 'VIEWER' || [4, 5, 6, 7].includes(Number(user.level))) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Akun Peninjau / Pimpinan bersifat Read-Only.' });
       }
       const id = Number(revisiDetailMatch[1]);
       try {

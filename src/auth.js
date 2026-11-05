@@ -280,22 +280,15 @@ function verifyToken(token, dbInstance = null, options = {}) {
         payload.is_developer = false;
       }
 
-      // Evaluasi Mode Operasional Multi-Peran: KUMULATIF vs SWITCH (Peran Tunggal Bergantian)
+      // Evaluasi Mode Operasional Multi-Peran: Penegakan Strict Single Active Role (Bab 26.3 Canon)
       const roleMode = String(payload.role_mode || dbUser.role_mode || 'SWITCH').toUpperCase() === 'KUMULATIF' ? 'KUMULATIF' : 'SWITCH';
       const isKumulatif = (roleMode === 'KUMULATIF');
-      const uniquePics = Array.from(new Set(userRoles.map(r => String(r.pic || 'SEMUA').toUpperCase())));
 
-      const activeLevel = isKumulatif
-        ? Math.min(...userRoles.map(r => Number(r.level)))
-        : (activeRole ? Number(activeRole.level) : Number(dbUser.level));
-      const activePic = isKumulatif
-        ? (uniquePics.includes('SEMUA') || uniquePics.length > 1 ? 'SEMUA' : (uniquePics[0] || String(dbUser.pic_subbag || 'SEMUA').toUpperCase()))
-        : (activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase());
-      const activeModeAkses = isKumulatif
-        ? (userRoles.some(r => String(r.mode_akses).toUpperCase() === 'EDITOR') ? 'EDITOR' : 'VIEWER')
-        : (activeRole 
-          ? String(activeRole.mode_akses).toUpperCase() 
-          : ([4, 5, 6, 7].includes(Number(dbUser.level)) ? 'VIEWER' : 'EDITOR'));
+      const activeLevel = activeRole ? Number(activeRole.level) : Number(dbUser.level);
+      const activePic = activeRole ? String(activeRole.pic).toUpperCase() : String(dbUser.pic_subbag || 'SEMUA').toUpperCase();
+      const activeModeAkses = activeRole 
+        ? String(activeRole.mode_akses).toUpperCase() 
+        : ([4, 5, 6, 7].includes(Number(dbUser.level)) ? 'VIEWER' : 'EDITOR');
 
       return {
         ...dbUser,
@@ -357,35 +350,61 @@ function getUserFromReq(req, dbInstance = null) {
 }
 
 /**
- * Helper izin edit baris RKB berdasarkan peran, kepemilikan data, dan status kunci
+ * Helper izin edit baris RKB berdasarkan peran, kepemilikan data, status kunci, dan Matriks Hak Akses RUH (app_ruh_pic_matrix)
  */
-function canEditRow(user, row, isPeriodeLocked) {
+function canEditRow(user, row, isPeriodeLocked, ruhPicMatrix = null) {
   if (!user) return false;
-  // Jika periode terkunci, tidak ada yang boleh mengedit
-  if (isPeriodeLocked) return false;
+  // Jika periode terkunci, tidak ada yang boleh mengedit kecuali Developer emergency bypass
+  if (isPeriodeLocked) {
+    if (Number(user.level) === 0) return true;
+    return false;
+  }
 
   const userLvl = Number(user.level);
 
   // Level 0 (developer): Full access
   if (userLvl === 0) return true;
 
-  // Level 1 (Perencanaan): Full edit RKB
-  if (userLvl === 1) return true;
+  // Jika hak aksi VIEWER pada sesi aktif: Read-Only mutlak
+  if (user.mode_akses === 'VIEWER') return false;
 
-  // Jika hak aksi VIEWER atau Pimpinan Level 4, 5, 6 (Ketua, Komisioner, KPA): Read-Only mutlak
-  if (user.mode_akses === 'VIEWER' || [4, 5, 6, 7].includes(userLvl)) return false;
+  const rowPic = normalizePic(row.pic_bagian || 'KUL');
+  const userPic = normalizePic(user.pic_subbag || (user.active_role ? user.active_role.pic : 'SEMUA'));
 
-  // Level 2 (Pengolah Data), Level 3 (Operator Subbag), Level 7..10:
-  // Hanya baris PIC miliknya yang boleh diedit jika berstatus EDITOR
-  if ([2, 3, 7, 8, 9, 10, 11, 12].includes(userLvl) || userLvl > 1) {
-    if (user.mode_akses && user.mode_akses !== 'EDITOR') return false;
-    const userPic = normalizePic(user.pic_subbag);
-    const rowPic = normalizePic(row.pic_bagian);
-    if (userPic === 'SEMUA') return true;
-    return userPic === rowPic;
+  // 1. Evaluasi berbasis Matriks Hak Akses RUH Dinamis (app_ruh_pic_matrix)
+  let matrix = ruhPicMatrix;
+  if (!matrix) {
+    try {
+      const { getRuhPicMatrix } = require('./db');
+      matrix = getRuhPicMatrix();
+    } catch (e) {}
   }
 
-  return false;
+  const ruhRow = (Array.isArray(matrix) && matrix.length > 0)
+    ? (matrix.find(m => m.pic_key === 'RUH_BELANJA_AGREGASI' || m.pic_key === 'ruh_belanja') || matrix[0])
+    : null;
+
+  if (ruhRow) {
+    const isAllowed = Boolean(ruhRow[`allow_l${userLvl}`]);
+    const mode = String(ruhRow[`mode_l${userLvl}`] || 'VIEWER_ALL').toUpperCase();
+
+    if (!isAllowed || mode === 'NONE' || mode === 'VIEWER_PIC' || mode === 'VIEWER_ALL') {
+      return false;
+    }
+    if (mode === 'EDITOR_ALL') {
+      return true; // Mandat Konsolidator Lintas PIC (Level 0 / Level 1)
+    }
+    if (mode === 'EDITOR_PIC') {
+      if (userPic === 'SEMUA') return true;
+      return userPic === rowPic; // Hanya subbagian tugasnya (subbag lain disaring/disembunyikan)
+    }
+  }
+
+  // 2. Fallback konservatif jika tabel matriks belum terinisialisasi
+  if (userLvl === 1) return true;
+  if ([4, 5, 6, 7].includes(userLvl)) return false;
+  if (userPic === 'SEMUA') return true;
+  return userPic === rowPic;
 }
 
 /**

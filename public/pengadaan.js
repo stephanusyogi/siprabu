@@ -330,7 +330,7 @@ async function openPaketInCockpit(paketId, stageNo = 6, navigateToCockpit = true
   try {
     CakraState.activePaketId = Number(paketId);
     CakraState.activeStageNo = Number(stageNo) || 6;
-    const ctx = await cakraApiGet(`/api/cakra/paket/${CakraState.activePaketId}`);
+    const ctx = await cakraApiGet(`/api/cakra/paket/${CakraState.activePaketId}?tahap=${CakraState.activeStageNo}`);
     CakraState.activePaketCtx = ctx;
 
     if (navigateToCockpit && typeof window.switchView === 'function') {
@@ -403,11 +403,21 @@ function renderCockpitLeftStepper() {
     const isActive = Number(CakraState.activeStageNo) === Number(def.no);
     const cls = `cakra-stage-pill-btn ${isActive ? 'active' : ''} ${isBypass ? 'bypass' : ''}`;
 
+    const isDone = row.status_tahap === 'Final' || (row.nomor_dokumen && row.nomor_dokumen.length > 3);
+    const hasWarning = CakraState.activePaketCtx?.audit?.warnings?.some(w => w.tahap === def.no || (def.no === 7 && w.kode === 'HPS_GT_PAGU') || (def.no === 12 && w.kode === 'KONTRAK_GT_HPS'));
+    let statusBadgeIcon = '';
+    if (isBypass) statusBadgeIcon = '<span title="Dilewati Sesuai Regulasi (Bypass)" style="font-size:11px;margin-left:auto;">⏭️</span>';
+    else if (hasWarning) statusBadgeIcon = '<span title="Peringatan Kepatuhan Regulasi" style="font-size:11px;margin-left:auto;color:#ef4444;">⚠️</span>';
+    else if (isDone) statusBadgeIcon = '<span title="Tahap Selesai" style="font-size:11px;margin-left:auto;color:#10b981;">✅</span>';
+
     return `
       <button type="button" class="${cls}" onclick="selectCockpitStage(${def.no})" title="Tahap ${def.no}: ${cakraEsc(def.nama)} (${cakraEsc(row.nomor_dokumen || '-')})">
         <div class="cakra-stage-pill-num">${def.no}</div>
-        <div class="cakra-stage-pill-text">
-          <div class="cakra-stage-pill-title">${cakraEsc(def.nama)}</div>
+        <div class="cakra-stage-pill-text" style="flex:1;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div class="cakra-stage-pill-title">${cakraEsc(def.nama)}</div>
+            ${statusBadgeIcon}
+          </div>
           <div class="cakra-stage-pill-date">${isBypass ? '⏭️ Bypass Regulasi' : `${cakraEsc(row.tanggal_dokumen || '-')} • ${cakraEsc(def.kode)}`}</div>
         </div>
       </button>
@@ -528,13 +538,153 @@ function buildCockpitFormTabHtml() {
     .map(c => `<div style="margin-bottom:4px;">✅ ${cakraEsc(c)}</div>`)
     .join('');
 
+  const audit = CakraState.activePaketCtx.audit || {};
+  const activeTemplate = audit.template || audit.templateCocok || {};
+  const activeStageGuidance = audit.panduanTahap || audit.activeStage || {};
+  const warnings = audit.warnings || [];
+  const doubleChecks = audit.doubleCheck || [];
+
+  // 1. EARLY-WARNING BANNER
+  let warningBannerHtml = '';
+  if (warnings.length > 0) {
+    warningBannerHtml = `
+      <div style="background:#fef2f2; border:1.5px solid #f87171; border-radius:10px; padding:14px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">⚠️</span>
+            <strong style="color:#991b1b; font-size:13.5px;">EARLY WARNING & GATEKEEPER REGULASI (${warnings.length} Peringatan Kepatuhan)</strong>
+          </div>
+          <span class="badge" style="background:#dc2626; color:#fff; font-size:10.5px; font-weight:700;">Audit Otomatis</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${warnings.map(w => `
+            <div style="display:flex; align-items:flex-start; gap:8px; font-size:12px; color:#7f1d1d; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid #fecaca;">
+              <span style="font-weight:800; color:#dc2626; min-width:65px;">[${cakraEsc(w.kode)}]</span>
+              <div style="flex:1;">
+                <div>${cakraEsc(w.pesan)}</div>
+                ${w.rekomendasi ? `<div style="font-size:11px; color:#0369a1; margin-top:2px; font-weight:600;">💡 Rekomendasi: ${cakraEsc(w.rekomendasi)}</div>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 2. PANEL PANDUAN KONTEKSTUAL TAHAP AKTIF (TAHAP 1-18)
+  let panduanTahapHtml = '';
+  if (activeStageGuidance && activeStageGuidance.no) {
+    const isStageBypass = audit.isBypass;
+    const checklistHtml = (activeStageGuidance.checklist || []).map(ch => `
+      <li style="margin-bottom:3px; display:flex; align-items:flex-start; gap:6px;">
+        <span style="color:#059669;">✔️</span>
+        <span>${cakraEsc(ch)}</span>
+      </li>
+    `).join('');
+
+    panduanTahapHtml = `
+      <div style="background:linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border:1px solid #86efac; border-radius:10px; padding:14px 16px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px; font-weight:800; color:#15803d; text-transform:uppercase; letter-spacing:0.5px;">Panduan Kontekstual Tahap ${activeStageGuidance.no} / 18</div>
+            <h4 style="margin:2px 0 0; font-size:15px; font-weight:800; color:#0f172a;">${activeStageGuidance.no}. ${cakraEsc(activeStageGuidance.nama)}</h4>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge" style="background:#0284c7; color:#fff; font-weight:700; font-size:11px;">PIC: ${cakraEsc(activeStageGuidance.penanggungJawab || '-')}</span>
+            <button type="button" class="btn btn-xs btn-success" onclick="selesaikanTahapDanLanjut(${activeStageGuidance.no})" style="font-weight:700; padding:4px 8px;">
+              ✅ Selesaikan Tahap Ini & Lanjut ${activeStageGuidance.no < 18 ? activeStageGuidance.no + 1 : 18} →
+            </button>
+          </div>
+        </div>
+        <div style="font-size:11.5px; color:#334155; margin-bottom:8px; line-height:1.4;">
+          ${cakraEsc(activeStageGuidance.uraian || '')}
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; background:rgba(255,255,255,0.8); padding:10px 12px; border-radius:8px; border:1px solid #cbd5e1;">
+          <div>
+            <div style="font-size:11px; font-weight:800; color:#0f172a; margin-bottom:4px;">📋 Checklist Kerja Tahap Ini:</div>
+            <ul style="margin:0; padding-left:0; list-style:none; font-size:11px; color:#475569;">
+              ${checklistHtml || '<li>-</li>'}
+            </ul>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:800; color:#0f172a; margin-bottom:4px;">⚖️ Dasar Regulasi & Tips:</div>
+            <div style="font-size:11px; color:#1e40af; font-weight:600; margin-bottom:4px;">${cakraEsc(activeStageGuidance.dasarHukum || '-')}</div>
+            ${activeStageGuidance.tips ? `<div style="font-size:10.5px; color:#64748b; background:#f8fafc; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">💡 ${cakraEsc(activeStageGuidance.tips)}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 3. PANEL DOUBLE-CHECK KEPATUHAN SISTEM VS USER
+  let doubleCheckHtml = '';
+  if (doubleChecks.length > 0 && activeTemplate.id) {
+    const rowsHtml = doubleChecks.map(dc => {
+      let statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ Sesuai</span>';
+      if (dc.status === 'PERLU_PENYESUAIAN') {
+        statusBadge = '<span class="badge badge-danger" style="font-size:10px;">⚠️ Perlu Penyesuaian</span>';
+      } else if (dc.status === 'INFO') {
+        statusBadge = '<span class="badge badge-info" style="font-size:10px;">ℹ️ Info</span>';
+      }
+      return `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+          <td style="padding:6px 10px; font-weight:700; color:#1e293b; font-size:11.5px;">${cakraEsc(dc.parameter)}</td>
+          <td style="padding:6px 10px; font-size:11.5px; color:#0369a1; font-weight:700; background:#f0f9ff;">${cakraEsc(dc.standarTemplate)}</td>
+          <td style="padding:6px 10px; font-size:11.5px; color:#334155; font-weight:600;">${cakraEsc(dc.isianUser)}</td>
+          <td style="padding:6px 10px; text-align:center;">${statusBadge}</td>
+          <td style="padding:6px 10px; font-size:11px; color:#64748b;">${cakraEsc(dc.catatan)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    doubleCheckHtml = `
+      <div style="background:#ffffff; border:1.5px solid #3b82f6; border-radius:10px; padding:14px 16px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="badge" style="background:#1e40af; color:#fff; font-size:11px; font-weight:800;">${cakraEsc(activeTemplate.id)}</span>
+              <strong style="color:#0f172a; font-size:13.5px;">${cakraEsc(activeTemplate.nama)}</strong>
+            </div>
+            <div style="font-size:11px; color:#64748b; margin-top:2px;">
+              ${cakraEsc(activeTemplate.dasar_hukum || 'Perpres 46/2025')} • ${cakraEsc(activeTemplate.deskripsi || '')}
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyTemplateBakuToCurrentForm('${activeTemplate.id}')" style="font-weight:700; font-size:11.5px; padding:5px 12px; border-radius:6px;">
+            ✨ Terapkan Standar Template ke Form Ini (1-Klik)
+          </button>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+            <thead>
+              <tr style="background:#f1f5f9; color:#475569; text-align:left; border-bottom:1.5px solid #cbd5e1;">
+                <th style="padding:7px 10px;">Parameter Pengadaan</th>
+                <th style="padding:7px 10px;">Standar Baku Sistem (${cakraEsc(activeTemplate.id)})</th>
+                <th style="padding:7px 10px;">Isian Anda Saat Ini</th>
+                <th style="padding:7px 10px; text-align:center;">Evaluasi</th>
+                <th style="padding:7px 10px;">Keterangan & Dasar Regulasi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
   return `
+    ${warningBannerHtml}
+    ${panduanTahapHtml}
+    ${doubleCheckHtml}
     <div class="cakra-alert-regulasi">
       <div style="font-weight:800; margin-bottom:4px;">⚖️ REKOMENDASI OTOMATIS MESIN REGULASI PENGADAAN (PERPRES 46/2025, PERLEM LKPP 2/2026 & 3/2026):</div>
       <div>• Rekomendasi Kertas Kerja Harga: <strong>${cakraEsc(rekomendasi?.jenisKertasHarga)}</strong> | Bentuk Kontrak: <strong>${cakraEsc(rekomendasi?.bentukKontrakRekomendasi)}</strong> | Pelaksana: <strong>${cakraEsc(rekomendasi?.pelaksanaRekomendasi)}</strong></div>
       ${rekomendasi?.segmentasiKonstruksi ? `<div>• Segmentasi Konstruksi: <strong>${cakraEsc(rekomendasi.segmentasiKonstruksi)}</strong></div>` : ''}
       ${catatanRegulasiHtml}
     </div>
+
 
     <form id="cakra-form-paket-cockpit" onsubmit="saveCurrentPaketForm(event)">
       <div class="cakra-form-grid-3">
@@ -1171,14 +1321,23 @@ function renderCockpitRightDock() {
 /**
  * BUAT PAKET PENGADAAN BARU
  */
-async function createNewPaketPrompt() {
-  const nama = prompt('Masukkan Nama Paket Pengadaan Baru (Barang / Jasa / Konstruksi / Swakelola):', 'Pekerjaan Konstruksi Pemeliharaan Gedung & Penataan Halaman Kantor KPU Kabupaten Ngawi');
-  if (!nama) return;
-  const jenis = prompt(
-    'Pilih Jenis Pengadaan:\n1. Barang\n2. Jasa Lainnya\n3. Jasa Konsultansi Nonkonstruksi\n4. Pekerjaan Konstruksi\n5. Jasa Konsultansi Konstruksi\n6. Swakelola\n7. Dikecualikan',
-    'Pekerjaan Konstruksi'
-  ) || 'Barang';
-  const pagu = Number(prompt('Masukkan Nilai Pagu Anggaran DIPA (Rp):', '185000000') || 50000000);
+async function createNewPaketPrompt(initialData = null) {
+  let nama, jenis, pagu, metode, bentuk;
+  if (initialData) {
+    nama = initialData.nama || initialData.nama_paket || 'Paket Pengadaan ' + (initialData.jenis_pengadaan || 'Barang');
+    jenis = initialData.jenis_pengadaan || 'Barang';
+    pagu = Number(initialData.pagu || initialData.nilai_pagu || 50000000);
+    metode = initialData.metode_pemilihan;
+    bentuk = initialData.bentuk_kontrak;
+  } else {
+    nama = prompt('Masukkan Nama Paket Pengadaan Baru (Barang / Jasa / Konstruksi / Swakelola):', 'Pekerjaan Konstruksi Pemeliharaan Gedung & Penataan Halaman Kantor KPU Kabupaten Ngawi');
+    if (!nama) return;
+    jenis = prompt(
+      'Pilih Jenis Pengadaan:\n1. Barang\n2. Jasa Lainnya\n3. Jasa Konsultansi Nonkonstruksi\n4. Pekerjaan Konstruksi\n5. Jasa Konsultansi Konstruksi\n6. Swakelola\n7. Dikecualikan',
+      'Pekerjaan Konstruksi'
+    ) || 'Barang';
+    pagu = Number(prompt('Masukkan Nilai Pagu Anggaran DIPA (Rp):', '185000000') || 50000000);
+  }
 
   const isKonstruksi = jenis.includes('Konstruksi');
   const nextNum = CakraState.pakets.length + 1;
@@ -1191,8 +1350,8 @@ async function createNewPaketPrompt() {
     uraian_pekerjaan: nama,
     jenis_pengadaan: jenis,
     cara_pengadaan: jenis === 'Swakelola' ? 'Swakelola Tipe I' : 'Penyedia',
-    metode_pemilihan: isKonstruksi && pagu <= 400000000 ? 'Pengadaan Langsung' : 'E-Purchasing',
-    bentuk_kontrak: isKonstruksi && pagu <= 400000000 ? 'SPK' : 'Surat Pesanan',
+    metode_pemilihan: metode || (isKonstruksi && pagu <= 400000000 ? 'Pengadaan Langsung' : 'E-Purchasing'),
+    bentuk_kontrak: bentuk || (isKonstruksi && pagu <= 400000000 ? 'SPK' : 'Surat Pesanan'),
     jenis_kontrak: isKonstruksi ? 'Gabungan Lumsum dan Harga Satuan' : 'Lumsum',
     nilai_pagu: pagu,
     nilai_hps: Math.round(pagu * 0.98),
@@ -2150,6 +2309,256 @@ window.saveQuickPenyediaLink = saveQuickPenyediaLink;
 window.openEditCakraPejabatModal = openEditCakraPejabatModal;
 window.closeCakraPejabatModal = closeCakraPejabatModal;
 window.saveCakraPejabatModal = saveCakraPejabatModal;
+
+
+/**
+ * =============================================================================
+ * SIMULATOR JENIS BELANJA & BESARAN NILAI PENGADAAN (14 TEMPLATE BAKU)
+ * Berdasarkan Perpres 46/2025, Perlem LKPP 2/2026, Perlem LKPP 3/2026, Perlem 3 & 5/2021
+ * =============================================================================
+ */
+let CakraSimulasiState = {
+  activeResult: null
+};
+
+async function openSimulatorPengadaanModal(initialParams = null) {
+  const modal = document.getElementById('modal-cakra-simulator');
+  if (!modal) return;
+
+  if (initialParams) {
+    if (initialParams.jenis_pengadaan) {
+      const el = document.getElementById('sim-jenis-pengadaan');
+      if (el) el.value = initialParams.jenis_pengadaan;
+    }
+    if (initialParams.pagu) {
+      setSimulatorPaguPreset(initialParams.pagu);
+    }
+  }
+
+  modal.style.display = 'flex';
+  onSimulatorJenisChange();
+  await jalankanSimulasiPengadaan();
+}
+
+function closeSimulatorPengadaanModal() {
+  const modal = document.getElementById('modal-cakra-simulator');
+  if (modal) modal.style.display = 'none';
+}
+
+function onSimulatorJenisChange() {
+  const jenis = document.getElementById('sim-jenis-pengadaan')?.value || 'Barang';
+  const katalogContainer = document.getElementById('sim-katalog-container');
+  const chkKatalog = document.getElementById('sim-via-katalog');
+
+  if (katalogContainer && chkKatalog) {
+    if (['Barang', 'Jasa Lainnya'].includes(jenis)) {
+      katalogContainer.style.display = 'block';
+    } else {
+      katalogContainer.style.display = 'none';
+      chkKatalog.checked = false;
+    }
+  }
+  jalankanSimulasiPengadaan();
+}
+
+function formatSimulatorPaguInput(el) {
+  let val = el.value.replace(/[^0-9]/g, '');
+  const num = Number(val) || 0;
+  el.value = num > 0 ? num.toLocaleString('id-ID') : '';
+  const terbilangEl = document.getElementById('sim-pagu-terbilang');
+  if (terbilangEl) {
+    terbilangEl.textContent = cakraFmtRp(num);
+  }
+  if (window._simTimer) clearTimeout(window._simTimer);
+  window._simTimer = setTimeout(jalankanSimulasiPengadaan, 300);
+}
+
+function setSimulatorPaguPreset(val) {
+  const input = document.getElementById('sim-pagu-input');
+  if (input) {
+    input.value = Number(val).toLocaleString('id-ID');
+    const terbilangEl = document.getElementById('sim-pagu-terbilang');
+    if (terbilangEl) terbilangEl.textContent = cakraFmtRp(val);
+    jalankanSimulasiPengadaan();
+  }
+}
+
+async function jalankanSimulasiPengadaan() {
+  const jenis = document.getElementById('sim-jenis-pengadaan')?.value || 'Barang';
+  const rawPagu = (document.getElementById('sim-pagu-input')?.value || '0').replace(/[^0-9]/g, '');
+  const pagu = Number(rawPagu) || 0;
+  const viaKatalog = document.getElementById('sim-via-katalog')?.checked || false;
+  const metodeSelect = document.getElementById('sim-metode-manual')?.value || 'AUTO';
+  const metode = metodeSelect === 'AUTO' ? undefined : metodeSelect;
+
+  const resContainer = document.getElementById('sim-hasil-container');
+  if (!resContainer) return;
+
+  try {
+    const res = await cakraApiPost('/api/cakra/simulasi', {
+      jenis_pengadaan: jenis,
+      pagu,
+      via_katalog: viaKatalog,
+      metode_pemilihan: metode
+    });
+
+    if (!res.ok) throw new Error(res.error || 'Gagal simulasi');
+    CakraSimulasiState.activeResult = res;
+
+    renderSimulatorResultHtml(res, resContainer);
+  } catch (e) {
+    resContainer.innerHTML = `<div class="cakra-alert-danger">Gagal menjalankan simulasi: ${cakraEsc(e.message)}</div>`;
+  }
+}
+
+function renderSimulatorResultHtml(res, container) {
+  const sim = res.simulasi || {};
+  const tpl = res.template || {};
+  const bypassList = sim.bypass_tahap || [];
+
+  let bypassBadgesHtml = '';
+  if (bypassList.length > 0) {
+    bypassBadgesHtml = `
+      <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:10px 12px; margin-top:8px;">
+        <div style="font-size:11.5px; font-weight:800; color:#065f46; margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+          <span>⏭️ Tahap yang Dilewati Sesuai Regulasi (${bypassList.length} Tahap Bypass):</span>
+        </div>
+        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+          ${bypassList.map(b => `<span class="badge" style="background:#059669; color:#fff; font-size:10.5px; font-weight:700;">Tahap ${b}</span>`).join('')}
+        </div>
+        <div style="font-size:10.5px; color:#047857; margin-top:4px;">
+          Dokumen pada tahap di atas tidak dipersyaratkan oleh regulasi, sehingga berkas administrasi langsung melompat ke tahap berikutnya.
+        </div>
+      </div>
+    `;
+  } else {
+    bypassBadgesHtml = `
+      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:8px 12px; margin-top:8px; font-size:11px; color:#475569;">
+        📌 <strong>Paket ini menempuh 18 Tahap Penuh</strong> (Tanpa Bypass) karena mempersyaratkan tender/hps formal/kontrak perjanjian lengkap.
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <!-- HEADER HASIL TEMPLATE -->
+    <div style="background:#eff6ff; border:1.5px solid #3b82f6; border-radius:10px; padding:14px 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+        <div>
+          <span class="badge" style="background:#1d4ed8; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:4px;">${cakraEsc(tpl.id || 'TPL-00')}</span>
+          <h4 style="margin:4px 0 2px; font-size:15.5px; font-weight:800; color:#0f172a;">${cakraEsc(tpl.nama || 'Skenario Pengadaan')}</h4>
+          <div style="font-size:11px; color:#2563eb; font-weight:600;">${cakraEsc(tpl.dasar_hukum || 'Perpres 46/2025')}</div>
+        </div>
+        <span class="badge" style="background:#10b981; color:#fff; font-size:11px; font-weight:800; padding:4px 8px;">✅ Rekomendasi Terverifikasi</span>
+      </div>
+      <div style="font-size:12px; color:#334155; margin-top:8px; line-height:1.45; background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #dbeafe;">
+        ${cakraEsc(tpl.deskripsi || '-')}
+      </div>
+    </div>
+
+    <!-- MATRIKS KETENTUAN UTAMA -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
+        <div style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Metode Pemilihan</div>
+        <div style="font-size:13.5px; font-weight:800; color:#0f172a; margin-top:2px;">${cakraEsc(sim.metode)}</div>
+      </div>
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
+        <div style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Bentuk Kontrak Resmi</div>
+        <div style="font-size:13.5px; font-weight:800; color:#0f172a; margin-top:2px;">${cakraEsc(sim.bentuk_kontrak)}</div>
+      </div>
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
+        <div style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Kertas Kerja Harga</div>
+        <div style="font-size:13.5px; font-weight:800; color:#0369a1; margin-top:2px;">${cakraEsc(sim.kertas_harga)}</div>
+      </div>
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
+        <div style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Pejabat Pelaksana</div>
+        <div style="font-size:13.5px; font-weight:800; color:#0f172a; margin-top:2px;">${cakraEsc(sim.pejabat)}</div>
+      </div>
+    </div>
+
+    <!-- PAJAK, JAMINAN & RETENSI -->
+    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+      <div>
+        <div style="font-size:10.5px; font-weight:800; color:#64748b;">TARIF PPh</div>
+        <div style="font-size:13px; font-weight:800; color:#b45309; margin-top:2px;">${cakraEsc(sim.jenis_pph)}</div>
+      </div>
+      <div>
+        <div style="font-size:10.5px; font-weight:800; color:#64748b;">RETENSI PEMELIHARAAN</div>
+        <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:2px;">${sim.persen_retensi ? 'Wajib 5%' : '0% (Tidak Wajib)'}</div>
+      </div>
+      <div>
+        <div style="font-size:10.5px; font-weight:800; color:#64748b;">JAMINAN PELAKSANAAN</div>
+        <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:2px;">${sim.wajib_jaminan ? 'Wajib 5%' : 'Tidak Dipersyaratkan'}</div>
+      </div>
+    </div>
+
+    ${bypassBadgesHtml}
+  `;
+}
+
+async function terapkanSimulasiKePaketBaru() {
+  if (!CakraSimulasiState.activeResult) {
+    cakraNotify('Silakan jalankan simulasi terlebih dahulu.', 'warning');
+    return;
+  }
+  const sim = CakraSimulasiState.activeResult.simulasi || {};
+  const tpl = CakraSimulasiState.activeResult.template || {};
+
+  closeSimulatorPengadaanModal();
+
+  await createNewPaketPrompt({
+    nama: `Pengadaan ${sim.jenis_pengadaan} (${tpl.nama || 'Sesuai Standar Template'})`,
+    jenis_pengadaan: sim.jenis_pengadaan,
+    pagu: sim.pagu,
+    metode_pemilihan: sim.metode,
+    bentuk_kontrak: sim.bentuk_kontrak
+  });
+}
+
+function applyTemplateBakuToCurrentForm(templateId) {
+  if (!CakraState.activePaketCtx) return;
+  const tpl = CakraState.activePaketCtx.audit?.template;
+  if (!tpl) return;
+
+  const elBentuk = document.getElementById('cf_bentuk_kontrak');
+  const elKertas = document.getElementById('cf_jenis_kertas_harga');
+  const elMetode = document.getElementById('cf_metode_pemilihan');
+  const elPph = document.getElementById('cf_jenis_pph_select');
+
+  if (elBentuk && tpl.bentuk_kontrak) elBentuk.value = tpl.bentuk_kontrak;
+  if (elKertas && tpl.jenis_kertas_harga) elKertas.value = tpl.jenis_kertas_harga;
+  if (elMetode && tpl.metode_pemilihan) elMetode.value = tpl.metode_pemilihan;
+
+  if (elPph && tpl.tarif_pph !== undefined) {
+    for (let i = 0; i < elPph.options.length; i++) {
+      const optVal = elPph.options[i].value;
+      if (optVal.endsWith('|' + tpl.tarif_pph)) {
+        elPph.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  cakraNotify(`Standar template ${tpl.id} (${tpl.nama}) berhasil diterapkan ke form ini. Jangan lupa klik Simpan Perubahan.`, 'success');
+}
+
+async function selesaikanTahapDanLanjut(tahapNo) {
+  if (!CakraState.activePaketCtx) return;
+  const nextStage = Math.min(18, Number(tahapNo) + 1);
+  selectCockpitStage(nextStage);
+  cakraNotify(`Melanjutkan ke Tahap ${nextStage}...`, 'info');
+}
+
+// Window exports
+window.openSimulatorPengadaanModal = openSimulatorPengadaanModal;
+window.closeSimulatorPengadaanModal = closeSimulatorPengadaanModal;
+window.onSimulatorJenisChange = onSimulatorJenisChange;
+window.formatSimulatorPaguInput = formatSimulatorPaguInput;
+window.setSimulatorPaguPreset = setSimulatorPaguPreset;
+window.jalankanSimulasiPengadaan = jalankanSimulasiPengadaan;
+window.terapkanSimulasiKePaketBaru = terapkanSimulasiKePaketBaru;
+window.applyTemplateBakuToCurrentForm = applyTemplateBakuToCurrentForm;
+window.selesaikanTahapDanLanjut = selesaikanTahapDanLanjut;
+
 
 window.addEventListener('DOMContentLoaded', () => {
   setTimeout(initCakraApp, 350);

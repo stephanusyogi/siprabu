@@ -25,9 +25,13 @@ const {
 
 const {
   DEFINISI_18_TAHAP,
+  TEMPLATES_PENGADAAN,
+  PANDUAN_18_TAHAP,
   hitungKeuanganKontrak,
   hitungKonversiSbob,
-  evaluasiJalurRegulasi
+  evaluasiJalurRegulasi,
+  cariTemplatePengadaan,
+  evaluasiAuditPaket
 } = require('./utils');
 
 const { generateExcelBuffer } = require('./excel_engine');
@@ -113,6 +117,8 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
         penyedias,
         pakets,
         definisi18Tahap: DEFINISI_18_TAHAP,
+        templates: TEMPLATES_PENGADAAN,
+        panduanTahap: PANDUAN_18_TAHAP,
         summary: {
           jumlahPaket: pakets.length,
           totalPagu,
@@ -126,6 +132,82 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
       });
     }
 
+    // 1b. Daftar 14 Template Skenario Baku Pengadaan
+    if (pathname === '/api/cakra/templates' && method === 'GET') {
+      return sendJson(res, 200, {
+        ok: true,
+        templates: TEMPLATES_PENGADAAN,
+        panduanTahap: PANDUAN_18_TAHAP
+      });
+    }
+
+    // 1c. Simulator Interaktif Jenis Belanja & Besaran Nilai Pengadaan
+    if (pathname === '/api/cakra/simulasi' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const simPagu = Number(body.pagu || body.pagu_anggaran || body.nilai_pagu || 0);
+      const simJenis = String(body.jenis_pengadaan || 'Barang').trim();
+      const simViaKatalog = Boolean(body.via_katalog !== undefined ? body.via_katalog : (body.metode_pemilihan === 'E-Purchasing'));
+      
+      let simMetode = body.metode_pemilihan;
+      if (!simMetode) {
+        if (body.cara_pengadaan === 'Swakelola' || simJenis === 'Swakelola') {
+          simMetode = 'Swakelola';
+        } else if (simJenis === 'Dikecualikan') {
+          simMetode = 'Mekanisme Pasar (Dikecualikan)';
+        } else if (simViaKatalog && ['Barang', 'Jasa Lainnya'].includes(simJenis)) {
+          simMetode = 'E-Purchasing';
+        } else if (simJenis.includes('Konstruksi')) {
+          simMetode = simPagu <= 400000000 ? 'Pengadaan Langsung' : 'Tender';
+        } else if (simJenis.includes('Konsultansi')) {
+          simMetode = simPagu <= 100000000 ? 'Pengadaan Langsung' : 'Seleksi';
+        } else {
+          simMetode = simPagu <= 200000000 ? 'Pengadaan Langsung' : 'Tender';
+        }
+      }
+
+      const dummyPaket = {
+        jenis_pengadaan: simJenis,
+        pagu_anggaran: simPagu,
+        nilai_pagu: simPagu,
+        nilai_hps: simPagu,
+        nilai_kontrak: simPagu,
+        cara_pengadaan: body.cara_pengadaan || (simJenis === 'Swakelola' ? 'Swakelola' : 'Penyedia'),
+        metode_pemilihan: simMetode,
+        tahap_aktif: 1
+      };
+
+      const template = cariTemplatePengadaan(dummyPaket);
+      const audit = evaluasiAuditPaket(dummyPaket, [], [], null, [], 1);
+      const rekomendasi = evaluasiJalurRegulasi(dummyPaket);
+      const keuangan = hitungKeuanganKontrak({
+        ...dummyPaket,
+        tarif_pph: template ? template.tarif_pph : 1.5,
+        persen_retensi: template ? template.persen_retensi : 0
+      });
+
+      return sendJson(res, 200, {
+        ok: true,
+        template,
+        rekomendasi,
+        keuangan,
+        audit,
+        simulasi: {
+          jenis_pengadaan: simJenis,
+          pagu: simPagu,
+          metode: simMetode,
+          bentuk_kontrak: template ? template.bentuk_kontrak : 'SPK',
+          kertas_harga: template ? template.jenis_kertas_harga : 'HPS Formal',
+          pejabat: template ? template.pelaksana : 'Pejabat Pengadaan',
+          tarif_pph: template ? template.tarif_pph : 1.5,
+          jenis_pph: template ? template.jenis_pph : 'PPh 22 (1.5%)',
+          persen_retensi: template ? template.persen_retensi : 0,
+          wajib_jaminan: template ? template.wajib_jaminan_pelaksanaan : 0,
+          bypass_tahap: template ? template.bypass_tahap : [],
+          dasar_hukum: template ? template.dasar_hukum : 'Perpres 46/2025'
+        }
+      });
+    }
+
     // 2. Detail Lengkap 1 Paket
     if (pathname.startsWith('/api/cakra/paket/') && method === 'GET' && !pathname.endsWith('/items') && !pathname.endsWith('/tahaps')) {
       const id = Number(pathname.split('/').pop());
@@ -134,11 +216,18 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
 
       const keuangan = hitungKeuanganKontrak(ctx.paket);
       const rekomendasi = evaluasiJalurRegulasi(ctx.paket);
+      const pejabats = await getPejabatList();
+      const activeStage = Number(query.tahap || ctx.paket.tahap_aktif || 6);
+      const audit = evaluasiAuditPaket(ctx.paket, ctx.tahaps, ctx.items, ctx.penyedia, pejabats, activeStage);
+      const template = cariTemplatePengadaan(ctx.paket);
+
       return sendJson(res, 200, {
         ok: true,
         ...ctx,
         keuangan,
-        rekomendasi
+        rekomendasi,
+        audit,
+        template
       });
     }
 

@@ -789,6 +789,82 @@ function initDb() {
   } catch (e) {
     console.warn('[SHEET-MATRIX] Inisialisasi seeding matrix:', e.message);
   }
+
+  // =========================================================================
+  // MATRIKS HAK AKSES RUH BELANJA SUBBAGIAN (PIC VS LEVEL) - BAB 26 CANON
+  // =========================================================================
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_ruh_pic_matrix (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pic_key VARCHAR(32) NOT NULL UNIQUE,
+        pic_label VARCHAR(128) NOT NULL,
+        urutan INTEGER DEFAULT 0,
+        allow_l0 INTEGER DEFAULT 1,
+        allow_l1 INTEGER DEFAULT 1,
+        allow_l2 INTEGER DEFAULT 1,
+        allow_l3 INTEGER DEFAULT 1,
+        allow_l4 INTEGER DEFAULT 1,
+        allow_l5 INTEGER DEFAULT 1,
+        allow_l6 INTEGER DEFAULT 1,
+        allow_l7 INTEGER DEFAULT 1,
+        allow_l8 INTEGER DEFAULT 1,
+        allow_l9 INTEGER DEFAULT 1,
+        allow_l10 INTEGER DEFAULT 1,
+        allow_l11 INTEGER DEFAULT 1,
+        allow_l12 INTEGER DEFAULT 1,
+        mode_l0 VARCHAR(32) DEFAULT 'EDITOR_ALL',
+        mode_l1 VARCHAR(32) DEFAULT 'EDITOR_ALL',
+        mode_l2 VARCHAR(32) DEFAULT 'EDITOR_PIC',
+        mode_l3 VARCHAR(32) DEFAULT 'EDITOR_PIC',
+        mode_l4 VARCHAR(32) DEFAULT 'VIEWER',
+        mode_l5 VARCHAR(32) DEFAULT 'VIEWER',
+        mode_l6 VARCHAR(32) DEFAULT 'VIEWER',
+        mode_l7 VARCHAR(32) DEFAULT 'VIEWER',
+        mode_l8 VARCHAR(32) DEFAULT 'VIEWER',
+        mode_l9 VARCHAR(32) DEFAULT 'VIEWER',
+        mode_l10 VARCHAR(32) DEFAULT 'VIEWER',
+        mode_l11 VARCHAR(32) DEFAULT 'VIEWER',
+        mode_l12 VARCHAR(32) DEFAULT 'VIEWER',
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    const canonicalPics = [
+      { urutan: 1, pic_key: 'RUH_BELANJA_AGREGASI', pic_label: 'Rincian Usulan Belanja (Agregasi 5 Subbagian)' }
+    ];
+
+    for (const p of canonicalPics) {
+      const existing = db.prepare('SELECT id FROM app_ruh_pic_matrix WHERE pic_key = ?').get(p.pic_key);
+      if (!existing) {
+        db.prepare(`
+          INSERT INTO app_ruh_pic_matrix (
+            pic_key, pic_label, urutan,
+            allow_l0, allow_l1, allow_l2, allow_l3, allow_l4,
+            allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10,
+            allow_l11, allow_l12,
+            mode_l0, mode_l1, mode_l2, mode_l3, mode_l4,
+            mode_l5, mode_l6, mode_l7, mode_l8, mode_l9, mode_l10,
+            mode_l11, mode_l12,
+            is_active
+          ) VALUES (
+            ?, ?, ?,
+            1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1,
+            1, 1,
+            'EDITOR_ALL', 'EDITOR_ALL', 'EDITOR_PIC', 'EDITOR_PIC', 'VIEWER_ALL',
+            'VIEWER_ALL', 'VIEWER_ALL', 'VIEWER_ALL', 'VIEWER_ALL', 'VIEWER_ALL', 'VIEWER_ALL',
+            'VIEWER_ALL', 'VIEWER_ALL',
+            1
+          )
+        `).run(p.pic_key, p.pic_label, p.urutan);
+      }
+    }
+  } catch (e) {
+    console.warn('[RUH-PIC-MATRIX] Inisialisasi seeding matrix:', e.message);
+  }
   safeAddColumn('periode_anggaran', 'pagu_nphd REAL DEFAULT 0');
   safeAddColumn('periode_anggaran', 'created_at TEXT DEFAULT CURRENT_TIMESTAMP');
   safeAddColumn('periode_anggaran', 'updated_at TEXT DEFAULT CURRENT_TIMESTAMP');
@@ -2168,41 +2244,49 @@ function checkRowEditPermission(periodeId, subbag, user = null) {
   const p = getPeriodeById(periodeId);
   if (!p) throw new Error('Dokumen periode RKB tidak ditemukan.');
   if (Number(p.is_locked) === 1) {
-    throw new Error('Dokumen RKB ini berstatus terkunci, data tidak dapat diedit atau ditambah.');
+    if (user && Number(user.level) === 0) {
+      // Developer emergency bypass
+    } else {
+      throw new Error('Dokumen RKB ini berstatus terkunci, data tidak dapat diedit atau ditambah.');
+    }
   }
 
+  if (!user) return;
   const cleanSubbag = normalizePic(subbag || 'KUL');
-  const proposal = db.prepare('SELECT * FROM revisi_pengajuan WHERE periode_id = ? AND subbag = ?').get(periodeId, cleanSubbag);
+  const userLvl = Number(user.level);
+  const userPic = normalizePic(user.pic_subbag || (user.active_role ? user.active_role.pic : 'SEMUA'));
 
-  if (user && ([4, 5, 6, 7].includes(Number(user.level)) || (Number(user.level) === 3 && (!user.pic_subbag || user.pic_subbag === 'SEMUA')))) {
-    throw new Error('Akses ditolak. Akun Pimpinan / Peninjau Murni bersifat Read-Only dan tidak dapat menyunting rincian RKB.');
-  }
+  // 1. Evaluasi Otorisasi via Matriks Hak Akses RUH Belanja Dinamis (Opsi 3: Rincian Usulan Belanja Agregasi 5 Subbagian)
+  const matrix = getRuhPicMatrix();
+  const ruhRow = (Array.isArray(matrix) && matrix.length > 0)
+    ? (matrix.find(m => m.pic_key === 'RUH_BELANJA_AGREGASI' || m.pic_key === 'ruh_belanja') || matrix[0])
+    : null;
 
-  if (user && user.level > 1) {
-    // Level 2 (Operator Subbag):
-    const userPic = normalizePic(user.pic_subbag);
-    let isAuthorized = (userPic === cleanSubbag || userPic === 'SEMUA');
+  if (ruhRow) {
+    const isAllowed = Boolean(ruhRow[`allow_l${userLvl}`]);
+    const mode = String(ruhRow[`mode_l${userLvl}`] || 'VIEWER_ALL').toUpperCase();
 
-    // Jika pengguna berada dalam mode KUMULATIF dan memiliki daftar peran:
-    if (!isAuthorized && user.role_mode === 'KUMULATIF' && Array.isArray(user.roles)) {
-      isAuthorized = user.roles.some(r => {
-        const rPic = normalizePic(r.pic);
-        const isEditor = String(r.mode_akses).toUpperCase() !== 'VIEWER';
-        const isLevelOk = Number(r.level) <= 3;
-        return isEditor && isLevelOk && (rPic === cleanSubbag || rPic === 'SEMUA');
-      });
+    if (!isAllowed || mode === 'NONE') {
+      throw new Error(`Akses ditolak. Tingkat kewenangan Anda tidak diizinkan mengakses rincian belanja.`);
     }
-
-    if (!isAuthorized) {
-      throw new Error(`Akses ditolak. Operator ${userPic} tidak berwenang menyunting rincian belanja milik subbagian ${cleanSubbag}.`);
+    if (mode === 'VIEWER_PIC' || mode === 'VIEWER_ALL' || user.mode_akses === 'VIEWER') {
+      throw new Error(`Akses ditolak. Tingkat kewenangan Anda bersifat Read-Only untuk rincian belanja.`);
     }
-
-    if (proposal) {
-      if (['DIAJUKAN', 'MENUNGGU_PLENO', 'ACC_PLENO', 'SELESAI'].includes(proposal.status_tahap)) {
-        throw new Error(`Akses ditolak. Rincian subbagian ${cleanSubbag} sudah diajukan ke Rendatin (Status: ${proposal.status_tahap}) dan terkunci dari pengeditan PIC.`);
+    if (mode === 'EDITOR_PIC') {
+      if (userPic !== 'SEMUA' && userPic !== cleanSubbag) {
+        throw new Error(`Akses ditolak. Anda ditugaskan pada PIC ${userPic}, tidak berwenang menyunting rincian belanja subbagian ${cleanSubbag}.`);
       }
     }
-  } else if (user && (user.level === 1 || user.level === 0)) {
+  }
+
+  const proposal = db.prepare('SELECT * FROM revisi_pengajuan WHERE periode_id = ? AND subbag = ?').get(periodeId, cleanSubbag);
+  if (proposal) {
+    if (userLvl > 1 && ['DIAJUKAN', 'MENUNGGU_PLENO', 'ACC_PLENO', 'SELESAI'].includes(proposal.status_tahap)) {
+      throw new Error(`Akses ditolak. Rincian subbagian ${cleanSubbag} sudah diajukan ke Rendatin (Status: ${proposal.status_tahap}) dan terkunci dari pengeditan PIC.`);
+    }
+  }
+
+  if (userLvl === 1 || userLvl === 0) {
     // Level 1 (Perencanaan) / Level 0 (Developer):
     // Catat koreksi kecil rincian belanja pada pengajuan yang sedang diproses
     if (proposal && proposal.status_tahap !== 'DRAFT') {
@@ -4583,6 +4667,106 @@ function saveSheetMatrix(items = []) {
   return getSheetMatrix();
 }
 
+/**
+ * Matriks Hak Akses RUH Belanja Subbagian Dinamis (PIC vs Level 0-12)
+ */
+function getRuhPicMatrix() {
+  try {
+    const rows = db.prepare('SELECT * FROM app_ruh_pic_matrix WHERE is_active = 1 ORDER BY urutan ASC, id ASC').all() || [];
+    return rows.map(r => ({
+      ...r,
+      allow_l0: Number(r.allow_l0 ?? 1),
+      allow_l1: Number(r.allow_l1 ?? 1),
+      allow_l2: Number(r.allow_l2 ?? 1),
+      allow_l3: Number(r.allow_l3 ?? 1),
+      allow_l4: Number(r.allow_l4 ?? 1),
+      allow_l5: Number(r.allow_l5 ?? 1),
+      allow_l6: Number(r.allow_l6 ?? 1),
+      allow_l7: Number(r.allow_l7 ?? 1),
+      allow_l8: Number(r.allow_l8 ?? 1),
+      allow_l9: Number(r.allow_l9 ?? 1),
+      allow_l10: Number(r.allow_l10 ?? 1),
+      allow_l11: Number(r.allow_l11 ?? 1),
+      allow_l12: Number(r.allow_l12 ?? 1),
+      mode_l0: r.mode_l0 || 'EDITOR_ALL',
+      mode_l1: r.mode_l1 || 'EDITOR_ALL',
+      mode_l2: r.mode_l2 || 'EDITOR_PIC',
+      mode_l3: r.mode_l3 || 'EDITOR_PIC',
+      mode_l4: r.mode_l4 || 'VIEWER_ALL',
+      mode_l5: r.mode_l5 || 'VIEWER_ALL',
+      mode_l6: r.mode_l6 || 'VIEWER_ALL',
+      mode_l7: r.mode_l7 || 'VIEWER_ALL',
+      mode_l8: r.mode_l8 || 'VIEWER_ALL',
+      mode_l9: r.mode_l9 || 'VIEWER_ALL',
+      mode_l10: r.mode_l10 || 'VIEWER_ALL',
+      mode_l11: r.mode_l11 || 'VIEWER_ALL',
+      mode_l12: r.mode_l12 || 'VIEWER_ALL'
+    }));
+  } catch (e) {
+    console.warn('[RUH-PIC-MATRIX] Gagal ambil matrix:', e.message);
+    return [];
+  }
+}
+
+function saveRuhPicMatrix(items = []) {
+  if (!Array.isArray(items) || items.length === 0) return getRuhPicMatrix();
+  for (let i = 0; i <= 12; i++) {
+    safeAddColumn('app_ruh_pic_matrix', `allow_l${i} INTEGER DEFAULT 1`);
+    const defaultMode = (i <= 1) ? 'EDITOR_ALL' : ((i <= 3) ? 'EDITOR_PIC' : 'VIEWER');
+    safeAddColumn('app_ruh_pic_matrix', `mode_l${i} TEXT DEFAULT '${defaultMode}'`);
+  }
+  const updateStmt = db.prepare(`
+    UPDATE app_ruh_pic_matrix 
+    SET allow_l0 = ?, mode_l0 = ?,
+        allow_l1 = ?, mode_l1 = ?,
+        allow_l2 = ?, mode_l2 = ?,
+        allow_l3 = ?, mode_l3 = ?,
+        allow_l4 = ?, mode_l4 = ?,
+        allow_l5 = ?, mode_l5 = ?,
+        allow_l6 = ?, mode_l6 = ?,
+        allow_l7 = ?, mode_l7 = ?,
+        allow_l8 = ?, mode_l8 = ?,
+        allow_l9 = ?, mode_l9 = ?,
+        allow_l10 = ?, mode_l10 = ?,
+        allow_l11 = ?, mode_l11 = ?,
+        allow_l12 = ?, mode_l12 = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE pic_key = ?
+  `);
+
+  const normalizeMode = (m, def) => {
+    if (!m) return def;
+    const upper = String(m).toUpperCase();
+    if (upper === 'VIEWER') return 'VIEWER_ALL';
+    return upper;
+  };
+
+  items.forEach(item => {
+    try {
+      updateStmt.run(
+        item.allow_l0 ? 1 : 0, normalizeMode(item.mode_l0, 'EDITOR_ALL'),
+        item.allow_l1 ? 1 : 0, normalizeMode(item.mode_l1, 'EDITOR_ALL'),
+        item.allow_l2 ? 1 : 0, normalizeMode(item.mode_l2, 'EDITOR_PIC'),
+        item.allow_l3 ? 1 : 0, normalizeMode(item.mode_l3, 'EDITOR_PIC'),
+        item.allow_l4 ? 1 : 0, normalizeMode(item.mode_l4, 'VIEWER_ALL'),
+        item.allow_l5 ? 1 : 0, normalizeMode(item.mode_l5, 'VIEWER_ALL'),
+        item.allow_l6 ? 1 : 0, normalizeMode(item.mode_l6, 'VIEWER_ALL'),
+        item.allow_l7 ? 1 : 0, normalizeMode(item.mode_l7, 'VIEWER_ALL'),
+        item.allow_l8 ? 1 : 0, normalizeMode(item.mode_l8, 'VIEWER_ALL'),
+        item.allow_l9 ? 1 : 0, normalizeMode(item.mode_l9, 'VIEWER_ALL'),
+        item.allow_l10 ? 1 : 0, normalizeMode(item.mode_l10, 'VIEWER_ALL'),
+        item.allow_l11 ? 1 : 0, normalizeMode(item.mode_l11, 'VIEWER_ALL'),
+        item.allow_l12 ? 1 : 0, normalizeMode(item.mode_l12, 'VIEWER_ALL'),
+        item.pic_key
+      );
+    } catch (e) {
+      console.warn('[RUH-PIC-MATRIX] Gagal update matrix:', item.pic_key, e.message);
+    }
+  });
+  return getRuhPicMatrix();
+}
+
+
 function getUsers() {
   const users = db.prepare('SELECT id, username, nama_pejabat, nip, nik, no_hp, jabatan, role_id, level, pic_subbag, email, google_id, avatar_url, is_active, token_version, role_mode, can_delete FROM satker_users ORDER BY level ASC, id ASC').all();
   try {
@@ -4971,6 +5155,7 @@ function getMasters() {
     akuns: db.prepare('SELECT * FROM master_akun ORDER BY kode ASC').all(),
     subbagians: db.prepare('SELECT * FROM master_subbagian ORDER BY id').all(),
     regulasis: getRegulasiList(),
+    ruhPicMatrix: getRuhPicMatrix(),
     settings
   };
 }
@@ -8394,6 +8579,8 @@ module.exports = {
   saveMenuMatrix,
   getSheetMatrix,
   saveSheetMatrix,
+  getRuhPicMatrix,
+  saveRuhPicMatrix,
   updateUserRoleMode,
   repairCorruptedDuplicateFactors,
   autoBindRabVariables,
