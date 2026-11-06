@@ -347,10 +347,16 @@ async function getPaketList() {
     SELECT p.*,
            v.nama_perusahaan AS nama_penyedia,
            v.kualifikasi_usaha AS kualifikasi_penyedia,
-           ppk.nama_lengkap AS nama_ppk
+           ppk.nama_lengkap AS nama_ppk,
+           COALESCE(SUM(CASE WHEN t.status_tahap = 'Selesai' AND t.link_drive_dokumen IS NOT NULL AND LENGTH(TRIM(t.link_drive_dokumen)) > 5 THEN 1 ELSE 0 END), 0) AS count_selesai,
+           COALESCE(SUM(CASE WHEN t.status_tahap = 'Draft' THEN 1 ELSE 0 END), 0) AS count_draft,
+           COALESCE(SUM(CASE WHEN t.status_tahap = 'Bypass' THEN 1 ELSE 0 END), 0) AS count_bypass,
+           COALESCE(SUM(CASE WHEN t.link_drive_dokumen IS NOT NULL AND LENGTH(TRIM(t.link_drive_dokumen)) > 5 THEN 1 ELSE 0 END), 0) AS count_drive
     FROM pbj_paket p
     LEFT JOIN pbj_penyedia v ON p.penyedia_id = v.id
     LEFT JOIN pbj_pejabat ppk ON p.ppk_id = ppk.id
+    LEFT JOIN pbj_paket_tahap t ON p.id = t.paket_id
+    GROUP BY p.id, v.nama_perusahaan, v.kualifikasi_usaha, ppk.nama_lengkap
     ORDER BY p.id ASC
   `);
   return rows;

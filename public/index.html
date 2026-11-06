@@ -324,25 +324,30 @@
               <button type="button" class="prabu-sidebar-cta-btn" onclick="openSmartWizardModal()" style="margin: 4px 8px 8px 8px; width: calc(100% - 16px); background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%); color: #ffffff; border: none; border-radius: 6px; padding: 7px 10px; font-weight: 800; font-size: 11.5px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,99,235,0.25); cursor: pointer; text-align: center; transition: all 0.2s;" title="Buka Wizard Panduan & Rekomendasi Cerdas untuk Membuat Paket Pengadaan Baru">
                 <span>🪄 + Buat Paket Baru</span>
               </button>
-              <button class="nav-item" data-view="view-pengadaan-portal-pengusul" id="nav-item-pengadaan-portal-pengusul" onclick="switchView('view-pengadaan-portal-pengusul')">
-                <span class="icon">📝</span>
-                <span class="label">Pengusulan & Disposisi KPA</span>
+              <!-- 1. PENGADAAN BARU: KOKPIT KHUSUS PROSES PENGADAAN -->
+              <button class="nav-item" data-view="view-pengadaan-kokpit" id="nav-item-pengadaan-kokpit" onclick="switchView('view-pengadaan-kokpit')">
+                <span class="icon">🚀</span>
+                <span class="label">Pengadaan Baru</span>
               </button>
+              <!-- 2. DAFTAR PAKET: MEREKAM SELURUH PENGADAAN SELESAI & PROSES -->
               <button class="nav-item" data-view="view-pengadaan-paket" id="nav-item-pengadaan-paket" onclick="switchView('view-pengadaan-paket')">
-                <span class="icon">📦</span>
-                <span class="label">Daftar Paket Pengadaan</span>
+                <span class="icon">📂</span>
+                <span class="label">Daftar Paket</span>
                 <span class="badge badge-primary badge-sm" id="badge-pengadaan-paket">6</span>
               </button>
-              <button class="nav-item" data-view="view-pengadaan-kokpit" id="nav-item-pengadaan-kokpit" onclick="switchView('view-pengadaan-kokpit')">
-                <span class="icon">🧭</span>
-                <span class="label">Kokpit 18 Tahap</span>
+              <!-- 3. AUDIT PENGADAAN: MENU KHUSUS AUDIT PROSES SELESAI / BERJALAN -->
+              <button class="nav-item" data-view="view-audit-pengadaan" id="nav-item-audit-pengadaan" onclick="switchView('view-audit-pengadaan')">
+                <span class="icon">🛡️</span>
+                <span class="label">Audit Pengadaan</span>
               </button>
+              <!-- 4. REKAP PENGADAAN: KONSOLIDASI & ANALITIK EKSEKUTIF PBJ -->
               <button class="nav-item" data-view="view-rekap-pengadaan" id="nav-item-rekap-pengadaan" onclick="switchView('view-rekap-pengadaan')">
-                <span class="icon">📈</span>
+                <span class="icon">📊</span>
                 <span class="label">Rekap Pengadaan</span>
               </button>
+              <!-- 5. PANDUAN PENGADAAN: PUSAT PANDUAN, REGULASI, JADWAL & DO'S/DON'TS -->
               <button class="nav-item" data-view="view-panduan-pengadaan" id="nav-item-panduan-pengadaan" onclick="switchView('view-panduan-pengadaan')">
-                <span class="icon">📘</span>
+                <span class="icon">📚</span>
                 <span class="label">Panduan Pengadaan</span>
               </button>
             </div>
@@ -4182,13 +4187,13 @@
         <section id="view-pengadaan-paket" class="app-view">
           <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
             <div>
-              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📦 Daftar Paket Pengadaan Barang/Jasa &amp; Konstruksi</h1>
-              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Manajemen Administrasi Kontrak &amp; Rekam Pengadaan 18 Tahap Hulu–Hilir KPU Kabupaten Ngawi (Perpres 46/2025, Kepka LKPP 177/2024, Perlem LKPP 2/2026 &amp; 3/2026)</p>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📂 Daftar Paket Pengadaan Barang/Jasa &amp; Konstruksi</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Pencatatan seluruh pengadaan yang selesai dan sedang berproses (18 Tahap Hulu–Hilir KPU Kabupaten Ngawi TA 2026).</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button type="button" class="cakra-btn cakra-btn-outline" onclick="openSimulatorPengadaanModal()" style="border-color:#7c3aed; color:#6d28d9; background:#f5f3ff; font-weight:700;">🧮 Simulator Jenis Belanja &amp; Nilai</button>
-              <button type="button" class="cakra-btn cakra-btn-outline" onclick="toggleCakraRkbDrawer()">📥 Tarik Mata Anggaran dari RKB</button>
-              <button type="button" class="cakra-btn cakra-btn-primary" onclick="openSmartWizardModal()" style="font-weight:700;">🪄 Panduan &amp; Buat Paket Baru</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="switchView('view-pengadaan-portal-pengusul')" style="border-color:#0284c7; color:#0369a1; background:#f0f9ff; font-weight:700;" title="Buka Portal Pengusulan Kasubag & Disposisi KPA">📝 Pengusulan Kasubag &amp; Disposisi KPA ↗</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="toggleCakraRkbDrawer()">📥 Tarik RKB Belanja</button>
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="openSmartWizardModal()" style="font-weight:700;">🪄 + Buat Paket Baru</button>
             </div>
           </div>
 
@@ -4255,9 +4260,10 @@
                 <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-fase6" onclick="switchCockpitFase(6)" title="Fase VI: Serah Terima & BMN (Tahap 16 s.d. 18)">
                   <span class="phase-pill-badge">FASE VI</span> 🏆 Serah Terima &amp; BMN (T16–18)
                 </button>
-                <div style="margin-left:auto; display:flex; gap:6px; align-items:center;">
-                  <button type="button" class="cakra-sub-tab-btn cakra-util-tab-btn" id="cakra-subtab-btn-jadwal" onclick="switchCockpitUtilityView('jadwal')" title="Lihat Time-Machine Jadwal 18 Tahap">⏱️ Jadwal 18 Tahap</button>
-                  <button type="button" class="cakra-sub-tab-btn cakra-util-tab-btn" id="cakra-subtab-btn-dodont" onclick="switchCockpitUtilityView('dodont')" title="Lihat Buku Saku Do's & Don'ts Lengkap">🧭 Buku Saku</button>
+                <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                  <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="switchView('view-panduan-pengadaan')" style="font-size:11px; height:28px; padding:0 10px; font-weight:700; color:#1e40af; border-color:#bfdbfe; background:#eff6ff;" title="Buka Buku Saku Do's & Don'ts, Jadwal, dan Matriks Regulasi di Panduan Pengadaan">
+                    📚 Buka Panduan &amp; Jadwal ↗
+                  </button>
                 </div>
               </div>
               <div id="cakra-cockpit-tab-content"></div>
@@ -4312,19 +4318,116 @@
           
         </section>
 
-        <!-- VIEW PENGADAAN 4: PANDUAN PENGADAAN 18 TAHAP -->
+        <!-- ===================================================================== -->
+        <!-- VIEW PENGADAAN 3: AUDIT PENGADAAN (AUDIT PROSES SELESAI & BERJALAN)    -->
+        <!-- ===================================================================== -->
+        <section id="view-audit-pengadaan" class="app-view">
+          <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">🛡️ Audit Pengadaan (Kepatuhan 18 Tahap Hulu–Hilir)</h1>
+                <span class="cakra-badge cakra-badge-blue" style="font-size:11px;">KONTROL MUTU &amp; MITIGASI RISIKO</span>
+              </div>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Pengawasan kepatuhan administrasi paket selesai maupun berjalan, verifikasi kelengkapan arsip Google Drive, &amp; deteksi dini temuan SPI/BPK.</p>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="renderAuditPengadaanView()" style="display:flex; align-items:center; gap:5px;">
+                <span>🔄</span> Segarkan Audit
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="exportAuditPengadaanExcel()" style="display:flex; align-items:center; gap:5px;">
+                <span>📊</span> Unduh Kertas Kerja Audit (.xlsx)
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI STATISTIK KEPATUHAN AUDIT -->
+          <div id="audit-pengadaan-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:16px;">
+            <!-- Rendered dynamically by renderAuditPengadaanView() -->
+          </div>
+
+          <!-- FILTER BAR STATUS AUDIT -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;" id="audit-filter-button-group">
+              <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" id="btn-audit-filter-all" onclick="filterAuditPengadaan('ALL')">Semua Paket (<span id="audit-badge-all">0</span>)</button>
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" id="btn-audit-filter-done" onclick="filterAuditPengadaan('SELESAI')">✅ Bebas Temuan / Selesai (<span id="audit-badge-done">0</span>)</button>
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" id="btn-audit-filter-process" onclick="filterAuditPengadaan('PROSES')">📝 Sedang Berjalan (<span id="audit-badge-process">0</span>)</button>
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" id="btn-audit-filter-warn" onclick="filterAuditPengadaan('WARNING')">⚠️ Perlu Dilengkapi (<span id="audit-badge-warn">0</span>)</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="text" id="audit-pengadaan-search-input" class="cakra-form-control" placeholder="Cari nama/kode paket/penyedia..." oninput="debounceAuditSearch()" style="width:260px; font-size:12px; padding:4px 8px; height:32px;">
+            </div>
+          </div>
+
+          <!-- TABEL AUDIT KEPATUHAN HULU-HILIR -->
+          <div class="cakra-card" style="width:100%;">
+            <div class="cakra-card-body" style="padding:0; overflow-x:auto;">
+              <table class="cakra-data-table">
+                <thead>
+                  <tr>
+                    <th style="width:36px; text-align:center;">No</th>
+                    <th style="min-width:180px;">Identitas Paket &amp; MAK</th>
+                    <th style="min-width:140px;">Subbag &amp; PPK</th>
+                    <th style="min-width:150px;">Pagu &amp; Kontrak (Efisiensi)</th>
+                    <th style="min-width:160px; text-align:center;">Progress 18 Tahap</th>
+                    <th style="min-width:140px; text-align:center;">Arsip Google Drive</th>
+                    <th style="min-width:130px; text-align:center;">Kepatuhan Audit</th>
+                    <th style="width:140px; text-align:center;">Aksi Pemeriksaan</th>
+                  </tr>
+                </thead>
+                <tbody id="cakra-table-audit-body">
+                  <tr><td colspan="8" style="text-align:center; padding:30px; color:#64748b;">Memuat data audit kepatuhan...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- MODAL DETAIL AUDIT LEMBAR KEPATUHAN PAKET -->
+        <div id="modal-audit-paket-detail" class="modal-backdrop" style="display:none; z-index:1150;" onclick="if(event.target===this) closeAuditPaketDetailModal()">
+          <div class="modal-box" style="max-width:920px; width:95%; max-height:90vh; display:flex; flex-direction:column;">
+            <div class="modal-header" style="background:#0f172a; color:#fff; border-bottom:none;">
+              <div>
+                <div style="font-size:11px; font-weight:800; color:#38bdf8; letter-spacing:0.5px;">LEMBAR AUDIT MUTU &amp; KEPATUHAN 18 TAHAP PBJ</div>
+                <h3 style="margin:2px 0 0; font-size:16px; font-weight:800; color:#ffffff;" id="modal-audit-paket-title">Audit Paket</h3>
+              </div>
+              <button type="button" class="btn-close" style="filter:invert(1);" onclick="closeAuditPaketDetailModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modal-audit-paket-content" style="overflow-y:auto; padding:20px; flex:1;">
+              <!-- Rendered dynamically -->
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding:12px 18px;">
+              <div style="font-size:11.5px; color:#64748b;" id="modal-audit-paket-footer-note">Verifikasi otomatis berbasis Perpres 46/2025 &amp; Perlem LKPP 2/2026.</div>
+              <button type="button" class="cakra-btn cakra-btn-secondary" onclick="closeAuditPaketDetailModal()">Tutup</button>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- VIEW PENGADAAN 5: PANDUAN & REGULASI PENGADAAN PBJ (5 TAB TERINTEGRASI) -->
         <section id="view-panduan-pengadaan" class="app-view">
           <div class="view-header" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div>
-              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📘 Panduan Pengadaan 18 Tahap Hulu–Hilir (Regulasi 2025/2026)</h1>
-              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Panduan lengkap Nonkonstruksi, Pekerjaan Konstruksi, Konsultansi Konstruksi, Rancang Bangun, Swakelola, &amp; PBJ Dikecualikan.</p>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📚 Pusat Panduan, Regulasi &amp; Standar PBJ Satker</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Buku Saku Do's &amp; Don'ts 18 Tahap, Time-Machine Jadwal Ideal, Matriks Regulasi LKPP &amp; Perpres 46/2025, Uraian Dokumen Sah, serta Simulator PBJ.</p>
             </div>
             <div>
-              <button type="button" class="cakra-btn cakra-btn-outline" onclick="openSimulatorPengadaanModal()" style="border-color:#7c3aed; color:#6d28d9; background:#f5f3ff; font-weight:700;">🧮 Buka Simulator Jenis Belanja &amp; Nilai</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="openSimulatorPengadaanModal()" style="border-color:#7c3aed; color:#6d28d9; background:#f5f3ff; font-weight:700;">🧮 Buka Simulator 14 Skenario</button>
             </div>
           </div>
+
+          <!-- 5 TAB NAVIGASI PANDUAN PENGADAAN -->
+          <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;" id="panduan-pengadaan-nav-tabs">
+            <button type="button" class="btn btn-sm btn-primary" id="btn-panduan-tab-dodont" onclick="switchPanduanTab('dodont')">🧭 1. Do's &amp; Don'ts 18 Tahap</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-panduan-tab-jadwal" onclick="switchPanduanTab('jadwal')">⏱️ 2. Time-Machine Jadwal PBJ</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-panduan-tab-regulasi" onclick="switchPanduanTab('regulasi')">⚖️ 3. Matriks Regulasi &amp; Threshold</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-panduan-tab-dokumen" onclick="switchPanduanTab('dokumen')">📘 4. Uraian 18 Dokumen Sah</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-panduan-tab-simulator" onclick="switchPanduanTab('simulator')">🧮 5. Panduan 14 Skenario Template</button>
+          </div>
+
           <div class="cakra-card">
-            <div class="cakra-card-body" id="cakra-panduan-18-tahap-container"></div>
+            <div class="cakra-card-body" id="cakra-panduan-active-content" style="padding:20px;">
+              <div id="cakra-panduan-18-tahap-container"></div>
+            </div>
           </div>
         </section>
       </main>

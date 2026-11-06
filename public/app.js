@@ -90,7 +90,8 @@ const PRABU_VIEW_CODES = {
   'view-pengadaan-penyedia': 31,
   'view-panduan-pengadaan': 32,
   'view-rekap-pengadaan': 33,
-  'view-pengadaan-portal-pengusul': 34
+  'view-pengadaan-portal-pengusul': 34,
+  'view-audit-pengadaan': 35
 };
 
 const PRABU_CODE_TO_VIEW = {
@@ -127,7 +128,8 @@ const PRABU_CODE_TO_VIEW = {
   31: 'view-pengadaan-penyedia',
   32: 'view-panduan-pengadaan',
   33: 'view-rekap-pengadaan',
-  34: 'view-pengadaan-portal-pengusul'
+  34: 'view-pengadaan-portal-pengusul',
+  35: 'view-audit-pengadaan'
 };
 
 const PRABU_VIEW_TITLES = {
@@ -162,9 +164,11 @@ const PRABU_VIEW_TITLES = {
   'view-menu-matrix': 'Manajemen Hak Akses',
   'view-pengumuman': 'Manajemen Pengumuman Satker',
   'view-pengadaan-paket': 'Daftar Paket Pengadaan',
-  'view-pengadaan-kokpit': 'Kokpit 18 Tahap Pengadaan',
+  'view-pengadaan-kokpit': 'Pengadaan Baru (Kokpit 18 Tahap)',
+  'view-audit-pengadaan': 'Audit Pengadaan (Kepatuhan 18 Tahap)',
+  'view-rekap-pengadaan': 'Rekapitulasi Pengadaan Terpadu',
+  'view-panduan-pengadaan': 'Pusat Panduan & Regulasi Pengadaan',
   'view-pengadaan-penyedia': 'Master Penyedia (Rekanan)',
-  'view-panduan-pengadaan': 'Panduan Pengadaan 18 Tahap',
   'view-pengadaan-portal-pengusul': 'Portal Pengusulan Nota Dinas & Disposisi KPA'
 };
 
@@ -2804,7 +2808,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
   else if (viewId === 'view-rekap-perencanaan') loadRekapView('perencanaan');
   else if (viewId === 'view-rekap-pelaksanaan') loadRekapView('pelaksanaan');
-  else if (['view-pengadaan-paket', 'view-pengadaan-kokpit', 'view-pengadaan-penyedia', 'view-panduan-pengadaan', 'view-rekap-pengadaan', 'view-pengadaan-portal-pengusul'].includes(viewId)) {
+  else if (['view-pengadaan-paket', 'view-pengadaan-kokpit', 'view-audit-pengadaan', 'view-pengadaan-penyedia', 'view-panduan-pengadaan', 'view-rekap-pengadaan', 'view-pengadaan-portal-pengusul'].includes(viewId)) {
     if (typeof window.onEnterPengadaanView === 'function') window.onEnterPengadaanView(viewId);
   }
 }
