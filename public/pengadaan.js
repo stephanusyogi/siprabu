@@ -2572,15 +2572,33 @@ function switchRekapPengadaanTab(tabName) {
 }
 
 function getFilteredRekapPakets() {
-  const picFilter = document.getElementById('rekap-pengadaan-filter-pic')?.value || 'ALL';
+  const selectEl = document.getElementById('rekap-pengadaan-pic-select') || document.getElementById('rekap-pengadaan-filter-pic');
+  const picFilter = String(selectEl?.value || 'SEMUA').toUpperCase().trim();
   const all = Array.isArray(CakraState.pakets) ? CakraState.pakets : [];
-  if (picFilter === 'ALL') return all;
-  return all.filter(p => String(p.pic_subbag || '').toUpperCase() === picFilter);
+  if (picFilter === 'SEMUA' || picFilter === 'ALL' || !picFilter) return all;
+  return all.filter(p => {
+    const pic = String(p.pic_subbag || '').toUpperCase();
+    return pic === picFilter || (picFilter === 'TEKNIS' && pic === 'TEKMAS') || (picFilter === 'HUKUM' && pic === 'HUKUM_SDM');
+  });
 }
 
 function renderRekapPengadaanView() {
-  const kpiGrid = document.getElementById('rekap-pengadaan-kpi-grid');
-  const container = document.getElementById('rekap-pengadaan-table-container');
+  const mainContent = document.getElementById('rekap-pengadaan-content');
+  let kpiGrid = document.getElementById('rekap-pengadaan-kpi-grid');
+  let container = document.getElementById('rekap-pengadaan-table-container');
+
+  // Auto-inject wadah KPI & tabel jika belum ada di dalam card
+  if (!kpiGrid || !container) {
+    if (mainContent) {
+      mainContent.innerHTML = `
+        <div id="rekap-pengadaan-kpi-grid" class="cakra-dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 20px;"></div>
+        <div id="rekap-pengadaan-table-container"></div>
+      `;
+      kpiGrid = document.getElementById('rekap-pengadaan-kpi-grid');
+      container = document.getElementById('rekap-pengadaan-table-container');
+    }
+  }
+
   if (!kpiGrid || !container) return;
 
   const pakets = getFilteredRekapPakets();
@@ -2775,13 +2793,17 @@ function renderRekapPengadaanView() {
     `;
   } else if (tab === 'SUBBAGIAN') {
     const subbags = [
-      { code: 'KUL', name: 'Subbag Keuangan, Umum & Logistik (KUL)' },
-      { code: 'TEKMAS', name: 'Subbag Teknis Penyelenggaraan & Parhupmas (TEKMAS)' },
       { code: 'RENDATIN', name: 'Subbag Perencanaan, Data & Informasi (RENDATIN)' },
-      { code: 'HUKUM_SDM', name: 'Subbag Hukum & Sumber Daya Manusia (HUKUM & SDM)' }
+      { code: 'TEKNIS', name: 'Subbag Teknis Penyelenggaraan Pemilu (TEKNIS)' },
+      { code: 'HUKUM', name: 'Subbag Hukum & Pengawasan (HUKUM)' },
+      { code: 'PARSDM', name: 'Subbag Partisipasi Masyarakat & SDM (PARSDM)' },
+      { code: 'KUL', name: 'Subbag Keuangan, Umum & Logistik (KUL)' }
     ];
     const rowsHtml = subbags.map((sb, idx) => {
-      const items = (CakraState.pakets || []).filter(p => String(p.pic_subbag || '').toUpperCase() === sb.code);
+      const items = (CakraState.pakets || []).filter(p => {
+        const pic = String(p.pic_subbag || '').toUpperCase();
+        return pic === sb.code || (sb.code === 'TEKNIS' && pic === 'TEKMAS') || (sb.code === 'HUKUM' && pic === 'HUKUM_SDM');
+      });
       const pagu = items.reduce((s, p) => s + (Number(p.nilai_pagu) || 0), 0);
       const hps = items.reduce((s, p) => s + (Number(p.nilai_hps) || 0), 0);
       const kontrak = items.reduce((s, p) => s + (Number(p.nilai_kontrak) || 0), 0);
@@ -3056,9 +3078,10 @@ async function queuePengadaanDownload(format, paketId, stage = 'ALL') {
 }
 
 async function exportRekapPengadaanCsv() {
-  const filterSubbag = document.getElementById('rekap-pengadaan-filter-subbag')?.value || 'ALL';
+  const selectEl = document.getElementById('rekap-pengadaan-pic-select') || document.getElementById('rekap-pengadaan-filter-subbag');
+  const filterSubbag = selectEl?.value || 'ALL';
   const filterMetode = document.getElementById('rekap-pengadaan-filter-metode')?.value || 'ALL';
-  const picLabel = filterSubbag === 'ALL' ? 'SEMUA' : filterSubbag;
+  const picLabel = (filterSubbag === 'ALL' || filterSubbag === 'SEMUA') ? 'SEMUA' : filterSubbag;
   const ts = formatPengadaanDownloadTimestamp();
   const filename = `Rekap_Pengadaan_${picLabel}_${ts}.csv`;
   const baselinePeriode = (typeof window.getLockedExecutionPeriode === 'function' ? window.getLockedExecutionPeriode() : null) ||
@@ -3101,7 +3124,8 @@ async function exportRekapPengadaanCsv() {
 }
 
 function printRekapPengadaanPdf() {
-  const filterSubbag = document.getElementById('rekap-pengadaan-filter-subbag')?.value || 'ALL';
+  const selectEl = document.getElementById('rekap-pengadaan-pic-select') || document.getElementById('rekap-pengadaan-filter-subbag');
+  const filterSubbag = selectEl?.value || 'ALL';
   const filterMetode = document.getElementById('rekap-pengadaan-filter-metode')?.value || 'ALL';
   if (typeof window.apiFetch === 'function') {
     window.apiFetch('/api/audit-logs/client-event', {
