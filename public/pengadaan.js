@@ -727,30 +727,41 @@ function handleLockedStageClick(stageNo) {
   cakraNotify(`🔒 Tahap ${targetNo} Terkunci! Sesuai aturan rantai sekuensial, Anda wajib melengkapi dan menyimpan minimal Draf pada ${missingName} terlebih dahulu. Tidak diperkenankan melompati tahapan.`, 'warning');
 }
 
+function toggleCockpitStageGrid() {
+  CakraState.isStageGridExpanded = !CakraState.isStageGridExpanded;
+  try {
+    localStorage.setItem('siprabu_stage_grid_expanded', CakraState.isStageGridExpanded ? 'true' : 'false');
+  } catch (e) {}
+  renderCockpitLeftStepper();
+}
+window.toggleCockpitStageGrid = toggleCockpitStageGrid;
+
 function renderCockpitLeftStepper() {
   const container = document.getElementById('cakra-cockpit-stepper-list');
   if (!container || !CakraState.activePaketCtx) return;
+
+  if (typeof CakraState.isStageGridExpanded !== 'boolean') {
+    try {
+      CakraState.isStageGridExpanded = localStorage.getItem('siprabu_stage_grid_expanded') === 'true';
+    } catch (e) {
+      CakraState.isStageGridExpanded = false;
+    }
+  }
 
   const { tahaps } = CakraState.activePaketCtx;
   const tahapMap = {};
   (tahaps || []).forEach(t => { tahapMap[t.no_tahap] = t; });
 
-  const phaseHeaders = [
-    'FASE 1: PERENCANAAN (1–3)',
-    'FASE 2: PERSIAPAN PPK (4–7)',
-    'FASE 3: PEMILIHAN (8–9)',
-    'FASE 4: TTD KONTRAK (10–13)',
-    'FASE 5: PELAKSANAAN (14–15)',
-    'FASE 6: BAST/PHO & BMN (16–18)'
-  ];
+  const activeStageNo = Number(CakraState.activeStageNo || 1);
+  const activeDef = (CakraState.definisi18Tahap || []).find(d => Number(d.no) === activeStageNo) || { no: activeStageNo, nama: `Tahap ${activeStageNo}` };
 
-  const headersHtml = `
-    <div class="cakra-phase-group-row">
-      ${phaseHeaders.map(h => `<div class="cakra-phase-badge-header">${h}</div>`).join('')}
-    </div>
-  `;
+  let doneCount = 0;
+  let draftCount = 0;
+  let bypassCount = 0;
+  let readyCount = 0;
+  let lockedCount = 0;
 
-  const pillsHtml = CakraState.definisi18Tahap.map(def => {
+  const stageStatuses = (CakraState.definisi18Tahap || []).map(def => {
     const row = tahapMap[def.no] || {};
     const rawStatus = row.status_tahap || 'Terkunci';
     const driveLink = String(row.link_drive_dokumen || '').trim();
@@ -765,62 +776,188 @@ function renderCockpitLeftStepper() {
     const isDone = !isBypass && (rawStatus === 'Selesai' || rawStatus === 'Final') && driveLink.length > 5;
     const isDraft = !isBypass && !isDone && (rawStatus === 'Draft' || rawStatus === 'Aktif' || (rawStatus === 'Selesai' && !driveLink));
     const isChainLocked = !isBypass && !isDone && !isDraft && isCockpitStageLocked(def.no, tahapMap);
-    const isActive = Number(CakraState.activeStageNo) === Number(def.no);
+    const isReady = !isBypass && !isDone && !isDraft && !isChainLocked;
+    const isActive = activeStageNo === Number(def.no);
 
-    let statusCls = 'status-terkunci';
-    let numCls = 'num-terkunci';
-    let statusBadgeIcon = '';
-    let subtitleText = '';
-    let clickAction = `selectCockpitStage(${def.no})`;
+    if (isBypass) bypassCount++;
+    else if (isDone) doneCount++;
+    else if (isDraft) draftCount++;
+    else if (isReady) readyCount++;
+    else lockedCount++;
 
-    if (isBypass) {
-      statusCls = 'bypass';
-      numCls = 'num-bypass';
-      const alasanShort = row.catatan_tahap ? `: ${row.catatan_tahap}` : '';
-      statusBadgeIcon = `<span title="Bypass / Dilewati: ${cakraEsc(row.catatan_tahap || 'Regulasi')}" style="font-size:10px; margin-left:auto; color:#475569; font-weight:700; background:#f1f5f9; padding:1px 5px; border-radius:4px; border:1px solid #cbd5e1;">⏭️ Bypass</span>`;
-      subtitleText = `⏭️ Dilewati${cakraEsc(alasanShort)}`;
-    } else if (isDone) {
-      statusCls = 'status-selesai';
-      numCls = 'num-selesai';
-      statusBadgeIcon = `<span title="Tahap Selesai (Dokumen Sah & Berkas Drive Terverifikasi)" style="font-size:10.5px; margin-left:auto; color:#15803d; font-weight:800; background:#dcfce7; padding:1px 5px; border-radius:4px; border:1px solid #86efac;">✅ Selesai</span>`;
-      subtitleText = `${cakraEsc(row.tanggal_dokumen || '-')} • ${cakraEsc(def.kode)}`;
-    } else if (isDraft) {
-      statusCls = 'status-draft';
-      numCls = 'num-draft';
-      statusBadgeIcon = `<span title="Sedang Dikerjakan (Draf Tersimpan)" style="font-size:10.5px; margin-left:auto; color:#b45309; font-weight:700; background:#fef3c7; padding:1px 5px; border-radius:4px; border:1px solid #fde68a;">📝 Draft</span>`;
-      subtitleText = `${cakraEsc(row.tanggal_dokumen || '-')} • ${cakraEsc(def.kode)}`;
-    } else if (isChainLocked) {
-      // Kondisi 4a: Terkunci Rantai Sekuensial (tidak boleh dilompati)
-      statusCls = 'status-terkunci';
-      numCls = 'num-terkunci';
-      statusBadgeIcon = `<span title="Terkunci: Wajib menyelesaikan draf tahap sebelumnya" style="font-size:10px; margin-left:auto; color:#64748b; background:#f1f5f9; padding:1px 4px; border-radius:4px; border:1px solid #cbd5e1;">🔒 Terkunci</span>`;
-      subtitleText = `🔒 Terkunci (Urut ${def.no - 1})`;
-      clickAction = `handleLockedStageClick(${def.no})`;
-    } else {
-      // Kondisi 4b: Tahap Terbuka & Siap Diisi (tahap sebelumnya sudah memenuhi syarat, siap diinput user)
-      statusCls = 'status-siap';
-      numCls = 'num-siap';
-      statusBadgeIcon = `<span title="Siap Dikerjakan: Silakan klik untuk mulai mengisi" style="font-size:10px; margin-left:auto; color:#0369a1; font-weight:700; background:#e0f2fe; padding:1px 5px; border-radius:4px; border:1px solid #7dd3fc;">🔓 Siap Diisi</span>`;
-      subtitleText = `👉 Siap Dikerjakan`;
-      clickAction = `selectCockpitStage(${def.no})`;
-    }
+    return {
+      def,
+      row,
+      isBypass,
+      isDone,
+      isDraft,
+      isChainLocked,
+      isReady,
+      isActive
+    };
+  });
 
-    const cls = `cakra-stage-pill-btn ${isActive ? 'active' : ''} ${statusCls}`;
+  const totalEffectiveDone = doneCount + bypassCount;
+  const progressPct = Math.round((totalEffectiveDone / 18) * 100);
 
-    return `
-      <button type="button" class="${cls}" onclick="${clickAction}" title="Tahap ${def.no}: ${cakraEsc(def.nama)} [Status: ${isBypass ? 'Bypass' : (isDone ? 'Selesai' : (isDraft ? 'Draft' : (isChainLocked ? 'Terkunci' : 'Siap Diisi')))}]">
-        <div class="cakra-stage-pill-num ${numCls}">${def.no}</div>
-        <div class="cakra-stage-pill-text" style="flex:1; min-width:0;">
-          <div style="display:flex; align-items:center; gap:4px; justify-content:space-between;">
-            <div class="cakra-stage-pill-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${cakraEsc(def.nama)}">${cakraEsc(def.nama)}</div>
-            ${statusBadgeIcon}
-          </div>
-          <div class="cakra-stage-pill-date" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${subtitleText}</div>
-        </div>
-      </button>
+  // HEADER BAR KOKPIT STEPPER (ZEN CONTROL)
+  const headerHtml = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span style="font-size:12px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:5px;">
+          <span>🧭</span> ALUR 18 TAHAP PBJ
+        </span>
+        <span class="cakra-badge" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; font-size:11px; font-weight:700;">
+          🎯 Progress: <strong>${totalEffectiveDone}</strong>/18 Selesai (${progressPct}%)
+        </span>
+        <span class="cakra-badge" style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; font-size:11px;">
+          📍 Aktif: <strong>Tahap ${activeStageNo}: ${cakraEsc(activeDef.nama)}</strong>
+        </span>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="toggleCockpitStageGrid()" style="font-size:11px; padding:3px 10px; display:flex; align-items:center; gap:5px; height:26px;" title="${CakraState.isStageGridExpanded ? 'Tutup peta lengkap kembali ke mode ringkas' : 'Buka tampilan 18 kartu lengkap'}">
+          ${CakraState.isStageGridExpanded ? '<span>▲</span> Mode Fokus (Ringkas)' : '<span>👁️</span> Buka Peta 18 Tahap Lengkap'}
+        </button>
+      </div>
+    </div>
+  `;
+
+  if (!CakraState.isStageGridExpanded) {
+    // -------------------------------------------------------------------------
+    // MODE FOKUS / RINGKAS (COMPACT STEPPER TRACK - 42px)
+    // -------------------------------------------------------------------------
+    const trackPillsHtml = stageStatuses.map(st => {
+      const { def, row, isBypass, isDone, isDraft, isChainLocked, isReady, isActive } = st;
+      let statusCls = 'status-terkunci';
+      let icon = '🔒';
+      let statusLabel = 'Terkunci';
+      let clickAction = `selectCockpitStage(${def.no})`;
+
+      if (isBypass) {
+        statusCls = 'bypass';
+        icon = '⏭️';
+        statusLabel = 'Bypass';
+      } else if (isDone) {
+        statusCls = 'status-selesai';
+        icon = '✅';
+        statusLabel = 'Selesai';
+      } else if (isDraft) {
+        statusCls = 'status-draft';
+        icon = '📝';
+        statusLabel = 'Draft';
+      } else if (isChainLocked) {
+        statusCls = 'status-terkunci';
+        icon = '🔒';
+        statusLabel = `Terkunci (Urut ${def.no - 1})`;
+        clickAction = `handleLockedStageClick(${def.no})`;
+      } else {
+        statusCls = 'status-siap';
+        icon = '🔓';
+        statusLabel = 'Siap Diisi';
+      }
+
+      const activeCls = isActive ? 'active' : '';
+
+      return `
+        <button type="button" class="cakra-compact-step-btn ${statusCls} ${activeCls}" onclick="${clickAction}" title="Tahap ${def.no}: ${cakraEsc(def.nama)} [Status: ${statusLabel}]">
+          <span class="step-num">${def.no}</span>
+          <span class="step-code">${cakraEsc(def.kode || ('T' + def.no))}</span>
+          <span class="step-icon">${icon}</span>
+        </button>
+      `;
+    }).join('');
+
+    const compactHtml = `
+      ${headerHtml}
+      <div class="cakra-compact-stepper-track">
+        ${trackPillsHtml}
+      </div>
+      <div style="width:100%; height:3px; background:#e2e8f0; border-radius:2px; margin-top:6px; overflow:hidden;">
+        <div style="width:${progressPct}%; height:100%; background:linear-gradient(90deg, #3b82f6 0%, #10b981 100%); transition:width 0.3s ease;"></div>
+      </div>
     `;
-  }).join('');
-  container.innerHTML = `${headersHtml}<div class="cakra-stage-pills-grid">${pillsHtml}</div>`;
+
+    container.innerHTML = compactHtml;
+  } else {
+    // -------------------------------------------------------------------------
+    // MODE DETAIL / EXPANDED (FULL 18-STAGE GRID)
+    // -------------------------------------------------------------------------
+    const phaseHeaders = [
+      'FASE 1: PERENCANAAN (1–3)',
+      'FASE 2: PERSIAPAN PPK (4–7)',
+      'FASE 3: PEMILIHAN (8–9)',
+      'FASE 4: TTD KONTRAK (10–13)',
+      'FASE 5: PELAKSANAAN (14–15)',
+      'FASE 6: BAST/PHO & BMN (16–18)'
+    ];
+
+    const headersHtml = `
+      <div class="cakra-phase-group-row">
+        ${phaseHeaders.map(h => `<div class="cakra-phase-badge-header">${h}</div>`).join('')}
+      </div>
+    `;
+
+    const pillsHtml = stageStatuses.map(st => {
+      const { def, row, isBypass, isDone, isDraft, isChainLocked, isReady, isActive } = st;
+
+      let statusCls = 'status-terkunci';
+      let numCls = 'num-terkunci';
+      let statusBadgeIcon = '';
+      let subtitleText = '';
+      let clickAction = `selectCockpitStage(${def.no})`;
+
+      if (isBypass) {
+        statusCls = 'bypass';
+        numCls = 'num-bypass';
+        const alasanShort = row.catatan_tahap ? `: ${row.catatan_tahap}` : '';
+        statusBadgeIcon = `<span title="Bypass / Dilewati: ${cakraEsc(row.catatan_tahap || 'Regulasi')}" style="font-size:10px; margin-left:auto; color:#475569; font-weight:700; background:#f1f5f9; padding:1px 5px; border-radius:4px; border:1px solid #cbd5e1;">⏭️ Bypass</span>`;
+        subtitleText = `⏭️ Dilewati${cakraEsc(alasanShort)}`;
+      } else if (isDone) {
+        statusCls = 'status-selesai';
+        numCls = 'num-selesai';
+        statusBadgeIcon = `<span title="Tahap Selesai (Dokumen Sah & Berkas Drive Terverifikasi)" style="font-size:10.5px; margin-left:auto; color:#15803d; font-weight:800; background:#dcfce7; padding:1px 5px; border-radius:4px; border:1px solid #86efac;">✅ Selesai</span>`;
+        subtitleText = `${cakraEsc(row.tanggal_dokumen || '-')} • ${cakraEsc(def.kode)}`;
+      } else if (isDraft) {
+        statusCls = 'status-draft';
+        numCls = 'num-draft';
+        statusBadgeIcon = `<span title="Sedang Dikerjakan (Draf Tersimpan)" style="font-size:10.5px; margin-left:auto; color:#b45309; font-weight:700; background:#fef3c7; padding:1px 5px; border-radius:4px; border:1px solid #fde68a;">📝 Draft</span>`;
+        subtitleText = `${cakraEsc(row.tanggal_dokumen || '-')} • ${cakraEsc(def.kode)}`;
+      } else if (isChainLocked) {
+        statusCls = 'status-terkunci';
+        numCls = 'num-terkunci';
+        statusBadgeIcon = `<span title="Terkunci: Wajib menyelesaikan draf tahap sebelumnya" style="font-size:10px; margin-left:auto; color:#64748b; background:#f1f5f9; padding:1px 4px; border-radius:4px; border:1px solid #cbd5e1;">🔒 Terkunci</span>`;
+        subtitleText = `🔒 Terkunci (Urut ${def.no - 1})`;
+        clickAction = `handleLockedStageClick(${def.no})`;
+      } else {
+        statusCls = 'status-siap';
+        numCls = 'num-siap';
+        statusBadgeIcon = `<span title="Siap Dikerjakan: Silakan klik untuk mulai mengisi" style="font-size:10px; margin-left:auto; color:#0369a1; font-weight:700; background:#e0f2fe; padding:1px 5px; border-radius:4px; border:1px solid #7dd3fc;">🔓 Siap Diisi</span>`;
+        subtitleText = `👉 Siap Dikerjakan`;
+        clickAction = `selectCockpitStage(${def.no})`;
+      }
+
+      const cls = `cakra-stage-pill-btn ${isActive ? 'active' : ''} ${statusCls}`;
+
+      return `
+        <button type="button" class="${cls}" onclick="${clickAction}" title="Tahap ${def.no}: ${cakraEsc(def.nama)} [Status: ${isBypass ? 'Bypass' : (isDone ? 'Selesai' : (isDraft ? 'Draft' : (isChainLocked ? 'Terkunci' : 'Siap Diisi')))}]">
+          <div class="cakra-stage-pill-num ${numCls}">${def.no}</div>
+          <div class="cakra-stage-pill-text" style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:4px; justify-content:space-between;">
+              <div class="cakra-stage-pill-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${cakraEsc(def.nama)}">${cakraEsc(def.nama)}</div>
+              ${statusBadgeIcon}
+            </div>
+            <div class="cakra-stage-pill-date" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${subtitleText}</div>
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      ${headerHtml}
+      ${headersHtml}
+      <div class="cakra-stage-pills-grid">${pillsHtml}</div>
+    `;
+  }
 }
 let CakraGuardrailState = {
   pendingStageNo: null,
@@ -2113,50 +2250,127 @@ async function saveSkorKinerjaPpk() {
 /**
  * STICKY ACTION & PRINT BAR KOKPIT
  */
+function toggleCockpitMoreActions(event) {
+  if (event) event.stopPropagation();
+  const menu = document.getElementById('cockpit-more-actions-menu');
+  if (!menu) return;
+  const isHidden = menu.style.display === 'none' || !menu.style.display;
+  menu.style.display = isHidden ? 'block' : 'none';
+}
+window.toggleCockpitMoreActions = toggleCockpitMoreActions;
+
+function closeCockpitMoreActions() {
+  const menu = document.getElementById('cockpit-more-actions-menu');
+  if (menu) menu.style.display = 'none';
+}
+window.closeCockpitMoreActions = closeCockpitMoreActions;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('click', function(e) {
+    const menu = document.getElementById('cockpit-more-actions-menu');
+    const btn = document.getElementById('btn-cockpit-more-actions');
+    if (menu && menu.style.display !== 'none') {
+      if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
+        menu.style.display = 'none';
+      }
+    }
+  });
+}
+
 function renderCockpitRightDock() {
   const dock = document.getElementById('cakra-cockpit-dock-right');
   if (!dock || !CakraState.activePaketCtx) return;
 
   const { paket, tahaps } = CakraState.activePaketCtx;
-  const stageNo = CakraState.activeStageNo || 6;
-  const def = CakraState.definisi18Tahap.find(d => d.no === stageNo) || CakraState.definisi18Tahap[0] || { no: 6, nama: 'Tahap 6' };
+  const stageNo = Number(CakraState.activeStageNo || 1);
+  const def = CakraState.definisi18Tahap.find(d => Number(d.no) === stageNo) || CakraState.definisi18Tahap[0] || { no: stageNo, nama: `Tahap ${stageNo}` };
   const tRow = (tahaps || []).find(t => Number(t.no_tahap) === stageNo) || {};
+  const rawStatus = tRow.status_tahap || 'Draft';
+  const driveLink = String(tRow.link_drive_dokumen || '').trim();
+
+  let statusBadge = `<span class="cakra-badge cakra-badge-amber" style="font-size:11px;">📝 Draft</span>`;
+  if (rawStatus === 'Bypass') {
+    statusBadge = `<span class="cakra-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:11px;">⏭️ Bypass</span>`;
+  } else if ((rawStatus === 'Selesai' || rawStatus === 'Final') && driveLink.length > 5) {
+    statusBadge = `<span class="cakra-badge cakra-badge-green" style="font-size:11px;">✅ Selesai</span>`;
+  } else if (rawStatus === 'Terkunci' || (!driveLink && rawStatus !== 'Draft' && rawStatus !== 'Aktif')) {
+    statusBadge = `<span class="cakra-badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; font-size:11px;">🔓 Siap Diisi</span>`;
+  }
 
   dock.innerHTML = `
     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-      <span class="cakra-badge cakra-badge-blue" style="font-size:12px; padding:5px 10px;">📌 TAHAP AKTIF: ${stageNo} / 18</span>
+      <span class="cakra-badge cakra-badge-blue" style="font-size:12px; font-weight:800; padding:5px 12px; letter-spacing:0.5px;">
+        📌 TAHAP ${stageNo} / 18
+      </span>
       <div>
-        <div style="font-weight:800; font-size:13.5px; color:#0f172a;">${cakraEsc(def.nama)}</div>
-        <div style="font-size:11.5px; color:#475569;">
-          Nomor Surat/BA: <strong class="cakra-mono">${cakraEsc(tRow.nomor_dokumen || '-')}</strong> &nbsp;|&nbsp;
-          Tanggal: <strong class="cakra-mono">${cakraEsc(tRow.tanggal_dokumen || '-')}</strong> &nbsp;|&nbsp;
-          Status: <strong>${cakraEsc(tRow.status_tahap || 'Selesai')}</strong>
+        <div style="font-weight:800; font-size:13.5px; color:#0f172a; display:flex; align-items:center; gap:8px;">
+          <span>${cakraEsc(def.nama)}</span>
+          ${statusBadge}
+        </div>
+        <div style="font-size:11.5px; color:#475569; margin-top:2px;">
+          Nomor Dok: <strong class="cakra-mono" style="color:#0f172a;">${cakraEsc(tRow.nomor_dokumen || '-')}</strong> &nbsp;|&nbsp;
+          Tanggal: <strong class="cakra-mono" style="color:#0f172a;">${cakraEsc(tRow.tanggal_dokumen || '-')}</strong>
         </div>
       </div>
     </div>
 
-    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-      <button type="button" class="cakra-btn cakra-btn-info cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '${stageNo}')" title="Kirim Naskah Word Tahap ${stageNo} ke Monitoring Unduhan">
-        📄 Word Tahap ${stageNo} (.docx)
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+      <!-- Primary Action: Word Tahap N -->
+      <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '${stageNo}')" style="font-weight:700; display:flex; align-items:center; gap:6px; box-shadow:0 1px 2px rgba(37,99,235,0.2);" title="Kirim Naskah Word Tahap ${stageNo} ke Monitoring Unduhan">
+        <span>📄</span> <span>Word Tahap ${stageNo} (.docx)</span>
       </button>
-      ${Number(stageNo) !== 1 ? `
-        <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" onclick="queuePengadaanDownload('xlsx', ${paket.id}, '${stageNo}')" title="Kirim Kertas Kerja Excel Tahap ${stageNo} ke Monitoring Unduhan">
-          📊 Excel Tahap ${stageNo} (.xlsx)
+
+      <!-- Secondary Action: Excel Tahap N (Hanya jika tahap bukan 1) -->
+      ${stageNo !== 1 ? `
+        <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" onclick="queuePengadaanDownload('xlsx', ${paket.id}, '${stageNo}')" style="font-weight:700; display:flex; align-items:center; gap:6px;" title="Kirim Kertas Kerja Excel Tahap ${stageNo} ke Monitoring Unduhan">
+          <span>📊</span> <span>Excel Tahap ${stageNo} (.xlsx)</span>
         </button>
       ` : ''}
-      <span style="color:#cbd5e1;">|</span>
-      <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '13')" title="Kirim Kontrak / SPK / Surat Pesanan Final (Tahap 13) ke Monitoring Unduhan">
-        📝 Naskah ${cakraEsc(paket.bentuk_kontrak)} (T13)
-      </button>
-      <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '16')" title="Kirim BAPHP & BAST / PHO-FHO (Tahap 16) ke Monitoring Unduhan">
-        🤝 BAST / PHO (T16)
-      </button>
-      <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, 'ALL')" title="Kirim Gabungan 18 Tahap dalam 1 File Word ke Monitoring Unduhan">
-        📘 Word Master 18 Tahap
-      </button>
-      <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" style="color:#0f172a; font-weight:800;" onclick="queuePengadaanDownload('zip', ${paket.id}, 'ALL')" title="Kirim Bundel Arsip Lengkap 18 Tahap (.ZIP) ke Monitoring Unduhan">
-        📦 Unduh Arsip Lengkap (.ZIP)
-      </button>
+
+      <!-- Dropdown Menu: Berkas Lainnya & Bundel Master -->
+      <div class="cakra-dropdown-wrap" style="position:relative; display:inline-block;">
+        <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" id="btn-cockpit-more-actions" onclick="toggleCockpitMoreActions(event)" style="font-weight:600; display:flex; align-items:center; gap:6px; background:#ffffff;" title="Pilihan Dokumen Tambahan & Unduhan Lengkap">
+          <span>📦 Berkas Lainnya</span>
+          <span style="font-size:9px;">▼</span>
+        </button>
+        <div class="cakra-dropdown-menu" id="cockpit-more-actions-menu" style="display:none; position:absolute; right:0; top:calc(100% + 5px); z-index:100; min-width:280px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px -5px rgba(15,23,42,0.15), 0 8px 10px -6px rgba(15,23,42,0.1); padding:6px 0;">
+          <div style="padding:6px 14px; font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+            Dokumen Utama Terpilih
+          </div>
+          <button type="button" class="cakra-dropdown-item-btn" onclick="closeCockpitMoreActions(); queuePengadaanDownload('docx', ${paket.id}, '13')" style="width:100%; text-align:left; border:none; background:transparent; padding:9px 14px; font-size:12px; color:#1e293b; cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px;">📝</span>
+            <div>
+              <div style="font-weight:700;">Naskah ${cakraEsc(paket.bentuk_kontrak || 'Kontrak')} (Tahap 13)</div>
+              <div style="font-size:10.5px; color:#64748b;">Kontrak / SPK / Surat Pesanan Final</div>
+            </div>
+          </button>
+          <button type="button" class="cakra-dropdown-item-btn" onclick="closeCockpitMoreActions(); queuePengadaanDownload('docx', ${paket.id}, '16')" style="width:100%; text-align:left; border:none; background:transparent; padding:9px 14px; font-size:12px; color:#1e293b; cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px;">🤝</span>
+            <div>
+              <div style="font-weight:700;">BAST & BAPHP (Tahap 16)</div>
+              <div style="font-size:10.5px; color:#64748b;">Berita Acara Serah Terima Pekerjaan</div>
+            </div>
+          </button>
+          <div style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
+          <div style="padding:6px 14px; font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+            Master Bundel 18 Tahap
+          </div>
+          <button type="button" class="cakra-dropdown-item-btn" onclick="closeCockpitMoreActions(); queuePengadaanDownload('docx', ${paket.id}, 'ALL')" style="width:100%; text-align:left; border:none; background:transparent; padding:9px 14px; font-size:12px; color:#1e293b; cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px;">📘</span>
+            <div>
+              <div style="font-weight:700; color:#1d4ed8;">Word Master 18 Tahap</div>
+              <div style="font-size:10.5px; color:#64748b;">Kompilasi seluruh tahap dalam 1 file .docx</div>
+            </div>
+          </button>
+          <button type="button" class="cakra-dropdown-item-btn" onclick="closeCockpitMoreActions(); queuePengadaanDownload('zip', ${paket.id}, 'ALL')" style="width:100%; text-align:left; border:none; background:transparent; padding:9px 14px; font-size:12px; color:#1e293b; cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px;">📦</span>
+            <div>
+              <div style="font-weight:700; color:#b45309;">Unduh Arsip Lengkap (.ZIP)</div>
+              <div style="font-size:10.5px; color:#64748b;">Bundel 18 berkas dokumen terpisah siap cetak</div>
+            </div>
+          </button>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -4669,23 +4883,16 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
   const nextStage = stageNo < 18 ? stageNo + 1 : null;
 
   return `
-    <!-- PHASE HEADER CARD -->
-    <div class="cakra-phase-header-card">
-      <div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="badge" style="background:#1e3a8a; color:#fff; font-size:11px; font-weight:800;">${cakraEsc(faseCfg.nama)}</span>
-          <span style="font-size:12px; color:#475569; font-weight:600;">Tahap Aktif: ${stageNo} dari 18</span>
-        </div>
-        <div style="font-size:12px; color:#334155; margin-top:4px;">${cakraEsc(faseCfg.deskripsi)}</div>
+    <!-- UNIFIED PHASE CONTEXT & SUB-STEPS BAR (ZEN COMPACT) -->
+    <div class="cakra-phase-context-bar">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span class="badge" style="background:#1e3a8a; color:#fff; font-size:11px; font-weight:800; padding:4px 8px; border-radius:4px;">${cakraEsc(faseCfg.nama)}</span>
+        <span style="font-size:12px; color:#334155; font-weight:600;">${cakraEsc(faseCfg.deskripsi)}</span>
+        <span style="font-size:11px; color:#64748b;">(⚖️ ${cakraEsc(faseCfg.dasarHukum)})</span>
       </div>
-      <div style="font-size:11px; color:#64748b; font-weight:600;">
-        ⚖️ Dasar Hukum: ${cakraEsc(faseCfg.dasarHukum)}
+      <div class="cakra-phase-mini-stepper" style="margin-bottom:0; padding:0; background:transparent; border:none; display:flex; gap:6px; flex-wrap:wrap;">
+        ${miniStepperHtml}
       </div>
-    </div>
-
-    <!-- MINI STEPPER TAHAP DALAM FASE INI -->
-    <div class="cakra-phase-mini-stepper">
-      ${miniStepperHtml}
     </div>
 
     ${stageWarningHtml}
