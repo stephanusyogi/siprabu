@@ -173,11 +173,15 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
   const stageNum = Number(modeOrStage);
   const buildAll = modeOrStage === 'ALL' || isNaN(stageNum);
 
+  if (!buildAll && stageNum === 1) {
+    throw new Error('Tahap 1 (Identifikasi Kebutuhan & Nota Dinas) tidak menggunakan Kertas Kerja Excel sesuai regulasi PBJ.');
+  }
+
   // -------------------------------------------------------------------------
-  // SHEET 1: IDENTIFIKASI KEBUTUHAN, PEMAKETAN, & RUP (TAHAP 1, 2, 3, 4)
+  // SHEET 1: PEMAKETAN, SPESIFIKASI TEKNIS, & RUP (TAHAP 2, 3, 4)
   // -------------------------------------------------------------------------
-  if (buildAll || [1, 2, 3, 4].includes(stageNum)) {
-    const ws = wb.addWorksheet('01_Identifikasi_Spek_RUP');
+  if (buildAll || [2, 3, 4].includes(stageNum)) {
+    const ws = wb.addWorksheet('01_Pemaketan_Spek_RUP');
     ws.columns = [
       { width: 6 }, { width: 32 }, { width: 38 }, { width: 12 },
       { width: 10 }, { width: 22 }, { width: 14 }, { width: 18 }

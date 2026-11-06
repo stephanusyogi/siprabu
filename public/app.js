@@ -89,7 +89,8 @@ const PRABU_VIEW_CODES = {
   'view-pengadaan-kokpit': 30,
   'view-pengadaan-penyedia': 31,
   'view-panduan-pengadaan': 32,
-  'view-rekap-pengadaan': 33
+  'view-rekap-pengadaan': 33,
+  'view-pengadaan-portal-pengusul': 34
 };
 
 const PRABU_CODE_TO_VIEW = {
@@ -125,7 +126,8 @@ const PRABU_CODE_TO_VIEW = {
   30: 'view-pengadaan-kokpit',
   31: 'view-pengadaan-penyedia',
   32: 'view-panduan-pengadaan',
-  33: 'view-rekap-pengadaan'
+  33: 'view-rekap-pengadaan',
+  34: 'view-pengadaan-portal-pengusul'
 };
 
 const PRABU_VIEW_TITLES = {
@@ -162,7 +164,8 @@ const PRABU_VIEW_TITLES = {
   'view-pengadaan-paket': 'Daftar Paket Pengadaan',
   'view-pengadaan-kokpit': 'Kokpit 18 Tahap Pengadaan',
   'view-pengadaan-penyedia': 'Master Penyedia (Rekanan)',
-  'view-panduan-pengadaan': 'Panduan Pengadaan 18 Tahap'
+  'view-panduan-pengadaan': 'Panduan Pengadaan 18 Tahap',
+  'view-pengadaan-portal-pengusul': 'Portal Pengusulan Nota Dinas & Disposisi KPA'
 };
 
 function bufferToBase64Url(uint8Array) {
@@ -760,6 +763,9 @@ async function performLogin(username, password = '') {
   });
   localStorage.setItem('siprabu_token', res.token);
   AppState.currentUser = res.user;
+  // Tandai sesi login baru untuk pemicu pengumuman pasca-login (hanya muncul 1 kali)
+  sessionStorage.setItem('siprabu_is_new_login', 'true');
+  sessionStorage.removeItem('siprabu_postlogin_announcement_shown');
   if (res.is_developer || res.user?.is_developer || username === 'emenje' || res.user?.level === 0) {
     sessionStorage.setItem('siprabu_is_developer_origin', 'true');
   } else {
@@ -2117,6 +2123,8 @@ async function logout(isAutoTimeout = false) {
   localStorage.removeItem('siprabu_token');
   sessionStorage.removeItem('siprabu_is_developer_origin');
   sessionStorage.removeItem('siprabu_redirect_view');
+  sessionStorage.removeItem('siprabu_is_new_login');
+  sessionStorage.removeItem('siprabu_postlogin_announcement_shown');
   AppState.currentUser = null;
   AppState.rkbData = null;
   AppState.currentPeriode = null;
@@ -2287,6 +2295,9 @@ async function handleGoogleSignInCallback(response) {
     if (res.success && res.token) {
       localStorage.setItem('siprabu_token', res.token);
       AppState.currentUser = res.user;
+      // Tandai sesi login baru untuk pemicu pengumuman pasca-login (hanya muncul 1 kali)
+      sessionStorage.setItem('siprabu_is_new_login', 'true');
+      sessionStorage.removeItem('siprabu_postlogin_announcement_shown');
       if (res.user?.level === 0 || res.user?.role_id === 'developer' || res.user?.username === 'emenje') {
         sessionStorage.setItem('siprabu_is_developer_origin', 'true');
       } else {
@@ -2793,7 +2804,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-developer') loadDeveloperBlueprint();
   else if (viewId === 'view-rekap-perencanaan') loadRekapView('perencanaan');
   else if (viewId === 'view-rekap-pelaksanaan') loadRekapView('pelaksanaan');
-  else if (['view-pengadaan-paket', 'view-pengadaan-kokpit', 'view-pengadaan-penyedia', 'view-panduan-pengadaan', 'view-rekap-pengadaan'].includes(viewId)) {
+  else if (['view-pengadaan-paket', 'view-pengadaan-kokpit', 'view-pengadaan-penyedia', 'view-panduan-pengadaan', 'view-rekap-pengadaan', 'view-pengadaan-portal-pengusul'].includes(viewId)) {
     if (typeof window.onEnterPengadaanView === 'function') window.onEnterPengadaanView(viewId);
   }
 }
@@ -15185,7 +15196,9 @@ async function checkAndShowPreLoginAnnouncements() {
 
 /**
  * LAPIS 2: Memeriksa dan menampilkan surat dinas & pengumuman pasca-login
- * Selalu muncul otomatis saat pengguna masuk ke sistem
+ * HANYA muncul otomatis 1 kali setelah user berhasil login.
+ * Jika pengguna me-refresh halaman (F5), modal pop-up TIDAK akan muncul otomatis lagi.
+ * Pengguna tetap dapat melihatnya kapan saja via tombol Pengumuman di Navbar atau banner Beranda.
  */
 async function checkAndShowPostLoginAnnouncements() {
   const user = AppState.currentUser;
@@ -15198,8 +15211,13 @@ async function checkAndShowPostLoginAnnouncements() {
     updateNavbarAnnouncementButton();
     renderDashboardAnnouncementBanner();
 
-    // Selalu tampilkan pop up surat dinas / korespondensi saat pengguna membuka sistem
-    if (myAnnouncementsList.length > 0) {
+    // Periksa status sesi: hanya pop-up otomatis jika ini login baru dan belum pernah ditampilkan pada sesi aktif
+    const isNewLogin = sessionStorage.getItem('siprabu_is_new_login') === 'true';
+    const alreadyShown = sessionStorage.getItem('siprabu_postlogin_announcement_shown') === 'true';
+
+    if (myAnnouncementsList.length > 0 && isNewLogin && !alreadyShown) {
+      sessionStorage.setItem('siprabu_postlogin_announcement_shown', 'true');
+      sessionStorage.removeItem('siprabu_is_new_login');
       openAnnouncementModal(myAnnouncementsList, myHelpdeskConfig, 'POSTLOGIN', user);
     }
   } catch (e) {
@@ -15376,6 +15394,8 @@ function openPreLoginAnnouncementModal(announcements = null, helpdesk = null) {
 function closePreLoginAnnouncementModal() {
   const modal = document.getElementById('modal-announcement-prelogin');
   if (modal) modal.style.display = 'none';
+  sessionStorage.setItem('siprabu_postlogin_announcement_shown', 'true');
+  sessionStorage.removeItem('siprabu_is_new_login');
 }
 
 async function loadAdminAnnouncements() {

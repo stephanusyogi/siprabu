@@ -31,7 +31,8 @@ const {
   hitungKonversiSbob,
   evaluasiJalurRegulasi,
   cariTemplatePengadaan,
-  evaluasiAuditPaket
+  evaluasiAuditPaket,
+  recommendJenisPengadaan
 } = require('./utils');
 
 const { generateExcelBuffer } = require('./excel_engine');
@@ -208,6 +209,18 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
       });
     }
 
+    // 1d. Rekomendasi Cerdas Kategori Jenis Pengadaan (Smart AI/Rule Engine)
+    if (pathname === '/api/cakra/rekomendasi' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const resRekom = recommendJenisPengadaan({
+        kode_akun: body.kode_akun || body.kode_akun_mak,
+        uraian: body.uraian || body.nama_paket || body.uraian_pekerjaan,
+        pagu: body.pagu || body.nilai_pagu,
+        via_katalog: body.via_katalog
+      });
+      return sendJson(res, 200, { ok: true, ...resRekom });
+    }
+
     // 2. Detail Lengkap 1 Paket
     if (pathname.startsWith('/api/cakra/paket/') && method === 'GET' && !pathname.endsWith('/items') && !pathname.endsWith('/tahaps')) {
       const id = Number(pathname.split('/').pop());
@@ -335,6 +348,9 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
     if (pathname.match(/^\/api\/cakra\/download\/xlsx\/\d+$/) && method === 'GET') {
       const paketId = Number(pathname.split('/').pop());
       const stage = query.tahap || 'ALL';
+      if (Number(stage) === 1) {
+        return sendJson(res, 400, { ok: false, error: 'Tahap 1 (Identifikasi Kebutuhan & Nota Dinas) tidak memiliki kertas kerja Excel sesuai regulasi PBJ.' });
+      }
       const ctx = await getPaketFullById(paketId);
       if (!ctx) return sendJson(res, 404, { ok: false, error: 'Paket tidak ditemukan' });
 

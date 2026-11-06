@@ -360,15 +360,36 @@ function susunJadwal18TahapOtomatis(paket, tanggalMulaiPersiapan = '2026-05-04')
       ? '-'
       : `${noUrutSurat}/${ def.kode }-${nomorPaketUrut}/PPK-PBJ/KPU-NGW/${romawi}/${yyyy}`;
 
+    let stageStatus = 'Terkunci';
+    let docNum = '';
+    let docDate = '';
+
+    if (isBypass) {
+      stageStatus = 'Bypass';
+      docNum = '-';
+      docDate = tglIso;
+    } else if (def.no === 1) {
+      // Tahap 1 inisiasi awal paket: Draft
+      stageStatus = 'Draft';
+      docNum = nomorDokumen;
+      docDate = tglIso;
+    } else {
+      // Tahap 2 s/d 18 (yang belum dikerjakan user): MUTLAK TERKUNCI dan belum ada isian
+      stageStatus = 'Terkunci';
+      docNum = '';
+      docDate = '';
+    }
+
     hasil.push({
       paket_id: paket.id,
       no_tahap: def.no,
       fase: def.fase,
       nama_tahap: def.nama,
-      nomor_dokumen: nomorDokumen,
-      tanggal_dokumen: tglIso,
-      status_tahap: isBypass ? 'Bypass' : (def.no <= (paket.tahap_aktif || 18) ? 'Selesai' : 'Draft'),
-      catatan_tahap: isBypass ? 'Dilewati otomatis sesuai matriks regulasi 2025/2026' : `Dokumen Tahap ${def.no} (${def.nama})`
+      nomor_dokumen: docNum,
+      tanggal_dokumen: docDate,
+      status_tahap: stageStatus,
+      link_drive_dokumen: null,
+      catatan_tahap: isBypass ? 'Dilewati otomatis sesuai matriks regulasi 2025/2026' : (stageStatus === 'Draft' ? `Dokumen Tahap ${def.no} (${def.nama})` : '')
     });
   }
 
@@ -400,8 +421,8 @@ const TEMPLATES_PENGADAAN = [
     wajib_jaminan_pelaksanaan: 0,
     persen_retensi: 0,
     bypass_tahap: [11],
-    dasar_hukum: 'Pasal 9 & 38 Perpres 46/2025 jo. Pasal 9 Perlem LKPP 2/2026',
-    deskripsi: 'Pengadaan barang/jasa via Katalog v6 dengan nilai s.d. Rp 100 Juta dibebaskan dari penyusunan HPS (digantikan kertas kerja Referensi Harga & Bukti Survei Etalase) dan tidak memerlukan SPPBJ.'
+    dasar_hukum: 'Pasal 9 & 38 Perpres 46/2025 jo. Keputusan Kepala LKPP No. 177 Tahun 2024 (Lampiran III: Tata Cara E-Purchasing V6) jo. Pasal 9 Perlem LKPP 2/2026',
+    deskripsi: 'Pengadaan barang/jasa via Katalog v6 dengan nilai s.d. Rp 100 Juta dibebaskan dari penyusunan HPS formal (digantikan kertas kerja Referensi Harga & Bukti Survei Etalase Katalog V6 sesuai Kepka LKPP 177/2024) dan tidak memerlukan SPPBJ.'
   },
   {
     id: 'TPL-02',
@@ -421,7 +442,7 @@ const TEMPLATES_PENGADAAN = [
     wajib_jaminan_pelaksanaan: 0,
     persen_retensi: 0,
     bypass_tahap: [11],
-    dasar_hukum: 'Pasal 26 & 38 Perpres 46/2025 jo. Lampiran I Perlem LKPP 3/2026',
+    dasar_hukum: 'Pasal 26 & 38 Perpres 46/2025 jo. Keputusan Kepala LKPP No. 177 Tahun 2024 (Katalog V6) jo. Lampiran I Perlem LKPP 3/2026',
     deskripsi: 'Pengadaan barang/jasa via Katalog v6 di atas Rp 100 Juta wajib menyusun HPS oleh PPK. Untuk nilai s.d. Rp 200 Juta dilaksanakan oleh Pejabat Pengadaan dan dibebaskan dari Jaminan Pelaksanaan.'
   },
   {
@@ -442,7 +463,7 @@ const TEMPLATES_PENGADAAN = [
     wajib_jaminan_pelaksanaan: 1,
     persen_retensi: 0,
     bypass_tahap: [],
-    dasar_hukum: 'Pasal 30 & 38 Perpres 46/2025 jo. Perlem LKPP 2/2026',
+    dasar_hukum: 'Pasal 30 & 38 Perpres 46/2025 jo. Keputusan Kepala LKPP No. 177 Tahun 2024 jo. Perlem LKPP 2/2026',
     deskripsi: 'E-Purchasing bernilai di atas Rp 200 Juta wajib menyusun HPS, dilaksanakan oleh Pokja/PPK, dan wajib meminta Jaminan Pelaksanaan sebesar 5% dari nilai kontrak sebelum penandatanganan kontrak/surat pesanan.'
   },
   {
@@ -744,11 +765,12 @@ const PANDUAN_18_TAHAP = {
     faseNama: 'FASE 2: PERSIAPAN PPK (4–7)',
     nama: 'Analisa Pasar & Penilaian PPK atas Katalog Elektronik v6',
     pejabatPic: 'Pejabat Pembuat Komitmen (PPK)',
-    dasarHukum: 'Pasal 38 Perpres 46/2025 jo. Pasal 8 & 9 Perlem LKPP 2/2026',
+    dasarHukum: 'Pasal 38 Perpres 46/2025 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Lampiran I & II) jo. Pasal 8 & 9 Perlem LKPP 2/2026',
     outputDokumen: '05_BA_Analisa_Pasar_Penilaian_PPK.docx',
     checklist: [
-      'Lakukan penelusuran etalase pada Katalog Elektronik Generasi 6 (v6).',
+      'Lakukan penelusuran etalase pada Katalog Elektronik Versi 6 (v6) sesuai ketentuan Kepka LKPP 177/2024.',
       'Jika produk tersedia dan memenuhi syarat teknis/waktu/harga, prioritaskan transaksi via E-Purchasing.',
+      'Jika transaksi E-Purchasing bernilai s.d. Rp 100 Juta, dibebaskan dari penyusunan HPS formal (cukup referensi harga pasar/katalog).',
       'Jika tidak memilih E-Purchasing (misal karena spesifikasi khusus atau harga tidak kompetitif), wajib mengisi Dokumen Penilaian PPK.'
     ],
     tips: 'Dokumen Penilaian PPK melindungi pejabat pengadaan dari temuan auditor mengapa tidak memilih E-Purchasing Katalog.'
@@ -758,7 +780,7 @@ const PANDUAN_18_TAHAP = {
     faseNama: 'FASE 2: PERSIAPAN PPK (4–7)',
     nama: 'Penyusunan Referensi Harga / HPS / AHSP / RAB Swakelola',
     pejabatPic: 'Pejabat Pembuat Komitmen (PPK)',
-    dasarHukum: 'Pasal 26 Perpres 46/2025 jo. Pasal 9 Perlem 2/2026 & Bab II Lampiran I/II Perlem 3/2026',
+    dasarHukum: 'Pasal 26 Perpres 46/2025 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Pembebasan HPS E-Purchasing s.d. 100 Jt) jo. Pasal 9 Perlem 2/2026 & Bab II Lampiran I/II Perlem 3/2026',
     outputDokumen: '06_Kertas_Kerja_HPS_RefHarga_AHSP.docx & .xlsx',
     checklist: [
       'Paket ≤ Rp 10 Juta: Bebas HPS (cukup nota pembelian toko).',
@@ -800,15 +822,16 @@ const PANDUAN_18_TAHAP = {
   9: {
     fase: 3,
     faseNama: 'FASE 3: PEMILIHAN PENYEDIA (8–9)',
-    nama: 'Pelaksanaan Pemilihan Penyedia / Negosiasi / BAHPL',
+    nama: 'Pelaksanaan Pemilihan Penyedia / Negosiasi / BAHPL / E-Purchasing',
     pejabatPic: 'Pejabat Pengadaan / Pokja Pemilihan',
-    dasarHukum: 'Pasal 38 s.d. 43 Perpres 46/2025 jo. Bab IV Lampiran I/II Perlem LKPP 3/2026',
+    dasarHukum: 'Pasal 38 s.d. 43 Perpres 46/2025 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Lampiran III: E-Purchasing, Negosiasi & Mini-Kompetisi) jo. Bab IV Lampiran I/II Perlem LKPP 3/2026',
     outputDokumen: '09_BA_Evaluasi_Negosiasi_BAHPL.docx',
     checklist: [
       'Kirim undangan klarifikasi teknis & negosiasi harga kepada penyedia yang memenuhi kualifikasi usaha (UMK).',
+      'Untuk transaksi E-Purchasing Katalog V6, lakukan negosiasi harga digital atau gunakan fitur Mini-Kompetisi (Kepka LKPP 177/2024).',
       'Lakukan negosiasi harga serendah mungkin untuk menghasilkan penghematan anggaran (efisiensi belanja).',
       'Nilai hasil negosiasi/penawaran akhir tidak boleh melebihi nilai HPS/Referensi Harga.',
-      'Terbitkan Berita Acara Hasil Pengadaan Langsung (BAHPL) / Pengumuman Pemenang.'
+      'Terbitkan Berita Acara Hasil Pengadaan Langsung (BAHPL) / Surat Pesanan Katalog.'
     ],
     tips: 'Nilai hasil negosiasi pada tahap ini menjadi angka baku Nilai Kontrak yang akan ditandatangani PPK.'
   },
@@ -933,7 +956,7 @@ const PANDUAN_18_TAHAP = {
     faseNama: 'FASE 6: BAST, PEMBAYARAN & EVALUASI (16–18)',
     nama: 'Penilaian Kinerja Penyedia oleh PPK (Skor 0-3)',
     pejabatPic: 'Pejabat Pembuat Komitmen (PPK)',
-    dasarHukum: 'Pasal 8 Perlem LKPP 2/2026 jo. Bab VIII Lampiran I/II Perlem LKPP 3/2026',
+    dasarHukum: 'Pasal 8 Perlem LKPP 2/2026 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Evaluasi Kinerja Penyedia E-Katalog) jo. Bab VIII Lampiran I/II Perlem LKPP 3/2026',
     outputDokumen: '18_Sertifikat_Penilaian_Kinerja_PPK.docx',
     checklist: [
       'Isi evaluasi kinerja penyedia di sistem sebelum proses pembayaran rampung.',
@@ -1263,7 +1286,272 @@ function evaluasiAuditPaket(paket, tahaps = [], items = [], penyedia = null, pej
   };
 }
 
+
+/**
+ * REKOMENDASI CERDAS KATEGORI JENIS PENGADAAN & SKENARIO REGULASI
+ * Menganalisis MAK 6 digit dan kata kunci pada nama paket / uraian belanja
+ * Berdasarkan Perpres 46/2025, Keputusan Kepala LKPP 177/2024, Perlem LKPP 2/2026 & 3/2026
+ */
+function recommendJenisPengadaan({ kode_akun = '', uraian = '', pagu = 0, via_katalog = null }) {
+  const cleanMak = String(kode_akun || '').replace(/[^0-9]/g, '');
+  const text = String(uraian || '').toLowerCase();
+  const numPagu = Number(pagu) || 0;
+
+  const scores = {
+    'Barang': 0,
+    'Pekerjaan Konstruksi': 0,
+    'Jasa Lainnya': 0,
+    'Jasa Konsultansi Nonkonstruksi': 0,
+    'Jasa Konsultansi Konstruksi': 0,
+    'Swakelola': 0,
+    'Dikecualikan': 0
+  };
+
+  const rationale = [];
+
+  // 1. Evaluasi Berdasarkan Kode Akun MAK 6-Digit
+  if (cleanMak.startsWith('533') || cleanMak === '523111' || cleanMak.startsWith('534')) {
+    scores['Pekerjaan Konstruksi'] += 80;
+    rationale.push(`Akun MAK ${cleanMak} terdaftar sebagai Belanja Konstruksi / Pemeliharaan Bangunan Fisik`);
+  } else if (cleanMak === '532111' || cleanMak.startsWith('5211') || cleanMak === '521211' || cleanMak === '521811') {
+    scores['Barang'] += 75;
+    rationale.push(`Akun MAK ${cleanMak} terdaftar sebagai Belanja Bahan / Operasional Barang Persediaan / Modal Peralatan`);
+  } else if (cleanMak === '521213' || cleanMak === '522151') {
+    scores['Swakelola'] += 80;
+    rationale.push(`Akun MAK ${cleanMak} terdaftar sebagai Belanja Honorarium Kegiatan / Jasa Profesi Internal`);
+  } else if (cleanMak.startsWith('52211')) {
+    scores['Dikecualikan'] += 85;
+    rationale.push(`Akun MAK ${cleanMak} terdaftar sebagai Belanja Langganan Daya & Jasa Publik (Tarif Resmi Pemerintah/BUMN)`);
+  } else if (cleanMak === '522131') {
+    scores['Jasa Konsultansi Nonkonstruksi'] += 70;
+    scores['Jasa Konsultansi Konstruksi'] += 40;
+    rationale.push(`Akun MAK ${cleanMak} terdaftar sebagai Belanja Jasa Konsultansi Keahlian`);
+  } else if (cleanMak === '522141' || cleanMak === '522191' || cleanMak === '523121') {
+    scores['Jasa Lainnya'] += 75;
+    rationale.push(`Akun MAK ${cleanMak} terdaftar sebagai Belanja Sewa / Pemeliharaan Peralatan / Jasa Lainnya Non-Konsultan`);
+  }
+
+  // 2. Evaluasi Berdasarkan Kata Kunci Uraian Belanja
+  const konstruksiKeywords = ['renovasi', 'rehabilitasi', 'pembangunan', 'gedung', 'pagar', 'atap', 'lantai', 'ruang', 'penataan halaman', 'drainase', 'pondasi', 'konstruksi', 'cat kantor', 'semen', 'batu', 'keramik', 'baja ringan', 'turap'];
+  const matchedKonstruksi = konstruksiKeywords.filter(k => new RegExp(`\\b${k}\\b`, 'i').test(text));
+  if (matchedKonstruksi.length > 0) {
+    scores['Pekerjaan Konstruksi'] += matchedKonstruksi.length * 25;
+    rationale.push(`Kata kunci konstruksi terdeteksi: "${matchedKonstruksi.join(', ')}"`);
+  }
+
+  const konsulKeywords = ['konsultan', 'kajian', 'studi kelayakan', 'ded', 'detail engineering', 'pengawasan teknis', 'supervisi', 'naskah akademik', 'masterplan', 'audit sipil'];
+  const matchedKonsul = konsulKeywords.filter(k => new RegExp(`\\b${k}\\b`, 'i').test(text));
+  if (matchedKonsul.length > 0) {
+    const isKonsulKonstruksi = text.includes('gedung') || text.includes('bangunan') || text.includes('ded') || text.includes('pengawasan') || text.includes('fisik');
+    if (isKonsulKonstruksi) {
+      scores['Jasa Konsultansi Konstruksi'] += matchedKonsul.length * 35 + 40;
+      rationale.push(`Kata kunci Jasa Konsultansi Konstruksi (DED/Pengawasan): "${matchedKonsul.join(', ')}"`);
+    } else {
+      scores['Jasa Konsultansi Nonkonstruksi'] += matchedKonsul.length * 35 + 40;
+      rationale.push(`Kata kunci Jasa Konsultansi Nonkonstruksi: "${matchedKonsul.join(', ')}"`);
+    }
+  }
+
+  const jasaLainKeywords = ['sewa', 'kebersihan', 'cleaning service', 'keamanan', 'security', 'satpam', 'catering', 'konsumsi', 'snack', 'makan minum', 'eo', 'event organizer', 'pengiriman', 'distribusi', 'ekspedisi', 'akomodasi', 'hotel', 'penginapan', 'sound system', 'genset', 'publikasi', 'iklan', 'pengepakan', 'sortir lipat', 'tenaga pendukung'];
+  const matchedJasaLain = jasaLainKeywords.filter(k => new RegExp(`\\b${k}\\b`, 'i').test(text));
+  if (matchedJasaLain.length > 0) {
+    scores['Jasa Lainnya'] += matchedJasaLain.length * 25;
+    rationale.push(`Kata kunci Jasa Lainnya: "${matchedJasaLain.join(', ')}"`);
+  }
+
+  const barangKeywords = ['atk', 'kertas', 'toner', 'tinta', 'laptop', 'komputer', 'pc', 'printer', 'scanner', 'meja', 'kursi', 'lemari', 'ac', 'seragam', 'rompi', 'kotak suara', 'bilik suara', 'tinta pemilu', 'segel', 'surat suara', 'alat tulis', 'spanduk', 'brosur', 'formulir', 'harddisk', 'server'];
+  const matchedBarang = barangKeywords.filter(k => new RegExp(`\\b${k}\\b`, 'i').test(text));
+  if (matchedBarang.length > 0) {
+    scores['Barang'] += matchedBarang.length * 25;
+    rationale.push(`Kata kunci Barang: "${matchedBarang.join(', ')}"`);
+  }
+
+  const swakelolaKeywords = ['bimtek', 'sosialisasi internal', 'honorarium', 'honor pokja', 'narasumber', 'panitia pemilihan', 'pokmas', 'kelompok masyarakat', 'ptn', 'universitas', 'swakelola'];
+  const matchedSwakelola = swakelolaKeywords.filter(k => new RegExp(`\\b${k}\\b`, 'i').test(text));
+  if (matchedSwakelola.length > 0) {
+    scores['Swakelola'] += matchedSwakelola.length * 30;
+    rationale.push(`Kata kunci Swakelola / Kegiatan Internal: "${matchedSwakelola.join(', ')}"`);
+  }
+
+  const dikecualikanKeywords = ['pln', 'telkom', 'indihome', 'pdam', 'tiket pesawat', 'garuda', 'kai', 'kereta api', 'bumn', 'tarif resmi'];
+  const matchedDikecualikan = dikecualikanKeywords.filter(k => new RegExp(`\\b${k}\\b`, 'i').test(text));
+  if (matchedDikecualikan.length > 0) {
+    scores['Dikecualikan'] += matchedDikecualikan.length * 35;
+    rationale.push(`Kata kunci Pengadaan Dikecualikan (Tarif Resmi/Publik): "${matchedDikecualikan.join(', ')}"`);
+  }
+
+  let bestKategori = 'Barang';
+  let highestScore = -1;
+  for (const [kat, sc] of Object.entries(scores)) {
+    if (sc > highestScore) {
+      highestScore = sc;
+      bestKategori = kat;
+    }
+  }
+
+  if (highestScore <= 0) {
+    bestKategori = 'Barang';
+    rationale.push('Kategori default Barang (tidak terdeteksi kata kunci spesifik konstruksi/jasa)');
+  }
+
+  const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
+  const confidence = totalScore > 0 ? Math.min(99, Math.round((highestScore / (totalScore || 1)) * 100 + 35)) : 80;
+
+  // 3. Penentuan Skenario Regulasi (Kepka LKPP 177/2024, Perpres 46/2025, Perlem 2/2026 & 3/2026)
+  let rekomendasiMetode = 'E-Purchasing';
+  let bentukKontrak = 'Surat Pesanan';
+  let jenisKertasHarga = 'HPS';
+  let pejabatPelaksana = 'Pejabat Pengadaan';
+  let dasarHukum = '';
+  let perlakuanKhusus = [];
+  let bypassTahap = [];
+  let tarifPph = 1.5;
+  let jenisPph = 'PPh 22 Barang (1.5%)';
+
+  if (bestKategori === 'Pekerjaan Konstruksi') {
+    tarifPph = 1.75;
+    jenisPph = 'PPh Final Konstruksi Kecil SBU K1/K2/K3 (1.75%)';
+    jenisKertasHarga = 'HPS (AHSP Kab. Ngawi & DED)';
+    if (numPagu <= 50000000) {
+      rekomendasiMetode = 'Pengadaan Langsung';
+      bentukKontrak = 'Kuitansi / SPK';
+      dasarHukum = 'Lampiran II Perlem LKPP 3/2026 jo. PP 9/2021';
+      bypassTahap = [11, 12];
+    } else if (numPagu <= 400000000) {
+      rekomendasiMetode = 'Pengadaan Langsung';
+      bentukKontrak = 'SPK';
+      dasarHukum = 'Pasal 38 ayat (4) Perpres 46/2025 (Batas Pengadaan Langsung Konstruksi s.d. Rp400 Jt)';
+      bypassTahap = [11];
+    } else {
+      rekomendasiMetode = 'Tender';
+      bentukKontrak = 'Surat Perjanjian';
+      pejabatPelaksana = 'Pokja Pemilihan';
+      dasarHukum = 'Pasal 38 Perpres 46/2025 jo. Lampiran II Perlem LKPP 3/2026';
+      bypassTahap = [];
+    }
+    perlakuanKhusus.push('Wajib melampirkan Rancangan Konseptual SMKK / RKK Keselamatan Konstruksi (Tahap 4)');
+    perlakuanKhusus.push('Wajib Masa Pemeliharaan & Retensi 5% saat PHO s.d. FHO (Tahap 16)');
+    perlakuanKhusus.push('PPh Final Konstruksi: 1,75% (Kualifikasi Kecil SBU K1/K2/K3)');
+  } else if (bestKategori.includes('Konsultansi')) {
+    tarifPph = 2.0;
+    jenisPph = 'PPh 23 Jasa Konsultansi (2%)';
+    jenisKertasHarga = 'HPS (SBOB / Billing Rate Tenaga Ahli)';
+    if (numPagu <= 100000000) {
+      rekomendasiMetode = 'Pengadaan Langsung';
+      bentukKontrak = 'SPK';
+      dasarHukum = 'Pasal 38 Perpres 46/2025 jo. Lampiran I & II Perlem LKPP 3/2026';
+      bypassTahap = [11, 12];
+    } else {
+      rekomendasiMetode = 'Seleksi';
+      bentukKontrak = 'Surat Perjanjian';
+      pejabatPelaksana = 'Pokja Pemilihan';
+      dasarHukum = 'Pasal 38 & 41 Perpres 46/2025';
+      bypassTahap = [];
+    }
+    perlakuanKhusus.push('HPS wajib merinci Remunerasi Tenaga Ahli (Billing Rate) & Biaya Langsung Non-Personil (Tahap 6)');
+    perlakuanKhusus.push('Bebas dari kewajiban Jaminan Pelaksanaan (Pasal 30 Perpres 46/2025)');
+  } else if (bestKategori === 'Swakelola') {
+    rekomendasiMetode = 'Swakelola Tipe I';
+    bentukKontrak = 'Kontrak Swakelola';
+    jenisKertasHarga = 'RAB Swakelola';
+    pejabatPelaksana = 'Tim Penyelenggara Swakelola (KPU)';
+    tarifPph = 5.0;
+    jenisPph = 'PPh 21 Honorarium Tenaga Ahli/Pokja (5%)';
+    dasarHukum = 'Perpres 16/2018 jo. Perpres 46/2025 jo. Peraturan LKPP Nomor 3 Tahun 2021';
+    bypassTahap = [5, 10, 11, 12, 18];
+    perlakuanKhusus.push('Direncanakan & dikerjakan sendiri oleh Tim Swakelola KPU Ngawi (SK KPA)');
+    perlakuanKhusus.push('Menggunakan format RAB Swakelola, bukan HPS pasar rekanan');
+  } else if (bestKategori === 'Dikecualikan') {
+    rekomendasiMetode = 'Mekanisme Pasar (Dikecualikan)';
+    bentukKontrak = 'SPK / Bukti Pembelian';
+    jenisKertasHarga = 'Estimasi Tarif Resmi Pemerintah / BUMN';
+    pejabatPelaksana = 'PPK / Pejabat Pengadaan';
+    dasarHukum = 'Perpres 16/2018 jo. Perpres 46/2025 jo. Peraturan LKPP Nomor 5 Tahun 2021';
+    bypassTahap = [11, 12];
+    perlakuanKhusus.push('Pembayaran mengikuti tarif resmi pemerintah / BUMN (PLN/PDAM/Telkom)');
+  } else {
+    // Barang atau Jasa Lainnya (Default: Prioritas E-Purchasing Katalog Elektronik V6 sesuai Kepka LKPP 177/2024)
+    const isEpur = via_katalog !== false;
+    if (isEpur) {
+      rekomendasiMetode = 'E-Purchasing';
+      bentukKontrak = 'Surat Pesanan';
+      pejabatPelaksana = numPagu <= 200000000 ? 'Pejabat Pengadaan' : 'Pokja Pemilihan / PPK';
+      
+      if (numPagu <= 100000000) {
+        jenisKertasHarga = 'Referensi Harga (Bebas HPS - Kepka LKPP 177/2024)';
+        dasarHukum = 'Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Lampiran III: Tata Cara E-Purchasing) jo. Pasal 9 Perlem LKPP 2/2026';
+        bypassTahap = [11];
+        perlakuanKhusus.push('🎉 BEBAS HPS FORMAL: Cukup lampirkan Bukti Survei Etalase Katalog V6 & Kertas Kerja Referensi Harga (Kepka LKPP 177/2024)');
+        perlakuanKhusus.push('Bypass Tahap 11 (SPPBJ tidak diperlukan, langsung Surat Pesanan)');
+        perlakuanKhusus.push('Bebas dari kewajiban Jaminan Pelaksanaan');
+      } else if (numPagu <= 200000000) {
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 26 & 38 Perpres 46/2025 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024';
+        bypassTahap = [11];
+        perlakuanKhusus.push('Wajib HPS oleh PPK, negosiasi harga digital melalui Katalog Elektronik V6');
+        perlakuanKhusus.push('Bebas dari Jaminan Pelaksanaan (≤ Rp 200 Juta)');
+      } else {
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 30 & 38 Perpres 46/2025 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 jo. Perlem 2/2026';
+        bypassTahap = [];
+        perlakuanKhusus.push('E-Purchasing > Rp 200 Jt: Gunakan Negosiasi Digital atau Mini-Kompetisi Katalog V6');
+        perlakuanKhusus.push('Wajib Jaminan Pelaksanaan 5% sebelum penandatanganan Surat Pesanan');
+      }
+    } else {
+      if (numPagu <= 10000000) {
+        rekomendasiMetode = 'Pengadaan Langsung';
+        bentukKontrak = 'Bukti Pembelian';
+        jenisKertasHarga = 'Bebas HPS (<= 10 Jt)';
+        dasarHukum = 'Pasal 28 & 38 Perpres 46/2025';
+        bypassTahap = [6, 11, 12, 14];
+        perlakuanKhusus.push('Bebas HPS, cukup bukti struk/nota pembelian toko');
+      } else if (numPagu <= 50000000) {
+        rekomendasiMetode = 'Pengadaan Langsung';
+        bentukKontrak = 'Kuitansi';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 28 & 38 Perpres 46/2025';
+        bypassTahap = [11, 12, 14];
+        perlakuanKhusus.push('Wajib HPS, bentuk kontrak Kuitansi dinas bermeterai');
+      } else if (numPagu <= 200000000) {
+        rekomendasiMetode = 'Pengadaan Langsung';
+        bentukKontrak = 'SPK';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 28 & 38 Perpres 46/2025 jo. Lampiran I Perlem 3/2026';
+        bypassTahap = [];
+        perlakuanKhusus.push('Wajib SPK dan HPS survei harga pasar');
+      } else {
+        rekomendasiMetode = 'Tender';
+        bentukKontrak = 'Surat Perjanjian';
+        pejabatPelaksana = 'Pokja Pemilihan';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 38 Perpres 46/2025 jo. Lampiran I Perlem 3/2026';
+        bypassTahap = [];
+        perlakuanKhusus.push('Wajib Tender oleh Pokja Pemilihan & Jaminan Pelaksanaan 5%');
+      }
+    }
+  }
+
+  return {
+    kategori_terpilih: bestKategori,
+    confidence: Math.min(confidence, 98),
+    skor_kandidat: scores,
+    rasional: rationale,
+    rekomendasi_skenario: {
+      metode_pemilihan: rekomendasiMetode,
+      bentuk_kontrak: bentukKontrak,
+      jenis_kertas_harga: jenisKertasHarga,
+      pejabat_pelaksana: pejabatPelaksana,
+      tarif_pph: tarifPph,
+      jenis_pph: jenisPph,
+      dasar_hukum: dasarHukum,
+      bypass_tahap: bypassTahap,
+      catatan_kepatuhan: perlakuanKhusus
+    }
+  };
+}
+
 module.exports = {
+  recommendJenisPengadaan,
   NAMA_BULAN,
   NAMA_HARI,
   ANGKA_ROMAWI_BULAN,

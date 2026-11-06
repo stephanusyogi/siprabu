@@ -320,6 +320,14 @@
               <span class="prabu-chevron">▾</span>
             </button>
             <div class="prabu-tree-children">
+              <!-- TOMBOL NAVIGASI UTAMA: BUAT PAKET PENGADAAN BARU (SMART WIZARD) -->
+              <button type="button" class="prabu-sidebar-cta-btn" onclick="openSmartWizardModal()" style="margin: 4px 8px 8px 8px; width: calc(100% - 16px); background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%); color: #ffffff; border: none; border-radius: 6px; padding: 7px 10px; font-weight: 800; font-size: 11.5px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(37,99,235,0.25); cursor: pointer; text-align: center; transition: all 0.2s;" title="Buka Wizard Panduan & Rekomendasi Cerdas untuk Membuat Paket Pengadaan Baru">
+                <span>🪄 + Buat Paket Baru</span>
+              </button>
+              <button class="nav-item" data-view="view-pengadaan-portal-pengusul" id="nav-item-pengadaan-portal-pengusul" onclick="switchView('view-pengadaan-portal-pengusul')">
+                <span class="icon">📝</span>
+                <span class="label">Pengusulan & Disposisi KPA</span>
+              </button>
               <button class="nav-item" data-view="view-pengadaan-paket" id="nav-item-pengadaan-paket" onclick="switchView('view-pengadaan-paket')">
                 <span class="icon">📦</span>
                 <span class="label">Daftar Paket Pengadaan</span>
@@ -4174,47 +4182,15 @@
           <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
             <div>
               <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📦 Daftar Paket Pengadaan Barang/Jasa &amp; Konstruksi</h1>
-              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Manajemen Administrasi Kontrak &amp; Rekam Pengadaan 18 Tahap Hulu–Hilir KPU Kabupaten Ngawi (Perpres 46/2025, Perlem LKPP 2/2026 &amp; 3/2026)</p>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Manajemen Administrasi Kontrak &amp; Rekam Pengadaan 18 Tahap Hulu–Hilir KPU Kabupaten Ngawi (Perpres 46/2025, Kepka LKPP 177/2024, Perlem LKPP 2/2026 &amp; 3/2026)</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <button type="button" class="cakra-btn cakra-btn-outline" onclick="openSimulatorPengadaanModal()" style="border-color:#7c3aed; color:#6d28d9; background:#f5f3ff; font-weight:700;">🧮 Simulator Jenis Belanja &amp; Nilai</button>
               <button type="button" class="cakra-btn cakra-btn-outline" onclick="toggleCakraRkbDrawer()">📥 Tarik Mata Anggaran dari RKB</button>
-              <button type="button" class="cakra-btn cakra-btn-primary" onclick="createNewPaketPrompt()">➕ Buat Paket Pengadaan Baru</button>
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="openSmartWizardModal()" style="font-weight:700;">🪄 Panduan &amp; Buat Paket Baru</button>
             </div>
           </div>
 
-          <!-- Drawer Tarik Mata Anggaran langsung dari RKB SI-PRABU -->
-          <div id="cakra-rkb-pull-drawer" class="cakra-card" style="display:none; border:2px solid #2563eb; margin-bottom:16px;">
-            <div class="cakra-card-header" style="background:#eff6ff;">
-              <div class="cakra-card-title" style="color:#1e3a8a;">📥 Tarik Mata Anggaran langsung dari Tabel RUH Belanja RKB (`siprabu_db`)</div>
-              <div style="display:flex; gap:6px;">
-                <button type="button" class="cakra-btn cakra-btn-info cakra-btn-sm" onclick="loadSiprabuRkbItems()">🔄 Muat Ulang RKB</button>
-                <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="toggleCakraRkbDrawer()">✖ Tutup</button>
-              </div>
-            </div>
-            <div class="cakra-card-body">
-              <div class="cakra-alert-regulasi">
-                💡 <strong>Zero Re-Entry (Single Source of Truth):</strong> Klik tombol <strong>"⚡ Jadikan Paket Pengadaan"</strong> pada baris belanja RKB di bawah ini untuk langsung membuat paket beserta jadwal 18 tahap otomatis.
-              </div>
-              <div style="max-height:340px; overflow-y:auto;">
-                <table class="cakra-data-table">
-                  <thead>
-                    <tr>
-                      <th>ID Baris</th>
-                      <th>Kode MAK</th>
-                      <th>Subbagian (PIC)</th>
-                      <th>Uraian Komponen / Item Belanja RKB</th>
-                      <th>Volume &amp; Satuan</th>
-                      <th>Harga Satuan (Rp)</th>
-                      <th>Total Pagu (Rp)</th>
-                      <th>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="cakra-table-siprabu-rkb-body"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
 
           <div class="cakra-kpi-grid" id="cakra-dashboard-kpi-grid"></div>
 
@@ -4242,7 +4218,13 @@
         </section>
 
         <!-- VIEW PENGADAAN 2: KOKPIT 18 TAHAP FULL-WIDTH -->
-        <section id="view-pengadaan-kokpit" class="app-view">
+        <section id="view-pengadaan-portal-pengusul" class="app-view">
+        <div class="cakra-container" id="cakra-portal-pengusul-root" style="padding: 16px 20px;">
+          <!-- Konten Portal Pengusulan Kasubag & Disposisi KPA dirender secara dinamis oleh renderPortalPengusulKpaView() -->
+        </div>
+      </section>
+
+      <section id="view-pengadaan-kokpit" class="app-view">
           <div class="cakra-cockpit-command-bar" id="cakra-cockpit-top-banner"></div>
 
           <div class="cakra-phase-ribbon-box">
@@ -4257,11 +4239,29 @@
 
           <div class="cakra-card">
             <div class="cakra-card-body">
-              <div class="cakra-sub-tabs">
-                <button type="button" class="cakra-sub-tab-btn active" id="cakra-subtab-btn-form" onclick="switchCockpitTab('form')">📝 1. Data Paket, Regulasi &amp; Kontrak</button>
-                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-items" onclick="switchCockpitTab('items')">📊 2. Tabel Item, Survei HPS/Ref. Harga, AHSP &amp; SBOB (Full-Width)</button>
-                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-jadwal" onclick="switchCockpitTab('jadwal')">⏱️ 3. Time-Machine (Nomor &amp; Tanggal 18 Tahap)</button>
-                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-pajak" onclick="switchCockpitTab('pajak')">🧮 4. Kalkulator Pajak, Retensi 5% PHO/FHO, Denda 1‰ &amp; Skor Kinerja</button>
+              <div class="cakra-sub-tabs" id="cockpit-phase-tabs">
+                <button type="button" class="cakra-sub-tab-btn active" id="cakra-subtab-btn-fase1" onclick="switchCockpitFase(1)" title="Fase I: Perencanaan (Tahap 1 s.d. 3)">
+                  <span class="phase-pill-badge">FASE I</span> 📋 Perencanaan (T1–3)
+                </button>
+                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-fase2" onclick="switchCockpitFase(2)" title="Fase II: Persiapan PPK (Tahap 4 s.d. 7)">
+                  <span class="phase-pill-badge">FASE II</span> ⚙️ Persiapan PPK (T4–7)
+                </button>
+                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-fase3" onclick="switchCockpitFase(3)" title="Fase III: Pemilihan Penyedia (Tahap 8 s.d. 9)">
+                  <span class="phase-pill-badge">FASE III</span> ⚖️ Pemilihan (T8–9)
+                </button>
+                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-fase4" onclick="switchCockpitFase(4)" title="Fase IV: Kontrak & SPPBJ (Tahap 10 s.d. 13)">
+                  <span class="phase-pill-badge">FASE IV</span> 📝 Kontrak &amp; SPPBJ (T10–13)
+                </button>
+                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-fase5" onclick="switchCockpitFase(5)" title="Fase V: Pelaksanaan & SPMK (Tahap 14 s.d. 15)">
+                  <span class="phase-pill-badge">FASE V</span> 🏗️ Pelaksanaan (T14–15)
+                </button>
+                <button type="button" class="cakra-sub-tab-btn" id="cakra-subtab-btn-fase6" onclick="switchCockpitFase(6)" title="Fase VI: Serah Terima & BMN (Tahap 16 s.d. 18)">
+                  <span class="phase-pill-badge">FASE VI</span> 🏆 Serah Terima &amp; BMN (T16–18)
+                </button>
+                <div style="margin-left:auto; display:flex; gap:6px; align-items:center;">
+                  <button type="button" class="cakra-sub-tab-btn cakra-util-tab-btn" id="cakra-subtab-btn-jadwal" onclick="switchCockpitUtilityView('jadwal')" title="Lihat Time-Machine Jadwal 18 Tahap">⏱️ Jadwal 18 Tahap</button>
+                  <button type="button" class="cakra-sub-tab-btn cakra-util-tab-btn" id="cakra-subtab-btn-dodont" onclick="switchCockpitUtilityView('dodont')" title="Lihat Buku Saku Do's & Don'ts Lengkap">🧭 Buku Saku</button>
+                </div>
               </div>
               <div id="cakra-cockpit-tab-content"></div>
             </div>
@@ -4312,7 +4312,32 @@
             </div>
           </div>
 
-          <!-- MODAL EDIT / TAMBAH PEJABAT PENGADAAN & PENGELOLA KEUANGAN -->
+          
+        </section>
+
+        <!-- VIEW PENGADAAN 4: PANDUAN PENGADAAN 18 TAHAP -->
+        <section id="view-panduan-pengadaan" class="app-view">
+          <div class="view-header" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📘 Panduan Pengadaan 18 Tahap Hulu–Hilir (Regulasi 2025/2026)</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Panduan lengkap Nonkonstruksi, Pekerjaan Konstruksi, Konsultansi Konstruksi, Rancang Bangun, Swakelola, &amp; PBJ Dikecualikan.</p>
+            </div>
+            <div>
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="openSimulatorPengadaanModal()" style="border-color:#7c3aed; color:#6d28d9; background:#f5f3ff; font-weight:700;">🧮 Buka Simulator Jenis Belanja &amp; Nilai</button>
+            </div>
+          </div>
+          <div class="cakra-card">
+            <div class="cakra-card-body" id="cakra-panduan-18-tahap-container"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div> <!-- /#app -->
+
+    <!-- ===================================================================== -->
+    <!-- MODAL CAKRA PENGADAAN (PEJABAT, PENYEDIA, & SIMULATOR 14 TEMPLATE)    -->
+    <!-- ===================================================================== -->
+    <!-- MODAL EDIT / TAMBAH PEJABAT PENGADAAN & PENGELOLA KEUANGAN -->
           <div id="modal-cakra-pejabat" class="modal-backdrop" style="display:none; z-index:1100;" onclick="if(event.target===this) closeCakraPejabatModal()">
             <div class="modal-box" style="max-width:560px; width:95%;">
               <div class="modal-header">
@@ -4494,7 +4519,7 @@
                     <span class="badge" style="background:#fbbf24; color:#0f172a; font-size:11px; font-weight:800; padding:2px 8px; border-radius:4px;">14 TEMPLATE BAKU</span>
                   </h3>
                   <div style="font-size:12px; color:#c7d2fe; margin-top:4px;">
-                    Double-Check Regulasi Pengadaan: Perpres 46/2025, Perlem LKPP 2/2026 (Katalog v6) &amp; Perlem LKPP 3/2026 (Dikecualikan)
+                    Double-Check Regulasi Pengadaan: Perpres 46/2025, Keputusan Kepala LKPP 177/2024 (E-Katalog v6 &amp; E-Purchasing), Perlem LKPP 2/2026 &amp; Perlem LKPP 3/2026
                   </div>
                 </div>
                 <button type="button" class="btn-close" style="color:#fff; opacity:0.8; font-size:18px;" onclick="closeSimulatorPengadaanModal()">✕</button>
@@ -4584,25 +4609,174 @@
               </div>
             </div>
           </div>
-        </section>
 
-        <!-- VIEW PENGADAAN 4: PANDUAN PENGADAAN 18 TAHAP -->
-        <section id="view-panduan-pengadaan" class="app-view">
-          <div class="view-header" style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            <div>
-              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📘 Panduan Pengadaan 18 Tahap Hulu–Hilir (Regulasi 2025/2026)</h1>
-              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Panduan lengkap Nonkonstruksi, Pekerjaan Konstruksi, Konsultansi Konstruksi, Rancang Bangun, Swakelola, &amp; PBJ Dikecualikan.</p>
-            </div>
-            <div>
-              <button type="button" class="cakra-btn cakra-btn-outline" onclick="openSimulatorPengadaanModal()" style="border-color:#7c3aed; color:#6d28d9; background:#f5f3ff; font-weight:700;">🧮 Buka Simulator Jenis Belanja &amp; Nilai</button>
-            </div>
+          <!-- ===================================================================== -->
+          <!-- MODAL WIZARD BUAT PAKET PENGADAAN CERDAS (REGULASI 2025/2026)         -->
+          <!-- ===================================================================== -->
+          <!-- GLOBAL UNIVERSAL MODAL: TARIK MATA ANGGARAN DARI RKB DEFINITIF -->
+    <div id="cakra-rkb-pull-drawer" class="cakra-custom-modal-backdrop" style="display:none; z-index:12000;" onclick="if(event.target===this) toggleCakraRkbDrawer()">
+      <div class="cakra-custom-modal-card" style="width: 95%; max-width: 1100px; max-height: 88vh; display: flex; flex-direction: column; background: #ffffff;">
+        <div style="background: #0f172a; color: #ffffff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+          <div style="font-weight: 800; font-size: 14.5px; display: flex; align-items: center; gap: 8px;">
+            <span>⚡ Tarik Mata Anggaran dari RKB Definitif (Terkunci Terakhir)</span>
           </div>
-          <div class="cakra-card">
-            <div class="cakra-card-body" id="cakra-panduan-18-tahap-container"></div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button type="button" class="cakra-btn cakra-btn-info cakra-btn-sm" onclick="loadSiprabuRkbItems(true)" style="font-size: 11px;">🔄 Muat Ulang</button>
+            <button type="button" onclick="toggleCakraRkbDrawer()" style="background: none; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; line-height: 1;">✕</button>
           </div>
-        </section>
-      </main>
+        </div>
+        
+        <div style="padding: 14px 20px 8px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 12px; font-size: 11.5px; color: #1e40af; margin-bottom: 10px;">
+            💡 <strong>Single Source of Truth:</strong> Seluruh data di bawah ini bersumber dari dokumen RKB definitif yang telah disahkan dan berstatus terkunci terakhir oleh KPA. Klik tombol <strong>"⚡ Tarik ke Paket"</strong> untuk menghubungkan mata anggaran ke paket pengadaan.
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="position: relative; flex: 1;">
+              <input type="text" id="cakra-rkb-search-input" class="cakra-form-control" placeholder="🔍 Cari cepat berdasarkan Kegiatan, Kode MAK (misal: 532, 5212), Nama BAS, atau Uraian RKB..." oninput="filterSiprabuRkbTable(this.value)" onkeydown="if(event.key==='Escape') toggleCakraRkbDrawer(); else if(event.key==='Enter') filterSiprabuRkbTable(this.value, true);" style="width: 100%; font-size: 12px; padding: 8px 30px 8px 12px; border-radius: 6px; border: 1.5px solid #93c5fd;" autofocus />
+              <button type="button" onclick="const el=document.getElementById('cakra-rkb-search-input'); if(el){el.value=''; filterSiprabuRkbTable('', true); el.focus();}" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; font-size: 13px; cursor: pointer; padding: 0 4px;" title="Bersihkan">✕</button>
+            </div>
+            <span id="cakra-rkb-count-badge" class="cakra-badge cakra-badge-blue" style="font-size:11px; padding:6px 12px; font-weight:700; white-space:nowrap;">803 baris tersedia</span>
+          </div>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; padding: 0 20px 14px 20px;">
+          <table class="cakra-data-table" style="width: 100%; font-size: 12px; margin-top: 10px;">
+            <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 2;">
+              <tr>
+                <th>ID</th>
+                <th>Kode MAK &amp; Nama BAS</th>
+                <th>Subbagian</th>
+                <th>Uraian Komponen &amp; Subkegiatan RKB</th>
+                <th>Volume</th>
+                <th>Harga Satuan</th>
+                <th>Total Pagu</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="cakra-table-siprabu-rkb-body"></tbody>
+          </table>
+        </div>
+        
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 10px 20px; display: flex; justify-content: flex-end;">
+          <button type="button" class="cakra-btn cakra-btn-secondary" onclick="toggleCakraRkbDrawer()">Tutup</button>
+        </div>
+      </div>
     </div>
+
+    <div id="modal-smart-wizard-paket" class="modal-backdrop" style="display:none; z-index:1150;" onclick="if(event.target===this) closeSmartWizardModal()">
+            <div class="modal-box" style="max-width:980px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+              <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color:#fff; border-bottom:none; padding:16px 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                  <div>
+                    <h3 style="margin:0; font-size:16.5px; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px;">
+                      <span>🪄 Panduan &amp; Pembuatan Paket Pengadaan Cerdas</span>
+                      <span class="badge" style="background:#10b981; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:4px;">REGULASI 2025/2026</span>
+                    </h3>
+                    <div style="font-size:12px; color:#bfdbfe; margin-top:4px;">
+                      Input Minimal 3 Data ➔ Rekomendasi Kategori Otomatis ➔ Kerangka 18 Tahap Skenario &amp; Do's/Don'ts Kepatuhan
+                    </div>
+                  </div>
+                  <button type="button" class="btn-close" onclick="closeSmartWizardModal()" style="color:#fff; background:none; border:none; font-size:20px; cursor:pointer;">✕</button>
+                </div>
+              </div>
+
+              <div class="modal-body" style="padding:18px 22px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; background:#f8fafc;">
+                <!-- STEP 1: INPUT MINIMAL DATA -->
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                  <div style="font-size:13px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                    <span style="background:#2563eb; color:#fff; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">1</span>
+                    <span>Input Minimal Kebutuhan Pengadaan (Dasar Pemilihan Skenario)</span>
+                  </div>
+                  <div style="display:grid; grid-template-columns: 2fr 1.2fr 1.2fr; gap:12px; align-items:flex-start;">
+                    <div>
+                      <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nama Paket / Uraian Belanja *</label>
+                      <input type="text" id="wiz-nama-paket" class="cakra-form-input" placeholder="Contoh: Pengadaan ATK Pilkada atau Pemeliharaan Gedung Kantor" oninput="onWizardInputChange()" style="font-size:13px; font-weight:600;" />
+                      <div style="font-size:10.5px; color:#64748b; margin-top:4px;">Ketik uraian bebas atau tarik dari RKB. Kata kunci menentukan saran kategori otomatis.</div>
+                    </div>
+                    <div>
+                      <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Pagu Anggaran DIPA/RKB (Rp) *</label>
+                      <input type="text" id="wiz-pagu-input" class="cakra-form-input" placeholder="Rp 0" oninput="formatWizardPagu(this)" style="font-size:13px; font-weight:700; color:#0f172a;" />
+                      <div style="display:flex; gap:4px; margin-top:5px; flex-wrap:wrap;">
+                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setWizardPagu(10000000)" style="font-size:10px; padding:1px 5px;">10 Jt</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setWizardPagu(50000000)" style="font-size:10px; padding:1px 5px;">50 Jt</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setWizardPagu(100000000)" style="font-size:10px; padding:1px 5px;">100 Jt</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setWizardPagu(200000000)" style="font-size:10px; padding:1px 5px;">200 Jt</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="setWizardPagu(400000000)" style="font-size:10px; padding:1px 5px;">400 Jt</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kode Akun (MAK 6-Digit)</label>
+                      <select id="wiz-kode-akun" class="cakra-form-select" onchange="onWizardInputChange()" style="font-size:12px;">
+                        <option value="">-- Deteksi Otomatis dari Teks --</option>
+                        <option value="521211">521211 - Belanja Bahan / ATK</option>
+                        <option value="521811">521811 - Barang Konsumsi / Persediaan</option>
+                        <option value="522141">522141 - Belanja Sewa Gedung/Kendaraan</option>
+                        <option value="522191">522191 - Belanja Jasa Lainnya (EO/Logistik)</option>
+                        <option value="523111">523111 - Pemeliharaan Gedung &amp; Bangunan</option>
+                        <option value="523121">523121 - Pemeliharaan Peralatan &amp; Mesin</option>
+                        <option value="532111">532111 - Modal Peralatan &amp; Mesin (Laptop/PC)</option>
+                        <option value="533111">533111 - Modal Gedung &amp; Bangunan</option>
+                        <option value="522131">522131 - Jasa Konsultansi Keahlian</option>
+                        <option value="521213">521213 - Honor Output Kegiatan (Swakelola I)</option>
+                        <option value="522111">522111 - Langganan Daya/Jasa (Dikecualikan)</option>
+                      </select>
+                      <div style="font-size:10.5px; color:#64748b; margin-top:4px;">Opsional. Jika dipilih, memperkuat akurasi rekomendasi.</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px; font-weight:600; color:#334155; margin:0;">
+                      <input type="checkbox" id="wiz-via-katalog" checked onchange="onWizardInputChange()" style="width:16px; height:16px; accent-color:#2563eb;" />
+                      <span>Produk tersedia pada etalase <strong>Katalog Elektronik Versi 6 (Kepka LKPP 177/2024)</strong></span>
+                    </label>
+                    <span id="wiz-terbilang-text" style="font-size:11.5px; color:#2563eb; font-weight:600;">Rp 0</span>
+                  </div>
+                </div>
+
+                <!-- STEP 2: LIVE REKOMENDASI PINTAR KATEGORI & SKENARIO PENGADAAN -->
+                <div id="wiz-rekomendasi-card-container"></div>
+
+                <!-- STEP 3: PREVIEW KERANGKA 18 TAHAP & DO'S/DON'TS -->
+                <div id="wiz-preview-kerangka-container"></div>
+              </div>
+
+              <div class="modal-footer" style="background:#ffffff; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; padding:12px 20px;">
+                <div style="font-size:11.5px; color:#475569;" id="wiz-footer-status">
+                  💡 SI-PRABU mengawal kepatuhan: Perpres 46/2025, Kepka LKPP 177/2024, Perlem LKPP 2/2026 &amp; 3/2026
+                </div>
+                <div style="display:flex; gap:8px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeSmartWizardModal()">Batal</button>
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-wiz-submit" onclick="submitSmartWizardPaket()" style="font-weight:700; background:#2563eb; border-color:#2563eb; color:#fff; padding:6px 16px;">
+                    🚀 Buat Paket &amp; Buka Kokpit Pengadaan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===================================================================== -->
+          <!-- MODAL GUARDRAIL PERINGATAN KEPATUHAN TAHAPAN (PREREQUISITE WARNING)  -->
+          <!-- ===================================================================== -->
+          <div id="modal-pengadaan-guardrail" class="modal-backdrop" style="display:none; z-index:1200;" onclick="if(event.target===this) closeGuardrailModal()">
+            <div class="modal-box" style="max-width:560px; width:95%; border-radius:12px; padding:0; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+              <div class="modal-header" style="background:#fff1f2; border-bottom:1px solid #fecdd3; padding:14px 18px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:20px;">⚠️</span>
+                  <div>
+                    <h4 style="margin:0; font-size:15px; font-weight:800; color:#9f1239;" id="guardrail-title">Peringatan Guardrail Tahapan Pengadaan</h4>
+                    <div style="font-size:11.5px; color:#be123c;">Pengawalan Kepatuhan Regulasi Hulu–Hilir SI-PRABU</div>
+                  </div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeGuardrailModal()" style="color:#9f1239; background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+              </div>
+              <div class="modal-body" style="padding:16px 20px; font-size:12.5px; color:#334155; line-height:1.5;">
+                <div id="guardrail-message-container"></div>
+              </div>
+              <div class="modal-footer" style="background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; padding:10px 18px;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-guardrail-tetap-buka" onclick="onGuardrailTetapLanjut()">Tetap Buka Tahap Ini (Mode Tinjau)</button>
+                <button type="button" class="btn btn-sm btn-danger" id="btn-guardrail-lengkapi" onclick="onGuardrailLengkapiPrasyarat()" style="font-weight:700;">⬅ Kembali Lengkapi Prasyarat</button>
+              </div>
+            </div>
+          </div>
 
     <!-- ===================================================================== -->
     <!-- MODAL: EDIT / TAMBAH BARIS RKB (SI-PRABU LANDSCAPE MODE)                 -->
@@ -5167,7 +5341,6 @@
         </div>
       </div>
     </div>
-  </div>
 
 <!-- ===================================================================== -->
     <!-- MODAL: RESUME CEPAT SASARAN (PENYELENGGARA VS PESERTA)                 -->
@@ -5907,7 +6080,7 @@
     <!-- MODAL: POP-UP PENGUMUMAN & KORESPONDENSI DINAS ALA SAKTI (BESAR & RESMI) -->
     <!-- Dimensi Besar & Frame Wadah Persis Seperti SAKTI Kemenkeu               -->
     <!-- ===================================================================== -->
-    <div id="modal-announcement-prelogin" class="modal-backdrop" style="display: none; align-items: center; justify-content: center; z-index: 200000; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);">
+    <div id="modal-announcement-prelogin" class="modal-backdrop" style="display: none; align-items: center; justify-content: center; z-index: 200000; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);" onclick="if(event.target===this) closePreLoginAnnouncementModal()">
       <div class="sakti-announcement-dialog" style="background: #ffffff; border-radius: 12px; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35); max-width: 1140px; width: 92vw; height: 82vh; max-height: 85vh; min-height: 560px; display: flex; flex-direction: column; overflow: hidden; position: relative;">
         
         <!-- Top Close Button (x) -->

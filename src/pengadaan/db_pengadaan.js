@@ -375,10 +375,14 @@ async function getPaketFullById(paketId) {
     if (!pejabatMap[pj.peran]) pejabatMap[pj.peran] = pj;
   }
 
+  const [subbags] = await pool.query('SELECT * FROM master_subbagian');
+  const subbag = (subbags || []).find(s => s.kode === paket.pic_subbag) || subbags[0] || {};
+
   return {
     paket,
     items,
     tahaps,
+    subbag,
     penyedia: penyedias[0] || {},
     ppk: pejabatMap[paket.ppk_id] || pejabatMap['PPK'] || {},
     kpa: pejabatMap[paket.kpa_id] || pejabatMap['KPA'] || {},
@@ -444,6 +448,10 @@ async function savePaket(data) {
       `UPDATE pbj_paket SET
         kode_rup=?, nama_paket=?, uraian_pekerjaan=?, lokasi_pekerjaan=?,
         sumber_dana=?, tahun_anggaran=?, kode_akun_mak=?, nama_akun_mak=?, komponen_ro=?, pic_subbag=?,
+        rkb_program=?, rkb_kegiatan=?, rkb_subkegiatan=?, rkb_komponen=?, bmn_kategori_telaah=?,
+        disposisi_status=?, disposisi_catatan_kpa=?, disposisi_tgl_diajukan=?, disposisi_tgl_disposisi=?,
+        no_nota_dinas_pengusul=?, tgl_nota_dinas_pengusul=?, perihal_nota_dinas=?, no_disposisi_kpa=?, tgl_disposisi_kpa=?,
+        bmn_status_ketersediaan=?, bmn_jumlah_eksisting=?, bmn_kondisi_eksisting=?, bmn_sifat_kebutuhan=?, bmn_kesesuaian_rkbmn=?, bmn_catatan_telaah=?,
         jenis_pengadaan=?, cara_pengadaan=?, metode_pemilihan=?, sub_metode_epurchasing=?, fitur_spse=?, pelaksana_pemilihan=?,
         nilai_pagu=?, jenis_kertas_harga=?, nilai_hps=?, nilai_penawaran_awal=?, nilai_kontrak=?,
         tarif_ppn=?, termasuk_ppn=?, jenis_pph=?, tarif_pph=?,
@@ -459,6 +467,14 @@ async function savePaket(data) {
         data.kode_rup || '', data.nama_paket, data.uraian_pekerjaan || '', data.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi',
         data.sumber_dana || 'APBN DIPA', data.tahun_anggaran || '2026', data.kode_akun_mak || '521211', data.nama_akun_mak || 'Belanja Bahan',
         data.komponen_ro || '', data.pic_subbag || 'KUL',
+        data.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi',
+        data.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)',
+        data.rkb_subkegiatan || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu',
+        data.rkb_komponen || 'Pengadaan Perangkat Server dan Jaringan Komputer',
+        data.bmn_kategori_telaah || (String(data.kode_akun_mak || '').startsWith('53') ? 'MODAL' : 'EKSTRAKOMPTABEL'),
+        data.disposisi_status || 'DISETUJUI', data.disposisi_catatan_kpa || '', data.disposisi_tgl_diajukan || null, data.disposisi_tgl_disposisi || null,
+        data.no_nota_dinas_pengusul || '', data.tgl_nota_dinas_pengusul || '', data.perihal_nota_dinas || '', data.no_disposisi_kpa || '', data.tgl_disposisi_kpa || '',
+        data.bmn_status_ketersediaan || 'TERSEDIA_RUSAK_BERAT', Number(data.bmn_jumlah_eksisting || 0), data.bmn_kondisi_eksisting || '', data.bmn_sifat_kebutuhan || 'PENGGANTIAN', data.bmn_kesesuaian_rkbmn || '', data.bmn_catatan_telaah || '',
         data.jenis_pengadaan || 'Barang', data.cara_pengadaan || 'Penyedia', data.metode_pemilihan || 'E-Purchasing',
         data.sub_metode_epurchasing || 'Negosiasi Harga', data.fitur_spse || rekomendasi.fiturSpse, data.pelaksana_pemilihan || rekomendasi.pelaksana,
         Number(data.nilai_pagu || 0), data.jenis_kertas_harga || rekomendasi.jenisKertasHarga,
@@ -476,6 +492,34 @@ async function savePaket(data) {
         data.id
       ]
     );
+
+    if (data.stageUpdate && data.stageUpdate.no_tahap) {
+      const su = data.stageUpdate;
+      let finalStatus = su.status_tahap || 'Draft';
+      const driveLink = String(su.link_drive_dokumen || '').trim();
+
+      // HARD GATE: Status 'Selesai' HANYA SAH jika link drive dokumen terisi!
+      if (finalStatus === 'Selesai' && !driveLink) {
+        finalStatus = 'Draft';
+      }
+
+      await pool.query(
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           nomor_dokumen = VALUES(nomor_dokumen),
+           tanggal_dokumen = VALUES(tanggal_dokumen),
+           status_tahap = VALUES(status_tahap),
+           link_drive_dokumen = VALUES(link_drive_dokumen),
+           catatan_tahap = VALUES(catatan_tahap)`,
+        [
+          data.id, Number(su.no_tahap), Number(su.fase || 1), su.nama_tahap || '',
+          su.nomor_dokumen || '', su.tanggal_dokumen || '', finalStatus,
+          driveLink, su.catatan_tahap || ''
+        ]
+      );
+    }
+
     return data.id;
   } else {
     const [cntRows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_paket');
@@ -486,7 +530,10 @@ async function savePaket(data) {
     const [res] = await pool.query(
       `INSERT INTO pbj_paket (
         kode_paket_internal, kode_rup, nama_paket, uraian_pekerjaan, lokasi_pekerjaan,
-        sumber_dana, tahun_anggaran, kode_akun_mak, nama_akun_mak, komponen_ro, pic_subbag, siprabu_rab_id,
+        sumber_dana, tahun_anggaran, kode_akun_mak, nama_akun_mak, komponen_ro, pic_subbag,
+        no_nota_dinas_pengusul, tgl_nota_dinas_pengusul, perihal_nota_dinas, no_disposisi_kpa, tgl_disposisi_kpa,
+        bmn_status_ketersediaan, bmn_jumlah_eksisting, bmn_kondisi_eksisting, bmn_sifat_kebutuhan, bmn_kesesuaian_rkbmn, bmn_catatan_telaah,
+        siprabu_rab_id,
         jenis_pengadaan, cara_pengadaan, metode_pemilihan, sub_metode_epurchasing, fitur_spse, pelaksana_pemilihan,
         nilai_pagu, jenis_kertas_harga, nilai_hps, nilai_penawaran_awal, nilai_kontrak,
         tarif_ppn, termasuk_ppn, jenis_pph, tarif_pph,
@@ -495,12 +542,15 @@ async function savePaket(data) {
         jenis_kontrak, bentuk_kontrak, masa_pelaksanaan_hari, tgl_mulai_kerja, tgl_selesai_kontrak, tgl_realisasi_selesai,
         penyedia_id, ppk_id, pejabat_pengadaan_id, kpa_id, bendahara_id, tim_teknis_id,
         tahap_aktif, status_paket, nilai_kinerja_akhir, predikat_kinerja, catatan_khusus_ppk
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         kodeInternal, kodeRup, data.nama_paket || 'Paket Pengadaan Baru KPU Kabupaten Ngawi',
         data.uraian_pekerjaan || data.nama_paket || '', 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
         data.sumber_dana || 'APBN DIPA', data.tahun_anggaran || '2026', data.kode_akun_mak || '521211', data.nama_akun_mak || 'Belanja Bahan',
-        data.komponen_ro || '6639.BDB.001.051.A', data.pic_subbag || 'KUL', data.siprabu_rab_id || null,
+        data.komponen_ro || '6639.BDB.001.051.A', data.pic_subbag || 'KUL',
+        data.no_nota_dinas_pengusul || '', data.tgl_nota_dinas_pengusul || '', data.perihal_nota_dinas || '', data.no_disposisi_kpa || '', data.tgl_disposisi_kpa || '',
+        data.bmn_status_ketersediaan || 'TERSEDIA_RUSAK_BERAT', Number(data.bmn_jumlah_eksisting || 0), data.bmn_kondisi_eksisting || '', data.bmn_sifat_kebutuhan || 'PENGGANTIAN', data.bmn_kesesuaian_rkbmn || '', data.bmn_catatan_telaah || '',
+        data.siprabu_rab_id || null,
         data.jenis_pengadaan || 'Barang', data.cara_pengadaan || 'Penyedia', data.metode_pemilihan || 'E-Purchasing',
         data.sub_metode_epurchasing || 'Negosiasi Harga', rekomendasi.fiturSpse, rekomendasi.pelaksana,
         Number(data.nilai_pagu || 0), rekomendasi.jenisKertasHarga,
@@ -609,11 +659,19 @@ async function savePaketTahaps(paketId, tahaps) {
   const pool = getCakraPool();
   for (const t of (tahaps || [])) {
     await pool.query(
-      `REPLACE INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, catatan_tahap)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         nama_tahap = VALUES(nama_tahap),
+         nomor_dokumen = VALUES(nomor_dokumen),
+         tanggal_dokumen = VALUES(tanggal_dokumen),
+         status_tahap = VALUES(status_tahap),
+         link_drive_dokumen = VALUES(link_drive_dokumen),
+         catatan_tahap = VALUES(catatan_tahap)`,
       [
         paketId, Number(t.no_tahap), Number(t.fase || 1), t.nama_tahap || '',
-        t.nomor_dokumen || '', t.tanggal_dokumen || '', t.status_tahap || 'Selesai', t.catatan_tahap || ''
+        t.nomor_dokumen || '', t.tanggal_dokumen || '', t.status_tahap || 'Selesai',
+        t.link_drive_dokumen || '', t.catatan_tahap || ''
       ]
     );
   }
@@ -635,6 +693,8 @@ async function autoGeneratePaketTahaps(paketId, tanggalMulai = '2026-05-04') {
 async function fetchRkbItemsFromSiprabu() {
   try {
     const pool = getCakraPool();
+
+    // 1. Ambil Periode Terkunci Terakhir (is_locked = 1)
     const [lockedPeriodes] = await pool.query(`
       SELECT id, nama_periode, versi_revisi, revisi_ke
       FROM periode_anggaran
@@ -642,44 +702,78 @@ async function fetchRkbItemsFromSiprabu() {
       ORDER BY revisi_ke DESC, id DESC
       LIMIT 1
     `);
-    const lockedPeriode = (lockedPeriodes && lockedPeriodes[0]) ? lockedPeriodes[0] : { id: 1, nama_periode: 'RKB Pilkada 2024', versi_revisi: 'Baseline Sah' };
+    const lockedPeriode = (lockedPeriodes && lockedPeriodes[0]) ? lockedPeriodes[0] : { id: 1, nama_periode: 'RKB Definitif Sah', versi_revisi: 'Baseline Kunci' };
 
-    const [rows] = await pool.query(`
-      SELECT id, periode_id, urutan, row_type, kode, uraian, kode_akun,
-             f1_val, f1_unit, f2_val, f2_unit, f3_val, f3_unit, f4_val, f4_unit,
-             satuan_vol, harga_satuan, pic_bagian, jenis_biaya
+    // 2. Muat Master Akun BAS untuk mapping nama resmi
+    const [masterAkunRows] = await pool.query('SELECT kode, uraian FROM master_akun');
+    const akunMap = {};
+    (masterAkunRows || []).forEach(a => { akunMap[a.kode] = a.uraian; });
+
+    // 3. Ambil seluruh baris RKB (header & item) untuk melacak silsilah berjenjang
+    const [allRows] = await pool.query(`
+      SELECT id, periode_id, urutan, row_type, kode, uraian, level_indent, kode_akun,
+             f1_val, f2_val, f3_val, f4_val, satuan_vol, harga_satuan, pic_bagian
       FROM rab_baris
-      WHERE periode_id = ? AND row_type = 'item' AND harga_satuan > 0
+      WHERE periode_id = ?
       ORDER BY urutan ASC
-      LIMIT 250
     `, [lockedPeriode.id]);
 
-    return rows.map(r => {
-      const f1 = Number(r.f1_val) || 1;
-      const f2 = Number(r.f2_val) || 1;
-      const f3 = Number(r.f3_val) || 1;
-      const f4 = Number(r.f4_val) || 1;
-      const totalVol = f1 * f2 * f3 * f4;
-      const paguTotal = Math.round(totalVol * (Number(r.harga_satuan) || 0));
-      return {
-        siprabu_rab_id: r.id,
-        periode_id: r.periode_id,
-        nama_dokumen_sumber: `${lockedPeriode.nama_periode} (${lockedPeriode.versi_revisi})`,
-        kode_akun: r.kode_akun || '521211',
-        uraian_bersih: String(r.uraian || '').replace(/^[-.\d)\s]+/, '').trim(),
-        volume: totalVol,
-        satuan: r.satuan_vol || 'Paket',
-        harga_satuan: Number(r.harga_satuan) || 0,
-        pagu_total: paguTotal,
-        pic_subbag: r.pic_bagian || 'KUL'
-      };
-    });
+    let currentProgram = 'Program Dukungan Manajemen dan Pelaksanaan Tugas Teknis KPU';
+    let currentKegiatan = 'Tahapan Perencanaan dan Persiapan Pemilu';
+    let currentKomponen = 'Rincian Kebutuhan Operasional Barang dan Jasa';
+
+    const items = [];
+
+    for (const r of allRows) {
+      if (r.row_type === 'header') {
+        if (r.level_indent === 0) {
+          currentProgram = String(r.uraian || '').replace(/^[\d.)\s-]+/, '').trim() || currentProgram;
+        } else if (r.level_indent === 1) {
+          currentKegiatan = String(r.uraian || '').replace(/^[\d.)\s-]+/, '').trim() || currentKegiatan;
+        } else if (r.level_indent === 2 || r.level_indent === 21) {
+          currentKomponen = String(r.uraian || '').replace(/^[\d.)\s-]+/, '').trim() || currentKomponen;
+        }
+      } else if (r.row_type === 'item' && Number(r.harga_satuan) > 0) {
+        const f1 = Number(r.f1_val) || 1;
+        const f2 = Number(r.f2_val) || 1;
+        const f3 = Number(r.f3_val) || 1;
+        const f4 = Number(r.f4_val) || 1;
+        const totalVol = f1 * f2 * f3 * f4;
+        const paguTotal = Math.round(totalVol * (Number(r.harga_satuan) || 0));
+        const kAkun = r.kode_akun || '521211';
+        const namaBas = akunMap[kAkun] || 'Belanja Bahan';
+
+        let bmnKategori = 'TIDAK_BERLAKU';
+        if (kAkun.startsWith('53')) {
+          bmnKategori = 'MODAL';
+        } else if (kAkun === '521111' || kAkun === '521219' || kAkun.startsWith('523')) {
+          bmnKategori = 'EKSTRAKOMPTABEL';
+        }
+
+        items.push({
+          siprabu_rab_id: r.id,
+          periode_id: r.periode_id,
+          nama_dokumen_sumber: `${lockedPeriode.nama_periode} (${lockedPeriode.versi_revisi})`,
+          program: currentProgram,
+          kegiatan: currentKegiatan,
+          subkegiatan: currentKomponen,
+          kode_akun: kAkun,
+          nama_akun_mak: namaBas,
+          uraian_bersih: String(r.uraian || '').replace(/^[-.\d)\s]+/, '').trim(),
+          volume: totalVol,
+          satuan: r.satuan_vol || 'Paket',
+          harga_satuan: Number(r.harga_satuan) || 0,
+          pagu_total: paguTotal,
+          pic_subbag: r.pic_bagian || 'KUL',
+          bmn_kategori_telaah: bmnKategori
+        });
+      }
+    }
+
+    return items;
   } catch (e) {
-    return [
-      { siprabu_rab_id: 5298, kode_akun: '521211', uraian_bersih: 'Konsumsi Rapat (Makan & Snack) Perencanaan Program', volume: 75, satuan: 'OK', harga_satuan: 65000, pagu_total: 4875000, pic_subbag: 'RENDATIN' },
-      { siprabu_rab_id: 5316, kode_akun: '521211', uraian_bersih: 'Pendokumentasian / Cetak Buku Produk Hukum Keputusan KPU', volume: 30, satuan: 'Buku', harga_satuan: 500000, pagu_total: 15000000, pic_subbag: 'HUKUM' },
-      { siprabu_rab_id: 5322, kode_akun: '521211', uraian_bersih: 'Penggandaan Materi Rapat Koordinasi Tahapan Pemilihan', volume: 10, satuan: 'Keg', harga_satuan: 500000, pagu_total: 5000000, pic_subbag: 'TEKNIS' }
-    ];
+    console.error('fetchRkbItemsFromSiprabu error:', e.message);
+    return [];
   }
 }
 
