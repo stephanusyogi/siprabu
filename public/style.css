@@ -3666,30 +3666,30 @@ tr.rkb-row-lvl-41.table-row-selected td {
 }
 
 .cakra-stage-pill-btn.status-selesai {
-  border: 1.5px solid #86efac;
-  background: #f0fdf4;
+  border: 1.5px solid #22c55e;
+  background: #dcfce7;
 }
 .cakra-stage-pill-btn.status-selesai:hover {
-  border-color: #10b981;
-  background: #dcfce7;
+  border-color: #16a34a;
+  background: #bbf7d0;
 }
 
 .cakra-stage-pill-btn.status-draft {
-  border: 1.5px solid #fde68a;
-  background: #fffbeb;
+  border: 1.5px solid #f59e0b;
+  background: #fef3c7;
 }
 .cakra-stage-pill-btn.status-draft:hover {
-  border-color: #f59e0b;
-  background: #fef3c7;
+  border-color: #d97706;
+  background: #fde68a;
 }
 
 .cakra-stage-pill-btn.status-siap {
-  border: 1.5px solid #7dd3fc;
-  background: #f0f9ff;
+  border: 1.5px solid #0284c7;
+  background: #e0f2fe;
 }
 .cakra-stage-pill-btn.status-siap:hover {
-  border-color: #0284c7;
-  background: #e0f2fe;
+  border-color: #0369a1;
+  background: #bae6fd;
 }
 
 .cakra-stage-pill-btn.status-belum {
@@ -4119,13 +4119,6 @@ tr.rkb-row-lvl-41.table-row-selected td {
   border-color: #3b82f6;
   color: #1d4ed8;
 }
-.cakra-compact-step-btn.active {
-  background: #eff6ff !important;
-  border: 2px solid #2563eb !important;
-  color: #1e40af !important;
-  font-weight: 800;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.22);
-}
 .cakra-compact-step-btn .step-num {
   font-weight: 800;
   font-family: monospace;
@@ -4133,36 +4126,105 @@ tr.rkb-row-lvl-41.table-row-selected td {
 }
 .cakra-compact-step-btn .step-code {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
 }
 .cakra-compact-step-btn .step-icon {
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1;
 }
 
+/* 1. SELESAI (Hijau Pastel Tegas & Segar) */
 .cakra-compact-step-btn.status-selesai {
-  border-color: #86efac;
-  background: #f0fdf4;
+  border: 1.5px solid #22c55e;
+  background: #dcfce7;
+  color: #14532d;
 }
+.cakra-compact-step-btn.status-selesai:hover {
+  background: #bbf7d0;
+  border-color: #16a34a;
+  color: #14532d;
+}
+.cakra-compact-step-btn.status-selesai .step-num { color: #15803d; }
+.cakra-compact-step-btn.status-selesai .step-code { color: #166534; }
+
+/* 2. DRAFT (Kuning Keemasan / Amber Hangat) */
 .cakra-compact-step-btn.status-draft {
-  border-color: #fde68a;
-  background: #fffbeb;
+  border: 1.5px solid #f59e0b;
+  background: #fef3c7;
+  color: #78350f;
 }
+.cakra-compact-step-btn.status-draft:hover {
+  background: #fde68a;
+  border-color: #d97706;
+  color: #78350f;
+}
+.cakra-compact-step-btn.status-draft .step-num { color: #b45309; }
+.cakra-compact-step-btn.status-draft .step-code { color: #92400e; }
+
+/* 3. SIAP DIISI (Biru Langit / Sky Cerah) */
 .cakra-compact-step-btn.status-siap {
-  border-color: #7dd3fc;
-  background: #f0f9ff;
+  border: 1.5px solid #0284c7;
+  background: #e0f2fe;
+  color: #075985;
 }
+.cakra-compact-step-btn.status-siap:hover {
+  background: #bae6fd;
+  border-color: #0369a1;
+  color: #075985;
+}
+.cakra-compact-step-btn.status-siap .step-num { color: #0284c7; }
+.cakra-compact-step-btn.status-siap .step-code { color: #0369a1; }
+
+/* 4. BYPASS (Abu Garis Putus-Putus Netral) */
 .cakra-compact-step-btn.bypass {
-  border: 1px dashed #94a3b8;
-  background: #f8fafc;
-  opacity: 0.8;
+  border: 1.5px dashed #94a3b8;
+  background: #f1f5f9;
+  color: #475569;
+  opacity: 0.88;
 }
+.cakra-compact-step-btn.bypass:hover {
+  background: #e2e8f0;
+  border-color: #64748b;
+  color: #334155;
+}
+.cakra-compact-step-btn.bypass .step-num,
+.cakra-compact-step-btn.bypass .step-code { color: #475569; }
+
+/* 5. TERKUNCI (Abu-abu Slate Lembut) */
 .cakra-compact-step-btn.status-terkunci {
   border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  opacity: 0.55;
+  background: #f1f5f9;
+  color: #94a3b8;
+  opacity: 0.72;
   cursor: not-allowed;
+}
+.cakra-compact-step-btn.status-terkunci:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+.cakra-compact-step-btn.status-terkunci .step-num,
+.cakra-compact-step-btn.status-terkunci .step-code { color: #94a3b8; }
+
+/* 6. TAHAP AKTIF (Navy Solid + Kontras Tinggi) */
+.cakra-compact-step-btn.active {
+  background: #1e3a8a !important;
+  border: 2px solid #0f172a !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 6px rgba(30, 58, 138, 0.45), 0 0 0 2.5px rgba(37, 99, 235, 0.4) !important;
+  transform: translateY(-1px);
+}
+.cakra-compact-step-btn.active .step-num {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+.cakra-compact-step-btn.active .step-code {
+  color: #93c5fd !important;
+  font-weight: 800 !important;
+}
+.cakra-compact-step-btn.active .step-icon {
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
 }
 
 .cakra-dropdown-item-btn:hover {

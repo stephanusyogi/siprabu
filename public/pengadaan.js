@@ -814,7 +814,18 @@ function renderCockpitLeftStepper() {
           📍 Aktif: <strong>Tahap ${activeStageNo}: ${cakraEsc(activeDef.nama)}</strong>
         </span>
       </div>
-      <div style="display:flex; align-items:center; gap:8px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div style="font-size:10.5px; color:#475569; display:flex; align-items:center; gap:6px; background:#f8fafc; padding:2px 8px; border-radius:6px; border:1px solid #e2e8f0;">
+          <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:7px; height:7px; border-radius:50%; background:#1e3a8a; display:inline-block;"></span> <strong>Navy</strong>: Aktif</span>
+          <span style="color:#cbd5e1;">|</span>
+          <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:7px; height:7px; border-radius:50%; background:#22c55e; display:inline-block;"></span> Hijau: Selesai</span>
+          <span style="color:#cbd5e1;">|</span>
+          <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:7px; height:7px; border-radius:50%; background:#f59e0b; display:inline-block;"></span> Kuning: Draft</span>
+          <span style="color:#cbd5e1;">|</span>
+          <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:7px; height:7px; border-radius:50%; background:#0284c7; display:inline-block;"></span> Biru: Siap</span>
+          <span style="color:#cbd5e1;">|</span>
+          <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:7px; height:7px; border-radius:50%; background:#94a3b8; display:inline-block;"></span> Abu: Terkunci</span>
+        </div>
         <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="toggleCockpitStageGrid()" style="font-size:11px; padding:3px 10px; display:flex; align-items:center; gap:5px; height:26px;" title="${CakraState.isStageGridExpanded ? 'Tutup peta lengkap kembali ke mode ringkas' : 'Buka tampilan 18 kartu lengkap'}">
           ${CakraState.isStageGridExpanded ? '<span>▲</span> Mode Fokus (Ringkas)' : '<span>👁️</span> Buka Peta 18 Tahap Lengkap'}
         </button>
