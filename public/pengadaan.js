@@ -18,10 +18,22 @@ const CakraState = {
   activePaketCtx: null,
   activeStageNo: 6,
   activeCockpitSubTab: 'form',
-  activeRekapTab: 'EKSEKUTIF',
+  activeRekapTab: 'STATUS_PBJ',
+  filterDaftarPaketStatus: 'SEMUA',
+  explicitCockpitOpen: false,
   siprabuRkbItems: [],
   rkbDrawerOpen: false
 };
+
+function isPaketSelesai(p) {
+  if (!p) return false;
+  const st = String(p.status_paket || '').trim().toLowerCase();
+  if (st.includes('selesai') || st.includes('lunas') || st.includes('tuntas') || st === 'final') return true;
+  const countDone = (Number(p.count_selesai) || 0) + (Number(p.count_bypass) || 0);
+  if (countDone >= 18) return true;
+  return false;
+}
+window.isPaketSelesai = isPaketSelesai;
 window.CakraState = CakraState;
 
 function cakraFmtRp(val) {
@@ -114,10 +126,16 @@ async function onEnterPengadaanView(viewId) {
   }
 
   if (viewId === 'view-pengadaan-kokpit') {
-    if (!CakraState.activePaketId || CakraState.activePaketId === 'NEW') {
-      startBlankCockpitPaket();
+    if (CakraState.explicitCockpitOpen) {
+      CakraState.explicitCockpitOpen = false;
+      // Paket sengaja dibuka untuk peninjauan dari Daftar Paket / Audit
     } else {
-      await openPaketInCockpit(CakraState.activePaketId, CakraState.activeStageNo || 1, false);
+      const isCurSelesai = CakraState.activePaketCtx?.paket && isPaketSelesai(CakraState.activePaketCtx.paket);
+      if (!CakraState.activePaketId || CakraState.activePaketId === 'NEW' || isCurSelesai) {
+        startBlankCockpitPaket();
+      } else {
+        await openPaketInCockpit(CakraState.activePaketId, CakraState.activeStageNo || 1, false);
+      }
     }
   } else if (viewId === 'view-pengadaan-paket') {
     renderDashboardKpi();
@@ -137,30 +155,49 @@ async function onEnterPengadaanView(viewId) {
  * VIEW 1: DAFTAR PAKET PENGADAAN & RINGKASAN EKSEKUTIF
  */
 function renderDashboardKpi() {
-  const s = CakraState.summary;
+  const s = CakraState.summary || {};
   const grid = document.getElementById('cakra-dashboard-kpi-grid');
   if (!grid) return;
 
+  const all = CakraState.pakets || [];
+  const berjalan = all.filter(p => !isPaketSelesai(p));
+  const selesai = all.filter(p => isPaketSelesai(p));
+
+  const paguTotal = all.reduce((sum, p) => sum + (Number(p.nilai_pagu) || 0), 0);
+  const paguBerjalan = berjalan.reduce((sum, p) => sum + (Number(p.nilai_pagu) || 0), 0);
+  const paguSelesai = selesai.reduce((sum, p) => sum + (Number(p.nilai_pagu) || 0), 0);
+  const kontrakSelesai = selesai.reduce((sum, p) => sum + (Number(p.nilai_kontrak) || 0), 0);
+  const efisiensiSelesai = Math.max(0, paguSelesai - kontrakSelesai);
+  const persenEfisiensiSelesai = paguSelesai > 0 ? ((efisiensiSelesai / paguSelesai) * 100).toFixed(2) : '0.00';
+
+  // Update filter badge counts
+  const elSemua = document.getElementById('count-filter-semua');
+  if (elSemua) elSemua.textContent = all.length;
+  const elBerjalan = document.getElementById('count-filter-berjalan');
+  if (elBerjalan) elBerjalan.textContent = berjalan.length;
+  const elSelesai = document.getElementById('count-filter-selesai');
+  if (elSelesai) elSelesai.textContent = selesai.length;
+
   grid.innerHTML = `
     <div class="cakra-kpi-card">
-      <div class="cakra-kpi-label">Total Paket PBJ & Konstruksi</div>
-      <div class="cakra-kpi-value">${s.jumlahPaket || 0} Paket</div>
-      <div class="cakra-kpi-sub">Total Pagu DIPA: <strong>${cakraFmtRp(s.totalPagu)}</strong></div>
+      <div class="cakra-kpi-label">Total Portofolio Paket PBJ</div>
+      <div class="cakra-kpi-value">${all.length} Paket</div>
+      <div class="cakra-kpi-sub">Total Pagu DIPA: <strong>${cakraFmtRp(paguTotal)}</strong></div>
     </div>
     <div class="cakra-kpi-card amber">
-      <div class="cakra-kpi-label">Total Nilai Kontrak & Efisiensi</div>
-      <div class="cakra-kpi-value">${cakraFmtRp(s.totalKontrak)}</div>
-      <div class="cakra-kpi-sub">Penghematan Anggaran: <strong>${cakraFmtRp(s.totalEfisiensi)}</strong></div>
+      <div class="cakra-kpi-label">⏳ Pengadaan Berjalan (WIP)</div>
+      <div class="cakra-kpi-value">${berjalan.length} Paket</div>
+      <div class="cakra-kpi-sub">Pagu Berjalan: <strong style="color:#b45309;">${cakraFmtRp(paguBerjalan)}</strong> (Draf &amp; Proses)</div>
     </div>
     <div class="cakra-kpi-card green">
-      <div class="cakra-kpi-label">Realisasi UMK-Koperasi (Pasal 65)</div>
-      <div class="cakra-kpi-value">${s.persenAlokasiUmk || 100}%</div>
-      <div class="cakra-kpi-sub">Target Wajib Regulasi: <strong>Minimal 40%</strong> (${s.totalPaketUmk || 0} Paket UMK)</div>
+      <div class="cakra-kpi-label">✅ Pengadaan Selesai (Tuntas)</div>
+      <div class="cakra-kpi-value">${selesai.length} Paket</div>
+      <div class="cakra-kpi-sub">Kontrak: <strong style="color:#047857;">${cakraFmtRp(kontrakSelesai)}</strong> (18/18 Tahap Selesai)</div>
     </div>
     <div class="cakra-kpi-card blue">
-      <div class="cakra-kpi-label">Rata-rata Komitmen PDN / TKDN</div>
-      <div class="cakra-kpi-value">${s.rataTkdn || 45}%</div>
-      <div class="cakra-kpi-sub">Hierarki Wajib PDN Pasal 66 Perpres 46/2025</div>
+      <div class="cakra-kpi-label">💰 Efisiensi Anggaran &amp; UMK</div>
+      <div class="cakra-kpi-value">${cakraFmtRp(efisiensiSelesai)}</div>
+      <div class="cakra-kpi-sub">Hemat: <strong>${persenEfisiensiSelesai}%</strong> | UMK: <strong>${s.persenAlokasiUmk || 100}%</strong> | TKDN: <strong>${s.rataTkdn || 45}%</strong></div>
     </div>
   `;
 }
@@ -174,16 +211,56 @@ function getBadgeClassByJenis(jenis) {
   return 'cakra-badge-slate';
 }
 
+function filterDaftarPaketStatus(status) {
+  CakraState.filterDaftarPaketStatus = status || 'SEMUA';
+  const btns = [
+    { id: 'btn-filter-paket-semua', mode: 'SEMUA' },
+    { id: 'btn-filter-paket-berjalan', mode: 'BERJALAN' },
+    { id: 'btn-filter-paket-selesai', mode: 'SELESAI' }
+  ];
+  btns.forEach(b => {
+    const el = document.getElementById(b.id);
+    if (!el) return;
+    const isAct = CakraState.filterDaftarPaketStatus === b.mode;
+    if (b.mode === 'SEMUA') {
+      el.className = isAct ? 'btn btn-xs btn-primary' : 'btn btn-xs btn-outline-primary';
+    } else if (b.mode === 'BERJALAN') {
+      el.className = isAct ? 'btn btn-xs btn-warning' : 'btn btn-xs btn-outline-warning';
+    } else if (b.mode === 'SELESAI') {
+      el.className = isAct ? 'btn btn-xs btn-success' : 'btn btn-xs btn-outline-success';
+    }
+  });
+  const label = document.getElementById('label-filter-paket-status');
+  if (label) {
+    label.textContent = status === 'BERJALAN' ? 'Pengadaan Berjalan (Dalam Proses / Draf)' : status === 'SELESAI' ? 'Pengadaan Selesai (100% Tuntas)' : 'Semua Paket';
+  }
+  renderDashboardTable();
+}
+window.filterDaftarPaketStatus = filterDaftarPaketStatus;
+
 function renderDashboardTable() {
   const tbody = document.getElementById('cakra-table-paket-body');
   if (!tbody) return;
 
-  tbody.innerHTML = CakraState.pakets.map(p => {
+  let list = CakraState.pakets || [];
+  if (CakraState.filterDaftarPaketStatus === 'BERJALAN') {
+    list = list.filter(p => !isPaketSelesai(p));
+  } else if (CakraState.filterDaftarPaketStatus === 'SELESAI') {
+    list = list.filter(p => isPaketSelesai(p));
+  }
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">Tidak ada paket pengadaan pada filter ini.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(p => {
     const badgeCls = getBadgeClassByJenis(p.jenis_pengadaan);
+    const isDone = isPaketSelesai(p);
     return `
       <tr>
         <td>
-          <div class="cakra-mono" style="font-weight:800; color:#991b1b;">${cakraEsc(p.kode_paket_internal)}</div>
+          <div class="cakra-mono" style="font-weight:800; color:${isDone ? '#047857' : '#991b1b'};">${cakraEsc(p.kode_paket_internal)}</div>
           <div style="font-size:11px; color:#64748b;">${cakraEsc(p.kode_rup || '-')}</div>
           <span class="cakra-badge cakra-badge-slate" style="margin-top:4px;">MAK ${cakraEsc(p.kode_akun_mak)}</span>
         </td>
@@ -208,11 +285,17 @@ function renderDashboardTable() {
         </td>
         <td>
           <div style="font-weight:700; font-size:11.5px;">${cakraEsc(p.nama_penyedia || p.nama_perusahaan || '-')}</div>
-          <span class="cakra-badge cakra-badge-green" style="margin-top:3px;">Tahap ${p.tahap_aktif}/18 — ${cakraEsc(p.status_paket)}</span>
+          ${isDone ? `
+            <span class="cakra-badge cakra-badge-green" style="margin-top:3px; font-weight:800;">✅ SELESAI (100% TUNTAS)</span>
+            <div style="font-size:10.5px; color:#047857; font-weight:700; margin-top:2px;">18/18 Tahap Lengkap</div>
+          ` : `
+            <span class="cakra-badge cakra-badge-amber" style="margin-top:3px; font-weight:800;">⏳ BERJALAN (Tahap ${p.tahap_aktif}/18)</span>
+            <div style="font-size:10.5px; color:#b45309; font-weight:700; margin-top:2px;">${cakraEsc(p.status_paket || 'Draf')}</div>
+          `}
         </td>
         <td style="text-align:center;">
           <div style="display:flex; flex-direction:column; gap:5px; align-items:center;">
-            <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" style="width:100%;" onclick="openPaketInCockpit(${p.id}, ${p.tahap_aktif || 6}, true)">🧭 Buka Kokpit 18 Tahap</button>
+            <button type="button" class="cakra-btn ${isDone ? 'cakra-btn-outline' : 'cakra-btn-primary'} cakra-btn-sm" style="width:100%;" onclick="openPaketInCockpit(${p.id}, ${p.tahap_aktif || 1}, true)">${isDone ? '👁️ Tinjau di Kokpit' : '🧭 Lanjutkan di Kokpit'}</button>
             <div style="display:flex; gap:4px; width:100%;">
               <button type="button" class="cakra-btn cakra-btn-info cakra-btn-sm" style="flex:1;" onclick="queuePengadaanDownload('docx', ${p.id}, 'ALL')" title="Kirim Bundel Word 18 Tahap ke Monitoring Unduhan">📄 Word</button>
               <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" style="flex:1;" onclick="queuePengadaanDownload('xlsx', ${p.id}, 'ALL')" title="Kirim Kertas Kerja Excel ke Monitoring Unduhan">📊 Excel</button>
@@ -501,6 +584,7 @@ async function importRkbItemToCakra(idxOrId) {
  */
 async function openPaketInCockpit(paketId, stageNo = 1, navigateToCockpit = true) {
   try {
+    CakraState.explicitCockpitOpen = true;
     CakraState.activePaketId = Number(paketId);
     CakraState.activeStageNo = Number(stageNo) || 1;
     CakraState.activeFase = getFaseByStage(CakraState.activeStageNo);
@@ -632,15 +716,31 @@ function renderCockpitTopBanner() {
   if (!banner || !CakraState.activePaketCtx) return;
   const { paket, keuangan } = CakraState.activePaketCtx;
   const isNew = CakraState.activePaketId === 'NEW' || !paket.id;
+  const isDone = !isNew && isPaketSelesai(paket);
+
+  const activePakets = (CakraState.pakets || []).filter(p => !isPaketSelesai(p));
 
   const optionsHtml = [
-    `<option value="NEW" ${isNew ? 'selected' : ''}>✨ [ + LEMBAR BERSIH / MULAI PAKET BARU DARI AWAL ]</option>`,
-    ...CakraState.pakets.map(p =>
-      `<option value="${p.id}" ${!isNew && Number(p.id) === Number(paket.id) ? 'selected' : ''}>[${cakraEsc(p.kode_paket_internal)}] ${cakraEsc(p.nama_paket.substring(0, 68))} (${cakraEsc(p.jenis_pengadaan)})</option>`
-    )
-  ].join('');
+    `<option value="NEW" ${isNew ? 'selected' : ''}>✨ [ + LEMBAR BERSIH / MULAI PENGADAAN BARU ]</option>`,
+    activePakets.length ? `<optgroup label="📝 PENGADAAN BERJALAN & DRAF (${activePakets.length} Paket)">` : '',
+    ...activePakets.map(p =>
+      `<option value="${p.id}" ${!isNew && Number(p.id) === Number(paket.id) ? 'selected' : ''}>[${cakraEsc(p.kode_paket_internal)}] ${cakraEsc(p.nama_paket.substring(0, 60))} (Tahap ${p.tahap_aktif || 1} - ${cakraEsc(p.status_paket || 'Draf')})</option>`
+    ),
+    activePakets.length ? `</optgroup>` : '',
+    isDone ? `
+      <optgroup label="🔒 ARSIP SELESAI (MODE PENINJAUAN)">
+        <option value="${paket.id}" selected>[${cakraEsc(paket.kode_paket_internal)}] ${cakraEsc(paket.nama_paket.substring(0, 60))} [SELESAI 100%]</option>
+      </optgroup>
+    ` : ''
+  ].filter(Boolean).join('');
 
   banner.innerHTML = `
+    ${isDone ? `
+      <div style="background:#064e3b; border:1px solid #10b981; color:#ecfdf5; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; width:100%;">
+        <span>🔒 <strong>Mode Peninjauan Arsip:</strong> Paket <strong>${cakraEsc(paket.kode_paket_internal)}</strong> telah selesai 100%. Kokpit berada dalam mode peninjauan berkas. Untuk proses pengadaan baru, pilih <em>Lembar Bersih</em> atau paket draf berjalan.</span>
+        <button type="button" class="btn btn-xs" onclick="startBlankCockpitPaket()" style="background:#10b981; color:#064e3b; font-weight:800; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">✨ Buka Lembar Bersih</button>
+      </div>
+    ` : ''}
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <span style="font-size:12px; font-weight:800; color:#fbbf24;">🎯 PAKET KOKPIT:</span>
       <select onchange="onCockpitPaketSelectChange(this.value)" style="background:#1e293b; color:#fff; border:1px solid #475569; padding:6px 10px; border-radius:6px; font-weight:700; font-size:12px; min-width:340px;">
@@ -649,10 +749,10 @@ function renderCockpitTopBanner() {
       <button type="button" class="btn btn-xs" onclick="startBlankCockpitPaket()" style="background:#047857; color:#fff; font-weight:800; border:none; padding:5px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:5px;" title="Buka Lembar Kerja Baru Bersih dari Awal (Tanpa Teks Paket Lama)">
         <span>🧹 Lembar Bersih (Clear dari Awal)</span>
       </button>
-      ${isNew ? '<span class="cakra-badge cakra-badge-green" style="font-weight:800;">✨ LEMBAR BERSIH</span>' : `
+      ${isNew ? '<span class="cakra-badge cakra-badge-green" style="font-weight:800;">✨ LEMBAR BERSIH</span>' : (isDone ? '<span class="cakra-badge cakra-badge-green" style="font-weight:800;">✅ ARSIP SELESAI 100%</span>' : `
         <span class="cakra-badge cakra-badge-amber">${cakraEsc(paket.jenis_pengadaan)}</span>
         <span class="cakra-badge cakra-badge-blue">${cakraEsc(paket.metode_pemilihan)} (${cakraEsc(paket.bentuk_kontrak)})</span>
-      `}
+      `)}
     </div>
     <div style="display:flex; align-items:center; gap:14px; font-size:12px; flex-wrap:wrap;">
       <div>Pagu: <strong class="cakra-mono">${cakraFmtRp(paket.nilai_pagu)}</strong></div>
@@ -2794,7 +2894,7 @@ function renderBukuPintar18Tahap() {
  * VIEW 5: REKAP PENGADAAN BARANG/JASA (5 PERSPEKTIF EKSEKUTIF)
  */
 function switchRekapPengadaanTab(tabName) {
-  CakraState.activeRekapTab = tabName || 'EKSEKUTIF';
+  CakraState.activeRekapTab = tabName || 'STATUS_PBJ';
   const tabs = document.querySelectorAll('#rekap-pengadaan-tabs button[data-tab]');
   tabs.forEach(btn => {
     const isAct = btn.getAttribute('data-tab') === CakraState.activeRekapTab;
@@ -2835,7 +2935,18 @@ function renderRekapPengadaanView() {
 
   const pakets = getFilteredRekapPakets();
   const totalPaket = pakets.length;
+  const berjalanPakets = pakets.filter(p => !isPaketSelesai(p));
+  const selesaiPakets = pakets.filter(p => isPaketSelesai(p));
+
   const totalPagu = pakets.reduce((s, p) => s + (Number(p.nilai_pagu) || 0), 0);
+  const paguBerjalan = berjalanPakets.reduce((s, p) => s + (Number(p.nilai_pagu) || 0), 0);
+  const hpsBerjalan = berjalanPakets.reduce((s, p) => s + (Number(p.nilai_hps) || 0), 0);
+
+  const paguSelesai = selesaiPakets.reduce((s, p) => s + (Number(p.nilai_pagu) || 0), 0);
+  const kontrakSelesai = selesaiPakets.reduce((s, p) => s + (Number(p.nilai_kontrak) || 0), 0);
+  const efisiensiSelesai = Math.max(0, paguSelesai - kontrakSelesai);
+  const persenEfisiensiSelesai = paguSelesai > 0 ? ((efisiensiSelesai / paguSelesai) * 100).toFixed(2) : '0.00';
+
   const totalHps = pakets.reduce((s, p) => s + (Number(p.nilai_hps) || 0), 0);
   const totalKontrak = pakets.reduce((s, p) => s + (Number(p.nilai_kontrak) || 0), 0);
   const totalEfisiensi = Math.max(0, totalPagu - totalKontrak);
@@ -2854,34 +2965,234 @@ function renderRekapPengadaanView() {
     ? Math.round(pakets.reduce((s, p) => s + (Number(p.komitmen_tkdn_persen) || 40), 0) / totalPaket)
     : 45;
 
-  const selesaiCount = pakets.filter(p => Number(p.tahap_aktif) >= 16 || String(p.status_paket || '').toUpperCase().includes('SELESAI')).length;
-
   kpiGrid.innerHTML = `
     <div class="cakra-kpi-card">
-      <div class="cakra-kpi-label">Total Paket &amp; Pagu Pengadaan</div>
+      <div class="cakra-kpi-label">Total Portofolio Pengadaan</div>
       <div class="cakra-kpi-value">${totalPaket} Paket</div>
-      <div class="cakra-kpi-sub">Total Pagu RUP/DIPA: <strong>${cakraFmtRp(totalPagu)}</strong></div>
+      <div class="cakra-kpi-sub">Total Pagu DIPA/RUP: <strong>${cakraFmtRp(totalPagu)}</strong></div>
     </div>
     <div class="cakra-kpi-card amber">
-      <div class="cakra-kpi-label">Realisasi Kontrak &amp; Efisiensi</div>
-      <div class="cakra-kpi-value">${cakraFmtRp(totalKontrak)}</div>
-      <div class="cakra-kpi-sub">Efisiensi Pagu: <strong style="color:#047857;">${cakraFmtRp(totalEfisiensi)} (${persenEfisiensi}%)</strong></div>
+      <div class="cakra-kpi-label">⏳ Pengadaan Berjalan (WIP)</div>
+      <div class="cakra-kpi-value">${berjalanPakets.length} Paket</div>
+      <div class="cakra-kpi-sub">Pagu Berjalan: <strong style="color:#b45309;">${cakraFmtRp(paguBerjalan)}</strong> (Tahap 1-17)</div>
     </div>
     <div class="cakra-kpi-card green">
-      <div class="cakra-kpi-label">Pemenuhan UMK-Koperasi &amp; PDN</div>
-      <div class="cakra-kpi-value">${persenUmk}% UMK | ${rataTkdn}% TKDN</div>
-      <div class="cakra-kpi-sub">Pasal 65 &amp; 66 Perpres 46/2025 (${umkPakets.length} Paket UMK)</div>
+      <div class="cakra-kpi-label">✅ Pengadaan Selesai (Tuntas)</div>
+      <div class="cakra-kpi-value">${selesaiPakets.length} Paket</div>
+      <div class="cakra-kpi-sub">Kontrak: <strong style="color:#047857;">${cakraFmtRp(kontrakSelesai)}</strong> (18/18 Tahap Selesai)</div>
     </div>
     <div class="cakra-kpi-card blue">
-      <div class="cakra-kpi-label">Penyelesaian BAST &amp; Arsip 18 Tahap</div>
-      <div class="cakra-kpi-value">${selesaiCount} / ${totalPaket} Paket</div>
-      <div class="cakra-kpi-sub">Siap Masuk Tahap Pembayaran (SPP/SPM/SP2D)</div>
+      <div class="cakra-kpi-label">💰 Efisiensi &amp; Realisasi UMK</div>
+      <div class="cakra-kpi-value">${cakraFmtRp(efisiensiSelesai)}</div>
+      <div class="cakra-kpi-sub">Efisiensi: <strong>${persenEfisiensiSelesai}%</strong> | UMK: <strong>${persenUmk}%</strong> | TKDN: <strong>${rataTkdn}%</strong></div>
     </div>
   `;
 
-  const tab = CakraState.activeRekapTab || 'EKSEKUTIF';
+  const tab = CakraState.activeRekapTab || 'STATUS_PBJ';
 
-  if (tab === 'EKSEKUTIF') {
+  if (tab === 'STATUS_PBJ') {
+    const rowsBerjalanHtml = berjalanPakets.length ? berjalanPakets.map((p, idx) => {
+      const pagu = Number(p.nilai_pagu) || 0;
+      const hps = Number(p.nilai_hps) || 0;
+      const tAktif = Number(p.tahap_aktif || 1);
+      const def = (CakraState.definisi18Tahap || []).find(d => Number(d.no) === tAktif) || {};
+      const stageName = def.nama || ('Tahap ' + tAktif);
+      const cDone = Number(p.count_selesai || 0);
+      const cDraft = Number(p.count_draft || 0);
+      const cBypass = Number(p.count_bypass || 0);
+
+      return `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td>
+            <div class="cakra-mono" style="font-weight:800; color:#991b1b;">${cakraEsc(p.kode_paket_internal)}</div>
+            <div style="font-size:11px; color:#64748b;">RUP: ${cakraEsc(p.kode_rup || '-')}</div>
+          </td>
+          <td>
+            <div style="font-weight:700; color:#0f172a;">${cakraEsc(p.nama_paket)}</div>
+            <div style="font-size:11px; color:#64748b;">MAK: <span class="cakra-mono">${cakraEsc(p.kode_akun_mak)}</span></div>
+          </td>
+          <td>
+            <span class="cakra-badge cakra-badge-slate">${cakraEsc(p.pic_subbag)}</span>
+          </td>
+          <td>
+            <span class="cakra-badge ${getBadgeClassByJenis(p.jenis_pengadaan)}">${cakraEsc(p.jenis_pengadaan)}</span>
+            <div style="font-size:11px; font-weight:700; margin-top:2px;">${cakraEsc(p.metode_pemilihan)}</div>
+          </td>
+          <td class="cakra-mono" style="text-align:right; font-weight:700;">${cakraFmtRp(pagu)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#1d4ed8;">${cakraFmtRp(hps)}</td>
+          <td style="text-align:center;">
+            <span class="cakra-badge cakra-badge-blue" style="font-weight:800;">Tahap ${tAktif}</span>
+            <div style="font-size:10.5px; color:#334155; font-weight:600; margin-top:2px;" title="${cakraEsc(stageName)}">${cakraEsc(stageName.length > 20 ? stageName.substring(0, 18) + '...' : stageName)}</div>
+          </td>
+          <td style="text-align:center;">
+            <div style="font-size:11px; font-weight:700; color:#0f172a;">${cDone} Selesai, ${cDraft} Draf</div>
+            ${cBypass > 0 ? `<div style="font-size:10px; color:#64748b;">(${cBypass} Bypass)</div>` : ''}
+          </td>
+          <td style="text-align:center;">
+            <button type="button" class="btn btn-xs btn-primary" onclick="openPaketInCockpit(${p.id}, ${tAktif}, true)" style="background:#2563eb; color:#fff; font-weight:800; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;" title="Lanjutkan pengerjaan di Kokpit 18 Tahap">
+              <span>🚀 Buka Kokpit</span>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('') : '<tr><td colspan="10" style="text-align:center; padding:24px; color:#64748b;">Tidak ada pengadaan yang sedang berjalan. Semua paket telah tuntas atau mulai dari Kokpit Pengadaan Baru.</td></tr>';
+
+    const rowsSelesaiHtml = selesaiPakets.length ? selesaiPakets.map((p, idx) => {
+      const pagu = Number(p.nilai_pagu) || 0;
+      const kontrak = Number(p.nilai_kontrak) || 0;
+      const ef = Math.max(0, pagu - kontrak);
+      const efPct = pagu > 0 ? ((ef / pagu) * 100).toFixed(1) : '0.0';
+      const cDrive = Number(p.count_drive || 0);
+
+      return `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td>
+            <div class="cakra-mono" style="font-weight:800; color:#047857;">${cakraEsc(p.kode_paket_internal)}</div>
+            <div style="font-size:11px; color:#64748b;">RUP: ${cakraEsc(p.kode_rup || '-')}</div>
+          </td>
+          <td>
+            <div style="font-weight:700; color:#0f172a;">${cakraEsc(p.nama_paket)}</div>
+            <div style="font-size:11px; color:#64748b;">MAK: <span class="cakra-mono">${cakraEsc(p.kode_akun_mak)}</span></div>
+          </td>
+          <td>
+            <div style="font-weight:700; color:#1e293b;">${cakraEsc(p.nama_penyedia || p.nama_perusahaan || '-')}</div>
+            <div style="font-size:11px; color:#64748b;">Subbag: <strong>${cakraEsc(p.pic_subbag)}</strong></div>
+          </td>
+          <td class="cakra-mono" style="text-align:right;">${cakraFmtRp(pagu)}</td>
+          <td class="cakra-mono" style="text-align:right; font-weight:800; color:#047857;">${cakraFmtRp(kontrak)}</td>
+          <td class="cakra-mono" style="text-align:right; color:#b45309;">
+            ${cakraFmtRp(ef)}
+            <div style="font-size:10px; color:#64748b;">(${efPct}%)</div>
+          </td>
+          <td style="text-align:center;">
+            <span class="cakra-badge cakra-badge-green" style="font-weight:800;">✅ 18/18 Selesai</span>
+            <div style="font-size:10.5px; color:#047857; font-weight:700; margin-top:2px;">${cDrive}/18 Drive Terhubung</div>
+          </td>
+          <td style="text-align:center;">
+            <div style="display:flex; gap:4px; justify-content:center;">
+              <button type="button" class="btn btn-xs" onclick="openAuditPaketDetail(${p.id})" style="background:#0284c7; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer;" title="Lihat Audit Kepatuhan &amp; Tautan Drive">
+                <span>🛡️ Audit</span>
+              </button>
+              <button type="button" class="btn btn-xs" onclick="queuePengadaanDownload('zip', ${p.id}, 'ALL')" style="background:#059669; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer;" title="Unduh Bundel Arsip Lengkap ZIP">
+                <span>📦 ZIP</span>
+              </button>
+              <button type="button" class="btn btn-xs" onclick="openPaketInCockpit(${p.id}, 18, true)" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer;" title="Tinjau Berkas di Kokpit">
+                <span>👁️ Tinjau</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('') : '<tr><td colspan="9" style="text-align:center; padding:24px; color:#64748b;">Belum ada paket pengadaan yang selesai 100%. Selesaikan proses tahapan di Kokpit.</td></tr>';
+
+    container.innerHTML = `
+      <!-- SEKSI 1: PENGADAAN BERJALAN -->
+      <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:18px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; border-bottom:1px solid #fef3c7; padding-bottom:10px;">
+          <div>
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#92400e; display:flex; align-items:center; gap:8px;">
+              <span>⏳ REKAPITULASI PENGADAAN BERJALAN &amp; DRAF</span>
+              <span class="badge badge-warning" style="font-size:12px; font-weight:800;">${berjalanPakets.length} Paket</span>
+            </h3>
+            <div style="font-size:12px; color:#78350f; margin-top:3px;">
+              Paket yang sedang aktif dikerjakan pada alur 18 Tahap (Perencanaan, Persiapan, Pemilihan, atau Kontrak/BAST berjalan). Belum tuntas 18 tahap.
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; color:#92400e; font-weight:700;">Total Pagu Pengadaan Berjalan:</div>
+            <div class="cakra-mono" style="font-size:16px; font-weight:800; color:#b45309;">${cakraFmtRp(paguBerjalan)}</div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="cakra-table" style="background:#fff;">
+            <thead>
+              <tr style="background:#fef3c7; color:#92400e;">
+                <th style="width:40px; text-align:center;">No</th>
+                <th>Kode Paket &amp; RUP</th>
+                <th>Nama Paket Pengadaan &amp; MAK</th>
+                <th>Subbagian</th>
+                <th>Jenis &amp; Metode</th>
+                <th style="text-align:right;">Nilai Pagu</th>
+                <th style="text-align:right;">HPS / Ref. Harga</th>
+                <th style="text-align:center;">Tahap Aktif</th>
+                <th style="text-align:center;">Status Dokumen</th>
+                <th style="text-align:center; width:130px;">Aksi Cepat</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsBerjalanHtml}
+            </tbody>
+            <tfoot>
+              <tr style="background:#fef3c7; font-weight:800; color:#92400e;">
+                <td colspan="5" style="text-align:right; padding:10px 12px;">TOTAL PENGADAAN BERJALAN (${berjalanPakets.length} PAKET):</td>
+                <td class="cakra-mono" style="text-align:right; padding:10px 12px;">${cakraFmtRp(paguBerjalan)}</td>
+                <td class="cakra-mono" style="text-align:right; padding:10px 12px; color:#1d4ed8;">${cakraFmtRp(hpsBerjalan)}</td>
+                <td colspan="3" style="text-align:center; padding:10px 12px; font-size:11.5px;">Semua paket siap dilanjutkan ke tahap berikutnya</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- SEKSI 2: PENGADAAN SELESAI -->
+      <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; border-bottom:1px solid #dcfce7; padding-bottom:10px;">
+          <div>
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#166534; display:flex; align-items:center; gap:8px;">
+              <span>🏆 REKAPITULASI PENGADAAN SELESAI &amp; TUNTAS (100%)</span>
+              <span class="badge badge-success" style="font-size:12px; font-weight:800;">${selesaiPakets.length} Paket</span>
+            </h3>
+            <div style="font-size:12px; color:#14532d; margin-top:3px;">
+              Paket yang telah menyelesaikan 18 Tahap Hulu-Hilir, BAST disahkan, berkas terarsip, dan lunas/siap pembayaran.
+            </div>
+          </div>
+          <div style="display:flex; gap:16px; text-align:right;">
+            <div>
+              <div style="font-size:11px; color:#166534; font-weight:700;">Total Nilai Kontrak:</div>
+              <div class="cakra-mono" style="font-size:16px; font-weight:800; color:#047857;">${cakraFmtRp(kontrakSelesai)}</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:#166534; font-weight:700;">Efisiensi Pagu:</div>
+              <div class="cakra-mono" style="font-size:16px; font-weight:800; color:#b45309;">${cakraFmtRp(efisiensiSelesai)} (${persenEfisiensiSelesai}%)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="cakra-table" style="background:#fff;">
+            <thead>
+              <tr style="background:#dcfce7; color:#166534;">
+                <th style="width:40px; text-align:center;">No</th>
+                <th>Kode Paket &amp; RUP</th>
+                <th>Nama Paket Pengadaan &amp; MAK</th>
+                <th>Subbag &amp; Penyedia Pemenang</th>
+                <th style="text-align:right;">Nilai Pagu</th>
+                <th style="text-align:right;">Nilai Kontrak</th>
+                <th style="text-align:right;">Efisiensi Belanja</th>
+                <th style="text-align:center;">Kelengkapan Dokumen</th>
+                <th style="text-align:center; width:170px;">Aksi Audit &amp; Unduh</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsSelesaiHtml}
+            </tbody>
+            <tfoot>
+              <tr style="background:#dcfce7; font-weight:800; color:#166534;">
+                <td colspan="4" style="text-align:right; padding:10px 12px;">TOTAL PENGADAAN SELESAI (${selesaiPakets.length} PAKET):</td>
+                <td class="cakra-mono" style="text-align:right; padding:10px 12px;">${cakraFmtRp(paguSelesai)}</td>
+                <td class="cakra-mono" style="text-align:right; padding:10px 12px; color:#047857;">${cakraFmtRp(kontrakSelesai)}</td>
+                <td class="cakra-mono" style="text-align:right; padding:10px 12px; color:#b45309;">${cakraFmtRp(efisiensiSelesai)} (${persenEfisiensiSelesai}%)</td>
+                <td colspan="2" style="text-align:center; padding:10px 12px; font-size:11.5px;">Seluruh berkas 18 tahap telah diverifikasi &amp; tersimpan</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `;
+  } else if (tab === 'EKSEKUTIF') {
     const rowsHtml = pakets.map((p, idx) => {
       const pagu = Number(p.nilai_pagu) || 0;
       const hps = Number(p.nilai_hps) || 0;

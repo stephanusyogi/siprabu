@@ -1728,11 +1728,12 @@
 
           <!-- 5 Tab Sudut Pandang Rekap Pengadaan -->
           <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;" id="rekap-pengadaan-tabs">
-            <button type="button" class="btn btn-sm btn-primary" data-tab="EKSEKUTIF" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('EKSEKUTIF')">1. Ringkasan Eksekutif PBJ</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="JENIS_METODE" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('JENIS_METODE')">2. Rekap Jenis &amp; Metode</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="SUBBAGIAN" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('SUBBAGIAN')">3. Rekap Subbagian &amp; Pejabat</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="AKUN_BAS" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('AKUN_BAS')">4. Rekap Akun BAS &amp; RUP</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="KONTRAK_BAST" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('KONTRAK_BAST')">5. Matriks Kontrak, BAST &amp; Pembayaran</button>
+            <button type="button" class="btn btn-sm btn-primary" data-tab="STATUS_PBJ" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('STATUS_PBJ')">⚡ 1. Status: Berjalan vs Selesai</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="EKSEKUTIF" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('EKSEKUTIF')">2. Ringkasan Eksekutif PBJ</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="JENIS_METODE" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('JENIS_METODE')">3. Rekap Jenis &amp; Metode</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="SUBBAGIAN" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('SUBBAGIAN')">4. Rekap Subbagian &amp; Pejabat</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="AKUN_BAS" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('AKUN_BAS')">5. Rekap Akun BAS &amp; RUP</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-tab="KONTRAK_BAST" onclick="if(window.switchRekapPengadaanTab) window.switchRekapPengadaanTab('KONTRAK_BAST')">6. Matriks Kontrak, BAST &amp; Pembayaran</button>
           </div>
 
           <div class="card">
@@ -4195,6 +4196,19 @@
 
 
           <div class="cakra-kpi-grid" id="cakra-dashboard-kpi-grid"></div>
+
+          <!-- Quick Filter Status Paket: Semua, Berjalan, Selesai -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="font-size:12px; font-weight:800; color:#334155;">Filter Status Paket:</span>
+              <button type="button" class="btn btn-xs btn-primary" id="btn-filter-paket-semua" onclick="filterDaftarPaketStatus('SEMUA')">🌐 Semua Paket (<span id="count-filter-semua">0</span>)</button>
+              <button type="button" class="btn btn-xs btn-outline-warning" id="btn-filter-paket-berjalan" onclick="filterDaftarPaketStatus('BERJALAN')">⏳ Pengadaan Berjalan (<span id="count-filter-berjalan">0</span>)</button>
+              <button type="button" class="btn btn-xs btn-outline-success" id="btn-filter-paket-selesai" onclick="filterDaftarPaketStatus('SELESAI')">✅ Pengadaan Selesai (<span id="count-filter-selesai">0</span>)</button>
+            </div>
+            <div style="font-size:11.5px; color:#64748b;">
+              Menampilkan: <strong id="label-filter-paket-status" style="color:#0f172a;">Semua Paket</strong>
+            </div>
+          </div>
 
           <div class="cakra-card">
             <div class="cakra-card-header">
