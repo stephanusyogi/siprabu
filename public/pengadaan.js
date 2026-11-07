@@ -2433,6 +2433,11 @@ function renderCockpitRightDock() {
     </div>
 
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+      <!-- Quick Save Action -->
+      <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" onclick="saveDraftQuickly()" style="font-weight:800; background:#f59e0b; color:#fff; border:none; padding:5px 12px; border-radius:5px; box-shadow:0 1px 2px rgba(245,158,11,0.25); display:flex; align-items:center; gap:5px;" title="Simpan perubahan draf ke database (Ctrl + S)">
+        <span>💾</span> <span>Simpan Draf</span>
+      </button>
+
       <!-- Primary Action: Word Tahap N -->
       <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '${stageNo}')" style="font-weight:700; display:flex; align-items:center; gap:6px; box-shadow:0 1px 2px rgba(37,99,235,0.2);" title="Kirim Naskah Word Tahap ${stageNo} ke Monitoring Unduhan">
         <span>📄</span> <span>Word Tahap ${stageNo} (.docx)</span>
@@ -4863,49 +4868,8 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
   const activeStageDef = (CakraState.definisi18Tahap || []).find(d => Number(d.no) === stageNo) || { no: stageNo, nama: `Tahap ${stageNo}` };
   const activeTRow = tahapMap[stageNo] || {};
 
-  // Mini Stepper Buttons for this Phase (Konsisten 4 Kondisi Status & Rantai Sekuensial)
-  const miniStepperHtml = faseCfg.stages.map(stNum => {
-    const sDef = (CakraState.definisi18Tahap || []).find(d => Number(d.no) === stNum) || { nama: `Tahap ${stNum}` };
-    const sRow = tahapMap[stNum] || {};
-    const status = sRow.status_tahap || 'Terkunci';
-    const driveLink = String(sRow.link_drive_dokumen || '').trim();
-    const isBypass = status === 'Bypass';
-    const isDone = !isBypass && (status === 'Selesai' || status === 'Final') && driveLink.length > 5;
-    const isDraft = !isBypass && !isDone && (status === 'Draft' || status === 'Aktif' || (status === 'Selesai' && !driveLink));
-    const isLocked = !isBypass && !isDone && !isDraft && isCockpitStageLocked(stNum, tahapMap);
-    const isActive = stageNo === stNum;
-
-    let badge = '';
-    let clickFn = `selectCockpitStage(${stNum})`;
-    let extraCls = '';
-
-    if (isBypass) {
-      badge = '<span style="color:#64748b; font-size:10px; font-weight:700;">⏭️ Bypass</span>';
-      extraCls = 'bypass';
-    } else if (isDone) {
-      badge = '<span style="color:#10b981; font-size:11px; font-weight:800;">✅ Selesai</span>';
-      extraCls = 'done';
-    } else if (isDraft) {
-      badge = '<span style="color:#b45309; font-size:10px; font-weight:700;">📝 Draft</span>';
-      extraCls = 'draft';
-    } else if (isLocked) {
-      badge = '<span style="color:#64748b; font-size:10px; font-weight:700;">🔒 Terkunci</span>';
-      clickFn = `handleLockedStageClick(${stNum})`;
-      extraCls = 'locked';
-    } else {
-      badge = '<span style="color:#0284c7; font-size:10px; font-weight:700;">🔓 Siap Diisi</span>';
-      clickFn = `selectCockpitStage(${stNum})`;
-      extraCls = 'ready';
-    }
-
-    return `
-      <button type="button" class="cakra-mini-stage-btn ${isActive ? 'active' : ''} ${extraCls}" onclick="${clickFn}" title="${cakraEsc(sDef.nama)} (${isBypass ? 'Bypass' : (isDone ? 'Selesai' : (isDraft ? 'Draft' : (isLocked ? 'Terkunci' : 'Siap Diisi')))})">
-        <span style="font-weight:800; font-family:monospace;">T${stNum}</span>
-        <span>${cakraEsc(sDef.nama)}</span>
-        ${badge}
-      </button>
-    `;
-  }).join('');
+  // Mini stepper redundant dihilangkan demi menjaga area kerja tenang (Zen Focus)
+  const miniStepperHtml = '';
 
   // Audit warnings & double checks
   const audit = CakraState.activePaketCtx.audit || {};
@@ -4914,17 +4878,20 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
   let stageWarningHtml = '';
   if (warnings.length > 0) {
     stageWarningHtml = `
-      <div style="background:#fff1f2; border:1.5px solid #fecdd3; border-radius:8px; padding:10px 14px; margin-bottom:14px;">
-        <div style="font-weight:800; color:#9f1239; font-size:12.5px; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-          <span>⚠️ Catatan Kepatuhan Regulasi pada Tahap Ini:</span>
+      <details style="margin-bottom:14px; background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:8px 14px;">
+        <summary style="cursor:pointer; font-size:12px; font-weight:700; color:#9f1239; display:flex; justify-content:space-between; align-items:center;">
+          <span>⚠️ Terdapat ${warnings.length} Catatan Regulasi pada Tahap Ini</span>
+          <span style="font-size:11px; color:#be123c; font-weight:600;">(Klik untuk melihat rincian &amp; solusi)</span>
+        </summary>
+        <div style="margin-top:8px; padding-top:6px; border-top:1px solid #ffe4e6;">
+          ${warnings.map(w => `
+            <div style="font-size:11.5px; color:#881337; margin-top:3px;">
+              • <strong>[${cakraEsc(w.kode)}]</strong> ${cakraEsc(w.pesan)}
+              ${w.rekomendasi ? `<div style="font-size:11px; color:#0369a1; margin-left:14px; font-weight:600;">💡 Solusi: ${cakraEsc(w.rekomendasi)}</div>` : ''}
+            </div>
+          `).join('')}
         </div>
-        ${warnings.map(w => `
-          <div style="font-size:11.5px; color:#881337; margin-top:2px;">
-            • <strong>[${cakraEsc(w.kode)}]</strong> ${cakraEsc(w.pesan)}
-            ${w.rekomendasi ? `<div style="font-size:11px; color:#0369a1; margin-left:12px; font-weight:600;">💡 Solusi: ${cakraEsc(w.rekomendasi)}</div>` : ''}
-          </div>
-        `).join('')}
-      </div>
+      </details>
     `;
   }
 
@@ -4932,138 +4899,155 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
   let stageFormHtml = '';
 
   if (stageNo === 1) {
-    // TAHAP 1: IDENTIFIKASI KEBUTUHAN (Basis DIPA/RKB)
+    // TAHAP 1: IDENTIFIKASI KEBUTUHAN (Basis DIPA/RKB - ZEN FOCUS)
     stageFormHtml = `
+      <!-- 1. HERO AUTO-FILL: TARIK DARI RKB BELANJA -->
+      <div style="background:linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border:1.5px dashed #3b82f6; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <div style="font-weight:800; font-size:13px; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
+            <span>⚡ Isi Otomatis 1 Klik: Tarik Anggaran dari RKB Belanja SI-PRABU</span>
+          </div>
+          <div style="font-size:11.5px; color:#475569; margin-top:2px;">
+            Pilih baris mata anggaran — Nama paket, kode MAK, pagu DIPA, dan silsilah program langsung terisi 100% otomatis!
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="toggleCakraRkbDrawer()" style="font-weight:800; padding:6px 14px; border-radius:6px; display:flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(37,99,235,0.25); cursor:pointer;">
+          <span>📥 Tarik dari RKB Belanja</span>
+        </button>
+      </div>
+
+      <!-- 2. DATA POKOK PENGADAAN (YANG WAJIB DIISI) -->
+      <div class="cakra-form-group">
+        <label style="font-size:12.5px; font-weight:800; color:#0f172a;">Nama Paket Pengadaan (Sesuai DIPA / Kebutuhan Riil Satker) <span style="color:#dc2626;">*</span></label>
+        <input type="text" class="cakra-form-control" id="cf_nama_paket" value="${cakraEsc(paket.nama_paket)}" placeholder="cth: Pengadaan Perangkat PC Komputer &amp; Server Operasional..." required style="font-size:13.5px; font-weight:600; padding:8px 12px;" />
+      </div>
+
       <div class="cakra-form-grid-3">
         <div class="cakra-form-group">
-          <label>Kode Paket Internal (SSOT) <span class="badge" style="background:#e0e7ff; color:#3730a3; font-size:10px; margin-left:4px;">🔒 Terkunci</span></label>
-          <input type="text" class="cakra-form-control cakra-mono" id="cf_kode_paket_internal" value="${cakraEsc(paket.kode_paket_internal)}" readonly style="background:#f1f5f9; cursor:not-allowed; font-weight:700; color:#1e3a8a;" required />
-        </div>
-        <div class="cakra-form-group">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label style="margin:0; font-weight:700;">Kode Akun MAK DIPA (BAS)</label>
-            <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="toggleCakraRkbDrawer()" style="font-size:10.5px; padding:1px 6px; color:#2563eb; border-color:#93c5fd;" title="Tarik dari baris RKB definitif">⚡ Tarik RKB</button>
-          </div>
-          <input type="text" class="cakra-form-control cakra-mono" id="cf_kode_akun_mak" value="${cakraEsc(paket.kode_akun_mak || '532111')}" readonly style="background:#f1f5f9; cursor:not-allowed; font-weight:800; color:#1e3a8a;" />
-        </div>
-        <div style="grid-column:1 / -1; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; margin-top:-4px; margin-bottom:6px;">
-          <div style="font-size:11px; font-weight:800; color:#334155; margin-bottom:3px;">📌 Silsilah Pembebanan Anggaran RKB Definitif:</div>
-          <div style="font-size:11px; color:#475569; line-height:1.4;">
-            <strong>Program:</strong> ${cakraEsc(paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi')}<br/>
-            <strong>Kegiatan:</strong> ${cakraEsc(paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)')}<br/>
-            <strong>Sub Kegiatan / Komponen:</strong> ${cakraEsc(paket.rkb_subkegiatan || paket.rkb_komponen || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu')}<br/>
-            <strong>Nama Akun BAS:</strong> ${cakraEsc(paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin')}
-          </div>
-        </div>
-        <div class="cakra-form-group">
-          <label>Subbagian Pengampu (PIC)</label>
-          <select class="cakra-form-control" id="cf_pic_subbag">
+          <label>Subbagian Pengampu (PIC) <span style="color:#dc2626;">*</span></label>
+          <select class="cakra-form-control" id="cf_pic_subbag" style="font-weight:600;">
             ${['KUL', 'RENDATIN', 'TEKNIS', 'HUKUM', 'PARSDM'].map(s => `<option value="${s}" ${paket.pic_subbag === s ? 'selected' : ''}>Subbag ${s}</option>`).join('')}
           </select>
         </div>
-      </div>
-
-      <!-- INISIASI NASKAH DINAS PENGUSULAN (NOTA DINAS & DISPOSISI KPA) -->
-      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
-        <div style="font-weight:800; color:#0f172a; font-size:12.5px; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-          <span>📝 Inisiasi Naskah Dinas Pengusulan Kebutuhan (PKPU No. 14/2020 &amp; Perlem LKPP No. 2/2026):</span>
+        <div class="cakra-form-group">
+          <label>Kode Akun MAK DIPA (BAS)</label>
+          <input type="text" class="cakra-form-control cakra-mono" id="cf_kode_akun_mak" value="${cakraEsc(paket.kode_akun_mak || '521211')}" placeholder="cth: 521211" style="font-weight:700; color:#1e3a8a;" />
         </div>
-        <div class="cakra-form-grid-3">
-          <div class="cakra-form-group">
-            <label>Nomor Nota Dinas Pengusul</label>
-            <input type="text" class="cakra-form-control cakra-mono" id="cf_no_nota_dinas_pengusul" value="${cakraEsc(paket.no_nota_dinas_pengusul || '')}" placeholder="cth: 001/ND.RENDATIN/KPU-Kab-014.329781/V/2026" />
-          </div>
-          <div class="cakra-form-group">
-            <label>Tanggal Nota Dinas Pengusul</label>
-            <input type="date" class="cakra-form-control" id="cf_tgl_nota_dinas_pengusul" value="${cakraEsc(paket.tgl_nota_dinas_pengusul || '2026-05-04')}" />
-          </div>
-          <div class="cakra-form-group">
-            <label>Nomor &amp; Tanggal Disposisi KPA</label>
-            <div style="display:flex; gap:6px;">
-              <input type="text" class="cakra-form-control cakra-mono" id="cf_no_disposisi_kpa" value="${cakraEsc(paket.no_disposisi_kpa || '')}" placeholder="No. Disposisi (cth: 042/AGD-KPA/V/2026)" style="flex:1;" />
-              <input type="date" class="cakra-form-control" id="cf_tgl_disposisi_kpa" value="${cakraEsc(paket.tgl_disposisi_kpa || '2026-05-04')}" style="width:130px;" />
-            </div>
-          </div>
+        <div class="cakra-form-group">
+          <label>Nama Akun Belanja DIPA</label>
+          <input type="text" class="cakra-form-control" id="cf_nama_akun_mak" value="${cakraEsc(paket.nama_akun_mak || '')}" placeholder="cth: Belanja Bahan" />
         </div>
-        <div class="cakra-form-group" style="margin-bottom:0;">
-          <label>Perihal Nota Dinas Pengusul</label>
-          <input type="text" class="cakra-form-control" id="cf_perihal_nota_dinas" value="${cakraEsc(paket.perihal_nota_dinas || '')}" placeholder="cth: Usulan Kebutuhan Pengadaan Perangkat Pengolah Data dan PC Server Operasional TA 2026" />
-        </div>
-      </div>
-
-      ${CakraState.activePaketId === 'NEW' ? `
-        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:12px; color:#166534; font-weight:700; display:flex; align-items:center; gap:8px;">
-          <span>✨ Lembar Kerja Bersih:</span>
-          <span style="font-weight:400; color:#14532d;">Silakan masukkan rincian kebutuhan belanja Anda dari awal. Form ini siap diisi tanpa data lama.</span>
-        </div>
-      ` : ''}
-
-      <div class="cakra-form-group">
-        <label>Nama Paket Pengadaan (Sesuai DIPA / Kebutuhan Riil Satker)</label>
-        <input type="text" class="cakra-form-control" id="cf_nama_paket" value="${cakraEsc(paket.nama_paket)}" placeholder="cth: Pengadaan Perangkat PC Komputer & Server Operasional..." required />
       </div>
 
       <div class="cakra-form-grid-2">
         <div class="cakra-form-group">
-          <label>Nama Akun Belanja DIPA</label>
-          <input type="text" class="cakra-form-control" id="cf_nama_akun_mak" value="${cakraEsc(paket.nama_akun_mak)}" placeholder="cth: Belanja Modal Peralatan Komputer" />
-        </div>
-        <div class="cakra-form-group">
-          <label>Nilai Pagu DIPA / RKB Sah (Rp)</label>
-          <input type="number" class="cakra-form-control cakra-mono" id="cf_nilai_pagu" value="${Number(paket.nilai_pagu || 0)}" style="font-size:14px; font-weight:800; color:#1e3a8a;" />
-          <div style="font-size:11px; color:#0369a1; margin-top:3px; font-weight:600;">
+          <label>Nilai Pagu DIPA / RKB Sah (Rp) <span style="color:#dc2626;">*</span></label>
+          <input type="number" class="cakra-form-control cakra-mono" id="cf_nilai_pagu" value="${Number(paket.nilai_pagu || 0)}" style="font-size:15px; font-weight:800; color:#1e3a8a;" required />
+          <div style="font-size:11.5px; color:#0369a1; margin-top:3px; font-weight:700;">
             Terbilang: ${cakraFmtRp(paket.nilai_pagu)}
           </div>
         </div>
+        <div class="cakra-form-group">
+          <label>Kode Paket Internal (SSOT Sistem)</label>
+          <input type="text" class="cakra-form-control cakra-mono" id="cf_kode_paket_internal" value="${cakraEsc(paket.kode_paket_internal)}" readonly style="background:#f1f5f9; cursor:not-allowed; font-weight:700; color:#475569;" required />
+          <div style="font-size:11px; color:#64748b; margin-top:3px;">
+            Penanda tunggal dokumen pengadaan 18 tahap satker.
+          </div>
+        </div>
       </div>
+
+      <!-- Silsilah Pembebanan Anggaran RKB (Kompak & Elegan) -->
+      ${paket.rkb_program || paket.rkb_kegiatan ? `
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; margin-bottom:14px; font-size:11.5px; color:#475569;">
+          <strong>📌 RKB Definitif:</strong> ${cakraEsc(paket.rkb_program || '')} ➔ ${cakraEsc(paket.rkb_kegiatan || '')} ➔ ${cakraEsc(paket.rkb_subkegiatan || paket.rkb_komponen || '')}
+        </div>
+      ` : ''}
 
       <div class="cakra-form-group">
-        <label>Urgensi &amp; Justifikasi Identifikasi Kebutuhan</label>
-        <textarea class="cakra-form-control" id="cf_uraian_pekerjaan" rows="2" placeholder="Jelaskan dasar pertimbangan kebutuhan, volume target pengguna, dan fungsi operasional kedinasan...">${cakraEsc(paket.uraian_pekerjaan)}</textarea>
+        <label>Urgensi &amp; Justifikasi Identifikasi Kebutuhan (KAK)</label>
+        <textarea class="cakra-form-control" id="cf_uraian_pekerjaan" rows="2" placeholder="Jelaskan dasar pertimbangan kebutuhan, volume target pengguna, dan fungsi operasional kedinasan...">${cakraEsc(paket.uraian_pekerjaan || '')}</textarea>
       </div>
 
-      <!-- TELAAH KETERSEDIAAN BMN / ASET EKSISTING (PASAL 18 PERPRES PBJ & PERLEM LKPP) -->
-      <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
-        <div style="font-weight:800; color:#166534; font-size:12.5px; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-          <span>🏛️ Telaah Ketersediaan BMN / Aset Eksisting (Pasal 18 Perpres PBJ &amp; Pedoman LKPP):</span>
-        </div>
-        <div class="cakra-form-grid-3">
-          <div class="cakra-form-group">
-            <label>Sifat Kebutuhan Pengadaan</label>
-            <select class="cakra-form-control" id="cf_bmn_sifat_kebutuhan">
-              <option value="PENGGANTIAN" ${(paket.bmn_sifat_kebutuhan || 'PENGGANTIAN') === 'PENGGANTIAN' ? 'selected' : ''}>Penggantian Unit Usang/Rusak Berat (Replacement)</option>
-              <option value="PENAMBAHAN" ${paket.bmn_sifat_kebutuhan === 'PENAMBAHAN' ? 'selected' : ''}>Penambahan Kuantitas Unit (Expansion)</option>
-              <option value="PENGADAAN_BARU" ${paket.bmn_sifat_kebutuhan === 'PENGADAAN_BARU' ? 'selected' : ''}>Pengadaan Baru (New Acquisition)</option>
-            </select>
+      <!-- 3. ACCORDION 1: KELENGKAPAN NASKAH DINAS PENGUSULAN -->
+      <details style="margin-bottom:12px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc;">
+        <summary style="cursor:pointer; padding:10px 14px; font-weight:700; font-size:12px; color:#1e293b; display:flex; justify-content:space-between; align-items:center;">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span>📝 Kelengkapan Naskah Dinas Pengusulan (Nota Dinas &amp; Disposisi KPA)</span>
+          </span>
+          <span style="font-size:11px; color:#64748b;">(Telah terisi format standar - Klik untuk ubah)</span>
+        </summary>
+        <div style="padding:14px; border-top:1px solid #e2e8f0;">
+          <div class="cakra-form-grid-3">
+            <div class="cakra-form-group">
+              <label>Nomor Nota Dinas Pengusul</label>
+              <input type="text" class="cakra-form-control cakra-mono" id="cf_no_nota_dinas_pengusul" value="${cakraEsc(paket.no_nota_dinas_pengusul || '')}" placeholder="cth: 001/ND.RENDATIN/KPU-Kab-014.329781/V/2026" />
+            </div>
+            <div class="cakra-form-group">
+              <label>Tanggal Nota Dinas Pengusul</label>
+              <input type="date" class="cakra-form-control" id="cf_tgl_nota_dinas_pengusul" value="${cakraEsc(paket.tgl_nota_dinas_pengusul || '2026-05-04')}" />
+            </div>
+            <div class="cakra-form-group">
+              <label>Nomor &amp; Tanggal Disposisi KPA</label>
+              <div style="display:flex; gap:6px;">
+                <input type="text" class="cakra-form-control cakra-mono" id="cf_no_disposisi_kpa" value="${cakraEsc(paket.no_disposisi_kpa || '')}" placeholder="No. Disposisi" style="flex:1;" />
+                <input type="date" class="cakra-form-control" id="cf_tgl_disposisi_kpa" value="${cakraEsc(paket.tgl_disposisi_kpa || '2026-05-04')}" style="width:130px;" />
+              </div>
+            </div>
           </div>
-          <div class="cakra-form-group">
-            <label>Status Ketersediaan Aset Serupa</label>
-            <select class="cakra-form-control" id="cf_bmn_status_ketersediaan">
-              <option value="TERSEDIA_RUSAK_BERAT" ${(paket.bmn_status_ketersediaan || 'TERSEDIA_RUSAK_BERAT') === 'TERSEDIA_RUSAK_BERAT' ? 'selected' : ''}>Tersedia - Rusak Berat / Tidak Layak Pakai</option>
-              <option value="TERSEDIA_KURANG" ${paket.bmn_status_ketersediaan === 'TERSEDIA_KURANG' ? 'selected' : ''}>Tersedia - Kuantitas Kurang Memadai</option>
-              <option value="BELUM_TERSEDIA" ${paket.bmn_status_ketersediaan === 'BELUM_TERSEDIA' ? 'selected' : ''}>Belum Tersedia di Satker</option>
-            </select>
-          </div>
-          <div class="cakra-form-group">
-            <label>Jumlah Unit Eksisting di BMN</label>
-            <input type="number" class="cakra-form-control cakra-mono" id="cf_bmn_jumlah_eksisting" value="${Number(paket.bmn_jumlah_eksisting || 0)}" min="0" />
-          </div>
-        </div>
-        <div class="cakra-form-grid-2">
-          <div class="cakra-form-group">
-            <label>Kondisi &amp; Status Aset Eksisting (SIMAN / SAKTI BMN)</label>
-            <input type="text" class="cakra-form-control" id="cf_bmn_kondisi_eksisting" value="${cakraEsc(paket.bmn_kondisi_eksisting || '')}" placeholder="cth: 1 unit server TA 2019 rusak berat (motherboard terbakar), 0 unit cadangan..." />
-          </div>
-          <div class="cakra-form-group">
-            <label>Kesesuaian Dokumen Perencanaan BMN / SBSK</label>
-            <input type="text" class="cakra-form-control" id="cf_bmn_kesesuaian_rkbmn" value="${cakraEsc(paket.bmn_kesesuaian_rkbmn || '')}" placeholder="cth: Tercantum dalam RKBMN KPU Ngawi TA 2026 &amp; SBSK DJKN..." />
+          <div class="cakra-form-group" style="margin-bottom:0;">
+            <label>Perihal Nota Dinas Pengusul</label>
+            <input type="text" class="cakra-form-control" id="cf_perihal_nota_dinas" value="${cakraEsc(paket.perihal_nota_dinas || '')}" placeholder="cth: Usulan Kebutuhan Pengadaan Perangkat Pengolah Data TA 2026" />
           </div>
         </div>
-        <div class="cakra-form-group" style="margin-bottom:0;">
-          <label>Uraian Hasil Analisis Ketersediaan Barang Sejenis oleh PPK</label>
-          <textarea class="cakra-form-control" id="cf_bmn_catatan_telaah" rows="2" placeholder="Uraikan hasil analisis ketersediaan BMN, utilisasi aset eksisting, dan rekomendasi tindak lanjut BMN lama...">${cakraEsc(paket.bmn_catatan_telaah || '')}</textarea>
+      </details>
+
+      <!-- 4. ACCORDION 2: TELAAH KETERSEDIAAN BMN / ASET EKSISTING -->
+      <details style="margin-bottom:12px; border:1px solid #bbf7d0; border-radius:8px; background:#f0fdf4;">
+        <summary style="cursor:pointer; padding:10px 14px; font-weight:700; font-size:12px; color:#166534; display:flex; justify-content:space-between; align-items:center;">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span>🏛️ Telaah Ketersediaan BMN / Aset Eksisting (Pasal 18 Perpres PBJ)</span>
+          </span>
+          <span style="font-size:11px; color:#15803d; font-weight:600;">(Default: Penggantian Unit Usang/Rusak Berat - Klik untuk ubah)</span>
+        </summary>
+        <div style="padding:14px; border-top:1px solid #dcfce7;">
+          <div class="cakra-form-grid-3">
+            <div class="cakra-form-group">
+              <label>Sifat Kebutuhan Pengadaan</label>
+              <select class="cakra-form-control" id="cf_bmn_sifat_kebutuhan">
+                <option value="PENGGANTIAN" ${(paket.bmn_sifat_kebutuhan || 'PENGGANTIAN') === 'PENGGANTIAN' ? 'selected' : ''}>Penggantian Unit Usang/Rusak Berat (Replacement)</option>
+                <option value="PENAMBAHAN" ${paket.bmn_sifat_kebutuhan === 'PENAMBAHAN' ? 'selected' : ''}>Penambahan Kuantitas Unit (Expansion)</option>
+                <option value="PENGADAAN_BARU" ${paket.bmn_sifat_kebutuhan === 'PENGADAAN_BARU' ? 'selected' : ''}>Pengadaan Baru (New Acquisition)</option>
+              </select>
+            </div>
+            <div class="cakra-form-group">
+              <label>Status Ketersediaan Aset Serupa</label>
+              <select class="cakra-form-control" id="cf_bmn_status_ketersediaan">
+                <option value="TERSEDIA_RUSAK_BERAT" ${(paket.bmn_status_ketersediaan || 'TERSEDIA_RUSAK_BERAT') === 'TERSEDIA_RUSAK_BERAT' ? 'selected' : ''}>Tersedia - Rusak Berat / Tidak Layak Pakai</option>
+                <option value="TERSEDIA_KURANG" ${paket.bmn_status_ketersediaan === 'TERSEDIA_KURANG' ? 'selected' : ''}>Tersedia - Kuantitas Kurang Memadai</option>
+                <option value="BELUM_TERSEDIA" ${paket.bmn_status_ketersediaan === 'BELUM_TERSEDIA' ? 'selected' : ''}>Belum Tersedia di Satker</option>
+              </select>
+            </div>
+            <div class="cakra-form-group">
+              <label>Jumlah Unit Eksisting di BMN</label>
+              <input type="number" class="cakra-form-control cakra-mono" id="cf_bmn_jumlah_eksisting" value="${Number(paket.bmn_jumlah_eksisting || 0)}" min="0" />
+            </div>
+          </div>
+          <div class="cakra-form-grid-2">
+            <div class="cakra-form-group">
+              <label>Kondisi &amp; Status Aset Eksisting (SIMAN / SAKTI BMN)</label>
+              <input type="text" class="cakra-form-control" id="cf_bmn_kondisi_eksisting" value="${cakraEsc(paket.bmn_kondisi_eksisting || '')}" placeholder="cth: 1 unit server TA 2019 rusak berat (motherboard terbakar), 0 unit cadangan..." />
+            </div>
+            <div class="cakra-form-group">
+              <label>Kesesuaian Dokumen Perencanaan BMN / SBSK</label>
+              <input type="text" class="cakra-form-control" id="cf_bmn_kesesuaian_rkbmn" value="${cakraEsc(paket.bmn_kesesuaian_rkbmn || '')}" placeholder="cth: Tercantum dalam RKBMN KPU Ngawi TA 2026 &amp; SBSK DJKN..." />
+            </div>
+          </div>
+          <div class="cakra-form-group" style="margin-bottom:0;">
+            <label>Uraian Hasil Analisis Ketersediaan Barang Sejenis oleh PPK</label>
+            <textarea class="cakra-form-control" id="cf_bmn_catatan_telaah" rows="2" placeholder="Uraikan hasil analisis ketersediaan BMN, utilisasi aset eksisting, dan rekomendasi tindak lanjut BMN lama...">${cakraEsc(paket.bmn_catatan_telaah || '')}</textarea>
+          </div>
         </div>
-      </div>
+      </details>
     `;
   } else if (stageNo === 2) {
     // TAHAP 2: PENETAPAN JENIS, CARA PENGADAAN & PEMAKETAN
@@ -5212,15 +5196,14 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
   const nextStage = stageNo < 18 ? stageNo + 1 : null;
 
   return `
-    <!-- UNIFIED PHASE CONTEXT & SUB-STEPS BAR (ZEN COMPACT) -->
-    <div class="cakra-phase-context-bar">
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <span class="badge" style="background:#1e3a8a; color:#fff; font-size:11px; font-weight:800; padding:4px 8px; border-radius:4px;">${cakraEsc(faseCfg.nama)}</span>
-        <span style="font-size:12px; color:#334155; font-weight:600;">${cakraEsc(faseCfg.deskripsi)}</span>
-        <span style="font-size:11px; color:#64748b;">(⚖️ ${cakraEsc(faseCfg.dasarHukum)})</span>
+    <!-- UNIFIED PHASE CONTEXT BAR (ZEN MINIMALIST) -->
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:12px; font-size:11.5px; color:#475569;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="badge" style="background:#1e3a8a; color:#fff; font-weight:800; padding:3px 8px; border-radius:4px;">${cakraEsc(faseCfg.nama)}</span>
+        <span style="font-weight:700; color:#1e293b;">${cakraEsc(faseCfg.deskripsi)}</span>
       </div>
-      <div class="cakra-phase-mini-stepper" style="margin-bottom:0; padding:0; background:transparent; border:none; display:flex; gap:6px; flex-wrap:wrap;">
-        ${miniStepperHtml}
+      <div style="color:#64748b; font-size:11px;">
+        ⚖️ ${cakraEsc(faseCfg.dasarHukum)}
       </div>
     </div>
 
@@ -5258,45 +5241,31 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
                 `;
               })()}
             </div>
-            <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" onclick="saveDraftQuickly()" style="font-weight:700; background:#f59e0b; color:#fff; border:none; height:28px; padding:0 10px; border-radius:5px; display:inline-flex; align-items:center; gap:4px;" title="Simpan sebagai Draf kapan saja tanpa menunggu semua terisi (Shortcut: Ctrl + S)">
+            <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" onclick="saveDraftQuickly()" style="font-weight:700; background:#f59e0b; color:#fff; border:none; height:28px; padding:0 10px; border-radius:5px; display:inline-flex; align-items:center; gap:4px;" title="Simpan sebagai Draf (Ctrl + S)">
               <span>💾 Simpan Draf</span>
             </button>
-            <button type="button" class="cakra-btn cakra-btn-secondary cakra-btn-sm" onclick="showCakraBypassModal(${stageNo})" style="font-weight:700; height:28px; padding:0 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px;" title="Lewati / Loncat tahap ini dengan memberikan alasan resmi">
+            <button type="button" class="cakra-btn cakra-btn-secondary cakra-btn-sm" onclick="showCakraBypassModal(${stageNo})" style="font-weight:700; height:28px; padding:0 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px;" title="Lewati / Loncat tahap ini">
               <span>⏭️ Loncat</span>
-            </button></div>
+            </button>
           </div>
         </div>
 
         ${stageFormHtml}
       </div>
 
-      <!-- DOKUMEN & NASKAH RESMI TAHAP INI -->
-      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-          <div style="font-size:12.5px; color:#334155; font-weight:800; display:flex; align-items:center; gap:6px;">
-            <span>📄 Naskah Dokumen Resmi Tahap ${stageNo}:</span>
-          </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button type="button" class="cakra-btn cakra-btn-info cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '${stageNo}')" style="font-weight:800; background:#2563eb; color:#fff; border:none; padding:5px 12px; border-radius:5px;">
-              📥 Unduh Naskah Dokumen Sah Tahap ${stageNo} (.docx)
-            </button>
-            ${Number(stageNo) !== 1 ? `
-              <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" onclick="queuePengadaanDownload('xlsx', ${paket.id}, '${stageNo}')" style="font-weight:700; padding:5px 12px; border-radius:5px;">
-                📊 Unduh Excel Tahap ${stageNo} (.xlsx)
-              </button>
-            ` : ''}
-          </div>
-        </div>
-
-        <!-- LINK GOOGLE DRIVE BERKAS TERTANDATANGAN (SYARAT SAH STATUS SELESAI) -->
-        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:6px; padding:10px 12px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
-            <label style="font-weight:800; color:#166534; font-size:12px; margin:0; display:flex; align-items:center; gap:6px;">
-              <span>☁️ Link Google Drive (Dokumen Sah &amp; Bertandatangan):</span>
-            </label>
-            <span style="font-size:11px; color:#15803d; font-style:italic;">
-              *Syarat alur dinyatakan Selesai: Dokumen hasil unduhan telah ditandatangani dan diunggah ke Google Drive satker.
-            </span>
+      <!-- LINK GOOGLE DRIVE ACCORDION (ZEN CLEAN) -->
+      <details style="margin-top:14px; margin-bottom:14px; border:1px solid #86efac; border-radius:8px; background:#f0fdf4; padding:10px 14px;">
+        <summary style="cursor:pointer; font-weight:700; font-size:12px; color:#166534; display:flex; justify-content:space-between; align-items:center;">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span>☁️ Tautan Google Drive Dokumen Sah Bertandatangan</span>
+          </span>
+          <span style="font-size:11px; color:#15803d; font-weight:600;">
+            ${activeTRow.link_drive_dokumen ? '✅ Tautan Drive Terhubung (Klik untuk ubah)' : '(Opsional: Isi setelah dokumen fisik ditandatangani)'}
+          </span>
+        </summary>
+        <div style="margin-top:10px; padding-top:8px; border-top:1px solid #bbf7d0;">
+          <div style="font-size:11.5px; color:#15803d; margin-bottom:6px;">
+            *Syarat alur dinyatakan Selesai: Dokumen hasil unduhan telah ditandatangani dan diunggah ke Google Drive satker.
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <input type="url" class="cakra-form-control" id="cf_link_drive_dokumen" value="${cakraEsc(activeTRow.link_drive_dokumen || '')}" oninput="onDriveLinkInput(this.value)" placeholder="Tempel tautan Google Drive berkas sah (cth: https://drive.google.com/file/d/...)" style="flex:1; font-size:12px;" />
@@ -5307,12 +5276,15 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
             ` : ''}
           </div>
         </div>
-      </div>
+      </details>
 
-      <!-- DO'S & DON'TS TAHAP INI -->
-      <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
-        <div style="font-weight:800; color:#15803d; font-size:12px; margin-bottom:6px;">🧭 Panduan Do's &amp; Don'ts Tahap ${stageNo}:</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:11.5px;">
+      <!-- DO'S & DON'TS ACCORDION (ZEN CLEAN) -->
+      <details style="margin-bottom:14px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; padding:8px 14px;">
+        <summary style="cursor:pointer; font-weight:700; font-size:11.5px; color:#334155; display:flex; justify-content:space-between; align-items:center;">
+          <span>🧭 Panduan Kepatuhan Do's &amp; Don'ts Tahap ${stageNo}</span>
+          <span style="font-size:10.5px; color:#64748b;">(Rambu-rambu regulasi)</span>
+        </summary>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e2e8f0; display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:11.5px;">
           <div style="color:#166534; line-height:1.45;">
             <strong>✅ DO (Wajib Dilakukan):</strong><br/>
             ${cakraEsc(dodontItem.do || 'Laksanakan tahapan sesuai peraturan PBJ.')}
@@ -5322,7 +5294,7 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
             ${cakraEsc(dodontItem.dont || 'Jangan melangkahi tahapan substansial.')}
           </div>
         </div>
-      </div>
+      </details>
 
       <!-- BOTTOM GUIDED NAVIGATION BAR -->
       <div class="cakra-bottom-guided-nav">
