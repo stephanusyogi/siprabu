@@ -4241,7 +4241,12 @@
       </section>
 
       <section id="view-pengadaan-kokpit" class="app-view">
-          <div class="cakra-cockpit-command-bar" id="cakra-cockpit-top-banner"></div>
+          <!-- 1. LANDING MEJA PENGADAAN BARU (Tampilan Awal Bersih) -->
+          <div id="cakra-pengadaan-landing-area"></div>
+
+          <!-- 2. WORKSPACE KOKPIT (Tampil saat paket aktif dibuka) -->
+          <div id="cakra-cockpit-workspace-area" style="display:none;">
+            <div class="cakra-cockpit-command-bar" id="cakra-cockpit-top-banner"></div>
 
           <div class="cakra-phase-ribbon-box" id="cakra-cockpit-stepper-box">
             <div id="cakra-cockpit-stepper-list"></div>
@@ -4279,6 +4284,7 @@
               <div id="cakra-cockpit-tab-content"></div>
             </div>
           </div>
+          </div> <!-- END cakra-cockpit-workspace-area -->
         </section>
 
         <!-- VIEW DATABASE 4: MASTER PENYEDIA / REKANAN (LINTAS MODUL PENGADAAN & PEMBAYARAN) -->
@@ -4888,6 +4894,189 @@
             </div>
           </div>
 
+    <!-- ===================================================================== -->
+    <!-- MODAL: POP-UP FORMULIR TAHAP 1 (IDENTIFIKASI KEBUTUHAN PENGADAAN BARU)    -->
+    <!-- ===================================================================== -->
+    <div id="modal-tahap1-input" class="modal-backdrop" style="display:none; z-index:1160;" onclick="if(event.target===this) closeModalTahap1Input()">
+      <div class="modal-box" style="max-width:860px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+        <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color:#fff; padding:16px 20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div>
+              <h3 style="margin:0; font-size:16px; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px;">
+                <span id="modal-tahap1-title">🪄 Formulir Inisiasi Pengadaan Baru — Tahap 1: Identifikasi Kebutuhan</span>
+              </h3>
+              <div style="font-size:12px; color:#bfdbfe; margin-top:3px;">
+                Penomoran Otomatis Sistem, Naskah Dinas Usulan, Integrasi RKB Belanja &amp; Telaah BMN
+              </div>
+            </div>
+            <button type="button" class="btn-close" onclick="closeModalTahap1Input()" style="color:#fff; background:none; border:none; font-size:22px; cursor:pointer;">✕</button>
+          </div>
+        </div>
+
+        <div class="modal-body" style="padding:20px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; background:#f8fafc;">
+          <!-- SEKSI 0: NOMOR OTOMATIS SISTEM -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; display:grid; grid-template-columns: 1fr 1.6fr 1fr; gap:12px; align-items:center;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Kode Paket (SSOT)</label>
+              <input type="text" id="m1_kode_paket_internal" class="cakra-form-control cakra-mono" readonly style="background:#f1f5f9; font-weight:800; color:#1e40af; cursor:not-allowed;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Nomor Dokumen Tahap 1 (IDK)</label>
+              <input type="text" id="m1_nomor_dokumen" class="cakra-form-control cakra-mono" style="font-size:11.5px; font-weight:700; color:#0f172a;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Tanggal Dokumen</label>
+              <input type="date" id="m1_tanggal_dokumen" class="cakra-form-control" style="font-size:12px;" />
+            </div>
+          </div>
+
+          <!-- SEKSI 1: NASKAH DINAS USULAN & SUBBAG PIC -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+            <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+              <span>📝 1. Naskah Dinas Pengusulan &amp; Subbag PIC yang Merequest</span>
+            </div>
+            <div style="display:grid; grid-template-columns: 1.1fr 1.3fr 1fr; gap:12px; margin-bottom:12px;">
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Subbag Pemohon (PIC) *</label>
+                <select id="m1_pic_subbag" class="cakra-form-control" style="font-weight:700;" onchange="onModalTahap1SubbagChange(this.value)">
+                  <option value="KUL">Subbag Keuangan, Umum &amp; Logistik (KUL)</option>
+                  <option value="RENDATIN">Subbag Perencanaan, Data &amp; Informasi (RENDATIN)</option>
+                  <option value="TEKNIS">Subbag Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+                  <option value="HUKUM">Subbag Hukum &amp; SDM (HUKUM)</option>
+                  <option value="PARSDM">Subbag Partisipasi Hubmas &amp; SDM (PARSDM)</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Nota Dinas Pengusul</label>
+                <input type="text" id="m1_no_nota_dinas_pengusul" class="cakra-form-control cakra-mono" placeholder="cth: 001/ND.RENDATIN/KPU-Kab-014.329781/V/2026" />
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Nota Dinas</label>
+                <input type="date" id="m1_tgl_nota_dinas_pengusul" class="cakra-form-control" />
+              </div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Perihal Nota Dinas Usulan</label>
+              <input type="text" id="m1_perihal_nota_dinas" class="cakra-form-control" placeholder="cth: Usulan Kebutuhan Pengadaan Perangkat Pengolah Data TA 2026" />
+            </div>
+            <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:12px;">
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Disposisi KPA (Sekretaris)</label>
+                <input type="text" id="m1_no_disposisi_kpa" class="cakra-form-control cakra-mono" placeholder="cth: 014/DISP.KPA/V/2026" />
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Disposisi KPA</label>
+                <input type="date" id="m1_tgl_disposisi_kpa" class="cakra-form-control" />
+              </div>
+            </div>
+          </div>
+
+          <!-- SEKSI 2: NAMA PAKET & URGENSI KEBUTUHAN (KAK) -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+            <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+              <span>📋 2. Nama Paket Pengadaan &amp; Urgensi Kebutuhan (KAK)</span>
+            </div>
+            <div style="margin-bottom:12px;">
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nama Paket Pengadaan (Sesuai DIPA / Kebutuhan Riil) *</label>
+              <input type="text" id="m1_nama_paket" class="cakra-form-control" placeholder="cth: Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi" style="font-size:13.5px; font-weight:600; padding:8px 12px;" required />
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Urgensi &amp; Justifikasi Identifikasi Kebutuhan (KAK)</label>
+              <textarea id="m1_uraian_pekerjaan" class="cakra-form-control" rows="3" placeholder="Jelaskan dasar pertimbangan kebutuhan, volume pengguna, fungsi operasional kedinasan, dan urgensi kelancaran tugas..."></textarea>
+            </div>
+          </div>
+
+          <!-- SEKSI 3: TARIK ANGGARAN DARI RKB BELANJA -->
+          <div style="background:#ffffff; border:1.5px solid #bfdbfe; border-radius:10px; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+              <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
+                <span>⚡ 3. Pembebanan Anggaran (Tarik dari RKB Belanja SI-PRABU)</span>
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" onclick="openRkbDrawerForModalTahap1()" style="font-weight:800; padding:6px 14px; border-radius:6px; display:flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(37,99,235,0.25); cursor:pointer;">
+                <span>📥 Tarik dari RKB Belanja</span>
+              </button>
+            </div>
+
+            <div id="m1_rkb_badge_container" style="display:none; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 12px; margin-bottom:12px; font-size:11.5px; color:#1e40af;">
+              <strong>📌 RKB Definitif:</strong> <span id="m1_rkb_silsilah_text">-</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1.5fr 1.2fr; gap:12px;">
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kode Akun MAK (6-Digit) *</label>
+                <input type="text" id="m1_kode_akun_mak" class="cakra-form-control cakra-mono" placeholder="cth: 532111 atau 521211" oninput="onModalTahap1MakChange(this.value)" style="font-weight:700; color:#1e40af;" required />
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nama Akun Belanja DIPA</label>
+                <input type="text" id="m1_nama_akun_mak" class="cakra-form-control" placeholder="cth: Belanja Modal Peralatan dan Mesin" />
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nilai Pagu DIPA (Rp) *</label>
+                <input type="number" id="m1_nilai_pagu" class="cakra-form-control cakra-mono" style="font-size:14px; font-weight:800; color:#1e3a8a;" oninput="onModalTahap1PaguChange(this.value)" required />
+                <div id="m1_pagu_terbilang" style="font-size:11px; color:#0284c7; font-weight:700; margin-top:3px;">Rp 0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEKSI 4: KONDISIONAL TELAAH BMN (HANYA MUNCUL JIKA MAK MODAL 53xxxx / EKSTRAKOMPTABEL) -->
+          <div id="m1_seksi_telaah_bmn" style="display:none; background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div style="font-size:12.5px; font-weight:800; color:#166534; display:flex; align-items:center; gap:6px;">
+                <span>🏛️ 4. Telaah Ketersediaan BMN / Aset Eksisting (Khusus Belanja Modal 53xxxx &amp; Ekstrakomptabel)</span>
+              </div>
+              <span class="badge" style="background:#15803d; color:#fff; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:4px;">PASAL 18 PERPRES PBJ</span>
+            </div>
+            <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Sifat Kebutuhan Pengadaan</label>
+                <select id="m1_bmn_sifat_kebutuhan" class="cakra-form-control">
+                  <option value="PENGGANTIAN">Penggantian Unit Usang/Rusak Berat (Replacement)</option>
+                  <option value="PENAMBAHAN">Penambahan Kuantitas Unit (Expansion)</option>
+                  <option value="PENGADAAN_BARU">Pengadaan Baru (New Acquisition)</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status Ketersediaan Eksisting</label>
+                <select id="m1_bmn_status_ketersediaan" class="cakra-form-control">
+                  <option value="TERSEDIA_KURANG">Tersedia Sebagian / Kurang Kuantitas</option>
+                  <option value="RUSAK_BERAT">Tersedia tapi Kondisi Rusak Berat</option>
+                  <option value="BELUM_TERSEDIA">Belum Tersedia Sama Sekali</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Kesesuaian RKBMN Satker</label>
+                <select id="m1_bmn_kesesuaian_rkbmn" class="cakra-form-control">
+                  <option value="SESUAI">Sesuai SBSK &amp; RKBMN 2026</option>
+                  <option value="PERUBAHAN">Usulan Revisi/Perubahan RKBMN</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 140px 1fr; gap:12px;">
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Jml Unit Eksisting</label>
+                <input type="number" id="m1_bmn_jumlah_eksisting" class="cakra-form-control" value="0" min="0" />
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Catatan Telaah Pengelola BMN</label>
+                <input type="text" id="m1_bmn_catatan_telaah" class="cakra-form-control" placeholder="cth: Unit eksisting pengadaan 2017 telah rusak berat dan tidak ekonomis diperbaiki" />
+              </div>
+            </div>
+          </div>
+          <div id="m1_seksi_telaah_bmn_note" style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:10px 14px; font-size:11.5px; color:#64748b; display:flex; align-items:center; gap:8px;">
+            <span>ℹ️</span> <span>Akun belanja non-modal (MAK 52xxxx): Telaah Ketersediaan BMN tidak wajib / otomatis dikecualikan.</span>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="padding:14px 20px; background:#f1f5f9; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+          <button type="button" class="cakra-btn cakra-btn-secondary" onclick="closeModalTahap1Input()" style="font-weight:700;">
+            Batal
+          </button>
+          <button type="button" class="cakra-btn cakra-btn-primary" onclick="submitModalTahap1Input()" style="font-weight:800; padding:8px 22px; font-size:13px; box-shadow:0 2px 6px rgba(37,99,235,0.3); cursor:pointer;">
+            💾 Simpan Data &amp; Buka Lembar Kerja Tahap 1
+          </button>
+        </div>
+      </div>
+    </div>
     <!-- ===================================================================== -->
     <!-- MODAL: EDIT / TAMBAH BARIS RKB (SI-PRABU LANDSCAPE MODE)                 -->
     <!-- ===================================================================== -->
