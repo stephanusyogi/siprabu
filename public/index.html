@@ -4184,13 +4184,19 @@
         <section id="view-pengadaan-paket" class="app-view">
           <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
             <div>
-              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📂 Daftar Paket Pengadaan Barang/Jasa &amp; Konstruksi</h1>
-              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Pencatatan seluruh pengadaan yang selesai dan sedang berproses (18 Tahap Hulu–Hilir KPU Kabupaten Ngawi TA 2026).</p>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1e40af;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>📂 BUKU BESAR PENGADAAN SATKER 657811</span>
+              </div>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">Daftar Seluruh Paket Pengadaan (Selesai &amp; Dalam Proses)</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Basis data master pengadaan: merekam seluruh paket yang telah selesai 100% (arsip digital) maupun yang masih berjalan.</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button type="button" class="cakra-btn cakra-btn-outline" onclick="switchView('view-pengadaan-portal-pengusul')" style="border-color:#0284c7; color:#0369a1; background:#f0f9ff; font-weight:700;" title="Buka Portal Pengusulan Kasubag & Disposisi KPA">📝 Pengusulan Kasubag &amp; Disposisi KPA ↗</button>
-              <button type="button" class="cakra-btn cakra-btn-outline" onclick="toggleCakraRkbDrawer()">📥 Tarik RKB Belanja</button>
-              <button type="button" class="cakra-btn cakra-btn-primary" onclick="openSmartWizardModal()" style="font-weight:700;">🪄 + Buat Paket Baru</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="renderDashboardTable()" style="display:inline-flex; align-items:center; gap:5px;" title="Segarkan data tabel">
+                <span>🔄</span> Segarkan
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="if(window.exportRekapPengadaanCsv) window.exportRekapPengadaanCsv()" style="display:inline-flex; align-items:center; gap:5px; font-weight:700;" title="Unduh rekap paket ke Excel/CSV">
+                <span>📊</span> Unduh Data (.xlsx/.csv)
+              </button>
             </div>
           </div>
 
