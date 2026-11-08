@@ -1589,9 +1589,10 @@ const server = http.createServer(async (req, res) => {
 
       try {
         const body = await parseJsonBody(req);
-        const { getCakraPool } = require('./src/pengadaan/db_pengadaan');
+        const { getCakraPool, ensurePaketMissingColumns } = require('./src/pengadaan/db_pengadaan');
         const pool = getCakraPool();
 
+        await ensurePaketMissingColumns(pool);
         await pool.query('SET FOREIGN_KEY_CHECKS = 0');
 
         // Bersihkan tabel PBJ jika mode replace_all aktif (default true)

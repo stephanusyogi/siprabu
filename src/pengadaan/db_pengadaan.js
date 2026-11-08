@@ -103,6 +103,42 @@ async function ensurePaketTahapColumns(pool) {
   }
 }
 
+async function ensurePaketMissingColumns(pool) {
+  const ddlStatements = [
+    "ALTER TABLE pbj_paket ADD COLUMN no_nota_dinas_pengusul VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_nota_dinas_pengusul VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN perihal_nota_dinas VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_disposisi_kpa VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_disposisi_kpa VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+    "ALTER TABLE pbj_paket ADD COLUMN bmn_status_ketersediaan VARCHAR(64) DEFAULT 'TERSEDIA_RUSAK_BERAT'",
+    "ALTER TABLE pbj_paket ADD COLUMN bmn_jumlah_eksisting INT DEFAULT 1",
+    "ALTER TABLE pbj_paket ADD COLUMN bmn_kondisi_eksisting VARCHAR(255) DEFAULT '1 unit rusak berat / usang, 0 unit layak pakai'",
+    "ALTER TABLE pbj_paket ADD COLUMN bmn_sifat_kebutuhan VARCHAR(64) DEFAULT 'PENGGANTIAN'",
+    "ALTER TABLE pbj_paket ADD COLUMN bmn_kesesuaian_rkbmn VARCHAR(255) DEFAULT 'Tercantum dalam RKBMN TA 2026 / SAKTI Modul Aset'",
+    "ALTER TABLE pbj_paket ADD COLUMN bmn_catatan_telaah TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN rkb_program VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN rkb_kegiatan VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN rkb_subkegiatan VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN rkb_komponen VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN bmn_kategori_telaah VARCHAR(50) DEFAULT 'MODAL'",
+    "ALTER TABLE pbj_paket ADD COLUMN disposisi_status VARCHAR(50) DEFAULT 'DISETUJUI'",
+    "ALTER TABLE pbj_paket ADD COLUMN disposisi_catatan_kpa TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN disposisi_tgl_diajukan DATE DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN disposisi_tgl_disposisi DATE DEFAULT NULL",
+    "ALTER TABLE pbj_paket_item ADD COLUMN kode_barang_bmn VARCHAR(128) DEFAULT '1.01.03.01.001 (Persediaan / BMN)'",
+    "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'"
+  ];
+
+  for (const sql of ddlStatements) {
+    try {
+      await pool.query(sql);
+    } catch (e) {
+      // Abaikan jika kolom sudah ada
+    }
+  }
+}
+
 async function initDatabaseSchemaAndSeed() {
   if (schemaInitDone) return;
   const pool = getCakraPool();
@@ -113,6 +149,7 @@ async function initDatabaseSchemaAndSeed() {
     if (sRows && sRows[0] && sRows[0].cnt > 0) {
       await ensurePenyediaLinkDokumenColumn(pool);
       await ensurePaketTahapColumns(pool);
+      await ensurePaketMissingColumns(pool);
       await migratePejabatTanpaGelarOnce(pool);
       await ensureAllPaketsHave18Stages();
       await seedRegulasiPengadaanToMasterRegulasi(pool);
@@ -847,6 +884,7 @@ async function fetchRkbItemsFromSiprabu() {
 module.exports = {
   getCakraPool,
   initDatabaseSchemaAndSeed,
+  ensurePaketMissingColumns,
   getSettingsMap,
   saveSettingsMap,
   getPejabatList,
