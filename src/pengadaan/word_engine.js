@@ -21,6 +21,7 @@ const {
   WidthType,
   BorderStyle,
   ShadingType,
+  TabStopType,
   PageNumber
 } = require('docx');
 
@@ -61,6 +62,7 @@ function pText(text, opts = {}) {
     keepLines: Boolean(opts.keepLines),
     pageBreakBefore: Boolean(opts.pageBreakBefore),
     spacing: { before: opts.before ?? 50, after: opts.after ?? 70, line: opts.line || 268 },
+    indent: opts.indent || (opts.level ? { left: opts.level * (opts.hanging || 450), hanging: opts.hanging || 450 } : undefined),
     children: [
       new TextRun({
         text: String(text ?? ''),
@@ -68,6 +70,46 @@ function pText(text, opts = {}) {
         italics: Boolean(opts.italic),
         underline: opts.underline ? {} : undefined,
         size: opts.size || 21, // 10.5pt default agar proporsional & rapi
+        font: 'Arial',
+        color: opts.color || '000000'
+      })
+    ]
+  });
+}
+
+/**
+ * Paragraf Penomoran Hierarkis Rapi (Word Native Hanging Indents)
+ * Menjamin kesamaan jarak dari garis kiri antar number level layaknya dokumen Word profesional:
+ * - Level 1 (1., 2., 3.): left = 450 dxa (~0.8 cm), hanging = 450 dxa
+ * - Level 2 (a., b., c.): left = 900 dxa (~1.6 cm), hanging = 450 dxa (posisi nomor sejajar teks Level 1)
+ * - Level 3 (1), 2) / •): left = 1350 dxa (~2.4 cm), hanging = 450 dxa (posisi nomor sejajar teks Level 2)
+ * Seluruh baris kedua dan seterusnya otomatis rata lurus di bawah huruf pertama teks (hanging indent).
+ */
+function pNumbered(prefix, text, opts = {}) {
+  const level = opts.level || 1;
+  const hangingDxa = opts.hanging || 450;
+  const leftDxa = opts.left || (level * hangingDxa);
+
+  return new Paragraph({
+    alignment: opts.align || AlignmentType.LEFT,
+    keepNext: Boolean(opts.keepNext),
+    keepLines: Boolean(opts.keepLines),
+    spacing: { before: opts.before ?? 28, after: opts.after ?? 38, line: opts.line || 268 },
+    indent: { left: leftDxa, hanging: hangingDxa },
+    tabStops: [{ type: TabStopType.LEFT, position: leftDxa }],
+    children: [
+      new TextRun({
+        text: prefix.endsWith('\t') ? prefix : `${prefix}\t`,
+        bold: opts.prefixBold !== undefined ? Boolean(opts.prefixBold) : true,
+        size: opts.size || 21,
+        font: 'Arial',
+        color: opts.prefixColor || opts.color || '000000'
+      }),
+      new TextRun({
+        text: String(text ?? ''),
+        bold: Boolean(opts.bold),
+        italics: Boolean(opts.italic),
+        size: opts.size || 21,
         font: 'Arial',
         color: opts.color || '000000'
       })
@@ -570,7 +612,16 @@ function buildFooterKotakParaf(pihakKiri, pihakKanan, def, tahapRow, paket) {
     });
   }
 
-  // Jika hanya ditandatangani 1 Pejabat -> Kotak Paraf Mandiri (PPK)
+  // Jika hanya ditandatangani 1 Pejabat -> Kotak Paraf Mandiri (KPA / PPK / PP)
+  let labelPejabatMandiri = pihakKanan?.judulAtas || 'PEJABAT PEMBUAT KOMITMEN (PPK)';
+  if (labelPejabatMandiri.includes('KUASA PENGGUNA ANGGARAN') || def.no === 3) {
+    labelPejabatMandiri = 'KUASA PENGGUNA ANGGARAN (KPA)';
+  } else if (labelPejabatMandiri.includes('PEJABAT PENGADAAN')) {
+    labelPejabatMandiri = 'PEJABAT PENGADAAN (PPBJ)';
+  } else if (!labelPejabatMandiri.includes('(PPK)')) {
+    labelPejabatMandiri = `${labelPejabatMandiri} (PPK)`;
+  }
+
   return new Footer({
     children: [
       new Table({
@@ -619,7 +670,7 @@ function buildFooterKotakParaf(pihakKiri, pihakKanan, def, tahapRow, paket) {
                 borders: BORDER_PARAF,
                 shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
                 children: [
-                  pText('PEJABAT PEMBUAT KOMITMEN (PPK)', {
+                  pText(labelPejabatMandiri, {
                     bold: true,
                     size: 14,
                     align: AlignmentType.CENTER,
@@ -658,17 +709,47 @@ function buildFooterKotakParaf(pihakKiri, pihakKanan, def, tahapRow, paket) {
 }
 
 /**
- * Footer Bersih Tanpa Kotak Paraf (Khusus Halaman yang Memuat Tanda Tangan Basah)
+ * Footer Bersih Tanpa Kotak Paraf
+ * Sesuai Kaidah Tata Naskah Dinas:
+ * 1. Dokumen 1 lembar (seperti Tahap 3) TIDAK PERLU kotak paraf.
+ * 2. Halaman yang memuat tanda tangan TIDAK PERLU kotak paraf.
  */
-function buildFooterTanpaParaf() {
-  return new Footer({
-    children: [
+function buildFooterTanpaParaf(docLabel, paketLabel) {
+  const children = [];
+  if (docLabel) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.LEFT,
+        spacing: { before: 20, after: 0 },
+        children: [
+          new TextRun({
+            text: docLabel,
+            size: 14,
+            italic: true,
+            color: '64748B',
+            font: 'Arial'
+          }),
+          ...(paketLabel ? [
+            new TextRun({
+              text: ` | ${paketLabel}`,
+              size: 13,
+              italic: true,
+              color: '94A3B8',
+              font: 'Arial'
+            })
+          ] : [])
+        ]
+      })
+    );
+  } else {
+    children.push(
       new Paragraph({
         spacing: { before: 0, after: 0 },
         children: [new TextRun({ text: '', size: 14, font: 'Arial' })]
       })
-    ]
-  });
+    );
+  }
+  return new Footer({ children });
 }
 
 /**
@@ -701,168 +782,169 @@ function buildStageSpecificSections(stageNo, ctx, tahapRow, keu) {
 
     case 3:
       paragraphs.push(
-        pText('A. PENYUSUNAN RENCANA UMUM PENGADAAN (RUP) & PENGUMUMAN SIRUP', { bold: true, before: 120 }),
-        pText(`1. Paket pengadaan ini telah disusun dalam Rencana Umum Pengadaan (RUP) dengan Kode RUP: ${paket.kode_rup || 'RUP-2026-657811'} untuk diumumkan oleh Kuasa Pengguna Anggaran (Sekretaris KPU Kabupaten Ngawi) pada aplikasi SIRUP LKPP.`),
-        pText(`2. Sinkronisasi jadwal perencanaan pemilihan penyedia, pelaksanaan kontrak, dan serah terima barang/jasa telah disesuaikan dengan rencana penarikan dana DIPA Tahun Anggaran ${paket.tahun_anggaran}.`),
-        pText(`3. Rincian komposisi barang/jasa, spesifikasi teknis, target PDN/TKDN, dan alokasi pagu mengacu pada tabel rincian paket pengadaan ini.`)
+        pText('A. PENETAPAN RENCANA UMUM PENGADAAN (RUP) OLEH KUASA PENGGUNA ANGGARAN', { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `Berdasarkan hasil penyusunan perencanaan pengadaan yang diajukan oleh Pejabat Pembuat Komitmen (PPK), Kuasa Pengguna Anggaran (KPA) Satuan Kerja KPU Kabupaten Ngawi dengan ini MENETAPKAN Rencana Umum Pengadaan (RUP) untuk paket pekerjaan "${paket.nama_paket}" dengan Kode RUP: ${paket.kode_rup || 'RUP-2026-657811-01'} dan Pagu Anggaran sebesar ${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)}) yang bersumber dari DIPA Satker KPU Kabupaten Ngawi Tahun Anggaran ${paket.tahun_anggaran || '2026'} (Mata Anggaran: MAK ${paket.kode_akun_mak}).`, { level: 1 }),
+        pNumbered('2.', `Kuasa Pengguna Anggaran (KPA) telah MENGUMUMKAN Rencana Umum Pengadaan (RUP) paket ini secara resmi dan terbuka kepada masyarakat pada portal Sistem Informasi Rencana Umum Pengadaan (SiRUP LKPP) sesuai batas waktu dan ketentuan peraturan perundang-undangan.`, { level: 1 }),
+        pNumbered('3.', `Menugaskan Pejabat Pembuat Komitmen (PPK) untuk melaksanakan tahapan persiapan pengadaan barang/jasa selanjutnya (penyusunan spesifikasi teknis/KAK, penetapan HPS, dan rancangan kontrak) berpedoman pada RUP yang telah ditetapkan dan diumumkan ini.`, { level: 1 }),
+        pNumbered('4.', `Bukti tangkapan layar (screenshot) dan cetak status paket "Terumumkan" pada aplikasi SiRUP LKPP terlampir dan menjadi bagian yang tidak terpisahkan dari Surat Penetapan ini.`, { level: 1 })
       );
       break;
 
     case 4:
       paragraphs.push(
-        pText(`A. KERANGKA ACUAN KERJA (KAK), SPESIFIKASI TEKNIS${isKonstruksi ? ', DED, & RANCANGAN KONSEPTUAL SMKK' : ' & PDN/TKDN'}`, { bold: true, before: 120 }),
-        pText(`1. Uraian Pekerjaan: ${paket.uraian_pekerjaan || paket.nama_paket}.`),
-        pText(`2. Kewajiban Prioritas Produk Dalam Negeri (PDN) & TKDN sesuai Pasal 66 Peraturan Presiden Nomor 46 Tahun 2025 ditetapkan pada tingkat: ${paket.prioritas_pdn_level} (Target TKDN ${paket.persen_tkdn_target}% + BMP ${paket.persen_bmp_target}%).`),
-        pText(`3. Waktu Pelaksanaan Pekerjaan: selama ${paket.masa_pelaksanaan_hari} (${terbilangRupiah(paket.masa_pelaksanaan_hari).replace(' Rupiah', '')}) hari kalender terhitung sejak tanggal mulai kerja (${formatTanggalIndo(paket.tgl_mulai_kerja)} s.d. ${formatTanggalIndo(paket.tgl_selesai_kontrak)}).`)
+        pText(`A. KERANGKA ACUAN KERJA (KAK), SPESIFIKASI TEKNIS${isKonstruksi ? ', DED, & RANCANGAN KONSEPTUAL SMKK' : ' & PDN/TKDN'}`, { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `Uraian Pekerjaan: ${paket.uraian_pekerjaan || paket.nama_paket}.`, { level: 1 }),
+        pNumbered('2.', `Kewajiban Prioritas Produk Dalam Negeri (PDN) & TKDN sesuai Pasal 66 Peraturan Presiden Nomor 46 Tahun 2025 ditetapkan pada tingkat: ${paket.prioritas_pdn_level} (Target TKDN ${paket.persen_tkdn_target}% + BMP ${paket.persen_bmp_target}%).`, { level: 1 }),
+        pNumbered('3.', `Waktu Pelaksanaan Pekerjaan: selama ${paket.masa_pelaksanaan_hari} (${terbilangRupiah(paket.masa_pelaksanaan_hari).replace(' Rupiah', '')}) hari kalender terhitung sejak tanggal mulai kerja (${formatTanggalIndo(paket.tgl_mulai_kerja)} s.d. ${formatTanggalIndo(paket.tgl_selesai_kontrak)}).`, { level: 1 })
       );
       if (isKonstruksi) {
         paragraphs.push(
-          pText(`4. Khusus Konstruksi (Lampiran II Perlem LKPP 3/2026): Dilengkapi Gambar Rencana Teknis / Detailed Engineering Design (DED) serta Rancangan Konseptual Sistem Manajemen Keselamatan Konstruksi (SMKK) dengan penetapan Tingkat Risiko Keselamatan Konstruksi, identifikasi bahaya, dan kewajiban perlindungan BPJS Ketenagakerjaan Sektor Jasa Konstruksi.`)
+          pNumbered('4.', `Khusus Konstruksi (Lampiran II Perlem LKPP 3/2026): Dilengkapi Gambar Rencana Teknis / Detailed Engineering Design (DED) serta Rancangan Konseptual Sistem Manajemen Keselamatan Konstruksi (SMKK) dengan penetapan Tingkat Risiko Keselamatan Konstruksi, identifikasi bahaya, dan kewajiban perlindungan BPJS Ketenagakerjaan Sektor Jasa Konstruksi.`, { level: 1 })
         );
       }
       break;
 
     case 5:
       paragraphs.push(
-        pText('A. BERITA ACARA ANALISA PASAR & DOKUMEN PENILAIAN PPK ATAS KATALOG ELEKTRONIK', { bold: true, before: 120 }),
-        pText(`${infoHari.kalimatFormal}, Pejabat Pembuat Komitmen (PPK) ${settings.nama_satker} telah melaksanakan Analisa Pasar dan Penilaian PPK atas ketersediaan barang/jasa pada Katalog Elektronik sesuai Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026:`),
-        pText(`1. Status Ketersediaan pada Katalog Elektronik v6: ${paket.tersedia_di_katalog}.`),
-        pText(`2. Hasil Penilaian PPK & Pertimbangan Teknis/Pasar: ${paket.alasan_penilaian_ppk_katalog || 'Produk tersedia dan memenuhi spesifikasi teknis, volume, waktu, serta efisiensi harga.'}`),
-        pText(`3. Tautan / Referensi Produk Katalog Pembanding: ${paket.link_produk_katalog_1 || '-'} ${paket.link_produk_katalog_2 ? 'dan ' + paket.link_produk_katalog_2 : ''}.`)
+        pText('A. BERITA ACARA ANALISA PASAR & DOKUMEN PENILAIAN PPK ATAS KATALOG ELEKTRONIK', { bold: true, before: 120, after: 20 }),
+        pText(`${infoHari.kalimatFormal}, Pejabat Pembuat Komitmen (PPK) ${settings.nama_satker} telah melaksanakan Analisa Pasar dan Penilaian PPK atas ketersediaan barang/jasa pada Katalog Elektronik sesuai Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026:`, { before: 10, after: 30 }),
+        pNumbered('1.', `Status Ketersediaan pada Katalog Elektronik v6: ${paket.tersedia_di_katalog}.`, { level: 1 }),
+        pNumbered('2.', `Hasil Penilaian PPK & Pertimbangan Teknis/Pasar: ${paket.alasan_penilaian_ppk_katalog || 'Produk tersedia dan memenuhi spesifikasi teknis, volume, waktu, serta efisiensi harga.'}`, { level: 1 }),
+        pNumbered('3.', `Tautan / Referensi Produk Katalog Pembanding: ${paket.link_produk_katalog_1 || '-'} ${paket.link_produk_katalog_2 ? 'dan ' + paket.link_produk_katalog_2 : ''}.`, { level: 1 })
       );
       break;
 
     case 6:
       paragraphs.push(
-        pText(`A. PENETAPAN ${paket.jenis_kertas_harga.toUpperCase()}${isKonstruksi ? ' BERBASIS ENGINEER ESTIMATE (EE) & AHSP' : ''}`, { bold: true, before: 120 }),
-        pText(`${infoHari.kalimatFormal}, PPK menetapkan ${paket.jenis_kertas_harga} untuk paket "${paket.nama_paket}" sebesar ${formatRupiah(paket.nilai_hps)} (${terbilangRupiah(paket.nilai_hps)}) sudah termasuk pajak-pajak yang berlaku${isKonstruksi ? ' dan Biaya Penerapan SMKK (Keselamatan Konstruksi)' : ''}.`),
-        pText(`1. Penyusunan ${paket.jenis_kertas_harga} telah memperhitungkan harga pasar setempat Kabupaten Ngawi, referensi harga Katalog Elektronik, Standar Biaya Masukan (SBM), serta kewajiban perpajakan sesuai ketentuan yang berlaku.`),
-        pText(`2. Dasar Hukum: Pasal 26 Perpres Nomor 46 Tahun 2025, Pasal 9 Peraturan LKPP Nomor 2 Tahun 2026, serta ${isKonstruksi ? 'Lampiran II/III' : 'Lampiran I'} Peraturan LKPP Nomor 3 Tahun 2026.`)
+        pText(`A. PENETAPAN ${paket.jenis_kertas_harga.toUpperCase()}${isKonstruksi ? ' BERBASIS ENGINEER ESTIMATE (EE) & AHSP' : ''}`, { bold: true, before: 120, after: 20 }),
+        pText(`${infoHari.kalimatFormal}, PPK menetapkan ${paket.jenis_kertas_harga} untuk paket "${paket.nama_paket}" sebesar ${formatRupiah(paket.nilai_hps)} (${terbilangRupiah(paket.nilai_hps)}) sudah termasuk pajak-pajak yang berlaku${isKonstruksi ? ' dan Biaya Penerapan SMKK (Keselamatan Konstruksi)' : ''}.`, { before: 10, after: 30 }),
+        pNumbered('1.', `Penyusunan ${paket.jenis_kertas_harga} telah memperhitungkan harga pasar setempat Kabupaten Ngawi, referensi harga Katalog Elektronik, Standar Biaya Masukan (SBM), serta kewajiban perpajakan sesuai ketentuan yang berlaku.`, { level: 1 }),
+        pNumbered('2.', `Dasar Hukum: Pasal 26 Perpres Nomor 46 Tahun 2025, Pasal 9 Peraturan LKPP Nomor 2 Tahun 2026, serta ${isKonstruksi ? 'Lampiran II/III' : 'Lampiran I'} Peraturan LKPP Nomor 3 Tahun 2026.`, { level: 1 })
       );
       break;
 
     case 7:
       paragraphs.push(
-        pText('A. RANCANGAN KONTRAK, SSUK, DAN SYARAT-SYARAT KHUSUS KONTRAK (SSKK)', { bold: true, before: 120 }),
-        pText(`1. Jenis Kontrak: ${paket.jenis_kontrak} | Bentuk Kontrak: ${paket.bentuk_kontrak} (Pasal 27 & Pasal 28 Perpres Nomor 46 Tahun 2025; Pengadaan Langsung Pekerjaan Konstruksi s.d. Rp400 Juta menggunakan SPK).`),
-        pText(`2. Ketentuan Uang Muka (Pasal 29 Perpres 46/2025): Persentase Uang Muka ditetapkan sebesar ${paket.persen_uang_muka || 0}% (${formatRupiah(keu.nilaiUangMuka)}). Apabila Penyedia Usaha Mikro/Kecil mengajukan Uang Muka untuk kontrak > Rp50 Juta, PPK memberikan minimal 50% (untuk kontrak Rp50–200 Juta) atau minimal 30% (untuk kontrak > Rp200 Juta s.d. Rp2,5 Miliar).`),
-        pText(`3. Sanksi Denda Keterlambatan: ditetapkan sebesar 1‰ (satu permil) per hari dari ${paket.basis_denda || 'nilai kontrak sebelum PPN'}.${isKonstruksi ? ' Untuk Pekerjaan Konstruksi berlaku Masa Pemeliharaan minimal 180 hari kalender (6 bulan) untuk pekerjaan permanen atau 90 hari kalender (3 bulan) untuk semi-permanen dengan Retensi Pemeliharaan 5% (Rp ' + keu.nilaiRetensi5Persen.toLocaleString('id-ID') + ') atau Jaminan Pemeliharaan 5%.' : ''}`)
+        pText('A. RANCANGAN KONTRAK, SSUK, DAN SYARAT-SYARAT KHUSUS KONTRAK (SSKK)', { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `Jenis Kontrak: ${paket.jenis_kontrak} | Bentuk Kontrak: ${paket.bentuk_kontrak} (Pasal 27 & Pasal 28 Perpres Nomor 46 Tahun 2025; Pengadaan Langsung Pekerjaan Konstruksi s.d. Rp400 Juta menggunakan SPK).`, { level: 1 }),
+        pNumbered('2.', `Ketentuan Uang Muka (Pasal 29 Perpres 46/2025): Persentase Uang Muka ditetapkan sebesar ${paket.persen_uang_muka || 0}% (${formatRupiah(keu.nilaiUangMuka)}). Apabila Penyedia Usaha Mikro/Kecil mengajukan Uang Muka untuk kontrak > Rp50 Juta, PPK memberikan minimal 50% (untuk kontrak Rp50–200 Juta) atau minimal 30% (untuk kontrak > Rp200 Juta s.d. Rp2,5 Miliar).`, { level: 1 }),
+        pNumbered('3.', `Sanksi Denda Keterlambatan: ditetapkan sebesar 1‰ (satu permil) per hari dari ${paket.basis_denda || 'nilai kontrak sebelum PPN'}.${isKonstruksi ? ' Untuk Pekerjaan Konstruksi berlaku Masa Pemeliharaan minimal 180 hari kalender (6 bulan) untuk pekerjaan permanen atau 90 hari kalender (3 bulan) untuk semi-permanen dengan Retensi Pemeliharaan 5% (Rp ' + keu.nilaiRetensi5Persen.toLocaleString('id-ID') + ') atau Jaminan Pemeliharaan 5%.' : ''}`, { level: 1 })
       );
       break;
 
     case 8:
       paragraphs.push(
-        pText('A. SURAT PERMINTAAN PEMILIHAN & BERITA ACARA REVIU DOKUMEN PERSIAPAN PENGADAAN (DPP)', { bold: true, before: 120 }),
-        pText(`1. PPK menyerahkan Dokumen Persiapan Pengadaan (DPP) yang terdiri atas KAK/Spesifikasi Teknis${isKonstruksi ? '/DED & Rancangan Konseptual SMKK' : ''}, ${paket.jenis_kertas_harga}, dan Rancangan Kontrak (${paket.bentuk_kontrak}) kepada ${paket.pelaksana_pemilihan} (${pejabatPengadaan.nama_lengkap || 'Pejabat Pengadaan'}) untuk dilaksanakan proses pemilihan penyedia sesuai ketentuan Peraturan LKPP Nomor 2 Tahun 2026 dan Nomor 3 Tahun 2026.`),
-        pText(`2. Berdasarkan hasil Reviu DPP, dokumen persiapan dinyatakan lengkap, memenuhi ketentuan prioritas PDN/TKDN, serta siap dilanjutkan ke tahap pemilihan/negosiasi penyedia.`)
+        pText('A. SURAT PERMINTAAN PEMILIHAN & BERITA ACARA REVIU DOKUMEN PERSIAPAN PENGADAAN (DPP)', { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `PPK menyerahkan Dokumen Persiapan Pengadaan (DPP) yang terdiri atas KAK/Spesifikasi Teknis${isKonstruksi ? '/DED & Rancangan Konseptual SMKK' : ''}, ${paket.jenis_kertas_harga}, dan Rancangan Kontrak (${paket.bentuk_kontrak}) kepada ${paket.pelaksana_pemilihan} (${pejabatPengadaan.nama_lengkap || 'Pejabat Pengadaan'}) untuk dilaksanakan proses pemilihan penyedia sesuai ketentuan Peraturan LKPP Nomor 2 Tahun 2026 dan Nomor 3 Tahun 2026.`, { level: 1 }),
+        pNumbered('2.', `Berdasarkan hasil Reviu DPP, dokumen persiapan dinyatakan lengkap, memenuhi ketentuan prioritas PDN/TKDN, serta siap dilanjutkan ke tahap pemilihan/negosiasi penyedia.`, { level: 1 })
       );
       break;
 
     case 9:
       paragraphs.push(
-        pText('A. BERITA ACARA EVALUASI, KLARIFIKASI, NEGOSIASI TEKNIS/HARGA & HASIL PEMILIHAN (BAHPL / BAHP / E-PURCHASING)', { bold: true, before: 120 }),
-        pText(`${infoHari.kalimatFormal}, telah dilaksanakan evaluasi kualifikasi (${isKonstruksi ? 'NIB, SBU Jasa Konstruksi, Sisa Kemampuan Paket SKP = KP - P, dan Rencana Keselamatan Konstruksi / RKK' : 'NIB, KBLI, dan Spesifikasi Teknis'}) serta klarifikasi dan negosiasi teknis dan harga terhadap Calon Penyedia: ${penyedia.nama_perusahaan || '-'} (${penyedia.alamat || 'Ngawi'}, NPWP: ${penyedia.npwp || '-'}).`),
-        pText(`1. Nilai ${paket.jenis_kertas_harga}: ${formatRupiah(paket.nilai_hps)}.`),
-        pText(`2. Nilai Penawaran Awal Penyedia: ${formatRupiah(paket.nilai_penawaran_awal || paket.nilai_hps)}.`),
-        pText(`3. Nilai Hasil Negosiasi Akhir yang Disepakati: ${formatRupiah(paket.nilai_kontrak)} (${terbilangRupiah(paket.nilai_kontrak)}), menghasilkan efisiensi sebesar ${formatRupiah(keu.efisiensiTerhadapHps)}.`)
+        pText('A. BERITA ACARA EVALUASI, KLARIFIKASI, NEGOSIASI TEKNIS/HARGA & HASIL PEMILIHAN (BAHPL / BAHP / E-PURCHASING)', { bold: true, before: 120, after: 20 }),
+        pText(`${infoHari.kalimatFormal}, telah dilaksanakan evaluasi kualifikasi (${isKonstruksi ? 'NIB, SBU Jasa Konstruksi, Sisa Kemampuan Paket SKP = KP - P, dan Rencana Keselamatan Konstruksi / RKK' : 'NIB, KBLI, dan Spesifikasi Teknis'}) serta klarifikasi dan negosiasi teknis dan harga terhadap Calon Penyedia: ${penyedia.nama_perusahaan || '-'} (${penyedia.alamat || 'Ngawi'}, NPWP: ${penyedia.npwp || '-'}).`, { before: 10, after: 30 }),
+        pNumbered('1.', `Nilai ${paket.jenis_kertas_harga}: ${formatRupiah(paket.nilai_hps)}.`, { level: 1 }),
+        pNumbered('2.', `Nilai Penawaran Awal Penyedia: ${formatRupiah(paket.nilai_penawaran_awal || paket.nilai_hps)}.`, { level: 1 }),
+        pNumbered('3.', `Nilai Hasil Negosiasi Akhir yang Disepakati: ${formatRupiah(paket.nilai_kontrak)} (${terbilangRupiah(paket.nilai_kontrak)}), menghasilkan efisiensi sebesar ${formatRupiah(keu.efisiensiTerhadapHps)}.`, { level: 1 })
       );
       break;
 
     case 10:
       paragraphs.push(
-        pText('A. BERITA ACARA REVIU HASIL PEMILIHAN OLEH PPK & DEKLARASI BENEFICIAL OWNERSHIP (BO)', { bold: true, before: 120 }),
-        pText(`1. PPK telah melakukan reviu atas Berita Acara Hasil Pemilihan dan menyatakan bahwa proses pemilihan telah sesuai dengan Dokumen Persiapan Pengadaan (DPP) serta nilai hasil negosiasi tidak melampaui Pagu/HPS.`),
-        pText(`2. Validasi Pemilik Manfaat (Beneficial Ownership / BO) sesuai Pasal 8 Peraturan LKPP Nomor 3 Tahun 2026: Pemilik Manfaat tercatat atas nama ${penyedia.bo_nama_pemilik_manfaat || penyedia.nama_direktur || '-'} (NIK: ${penyedia.bo_nik_pemilik_manfaat || penyedia.nik_direktur || '-'}, Status: ${penyedia.bo_hubungan || 'Pemilik Langsung'}) serta tidak masuk dalam Daftar Hitam Nasional.`)
+        pText('A. BERITA ACARA REVIU HASIL PEMILIHAN OLEH PPK & DEKLARASI BENEFICIAL OWNERSHIP (BO)', { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `PPK telah melakukan reviu atas Berita Acara Hasil Pemilihan dan menyatakan bahwa proses pemilihan telah sesuai dengan Dokumen Persiapan Pengadaan (DPP) serta nilai hasil negosiasi tidak melampaui Pagu/HPS.`, { level: 1 }),
+        pNumbered('2.', `Validasi Pemilik Manfaat (Beneficial Ownership / BO) sesuai Pasal 8 Peraturan LKPP Nomor 3 Tahun 2026: Pemilik Manfaat tercatat atas nama ${penyedia.bo_nama_pemilik_manfaat || penyedia.nama_direktur || '-'} (NIK: ${penyedia.bo_nik_pemilik_manfaat || penyedia.nik_direktur || '-'}, Status: ${penyedia.bo_hubungan || 'Pemilik Langsung'}) serta tidak masuk dalam Daftar Hitam Nasional.`, { level: 1 })
       );
       break;
 
     case 11:
       paragraphs.push(
-        pText('A. SURAT PENUNJUKAN PENYEDIA BARANG/JASA (SPPBJ) & VERIFIKASI JAMINAN PELAKSANAAN', { bold: true, before: 120 }),
-        pText(`1. PPK menunjuk Penyedia: ${penyedia.nama_perusahaan} (Direktur/Penandatangan: ${penyedia.nama_direktur}) untuk melaksanakan pekerjaan "${paket.nama_paket}" dengan nilai kontrak sebesar ${formatRupiah(paket.nilai_kontrak)} (${terbilangRupiah(paket.nilai_kontrak)}).`),
-        pText(`2. Kewajiban Jaminan Pelaksanaan 5% (Pasal 16 Perlem 2/2026 & Perlem 3/2026): ${paket.wajib_jaminan_pelaksanaan ? 'Wajib menyerahkan Jaminan Pelaksanaan 5% sebesar ' + formatRupiah(keu.nilaiJaminanPelaksanaan) : 'Dikecualikan dari Jaminan Pelaksanaan sesuai ketentuan nilai/jenis pengadaan (Pengadaan Langsung B/JL s.d. Rp200 Juta, Pengadaan Langsung Konstruksi s.d. Rp400 Juta, atau Jasa Konsultansi)'}.`)
+        pText('A. SURAT PENUNJUKAN PENYEDIA BARANG/JASA (SPPBJ) & VERIFIKASI JAMINAN PELAKSANAAN', { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `PPK menunjuk Penyedia: ${penyedia.nama_perusahaan} (Direktur/Penandatangan: ${penyedia.nama_direktur}) untuk melaksanakan pekerjaan "${paket.nama_paket}" dengan nilai kontrak sebesar ${formatRupiah(paket.nilai_kontrak)} (${terbilangRupiah(paket.nilai_kontrak)}).`, { level: 1 }),
+        pNumbered('2.', `Kewajiban Jaminan Pelaksanaan 5% (Pasal 16 Perlem 2/2026 & Perlem 3/2026): ${paket.wajib_jaminan_pelaksanaan ? 'Wajib menyerahkan Jaminan Pelaksanaan 5% sebesar ' + formatRupiah(keu.nilaiJaminanPelaksanaan) : 'Dikecualikan dari Jaminan Pelaksanaan sesuai ketentuan nilai/jenis pengadaan (Pengadaan Langsung B/JL s.d. Rp200 Juta, Pengadaan Langsung Konstruksi s.d. Rp400 Juta, atau Jasa Konsultansi)'}.`, { level: 1 })
       );
       break;
 
     case 12:
       paragraphs.push(
-        pText('A. BERITA ACARA RAPAT PERSIAPAN PENANDATANGANAN KONTRAK (PRE-AWARD MEETING)', { bold: true, before: 120 }),
-        pText(`${infoHari.kalimatFormal}, PPK dan Penyedia (${penyedia.nama_perusahaan}) telah melaksanakan Rapat Persiapan Penandatanganan Kontrak dengan kesepakatan finalisasi naskah ${paket.bentuk_kontrak}, jadwal pelaksanaan selama ${paket.masa_pelaksanaan_hari} hari kalender, nomor rekening pembayaran (${penyedia.nama_bank} No. Rek: ${penyedia.no_rekening} a.n. ${penyedia.atas_nama_rekening}),${isKonstruksi ? ' reviu Rencana Keselamatan Konstruksi (RKK),' : ''} serta kesiapan pelaksanaan pekerjaan.`),
-        pText(`Kedua belah pihak telah memeriksa kesesuaian spesifikasi teknis, kuantitas item, kewajiban perpajakan, serta sanksi keterlambatan sebelum penandatanganan naskah perikatan.`)
+        pText('A. BERITA ACARA RAPAT PERSIAPAN PENANDATANGANAN KONTRAK (PRE-AWARD MEETING)', { bold: true, before: 120, after: 30 }),
+        pText(`${infoHari.kalimatFormal}, PPK dan Penyedia (${penyedia.nama_perusahaan}) telah melaksanakan Rapat Persiapan Penandatanganan Kontrak dengan kesepakatan finalisasi naskah ${paket.bentuk_kontrak}, jadwal pelaksanaan selama ${paket.masa_pelaksanaan_hari} hari kalender, nomor rekening pembayaran (${penyedia.nama_bank} No. Rek: ${penyedia.no_rekening} a.n. ${penyedia.atas_nama_rekening}),${isKonstruksi ? ' reviu Rencana Keselamatan Konstruksi (RKK),' : ''} serta kesiapan pelaksanaan pekerjaan.`, { before: 10, after: 30 }),
+        pText(`Kedua belah pihak telah memeriksa kesesuaian spesifikasi teknis, kuantitas item, kewajiban perpajakan, serta sanksi keterlambatan sebelum penandatanganan naskah perikatan.`, { before: 10, after: 30 })
       );
       break;
 
     case 13:
       paragraphs.push(
-        pText(`A. NASKAH KONTRAK FINAL: ${paket.bentuk_kontrak.toUpperCase()} (${paket.jenis_kontrak.toUpperCase()})`, { bold: true, before: 120 }),
-        pText(`${infoHari.kalimatFormal}, yang bertanda tangan di bawah ini:`),
-        pText(`I. ${ppk.nama_lengkap}, NIP. ${ppk.nip}, Pejabat Pembuat Komitmen ${settings.nama_satker}, berkedudukan di ${settings.alamat_satker}, selanjutnya disebut PIHAK KESATU (PPK); dan`),
-        pText(`II. ${penyedia.nama_direktur}, ${penyedia.jabatan_penandatangan} ${penyedia.nama_perusahaan}, NPWP ${penyedia.npwp}, Akta/NIB/SBU: ${penyedia.no_akta_pendirian || penyedia.nib}, berkedudukan di ${penyedia.alamat}, selanjutnya disebut PIHAK KEDUA (PENYEDIA).`),
-        pText(`Kedua belah pihak sepakat mengikatkan diri dalam ${paket.bentuk_kontrak} untuk melaksanakan paket "${paket.nama_paket}" dengan Nilai Kontrak sebesar ${formatRupiah(paket.nilai_kontrak)} (${terbilangRupiah(paket.nilai_kontrak)}) selama ${paket.masa_pelaksanaan_hari} hari kalender (${formatTanggalIndo(paket.tgl_mulai_kerja)} s.d. ${formatTanggalIndo(paket.tgl_selesai_kontrak)}).`)
+        pText(`A. NASKAH KONTRAK FINAL: ${paket.bentuk_kontrak.toUpperCase()} (${paket.jenis_kontrak.toUpperCase()})`, { bold: true, before: 120, after: 30 }),
+        pText(`${infoHari.kalimatFormal}, yang bertanda tangan di bawah ini:`, { before: 10, after: 20 }),
+        pNumbered('I.', `${ppk.nama_lengkap}, NIP. ${ppk.nip}, Pejabat Pembuat Komitmen ${settings.nama_satker}, berkedudukan di ${settings.alamat_satker}, selanjutnya disebut PIHAK KESATU (PPK); dan`, { level: 1 }),
+        pNumbered('II.', `${penyedia.nama_direktur}, ${penyedia.jabatan_penandatangan} ${penyedia.nama_perusahaan}, NPWP ${penyedia.npwp}, Akta/NIB/SBU: ${penyedia.no_akta_pendirian || penyedia.nib}, berkedudukan di ${penyedia.alamat}, selanjutnya disebut PIHAK KEDUA (PENYEDIA).`, { level: 1 }),
+        pText(`Kedua belah pihak sepakat mengikatkan diri dalam ${paket.bentuk_kontrak} untuk melaksanakan paket "${paket.nama_paket}" dengan Nilai Kontrak sebesar ${formatRupiah(paket.nilai_kontrak)} (${terbilangRupiah(paket.nilai_kontrak)}) selama ${paket.masa_pelaksanaan_hari} hari kalender (${formatTanggalIndo(paket.tgl_mulai_kerja)} s.d. ${formatTanggalIndo(paket.tgl_selesai_kontrak)}).`, { before: 20, after: 40 })
       );
       break;
 
     case 14:
       paragraphs.push(
-        pText(`A. PENYERAHAN LOKASI KERJA${isKonstruksi ? ' (MC-0)' : ''}, SPMK / SPP, PROGRAM MUTU${isKonstruksi ? ', RKK, BPJS KONSTRUKSI' : ''} & PCM`, { bold: true, before: 120 }),
-        pText(`1. PPK menyerahkan lokasi kerja kepada ${penyedia.nama_perusahaan} dan memerintahkan untuk memulai pelaksanaan pekerjaan terhitung mulai tanggal ${formatTanggalIndo(paket.tgl_mulai_kerja)} s.d. ${formatTanggalIndo(paket.tgl_selesai_kontrak)} (${paket.masa_pelaksanaan_hari} hari kalender) sesuai Program Mutu${isKonstruksi ? ' dan Rencana Keselamatan Konstruksi (RKK)' : ''} yang telah disahkan dalam Rapat Persiapan Pelaksanaan Kontrak (PCM).`),
-        pText(`2. Penyedia menyatakan sanggup menyelesaikan dan menyerahkan seluruh barang/jasa tepat waktu sesuai spesifikasi teknis yang ditetapkan dalam kontrak.`)
+        pText(`A. PENYERAHAN LOKASI KERJA${isKonstruksi ? ' (MC-0)' : ''}, SPMK / SPP, PROGRAM MUTU${isKonstruksi ? ', RKK, BPJS KONSTRUKSI' : ''} & PCM`, { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `PPK menyerahkan lokasi kerja kepada ${penyedia.nama_perusahaan} dan memerintahkan untuk memulai pelaksanaan pekerjaan terhitung mulai tanggal ${formatTanggalIndo(paket.tgl_mulai_kerja)} s.d. ${formatTanggalIndo(paket.tgl_selesai_kontrak)} (${paket.masa_pelaksanaan_hari} hari kalender) sesuai Program Mutu${isKonstruksi ? ' dan Rencana Keselamatan Konstruksi (RKK)' : ''} yang telah disahkan dalam Rapat Persiapan Pelaksanaan Kontrak (PCM).`, { level: 1 }),
+        pNumbered('2.', `Penyedia menyatakan sanggup menyelesaikan dan menyerahkan seluruh barang/jasa tepat waktu sesuai spesifikasi teknis yang ditetapkan dalam kontrak.`, { level: 1 })
       );
       if (isKonstruksi) {
         paragraphs.push(
-          pText(`3. Khusus Pekerjaan Konstruksi (Lampiran II Bab VII Perlem 3/2026): Penyedia telah menyerahkan bukti pembayaran BPJS Ketenagakerjaan Sektor Jasa Konstruksi paling lambat 1 (satu) hari kerja sebelum mobilisasi, serta melaksanakan pemeriksaan bersama awal (Mutual Check 0% / MC-0).`)
+          pNumbered('3.', `Khusus Pekerjaan Konstruksi (Lampiran II Bab VII Perlem 3/2026): Penyedia telah menyerahkan bukti pembayaran BPJS Ketenagakerjaan Sektor Jasa Konstruksi paling lambat 1 (satu) hari kerja sebelum mobilisasi, serta melaksanakan pemeriksaan bersama awal (Mutual Check 0% / MC-0).`, { level: 1 })
         );
       }
       break;
 
     case 15:
       paragraphs.push(
-        pText('A. LAPORAN PENGENDALIAN PELAKSANAAN KONTRAK, ADENDUM/CCO, & PEMANTAUAN KONTRAK KRITIS (SCM)', { bold: true, before: 120 }),
-        pText(`1. Realisasi fisik pelaksanaan pekerjaan mencapai 100% sesuai spesifikasi teknis dan kuantitas kontrak pada tanggal ${formatTanggalIndo(paket.tgl_realisasi_selesai)}.`),
-        pText(`2. Jumlah hari keterlambatan: ${keu.hariTerlambat} hari kalender (Denda keterlambatan 1‰: ${formatRupiah(keu.totalDenda)}).`),
-        pText(`3. Pengendalian Kontrak Kritis${isKonstruksi ? ' (Periode I rencana fisik 0-70% batas kritis deviasi 10%; Periode II rencana fisik 70-100% batas kritis deviasi 5%)' : ''}: ${paket.catatan_khusus_ppk || 'Pelaksanaan berjalan tertib sesuai ketentuan kontrak.'}`)
+        pText('A. LAPORAN PENGENDALIAN PELAKSANAAN KONTRAK, ADENDUM/CCO, & PEMANTAUAN KONTRAK KRITIS (SCM)', { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `Realisasi fisik pelaksanaan pekerjaan mencapai 100% sesuai spesifikasi teknis dan kuantitas kontrak pada tanggal ${formatTanggalIndo(paket.tgl_realisasi_selesai)}.`, { level: 1 }),
+        pNumbered('2.', `Jumlah hari keterlambatan: ${keu.hariTerlambat} hari kalender (Denda keterlambatan 1‰: ${formatRupiah(keu.totalDenda)}).`, { level: 1 }),
+        pNumbered('3.', `Pengendalian Kontrak Kritis${isKonstruksi ? ' (Periode I rencana fisik 0-70% batas kritis deviasi 10%; Periode II rencana fisik 70-100% batas kritis deviasi 5%)' : ''}: ${paket.catatan_khusus_ppk || 'Pelaksanaan berjalan tertib sesuai ketentuan kontrak.'}`, { level: 1 })
       );
       break;
 
     case 16:
       paragraphs.push(
-        pText(`A. BERITA ACARA PEMERIKSAAN HASIL PEKERJAAN (BAPHP) & SERAH TERIMA PEKERJAAN (${isKonstruksi ? 'BAST PERTAMA / PHO & BAST AKHIR / FHO' : 'BAST PPK - PENYEDIA'})`, { bold: true, before: 120 }),
-        pText(`${infoHari.kalimatFormal}, Pejabat Pembuat Komitmen (PPK) ${settings.nama_satker} (${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'}) telah melakukan pemeriksaan fisik, kuantitas, dan spesifikasi atas pekerjaan "${paket.nama_paket}" yang dilaksanakan oleh ${penyedia.nama_perusahaan}, dengan kesimpulan: PEKERJAAN TELAH SELESAI 100% (SERATUS PERSEN) DALAM KONDISI BAIK DAN SESUAI KONTRAK.`),
-        pText(`Selanjutnya PIHAK KEDUA (${penyedia.nama_perusahaan}) menyerahkan hasil pekerjaan kepada PIHAK KESATU (PPK ${settings.nama_satker}).`)
+        pText(`A. BERITA ACARA PEMERIKSAAN HASIL PEKERJAAN (BAPHP) & SERAH TERIMA PEKERJAAN (${isKonstruksi ? 'BAST PERTAMA / PHO & BAST AKHIR / FHO' : 'BAST PPK - PENYEDIA'})`, { bold: true, before: 120, after: 30 }),
+        pText(`${infoHari.kalimatFormal}, Pejabat Pembuat Komitmen (PPK) ${settings.nama_satker} (${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'}) telah melakukan pemeriksaan fisik, kuantitas, dan spesifikasi atas pekerjaan "${paket.nama_paket}" yang dilaksanakan oleh ${penyedia.nama_perusahaan}, dengan kesimpulan: PEKERJAAN TELAH SELESAI 100% (SERATUS PERSEN) DALAM KONDISI BAIK DAN SESUAI KONTRAK.`, { before: 10, after: 30 }),
+        pText(`Selanjutnya PIHAK KEDUA (${penyedia.nama_perusahaan}) menyerahkan hasil pekerjaan kepada PIHAK KESATU (PPK ${settings.nama_satker}).`, { before: 10, after: 30 })
       );
       if (isKonstruksi) {
         paragraphs.push(
-          pText(`Ketentuan Masa Pemeliharaan Konstruksi (PHO ke FHO): Terhitung sejak tanggal Serah Terima Pertama Pekerjaan (Provisional Hand-Over / PHO), Penyedia wajib melaksanakan pemeliharaan hasil pekerjaan selama Masa Pemeliharaan (minimal 180 hari kalender untuk pekerjaan permanen atau 90 hari kalender untuk pekerjaan semi-permanen) hingga ditandatanganinya Berita Acara Serah Terima Akhir Pekerjaan (Final Hand-Over / FHO).`)
+          pText(`Ketentuan Masa Pemeliharaan Konstruksi (PHO ke FHO): Terhitung sejak tanggal Serah Terima Pertama Pekerjaan (Provisional Hand-Over / PHO), Penyedia wajib melaksanakan pemeliharaan hasil pekerjaan selama Masa Pemeliharaan (minimal 180 hari kalender untuk pekerjaan permanen atau 90 hari kalender untuk pekerjaan semi-permanen) hingga ditandatanganinya Berita Acara Serah Terima Akhir Pekerjaan (Final Hand-Over / FHO).`, { before: 10, after: 30 })
         );
       }
       break;
 
     case 17:
       paragraphs.push(
-        pText('A. BERITA ACARA SERAH TERIMA PPK KEPADA KPA (INPUT BMN/PERSEDIAAN SAKTI) & BERITA ACARA PEMBAYARAN (BAP / SPBy)', { bold: true, before: 120 }),
-        pText(`1. Penyerahan Aset/Barang/Bangunan: PPK menyerahkan hasil pengadaan kepada Kuasa Pengguna Anggaran / Sekretaris KPU Kabupaten Ngawi (${kpa.nama_lengkap}) untuk dicatat dalam penatausahaan BMN / Persediaan pada aplikasi SAKTI.`),
-        pText(`2. Perhitungan Pencairan Tagihan Pembayaran (SPBy / SPP-LS):`),
-        pText(`   • Nilai Bruto Kontrak : ${formatRupiah(keu.nilaiKontrak)}`, { before: 20, after: 20 }),
-        pText(`   • Dasar Pengenaan Pajak (DPP) : ${formatRupiah(keu.dpp)}`, { before: 20, after: 20 }),
-        pText(`   • Potongan PPN (${paket.tarif_ppn}%) : ${formatRupiah(keu.ppn)}`, { before: 20, after: 20 }),
-        pText(`   • Potongan ${paket.jenis_pph} : ${formatRupiah(keu.pph)}`, { before: 20, after: 20 }),
-        pText(`   • Potongan Denda Keterlambatan (1‰ x ${keu.hariTerlambat} hari) : ${formatRupiah(keu.totalDenda)}`, { before: 20, after: 20 }),
+        pText('A. BERITA ACARA SERAH TERIMA PPK KEPADA KPA (INPUT BMN/PERSEDIAAN SAKTI) & BERITA ACARA PEMBAYARAN (BAP / SPBy)', { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `Penyerahan Aset/Barang/Bangunan: PPK menyerahkan hasil pengadaan kepada Kuasa Pengguna Anggaran / Sekretaris KPU Kabupaten Ngawi (${kpa.nama_lengkap}) untuk dicatat dalam penatausahaan BMN / Persediaan pada aplikasi SAKTI.`, { level: 1 }),
+        pNumbered('2.', `Perhitungan Pencairan Tagihan Pembayaran (SPBy / SPP-LS):`, { level: 1 }),
+        pNumbered('•', `Nilai Bruto Kontrak : ${formatRupiah(keu.nilaiKontrak)}`, { level: 2 }),
+        pNumbered('•', `Dasar Pengenaan Pajak (DPP) : ${formatRupiah(keu.dpp)}`, { level: 2 }),
+        pNumbered('•', `Potongan PPN (${paket.tarif_ppn}%) : ${formatRupiah(keu.ppn)}`, { level: 2 }),
+        pNumbered('•', `Potongan ${paket.jenis_pph} : ${formatRupiah(keu.pph)}`, { level: 2 }),
+        pNumbered('•', `Potongan Denda Keterlambatan (1‰ x ${keu.hariTerlambat} hari) : ${formatRupiah(keu.totalDenda)}`, { level: 2 }),
         ...(isKonstruksi ? [
-          pText(`   • Nilai Retensi Pemeliharaan 5% Konstruksi : ${formatRupiah(keu.nilaiRetensi5Persen)} (Apabila ditahan Retensi 5% maka dibayar 95% saat PHO yaitu ${formatRupiah(keu.nilaiBersihDenganRetensi5)}; apabila menyerahkan Jaminan Pemeliharaan 5% maka dibayar 100% yaitu ${formatRupiah(keu.nilaiBersihDiterimaPenyedia)})`, { before: 20, after: 20 })
+          pNumbered('•', `Nilai Retensi Pemeliharaan 5% Konstruksi : ${formatRupiah(keu.nilaiRetensi5Persen)} (Apabila ditahan Retensi 5% maka dibayar 95% saat PHO yaitu ${formatRupiah(keu.nilaiBersihDenganRetensi5)}; apabila menyerahkan Jaminan Pemeliharaan 5% maka dibayar 100% yaitu ${formatRupiah(keu.nilaiBersihDiterimaPenyedia)})`, { level: 2 })
         ] : []),
-        pText(`   • NILAI BERSIH DITERIMA PENYEDIA (NETTO 100%) : ${formatRupiah(keu.nilaiBersihDiterimaPenyedia)} (${terbilangRupiah(keu.nilaiBersihDiterimaPenyedia)}) melalui ${penyedia.nama_bank} No. Rek: ${penyedia.no_rekening} a.n. ${penyedia.atas_nama_rekening}.`, { bold: true, before: 30, after: 40 })
+        pNumbered('•', `NILAI BERSIH DITERIMA PENYEDIA (NETTO 100%) : ${formatRupiah(keu.nilaiBersihDiterimaPenyedia)} (${terbilangRupiah(keu.nilaiBersihDiterimaPenyedia)}) melalui ${penyedia.nama_bank} No. Rek: ${penyedia.no_rekening} a.n. ${penyedia.atas_nama_rekening}.`, { level: 2, bold: true })
       );
       break;
 
     case 18:
     default:
       paragraphs.push(
-        pText('A. FORMULIR & SERTIFIKAT PENILAIAN KINERJA PENYEDIA OLEH PPK (BAB V PERLEM LKPP 3/2026)', { bold: true, before: 120 }),
-        pText(`Berdasarkan hasil pelaksanaan kontrak dan BAST Nomor ${ctx.tahaps.find(t => t.no_tahap === 16)?.nomor_dokumen || '-'}, PPK melakukan evaluasi kinerja terhadap Penyedia ${penyedia.nama_perusahaan} dengan rincian nilai:`),
-        pText(`1. Aspek Kualitas dan Kuantitas (Bobot 30%) : Skor ${paket.skor_kualitas ?? 3} -> Nilai Terbobot: ${(Number(paket.skor_kualitas ?? 3) * 0.3).toFixed(2)}`, { before: 20, after: 20 }),
-        pText(`2. Aspek Biaya (Bobot 20%) : Skor ${paket.skor_biaya ?? 3} -> Nilai Terbobot: ${(Number(paket.skor_biaya ?? 3) * 0.2).toFixed(2)}`, { before: 20, after: 20 }),
-        pText(`3. Aspek Waktu (Bobot 30%) : Skor ${paket.skor_waktu ?? 3} -> Nilai Terbobot: ${(Number(paket.skor_waktu ?? 3) * 0.3).toFixed(2)}`, { before: 20, after: 20 }),
-        pText(`4. Aspek Layanan (Bobot 20%) : Skor ${paket.skor_layanan ?? 3} -> Nilai Terbobot: ${(Number(paket.skor_layanan ?? 3) * 0.2).toFixed(2)}`, { before: 20, after: 20 }),
+        pText('A. FORMULIR & SERTIFIKAT PENILAIAN KINERJA PENYEDIA OLEH PPK (BAB V PERLEM LKPP 3/2026)', { bold: true, before: 120, after: 30 }),
+        pText(`Berdasarkan hasil pelaksanaan kontrak dan BAST Nomor ${ctx.tahaps.find(t => t.no_tahap === 16)?.nomor_dokumen || '-'}, PPK melakukan evaluasi kinerja terhadap Penyedia ${penyedia.nama_perusahaan} dengan rincian nilai:`, { before: 10, after: 30 }),
+        pNumbered('1.', `Aspek Kualitas dan Kuantitas (Bobot 30%) : Skor ${paket.skor_kualitas ?? 3} -> Nilai Terbobot: ${(Number(paket.skor_kualitas ?? 3) * 0.3).toFixed(2)}`, { level: 1 }),
+        pNumbered('2.', `Aspek Biaya (Bobot 20%) : Skor ${paket.skor_biaya ?? 3} -> Nilai Terbobot: ${(Number(paket.skor_biaya ?? 3) * 0.2).toFixed(2)}`, { level: 1 }),
+        pNumbered('3.', `Aspek Waktu (Bobot 30%) : Skor ${paket.skor_waktu ?? 3} -> Nilai Terbobot: ${(Number(paket.skor_waktu ?? 3) * 0.3).toFixed(2)}`, { level: 1 }),
+        pNumbered('4.', `Aspek Layanan (Bobot 20%) : Skor ${paket.skor_layanan ?? 3} -> Nilai Terbobot: ${(Number(paket.skor_layanan ?? 3) * 0.2).toFixed(2)}`, { level: 1 }),
         pText(`TOTAL SKOR KINERJA AKHIR: ${Number(paket.nilai_kinerja_akhir || 3).toFixed(2)} — PREDIKAT: ${(paket.predikat_kinerja || 'SANGAT BAIK').toUpperCase()} (${Number(paket.nilai_kinerja_akhir || 3) >= 2.5 ? 'Memenuhi syarat Repeat Order sesuai Pasal 38 Perpres 46/2025' : 'Catatan Evaluasi'}).`, { bold: true, before: 40 })
       );
       break;
@@ -877,11 +959,18 @@ function buildStageSpecificSections(stageNo, ctx, tahapRow, keu) {
  */
 function buildStageLegalComplianceSection(stageNo, ctx, tahapRow, keu) {
   const { paket, penyedia, settings } = ctx;
+  if (stageNo === 3) {
+    return [
+      pText('B. DASAR HUKUM DAN TANGGUNG JAWAB KUASA PENGGUNA ANGGARAN', { bold: true, before: 120, after: 30 }),
+      pNumbered('1.', `Kewenangan penetapan dan pengumuman RUP ini berpedoman pada Pasal 9 ayat (1) huruf c dan huruf d juncto Pasal 10 ayat (1) Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah sebagaimana telah diubah terakhir dengan Peraturan Presiden Nomor 46 Tahun 2025, serta Pasal 5, Pasal 7, dan Pasal 8 Peraturan Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP) Nomor 11 Tahun 2021 tentang Pedoman Perencanaan Pengadaan Barang/Jasa Pemerintah.`, { level: 1 }),
+      pNumbered('2.', `Kuasa Pengguna Anggaran (KPA) bertanggung jawab secara formal dan materiil atas kebenaran penetapan Rencana Umum Pengadaan (RUP) ini sesuai DIPA dan Rencana Kerja Anggaran (RKA) Satker KPU Kabupaten Ngawi Tahun Anggaran ${paket.tahun_anggaran || '2026'}.`, { level: 1 })
+    ];
+  }
   return [
-    pText('B. DASAR HUKUM, KETENTUAN KEPATUHAN, DAN INTEGRITAS PENGADAAN', { bold: true, before: 120 }),
-    pText(`1. Pelaksanaan tahapan ini berpedoman pada Peraturan Presiden Nomor 16 Tahun 2018 sebagaimana telah diubah terakhir dengan Peraturan Presiden Nomor 46 Tahun 2025 tentang Pengadaan Barang/Jasa Pemerintah, serta Peraturan LKPP Nomor 2 Tahun 2026 dan Peraturan LKPP Nomor 3 Tahun 2026.`),
-    pText(`2. Para pihak yang terlibat dalam tahapan "${DEFINISI_18_TAHAP.find(d => d.no === stageNo)?.nama || ''}" pada Satker ${settings.nama_satker} terikat pada Pakta Integritas, bebas dari benturan kepentingan (conflict of interest), serta bertanggung jawab secara formal dan materiil atas kebenaran data, spesifikasi teknis, kewajaran harga, dan ketepatan mutu pekerjaan.`),
-    pText(`3. Rincian komposisi item barang/jasa, spesifikasi teknis, capaian TKDN/PDN, serta nilai pengesahan tercantum secara lengkap dan mengikat pada Tabel Rincian Item Barang/Jasa di lembar pengesahan berikutnya.`)
+    pText('B. DASAR HUKUM, KETENTUAN KEPATUHAN, DAN INTEGRITAS PENGADAAN', { bold: true, before: 120, after: 30 }),
+    pNumbered('1.', `Pelaksanaan tahapan ini berpedoman pada Peraturan Presiden Nomor 16 Tahun 2018 sebagaimana telah diubah terakhir dengan Peraturan Presiden Nomor 46 Tahun 2025 tentang Pengadaan Barang/Jasa Pemerintah, serta Peraturan LKPP Nomor 2 Tahun 2026 dan Peraturan LKPP Nomor 3 Tahun 2026.`, { level: 1 }),
+    pNumbered('2.', `Para pihak yang terlibat dalam tahapan "${DEFINISI_18_TAHAP.find(d => d.no === stageNo)?.nama || ''}" pada Satker ${settings.nama_satker} terikat pada Pakta Integritas, bebas dari benturan kepentingan (conflict of interest), serta bertanggung jawab secara formal dan materiil atas kebenaran data, spesifikasi teknis, kewajaran harga, dan ketepatan mutu pekerjaan.`, { level: 1 }),
+    pNumbered('3.', `Rincian komposisi item barang/jasa, spesifikasi teknis, capaian TKDN/PDN, serta nilai pengesahan tercantum secara lengkap dan mengikat pada Tabel Rincian Item Barang/Jasa di lembar pengesahan berikutnya.`, { level: 1 })
   ];
 }
 
@@ -969,15 +1058,15 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
     }),
     pText('', { after: 60, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' } } }),
     pText('Bersama ini kami sampaikan dengan hormat usulan kebutuhan pengadaan barang modal guna menunjang kelancaran tugas pokok kedinasan Komisi Pemilihan Umum Kabupaten Ngawi Tahun Anggaran ' + (paket.tahun_anggaran || '2026') + ', dengan rincian pertimbangan sebagai berikut:'),
-    pText(`1. Dasar Kebutuhan: ${paket.uraian_pekerjaan || 'Perangkat pendukung kerja operasional yang ada saat ini telah melewati batas usia teknis ekonomis sehingga memerlukan peremajaan/pengadaan baru guna menjamin kestabilan dan kelancaran proses kerja.'}`),
-    pText(`2. Rincian Usulan Barang: Kebutuhan pengadaan "${paket.nama_paket}" meliputi ${items && items.length ? items.map(it => `${it.volume || 1} ${it.satuan || 'Unit'} ${it.uraian_item || ''}`).join(', ') : 'peralatan operasional sesuai rincian KAK'}.`),
-    pText('3. Pembebanan Anggaran (Silsilah RKB/DIPA Definitif): Alokasi anggaran telah dialokasikan secara sah pada dokumen perencanaan anggaran definitif Satuan Kerja KPU Kabupaten Ngawi Tahun Anggaran ' + (paket.tahun_anggaran || '2026') + ' dengan rincian hierarki:'),
-    pText(`   a. Program : ${paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi'}`),
-    pText(`   b. Kegiatan : ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)'}`),
-    pText(`   c. Sub Kegiatan / Komponen : ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu'}`),
-    pText(`   d. Mata Anggaran Kegiatan (MAK) : ${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`),
-    pText(`   e. Nilai Pagu Anggaran : ${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)}).`),
-    pText(`4. Target Waktu Pemanfaatan: Barang/jasa ditargetkan telah terpasang, teruji fungsinya, dan siap dioperasikan secara penuh mulai Bulan Juli 2026 guna mendukung agenda tahapan kepemiluan dan operasional satker.`),
+    pNumbered('1.', `Dasar Kebutuhan: ${paket.uraian_pekerjaan || 'Perangkat pendukung kerja operasional yang ada saat ini telah melewati batas usia teknis ekonomis sehingga memerlukan peremajaan/pengadaan baru guna menjamin kestabilan dan kelancaran proses kerja.'}`, { level: 1 }),
+    pNumbered('2.', `Rincian Usulan Barang: Kebutuhan pengadaan "${paket.nama_paket}" meliputi ${items && items.length ? items.map(it => `${it.volume || 1} ${it.satuan || 'Unit'} ${it.uraian_item || ''}`).join(', ') : 'peralatan operasional sesuai rincian KAK'}.`, { level: 1 }),
+    pNumbered('3.', 'Pembebanan Anggaran (Silsilah RKB/DIPA Definitif): Alokasi anggaran telah dialokasikan secara sah pada dokumen perencanaan anggaran definitif Satuan Kerja KPU Kabupaten Ngawi Tahun Anggaran ' + (paket.tahun_anggaran || '2026') + ' dengan rincian hierarki:', { level: 1 }),
+    pNumbered('a.', `Program : ${paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi'}`, { level: 2 }),
+    pNumbered('b.', `Kegiatan : ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)'}`, { level: 2 }),
+    pNumbered('c.', `Sub Kegiatan / Komponen : ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu'}`, { level: 2 }),
+    pNumbered('d.', `Mata Anggaran Kegiatan (MAK) : ${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`, { level: 2, bold: true }),
+    pNumbered('e.', `Nilai Pagu Anggaran : ${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)}).`, { level: 2, bold: true }),
+    pNumbered('4.', 'Target Waktu Pemanfaatan: Barang/jasa ditargetkan telah terpasang, teruji fungsinya, dan siap dioperasikan secara penuh mulai Bulan Juli 2026 guna mendukung agenda tahapan kepemiluan dan operasional satker.', { level: 1 }),
     pText('Sehubungan dengan hal tersebut di atas, mohon perkenan Bapak Kuasa Pengguna Anggaran (KPA) menyetujui usulan ini dan mendisposisikan kepada Pejabat Pembuat Komitmen (PPK) untuk diproses tahapan pengadaannya sesuai ketentuan perundang-undangan.'),
     pText('Demikian nota dinas ini kami sampaikan, atas perkenan dan arahan Bapak diucapkan terima kasih.', { before: 40, after: 100 }),
     new Table({
@@ -1081,11 +1170,11 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
               children: [
                 pText('☑ SETUJU UNTUK DIPROSES PENGADAANNYA', { bold: true, color: '047857', size: 17 }),
                 pText('Catatan Instruksi KPA:', { bold: true, size: 16, before: 20 }),
-                pText(`1. Segera susun Identifikasi Kebutuhan, KAK, dan HPS mengacu pada DIPA TA ${paket.tahun_anggaran || '2026'} Akun ${paket.kode_akun_mak || '532111'} (Pagu ${formatRupiah(paket.nilai_pagu)}).`, { size: 15 }),
-                pText('2. Jadwalkan seluruh rangkaian pengadaan, pengiriman, dan instalasi tuntas pada akhir Juni 2026 agar target pemanfaatan operasional per 1 Juli 2026 terpenuhi.', { size: 15, bold: true, color: '1E3A8A' }),
-                pText('3. Prioritaskan metode E-Purchasing (Katalog Elektronik v6) sesuai Kepka LKPP No. 177/2024.', { size: 15 }),
-                pText('4. Wajib penuhi afirmasi UMK minimal 40% dan prioritas PDN/TKDN minimal 25%.', { size: 15 }),
-                pText('5. Laksanakan seluruh tahapan secara transparan, tertib, dan akuntabel.', { size: 15 })
+                pNumbered('1.', `Segera susun Identifikasi Kebutuhan, KAK, dan HPS mengacu pada DIPA TA ${paket.tahun_anggaran || '2026'} Akun ${paket.kode_akun_mak || '532111'} (Pagu ${formatRupiah(paket.nilai_pagu)}).`, { level: 1, size: 15, hanging: 300, left: 300 }),
+                pNumbered('2.', 'Jadwalkan seluruh rangkaian pengadaan, pengiriman, dan instalasi tuntas pada akhir Juni 2026 agar target pemanfaatan operasional per 1 Juli 2026 terpenuhi.', { level: 1, size: 15, bold: true, color: '1E3A8A', hanging: 300, left: 300 }),
+                pNumbered('3.', 'Prioritaskan metode E-Purchasing (Katalog Elektronik v6) sesuai Kepka LKPP No. 177/2024.', { level: 1, size: 15, hanging: 300, left: 300 }),
+                pNumbered('4.', 'Wajib penuhi afirmasi UMK minimal 40% dan prioritas PDN/TKDN minimal 25%.', { level: 1, size: 15, hanging: 300, left: 300 }),
+                pNumbered('5.', 'Laksanakan seluruh tahapan secara transparan, tertib, dan akuntabel.', { level: 1, size: 15, hanging: 300, left: 300 })
               ]
             })
           ]
@@ -1159,9 +1248,9 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
           children: [
             new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Dasar Hukum Pemeriksaan', { bold: true, size: 17 })] }),
             new TableCell({ borders: BORDER_TABLE, children: [
-              pText('1. Pasal 18 ayat (1) & (2) Perpres No. 16/2018 jo. Perpres No. 12/2021 jo. Perpres No. 46/2025 (Kewajiban analisis ketersediaan barang/jasa sejenis yang dimiliki satker).', { size: 15, before: 2, after: 2 }),
-              pText('2. Peraturan LKPP No. 11/2021 jo. Perlem LKPP No. 2/2026 (Model Dokumen Perencanaan Pengadaan - Formulir Identifikasi Kebutuhan).', { size: 15, before: 2, after: 2 }),
-              pText('3. PP No. 27/2014 jo. PP No. 28/2020 tentang Pengelolaan BMN/D & Standar Barang Standar Kebutuhan (SBSK) DJKN Kemenkeu.', { size: 15, before: 2, after: 2 })
+              pNumbered('1.', 'Pasal 18 ayat (1) & (2) Perpres No. 16/2018 jo. Perpres No. 12/2021 jo. Perpres No. 46/2025 (Kewajiban analisis ketersediaan barang/jasa sejenis yang dimiliki satker).', { level: 1, hanging: 300, size: 15, before: 2, after: 2 }),
+              pNumbered('2.', 'Peraturan LKPP No. 11/2021 jo. Perlem LKPP No. 2/2026 (Model Dokumen Perencanaan Pengadaan - Formulir Identifikasi Kebutuhan).', { level: 1, hanging: 300, size: 15, before: 2, after: 2 }),
+              pNumbered('3.', 'PP No. 27/2014 jo. PP No. 28/2020 tentang Pengelolaan BMN/D & Standar Barang Standar Kebutuhan (SBSK) DJKN Kemenkeu.', { level: 1, hanging: 300, size: 15, before: 2, after: 2 })
             ] })
           ]
         })
@@ -1352,8 +1441,8 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
             new TableCell({
               borders: BORDER_TABLE,
               children: [
-                pText('1. Produk 100% orisinil bergaransi resmi pabrikan minimal 3 tahun onsite.'),
-                pText('2. Wajib memenuhi sertifikasi TKDN minimal 25% (TKDN + BMP >= 40%).')
+                pNumbered('1.', 'Produk 100% orisinil bergaransi resmi pabrikan minimal 3 tahun onsite.', { level: 1, hanging: 300, size: 17, before: 2, after: 2 }),
+                pNumbered('2.', 'Wajib memenuhi sertifikasi TKDN minimal 25% (TKDN + BMP >= 40%).', { level: 1, hanging: 300, size: 17, before: 2, after: 2 })
               ]
             })
           ]
@@ -1365,12 +1454,12 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
             new TableCell({
               borders: BORDER_TABLE,
               children: [
-                pText(`• Sumber Dana: APBN DIPA KPU Kabupaten Ngawi TA ${paket.tahun_anggaran || '2026'}`),
-                pText(`• Program: ${paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi'}`),
-                pText(`• Kegiatan: ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)'}`),
-                pText(`• Sub Kegiatan / Komponen: ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu'}`),
-                pText(`• Kode Akun MAK: ${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`, { bold: true }),
-                pText(`• Nilai Pagu Sah: ${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)})`, { bold: true, color: '047857' })
+                pNumbered('•', `Sumber Dana: APBN DIPA KPU Kabupaten Ngawi TA ${paket.tahun_anggaran || '2026'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
+                pNumbered('•', `Program: ${paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
+                pNumbered('•', `Kegiatan: ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
+                pNumbered('•', `Sub Kegiatan / Komponen: ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
+                pNumbered('•', `Kode Akun MAK: ${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`, { level: 1, hanging: 240, size: 17, bold: true, before: 2, after: 2 }),
+                pNumbered('•', `Nilai Pagu Sah: ${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)})`, { level: 1, hanging: 240, size: 17, bold: true, color: '047857', before: 2, after: 2 })
               ]
             })
           ]
@@ -1407,53 +1496,6 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
                 pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, before: 0, after: 420 }),
                 pText(`( ${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'} )`, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
                 pText(`NIP. ${ppk.nip || '19840101 200912 1 001'}`, { align: AlignmentType.CENTER, before: 0, after: 10 })
-              ]
-            })
-          ]
-        })
-      ]
-    }),
-    pText('', { after: 120, pageBreakBefore: true }),
-
-    // =========================================================================
-    // DOKUMEN 4: LEMBAR CATATAN RUJUKAN REGULASI & AUDIT INTERNAL (NON-CETAK)
-    // =========================================================================
-    pText('LEMBAR REFERENSI REGULASI & CATATAN KONSULTASI PBJ', {
-      bold: true,
-      size: 20,
-      align: AlignmentType.CENTER,
-      color: '1E3A8A',
-      before: 30,
-      after: 10
-    }),
-    pText('(KONSUMSI INTERNAL PENGEMBANGAN SISTEM & BAHAN AUDIT — BUKAN BAGIAN CETAK RESMI)', {
-      italic: true,
-      size: 15,
-      align: AlignmentType.CENTER,
-      color: 'B91C1C',
-      before: 0,
-      after: 100
-    }),
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              borders: BORDER_TABLE,
-              shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
-              children: [
-                pText('DASAR HUKUM BAKU & REFERENSI YURIDIS SAH (PERPRES NO. 46/2025 & PERLEM LKPP NO. 2/2026):', { bold: true, size: 16, color: '1E3A8A', after: 20 }),
-                pText('1. Peraturan LKPP Nomor 2 Tahun 2026 tentang Pedoman Perencanaan Pengadaan Barang/Jasa Pemerintah:', { bold: true, size: 15 }),
-                pText('   • Pasal 8 ayat (1) & Lampiran I: Standar Format Baku Model Dokumen Perencanaan Pengadaan (MDP) — Formulir Identifikasi Kebutuhan Barang/Jasa Pemerintah.', { size: 14, color: '334155' }),
-                pText('   • Berstatus berlaku sah mengikat nasional sebagai peraturan turunan pelaksanaan dari Perpres No. 46 Tahun 2025.', { size: 14, color: '334155' }),
-                pText('2. Peraturan Presiden Nomor 46 Tahun 2025 jo. Perpres Nomor 12 Tahun 2021 jo. Perpres Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah:', { bold: true, size: 15 }),
-                pText('   • Pasal 11 ayat (1) huruf a: Tugas pokok PPK menyusun perencanaan pengadaan.', { size: 14, color: '334155' }),
-                pText('   • Pasal 18 ayat (1) & (2): Ruang lingkup perencanaan pengadaan barang/jasa meliputi identifikasi kebutuhan, penetapan barang/jasa, cara, jadwal, dan anggaran.', { size: 14, color: '334155' }),
-                pText('3. Peraturan Komisi Pemilihan Umum (PKPU) Nomor 14 Tahun 2020 tentang Pedoman Tata Naskah Dinas Komisi Pemilihan Umum (Format Baku Nota Dinas Unit Pengusul & Lembar Disposisi KPA).', { bold: true, size: 15 }),
-                pText('4. Prinsip Penyusunan Dokumen Cetak:', { bold: true, size: 15, before: 40 }),
-                pText('   • Naskah dinas resmi yang dicetak fisik untuk tanda tangan dan cap kedinasan hanya mencakup: Bagian I (Nota Dinas Pengusulan), Bagian II (Lembar Disposisi KPA), dan Bagian III (Formulir LKPP s.d. Tanda Tangan PPK).', { size: 14, color: '334155' }),
-                pText('   • Lembar referensi pada halaman ini adalah lampiran pendukung internal untuk bahan telaah, konsultasi, dan panduan teknis pengembang.', { size: 14, color: '334155' })
               ]
             })
           ]
@@ -1505,6 +1547,171 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
 }
 
 /**
+ * DOKUMEN KHUSUS TAHAP 2: BERITA ACARA PENETAPAN JENIS, CARA PENGADAAN, & PEMAKETAN PBJ (BA-PMK)
+ * Sesuai Pasal 18, 20, 21, 22, 27, 28, & 65 Perpres No. 16/2018 jo. Perpres No. 46/2025
+ * Format Baku Resmi KPU Kabupaten Ngawi — 1 Halaman Utuh Rapi & Berwibawa Siap Cetak/TTD
+ */
+function buildStage2Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
+  const { paket, ppk, settings } = ctx;
+  const noPmk = tahapRow.nomor_dokumen || `002/PMK/${paket.kode_paket_internal || "PBJ-2026-001"}/PPK-PBJ/KPU-NGW/V/2026`;
+  const tglPmkStr = formatTanggalIndo(tahapRow.tanggal_dokumen || '2026-05-18');
+  const hariTanggalPmk = formatHariTanggalBeritaAcara(tahapRow.tanggal_dokumen || '2026-05-18');
+
+  const children = [];
+
+  // Kop Surat Resmi KPU Kabupaten Ngawi
+  children.push(...buildKopSuratKpu(settings));
+
+  // Judul & Nomor Berita Acara
+  children.push(
+    pText('BERITA ACARA PENETAPAN JENIS, CARA PENGADAAN, & PEMAKETAN (BA-PMK)', {
+      bold: true,
+      size: 22,
+      align: AlignmentType.CENTER,
+      before: 30,
+      after: 8
+    }),
+    pText('DOKUMEN TAHAP 02 (FASE I: PERENCANAAN PENGADAAN) — REGULASI PERPRES NO. 46/2025', {
+      size: 16,
+      align: AlignmentType.CENTER,
+      color: '1E3A8A',
+      bold: true,
+      before: 0,
+      after: 20
+    }),
+    pText(`Nomor: ${noPmk}`, {
+      size: 18,
+      align: AlignmentType.CENTER,
+      color: '475569',
+      bold: true,
+      before: 0,
+      after: 80
+    }),
+    pText(
+      `${hariTanggalPmk.kalimatFormal}, bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, saya yang bertanda tangan di bawah ini:`,
+      { before: 0, after: 40, size: 18 }
+    ),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Nama', { bold: true, size: 18 })] }),
+            new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 18 })] }),
+            new TableCell({ width: { size: 72, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN', { bold: true, size: 18 })] })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_NONE, children: [pText('NIP', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(':', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(ppk.nip || '19840101 200912 1 001', { size: 18 })] })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_NONE, children: [pText('Jabatan Kedinasan', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(':', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(`Pejabat Pembuat Komitmen (PPK) Satker ${settings.nama_satker || 'KPU Kabupaten Ngawi'}`, { size: 18 })] })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_NONE, children: [pText('Dasar Pengangkatan', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(':', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(`Keputusan Kuasa Pengguna Anggaran (KPA) Satker ${settings.nama_satker || 'KPU Kabupaten Ngawi'} Tahun Anggaran ${paket.tahun_anggaran || '2026'}`, { size: 18 })] })
+          ]
+        })
+      ]
+    }),
+    pText('', { after: 30 }),
+    pText('Berdasarkan Rencana Kerja dan Anggaran serta DIPA Satuan Kerja yang telah disahkan, dengan ini menetapkan parameter jenis, cara pengadaan, dan strategi pemaketan untuk paket pengadaan di bawah ini:', { before: 10, after: 40, size: 18 }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        pLabelValue('Nama Paket Pengadaan', paket.nama_paket),
+        pLabelValue('Mata Anggaran (MAK DIPA)', `${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`),
+        pLabelValue('Nilai Pagu Anggaran DIPA', `${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)})`),
+        pLabelValue('Sumber Dana / TA', `APBN DIPA Satker ${settings.nama_satker || 'KPU Kabupaten Ngawi'} TA ${paket.tahun_anggaran || '2026'}`),
+        pLabelValue('Pelaksana Pemilihan', `${paket.pelaksana_pemilihan || 'Pejabat Pengadaan'} ${settings.nama_satker || 'KPU Kabupaten Ngawi'}`)
+      ]
+    }),
+    pText('', { after: 40 }),
+    pText('BUTIR-BUTIR PENETAPAN STRATEGIS PEMAKETAN (PPK):', { bold: true, size: 18, color: '1E3A8A', before: 20, after: 14 }),
+    pNumbered('1.', `Jenis Pengadaan ditetapkan sebagai: ${paket.jenis_pengadaan || 'Barang'} (berpedoman pada Pasal 12 Perpres 16/2018 jo. Perpres 46/2025 dan Perlem LKPP Nomor 2 Tahun 2026).`, { level: 1, size: 17, before: 6, after: 6 }),
+    pNumbered('2.', `Cara Pengadaan dilaksanakan melalui: ${paket.cara_pengadaan || 'Penyedia'} dengan Metode Pemilihan: ${paket.metode_pemilihan || 'E-Purchasing'} (${paket.fitur_spse || 'Katalog Elektronik LKPP v6'}).`, { level: 1, size: 17, before: 0, after: 6 }),
+    pNumbered('3.', `Bentuk Kontrak ditetapkan menggunakan: ${paket.bentuk_kontrak || 'Surat Pesanan'} dengan Jenis Kontrak: ${paket.jenis_kontrak || 'Lumsum'} (Pasal 27 & 28 Perpres PBJ; kepastian hasil keluaran terukur dan risiko terkendali).`, { level: 1, size: 17, before: 0, after: 6 }),
+    pNumbered('4.', `Kertas Kerja Harga ditetapkan menggunakan: ${paket.jenis_kertas_harga || 'HPS'} (karena Pagu Anggaran ${formatRupiah(paket.nilai_pagu)} > Rp 100 Juta, wajib menyusun HPS resmi pada Tahap 6).`, { level: 1, size: 17, before: 0, after: 6 }),
+    pNumbered('5.', `Pemaketan Pengadaan dilakukan dengan berorientasi pada keluaran (output), kepatuhan alokasi kuota minimal 40% anggaran belanja untuk Produk Usaha Mikro, Usaha Kecil & Koperasi (UMK) sesuai Pasal 65 Perpres 46/2025, serta dipastikan tidak memecah paket pengadaan untuk menghindari kewajiban Tender/Seleksi terbuka.`, { level: 1, size: 17, before: 0, after: 6 }),
+    pNumbered('6.', `Landasan Kepatuhan & Integritas: Pelaksanaan tahapan ini mematuhi Pakta Integritas PBJ, bebas dari benturan kepentingan (conflict of interest), dan berpedoman pada Perpres 16/2018 jo. Perpres 46/2025 serta Keputusan Kepala LKPP Nomor 177 Tahun 2024.`, { level: 1, size: 17, before: 0, after: 20 }),
+    pText('Demikian Berita Acara Penetapan Jenis, Cara Pengadaan, dan Pemaketan ini dibuat dan ditetapkan dengan sebenarnya dalam rangkap secukupnya untuk dipergunakan sebagai pedoman pelaksanaan tahapan pengadaan selanjutnya.', { before: 20, after: 60, size: 17 }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 50, type: WidthType.PERCENTAGE }, children: [pText(' ')] }),
+            new TableCell({
+              borders: BORDER_NONE,
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              children: [
+                pText('Ditetapkan di Ngawi', { align: AlignmentType.CENTER, before: 10, after: 6, size: 18 }),
+                pText(`Pada tanggal ${tglPmkStr}`, { align: AlignmentType.CENTER, before: 0, after: 20, size: 18 }),
+                pText('PEJABAT PEMBUAT KOMITMEN (PPK)', { bold: true, align: AlignmentType.CENTER, before: 0, after: 6, size: 18 }),
+                pText(settings.nama_satker || 'KPU KABUPATEN NGAWI', { bold: true, align: AlignmentType.CENTER, before: 0, after: 380, size: 18 }),
+                pText(`( ${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'} )`, { bold: true, align: AlignmentType.CENTER, before: 0, after: 6, size: 18 }),
+                pText(`NIP. ${ppk.nip || '19840101 200912 1 001'}`, { align: AlignmentType.CENTER, before: 0, after: 6, size: 18 })
+              ]
+            })
+          ]
+        })
+      ]
+    })
+  );
+
+  return [
+    {
+      properties: {
+        page: {
+          margin: { top: 1200, bottom: 1200, left: 1440, right: 1200 }
+        }
+      },
+      headers: {
+        default: new Header({
+          children: [
+            pText('SI-PRABU v3.0 — Dokumen Resmi Tahap 2: BA Penetapan Jenis, Cara Pengadaan & Pemaketan | KPU Ngawi', {
+              italic: true,
+              size: 16,
+              color: '64748B',
+              align: AlignmentType.RIGHT,
+              before: 0,
+              after: 30
+            })
+          ]
+        })
+      },
+      footers: {
+        default: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              spacing: { before: 30, after: 0 },
+              children: [
+                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Arial' }),
+                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Arial' }),
+                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Arial' }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Arial' })
+              ]
+            })
+          ]
+        })
+      },
+      children
+    }
+  ];
+}
+
+/**
  * Membangun Section Word untuk 1 Tahap:
  * - Section 1 (Halaman Non-Tanda Tangan): Kop Surat, Judul, Identitas Paket, Bagian A & Bagian B (+ item awal bila > 5 item),
  *   dilengkapi **Footer Kotak Paraf** (2 Pihak jika berdua, atau Paraf Mandiri jika 1 Pejabat).
@@ -1521,13 +1728,25 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
     tanggal_dokumen: paket.tgl_mulai_kerja
   };
   const keu = hitungKeuanganKontrak(paket);
+  const docLabel = `Dokumen Tahap ${String(def.no).padStart(2, '0')} (${def.kode}) - No: ${tahapRow.nomor_dokumen || '-'}`;
+  const paketLabel = `${paket.kode_paket_internal || 'PBJ'} | ${paket.nama_paket || ''}`.slice(0, 78);
 
   if (stageNo === 1) {
     return buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
+  if (stageNo === 2) {
+    return buildStage2Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap
   let pihakKiri = null;
+  let pihakKanan = {
+    judulAtas: 'PEJABAT PEMBUAT KOMITMEN (PPK)',
+    subJudul: (settings.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase(),
+    nama: ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN',
+    identitas: `NIP. ${ppk.nip || '-'}`
+  };
+
   if ([8, 9].includes(stageNo)) {
     pihakKiri = {
       judulAtas: 'PEJABAT PENGADAAN / POKJA',
@@ -1546,7 +1765,18 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
       labelParafKiri: 'PIHAK KESATU (PPK)',
       labelParafKanan: 'PIHAK KEDUA (PENYEDIA)'
     };
-  } else if ([1, 3, 17].includes(stageNo)) {
+  } else if (stageNo === 3) {
+    // KHUSUS TAHAP 3: PENETAPAN TUNGGAL OLEH KUASA PENGGUNA ANGGARAN (KPA)
+    // Sesuai Pasal 9 ayat (1) huruf c & d jo. Pasal 10 ayat (1) Perpres PBJ.
+    // Menghilangkan tanda tangan PPK agar tidak timbul kesan memerlukan persetujuan bawahan.
+    pihakKiri = null;
+    pihakKanan = {
+      judulAtas: 'KUASA PENGGUNA ANGGARAN',
+      subJudul: (settings.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase(),
+      nama: kpa.nama_lengkap || 'BUDI RAHAYU',
+      identitas: `NIP. ${kpa.nip || '-'}`
+    };
+  } else if ([1, 17].includes(stageNo)) {
     pihakKiri = {
       judulAtas: 'MENGETAHUI / MENYETUJUI:',
       subJudul: 'KUASA PENGGUNA ANGGARAN (SEKRETARIS KPU)',
@@ -1556,13 +1786,6 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
       labelParafKanan: 'PPK'
     };
   }
-
-  const pihakKanan = {
-    judulAtas: 'PEJABAT PEMBUAT KOMITMEN (PPK)',
-    subJudul: (settings.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase(),
-    nama: ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN',
-    identitas: `NIP. ${ppk.nip || '-'}`
-  };
 
   const modeHargaTabel = stageNo <= 8 ? 'hps' : 'kontrak';
   const totalNilaiTabel = (items || []).reduce((acc, it) => {
@@ -1590,7 +1813,7 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   // SECTION 1: Halaman Non-Tanda Tangan (Dilengkapi Kotak Paraf pada Footer)
   const section1Children = [
     ...buildKopSuratKpu(settings),
-    pText(`DOKUMEN TAHAP ${String(stageNo).padStart(2, '0')} — ${def.nama.toUpperCase()}`, {
+    pText(stageNo === 3 ? 'SURAT PENETAPAN RENCANA UMUM PENGADAAN (RUP) OLEH KUASA PENGGUNA ANGGARAN (KPA) & PENGUMUMAN SIRUP LKPP' : `DOKUMEN TAHAP ${String(stageNo).padStart(2, '0')} — ${def.nama.toUpperCase()}`,  {
       bold: true, size: 23, align: AlignmentType.CENTER, before: 40, after: 20
     }),
     pText(`NOMOR: ${tahapRow.nomor_dokumen || '-'}`, {
@@ -1603,15 +1826,66 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
         pLabelValue('Nama Paket Pengadaan', paket.nama_paket),
         pLabelValue('Kode RUP & Mata Anggaran (MAK)', `${paket.kode_rup || '-'} | MAK ${paket.kode_akun_mak} (${paket.nama_akun_mak})`),
         pLabelValue('Jenis & Metode Pengadaan', `${paket.jenis_pengadaan} — ${paket.cara_pengadaan} / ${paket.metode_pemilihan} (${paket.fitur_spse})`),
-        pLabelValue('Bentuk & Jenis Kontrak', `${paket.bentuk_kontrak} (${paket.jenis_kontrak})`),
-        pLabelValue('Nilai Pagu / HPS / Kontrak', `Pagu: ${formatRupiah(paket.nilai_pagu)} | ${paket.jenis_kertas_harga}: ${formatRupiah(paket.nilai_hps)} | Kontrak: ${formatRupiah(paket.nilai_kontrak)}`),
-        pLabelValue('Pelaksana / Penyedia', `${penyedia.nama_perusahaan || '-'} (${penyedia.kualifikasi_usaha || 'UMK'}) — NPWP: ${penyedia.npwp || '-'}`)
+        pLabelValue('Bentuk & Jenis Kontrak', `${paket.bentuk_kontrak || 'Surat Pesanan'} (${paket.jenis_kontrak || 'Lumsum'})`),
+        pLabelValue('Nilai Pagu / HPS / Kontrak', (() => {
+          if (stageNo < 6) {
+            return `Pagu DIPA: ${formatRupiah(paket.nilai_pagu)} (HPS disusun pada Tahap 6, Kontrak pada Tahap 13)`;
+          } else if (stageNo < 13) {
+            return `Pagu: ${formatRupiah(paket.nilai_pagu)} | ${paket.jenis_kertas_harga || 'HPS'}: ${formatRupiah(paket.nilai_hps || 0)} (Kontrak disusun pada Tahap 13)`;
+          } else {
+            return `Pagu: ${formatRupiah(paket.nilai_pagu)} | ${paket.jenis_kertas_harga || 'HPS'}: ${formatRupiah(paket.nilai_hps || 0)} | Kontrak: ${formatRupiah(paket.nilai_kontrak || 0)}`;
+          }
+        })()),
+        pLabelValue(stageNo < 9 ? 'Pelaksana Pemilihan / Rekanan' : 'Pelaksana / Penyedia', (() => {
+          if (stageNo < 9) {
+            return `Pelaksana Pemilihan: ${paket.pelaksana_pemilihan || 'Pejabat Pengadaan'} (Penyedia belum ditentukan, dipilih pada Tahap 9)`;
+          } else {
+            return `${penyedia?.nama_perusahaan || 'Penyedia Terpilih'} (${penyedia?.kualifikasi_usaha || 'UMK'}) — NPWP: ${penyedia?.npwp || '-'}`;
+          }
+        })())
       ]
     }),
 
     ...buildStageSpecificSections(stageNo, ctx, tahapRow, keu),
     ...buildStageLegalComplianceSection(stageNo, ctx, tahapRow, keu)
   ];
+
+  const stagesWithPricedTable = [6, 9, 13, 16];
+  const hasItemTable = stagesWithPricedTable.includes(stageNo) || stageNo === 4;
+
+  if (!hasItemTable) {
+    // Untuk tahapan non-tabel harga (Tahap 3, 5, 7, 8, 10, 11, 12, 14, 15, 17, 18):
+    // Dokumen langsung ditutup dengan kalimat penutup dan blok tanda tangan resmi tanpa memuat tabel harga Rp 0 kosong.
+    section1Children.push(
+      pText('Demikian dokumen administrasi pengadaan ini dibuat dengan sebenarnya dalam rangkap secukupnya untuk dipergunakan sebagaimana mestinya sesuai ketentuan peraturan perundang-undangan pengadaan barang/jasa pemerintah.', {
+        before: 60,
+        after: 100,
+        keepNext: true,
+        keepLines: true
+      }),
+      buildBlokTandaTangan(
+        pihakKiri,
+        pihakKanan,
+        settings.kota_satker || 'Ngawi',
+        tahapRow.tanggal_dokumen || paket.tgl_mulai_kerja
+      )
+    );
+
+    const sectionSingle = {
+      properties: {
+        ...(isFirstStageInDoc ? {} : { type: SectionType.NEXT_PAGE }),
+        page: { margin: pageMargin }
+      },
+      footers: {
+        // Sesuai Kaidah Tata Naskah Dinas:
+        // 1. Dokumen 1 lembar TIDAK PERLU kotak paraf
+        // 2. Halaman yang memuat tanda tangan TIDAK PERLU diparaf
+        default: buildFooterTanpaParaf(docLabel, paketLabel)
+      },
+      children: section1Children
+    };
+    return [sectionSingle];
+  }
 
   if (splitTable && firstPageItems.length > 0) {
     section1Children.push(
@@ -1632,19 +1906,22 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
       page: { margin: pageMargin }
     },
     footers: {
+      // Halaman sebelum tanda tangan pada dokumen multi-halaman: Wajib Kotak Paraf
       default: buildFooterKotakParaf(pihakKiri, pihakKanan, def, tahapRow, paket)
     },
     children: section1Children
   };
 
   // SECTION 2: Halaman Lembar Pengesahan / Tanda Tangan (Didampingi Tabel Rincian Item & Total -> Bebas TTD Gantung, Tanpa Kotak Paraf)
+  const nilaiTerbilang = modeHargaTabel === 'hps' ? (paket.nilai_hps || totalNilaiTabel) : (paket.nilai_kontrak || totalNilaiTabel);
   const section2 = {
     properties: {
       type: SectionType.NEXT_PAGE,
       page: { margin: pageMargin }
     },
     footers: {
-      default: buildFooterTanpaParaf()
+      // Sesuai Kaidah Tata Naskah Dinas: Halaman yang memuat tanda tangan TIDAK PERLU diparaf
+      default: buildFooterTanpaParaf(docLabel, paketLabel)
     },
     children: [
       pText(
@@ -1659,15 +1936,17 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
         totalSemuaOverride: totalNilaiTabel,
         startIndex: splitTable ? firstPageItems.length : 0
       }),
-      pText(`Terbilang: # ${terbilangRupiah(modeHargaTabel === 'hps' ? paket.nilai_hps : paket.nilai_kontrak)} #`, {
-        bold: true,
-        italic: true,
-        size: 20,
-        before: 80,
-        after: 120,
-        keepNext: true,
-        keepLines: true
-      }),
+      ...(nilaiTerbilang > 0 ? [
+        pText(`Terbilang: # ${terbilangRupiah(nilaiTerbilang)} #`, {
+          bold: true,
+          italic: true,
+          size: 20,
+          before: 80,
+          after: 120,
+          keepNext: true,
+          keepLines: true
+        })
+      ] : []),
       pText('Demikian dokumen administrasi pengadaan ini dibuat dengan sebenarnya dalam rangkap secukupnya untuk dipergunakan sebagaimana mestinya sesuai ketentuan peraturan perundang-undangan pengadaan barang/jasa pemerintah.', {
         before: 60,
         after: 100,

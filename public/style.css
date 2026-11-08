@@ -4244,3 +4244,119 @@ tr.rkb-row-lvl-41.table-row-selected td {
   gap: 10px;
 }
 
+
+
+/* ==========================================================================
+   ENLARGED MODAL TAHAP 1 & FULL WIDTH FORM CONTROLS
+   ========================================================================== */
+#modal-tahap1-input .modal-box {
+  max-width: 1040px !important;
+  width: 95% !important;
+}
+
+#modal-tahap1-input input[type="text"],
+#modal-tahap1-input input[type="number"],
+#modal-tahap1-input input[type="date"],
+#modal-tahap1-input select,
+#modal-tahap1-input textarea,
+#modal-tahap1-input .cakra-form-control {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+.cakra-form-control {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+
+/* ==========================================================================
+   CAKRA EXECUTIVE DATA TABLES & DASHBOARD REKAP CARDS (BAB 4.2 PBJ)
+   ========================================================================== */
+.cakra-table-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  margin-bottom: 24px;
+}
+
+.cakra-table-header-bar {
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cakra-table-header-bar h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cakra-table-header-bar .subtitle {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.cakra-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  background: #ffffff;
+  text-align: left;
+}
+
+.cakra-table th {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 800;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 11px 12px;
+  border-bottom: 2px solid #cbd5e1;
+  border-top: 1px solid #e2e8f0;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.cakra-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+  color: #334155;
+  font-size: 12px;
+}
+
+.cakra-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.cakra-table tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.cakra-table tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+.cakra-table tfoot td {
+  background: #f8fafc;
+  font-weight: 800;
+  color: #0f172a;
+  border-top: 2px solid #cbd5e1;
+  padding: 11px 12px;
+  font-size: 12px;
+}

@@ -101,9 +101,8 @@ async function initDatabaseSchemaAndSeed() {
   const sqlFilePath = path.resolve(__dirname, 'pengadaan_schema_seed.sql');
 
   try {
-    const [rows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_paket');
     const [sRows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_settings');
-    if (rows && rows[0] && rows[0].cnt >= 6 && sRows && sRows[0] && sRows[0].cnt > 0) {
+    if (sRows && sRows[0] && sRows[0].cnt > 0) {
       await ensurePenyediaLinkDokumenColumn(pool);
       await migratePejabatTanpaGelarOnce(pool);
       await ensureAllPaketsHave18Stages();
@@ -434,6 +433,17 @@ async function recalculatePaketTotals(paketId) {
   );
 }
 
+function determineStatusPaketByStage(stageNo) {
+  const n = Number(stageNo || 1);
+  if (n <= 3) return 'Perencanaan';
+  if (n <= 7) return 'Persiapan PPK';
+  if (n <= 9) return 'Pemilihan';
+  if (n <= 13) return 'Kontrak Aktif';
+  if (n <= 15) return 'Pelaksanaan Kontrak';
+  if (n <= 17) return 'Serah Terima & BMN';
+  return 'Selesai & Lunas';
+}
+
 async function savePaket(data) {
   const pool = getCakraPool();
   const rekomendasi = evaluasiJalurRegulasi(data);
@@ -450,6 +460,14 @@ async function savePaket(data) {
   else if (nilaiKinerja < 2.5) predikat = 'Baik';
 
   if (data.id) {
+    // Ambil data paket yang ada saat ini dari database untuk penggabungan aman (zero data loss)
+    const [curRows] = await pool.query('SELECT * FROM pbj_paket WHERE id = ?', [data.id]);
+    const cur = curRows[0] || {};
+    const p = { ...cur, ...data };
+
+    const cleanTahapAktif = Number(p.tahap_aktif || cur.tahap_aktif || 1);
+    const cleanStatusPaket = determineStatusPaketByStage(cleanTahapAktif);
+
     await pool.query(
       `UPDATE pbj_paket SET
         kode_rup=?, nama_paket=?, uraian_pekerjaan=?, lokasi_pekerjaan=?,
@@ -470,42 +488,55 @@ async function savePaket(data) {
         nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?
        WHERE id=?`,
       [
-        data.kode_rup || '', data.nama_paket, data.uraian_pekerjaan || '', data.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi',
-        data.sumber_dana || 'APBN DIPA', data.tahun_anggaran || '2026', data.kode_akun_mak || '521211', data.nama_akun_mak || 'Belanja Bahan',
-        data.komponen_ro || '', data.pic_subbag || 'KUL',
-        data.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi',
-        data.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)',
-        data.rkb_subkegiatan || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu',
-        data.rkb_komponen || 'Pengadaan Perangkat Server dan Jaringan Komputer',
-        data.bmn_kategori_telaah || (String(data.kode_akun_mak || '').startsWith('53') ? 'MODAL' : 'EKSTRAKOMPTABEL'),
-        data.disposisi_status || 'DISETUJUI', data.disposisi_catatan_kpa || '', data.disposisi_tgl_diajukan || null, data.disposisi_tgl_disposisi || null,
-        data.no_nota_dinas_pengusul || '', data.tgl_nota_dinas_pengusul || '', data.perihal_nota_dinas || '', data.no_disposisi_kpa || '', data.tgl_disposisi_kpa || '',
-        data.bmn_status_ketersediaan || 'TERSEDIA_RUSAK_BERAT', Number(data.bmn_jumlah_eksisting || 0), data.bmn_kondisi_eksisting || '', data.bmn_sifat_kebutuhan || 'PENGGANTIAN', data.bmn_kesesuaian_rkbmn || '', data.bmn_catatan_telaah || '',
-        data.jenis_pengadaan || 'Barang', data.cara_pengadaan || 'Penyedia', data.metode_pemilihan || 'E-Purchasing',
-        data.sub_metode_epurchasing || 'Negosiasi Harga', data.fitur_spse || rekomendasi.fiturSpse, data.pelaksana_pemilihan || rekomendasi.pelaksana,
-        Number(data.nilai_pagu || 0), data.jenis_kertas_harga || rekomendasi.jenisKertasHarga,
-        Number(data.nilai_hps || 0), Number(data.nilai_penawaran_awal || 0), Number(data.nilai_kontrak || 0),
-        Number(data.tarif_ppn ?? 11), Number(data.termasuk_ppn ?? 1), data.jenis_pph || 'PPh 22 (1.5%)', Number(data.tarif_pph ?? 1.5),
-        data.prioritas_pdn_level || 'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)', Number(data.persen_tkdn_target ?? 40), Number(data.persen_bmp_target ?? 15), Number(data.peruntukan_umk ?? 1),
-        data.tersedia_di_katalog || 'Ya, Tersedia & Sesuai', data.alasan_penilaian_ppk_katalog || '', data.link_produk_katalog_1 || '', data.link_produk_katalog_2 || '',
-        data.jenis_kontrak || 'Lumsum', data.bentuk_kontrak || rekomendasi.bentukKontrak, Number(data.masa_pelaksanaan_hari || 14),
-        data.tgl_mulai_kerja || '2026-05-18', data.tgl_selesai_kontrak || '2026-05-31', data.tgl_realisasi_selesai || '2026-05-30', Number(data.hari_terlambat || 0),
-        Number(data.persen_uang_muka || 0), Math.round((Number(data.nilai_kontrak || 0) * Number(data.persen_uang_muka || 0)) / 100),
-        Number(data.wajib_jaminan_pelaksanaan ?? rekomendasi.wajibJaminan), Math.round(Number(data.nilai_kontrak || 0) * 0.05),
-        Number(data.penyedia_id || 1), Number(data.ppk_id || 2), Number(data.pejabat_pengadaan_id || 3), Number(data.kpa_id || 1), Number(data.bendahara_id || 4), null,
-        Number(data.tahap_aktif || 6), data.status_paket || 'Persiapan PPK',
-        sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, data.catatan_khusus_ppk || '',
+        p.kode_rup || '', p.nama_paket || cur.nama_paket, p.uraian_pekerjaan || cur.uraian_pekerjaan || '', p.lokasi_pekerjaan || cur.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi',
+        p.sumber_dana || cur.sumber_dana || 'APBN DIPA', p.tahun_anggaran || cur.tahun_anggaran || '2026', p.kode_akun_mak || cur.kode_akun_mak || '521211', p.nama_akun_mak || cur.nama_akun_mak || 'Belanja Bahan',
+        p.komponen_ro || cur.komponen_ro || '', p.pic_subbag || cur.pic_subbag || 'KUL',
+        p.rkb_program || cur.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi',
+        p.rkb_kegiatan || cur.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)',
+        p.rkb_subkegiatan || cur.rkb_subkegiatan || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu',
+        p.rkb_komponen || cur.rkb_komponen || 'Pengadaan Perangkat Server dan Jaringan Komputer',
+        p.bmn_kategori_telaah || cur.bmn_kategori_telaah || (String(p.kode_akun_mak || '').startsWith('53') ? 'MODAL' : 'EKSTRAKOMPTABEL'),
+        p.disposisi_status || cur.disposisi_status || 'DISETUJUI', p.disposisi_catatan_kpa || cur.disposisi_catatan_kpa || '', p.disposisi_tgl_diajukan || cur.disposisi_tgl_diajukan || null, p.disposisi_tgl_disposisi || cur.disposisi_tgl_disposisi || null,
+        p.no_nota_dinas_pengusul || cur.no_nota_dinas_pengusul || '', p.tgl_nota_dinas_pengusul || cur.tgl_nota_dinas_pengusul || '', p.perihal_nota_dinas || cur.perihal_nota_dinas || '', p.no_disposisi_kpa || cur.no_disposisi_kpa || '', p.tgl_disposisi_kpa || cur.tgl_disposisi_kpa || '',
+        p.bmn_status_ketersediaan || cur.bmn_status_ketersediaan || 'TERSEDIA_RUSAK_BERAT', Number(p.bmn_jumlah_eksisting ?? cur.bmn_jumlah_eksisting ?? 0), p.bmn_kondisi_eksisting || cur.bmn_kondisi_eksisting || '', p.bmn_sifat_kebutuhan || cur.bmn_sifat_kebutuhan || 'PENGGANTIAN', p.bmn_kesesuaian_rkbmn || cur.bmn_kesesuaian_rkbmn || '', p.bmn_catatan_telaah || cur.bmn_catatan_telaah || '',
+        p.jenis_pengadaan || cur.jenis_pengadaan || 'Barang', p.cara_pengadaan || cur.cara_pengadaan || 'Penyedia', p.metode_pemilihan || cur.metode_pemilihan || 'E-Purchasing',
+        p.sub_metode_epurchasing || cur.sub_metode_epurchasing || 'Negosiasi Harga', p.fitur_spse || cur.fitur_spse || rekomendasi.fiturSpse, p.pelaksana_pemilihan || cur.pelaksana_pemilihan || rekomendasi.pelaksana,
+        Number(p.nilai_pagu ?? cur.nilai_pagu ?? 0), p.jenis_kertas_harga || cur.jenis_kertas_harga || rekomendasi.jenisKertasHarga,
+        Number(p.nilai_hps ?? cur.nilai_hps ?? 0), Number(p.nilai_penawaran_awal ?? cur.nilai_penawaran_awal ?? 0), Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0),
+        Number(p.tarif_ppn ?? cur.tarif_ppn ?? 11), Number(p.termasuk_ppn ?? cur.termasuk_ppn ?? 1), p.jenis_pph || cur.jenis_pph || 'PPh 22 (1.5%)', Number(p.tarif_pph ?? cur.tarif_pph ?? 1.5),
+        p.prioritas_pdn_level || cur.prioritas_pdn_level || 'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)', Number(p.persen_tkdn_target ?? cur.persen_tkdn_target ?? 40), Number(p.persen_bmp_target ?? cur.persen_bmp_target ?? 15), Number(p.peruntukan_umk ?? cur.peruntukan_umk ?? 1),
+        p.tersedia_di_katalog || cur.tersedia_di_katalog || 'Ya, Tersedia & Sesuai', p.alasan_penilaian_ppk_katalog || cur.alasan_penilaian_ppk_katalog || '', p.link_produk_katalog_1 || cur.link_produk_katalog_1 || '', p.link_produk_katalog_2 || cur.link_produk_katalog_2 || '',
+        p.jenis_kontrak || cur.jenis_kontrak || 'Lumsum', p.bentuk_kontrak || cur.bentuk_kontrak || rekomendasi.bentukKontrak, Number(p.masa_pelaksanaan_hari ?? cur.masa_pelaksanaan_hari ?? 14),
+        p.tgl_mulai_kerja || cur.tgl_mulai_kerja || '2026-05-18', p.tgl_selesai_kontrak || cur.tgl_selesai_kontrak || '2026-05-31', p.tgl_realisasi_selesai || cur.tgl_realisasi_selesai || '2026-05-30', Number(p.hari_terlambat ?? cur.hari_terlambat ?? 0),
+        Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0), Math.round((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) * Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0)) / 100),
+        Number(p.wajib_jaminan_pelaksanaan ?? cur.wajib_jaminan_pelaksanaan ?? rekomendasi.wajibJaminan), Math.round(Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) * 0.05),
+        p.penyedia_id ? Number(p.penyedia_id) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
+        cleanTahapAktif, cleanStatusPaket,
+        sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
         data.id
       ]
     );
 
     if (data.stageUpdate && data.stageUpdate.no_tahap) {
       const su = data.stageUpdate;
+      const stageNo = Number(su.no_tahap);
       let finalStatus = su.status_tahap || 'Draft';
-      const driveLink = String(su.link_drive_dokumen || '').trim();
+      let driveLink = String(su.link_drive_dokumen || '').trim();
+
+      // Dapatkan data tahap saat ini untuk melindungi tautan drive dan nomor dokumen yang sudah tersimpan
+      const [existingStageRows] = await pool.query(
+        'SELECT * FROM pbj_paket_tahap WHERE paket_id = ? AND no_tahap = ?',
+        [data.id, stageNo]
+      );
+      const existingStage = existingStageRows[0] || {};
+
+      // Jika link yang dikirim kosong, tapi di DB sudah pernah ada, jangan hapus yang ada di DB!
+      if (!driveLink && existingStage.link_drive_dokumen) {
+        driveLink = existingStage.link_drive_dokumen;
+      }
 
       // HARD GATE: Status 'Selesai' HANYA SAH jika link drive dokumen terisi!
-      if (finalStatus === 'Selesai' && !driveLink) {
+      if (finalStatus === 'Selesai' && (!driveLink || driveLink.length < 5)) {
         finalStatus = 'Draft';
       }
 
@@ -519,11 +550,31 @@ async function savePaket(data) {
            link_drive_dokumen = VALUES(link_drive_dokumen),
            catatan_tahap = VALUES(catatan_tahap)`,
         [
-          data.id, Number(su.no_tahap), Number(su.fase || 1), su.nama_tahap || '',
-          su.nomor_dokumen || '', su.tanggal_dokumen || '', finalStatus,
-          driveLink, su.catatan_tahap || ''
+          data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
+          su.nomor_dokumen || existingStage.nomor_dokumen || '',
+          su.tanggal_dokumen || existingStage.tanggal_dokumen || '',
+          finalStatus,
+          driveLink,
+          su.catatan_tahap || existingStage.catatan_tahap || ''
         ]
       );
+
+      // JIKA STATUS SELESAI: OTOMATIS BUKA TAHAP BERIKUTNYA & SINKRONKAN TAHAP AKTIF SERTA STATUS PAKET
+      if (finalStatus === 'Selesai' && stageNo < 18) {
+        const nextStageNo = stageNo + 1;
+        // Buka tahap berikutnya dari 'Terkunci' menjadi 'Draft'
+        await pool.query(
+          `UPDATE pbj_paket_tahap SET status_tahap = 'Draft'
+           WHERE paket_id = ? AND no_tahap = ? AND status_tahap = 'Terkunci'`,
+          [data.id, nextStageNo]
+        );
+        const updatedTahapAktif = Math.max(cleanTahapAktif, nextStageNo);
+        const updatedStatusPaket = determineStatusPaketByStage(updatedTahapAktif);
+        await pool.query(
+          `UPDATE pbj_paket SET tahap_aktif = ?, status_paket = ? WHERE id = ?`,
+          [updatedTahapAktif, updatedStatusPaket, data.id]
+        );
+      }
     }
 
     return data.id;
@@ -548,7 +599,7 @@ async function savePaket(data) {
         jenis_kontrak, bentuk_kontrak, masa_pelaksanaan_hari, tgl_mulai_kerja, tgl_selesai_kontrak, tgl_realisasi_selesai,
         penyedia_id, ppk_id, pejabat_pengadaan_id, kpa_id, bendahara_id, tim_teknis_id,
         tahap_aktif, status_paket, nilai_kinerja_akhir, predikat_kinerja, catatan_khusus_ppk
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         kodeInternal, kodeRup, data.nama_paket || 'Paket Pengadaan Baru KPU Kabupaten Ngawi',
         data.uraian_pekerjaan || data.nama_paket || '', 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
@@ -560,13 +611,13 @@ async function savePaket(data) {
         data.jenis_pengadaan || 'Barang', data.cara_pengadaan || 'Penyedia', data.metode_pemilihan || 'E-Purchasing',
         data.sub_metode_epurchasing || 'Negosiasi Harga', rekomendasi.fiturSpse, rekomendasi.pelaksana,
         Number(data.nilai_pagu || 0), rekomendasi.jenisKertasHarga,
-        Number(data.nilai_hps || data.nilai_pagu || 0), Number(data.nilai_penawaran_awal || data.nilai_pagu || 0), Number(data.nilai_kontrak || data.nilai_pagu || 0),
+        Number(data.nilai_hps || 0), Number(data.nilai_penawaran_awal || 0), Number(data.nilai_kontrak || 0),
         Number(data.tarif_ppn ?? 11), 1, data.jenis_pph || 'PPh 22 (1.5%)', Number(data.tarif_pph ?? 1.5),
         'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)', 40, 15, 1,
         'Ya, Tersedia & Sesuai', 'Sesuai analisa pasar dan ketersediaan Katalog Elektronik v6.',
         data.jenis_kontrak || 'Lumsum', rekomendasi.bentukKontrak, Number(data.masa_pelaksanaan_hari || 14),
         '2026-05-18', '2026-05-31', '2026-05-30',
-        Number(data.penyedia_id || 1), 2, 3, 1, 4, null,
+        data.penyedia_id ? Number(data.penyedia_id) : null, 2, 3, 1, 4, null,
         1, 'Perencanaan', 3.00, 'Sangat Baik', data.catatan_khusus_ppk || ''
       ]
     );
@@ -584,8 +635,8 @@ async function savePaket(data) {
         newId, data.nama_paket, data.spesifikasi_awal || 'Sesuai KAK dan Spesifikasi Teknis PPK KPU Kabupaten Ngawi',
         data.satuan_awal || 'Paket', volAwal,
         hargaAwal, Math.round(hargaAwal * 1.04), Math.round(hargaAwal * 1.02),
-        hargaAwal, Math.round(volAwal * hargaAwal),
-        hargaAwal, hargaAwal, Math.round(volAwal * hargaAwal)
+        0, 0,
+        0, 0, 0
       ]
     );
 
@@ -795,6 +846,7 @@ module.exports = {
   getPaketList,
   getPaketFullById,
   savePaket,
+  determineStatusPaketByStage,
   deletePaket,
   savePaketItems,
   savePaketTahaps,

@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png?v=3.5.0">
   <link rel="shortcut icon" type="image/png" href="/favicon.ico?v=3.5.0">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png?v=3.5.0">
-  <link rel="stylesheet" href="/style.css?v=5.0.7">
+  <link rel="stylesheet" href="/style.css?v=5.4.3-penyedia-guard">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -320,31 +320,26 @@
               <span class="prabu-chevron">▾</span>
             </button>
             <div class="prabu-tree-children">
-              <!-- 1. PENGADAAN BARU: KOKPIT KHUSUS PROSES PENGADAAN -->
-              <button class="nav-item" data-view="view-pengadaan-kokpit" id="nav-item-pengadaan-kokpit" onclick="switchView('view-pengadaan-kokpit')">
-                <span class="icon">🚀</span>
-                <span class="label">Pengadaan Baru</span>
-              </button>
-              <!-- 2. DAFTAR PAKET: MEREKAM SELURUH PENGADAAN SELESAI & PROSES -->
+              <!-- 1. DAFTAR & KOKPIT PAKET: PINTU UTAMA SELURUH PENGADAAN -->
               <button class="nav-item" data-view="view-pengadaan-paket" id="nav-item-pengadaan-paket" onclick="switchView('view-pengadaan-paket')">
                 <span class="icon">📂</span>
-                <span class="label">Daftar Paket</span>
-                <span class="badge badge-primary badge-sm" id="badge-pengadaan-paket">6</span>
+                <span class="label">Daftar &amp; Kokpit Paket</span>
+                <span class="badge badge-primary badge-sm" id="badge-pengadaan-paket">0</span>
               </button>
-              <!-- 3. AUDIT PENGADAAN: MENU KHUSUS AUDIT PROSES SELESAI / BERJALAN -->
-              <button class="nav-item" data-view="view-audit-pengadaan" id="nav-item-audit-pengadaan" onclick="switchView('view-audit-pengadaan')">
-                <span class="icon">🛡️</span>
-                <span class="label">Audit Pengadaan</span>
-              </button>
-              <!-- 4. REKAP PENGADAAN: KONSOLIDASI & ANALITIK EKSEKUTIF PBJ -->
+              <!-- 2. DASHBOARD & REKAP PBJ: KONSOLIDASI & ANALITIK EKSEKUTIF (BAB 4.2) -->
               <button class="nav-item" data-view="view-rekap-pengadaan" id="nav-item-rekap-pengadaan" onclick="switchView('view-rekap-pengadaan')">
                 <span class="icon">📊</span>
-                <span class="label">Rekap Pengadaan</span>
+                <span class="label">Dashboard &amp; Rekap PBJ</span>
               </button>
-              <!-- 5. PANDUAN PENGADAAN: PUSAT PANDUAN, REGULASI, JADWAL & DO'S/DON'TS -->
+              <!-- 3. AUDIT PENGADAAN: MENU KHUSUS AUDIT PROSES SELESAI / BERJALAN & KEPATUHAN DRIVE -->
+              <button class="nav-item" data-view="view-audit-pengadaan" id="nav-item-audit-pengadaan" onclick="switchView('view-audit-pengadaan')">
+                <span class="icon">🛡️</span>
+                <span class="label">Audit &amp; Kendali Kepatuhan</span>
+              </button>
+              <!-- 4. PANDUAN PENGADAAN: PUSAT PANDUAN, REGULASI, JADWAL & DO'S/DON'TS -->
               <button class="nav-item" data-view="view-panduan-pengadaan" id="nav-item-panduan-pengadaan" onclick="switchView('view-panduan-pengadaan')">
                 <span class="icon">📚</span>
-                <span class="label">Panduan Pengadaan</span>
+                <span class="label">Panduan &amp; Regulasi</span>
               </button>
             </div>
           </div>
@@ -4184,13 +4179,22 @@
         <section id="view-pengadaan-paket" class="app-view">
           <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
             <div>
-              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">📂 Daftar Paket Pengadaan Barang/Jasa &amp; Konstruksi</h1>
-              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Pencatatan seluruh pengadaan yang selesai dan sedang berproses (18 Tahap Hulu–Hilir KPU Kabupaten Ngawi TA 2026).</p>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1e40af;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>📂 BUKU BESAR PENGADAAN SATKER 657811</span>
+              </div>
+              <h1 style="font-size:19px; font-weight:800; color:#0f172a; margin:0;">Daftar Seluruh Paket Pengadaan (Selesai &amp; Dalam Proses)</h1>
+              <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Basis data master pengadaan: merekam seluruh paket yang telah selesai 100% (arsip digital) maupun yang masih berjalan.</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button type="button" class="cakra-btn cakra-btn-outline" onclick="switchView('view-pengadaan-portal-pengusul')" style="border-color:#0284c7; color:#0369a1; background:#f0f9ff; font-weight:700;" title="Buka Portal Pengusulan Kasubag & Disposisi KPA">📝 Pengusulan Kasubag &amp; Disposisi KPA ↗</button>
-              <button type="button" class="cakra-btn cakra-btn-outline" onclick="toggleCakraRkbDrawer()">📥 Tarik RKB Belanja</button>
-              <button type="button" class="cakra-btn cakra-btn-primary" onclick="openSmartWizardModal()" style="font-weight:700;">🪄 + Buat Paket Baru</button>
+              <button type="button" class="cakra-btn" onclick="openModalTahap1Input('NEW')" style="display:inline-flex; align-items:center; gap:6px; font-weight:800; background:#2563eb; color:#fff; padding:6px 14px; border-radius:6px; border:none; cursor:pointer;" title="Mulai buat paket pengadaan baru (Pendaftaran Identitas, Pagu, & Tahap 1)">
+                <span>✨ + Mulai Pengadaan Baru</span>
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="renderDashboardTable()" style="display:inline-flex; align-items:center; gap:5px;" title="Segarkan data tabel">
+                <span>🔄</span> Segarkan
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="if(window.exportRekapPengadaanCsv) window.exportRekapPengadaanCsv()" style="display:inline-flex; align-items:center; gap:5px; font-weight:700;" title="Unduh rekap paket ke Excel/CSV">
+                <span>📊</span> Unduh Data (.xlsx/.csv)
+              </button>
             </div>
           </div>
 
@@ -4897,8 +4901,8 @@
     <!-- ===================================================================== -->
     <!-- MODAL: POP-UP FORMULIR TAHAP 1 (IDENTIFIKASI KEBUTUHAN PENGADAAN BARU)    -->
     <!-- ===================================================================== -->
-    <div id="modal-tahap1-input" class="modal-backdrop" style="display:none; z-index:1160;" onclick="if(event.target===this) closeModalTahap1Input()">
-      <div class="modal-box" style="max-width:860px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+    <div id="modal-tahap1-input" class="modal-backdrop" style="display:none; z-index:1160;">
+      <div class="modal-box" style="max-width:1040px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
         <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color:#fff; padding:16px 20px;">
           <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
             <div>
@@ -4918,15 +4922,15 @@
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; display:grid; grid-template-columns: 1fr 1.6fr 1fr; gap:12px; align-items:center;">
             <div>
               <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Kode Paket (SSOT)</label>
-              <input type="text" id="m1_kode_paket_internal" class="cakra-form-control cakra-mono" readonly style="background:#f1f5f9; font-weight:800; color:#1e40af; cursor:not-allowed;" />
+              <input type="text" id="m1_kode_paket_internal" class="cakra-form-control cakra-mono" readonly style="background:#f1f5f9; font-weight:800; color:#1e40af; cursor:not-allowed; width:100%; box-sizing:border-box;" />
             </div>
             <div>
               <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Nomor Dokumen Tahap 1 (IDK)</label>
-              <input type="text" id="m1_nomor_dokumen" class="cakra-form-control cakra-mono" style="font-size:11.5px; font-weight:700; color:#0f172a;" />
+              <input type="text" id="m1_nomor_dokumen" class="cakra-form-control cakra-mono" style="font-size:11.5px; font-weight:700; color:#0f172a; width:100%; box-sizing:border-box;" />
             </div>
             <div>
               <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Tanggal Dokumen</label>
-              <input type="date" id="m1_tanggal_dokumen" class="cakra-form-control" style="font-size:12px;" />
+              <input type="date" id="m1_tanggal_dokumen" class="cakra-form-control" style="font-size:12px; width:100%; box-sizing:border-box;" />
             </div>
           </div>
 
@@ -4971,18 +4975,21 @@
             </div>
           </div>
 
-          <!-- SEKSI 2: NAMA PAKET & URGENSI KEBUTUHAN (KAK) -->
+          <!-- SEKSI 2: NAMA PAKET & MAKSUD BELANJA -->
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
             <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
-              <span>📋 2. Nama Paket Pengadaan &amp; Urgensi Kebutuhan (KAK)</span>
+              <span>📋 2. Nama Paket Pengadaan &amp; Maksud Belanja</span>
             </div>
-            <div style="margin-bottom:12px;">
-              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nama Paket Pengadaan (Sesuai DIPA / Kebutuhan Riil) *</label>
-              <input type="text" id="m1_nama_paket" class="cakra-form-control" placeholder="cth: Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi" style="font-size:13.5px; font-weight:600; padding:8px 12px;" required />
+            <div style="margin-bottom:14px;">
+              <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:6px; display:block;">Nama Paket Pengadaan (Sesuai DIPA / Kebutuhan Riil) *</label>
+              <input type="text" id="m1_nama_paket" class="cakra-form-control" placeholder="cth: Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi" style="font-size:14px; font-weight:600; padding:10px 14px; width:100% !important; box-sizing:border-box !important;" required />
             </div>
             <div>
-              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Urgensi &amp; Justifikasi Identifikasi Kebutuhan (KAK)</label>
-              <textarea id="m1_uraian_pekerjaan" class="cakra-form-control" rows="3" placeholder="Jelaskan dasar pertimbangan kebutuhan, volume pengguna, fungsi operasional kedinasan, dan urgensi kelancaran tugas..."></textarea>
+              <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                <span>Uraian Singkat Maksud Belanja <span style="font-weight:normal; color:#64748b;">(Opsional)</span></span>
+                <span style="font-size:11px; font-weight:normal; color:#0284c7; background:#f0f9ff; padding:2px 8px; border-radius:4px; border:1px solid #bae6fd;">💡 Dokumen KAK / Spek Teknis resmi disusun pada Tahap 4 oleh PPK</span>
+              </label>
+              <textarea id="m1_uraian_pekerjaan" class="cakra-form-control" rows="2" placeholder="Tuliskan 1-2 kalimat ringkas tujuan pengadaan ini jika diperlukan (bisa dikosongkan)..." style="font-size:13px; line-height:1.5; padding:8px 12px; width:100% !important; box-sizing:border-box !important;"></textarea>
             </div>
           </div>
 
@@ -5062,7 +5069,22 @@
               </div>
             </div>
           </div>
-          <div id="m1_seksi_telaah_bmn_note" style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:10px 14px; font-size:11.5px; color:#64748b; display:flex; align-items:center; gap:8px;">
+          
+            <!-- SEKSI 5: TAUTAN GOOGLE DRIVE NASKAH FISIK SAH (TAHAP 1) -->
+            <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:16px;">
+              <div style="font-size:12.5px; font-weight:800; color:#166534; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                <span>☁️ Tautan Google Drive Dokumen Sah Bertandatangan (Tahap 1)</span>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">URL / Tautan Google Drive (Naskah Dinas Pengusul / Lembar Disposisi KPA)</label>
+                <input type="url" id="m1_link_drive_dokumen" class="cakra-form-control cakra-mono" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" style="width:100% !important; box-sizing:border-box !important; padding:8px 12px; font-size:12px;" />
+                <div style="font-size:11px; color:#15803d; margin-top:4px;">
+                  💡 Tempelkan tautan berkas fisik yang telah ditandatangani basah / TTE (Opsional: dapat diisi sekarang atau nanti saat dokumen sudah selesai bertandatangan).
+                </div>
+              </div>
+            </div>
+
+            <div id="m1_seksi_telaah_bmn_note" style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:10px 14px; font-size:11.5px; color:#64748b; display:flex; align-items:center; gap:8px;">
             <span>ℹ️</span> <span>Akun belanja non-modal (MAK 52xxxx): Telaah Ketersediaan BMN tidak wajib / otomatis dikecualikan.</span>
           </div>
         </div>
@@ -5071,9 +5093,14 @@
           <button type="button" class="cakra-btn cakra-btn-secondary" onclick="closeModalTahap1Input()" style="font-weight:700;">
             Batal
           </button>
-          <button type="button" class="cakra-btn cakra-btn-primary" onclick="submitModalTahap1Input()" style="font-weight:800; padding:8px 22px; font-size:13px; box-shadow:0 2px 6px rgba(37,99,235,0.3); cursor:pointer;">
-            💾 Simpan Data &amp; Buka Lembar Kerja Tahap 1
-          </button>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button type="button" class="cakra-btn cakra-btn-warning" onclick="submitModalTahap1Input(false)" style="font-weight:700; padding:8px 18px; font-size:12.5px; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;">
+              💾 Simpan Draf
+            </button>
+            <button type="button" class="cakra-btn cakra-btn-success" onclick="submitModalTahap1Input(true)" style="font-weight:800; padding:8px 22px; font-size:13px; background:#10b981; color:#fff; border:none; border-radius:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); cursor:pointer;">
+              ✅ Selesaikan Tahap 1 &amp; Kunci
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -8050,9 +8077,246 @@
       </div>
     </div>
 
-    <script src="/data_juknis.js?v=5.1.0"></script>
-    <script src="/app.js?v=5.1.0"></script>
-    <script src="/pengadaan.js?v=5.1.0"></script>
+    
+      <!-- ===================================================================== -->
+      <!-- MODAL: POP-UP FORMULIR TAHAP 2 (PENETAPAN JENIS, CARA & PEMAKETAN)    -->
+      <!-- ===================================================================== -->
+<!-- ===================================================================== -->
+      <!-- MODAL: POP-UP FORMULIR TAHAP 2 (PENETAPAN JENIS, CARA & PEMAKETAN)    -->
+      <!-- ===================================================================== -->
+      <div id="modal-tahap2-input" class="modal-backdrop" style="display:none; z-index:1160;">
+        <div class="modal-box" style="max-width:880px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+          <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color:#fff; padding:16px 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <div>
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px;">
+                  <span>📋 Formulir Penetapan Pemaketan — Tahap 2</span>
+                </h3>
+                <div style="font-size:12px; color:#bfdbfe; margin-top:3px;">
+                  Penetapan Jenis Pengadaan, Cara, Metode Pemilihan, Bentuk &amp; Jenis Kontrak (Pasal 18–28 Perpres PBJ)
+                </div>
+              </div>
+              <button type="button" class="btn-close" onclick="closeModalTahap2Input()" style="color:#fff; background:none; border:none; font-size:22px; cursor:pointer;">✕</button>
+            </div>
+          </div>
+
+          <div class="modal-body" style="padding:20px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; background:#f8fafc;">
+            <!-- NOMOR & TANGGAL BERITA ACARA -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; display:grid; grid-template-columns: 1.5fr 1fr; gap:12px;">
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px; display:block;">Nomor Berita Acara Pemaketan (BA-PMK) *</label>
+                <input type="text" id="m2_nomor_dokumen" class="cakra-form-control cakra-mono" style="font-weight:700; padding:8px 12px; width:100% !important; box-sizing:border-box !important;" />
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px; display:block;">Tanggal Penetapan BA-PMK *</label>
+                <input type="date" id="m2_tanggal_dokumen" class="cakra-form-control" style="font-weight:700; padding:8px 12px; width:100% !important; box-sizing:border-box !important;" />
+              </div>
+            </div>
+
+            <!-- KELOMPOK 1: JENIS, CARA & METODE -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+              <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                <span>🎯 1. Rancang Bangun Pengadaan &amp; Pemilihan</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+                <div>
+                  <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">1. Jenis Pengadaan</label>
+                  <select id="m2_jenis_pengadaan" class="cakra-form-control" style="width:100% !important; box-sizing:border-box !important; padding:8px 10px;">
+                    <option value="Barang">Barang</option>
+                    <option value="Jasa Lainnya">Jasa Lainnya</option>
+                    <option value="Jasa Konsultansi Nonkonstruksi">Jasa Konsultansi Nonkonstruksi</option>
+                    <option value="Pekerjaan Konstruksi">Pekerjaan Konstruksi</option>
+                    <option value="Jasa Konsultansi Konstruksi">Jasa Konsultansi Konstruksi</option>
+                    <option value="Pekerjaan Konstruksi Terintegrasi Rancang dan Bangun">Pekerjaan Konstruksi Terintegrasi Rancang dan Bangun</option>
+                    <option value="Swakelola">Swakelola</option>
+                    <option value="Dikecualikan">Dikecualikan</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">2. Cara Pengadaan</label>
+                  <select id="m2_cara_pengadaan" class="cakra-form-control" style="width:100% !important; box-sizing:border-box !important; padding:8px 10px;">
+                    <option value="Penyedia">Penyedia</option>
+                    <option value="Swakelola Tipe I">Swakelola Tipe I</option>
+                    <option value="Swakelola Tipe II">Swakelola Tipe II</option>
+                    <option value="Swakelola Tipe III">Swakelola Tipe III</option>
+                    <option value="Swakelola Tipe IV">Swakelola Tipe IV</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">3. Metode Pemilihan</label>
+                  <select id="m2_metode_pemilihan" class="cakra-form-control" style="width:100% !important; box-sizing:border-box !important; padding:8px 10px;">
+                    <option value="E-Purchasing">E-Purchasing</option>
+                    <option value="Pengadaan Langsung">Pengadaan Langsung</option>
+                    <option value="Penunjukan Langsung">Penunjukan Langsung</option>
+                    <option value="Repeat Order">Repeat Order</option>
+                    <option value="Tender Cepat">Tender Cepat</option>
+                    <option value="Tender">Tender</option>
+                    <option value="Seleksi">Seleksi</option>
+                    <option value="Mekanisme Pasar (Dikecualikan)">Mekanisme Pasar (Dikecualikan)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- KELOMPOK 2: PERIKATAN HUKUM & KERTAS KERJA -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+              <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                <span>📜 2. Perikatan Hukum (Kontrak) &amp; Kertas Kerja Harga</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+                <div>
+                  <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Bentuk Kontrak (Pasal 28 Perpres PBJ)</label>
+                  <select id="m2_bentuk_kontrak" class="cakra-form-control" style="width:100% !important; box-sizing:border-box !important; padding:8px 10px;">
+                    <option value="Surat Pesanan">Surat Pesanan (E-Purchasing)</option>
+                    <option value="SPK">SPK (Surat Perintah Kerja)</option>
+                    <option value="Surat Perjanjian">Surat Perjanjian (Kontrak Baku)</option>
+                    <option value="Kuitansi">Kuitansi (s.d. 50 Juta)</option>
+                    <option value="Bukti Pembelian">Bukti Pembelian (s.d. 10 Juta)</option>
+                    <option value="Kontrak Swakelola">Kontrak Swakelola</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Jenis Kontrak (Pasal 27 Perpres PBJ)</label>
+                  <select id="m2_jenis_kontrak" class="cakra-form-control" style="width:100% !important; box-sizing:border-box !important; padding:8px 10px;">
+                    <option value="Lumsum">Lumsum (Pasti &amp; Tetap Total Output)</option>
+                    <option value="Harga Satuan">Harga Satuan (Pengukuran Riil Lapangan)</option>
+                    <option value="Gabungan Lumsum dan Harga Satuan">Gabungan Lumsum dan Harga Satuan</option>
+                    <option value="Kontrak Payung">Kontrak Payung</option>
+                    <option value="Biaya Plus Imbalan">Biaya Plus Imbalan</option>
+                    <option value="Waktu Penugasan">Waktu Penugasan</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Pilihan Kertas Kerja Harga (Tahap 6)</label>
+                  <select id="m2_jenis_kertas_harga" class="cakra-form-control" style="width:100% !important; box-sizing:border-box !important; padding:8px 10px;">
+                    <option value="HPS">HPS (Wajib Pagu > Rp 100 Juta)</option>
+                    <option value="Referensi Harga (E-Purchasing <=100Jt)">Referensi Harga (E-Purchasing &le; 100 Jt)</option>
+                    <option value="Bebas HPS (<=10Jt)">Bebas HPS (&le; 10 Jt)</option>
+                    <option value="RAB Swakelola">RAB Swakelola</option>
+                    <option value="Estimasi Pasar (Dikecualikan)">Estimasi Pasar (Dikecualikan)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          
+            <!-- KELOMPOK 3: TAUTAN GOOGLE DRIVE NASKAH FISIK SAH (TAHAP 2) -->
+            <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:16px;">
+              <div style="font-size:12.5px; font-weight:800; color:#166534; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                <span>☁️ Tautan Google Drive Dokumen Sah Bertandatangan (Tahap 2)</span>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">URL / Tautan Google Drive (Berita Acara Pemaketan Bertandatangan PPK)</label>
+                <input type="url" id="m2_link_drive_dokumen" class="cakra-form-control cakra-mono" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" style="width:100% !important; box-sizing:border-box !important; padding:8px 12px; font-size:12px;" />
+                <div style="font-size:11px; color:#15803d; margin-top:4px;">
+                  💡 Tempelkan tautan berkas BA-PMK yang telah ditandatangani PPK (Opsional: dapat diisi saat dokumen fisik telah selesai ditandatangani).
+                </div>
+              </div>
+            </div>
+</div>
+
+          <div class="modal-footer" style="padding:14px 20px; background:#f1f5f9; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" class="cakra-btn cakra-btn-secondary" onclick="closeModalTahap2Input()" style="font-weight:700;">
+              Batal
+            </button>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button type="button" class="cakra-btn cakra-btn-warning" onclick="submitModalTahap2Input(false)" style="font-weight:700; padding:8px 18px; font-size:12.5px; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;">
+                💾 Simpan Draf
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-success" onclick="submitModalTahap2Input(true)" style="font-weight:800; padding:8px 22px; font-size:13px; background:#10b981; color:#fff; border:none; border-radius:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); cursor:pointer;">
+                ✅ Selesaikan Tahap 2 &amp; Kunci
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ===================================================================== -->
+      <!-- MODAL: POP-UP FORMULIR TAHAP UNIVERSAL (TAHAP 3 S.D. 18)               -->
+      <!-- ===================================================================== -->
+      <div id="modal-tahap-universal" class="modal-backdrop" style="display:none; z-index:1160;">
+        <div class="modal-box" style="max-width:880px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+          <!-- MODAL HEADER -->
+          <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color:#fff; padding:16px 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <div>
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px;">
+                  <span id="mu_modal_title">📋 Formulir Pengisian Data Tahap</span>
+                </h3>
+                <div id="mu_modal_subtitle" style="font-size:12px; color:#bfdbfe; margin-top:3px;">
+                  Pembaruan data substantif tahap dan tautan Google Drive dokumen sah
+                </div>
+              </div>
+              <button type="button" class="btn-close" onclick="closeModalTahapUniversal()" style="color:#fff; background:none; border:none; font-size:22px; cursor:pointer;">✕</button>
+            </div>
+          </div>
+
+          <!-- MODAL BODY -->
+          <div class="modal-body" style="padding:20px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; background:#f8fafc;">
+            <!-- NOMOR, TANGGAL & STATUS TAHAP -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; display:grid; grid-template-columns: 1.5fr 1fr 1fr; gap:12px;">
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px; display:block;">Nomor Dokumen Sah *</label>
+                <input type="text" id="mu_nomor_dokumen" class="cakra-form-control cakra-mono" style="font-weight:700; padding:8px 12px; width:100% !important; box-sizing:border-box !important;" />
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px; display:block;">Tanggal Dokumen *</label>
+                <input type="date" id="mu_tanggal_dokumen" class="cakra-form-control" style="font-weight:700; padding:8px 12px; width:100% !important; box-sizing:border-box !important;" />
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px; display:block;">Status Tahap</label>
+                <div id="mu_status_tahap_badge_container" style="display:flex; align-items:center; min-height:38px;">
+                  <span id="mu_status_tahap_badge" class="cakra-badge cakra-badge-amber" style="font-size:12px; font-weight:700; padding:6px 12px;">📝 Draf / Belum Selesai</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONTAINER FIELD KHUSUS TAHAP (DYNAMIC) -->
+            <div id="mu_stage_fields_container" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+              <!-- Disuntikkan secara dinamis berdasarkan nomor tahap aktif -->
+            </div>
+
+            <!-- TAUTAN GOOGLE DRIVE NASKAH FISIK SAH (WAJIB UNTUK PENYELESAIAN) -->
+            <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:16px;">
+              <div style="font-size:12.5px; font-weight:800; color:#166534; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                <span>☁️ Tautan Google Drive Dokumen Sah Bertandatangan</span>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">URL / Tautan Google Drive</label>
+                <input type="url" id="mu_link_drive_dokumen" class="cakra-form-control cakra-mono" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" style="width:100% !important; box-sizing:border-box !important; padding:8px 12px; font-size:12px;" />
+                <div style="font-size:11px; color:#15803d; margin-top:4px;">
+                  💡 Unduh dokumen Word/Excel dari tombol di card tahap, cetak &amp; tanda tangani basah/TTE, unggah ke Google Drive satker, lalu tempelkan tautannya di sini.
+                </div>
+              </div>
+            </div>
+
+            <!-- CATATAN PPK / PEJABAT PENGADAAN -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+              <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px; display:block;">Catatan PPK / Pejabat Pengadaan</label>
+              <textarea id="mu_catatan_tahap" class="cakra-form-control" rows="2" placeholder="Catatan penting atau keterangan tindak lanjut..." style="width:100% !important; box-sizing:border-box !important; font-size:12px;"></textarea>
+            </div>
+          </div>
+
+          <!-- MODAL FOOTER -->
+          <div class="modal-footer" style="padding:14px 20px; background:#f1f5f9; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" class="cakra-btn cakra-btn-secondary" onclick="closeModalTahapUniversal()" style="font-weight:700;">
+              Batal
+            </button>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button type="button" class="cakra-btn cakra-btn-warning" onclick="submitModalTahapUniversal(false)" style="font-weight:700; padding:8px 18px; font-size:12.5px; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;" title="Simpan isian saat ini sebagai draf tanpa mengubah status ke selesai">
+                💾 Simpan Draf
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-success" onclick="submitModalTahapUniversal(true)" style="font-weight:800; padding:8px 22px; font-size:13px; background:#10b981; color:#fff; border:none; border-radius:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); cursor:pointer;" title="Kunci tahap ini sebagai Selesai dan buka tahap berikutnya (Wajib tautan Google Drive)">
+                ✅ Selesaikan Tahap &amp; Kunci
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+<script src="/data_juknis.js?v=5.1.0"></script>
+    <script src="/app.js?v=5.4.3-penyedia-guard"></script>
+    <script src="/pengadaan.js?v=5.4.3-penyedia-guard"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

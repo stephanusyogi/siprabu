@@ -91,6 +91,7 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
       ]);
 
       let totalPagu = 0;
+      let totalPaguBerkontrak = 0;
       let totalHps = 0;
       let totalKontrak = 0;
       let totalPaketUmk = 0;
@@ -99,15 +100,23 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
 
       for (const p of pakets) {
         totalPagu += Number(p.nilai_pagu || 0);
-        totalHps += Number(p.nilai_hps || 0);
-        totalKontrak += Number(p.nilai_kontrak || 0);
-        sumTkdn += Number(p.persen_tkdn_target || 0);
-        if (Number(p.peruntukan_umk) === 1) {
-          totalPaketUmk++;
-          nilaiKontrakUmk += Number(p.nilai_kontrak || 0);
+        const tAktif = Number(p.tahap_aktif || 1);
+        const hps = tAktif >= 6 ? Number(p.nilai_hps || 0) : 0;
+        const kontrak = tAktif >= 13 ? Number(p.nilai_kontrak || 0) : 0;
+
+        totalHps += hps;
+        if (kontrak > 0) {
+          totalPaguBerkontrak += Number(p.nilai_pagu || 0);
+          totalKontrak += kontrak;
+          if (Number(p.peruntukan_umk) === 1) {
+            totalPaketUmk++;
+            nilaiKontrakUmk += kontrak;
+          }
         }
+        sumTkdn += Number(p.persen_tkdn_target || 0);
       }
 
+      const totalEfisiensi = totalKontrak > 0 ? Math.max(0, totalPaguBerkontrak - totalKontrak) : 0;
       const persenAlokasiUmk = totalKontrak > 0 ? Number(((nilaiKontrakUmk / totalKontrak) * 100).toFixed(1)) : 100;
       const rataTkdn = pakets.length > 0 ? Number((sumTkdn / pakets.length).toFixed(1)) : 45;
 
@@ -125,7 +134,7 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
           totalPagu,
           totalHps,
           totalKontrak,
-          totalEfisiensi: Math.max(0, totalPagu - totalKontrak),
+          totalEfisiensi,
           totalPaketUmk,
           persenAlokasiUmk,
           rataTkdn

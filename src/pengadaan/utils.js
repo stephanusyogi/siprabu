@@ -292,7 +292,7 @@ function evaluasiJalurRegulasi(paket) {
 const DEFINISI_18_TAHAP = [
   { no: 1, fase: 1, kode: 'IDK', nama: 'Identifikasi Kebutuhan PBJ (Basis DIPA/RKB)', outputUtama: '01_Form_Identifikasi_Kebutuhan', selisihHariKerja: 0 },
   { no: 2, fase: 1, kode: 'PMK', nama: 'Penetapan Jenis, Cara Pengadaan, & Pemaketan', outputUtama: '02_BA_Pemaketan_PBJ', selisihHariKerja: 1 },
-  { no: 3, fase: 1, kode: 'RUP', nama: 'Penyusunan RUP & Pengumuman SIRUP', outputUtama: '03_Kertas_Kerja_RUP_SIRUP', selisihHariKerja: 1 },
+  { no: 3, fase: 1, kode: 'RUP', nama: 'Penetapan RUP oleh KPA & Pengumuman SiRUP', outputUtama: '03_Surat_Penetapan_RUP_KPA', selisihHariKerja: 1 },
   { no: 4, fase: 2, kode: 'SPEK', nama: 'Penetapan KAK, Spesifikasi Teknis, DED & SMKK (PDN/TKDN)', outputUtama: '04_Dokumen_KAK_Spesifikasi_DED_SMKK', selisihHariKerja: 1 },
   { no: 5, fase: 2, kode: 'AP', nama: 'Analisa Pasar & Penilaian PPK atas Katalog Elektronik', outputUtama: '05_BA_Analisa_Pasar_Penilaian_PPK', selisihHariKerja: 1 },
   { no: 6, fase: 2, kode: 'HPS', nama: 'Penyusunan Referensi Harga / HPS / AHSP / RAB Swakelola', outputUtama: '06_Kertas_Kerja_HPS_RefHarga_AHSP', selisihHariKerja: 1 },
@@ -356,9 +356,10 @@ function susunJadwal18TahapOtomatis(paket, tanggalMulaiPersiapan = '2026-05-04')
     const romawi = ANGKA_ROMAWI_BULAN[cursorDate.getMonth()];
     const tglIso = `${yyyy}-${mm}-${dd}`;
     const noUrutSurat = String(def.no).padStart(3, '0');
+    const kodeOtoritas = def.no === 3 ? 'KPA-PBJ' : (def.no === 8 || def.no === 9 ? 'PP-PBJ' : 'PPK-PBJ');
     const nomorDokumen = isBypass
       ? '-'
-      : `${noUrutSurat}/${ def.kode }-${nomorPaketUrut}/PPK-PBJ/KPU-NGW/${romawi}/${yyyy}`;
+      : `${noUrutSurat}/${ def.kode }-${nomorPaketUrut}/${kodeOtoritas}/KPU-NGW/${romawi}/${yyyy}`;
 
     let stageStatus = 'Terkunci';
     let docNum = '';
@@ -735,16 +736,18 @@ const PANDUAN_18_TAHAP = {
   3: {
     fase: 1,
     faseNama: 'FASE 1: PERENCANAAN PENGADAAN (1–3)',
-    nama: 'Penyusunan RUP & Pengumuman SIRUP',
+    nama: 'Penetapan RUP oleh KPA & Pengumuman SiRUP',
     pejabatPic: 'Kuasa Pengguna Anggaran (KPA / Sekretaris KPU)',
-    dasarHukum: 'Pasal 22 Perpres 46/2025 jo. Bab IV Perlem LKPP 2/2026',
-    outputDokumen: '03_Kertas_Kerja_RUP_SIRUP.docx',
+    dasarHukum: 'Pasal 9 ayat (1) huruf c & d jo. Pasal 10 ayat (1) Perpres 16/2018 jo. Perpres 46/2025 jo. Bab IV Perlem LKPP 2/2026',
+    outputDokumen: '03_Surat_Penetapan_RUP_KPA.docx',
     checklist: [
-      'Input rencana pengadaan ke aplikasi SiRUP LKPP resmi (https://sirup.lkpp.go.id).',
+      'KPA menetapkan Rencana Umum Pengadaan (RUP) berdasarkan perencanaan pengadaan dari PPK.',
+      'KPA secara sah mengumumkan RUP pada portal resmi SiRUP LKPP (https://sirup.lkpp.go.id).',
       'Catat dan input Kode RUP SiRUP resmi ke dalam data paket di SI-PRABU.',
-      'Pastikan RUP telah terumumkan kepada publik sebelum tahap pelaksanaan pengadaan dimulai.'
+      'KPA menugaskan PPK untuk melaksanakan tahapan persiapan teknis pengadaan barang/jasa.',
+      'Cetak dan lampirkan bukti status terumumkan SiRUP LKPP ke dalam berkas pengadaan.'
     ],
-    tips: 'Kode RUP wajib diisi sebelum masuk ke Fase 3 (Pemilihan Penyedia) agar terverifikasi audit PBJ.'
+    tips: 'Surat Penetapan RUP ditandatangani tunggal oleh Kuasa Pengguna Anggaran (KPA) sebagai produk penetapan (beschikking) sah sebelum PPK menyusun persiapan teknis.'
   },
   4: {
     fase: 2,

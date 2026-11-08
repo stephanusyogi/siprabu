@@ -832,6 +832,7 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
 
   // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Mendukung Mode Peran Bergantian & Kumulatif)
   matrix.forEach(item => {
+    if (item.menu_key === 'view-pengadaan-kokpit') return;
     const btn = document.querySelector('button[data-view="' + item.menu_key + '"]');
     if (!btn) return;
 
@@ -2741,7 +2742,8 @@ function switchView(viewId, updateHistory = true) {
   
   let activeParentGroup = null;
   document.querySelectorAll('.nav-item').forEach(btn => {
-    const isActive = btn.getAttribute('data-view') === viewId;
+    const btnView = btn.getAttribute('data-view');
+    const isActive = (btnView === viewId) || (viewId === 'view-pengadaan-kokpit' && btnView === 'view-pengadaan-paket');
     btn.classList.toggle('active', isActive);
     if (isActive) {
       activeParentGroup = btn.closest('.prabu-tree-group, .sakti-tree-group');
