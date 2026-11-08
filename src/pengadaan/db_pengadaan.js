@@ -520,7 +520,7 @@ async function savePaket(data) {
         p.tgl_mulai_kerja || cur.tgl_mulai_kerja || '2026-05-18', p.tgl_selesai_kontrak || cur.tgl_selesai_kontrak || '2026-05-31', p.tgl_realisasi_selesai || cur.tgl_realisasi_selesai || '2026-05-30', Number(p.hari_terlambat ?? cur.hari_terlambat ?? 0),
         Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0), Math.round((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) * Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0)) / 100),
         Number(p.wajib_jaminan_pelaksanaan ?? cur.wajib_jaminan_pelaksanaan ?? rekomendasi.wajibJaminan), Math.round(Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) * 0.05),
-        p.penyedia_id ? Number(p.penyedia_id) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
+        p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
         data.id

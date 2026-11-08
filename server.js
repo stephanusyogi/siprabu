@@ -1576,6 +1576,108 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    // 3b-3. ENDPOINT KHUSUS LEAD DEVELOPER: SINKRONISASI DATA PENGADAAN (LOCAL -> HOSTING)
+    if (pathname === '/api/developer/sync-pbj-from-local' && method === 'POST') {
+      const syncKey = req.headers['x-sync-key'] || req.headers['x-developer-key'];
+      const validSyncKey = process.env.SIPRABU_SYNC_KEY || 'siprabu_sync_kpu_ngawi_2026_emenje';
+      const isSyncKeyValid = Boolean(syncKey && syncKey === validSyncKey);
+
+      const currentUser = getUserFromReq(req);
+      if (!isSyncKeyValid && (!currentUser || !isDeveloperUser(currentUser))) {
+        return sendJson(res, 401, { error: 'Silakan login terlebih dahulu atau gunakan Sync Key pengembang yang valid.' });
+      }
+
+      try {
+        const body = await parseJsonBody(req);
+        const { getCakraPool } = require('./src/pengadaan/db_pengadaan');
+        const pool = getCakraPool();
+
+        await pool.query('SET FOREIGN_KEY_CHECKS = 0');
+
+        // Bersihkan tabel PBJ jika mode replace_all aktif (default true)
+        if (body.replace_all !== false) {
+          await pool.query('TRUNCATE TABLE pbj_paket_item');
+          await pool.query('TRUNCATE TABLE pbj_paket_tahap');
+          await pool.query('TRUNCATE TABLE pbj_paket');
+        }
+
+        // 1. Masukkan pbj_paket
+        if (Array.isArray(body.pbj_paket) && body.pbj_paket.length > 0) {
+          for (const row of body.pbj_paket) {
+            const keys = Object.keys(row);
+            const vals = Object.values(row);
+            const placeholders = keys.map(() => '?').join(', ');
+            const cols = keys.map(k => `\`${k}\``).join(', ');
+            await pool.query(`INSERT INTO pbj_paket (${cols}) VALUES (${placeholders})`, vals);
+          }
+        }
+
+        // 2. Masukkan pbj_paket_item
+        if (Array.isArray(body.pbj_paket_item) && body.pbj_paket_item.length > 0) {
+          for (const row of body.pbj_paket_item) {
+            const keys = Object.keys(row);
+            const vals = Object.values(row);
+            const placeholders = keys.map(() => '?').join(', ');
+            const cols = keys.map(k => `\`${k}\``).join(', ');
+            await pool.query(`INSERT INTO pbj_paket_item (${cols}) VALUES (${placeholders})`, vals);
+          }
+        }
+
+        // 3. Masukkan pbj_paket_tahap
+        if (Array.isArray(body.pbj_paket_tahap) && body.pbj_paket_tahap.length > 0) {
+          for (const row of body.pbj_paket_tahap) {
+            const keys = Object.keys(row);
+            const vals = Object.values(row);
+            const placeholders = keys.map(() => '?').join(', ');
+            const cols = keys.map(k => `\`${k}\``).join(', ');
+            await pool.query(`INSERT INTO pbj_paket_tahap (${cols}) VALUES (${placeholders})`, vals);
+          }
+        }
+
+        // 4. Update pbj_settings jika dikirim
+        if (Array.isArray(body.pbj_settings)) {
+          for (const row of body.pbj_settings) {
+            await pool.query('REPLACE INTO pbj_settings (`key`, `value`) VALUES (?, ?)', [row.key, row.value]);
+          }
+        }
+
+        // 5. Update pbj_pejabat jika dikirim
+        if (Array.isArray(body.pbj_pejabat)) {
+          for (const row of body.pbj_pejabat) {
+            const keys = Object.keys(row);
+            const vals = Object.values(row);
+            const placeholders = keys.map(() => '?').join(', ');
+            const cols = keys.map(k => `\`${k}\``).join(', ');
+            await pool.query(`REPLACE INTO pbj_pejabat (${cols}) VALUES (${placeholders})`, vals);
+          }
+        }
+
+        // 6. Update pbj_penyedia jika dikirim
+        if (Array.isArray(body.pbj_penyedia)) {
+          for (const row of body.pbj_penyedia) {
+            const keys = Object.keys(row);
+            const vals = Object.values(row);
+            const placeholders = keys.map(() => '?').join(', ');
+            const cols = keys.map(k => `\`${k}\``).join(', ');
+            await pool.query(`REPLACE INTO pbj_penyedia (${cols}) VALUES (${placeholders})`, vals);
+          }
+        }
+
+        await pool.query('SET FOREIGN_KEY_CHECKS = 1');
+
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Sinkronisasi data PBJ ke database berhasil 100%!',
+          paket_count: body.pbj_paket?.length || 0,
+          item_count: body.pbj_paket_item?.length || 0,
+          tahap_count: body.pbj_paket_tahap?.length || 0
+        });
+      } catch (err) {
+        console.error('[SYNC-PBJ-ERROR]', err);
+        return sendJson(res, 500, { error: 'Gagal sinkronisasi data PBJ: ' + err.message });
+      }
+    }
+
     if (pathname === '/api/developer/blueprint' && method === 'GET') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
