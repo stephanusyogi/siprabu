@@ -95,6 +95,14 @@ async function ensurePenyediaLinkDokumenColumn(pool) {
   }
 }
 
+async function ensurePaketTahapColumns(pool) {
+  try {
+    await pool.query("ALTER TABLE pbj_paket_tahap ADD COLUMN link_drive_dokumen TEXT DEFAULT NULL");
+  } catch (e) {
+    // Abaikan jika kolom link_drive_dokumen sudah ada
+  }
+}
+
 async function initDatabaseSchemaAndSeed() {
   if (schemaInitDone) return;
   const pool = getCakraPool();
@@ -104,6 +112,7 @@ async function initDatabaseSchemaAndSeed() {
     const [sRows] = await pool.query('SELECT COUNT(*) AS cnt FROM pbj_settings');
     if (sRows && sRows[0] && sRows[0].cnt > 0) {
       await ensurePenyediaLinkDokumenColumn(pool);
+      await ensurePaketTahapColumns(pool);
       await migratePejabatTanpaGelarOnce(pool);
       await ensureAllPaketsHave18Stages();
       await seedRegulasiPengadaanToMasterRegulasi(pool);
@@ -126,6 +135,7 @@ async function initDatabaseSchemaAndSeed() {
   if (sqlContent) {
     await pool.query(sqlContent);
     await ensurePenyediaLinkDokumenColumn(pool);
+    await ensurePaketTahapColumns(pool);
     await migratePejabatTanpaGelarOnce(pool);
     await ensureAllPaketsHave18Stages();
     await seedRegulasiPengadaanToMasterRegulasi(pool);
