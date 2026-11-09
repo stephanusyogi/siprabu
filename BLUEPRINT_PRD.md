@@ -840,3 +840,44 @@ Menjawab temuan duplikasi tombol pada implementasi awal, tata letak antarmuka Ko
    - Footer difokuskan murni sebagai pemandu alur sekuensial:
      - Jika tahapan sudah selesai: `[Lanjut ke Tahap (N+1) →]`.
      - Jika tahapan masih draft: `[✓ Selesaikan Tahap N & Lanjut →]` (primer hijau) dan `[Lewati ke Tahap (N+1) →]` (outline).
+
+
+## 30. Standar Operasional Prosedur (SOP) & Spesifikasi Tahap 05: Analisa Pasar & Penilaian PPK atas Katalog Elektronik
+
+### 30.1 Landasan Yuridis & Wewenang PPK
+Tahap 5 (Fase II: Persiapan Pengadaan) dilaksanakan oleh Pejabat Pembuat Komitmen (PPK) berdasarkan:
+1. **Pasal 38 ayat (1) huruf a dan ayat (2) Perpres No. 16/2018 jo. Perpres No. 46/2025:** Menegaskan kewajiban memprioritaskan metode E-Purchasing untuk barang/jasa yang telah tercantum dalam Katalog Elektronik.
+2. **Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026:** Mewajibkan PPK menguji dan menilai kelayakan produk katalog elektronik sebelum menetapkan referensi harga/HPS dan memerintahkan pelaksanaan transaksi e-purchasing.
+3. **Keputusan Kepala LKPP Nomor 177 Tahun 2024:** Penyelenggaraan Katalog Elektronik Versi 6 (LKPP v6) dengan keterbukaan riwayat harga pasar, status penyedia, dan fasilitas negosiasi harga digital.
+4. **Keputusan KPU Nomor 1272 Tahun 2025:** Pedoman Teknis Pengadaan Barang/Jasa di Lingkungan Komisi Pemilihan Umum.
+
+### 30.2 Pengujian 5 Parameter Baku Kelayakan (Pasal 8 Perlem LKPP 2/2026)
+PPK wajib memverifikasi dan mendokumentasikan 5 parameter kelayakan terhadap setiap komoditas:
+1. **Kesesuaian Spesifikasi Teknis & Kualitas Mutu:** Memastikan produk yang tayang memenuhi spesifikasi KAK (misal: processor server multi-core, ECC RAM, redundant power supply, kartu grafis dedicated, dan legalitas OS resmi).
+2. **Ketersediaan Produk & Kepastian Stok:** Konfirmasi ketersediaan barang (ready stock) dari distributor/prinsipal guna menjamin barang dapat dikirim dalam batas waktu pelaksanaan.
+3. **Kewajaran Harga & Struktur Pembiayaan:** Harga tayang telah mencakup PPN 11%, garansi, ongkir franco wilayah kerja (Kabupaten Ngawi, Jawa Timur), serta berada di bawah Pagu Anggaran DIPA.
+4. **Layanan Pengiriman & Service Level Agreement (SLA):** Kesanggupan waktu ekspedisi/pengiriman maksimal 14 hari kalender sejak penerbitan Surat Pesanan dan kesiapan penanganan kendala fisik.
+5. **Jaminan Layanan Purna Jual & Garansi Onsite:** Jaminan garansi resmi pabrikan minimal 3 tahun Onsite NBD (Next Business Day) untuk PC Server dan 1 tahun untuk PC Workstation dengan dukungan Authorized Service Center resmi di Jawa Timur.
+
+### 30.3 Strategi Pemenuhan Pasar: Penyedia Tunggal vs Multi-Order
+Menjawab dinamika ketersediaan barang di mana penyedia katalog hanya memiliki 1 jenis barang yang memenuhi kualifikasi:
+1. **Skenario A (Penyedia Tunggal / Agregator Multibrand):** Diterapkan apabila ditemukan penyedia terpercaya yang mampu memasok seluruh item paket secara komprehensif dalam 1 Surat Pesanan (SP).
+2. **Skenario B (Multi-Vendor / Multi-Order dalam 1 RUP):** Dalam hal penyedia terbaik masing-masing hanya memiliki 1 jenis barang (misal: Vendor A khusus Server Enterprise Tier-1 dan Vendor B khusus Workstation TKDN), Pejabat Pengadaan secara hukum **DIBENARKAN** menerbitkan 2 Surat Pesanan terpisah (SP-01 Server dan SP-02 Workstation) di bawah satu paket RUP dan DIPA yang sama.
+3. **Kepastian Kepatuhan Anti-Pemecahan Paket:** Skenario B **BUKAN PEMERIKSAAN/PEMECAHAN PAKET** yang dilarang Pasal 20 Perpres PBJ, karena metode pemilihannya tidak diturunkan ke non-tender/pengadaan langsung, melainkan tetap menggunakan E-Purchasing yang transparan dan kompetitif demi mengutamakan prinsip *Value for Money*.
+
+### 30.4 Arsitektur Formulir Interaktif Tahap 5 di SI-PRABU (4 Blok Terstruktur)
+1. **Blok 1 (Strategi Pemenuhan Pasar & Transaksi E-Purchasing):** Pemilihan Skenario A vs B, pilihan sub-metode E-Purchasing (Negosiasi Harga, Mini-Kompetisi, Beli Langsung), serta penjelasan yuridis multi-order.
+2. **Blok 2 (Matriks Komparasi 3 Sumber Pasar per Item):** Input interaktif 3 vendor/sumber per item barang (`pbj_paket_item`), harga survei satuan, live lowest-price badge, dan estimasi total pasar.
+3. **Blok 3 (Checklist 5 Parameter Baku Kelayakan):** Pratinjau status pemenuhan kelayakan 5 parameter sesuai Pasal 8 Perlem LKPP 2/2026.
+4. **Blok 4 (Kesimpulan PPK & Tautan Berkas):** Tombol cerdas `[⚡ Susun Otomatis Narasi PPK]`, textarea justifikasi formal PPK, tautan produk e-Katalog 1 & 2, dan tautan Google Drive dokumen sah bertandatangan.
+
+### 30.5 Standar Output Berkas Tahap 5
+- **Word (.docx):** `05_Berita_Acara_Analisa_Pasar_dan_Penilaian_PPK_Katalog.docx` (Font Cambria, Kop Surat Resmi KPU Ngawi, 5 Bab Evaluasi Komprehensif, Tabel Komparasi, Tabel 5 Parameter, dan Blok Tanda Tangan PPK).
+- **PDF (.pdf):** `05_Berita_Acara_Analisa_Pasar_dan_Penilaian_PPK_Katalog.pdf` (Versi cetak sah 201 KB).
+- **Excel (.xlsx):** `Kertas_Kerja_Analisa_Pasar_dan_Komparasi_Harga_Tahap_05.xlsx` (Kertas kerja formula matematis komparasi 3 sumber pasar dan evaluasi kelayakan).
+
+### 30.6 Validasi Pejabat Penandatangan SSOT (Strictly Tanpa Gelar)
+- **Kuasa Pengguna Anggaran (KPA):** `BUDI RAHAYU` (NIP 19830503 200902 1 002) — Tanpa Gelar
+- **Pejabat Pembuat Komitmen (PPK):** `MOHAMMAD NOOR JIHAN` (NIP 19840101 200912 1 001) — Tanpa Gelar
+- **Pejabat Pengadaan:** `INDRAYU FATIKA MAHARDIKA` — Tanpa Gelar
+- Kepatuhan penuh terhadap Keputusan KPU Nomor 1272 Tahun 2025.

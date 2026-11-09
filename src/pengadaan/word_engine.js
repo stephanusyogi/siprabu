@@ -1904,6 +1904,351 @@ function buildStage2Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
  * - Section 2 (Halaman Tanda Tangan): Bagian C Tabel Rincian Item Barang/Jasa (atau item penutup + Total Nilai),
  *   Terbilang, Kalimat Penutup, dan Blok Tanda Tangan Utuh & Sejajar, **TANPA Kotak Paraf** di footer.
  */
+
+/**
+ * DOKUMEN KHUSUS TAHAP 5: BERITA ACARA ANALISA PASAR DAN PENILAIAN PPK ATAS KATALOG ELEKTRONIK (BA-AP)
+ * Berpedoman pada:
+ * - Pasal 38 ayat (1) & (2) Perpres No. 16/2018 jo. Perpres No. 46/2025 (Prioritas E-Purchasing)
+ * - Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026 (5 Parameter Baku Kelayakan Pemilihan Produk Katalog)
+ * - Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Katalog Elektronik Versi 6)
+ * - Keputusan KPU Nomor 1272 Tahun 2025 (Pedoman Teknis Pengadaan Barang/Jasa KPU)
+ * Format Baku Resmi KPU Kabupaten Ngawi — Akuntabel, Komprehensif, Siap Audit BPK/Inspektorat
+ */
+function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
+  const { paket, items, ppk, kpa, settings } = ctx;
+  const noAp = tahapRow.nomor_dokumen || `005/AP/${paket.kode_paket_internal || "PBJ-2026-001"}/PPK-PBJ/KPU-NGW/V/2026`;
+  const tglApStr = formatTanggalIndo(tahapRow.tanggal_dokumen || '2026-05-18');
+  const hariTanggalAp = formatHariTanggalBeritaAcara(tahapRow.tanggal_dokumen || '2026-05-18');
+
+  const children = [];
+
+  // 1. Kop Surat Resmi KPU Kabupaten Ngawi
+  children.push(...buildKopSuratKpu(settings));
+
+  // 2. Judul & Nomor Berita Acara
+  children.push(
+    pText('BERITA ACARA ANALISA PASAR DAN PENILAIAN PPK ATAS KELAYAKAN KATALOG ELEKTRONIK', {
+      bold: true,
+      size: 21,
+      align: AlignmentType.CENTER,
+      before: 30,
+      after: 8
+    }),
+    pText('DOKUMEN TAHAP 05 (FASE II: PERSIAPAN PENGADAAN) — REGULASI PERPRES 46/2025 & PASAL 8 PERLEM LKPP 2/2026', {
+      size: 15,
+      align: AlignmentType.CENTER,
+      color: '1E3A8A',
+      bold: true,
+      before: 0,
+      after: 16
+    }),
+    pText(`Nomor: ${noAp}`, {
+      size: 17,
+      align: AlignmentType.CENTER,
+      color: '475569',
+      bold: true,
+      before: 0,
+      after: 60
+    }),
+    pText(
+      `${hariTanggalAp.kalimatFormal}, bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, saya yang bertanda tangan di bawah ini:`,
+      { before: 0, after: 30, size: 18 }
+    ),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Nama', { bold: true, size: 18 })] }),
+            new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 18 })] }),
+            new TableCell({ width: { size: 72, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN', { bold: true, size: 18 })] })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_NONE, children: [pText('NIP', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(':', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(ppk.nip || '19840101 200912 1 001', { size: 18 })] })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_NONE, children: [pText('Jabatan Kedinasan', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(':', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(`Pejabat Pembuat Komitmen (PPK) Satker ${settings.nama_satker || 'KPU Kabupaten Ngawi'}`, { size: 18 })] })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_NONE, children: [pText('Dasar Pengangkatan', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(':', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_NONE, children: [pText(`Keputusan Kuasa Pengguna Anggaran (KPA) Satker ${settings.nama_satker || 'KPU Kabupaten Ngawi'} Tahun Anggaran ${paket.tahun_anggaran || '2026'}`, { size: 18 })] })
+          ]
+        })
+      ]
+    }),
+    pText('', { after: 20 }),
+    pText('Telah melaksanakan survei pasar dan analisa teknis-harga secara cermat, independen, dan akuntabel terhadap produk-produk teknologi informasi pada platform Katalog Elektronik (E-Katalog v6 LKPP), Toko Daring, dan pasar distributor resmi untuk paket pengadaan berikut:', { before: 10, after: 30, size: 18 }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        pLabelValue('Nama Paket Pengadaan', paket.nama_paket),
+        pLabelValue('Mata Anggaran (MAK DIPA)', `${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`),
+        pLabelValue('Nilai Pagu Anggaran DIPA', `${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)})`),
+        pLabelValue('Sumber Dana / TA', `APBN DIPA Satker ${settings.nama_satker || 'KPU Kabupaten Ngawi'} TA ${paket.tahun_anggaran || '2026'}`),
+        pLabelValue('Pelaksana Pemilihan', `${paket.pelaksana_pemilihan || 'Pejabat Pengadaan'} ${settings.nama_satker || 'KPU Kabupaten Ngawi'}`)
+      ]
+    }),
+    pText('', { after: 30 }),
+
+    // BAB I: DASAR HUKUM DAN RUANG LINGKUP ANALISA PASAR
+    pText('I. DASAR HUKUM DAN RUANG LINGKUP ANALISA PASAR', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
+    pNumbered('1.', 'Pasal 38 ayat (1) huruf a dan ayat (2) Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah jo. Peraturan Presiden Nomor 46 Tahun 2025 menegaskan bahwa metode E-Purchasing wajib diprioritaskan untuk barang/jasa yang telah tercantum dalam Katalog Elektronik.', { level: 1, size: 16.5, before: 3, after: 3 }),
+    pNumbered('2.', 'Pasal 8 Peraturan Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah (LKPP) Nomor 2 Tahun 2026 mewajibkan Pejabat Pembuat Komitmen (PPK) melakukan penilaian kelayakan produk katalog elektronik sebelum menetapkan referensi harga/HPS dan memerintahkan pelaksanaan transaksi e-purchasing.', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('3.', 'Keputusan Kepala LKPP Nomor 177 Tahun 2024 tentang Tata Cara Penyelenggaraan Katalog Elektronik Versi 6 yang menjamin tata kelola transaksi digital terintegrasi, transparan, dan dapat diverifikasi secara daring.', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('4.', 'Keputusan KPU Nomor 1272 Tahun 2025 tentang Pedoman Teknis Pengadaan Barang/Jasa di Lingkungan Komisi Pemilihan Umum.', { level: 1, size: 16.5, before: 0, after: 14 }),
+
+    // BAB II: STRATEGI PEMENUHAN PASAR (SINGLE VENDOR VS MULTI-ORDER)
+    pText('II. STRATEGI PEMENUHAN PASAR & KETENTUAN MULTI-ORDER (PENYEDIA TUNGGAL VS MULTI-VENDOR)', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
+    pNumbered('1.', 'Kondisi Ketersediaan Produk di Pasar Katalog: Berdasarkan penelusuran pada Katalog Elektronik v6, komoditas perangkat keras teknologi informasi terbagi dalam dua kelompok spesialisasi, yaitu penyedia server enterprise (Tier-1 global/nasional) dan penyedia PC workstation bersertifikat TKDN/PDN.', { level: 1, size: 16.5, before: 3, after: 3 }),
+    pNumbered('2.', 'Skenario Pemenuhan Transaksi Pasar: PPK menetapkan 2 (dua) opsi pemenuhan yang sah secara regulasi:', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('a.', 'Skenario A (Penyedia Tunggal / Agregator Multibrand): Memilih penyedia terdaftar yang berstatus authorized reseller/distributor multibrand yang mampu memasok sekaligus PC Server Tower dan PC Workstation SIDALIH dalam 1 (satu) Surat Pesanan terintegrasi.', { level: 2, size: 16, before: 0, after: 2 }),
+    pNumbered('b.', 'Skenario B (Multi-Order / Multi-Vendor dalam 1 RUP): Dalam hal masing-masing penyedia terbaik di katalog hanya memiliki/menyediakan 1 (satu) jenis barang yang memenuhi 5 parameter baku, maka Pejabat Pengadaan DIBENARKAN menerbitkan 2 (dua) Surat Pesanan terpisah (SP-01 untuk Server dan SP-02 untuk Workstation) di bawah paket RUP dan DIPA yang sama.', { level: 2, size: 16, before: 0, after: 3 }),
+    pNumbered('3.', 'Justifikasi Kepatuhan Regulasi (Bukan Pemecahan Paket): Pemesanan terpisah (Multi-Order) pada Skenario B secara hukum BUKAN merupakan pemecahan paket pengadaan untuk menghindari tender sebagaimana dilarang dalam Pasal 20 Perpres PBJ, melainkan implementasi prinsip Value for Money dan efisiensi belanja pemerintah, karena seluruh pesanan tetap menggunakan metode E-Purchasing yang terbuka dan transparan.', { level: 1, size: 16.5, before: 0, after: 14 }),
+
+    // BAB III: MATRIKS KOMPARASI 3 SUMBER PASAR PER ITEM BARANG
+    pText('III. MATRIKS KOMPARASI 3 SUMBER PASAR PER ITEM BARANG', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
+    pText('Hasil survei perbandingan harga pasar dari 3 (tiga) sumber resmi pada platform Katalog Elektronik LKPP v6 dan distributor terpercaya:', { size: 16.5, before: 0, after: 20 })
+  );
+
+  // Buat Tabel Komparasi 3 Sumber Pasar
+  const compHeaderCells = [
+    new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('No', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+    new TableCell({ width: { size: 27, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Uraian Item & Vol', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+    new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Sumber 1 (Vendor A)', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+    new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Sumber 2 (Vendor B)', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+    new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Sumber 3 (Vendor C)', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] })
+  ];
+
+  const compTableRows = [new TableRow({ children: compHeaderCells })];
+
+  let totalPasarTerendah = 0;
+  (items || []).forEach((it, idx) => {
+    const s1 = Number(it.harga_survei_1) || 0;
+    const s2 = Number(it.harga_survei_2) || s1;
+    const s3 = Number(it.harga_survei_3) || s1;
+    const valid = [s1, s2, s3].filter(v => v > 0);
+    const minVal = valid.length ? Math.min(...valid) : 0;
+    const avgVal = valid.length ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : 0;
+    const totalMinItem = minVal * Number(it.volume || 1);
+    totalPasarTerendah += totalMinItem;
+
+    compTableRows.push(
+      new TableRow({
+        children: [
+          new TableCell({ borders: BORDER_TABLE, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 16 })] }),
+          new TableCell({
+            borders: BORDER_TABLE,
+            children: [
+              pText(it.uraian_item || 'Item PBJ', { bold: true, size: 16 }),
+              pText(`Vol: ${it.volume} ${it.satuan} | Spek: ${(it.spesifikasi_teknis || '-').substring(0, 75)}...`, { size: 14, color: '475569', italic: true }),
+              pText(`Harga Terendah: ${formatRupiah(minVal)} / unit`, { size: 14, bold: true, color: '047857' }),
+              pText(`Total Pasar: ${formatRupiah(totalMinItem)}`, { size: 14, bold: true, color: '1E3A8A' })
+            ]
+          }),
+          new TableCell({
+            borders: BORDER_TABLE,
+            children: [
+              pText(it.sumber_survei_1 || 'Katalog Elektronik v6', { size: 14, bold: true }),
+              pText(`${formatRupiah(s1)}`, { size: 16, bold: true, color: s1 === minVal ? '047857' : '000000' }),
+              pText(s1 === minVal ? '[Harga Terendah]' : '', { size: 13, bold: true, color: '047857' })
+            ]
+          }),
+          new TableCell({
+            borders: BORDER_TABLE,
+            children: [
+              pText(it.sumber_survei_2 || 'Vendor Pembanding B', { size: 14, bold: true }),
+              pText(`${formatRupiah(s2)}`, { size: 16, bold: true, color: s2 === minVal ? '047857' : '000000' }),
+              pText(s2 === minVal ? '[Harga Terendah]' : '', { size: 13, bold: true, color: '047857' })
+            ]
+          }),
+          new TableCell({
+            borders: BORDER_TABLE,
+            children: [
+              pText(it.sumber_survei_3 || 'Vendor Pembanding C', { size: 14, bold: true }),
+              pText(`${formatRupiah(s3)}`, { size: 16, bold: true, color: s3 === minVal ? '047857' : '000000' }),
+              pText(s3 === minVal ? '[Harga Terendah]' : '', { size: 13, bold: true, color: '047857' })
+            ]
+          })
+        ]
+      })
+    );
+  });
+
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: compTableRows
+    }),
+    pText('', { after: 20 }),
+    pText(`Total Estimasi Pengadaan Pasar (Harga Terendah Terverifikasi): ${formatRupiah(totalPasarTerendah)} (${terbilangRupiah(totalPasarTerendah)}).`, { bold: true, size: 17, color: '1E3A8A', before: 6, after: 4 }),
+    pText(`Potensi Efisiensi terhadap Pagu Anggaran DIPA (${formatRupiah(paket.nilai_pagu)}): Sebesar ${formatRupiah(Math.max(0, Number(paket.nilai_pagu || 0) - totalPasarTerendah))} (${Number(paket.nilai_pagu) > 0 ? (((Math.max(0, Number(paket.nilai_pagu || 0) - totalPasarTerendah)) / Number(paket.nilai_pagu)) * 100).toFixed(2) : 0}%).`, { size: 16.5, italic: true, color: '047857', before: 0, after: 16 }),
+
+    // BAB IV: PENGUJIAN & PENILAIAN 5 PARAMETER KELAYAKAN KATALOG ELEKTRONIK
+    pText('IV. PENGUJIAN DAN PENILAIAN 5 PARAMETER KELAYAKAN KATALOG ELEKTRONIK (PASAL 8 PERLEM 2/2026)', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
+    pText('PPK melakukan pengujian mendalam terhadap 5 (lima) parameter baku kelayakan sebelum menetapkan kesimpulan:', { size: 16.5, before: 0, after: 20 })
+  );
+
+  // Buat Tabel 5 Parameter
+  const paramHeaderCells = [
+    new TableCell({ width: { size: 6, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('No', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+    new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Parameter Baku Kelayakan', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+    new TableCell({ width: { size: 48, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Uraian Pengujian & Bukti Konfirmasi Pasar', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+    new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Hasil Penilaian PPK', { bold: true, size: 16, align: AlignmentType.CENTER, color: 'FFFFFF' })] })
+  ];
+
+  const paramRows = [
+    new TableRow({ children: paramHeaderCells }),
+    new TableRow({
+      children: [
+        new TableCell({ borders: BORDER_TABLE, children: [pText('1', { align: AlignmentType.CENTER, size: 16, bold: true })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Kesesuaian Spesifikasi Teknis & Kualitas', { bold: true, size: 16 }), pText('(Pasal 8 ayat 1 huruf a)', { size: 13, italic: true, color: '64748B' })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Produk PC Server Tower memenuhi kriteria processor enterprise multi-core, memori ECC DDR4/DDR5 32GB, konfigurasi storage RAID-1 hardware mirroring, serta dual redundant power supply. PC Workstation memenuhi processor Core i7 Gen-14, 32GB RAM, SSD NVMe 1TB, kartu grafis dedicated, dan lisensi asli Microsoft Windows Server 2025 & Windows 11 Pro.', { size: 15.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('MEMENUHI & SESUAI 100%', { bold: true, size: 16, color: '047857' }), pText('(Lolos Uji Teknis)', { size: 13, italic: true })] })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({ borders: BORDER_TABLE, children: [pText('2', { align: AlignmentType.CENTER, size: 16, bold: true })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Ketersediaan Produk & Kepastian Stok', { bold: true, size: 16 }), pText('(Pasal 8 ayat 1 huruf b)', { size: 13, italic: true, color: '64748B' })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Telah dilakukan konfirmasi stok daring dan surat ketersediaan produk dari distributor resmi di Jawa Timur. Seluruh item berstatus ready stock di gudang penyedia/distributor dan sanggup dikirim dalam kurun waktu pelaksanaan kontrak.', { size: 15.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('TERSEDIA & READY STOCK', { bold: true, size: 16, color: '047857' }), pText('(Kepastian Pasokan Terjamin)', { size: 13, italic: true })] })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({ borders: BORDER_TABLE, children: [pText('3', { align: AlignmentType.CENTER, size: 16, bold: true })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Kewajaran Harga & Struktur Pembiayaan', { bold: true, size: 16 }), pText('(Pasal 8 ayat 1 huruf c)', { size: 13, italic: true, color: '64748B' })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Harga tayang pada platform e-Katalog v6 telah diverifikasi mencakup PPN 11%, margin keuntungan wajar, biaya pengemasan, asuransi, serta ongkos kirim franco Kantor KPU Kabupaten Ngawi. Harga berada di bawah pagu anggaran DIPA dan kompetitif dibanding survei pasar ritel lokal.', { size: 15.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('HARGA WAJAR & EFISIEN', { bold: true, size: 16, color: '047857' }), pText('(Di Bawah Pagu Anggaran)', { size: 13, italic: true })] })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({ borders: BORDER_TABLE, children: [pText('4', { align: AlignmentType.CENTER, size: 16, bold: true })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Layanan Pengiriman & SLA Waktu Kirim', { bold: true, size: 16 }), pText('(Pasal 8 ayat 1 huruf d)', { size: 13, italic: true, color: '64748B' })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Penyedia sanggup memenuhi Service Level Agreement (SLA) waktu pengiriman maksimal 14 (empat belas) hari kalender sejak Surat Pesanan diterbitkan, lengkap dengan asuransi pengiriman serta tenaga ekspedisi terlatih untuk penanganan perangkat elektronik sensitif.', { size: 15.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('SANGGUP MEMENUHI SLA', { bold: true, size: 16, color: '047857' }), pText('(Maksimal 14 Hari Kalender)', { size: 13, italic: true })] })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({ borders: BORDER_TABLE, children: [pText('5', { align: AlignmentType.CENTER, size: 16, bold: true })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Jaminan Layanan Purna Jual & Garansi', { bold: true, size: 16 }), pText('(Pasal 8 ayat 1 huruf e)', { size: 13, italic: true, color: '64748B' })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('Perangkat didukung sertifikat garansi resmi pabrikan/distributor tunggal di Indonesia minimal 3 (tiga) tahun layanan di tempat (3-Years Onsite Service NBD) untuk PC Server Tower dan 1 (satu) tahun onsite untuk PC Workstation, didukung Authorized Service Center resmi yang mudah dijangkau di wilayah Karesidenan Madiun / Jawa Timur.', { size: 15.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, children: [pText('GARANSI ONSITE RESMI 3 TAHUN', { bold: true, size: 16, color: '047857' }), pText('(Layanan Purna Jual Lengkap)', { size: 13, italic: true })] })
+      ]
+    })
+  ];
+
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: paramRows
+    }),
+    pText('', { after: 20 }),
+
+    // BAB V: KESIMPULAN DAN REKOMENDASI PPK
+    pText('V. KESIMPULAN DAN REKOMENDASI PEJABAT PEMBUAT KOMITMEN (PPK)', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
+    pNumbered('1.', `Status Ketersediaan: ${paket.tersedia_di_katalog || 'Ya, Tersedia & Sesuai'}. Produk yang dibutuhkan telah tayang dan terverifikasi secara sah pada platform Katalog Elektronik LKPP v6.`, { level: 1, size: 16.5, before: 3, after: 3 }),
+    pNumbered('2.', 'Pemenuhan 5 Parameter Baku: Berdasarkan hasil pengujian komprehensif, seluruh item barang dinyatakan Lolos Uji 5 Parameter Baku Kelayakan sesuai Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026.', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('3.', 'Rekomendasi Metode Pengadaan: PPK merekomendasikan pelaksanaan pengadaan paket ini dilanjutkan melalui metode E-PURCHASING KATALOG ELEKTRONIK dengan negosiasi teknis dan harga oleh Pejabat Pengadaan Satker KPU Kabupaten Ngawi.', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('4.', 'Rekomendasi Transaksi Lapangan: Pejabat Pengadaan diberikan kewenangan untuk memilih penyedia tunggal agregator (Skenario A) ATAU memproses penerbitan 2 (dua) Surat Pesanan terpisah (Skenario B: Multi-Order) demi menjamin efisiensi belanja negara dan kualitas teknis terbaik.', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('5.', `Tautan Referensi Produk Katalog Elektronik: ${paket.link_produk_katalog_1 || 'https://e-katalog.lkpp.go.id/'} ${paket.link_produk_katalog_2 ? 'dan ' + paket.link_produk_katalog_2 : ''}.`, { level: 1, size: 16.5, before: 0, after: 14 }),
+
+    pText('Demikian Berita Acara Analisa Pasar dan Penilaian PPK ini dibuat dan ditandatangani dengan sebenarnya dalam rangkap secukupnya untuk dipergunakan sebagai dasar penyusunan HPS dan pelaksanaan E-Purchasing.', { before: 14, after: 40, size: 16.5 }),
+
+    // Blok Tanda Tangan PPK
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: BORDER_NONE,
+              children: [
+                pText('Tembusan Disampaikan Kepada Yth:', { bold: true, size: 16, before: 0, after: 6 }),
+                pText(`1. Kuasa Pengguna Anggaran (KPA) ${settings.nama_satker || 'KPU Kabupaten Ngawi'};`, { size: 15, before: 0, after: 2 }),
+                pText('2. Pejabat Pengadaan Satker KPU Kabupaten Ngawi;', { size: 15, before: 0, after: 2 }),
+                pText('3. Arsip / Pengendali Dokumen Pengadaan.', { size: 15, before: 0, after: 0 })
+              ]
+            }),
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: BORDER_NONE,
+              children: [
+                pText(`Ngawi, ${tglApStr}`, { align: AlignmentType.CENTER, size: 17, before: 0, after: 4 }),
+                pText('Pejabat Pembuat Komitmen (PPK)', { bold: true, align: AlignmentType.CENTER, size: 17, before: 0, after: 2 }),
+                pText((settings.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase(), { bold: true, align: AlignmentType.CENTER, size: 17, color: '1E3A8A', before: 0, after: 350 }),
+                pText(ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN', { bold: true, underline: true, align: AlignmentType.CENTER, size: 18, before: 0, after: 2 }),
+                pText(`NIP. ${ppk.nip || '19840101 200912 1 001'}`, { align: AlignmentType.CENTER, size: 16, before: 0, after: 0 })
+              ]
+            })
+          ]
+        })
+      ]
+    })
+  );
+
+  return [
+    {
+      properties: {
+        page: {
+          size: { width: 11906, height: 16838 },
+          margin: { top: 900, right: 900, bottom: 900, left: 900 }
+        }
+      },
+      headers: {
+        default: new Header({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              spacing: { before: 0, after: 30 },
+              children: [
+                new TextRun({
+                  text: `Dokumen Tahap 05 (BA-AP) - No: ${noAp}`,
+                  size: 15,
+                  color: '64748B',
+                  font: 'Cambria',
+                  italics: true
+                })
+              ]
+            })
+          ]
+        })
+      },
+      footers: {
+        default: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              spacing: { before: 30, after: 0 },
+              children: [
+                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Cambria' })
+              ]
+            })
+          ]
+        })
+      },
+      children
+    }
+  ];
+}
+
 function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, settings } = ctx;
   const def = DEFINISI_18_TAHAP.find(d => d.no === stageNo) || DEFINISI_18_TAHAP[0];
@@ -1922,6 +2267,9 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   }
   if (stageNo === 2) {
     return buildStage2Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
+  if (stageNo === 5) {
+    return buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap
