@@ -772,3 +772,71 @@ Sesuai arahan arsitektur Mas emenje, sistem mengimplementasikan pemisahan tegas 
 3. **Unifikasi Pejabat Penandatangan (`📁 Administrasi > ✍️ Penandatangan`) & Penempatan `🏢 Master Penyedia (Rekanan)` di `📁 Database`:**
    - Seluruh pejabat penandatangan dokumen Satker (Ketua KPU, Sekretaris/KPA, PPK, Pejabat Pengadaan/PPBJ, Bendahara Pengeluaran, PPSPM/Kasubbag KUL, Komisioner Divisi, dan Kasubbag) dikelola terpusat pada **`📁 Administrasi > ✍️ Penandatangan`** (terhubung langsung ke `👥 Pengguna`), lengkap dengan **Nomor SK Penetapan** dan **Nomor Sertifikat Kompetensi PBJ (LKPP)** sebagai rujukan tunggal (*Single Source of Truth*) bagi seluruh cetakan dokumen `.docx` dan `.xlsx` pada Perencanaan, Pengadaan 18 Tahap, dan Pembayaran.
    - Direktori perusahaan rekanan ditempatkan di dalam **`📁 Database > 🏢 Master Penyedia (Rekanan)`** sebagai basis data entitas eksternal ke-4 yang melayani **Pengadaan** (kontrak, kualifikasi UMK, Beneficial Ownership, skor kinerja PPK) sekaligus **Pembayaran** (rekening bank tujuan SP2D/SPBy dan NPWP pemotongan pajak PPN/PPh).
+
+---
+
+## BAB 29: ARSITEKTUR KOKPIT PENGADAAN 18 TAHAP, ATURAN NASKAH RESMI KPU, DAN STANDAR UX SINGLE PRIMARY ACTION
+
+### 29.1 Evaluasi & Penuntasan Tahap 1 s.d. Tahap 4 (Fondasi Fase Perencanaan & Awal Persiapan PPK)
+1. **Penuntasan Fase 1 (Tahap 1 s.d. 3 — Perencanaan Pengadaan):**
+   - **Tahap 1 (Identifikasi Kebutuhan PBJ):** Integrasi Nota Dinas Usulan Subbagian, Lembar Disposisi KPA, Formulir Analisis BMN/RKBMN, komparasi Belanja Modal vs Ekstrakomptabel, dan Formulir Identifikasi Kebutuhan Baku LKPP (Pasal 18–19 Perpres 46/2025 jo. Perlem LKPP 2/2026).
+   - **Tahap 2 (Penetapan Jenis, Cara Pengadaan, dan Pemaketan):** Penentuan cara pengadaan (Penyedia vs Swakelola), metode pemilihan (E-Purchasing, Pengadaan Langsung, Tender), pembatasan kewenangan Pejabat Pengadaan (s.d. Rp 200 juta) vs Pokja Pemilihan (> Rp 200 juta), dan penegasan larangan memecah paket.
+   - **Tahap 3 (Penetapan RUP oleh KPA & Pengumuman SiRUP LKPP):** Penetapan tunggal oleh KPA di kanan bawah tanpa tanda tangan PPK, penugasan teknis KPA kepada PPK untuk melanjutkan persiapan pengadaan, serta pencatatan Kode RUP resmi SiRUP LKPP.
+2. **Penuntasan Gerbang Fase 2 (Tahap 4 — Penetapan KAK dan Spesifikasi Teknis):**
+   - Penyusunan dan penetapan KAK / Spesifikasi Teknis oleh PPK (Pasal 23–25 Perpres 46/2025 jo. Bab V Perlem LKPP 2/2026).
+   - Penegasan klausul target penggunaan Produk Dalam Negeri (PDN), target sertifikasi TKDN (contoh: TKDN minimal 40% / TKDN 42.50% + BMP 10.00%), pengutamaan Usaha Mikro dan Kecil (UMK), serta kriteria mutu (SNI / sertifikasi standar industri).
+   - Dokumen Tahap 4 menjadi fondasi mutlak sebelum PPK melangkah ke Tahap 5 (Analisis Pasar & Penilaian Ketersediaan Barang/Jasa pada Katalog Elektronik).
+
+### 29.2 Standarisasi Tipografi & Tata Naskah Dinas Resmi KPU (Word Engine SSOT)
+Guna menjamin kepatuhan terhadap Keputusan KPU Nomor 1272 Tahun 2025 tentang Tata Naskah Dinas di Lingkungan KPU serta standar audit dokumen negara:
+1. **Tipografi Tunggal Baku:** Seluruh naskah dinas Word (`.docx`) wajib menggunakan font **Cambria** (Body text ukuran 10.5pt atau 11pt, spasi paragraf 1.15, spacing before 0pt, spacing after 4pt) demi keterbacaan formal yang seimbang dan elegan.
+2. **Kop Surat KPU Resmi:**
+   - Memuat logo resmi KPU (resolusi tinggi) di sisi kiri.
+   - Teks instansi kedinasan KPU berjenjang vertikal: `KOMISI PEMILIHAN UMUM KABUPATEN NGAWI`, alamat kantor, telepon, email dinas, dan portal web resmi.
+   - **Garis Pemisah Kop:** Garis horizontal ganda (garis tebal di atas dan garis tipis di bawah) wajib diletakkan **tepat di bawah teks Kop Surat** pada halaman isi pertama, **bukan** di dalam Header Word yang mengambang di margin atas.
+3. **Format List Numbering Baku Word (Tanpa Campuran Bullet):**
+   - Menggunakan format paragraf dengan *hanging indent* Word asli (`pNum` dan `pSubNum`) dengan tab stop terukur, memastikan teks baris kedua rata lurus dengan huruf pertama baris pertama.
+   - Larangan keras mencampuradukkan karakter bullet simbol (seperti titik bulat •, strip -, atau bintang *) di tengah penomoran hierarki huruf/angka (1., a., 1), a), dst).
+4. **Validasi Pejabat & NIP SSOT Database:**
+   - Seluruh nama pejabat penandatangan, jabatan kedinasan, dan NIP ditarik secara dinamis dari tabel `pbj_penandatangan` (Ketua KPU, KPA, PPK, Pejabat Pengadaan, Kasubbag).
+   - Larangan menampilkan NIP dummy / nol; seluruh NIP wajib tervalidasi 18 digit resmi BKN.
+
+### 29.3 Kebijakan Matriks Tombol Unduh Dokumen (8 Tahap Word & Excel vs 10 Tahap Word Saja)
+Aplikasi SI-PRABU menerapkan pemilahan tajam berbasis substansi yuridis naskah di seluruh 18 tahap:
+1. **Word (.docx) — Tersedia di Seluruh 18 Tahap:**
+   - Setiap tahap menghasilkan naskah dinas resmi siap cetak (Berita Acara, Nota Dinas, Keputusan, Formulir LKPP, Pakta Integritas, Dokumen Kontrak, BAST, dsb.).
+2. **Excel (.xlsx) — HANYA Muncul di 8 Tahap Teknis & Kertas Kerja:**
+   - **Tahap 3 (RUP):** Kertas Kerja Konsolidasi RUP, Struktur Anggaran MAK, dan Pemilahan Swakelola vs Penyedia.
+   - **Tahap 5 (Persiapan PPK / Analisis Pasar):** Kertas Kerja Analisis Pasar 3 Penyedia, Perbandingan Harga Pasar, dan Matriks Kesesuaian Spesifikasi Teknis.
+   - **Tahap 6 (HPS):** Kertas Kerja Rincian Perhitungan HPS, Komponen Biaya Riil, Pajak (PPN 11%, PPh), dan AHSP.
+   - **Tahap 9 (Negosiasi Harga & Teknis):** Kertas Kerja Evaluasi Penawaran, Riwayat Negosiasi Harga Satuan, dan Berita Acara Klarifikasi Teknis.
+   - **Tahap 13 (Kontrak & BoQ):** Bill of Quantities (BoQ) Definitif, Jadwal Milestone Prestasi Kerja, dan Skema Termin Pembayaran.
+   - **Tahap 15 (Pelaksanaan & CCO):** Matriks Contract Change Order (CCO), Addendum Kontrak, dan Kurva S Realisasi Fisik Mingguan.
+   - **Tahap 17 (BAST, Pencatatan Aset & Pajak):** Rekapitulasi Rincian BAST BMN, Faktur Pajak PPN/PPh, Potongan Denda Keterlambatan, dan Resume SP2D Netto.
+   - **Tahap 18 (Evaluasi Kinerja Penyedia):** Kertas Kerja Penilaian Kinerja Penyedia pada 4 Indikator (Kualitas, Biaya, Waktu, Layanan) sesuai aplikasi SIKaP LKPP.
+3. **10 Tahap Word Saja (Tahap 1, 2, 4, 7, 8, 10, 11, 12, 14, 16):**
+   - Menghilangkan tombol Excel secara otomatis dari antarmuka guna mencegah redudansi dan kebingungan pengguna pada tahapan yang murni bersifat ketetapan hukum/naskah naratif.
+
+### 29.4 Restrukturisasi Antarmuka Kokpit Zero-Clutter & Single Primary Action
+Menjawab temuan duplikasi tombol pada implementasi awal, tata letak antarmuka Kokpit 18 Tahap diselaraskan dengan prinsip *Strict Spatial Separation*:
+1. **Toolbar Atas (Dock Aksi Terpadu):**
+   - Menjadi **Pusat Aksi Tunggal (*Single Primary Action*)**:
+     - `[✏️ Ubah Data Tahap N (Pop Up)]`: Tombol utama pintu masuk pengisian formulir dan perubahan data tahapan.
+     - `[📄 Word Tahap N (.docx)]`: Tombol unduh naskah dinas resmi Word.
+     - `[📊 Excel Tahap N (.xlsx)]`: Tombol unduh kertas kerja spreadsheet (kondisional 8 tahap).
+     - `[📁 Berkas Lainnya ▼]`: Menu dropdown unduhan berkas pendukung dan dokumen gabungan.
+   - Menghapus tombol `[💾 Simpan Draf]` dari toolbar atas karena kartu ringkasan di bawahnya berstatus non-editable resume.
+2. **Card Resume Naskah Sah (Non-Editable Form Mati):**
+   - Berfungsi murni sebagai **Pratinjau Naskah Sah (*Read-Only Executive Resume*)**.
+   - Seluruh duplikasi tombol (`Unduh Word`, `Unduh Excel`, dan `Ubah via Pop Up`) di header kartu dihapus 100%.
+   - Digantikan dengan badge status resmi yang tenang: `[📋 Pratinjau Naskah Sah (Non-Editable)]`.
+3. **Baris Berkas Fisik Google Drive:**
+   - Tombol ganda `Ubah via Pop Up` di baris Google Drive dihapus.
+   - Baris ini murni menampilkan link dokumen fisik:
+     - Jika tautan sudah ada: `[🔗 Buka di Google Drive]` (hijau).
+     - Jika tautan masih kosong: `[+ Tautkan Berkas G-Drive (Pop Up)]` (kuning/oranye).
+4. **Navigasi Sekuensial Bawah (Guided Footer Bar):**
+   - Tombol duplikat `Ubah Data Tahap N` di footer dihilangkan.
+   - Footer difokuskan murni sebagai pemandu alur sekuensial:
+     - Jika tahapan sudah selesai: `[Lanjut ke Tahap (N+1) →]`.
+     - Jika tahapan masih draft: `[✓ Selesaikan Tahap N & Lanjut →]` (primer hijau) dan `[Lewati ke Tahap (N+1) →]` (outline).
