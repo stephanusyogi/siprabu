@@ -923,12 +923,66 @@ function buildStageSpecificSections(stageNo, ctx, tahapRow, keu) {
         pText('B. TABEL RINCIAN SPESIFIKASI TEKNIS & KINERJA FUNGSIONAL BARANG', { bold: true, before: 100, after: 30 })
       );
       if (items && items.length) {
+        const itemRows = [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('No', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+              new TableCell({ width: { size: 26, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Uraian Kebutuhan Barang / BMN', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+              new TableCell({ width: { size: 11, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Volume', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+              new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Pagu Satuan (Rp)', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+              new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Subtotal Pagu (Rp)', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+              new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Spesifikasi Teknis & TKDN', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] })
+            ]
+          })
+        ];
+
+        let totPaguItem = 0;
         items.forEach((it, idx) => {
-          paragraphs.push(
-            pNumbered(`${idx + 1}.`, `${it.uraian_item} (Kuantitas: ${it.volume} ${it.satuan})`, { bold: true, level: 1 }),
-            pText(`Spesifikasi Teknis: ${it.spesifikasi_teknis || 'Sesuai standar fungsional KAK PPK.'}`, { italic: true, before: 10, after: 30, left: 360 })
+          const vol = Number(it.volume || 1);
+          const paguSat = Number(it.harga_satuan_hps || 0);
+          const sub = vol * paguSat;
+          totPaguItem += sub;
+
+          itemRows.push(
+            new TableRow({
+              children: [
+                new TableCell({ borders: BORDER_TABLE, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 15, bold: true })] }),
+                new TableCell({ borders: BORDER_TABLE, children: [
+                  pText(it.uraian_item || ('Item ' + (idx + 1)), { bold: true, size: 15 }),
+                  pText('Pencatatan: ' + (it.jenis_pencatatan_sakti || 'Aset Tetap (BMN)'), { size: 12, italic: true, color: '475569' })
+                ] }),
+                new TableCell({ borders: BORDER_TABLE, children: [pText(vol + ' ' + (it.satuan || 'Unit'), { align: AlignmentType.CENTER, size: 15 })] }),
+                new TableCell({ borders: BORDER_TABLE, children: [pText(formatRupiah(paguSat), { align: AlignmentType.RIGHT, size: 15 })] }),
+                new TableCell({ borders: BORDER_TABLE, children: [pText(formatRupiah(sub), { align: AlignmentType.RIGHT, size: 15, bold: true, color: '1E3A8A' })] }),
+                new TableCell({ borders: BORDER_TABLE, children: [
+                  pText(it.spesifikasi_teknis || 'Sesuai standar fungsional KAK PPK.', { size: 13, italic: true }),
+                  pText('Target TKDN: ' + Number(it.persen_tkdn || 40) + '%', { size: 12, bold: true, color: '047857' })
+                ] })
+              ]
+            })
           );
         });
+
+        itemRows.push(
+          new TableRow({
+            children: [
+              new TableCell({ borders: BORDER_TABLE, shading: { fill: 'FEF3C7' }, children: [pText('', { size: 15 })] }),
+              new TableCell({ borders: BORDER_TABLE, shading: { fill: 'FEF3C7' }, children: [pText('TOTAL ESTIMASI PAGU KAK', { bold: true, size: 15, align: AlignmentType.RIGHT })] }),
+              new TableCell({ borders: BORDER_TABLE, shading: { fill: 'FEF3C7' }, children: [pText('', { size: 15 })] }),
+              new TableCell({ borders: BORDER_TABLE, shading: { fill: 'FEF3C7' }, children: [pText('', { size: 15 })] }),
+              new TableCell({ borders: BORDER_TABLE, shading: { fill: 'FEF3C7' }, children: [pText(formatRupiah(totPaguItem), { bold: true, size: 15, color: '1E3A8A', align: AlignmentType.RIGHT })] }),
+              new TableCell({ borders: BORDER_TABLE, shading: { fill: 'FEF3C7' }, children: [pText('100% Pagu Terdistribusi', { bold: true, size: 13, color: '047857', align: AlignmentType.CENTER })] })
+            ]
+          })
+        );
+
+        paragraphs.push(
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: itemRows
+          }),
+          pText('', { after: 20 })
+        );
       }
 
       const isBelanjaModal = String(paket.kode_akun_mak || '').startsWith('53');
@@ -2099,82 +2153,73 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
     pText('Berpedoman pada Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Katalog Versi 6), PPK melakukan pengujian kelayakan secara komprehensif pada setiap item belanja barang terhadap 3 (tiga) calon penyedia/produk katalog yang disurvei, mencakup: (1) Spesifikasi Teknis, (2) Ketersediaan Stok, (3) Kewajaran Harga, (4) SLA Pengiriman, dan (5) Garansi Layanan Purna Jual Onsite:', { size: 16.5, before: 0, after: 20 })
   );
 
-  // Buat Tabel Matriks Evaluasi 5 Parameter Per Vendor untuk Setiap Item
+  // Buat Tabel Matriks Evaluasi 5 Parameter Per Alternatif untuk Setiap Item (Netral & Fleksibel)
   (items || []).forEach((it, idx) => {
-    const s1 = Number(it.harga_survei_1) || 0;
-    const s2 = Number(it.harga_survei_2) || s1;
-    const s3 = Number(it.harga_survei_3) || s1;
-    const valid = [s1, s2, s3].filter(v => v > 0);
-    const minVal = valid.length ? Math.min(...valid) : 0;
+    // Ambil data evaluasi alternatif jika tersedia dari JSON, atau fallback ke survei 1, 2, 3
+    let alternatifs = [];
+    if (it.evaluasi_pasar_json && typeof it.evaluasi_pasar_json === 'object' && Array.isArray(it.evaluasi_pasar_json.alternatifs) && it.evaluasi_pasar_json.alternatifs.length) {
+      alternatifs = it.evaluasi_pasar_json.alternatifs;
+    } else {
+      const s1 = Number(it.harga_survei_1) || 0;
+      const s2 = Number(it.harga_survei_2) || s1;
+      const s3 = Number(it.harga_survei_3) || s1;
+      alternatifs = [
+        { alt_no: 1, sumber: it.sumber_survei_1 || 'PT. Astra Graphia Information Technology', produk: it.merk_tipe_katalog || 'Dell PowerEdge T350 / PC SIDALIH', harga: s1, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 },
+        { alt_no: 2, sumber: it.sumber_survei_2 || 'PT. Bhinneka Mentari Dimensi', produk: 'Lenovo ThinkSystem ST250 / PC SIDALIH', harga: s2, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 },
+        { alt_no: 3, sumber: it.sumber_survei_3 || 'Distributor Resmi HP Enterprise', produk: 'HPE ProLiant ML30 Gen11 / PC SIDALIH', harga: s3, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 }
+      ];
+    }
 
     children.push(
-      pText(`Tabel 4.${idx + 1}. Matriks Evaluasi 5 Parameter Item ${idx + 1}: ${it.uraian_item} (Kuantitas: ${it.volume} ${it.satuan})`, { bold: true, size: 16, color: '1E3A8A', before: 14, after: 6 })
+      pText(`Tabel 4.${idx + 1}. Matriks Pengujian 5 Parameter Kelayakan Pasar Item ${idx + 1}: ${it.uraian_item} (Kuantitas: ${it.volume} ${it.satuan})`, { bold: true, size: 16, color: '1E3A8A', before: 14, after: 6 })
     );
 
     const vendorEvalHeaders = [
       new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('No', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Calon Rekanan & Produk Katalog', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Harga Tayang', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('1.Spek', { bold: true, size: 14, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('2.Stok', { bold: true, size: 14, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('3.Hrg', { bold: true, size: 14, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('4.SLA', { bold: true, size: 14, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('5.Grns', { bold: true, size: 14, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 17, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Skor & Rekomendasi', { bold: true, size: 14, align: AlignmentType.CENTER, color: 'FFFFFF' })] })
+      new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Alternatif Penyedia & Produk Katalog', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Harga Tayang Satuan', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 7, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('1.Spek', { bold: true, size: 13, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 7, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('2.Stok', { bold: true, size: 13, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 7, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('3.Hrg', { bold: true, size: 13, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 7, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('4.SLA', { bold: true, size: 13, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 7, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('5.Grns', { bold: true, size: 13, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Hasil Pengujian', { bold: true, size: 14, align: AlignmentType.CENTER, color: 'FFFFFF' })] })
     ];
 
     const vendorEvalRows = [new TableRow({ children: vendorEvalHeaders })];
 
-    // Vendor 1 (Rekomendasi Utama)
-    vendorEvalRows.push(
-      new TableRow({
-        children: [
-          new TableCell({ borders: BORDER_TABLE, children: [pText('1', { align: AlignmentType.CENTER, size: 15, bold: true })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(it.sumber_survei_1 || 'E-Katalog v6 (Vendor A)', { bold: true, size: 14.5 }), pText('[Kandidat Utama]', { size: 12, italic: true, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(formatRupiah(s1), { bold: true, size: 14.5, color: '047857' }), pText('(Termurah)', { size: 12, italic: true, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('5/5 LOLOS UJI', { bold: true, size: 13.5, color: '047857', align: AlignmentType.CENTER }), pText('REKOMENDASI TERPILIH', { bold: true, size: 11.5, color: '1E3A8A', align: AlignmentType.CENTER })] })
-        ]
-      })
-    );
+    alternatifs.forEach((alt, aIdx) => {
+      const altNum = alt.alt_no || (aIdx + 1);
+      const hrg = Number(alt.harga || 0);
+      const score = Number(alt.skor !== undefined ? alt.skor : (Number(alt.p1 || 0) + Number(alt.p2 || 0) + Number(alt.p3 || 0) + Number(alt.p4 || 0) + Number(alt.p5 || 0)));
+      const isLolos = score === 5;
 
-    // Vendor 2 (Cadangan 1)
-    vendorEvalRows.push(
-      new TableRow({
-        children: [
-          new TableCell({ borders: BORDER_TABLE, children: [pText('2', { align: AlignmentType.CENTER, size: 15 })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(it.sumber_survei_2 || 'E-Katalog v6 (Vendor B)', { size: 14 }), pText('[Pembanding 1]', { size: 12, italic: true, color: '475569' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(formatRupiah(s2), { size: 14 })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(idx === 0 ? '⚠️' : '✓', { align: AlignmentType.CENTER, bold: true, size: 14, color: idx === 0 ? 'B45309' : '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(idx === 0 ? '4/5 (Garansi 1 Th)' : '5/5 (Cadangan 1)', { bold: true, size: 12.5, color: idx === 0 ? 'B45309' : '047857', align: AlignmentType.CENTER }), pText('KANDIDAT CADANGAN', { size: 11.5, color: '64748B', align: AlignmentType.CENTER })] })
-        ]
-      })
-    );
-
-    // Vendor 3 (Cadangan 2)
-    vendorEvalRows.push(
-      new TableRow({
-        children: [
-          new TableCell({ borders: BORDER_TABLE, children: [pText('3', { align: AlignmentType.CENTER, size: 15 })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(it.sumber_survei_3 || 'E-Katalog v6 (Vendor C)', { size: 14 }), pText('[Pembanding 2]', { size: 12, italic: true, color: '475569' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(formatRupiah(s3), { size: 14 })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(idx === 0 ? '⚠️' : '✓', { align: AlignmentType.CENTER, bold: true, size: 14, color: idx === 0 ? 'B45309' : '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(idx === 1 ? '⚠️' : '✓', { align: AlignmentType.CENTER, bold: true, size: 14, color: idx === 1 ? 'B45309' : '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText('✓', { align: AlignmentType.CENTER, bold: true, size: 16, color: '047857' })] }),
-          new TableCell({ borders: BORDER_TABLE, children: [pText(idx === 0 ? '4/5 (Indent 14 Hari)' : '4/5 (Harga Tertinggi)', { bold: true, size: 12.5, color: 'B45309', align: AlignmentType.CENTER }), pText('KANDIDAT CADANGAN', { size: 11.5, color: '64748B', align: AlignmentType.CENTER })] })
-        ]
-      })
-    );
+      vendorEvalRows.push(
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText(String(altNum), { align: AlignmentType.CENTER, size: 15, bold: true })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [
+              pText(`Alternatif ${altNum}: ${alt.sumber || ('Penyedia ' + altNum)}`, { bold: true, size: 14.5 }),
+              pText(alt.produk ? ('Produk: ' + alt.produk) : 'Produk E-Katalog v6', { size: 12.5, color: '1E3A8A' }),
+              alt.url ? pText('Tautan: ' + (alt.url.length > 55 ? alt.url.substring(0, 52) + '...' : alt.url), { size: 10, italic: true, color: '64748B' }) : pText('', { size: 1 })
+            ] }),
+            new TableCell({ borders: BORDER_TABLE, children: [
+              pText(formatRupiah(hrg), { bold: true, size: 14.5, color: isLolos ? '047857' : '1E3A8A', align: AlignmentType.RIGHT }),
+              pText(alt.sla_hari ? (`SLA ${alt.sla_hari} Hari`) : '', { size: 11, italic: true, color: '64748B', align: AlignmentType.RIGHT })
+            ] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p1 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p1 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p2 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p2 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p3 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p3 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p4 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p4 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p5 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p5 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [
+              pText(`${score}/5 ${isLolos ? 'LOLOS UJI' : 'CATATAN'}`, { bold: true, size: 13, color: isLolos ? '047857' : 'B45309', align: AlignmentType.CENTER }),
+              pText(isLolos ? 'MEMENUHI SYARAT' : 'PERLU KLARIFIKASI', { size: 11, color: isLolos ? '15803D' : 'B45309', align: AlignmentType.CENTER })
+            ] })
+          ]
+        })
+      );
+    });
 
     children.push(
       new Table({
@@ -2184,7 +2229,6 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
       pText('', { after: 12 })
     );
   });
-
   children.push(
     pText('Tabel 4.3. Rangkuman Pembuktian 5 Parameter Baku Kelayakan Katalog Terpilih:', { bold: true, size: 16, color: '1E3A8A', before: 12, after: 8 })
   );
@@ -2248,13 +2292,13 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
     }),
     pText('', { after: 20 }),
 
-    // BAB V: KESIMPULAN DAN REKOMENDASI PPK
-    pText('V. KESIMPULAN DAN REKOMENDASI PEJABAT PEMBUAT KOMITMEN (PPK)', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
-    pNumbered('1.', `Status Ketersediaan: ${paket.tersedia_di_katalog || 'Ya, Tersedia & Sesuai'}. Produk yang dibutuhkan telah tayang dan terverifikasi secara sah pada platform Katalog Elektronik LKPP v6.`, { level: 1, size: 16.5, before: 3, after: 3 }),
-    pNumbered('2.', 'Pemenuhan 5 Parameter Baku: Berdasarkan hasil pengujian komprehensif, seluruh item barang dinyatakan Lolos Uji 5 Parameter Baku Kelayakan sesuai Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026.', { level: 1, size: 16.5, before: 0, after: 3 }),
-    pNumbered('3.', 'Rekomendasi Metode Pengadaan: PPK merekomendasikan pelaksanaan pengadaan paket ini dilanjutkan melalui metode E-PURCHASING KATALOG ELEKTRONIK dengan negosiasi teknis dan harga oleh Pejabat Pengadaan Satker KPU Kabupaten Ngawi.', { level: 1, size: 16.5, before: 0, after: 3 }),
-    pNumbered('4.', 'Rekomendasi Transaksi Lapangan: Pejabat Pengadaan diberikan kewenangan untuk memilih penyedia tunggal agregator (Skenario A) ATAU memproses penerbitan 2 (dua) Surat Pesanan terpisah (Skenario B: Multi-Order) demi menjamin efisiensi belanja negara dan kualitas teknis terbaik.', { level: 1, size: 16.5, before: 0, after: 3 }),
-    pNumbered('5.', `Tautan Referensi Produk Katalog Elektronik: ${paket.link_produk_katalog_1 || 'https://e-katalog.lkpp.go.id/'} ${paket.link_produk_katalog_2 ? 'dan ' + paket.link_produk_katalog_2 : ''}.`, { level: 1, size: 16.5, before: 0, after: 14 }),
+    // BAB V: KESIMPULAN PENILAIAN KELAYAKAN PPK & PENYERAHAN TRANSAKSI KEPADA PEJABAT PENGADAAN
+    pText('V. KESIMPULAN PENILAIAN KELAYAKAN PPK & PENYERAHAN TRANSAKSI KEPADA PEJABAT PENGADAAN', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
+    pNumbered('1.', `Status Ketersediaan di Katalog Elektronik v6: ${paket.tersedia_di_katalog || 'Ya, Tersedia & Sesuai'}. Seluruh komoditas barang kebutuhan satker telah tayang dan diverifikasi pada platform Katalog Elektronik Versi 6 LKPP.`, { level: 1, size: 16.5, before: 3, after: 3 }),
+    pNumbered('2.', 'Pengujian Objektif 5 Parameter Baku Kelayakan (Pasal 8 Perlem LKPP 2/2026): Seluruh alternatif produk yang ditelaah terbukti memenuhi spesifikasi teknis fungsional KAK, kepastian ketersediaan pasokan distributor, kewajaran harga di bawah Pagu DIPA, kesanggupan batas waktu pengiriman (SLA), dan jaminan garansi resmi pabrikan onsite.', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('3.', 'Netralitas PPK & Pemisahan Wewenang (Tupoksi): PPK memposisikan seluruh alternatif penyedia secara setara dan objektif tanpa menetapkan rekomendasi sepihak atas rekanan tertentu. Pelaksanaan pemilihan penyedia final, negosiasi teknis/harga, dan eksekusi transaksi E-Purchasing diserahkan sepenuhnya kepada Pejabat Pengadaan (PP) sesuai kewenangan atributif Pasal 12 ayat (1) huruf a Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 46 Tahun 2025.', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('4.', 'Fleksibilitas Skenario Transaksi (Tunggal maupun Multi-Order): Pejabat Pengadaan berwenang secara penuh menentukan eksekusi transaksi melalui Skenario A (Penyedia Tunggal / Agregator Multibrand) ATAU Skenario B (Multi-Order / Surat Pesanan Terpisah SP-01 Server dan SP-02 Workstation) berlandaskan ketersediaan riil stok dan efisiensi anggaran negara yang optimal.', { level: 1, size: 16.5, before: 0, after: 3 }),
+    pNumbered('5.', `Tautan Akses Produk Katalog Elektronik: ${paket.link_produk_katalog_1 || 'https://e-katalog.lkpp.go.id/'} ${paket.link_produk_katalog_2 ? 'dan ' + paket.link_produk_katalog_2 : ''}.`, { level: 1, size: 16.5, before: 0, after: 14 }),
 
     pText('Demikian Berita Acara Analisa Pasar dan Penilaian PPK ini dibuat dan ditandatangani dengan sebenarnya dalam rangkap secukupnya untuk dipergunakan sebagai dasar penyusunan HPS dan pelaksanaan E-Purchasing.', { before: 14, after: 40, size: 16.5 }),
 

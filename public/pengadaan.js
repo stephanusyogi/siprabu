@@ -7716,6 +7716,20 @@ function openModalTahapUniversal(stageNo) {
   }
 
   modal.style.display = 'flex';
+  if (num === 4) {
+    setTimeout(() => { if (typeof calcTahap4Totals === 'function') calcTahap4Totals(); }, 50);
+  } else if (num === 5) {
+    setTimeout(() => {
+      const items = CakraState.activePaketCtx?.items || [];
+      items.forEach(it => {
+        const cards = document.querySelectorAll('#t5_item_' + it.id + '_alternatifs .t5-alt-card');
+        cards.forEach(card => {
+          const v = card.dataset.altIdx || 1;
+          if (typeof updateVendorParamBadge === 'function') updateVendorParamBadge(it.id, v);
+        });
+      });
+    }, 50);
+  }
 }
 window.openModalTahapUniversal = openModalTahapUniversal;
 
@@ -7747,29 +7761,183 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
 
     case 4:
+      const itemsTahap4 = CakraState.activePaketCtx?.items || [];
+      const totalPaguItemT4 = itemsTahap4.reduce((acc, it) => acc + (Number(it.volume || 1) * Number(it.harga_satuan_hps || 0)), 0);
+      const paguPaketT4 = Number(paket.nilai_pagu || 145000000);
+      const selisihT4 = paguPaketT4 - totalPaguItemT4;
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Spesifikasi Teknis, KAK &amp; Komitmen TKDN</div>
-        <div style="margin-bottom:12px;">
-          <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Uraian Spesifikasi Teknis / Kerangka Acuan Kerja (KAK)</label>
-          <textarea id="mu_uraian_pekerjaan" class="cakra-form-control" rows="3">${cakraEsc(paket.uraian_pekerjaan || '')}</textarea>
-        </div>
-        <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Hierarki Prioritas Produk Dalam Negeri (PDN) &amp; TKDN</label>
-            <select id="mu_prioritas_pdn_level" class="cakra-form-control">
-              ${[
-                'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)',
-                'Level 2: PDN TKDN >= 25%',
-                'Level 3: PDN TKDN < 25%',
-                'Level 4: PDN Terdaftar SIINas',
-                'Level 5: PDN Pernyataan Mandiri (Self-Declare)',
-                'Level 6: Produk Impor (Izin Menteri/KL)'
-              ].map(lv => `<option value="${lv}" ${paket.prioritas_pdn_level === lv ? 'selected' : ''}>${lv}</option>`).join('')}
-            </select>
+        <!-- BLOK 1: PENGATURAN UMUM KAK -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+            <span>🎯 BLOK 1: PENGATURAN UMUM KAK &amp; KEBIJAKAN PDN/TKDN (PASAL 25 PERPRES PBJ)</span>
+            <span class="cakra-badge cakra-badge-green" style="font-size:10px;">Audit-Ready KPU</span>
           </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Target Masa Pelaksanaan (Hari Kalender)</label>
-            <input type="number" id="mu_masa_pelaksanaan_hari" class="cakra-form-control" value="${Number(paket.masa_pelaksanaan_hari || 14)}" />
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Uraian Latar Belakang &amp; Kerangka Acuan Kerja (KAK) Umum</label>
+            <textarea id="mu_uraian_pekerjaan" class="cakra-form-control" rows="2" placeholder="Uraikan latar belakang pengadaan, tujuan, ruang lingkup umum...">${cakraEsc(paket.uraian_pekerjaan || '')}</textarea>
+          </div>
+          <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:12px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Hierarki Prioritas Produk Dalam Negeri (PDN) &amp; TKDN</label>
+              <select id="mu_prioritas_pdn_level" class="cakra-form-control" style="font-size:11.5px;">
+                ${[
+                  'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)',
+                  'Level 2: PDN TKDN >= 25%',
+                  'Level 3: PDN TKDN < 25%',
+                  'Level 4: PDN Terdaftar SIINas',
+                  'Level 5: PDN Pernyataan Mandiri (Self-Declare)',
+                  'Level 6: Produk Impor (Izin Menteri/KL)'
+                ].map(lv => `<option value="${lv}" ${paket.prioritas_pdn_level === lv ? 'selected' : ''}>${lv}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Target Masa Pelaksanaan (Hari Kalender)</label>
+              <div style="display:flex; align-items:center;">
+                <input type="number" id="mu_masa_pelaksanaan_hari" class="cakra-form-control cakra-mono" value="${Number(paket.masa_pelaksanaan_hari || 14)}" style="width:100px; font-weight:700;" />
+                <span style="font-size:11px; color:#64748b; margin-left:8px;">Hari kalender sejak SPMK / SP</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOK 2: TABEL / KARTU RINCIAN ITEM BARANG & SPESIFIKASI TEKNIS KAK -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <span style="font-size:12.5px; font-weight:800; color:#1e3a8a;">📦 BLOK 2: DAFTAR RINCIAN ITEM BARANG &amp; SPESIFIKASI TEKNIS KAK</span>
+              <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Rincian barang kebutuhan satker yang akan menjadi acuan pengujian pasar di Tahap 5 dan HPS di Tahap 6.</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="tambahItemTahap4()" style="font-size:11px; font-weight:700; padding:4px 10px; cursor:pointer;">
+              ➕ Tambah Item Barang
+            </button>
+          </div>
+
+          <div id="t4_items_container" style="display:flex; flex-direction:column; gap:10px;">
+            ${itemsTahap4.length ? itemsTahap4.map((it, idx) => `
+              <div class="t4-item-card" data-item-id="${it.id || ('NEW_' + idx)}" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                  <strong style="font-size:12px; color:#0f172a;" class="t4-item-label">Item ${idx + 1}</strong>
+                  <button type="button" class="btn btn-xs btn-outline-danger" onclick="hapusItemTahap4(this)" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5; background:#fff; color:#dc2626; cursor:pointer;">🗑️ Hapus</button>
+                </div>
+                <div style="display:grid; grid-template-columns: 2fr 0.8fr 0.8fr 1.4fr 1.2fr; gap:8px; margin-bottom:8px;">
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Nama / Uraian Kebutuhan Barang *</label>
+                    <input type="text" class="cakra-form-control t4-item-uraian" value="${cakraEsc(it.uraian_item || '')}" placeholder="cth: PC Server Tower Database Operasional" style="font-size:11px; font-weight:700;" />
+                  </div>
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Volume *</label>
+                    <input type="number" step="1" min="1" class="cakra-form-control cakra-mono t4-item-vol" value="${Number(it.volume || 1)}" style="font-size:11px; font-weight:700;" oninput="calcTahap4Totals()" />
+                  </div>
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Satuan *</label>
+                    <input type="text" class="cakra-form-control t4-item-satuan" value="${cakraEsc(it.satuan || 'Unit')}" placeholder="Unit/Set" style="font-size:11px;" />
+                  </div>
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Pagu Satuan (Rp) *</label>
+                    <input type="number" class="cakra-form-control cakra-mono t4-item-pagu" value="${Number(it.harga_satuan_hps || 0)}" style="font-size:11px; font-weight:700;" oninput="calcTahap4Totals()" />
+                  </div>
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Subtotal Pagu (Rp)</label>
+                    <div class="t4-item-subtotal cakra-mono" style="font-size:11px; font-weight:800; color:#1e40af; padding:5px 8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:4px; height:28px; line-height:16px;">
+                      Rp ${Math.round(Number(it.volume || 1) * Number(it.harga_satuan_hps || 0)).toLocaleString('id-ID')}
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-bottom:8px;">
+                  <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Spesifikasi Teknis Detail KAK (Processor, RAM, Storage, Port, PSU, OS, Garansi yang Dipersyaratkan) *</label>
+                  <textarea class="cakra-form-control t4-item-spek" rows="2" style="font-size:11px; line-height:1.45;" placeholder="Cantumkan spesifikasi fungsional terperinci...">${cakraEsc(it.spesifikasi_teknis || '')}</textarea>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <label style="font-size:10px; font-weight:700; color:#475569; white-space:nowrap;">Target TKDN:</label>
+                    <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="${Number(it.persen_tkdn || 40)}" style="font-size:11px; width:75px;" />
+                    <span style="font-size:10.5px; font-weight:700; color:#475569;">%</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <label style="font-size:10px; font-weight:700; color:#475569; white-space:nowrap;">Pencatatan SAKTI:</label>
+                    <select class="cakra-form-control t4-item-sakti" style="font-size:11px;">
+                      <option value="Aset Tetap (BMN)" ${(it.jenis_pencatatan_sakti || 'Aset Tetap (BMN)') === 'Aset Tetap (BMN)' ? 'selected' : ''}>Aset Tetap (BMN)</option>
+                      <option value="Persediaan" ${it.jenis_pencatatan_sakti === 'Persediaan' ? 'selected' : ''}>Persediaan</option>
+                      <option value="Jasa/Habis Pakai" ${it.jenis_pencatatan_sakti === 'Jasa/Habis Pakai' ? 'selected' : ''}>Jasa/Habis Pakai</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            `).join('') : `
+              <div class="t4-item-card" data-item-id="NEW_0" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                  <strong style="font-size:12px; color:#0f172a;" class="t4-item-label">Item 1</strong>
+                  <button type="button" class="btn btn-xs btn-outline-danger" onclick="hapusItemTahap4(this)" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5; background:#fff; color:#dc2626; cursor:pointer;">🗑️ Hapus</button>
+                </div>
+                <div style="display:grid; grid-template-columns: 2fr 0.8fr 0.8fr 1.4fr 1.2fr; gap:8px; margin-bottom:8px;">
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Nama / Uraian Kebutuhan Barang *</label>
+                    <input type="text" class="cakra-form-control t4-item-uraian" value="${cakraEsc(paket.nama_paket || '')}" placeholder="cth: PC Server Tower" style="font-size:11px; font-weight:700;" />
+                  </div>
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Volume *</label>
+                    <input type="number" step="1" min="1" class="cakra-form-control cakra-mono t4-item-vol" value="1" style="font-size:11px; font-weight:700;" oninput="calcTahap4Totals()" />
+                  </div>
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Satuan *</label>
+                    <input type="text" class="cakra-form-control t4-item-satuan" value="Unit" placeholder="Unit/Set" style="font-size:11px;" />
+                  </div>
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Pagu Satuan (Rp) *</label>
+                    <input type="number" class="cakra-form-control cakra-mono t4-item-pagu" value="${paguPaketT4}" style="font-size:11px; font-weight:700;" oninput="calcTahap4Totals()" />
+                  </div>
+                  <div>
+                    <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Subtotal Pagu (Rp)</label>
+                    <div class="t4-item-subtotal cakra-mono" style="font-size:11px; font-weight:800; color:#1e40af; padding:5px 8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:4px; height:28px; line-height:16px;">
+                      Rp ${paguPaketT4.toLocaleString('id-ID')}
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-bottom:8px;">
+                  <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Spesifikasi Teknis Detail KAK *</label>
+                  <textarea class="cakra-form-control t4-item-spek" rows="2" style="font-size:11px;" placeholder="Cantumkan spesifikasi fungsional terperinci..."></textarea>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <label style="font-size:10px; font-weight:700; color:#475569;">Target TKDN:</label>
+                    <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="40" style="font-size:11px; width:75px;" />
+                    <span style="font-size:10.5px; font-weight:700; color:#475569;">%</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <label style="font-size:10px; font-weight:700; color:#475569;">Pencatatan SAKTI:</label>
+                    <select class="cakra-form-control t4-item-sakti" style="font-size:11px;">
+                      <option value="Aset Tetap (BMN)" selected>Aset Tetap (BMN)</option>
+                      <option value="Persediaan">Persediaan</option>
+                      <option value="Jasa/Habis Pakai">Jasa/Habis Pakai</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            `}
+          </div>
+
+          <!-- REKAPITULASI & VALIDASI TOTAL PAGU ITEM VS PAGU PAKET DIPA -->
+          <div style="margin-top:12px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Akumulasi Pagu Item KAK:</div>
+              <div id="t4_total_pagu_display" class="cakra-mono" style="font-size:14px; font-weight:800; color:#1e3a8a;">
+                Rp ${totalPaguItemT4.toLocaleString('id-ID')}
+              </div>
+            </div>
+            <div>
+              <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Pagu DIPA Paket:</div>
+              <div class="cakra-mono" style="font-size:14px; font-weight:800; color:#0f172a;">
+                Rp ${paguPaketT4.toLocaleString('id-ID')}
+              </div>
+            </div>
+            <div id="t4_pagu_status_badge">
+              ${selisihT4 === 0
+                ? '<span class="cakra-badge cakra-badge-green" style="font-size:11px;">✅ Pagu Item Sesuai Pagu Paket (100%)</span>'
+                : (selisihT4 > 0
+                  ? `<span class="cakra-badge cakra-badge-amber" style="font-size:11px;">⚠️ Sisa Pagu Belum Dialokasikan: Rp ${selisihT4.toLocaleString('id-ID')}</span>`
+                  : `<span class="cakra-badge cakra-badge-red" style="font-size:11px;">❌ Pagu Item Melebihi Pagu Paket: Rp ${Math.abs(selisihT4).toLocaleString('id-ID')}</span>`)}
+            </div>
           </div>
         </div>
       `;
@@ -7805,123 +7973,202 @@ function generateUniversalModalFields(num, paket, activeTRow) {
           </div>
         </div>
 
-        <!-- BLOK 2: MATRIKS KOMPARASI & EVALUASI 5 PARAMETER PER VENDOR PER BARANG (DENGAN CHECKLIST ALL) -->
+        <!-- BLOK 2: MATRIKS KOMPARASI & PENGUJIAN 5 PARAMETER PER BARANG & PER ALTERNATIF (VERTIKAL & COLLAPSIBLE) -->
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:14px;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
             <div>
-              <span style="font-size:12.5px; font-weight:800; color:#1e3a8a;">📊 BLOK 2: MATRIKS KOMPARASI &amp; PENGUJIAN 5 PARAMETER PER VENDOR PER BARANG</span>
-              <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Evaluasi kelayakan detail per vendor (Pasal 8 Perlem LKPP 2/2026) dilengkapi tombol kilat <em>Checklist All</em>.</div>
+              <span style="font-size:12.5px; font-weight:800; color:#1e3a8a;">📊 BLOK 2: MATRIKS PENGUJIAN 5 PARAMETER PASAR PER BARANG &amp; PER ALTERNATIF</span>
+              <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Evaluasi kelayakan objektif per alternatif penyedia (Pasal 8 Perlem LKPP 2/2026). Bersikap netral tanpa mengunci rekomendasi sepihak.</div>
             </div>
             <button type="button" class="btn btn-sm" onclick="toggleChecklistAllTahap5(true)" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:700; padding:6px 14px; border:none; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.12);">
-              ⚡ Centang Semua Lolos (5/5 Seluruh Barang &amp; Vendor)
+              ⚡ Centang Semua Lolos (Seluruh Barang &amp; Alternatif)
             </button>
           </div>
-          ${itemsTahap5.length ? itemsTahap5.map((it, idx) => `
-            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px; margin-bottom:12px;">
-              <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-                <span>Item ${idx + 1}: ${cakraEsc(it.uraian_item || 'Item PBJ')} (${it.volume} ${it.satuan})</span>
-                <span style="font-size:11px; font-weight:700; color:#0284c7;">Pagu Item: Rp ${Number(it.harga_satuan_hps || (it.volume > 1 ? 26666667 : 65000000)).toLocaleString('id-ID')} / unit</span>
-              </div>
-              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
-                ${[1, 2, 3].map(v => `
-                  <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; justify-content:space-between;">
-                    <div>
-                      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                        <label style="font-size:10px; font-weight:700; color:#475569;">Vendor ${v} ${v === 1 ? '(Rekomendasi Utama)' : '(Kandidat Pembanding ' + (v-1) + ')'}</label>
-                        <button type="button" onclick="toggleVendor5Params(${it.id}, ${v}, true)" style="font-size:9.5px; padding:2px 6px; border-radius:4px; border:1px solid #bbf7d0; background:#f0fdf4; color:#166534; font-weight:700; cursor:pointer;">⚡ 5/5 Lolos</button>
-                      </div>
-                      <input type="text" id="mu_item_${it.id}_sumber_${v}" class="cakra-form-control" style="font-size:11px; margin-bottom:4px; height:28px;" value="${cakraEsc(it['sumber_survei_' + v] || (v === 1 ? 'E-Katalog v6 (Vendor A)' : (v === 2 ? 'E-Katalog v6 (Vendor B)' : 'E-Katalog v6 (Vendor C)')))}" placeholder="Nama Vendor &amp; Etalase" />
-                      <div style="display:flex; align-items:center; margin-bottom:6px;">
-                        <span style="font-size:10px; color:#64748b; margin-right:4px;">Rp</span>
-                        <input type="number" id="mu_item_${it.id}_harga_${v}" class="cakra-form-control cakra-mono" style="font-size:11px; font-weight:700; height:28px;" value="${Number(it['harga_survei_' + v] || (idx === 0 ? (v === 1 ? 63850000 : (v === 2 ? 64500000 : 64900000)) : (v === 1 ? 25500000 : (v === 2 ? 25800000 : 26000000))))}" />
-                      </div>
-                      
-                      <!-- 5 PARAMETER CHECKLIST PER VENDOR -->
-                      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px; margin-bottom:6px; font-size:10px;">
-                        <div style="font-weight:700; color:#334155; font-size:9px; margin-bottom:4px; text-transform:uppercase;">Checklist 5 Parameter (Pasal 8):</div>
-                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
-                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p1" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
-                          <span>1. Spek Teknis KAK</span>
-                        </label>
-                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
-                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p2" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
-                          <span>2. Ketersediaan Stok</span>
-                        </label>
-                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
-                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p3" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
-                          <span>3. Kewajaran Harga</span>
-                        </label>
-                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
-                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p4" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
-                          <span>4. SLA Waktu Kirim</span>
-                        </label>
-                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
-                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p5" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
-                          <span>5. Garansi Resmi Onsite</span>
-                        </label>
-                      </div>
-                    </div>
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:2px;">
-                      <span id="badge_item_${it.id}_v${v}" class="cakra-badge cakra-badge-green" style="font-size:9.5px; padding:2px 6px;">✓ 5/5 Lolos Uji</span>
-                      <span style="font-size:9.5px; color:#64748b;">${v === 1 ? 'Pilihan PPK' : 'Pembanding'}</span>
-                    </div>
+
+          ${itemsTahap5.length ? itemsTahap5.map((it, idx) => {
+            let altList = [];
+            if (it.evaluasi_pasar_json && typeof it.evaluasi_pasar_json === 'object' && Array.isArray(it.evaluasi_pasar_json.alternatifs) && it.evaluasi_pasar_json.alternatifs.length) {
+              altList = it.evaluasi_pasar_json.alternatifs;
+            } else {
+              altList = [
+                {
+                  alt_no: 1,
+                  sumber: it.sumber_survei_1 || 'PT. Astra Graphia Information Technology',
+                  produk: it.merk_tipe_katalog || (idx === 0 ? 'Dell PowerEdge T350 Tower Server' : 'PC Workstation SIDALIH Core i7'),
+                  harga: Number(it.harga_survei_1 || (idx === 0 ? 63850000 : 25500000)),
+                  url: it.link_survei_1 || (idx === 0 ? 'https://e-katalog.lkpp.go.id/katalog/produk/detail/dell-poweredge-t350' : 'https://e-katalog.lkpp.go.id/katalog/produk/detail/workstation-sidalih-i7'),
+                  tkdn: Number(it.persen_tkdn || 42.5),
+                  sla_hari: 14,
+                  garansi: '3 Tahun Onsite Resmi',
+                  p1: 1, p2: 1, p3: 1, p4: 1, p5: 1
+                },
+                {
+                  alt_no: 2,
+                  sumber: it.sumber_survei_2 || 'PT. Bhinneka Mentari Dimensi',
+                  produk: idx === 0 ? 'Lenovo ThinkSystem ST250 V2' : 'PC Workstation Asus ExpertCenter',
+                  harga: Number(it.harga_survei_2 || (idx === 0 ? 64500000 : 25800000)),
+                  url: it.link_survei_2 || (idx === 0 ? 'https://e-katalog.lkpp.go.id/katalog/produk/detail/lenovo-thinksystem-st250' : 'https://e-katalog.lkpp.go.id/katalog/produk/detail/asus-expertcenter-d700'),
+                  tkdn: Number(it.persen_tkdn || 40),
+                  sla_hari: 14,
+                  garansi: '3 Tahun Onsite Resmi',
+                  p1: 1, p2: 1, p3: 1, p4: 1, p5: 1
+                },
+                {
+                  alt_no: 3,
+                  sumber: it.sumber_survei_3 || 'Distributor Resmi HP Enterprise',
+                  produk: idx === 0 ? 'HPE ProLiant ML30 Gen11' : 'PC Workstation HP Pro Tower 280',
+                  harga: Number(it.harga_survei_3 || (idx === 0 ? 64900000 : 26000000)),
+                  url: it.link_survei_3 || (idx === 0 ? 'https://e-katalog.lkpp.go.id/katalog/produk/detail/hpe-proliant-ml30' : 'https://e-katalog.lkpp.go.id/katalog/produk/detail/hp-pro-tower-280'),
+                  tkdn: Number(it.persen_tkdn || 40),
+                  sla_hari: 14,
+                  garansi: '3 Tahun Onsite Resmi',
+                  p1: 1, p2: 1, p3: 1, p4: 1, p5: 1
+                }
+              ];
+            }
+
+            return `
+              <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px;">
+                <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">
+                  <div>
+                    <span style="color:#1e3a8a;">Item ${idx + 1}: ${cakraEsc(it.uraian_item || 'Item PBJ')}</span>
+                    <span style="font-size:11.5px; color:#475569; font-weight:600; margin-left:6px;">(${it.volume} ${it.satuan})</span>
                   </div>
-                `).join('')}
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:11.5px; font-weight:700; color:#0284c7;">Pagu Item: Rp ${Number(it.harga_satuan_hps || 0).toLocaleString('id-ID')} / unit</span>
+                    <button type="button" class="btn btn-xs btn-outline-primary" onclick="tambahAlternatifTahap5(${it.id})" style="font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;">
+                      ➕ Tambah Alternatif
+                    </button>
+                  </div>
+                </div>
+
+                <!-- DAFTAR ALTERNATIF VERTIKAL & COLLAPSIBLE -->
+                <div id="t5_item_${it.id}_alternatifs" style="display:flex; flex-direction:column; gap:8px;">
+                  ${altList.map((alt, aIdx) => {
+                    const v = alt.alt_no || (aIdx + 1);
+                    const prodName = alt.produk || '';
+                    const vendorName = alt.sumber || ('Penyedia ' + v);
+                    const hrgVal = Number(alt.harga || 0);
+                    const slaDays = Number(alt.sla_hari || 14);
+                    const garansiVal = alt.garansi || '3 Tahun Onsite Resmi';
+                    const score = Number(alt.skor !== undefined ? alt.skor : (Number(alt.p1||0)+Number(alt.p2||0)+Number(alt.p3||0)+Number(alt.p4||0)+Number(alt.p5||0)));
+
+                    return `
+                      <div class="t5-alt-card" id="t5_alt_card_${it.id}_v${v}" data-item-id="${it.id}" data-alt-idx="${v}" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
+                        <!-- HEADER ACCORDION -->
+                        <div onclick="toggleAltCardCollapse(${it.id}, ${v})" style="background:#f1f5f9; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; border-bottom:1px solid #e2e8f0;">
+                          <div style="display:flex; align-items:center; gap:8px;">
+                            <span id="alt_icon_${it.id}_v${v}" style="font-size:11px; color:#475569;">▼</span>
+                            <strong id="alt_header_title_${it.id}_v${v}" style="font-size:12px; color:#0f172a;">
+                              Alternatif ${v}: ${cakraEsc(vendorName)} — ${cakraEsc(prodName)} (Rp ${hrgVal.toLocaleString('id-ID')})
+                            </strong>
+                          </div>
+                          <div style="display:flex; align-items:center; gap:8px;" onclick="event.stopPropagation()">
+                            <span id="badge_item_${it.id}_v${v}" class="cakra-badge ${score === 5 ? 'cakra-badge-green' : (score >= 3 ? 'cakra-badge-amber' : 'cakra-badge-red')}" style="font-size:10px; padding:2px 8px;">
+                              ${score === 5 ? '✓ 5/5 Lolos Uji' : (score >= 3 ? '⚠️ ' + score + '/5 (Catatan)' : '✗ ' + score + '/5 (Gugur)')}
+                            </span>
+                            <button type="button" class="btn btn-xs" onclick="toggleVendor5Params(${it.id}, ${v}, true)" style="font-size:9.5px; padding:2px 6px; border:1px solid #bbf7d0; background:#f0fdf4; color:#166534; font-weight:700; border-radius:4px; cursor:pointer;" title="Centang 5/5 Lolos">⚡ Centang Semua</button>
+                            <button type="button" class="btn btn-xs btn-outline-danger" onclick="hapusAlternatifTahap5(${it.id}, ${v})" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5; background:#fff; color:#dc2626; cursor:pointer;" title="Hapus Alternatif Ini">🗑️</button>
+                          </div>
+                        </div>
+
+                        <!-- BODY ACCORDION (COLLAPSIBLE) -->
+                        <div id="alt_body_${it.id}_v${v}" style="display:block; padding:10px 12px;">
+                          <div style="display:grid; grid-template-columns: 1.5fr 1.5fr 1fr; gap:10px; margin-bottom:8px;">
+                            <div>
+                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Merek / Tipe / Nama Produk Tayang di E-Katalog *</label>
+                              <input type="text" id="mu_item_${it.id}_v${v}_produk" class="cakra-form-control alt-inp-produk" value="${cakraEsc(prodName)}" placeholder="cth: Dell PowerEdge T350 / Lenovo ST250" style="font-size:11px; font-weight:700;" oninput="updateAltCardHeader(${it.id}, ${v})" />
+                            </div>
+                            <div>
+                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Nama Penyedia / Distributor / Toko Daring *</label>
+                              <input type="text" id="mu_item_${it.id}_v${v}_sumber" class="cakra-form-control alt-inp-sumber" value="${cakraEsc(vendorName)}" placeholder="cth: PT. Astra Graphia" style="font-size:11px;" oninput="updateAltCardHeader(${it.id}, ${v})" />
+                            </div>
+                            <div>
+                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Harga Tayang E-Katalog (Rp/Unit) *</label>
+                              <input type="number" id="mu_item_${it.id}_v${v}_harga" class="cakra-form-control cakra-mono alt-inp-harga" value="${hrgVal}" style="font-size:11px; font-weight:700;" oninput="updateAltCardHeader(${it.id}, ${v})" />
+                            </div>
+                          </div>
+
+                          <div style="display:grid; grid-template-columns: 2.2fr 0.8fr; gap:10px; margin-bottom:8px;">
+                            <div>
+                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Tautan Langsung Produk E-Katalog v6 (URL) *</label>
+                              <input type="url" id="mu_item_${it.id}_v${v}_url" class="cakra-form-control cakra-mono alt-inp-url" value="${cakraEsc(alt.url || '')}" placeholder="https://e-katalog.lkpp.go.id/katalog/produk/detail/..." style="font-size:11px;" />
+                            </div>
+                            <div>
+                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Klaim Capaian TKDN (%)</label>
+                              <div style="display:flex; align-items:center;">
+                                <input type="number" step="0.01" id="mu_item_${it.id}_v${v}_tkdn" class="cakra-form-control cakra-mono alt-inp-tkdn" value="${Number(alt.tkdn || 40)}" style="font-size:11px; width:85px;" />
+                                <span style="font-size:11px; font-weight:700; color:#475569; margin-left:6px;">%</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:10px; margin-bottom:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px;">
+                            <div>
+                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">SLA Pengiriman (Hari Kalender)</label>
+                              <div style="display:flex; align-items:center;">
+                                <input type="number" id="mu_item_${it.id}_v${v}_sla_hari" class="cakra-form-control cakra-mono alt-inp-sla" value="${slaDays}" style="font-size:11px; width:80px;" />
+                                <span style="font-size:10.5px; color:#64748b; margin-left:6px;">Hari sejak Surat Pesanan</span>
+                              </div>
+                            </div>
+                            <div>
+                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Masa Garansi Resmi Pabrikan</label>
+                              <select id="mu_item_${it.id}_v${v}_garansi" class="cakra-form-control alt-sel-garansi" style="font-size:11px;" onchange="onGaransiChange(${it.id}, ${v})">
+                                <option value="3 Tahun Onsite Resmi" ${garansiVal.includes('3 Tahun') ? 'selected' : ''}>3 Tahun Onsite Resmi Pabrikan</option>
+                                <option value="2 Tahun Onsite Resmi" ${garansiVal.includes('2 Tahun') ? 'selected' : ''}>2 Tahun Onsite Resmi Pabrikan</option>
+                                <option value="1 Tahun Onsite Resmi" ${garansiVal.includes('1 Tahun') ? 'selected' : ''}>1 Tahun Onsite Resmi Pabrikan</option>
+                                <option value="Tidak Dipersyaratkan (N/A - Bahan Habis Pakai / Jasa)" ${garansiVal.includes('Tidak Dipersyaratkan') ? 'selected' : ''}>Tidak Dipersyaratkan (N/A - Bahan Habis Pakai / Jasa)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <!-- 5 PARAMETER CHECKLIST PER VENDOR -->
+                          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:10.5px;">
+                            <div style="font-weight:700; color:#1e3a8a; margin-bottom:5px; text-transform:uppercase; font-size:9.5px;">
+                              Pengujian 5 Parameter Kelayakan (Pasal 8 Perlem LKPP No. 2/2026):
+                            </div>
+                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:6px;">
+                              <label style="display:flex; align-items:center; cursor:pointer;">
+                                <input type="checkbox" id="mu_item_${it.id}_v${v}_p1" class="tahap5-param-cb" ${alt.p1 ? 'checked' : ''} onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:6px;" />
+                                <span>1. Spek Teknis KAK</span>
+                              </label>
+                              <label style="display:flex; align-items:center; cursor:pointer;">
+                                <input type="checkbox" id="mu_item_${it.id}_v${v}_p2" class="tahap5-param-cb" ${alt.p2 ? 'checked' : ''} onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:6px;" />
+                                <span>2. Ketersediaan Stok</span>
+                              </label>
+                              <label style="display:flex; align-items:center; cursor:pointer;">
+                                <input type="checkbox" id="mu_item_${it.id}_v${v}_p3" class="tahap5-param-cb" ${alt.p3 ? 'checked' : ''} onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:6px;" />
+                                <span>3. Kewajaran Harga</span>
+                              </label>
+                              <label style="display:flex; align-items:center; cursor:pointer;">
+                                <input type="checkbox" id="mu_item_${it.id}_v${v}_p4" class="tahap5-param-cb" ${alt.p4 ? 'checked' : ''} onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:6px;" />
+                                <span>4. SLA Waktu Kirim</span>
+                              </label>
+                              <label style="display:flex; align-items:center; cursor:pointer;">
+                                <input type="checkbox" id="mu_item_${it.id}_v${v}_p5" class="tahap5-param-cb" ${alt.p5 ? 'checked' : ''} onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:6px;" />
+                                <span>5. Garansi Resmi Onsite</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
               </div>
+            `;
+          }).join('') : `
+            <div style="font-size:11.5px; color:#64748b; padding:12px; text-align:center; background:#f8fafc; border-radius:6px;">
+              Belum ada rincian item barang pada paket ini. Selesaikan Tahap 4 terlebih dahulu.
             </div>
-          `).join('') : '<div style="font-size:11px; color:#64748b; font-style:italic;">Data item paket sedang dimuat...</div>'}
+          `}
         </div>
 
-        <!-- BLOK 3: IKHTISAR BAKU 5 PARAMETER KELAYAKAN KATALOG (PASAL 8 PERLEM 2/2026) -->
-        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px;">
+        <!-- BLOK 3: KESIMPULAN KELAYAKAN PPK & PENYERAHAN TRANSAKSI KE PEJABAT PENGADAAN -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
           <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
-            <span>⚖️ BLOK 3: IKHTISAR HASIL UJI 5 PARAMETER BAKU KELAYAKAN (PASAL 8 PERLEM 2/2026)</span>
-            <span class="cakra-badge cakra-badge-green" style="font-size:10.5px;">Audit-Ready BPK</span>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr; gap:6px;">
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
-              <div>
-                <strong style="font-size:11.5px; color:#0f172a;">1. Kesesuaian Spesifikasi Teknis &amp; Mutu Mutlak</strong>
-                <div style="font-size:10.5px; color:#64748b;">PC Server (Xeon/ECC RAM 32GB/RAID-1/Dual PSU) &amp; PC Workstation (Core i7/RAM 32GB/GPU Dedicated/TKDN 43.12%).</div>
-              </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ Sesuai 100%</span>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
-              <div>
-                <strong style="font-size:11.5px; color:#0f172a;">2. Ketersediaan Produk &amp; Kepastian Pasokan Stok</strong>
-                <div style="font-size:10.5px; color:#64748b;">Konfirmasi daring stok ready pada distributor resmi Jawa Timur &amp; pabrikan perakitan lokal.</div>
-              </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ Ready Stock</span>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
-              <div>
-                <strong style="font-size:11.5px; color:#0f172a;">3. Kewajaran Harga &amp; Struktur Pembiayaan</strong>
-                <div style="font-size:10.5px; color:#64748b;">Harga mencakup PPN 11%, garansi, ongkir franco Kab. Ngawi, di bawah pagu DIPA (potensi hemat Rp 4.650.000,-).</div>
-              </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ Wajar &amp; Efisien</span>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
-              <div>
-                <strong style="font-size:11.5px; color:#0f172a;">4. Layanan Pengiriman &amp; Service Level Agreement (SLA)</strong>
-                <div style="font-size:10.5px; color:#64748b;">Penyedia terpilih sanggup memenuhi SLA pengiriman maksimal 14 hari kalender terhitung sejak Surat Pesanan terbit.</div>
-              </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ SLA &le; 14 Hari</span>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
-              <div>
-                <strong style="font-size:11.5px; color:#0f172a;">5. Jaminan Layanan Purna Jual &amp; Garansi Onsite</strong>
-                <div style="font-size:10.5px; color:#64748b;">Garansi resmi pabrikan minimal 3 tahun Onsite NBD untuk Server dan 1 tahun untuk Workstation didukung Service Center Jatim.</div>
-              </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ Garansi 3 Th Onsite</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- BLOK 4: KESIMPULAN, JUSTIFIKASI FORMAL PPK & TAUTAN BERKAS -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-          <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
-            <span>📝 BLOK 4: KESIMPULAN PPK &amp; TAUTAN DOKUMEN KATALOG</span>
-            <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateAutoJustifikasiTahap5()" style="font-size:11px; padding:3px 8px; font-weight:700;">⚡ Susun Otomatis Narasi PPK</button>
+            <span>📋 BLOK 3: KESIMPULAN KELAYAKAN PPK &amp; PENYERAHAN TRANSAKSI KE PEJABAT PENGADAAN</span>
+            <button type="button" class="btn btn-xs" onclick="generateAutoJustifikasiTahap5()" style="background:#0284c7; color:#fff; font-weight:700; border-radius:4px; padding:3px 8px; border:none; cursor:pointer;">⚡ Susun Otomatis Narasi PPK</button>
           </div>
           <div style="margin-bottom:10px;">
             <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Status Ketersediaan di Katalog Elektronik v6 *</label>
@@ -7929,19 +8176,9 @@ function generateUniversalModalFields(num, paket, activeTRow) {
               ${['Ya, Tersedia & Sesuai', 'Tersedia tapi Dikecualikan (Penilaian PPK)', 'Belum Tersedia di Katalog'].map(st => `<option value="${st}" ${paket.tersedia_di_katalog === st ? 'selected' : ''}>${st}</option>`).join('')}
             </select>
           </div>
-          <div style="margin-bottom:10px;">
+          <div>
             <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Alasan / Justifikasi Formal Penilaian PPK *</label>
-            <textarea id="mu_alasan_penilaian_ppk_katalog" class="cakra-form-control" rows="3" placeholder="Uraikan justifikasi formal penilaian 5 parameter PPK...">${cakraEsc(paket.alasan_penilaian_ppk_katalog || 'Seluruh item memenuhi 5 parameter baku kelayakan (spesifikasi teknis, kepastian stok ready, kewajaran harga di bawah pagu, SLA kirim <= 14 hari, dan garansi resmi onsite 3 tahun). Transaksi dapat menggunakan Skenario Penyedia Tunggal maupun Multi-Order.')}</textarea>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <div>
-              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Tautan Produk Katalog v6 (Item 1 / Server)</label>
-              <input type="url" id="mu_link_produk_katalog_1" class="cakra-form-control cakra-mono" style="font-size:11px;" value="${cakraEsc(paket.link_produk_katalog_1 || 'https://e-katalog.lkpp.go.id/katalog/produk/detail/dell-poweredge-t350-kpu')}" placeholder="https://e-katalog.lkpp.go.id/..." />
-            </div>
-            <div>
-              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Tautan Produk Katalog v6 (Item 2 / Workstation)</label>
-              <input type="url" id="mu_link_produk_katalog_2" class="cakra-form-control cakra-mono" style="font-size:11px;" value="${cakraEsc(paket.link_produk_katalog_2 || 'https://e-katalog.lkpp.go.id/katalog/produk/detail/spc-workstation-i7-sidalih')}" placeholder="https://e-katalog.lkpp.go.id/..." />
-            </div>
+            <textarea id="mu_alasan_penilaian_ppk_katalog" class="cakra-form-control" rows="4" placeholder="Uraikan justifikasi formal penilaian 5 parameter PPK...">${cakraEsc(paket.alasan_penilaian_ppk_katalog || 'Berdasarkan analisa pasar dan pengujian 5 parameter kelayakan (spesifikasi teknis, kepastian stok ready, kewajaran harga di bawah pagu DIPA, SLA kirim <= 14 hari, dan garansi resmi pabrikan), barang kebutuhan satker dinyatakan LAYAK untuk ditransaksikan melalui E-Purchasing Katalog v6. Pelaksanaan pemilihan penyedia dan penerbitan Surat Pesanan (baik Skenario Tunggal maupun Multi-Order) diserahkan sepenuhnya kepada Pejabat Pengadaan (PP) sesuai ketentuan Pasal 12 Perpres PBJ.')}</textarea>
           </div>
         </div>
       `;
@@ -8249,70 +8486,130 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
     extraPaketFields.uraian_pekerjaan = getStr('mu_uraian_pekerjaan') || paket.uraian_pekerjaan;
     extraPaketFields.prioritas_pdn_level = getStr('mu_prioritas_pdn_level') || paket.prioritas_pdn_level;
     extraPaketFields.masa_pelaksanaan_hari = getNum('mu_masa_pelaksanaan_hari') || paket.masa_pelaksanaan_hari;
-  } else if (num === 5) {
-    extraPaketFields.tersedia_di_katalog = getStr('mu_tersedia_di_katalog') || paket.tersedia_di_katalog;
-    extraPaketFields.alasan_penilaian_ppk_katalog = getStr('mu_alasan_penilaian_ppk_katalog') || paket.alasan_penilaian_ppk_katalog;
-    extraPaketFields.link_produk_katalog_1 = getStr('mu_link_produk_katalog_1') || paket.link_produk_katalog_1;
-    extraPaketFields.link_produk_katalog_2 = getStr('mu_link_produk_katalog_2') || paket.link_produk_katalog_2;
-    extraPaketFields.sub_metode_epurchasing = getStr('mu_sub_metode_epurchasing') || paket.sub_metode_epurchasing;
 
-    // Simpan data survei pasar per item barang ke backend
-    const currentItems = CakraState.activePaketCtx?.items || [];
-    if (currentItems.length) {
-      const updatedItems = currentItems.map(it => {
-        const s1 = getNum('mu_item_' + it.id + '_harga_1') || Number(it.harga_survei_1 || 0);
-        const s2 = getNum('mu_item_' + it.id + '_harga_2') || Number(it.harga_survei_2 || s1);
-        const s3 = getNum('mu_item_' + it.id + '_harga_3') || Number(it.harga_survei_3 || s1);
-        const name1 = getStr('mu_item_' + it.id + '_sumber_1') || it.sumber_survei_1 || 'E-Katalog v6 (Vendor A)';
-        const name2 = getStr('mu_item_' + it.id + '_sumber_2') || it.sumber_survei_2 || 'E-Katalog v6 (Vendor B)';
-        const name3 = getStr('mu_item_' + it.id + '_sumber_3') || it.sumber_survei_3 || 'E-Katalog v6 (Vendor C)';
-        const valid = [s1, s2, s3].filter(v => v > 0);
-        const minVal = valid.length ? Math.min(...valid) : s1;
-
-        const evaluasi = {
-          v1: {
-            nama: name1, harga: s1,
-            p1: document.getElementById('mu_item_' + it.id + '_v1_p1')?.checked ? 1 : 0,
-            p2: document.getElementById('mu_item_' + it.id + '_v1_p2')?.checked ? 1 : 0,
-            p3: document.getElementById('mu_item_' + it.id + '_v1_p3')?.checked ? 1 : 0,
-            p4: document.getElementById('mu_item_' + it.id + '_v1_p4')?.checked ? 1 : 0,
-            p5: document.getElementById('mu_item_' + it.id + '_v1_p5')?.checked ? 1 : 0
-          },
-          v2: {
-            nama: name2, harga: s2,
-            p1: document.getElementById('mu_item_' + it.id + '_v2_p1')?.checked ? 1 : 0,
-            p2: document.getElementById('mu_item_' + it.id + '_v2_p2')?.checked ? 1 : 0,
-            p3: document.getElementById('mu_item_' + it.id + '_v2_p3')?.checked ? 1 : 0,
-            p4: document.getElementById('mu_item_' + it.id + '_v2_p4')?.checked ? 1 : 0,
-            p5: document.getElementById('mu_item_' + it.id + '_v2_p5')?.checked ? 1 : 0
-          },
-          v3: {
-            nama: name3, harga: s3,
-            p1: document.getElementById('mu_item_' + it.id + '_v3_p1')?.checked ? 1 : 0,
-            p2: document.getElementById('mu_item_' + it.id + '_v3_p2')?.checked ? 1 : 0,
-            p3: document.getElementById('mu_item_' + it.id + '_v3_p3')?.checked ? 1 : 0,
-            p4: document.getElementById('mu_item_' + it.id + '_v3_p4')?.checked ? 1 : 0,
-            p5: document.getElementById('mu_item_' + it.id + '_v3_p5')?.checked ? 1 : 0
-          }
-        };
+    // Kumpulkan rincian item KAK dari form Tahap 4
+    const itemCards = document.querySelectorAll('#t4_items_container .t4-item-card');
+    if (itemCards.length) {
+      const currentItems = CakraState.activePaketCtx?.items || [];
+      const newItems = Array.from(itemCards).map((card, idx) => {
+        const idVal = card.dataset.itemId;
+        const matchedOld = currentItems.find(x => String(x.id) === String(idVal)) || {};
+        const uraian = card.querySelector('.t4-item-uraian')?.value.trim() || ('Item ' + (idx + 1));
+        const vol = Number(card.querySelector('.t4-item-vol')?.value || 1);
+        const satuan = card.querySelector('.t4-item-satuan')?.value.trim() || 'Unit';
+        const paguSat = Number(card.querySelector('.t4-item-pagu')?.value || 0);
+        const spek = card.querySelector('.t4-item-spek')?.value.trim() || '-';
+        const tkdn = Number(card.querySelector('.t4-item-tkdn')?.value || 40);
+        const sakti = card.querySelector('.t4-item-sakti')?.value || 'Aset Tetap (BMN)';
 
         return {
-          ...it,
-          sumber_survei_1: name1,
-          harga_survei_1: s1,
-          sumber_survei_2: name2,
-          harga_survei_2: s2,
-          sumber_survei_3: name3,
-          harga_survei_3: s3,
-          metode_penentuan_hps: 'Terendah',
-          harga_satuan_hps: minVal,
-          jumlah_hps: minVal * Number(it.volume || 1),
-          evaluasi_pasar_json: evaluasi
+          ...matchedOld,
+          id: idVal && !idVal.startsWith('NEW_') ? Number(idVal) : undefined,
+          urutan: idx + 1,
+          uraian_item: uraian,
+          spesifikasi_teknis: spek,
+          volume: vol,
+          satuan: satuan,
+          persen_tkdn: tkdn,
+          harga_satuan_hps: paguSat,
+          jumlah_hps: Math.round(vol * paguSat),
+          jenis_pencatatan_sakti: sakti
         };
       });
 
       try {
+        await cakraApiPost('/api/cakra/paket/' + paket.id + '/items', { items: newItems });
+        if (CakraState.activePaketCtx) {
+          const freshCtx = await cakraApiGet('/api/cakra/paket/' + paket.id);
+          if (freshCtx?.items) {
+            CakraState.activePaketCtx.items = freshCtx.items;
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal menyimpan rincian item KAK Tahap 4:', err);
+      }
+    }
+  } else if (num === 5) {
+    extraPaketFields.tersedia_di_katalog = getStr('mu_tersedia_di_katalog') || paket.tersedia_di_katalog;
+    extraPaketFields.alasan_penilaian_ppk_katalog = getStr('mu_alasan_penilaian_ppk_katalog') || paket.alasan_penilaian_ppk_katalog;
+    extraPaketFields.sub_metode_epurchasing = getStr('mu_sub_metode_epurchasing') || paket.sub_metode_epurchasing;
+
+    // Simpan data alternatif survei pasar per item barang ke backend
+    const currentItems = CakraState.activePaketCtx?.items || [];
+    if (currentItems.length) {
+      const updatedItems = currentItems.map(it => {
+        const altCards = document.querySelectorAll('#t5_item_' + it.id + '_alternatifs .t5-alt-card');
+        let alternatifs = [];
+        if (altCards.length) {
+          alternatifs = Array.from(altCards).map((card, aIdx) => {
+            const v = card.dataset.altIdx || (aIdx + 1);
+            const sumber = document.getElementById('mu_item_' + it.id + '_v' + v + '_sumber')?.value.trim() || '';
+            const produk = document.getElementById('mu_item_' + it.id + '_v' + v + '_produk')?.value.trim() || '';
+            const harga = Number(document.getElementById('mu_item_' + it.id + '_v' + v + '_harga')?.value || 0);
+            const url = document.getElementById('mu_item_' + it.id + '_v' + v + '_url')?.value.trim() || '';
+            const tkdn = Number(document.getElementById('mu_item_' + it.id + '_v' + v + '_tkdn')?.value || 0);
+            const sla_hari = Number(document.getElementById('mu_item_' + it.id + '_v' + v + '_sla_hari')?.value || 14);
+            const garansi = document.getElementById('mu_item_' + it.id + '_v' + v + '_garansi')?.value || '3 Tahun Onsite Resmi';
+            const p1 = document.getElementById('mu_item_' + it.id + '_v' + v + '_p1')?.checked ? 1 : 0;
+            const p2 = document.getElementById('mu_item_' + it.id + '_v' + v + '_p2')?.checked ? 1 : 0;
+            const p3 = document.getElementById('mu_item_' + it.id + '_v' + v + '_p3')?.checked ? 1 : 0;
+            const p4 = document.getElementById('mu_item_' + it.id + '_v' + v + '_p4')?.checked ? 1 : 0;
+            const p5 = document.getElementById('mu_item_' + it.id + '_v' + v + '_p5')?.checked ? 1 : 0;
+
+            return {
+              alt_no: Number(v),
+              sumber,
+              produk,
+              harga,
+              url,
+              tkdn,
+              sla_hari,
+              garansi,
+              p1, p2, p3, p4, p5,
+              skor: p1 + p2 + p3 + p4 + p5
+            };
+          });
+        }
+
+        const validPrices = alternatifs.map(a => a.harga).filter(h => h > 0);
+        const minVal = validPrices.length ? Math.min(...validPrices) : Number(it.harga_satuan_hps || 0);
+
+        const a1 = alternatifs[0] || {};
+        const a2 = alternatifs[1] || {};
+        const a3 = alternatifs[2] || {};
+
+        return {
+          ...it,
+          merk_tipe_katalog: a1.produk || it.merk_tipe_katalog || '',
+          sumber_survei_1: a1.sumber ? (a1.sumber + (a1.produk ? (' - ' + a1.produk) : '')) : (it.sumber_survei_1 || ''),
+          harga_survei_1: a1.harga || it.harga_survei_1 || minVal,
+          link_survei_1: a1.url || it.link_survei_1 || '',
+          sumber_survei_2: a2.sumber ? (a2.sumber + (a2.produk ? (' - ' + a2.produk) : '')) : (it.sumber_survei_2 || ''),
+          harga_survei_2: a2.harga || it.harga_survei_2 || minVal,
+          link_survei_2: a2.url || it.link_survei_2 || '',
+          sumber_survei_3: a3.sumber ? (a3.sumber + (a3.produk ? (' - ' + a3.produk) : '')) : (it.sumber_survei_3 || ''),
+          harga_survei_3: a3.harga || it.harga_survei_3 || minVal,
+          link_survei_3: a3.url || it.link_survei_3 || '',
+          metode_penentuan_hps: 'Terendah',
+          harga_satuan_hps: minVal,
+          jumlah_hps: minVal * Number(it.volume || 1),
+          evaluasi_pasar_json: {
+            alternatifs
+          }
+        };
+      });
+
+      if (updatedItems[0]?.link_survei_1) extraPaketFields.link_produk_katalog_1 = updatedItems[0].link_survei_1;
+      if (updatedItems[1]?.link_survei_1) extraPaketFields.link_produk_katalog_2 = updatedItems[1].link_survei_1;
+
+      try {
         await cakraApiPost('/api/cakra/paket/' + paket.id + '/items', { items: updatedItems });
+        if (CakraState.activePaketCtx) {
+          const freshCtx = await cakraApiGet('/api/cakra/paket/' + paket.id);
+          if (freshCtx?.items) {
+            CakraState.activePaketCtx.items = freshCtx.items;
+          }
+        }
       } catch (err) {
         console.warn('Gagal memperbarui item survei:', err);
       }
@@ -8443,6 +8740,299 @@ window.finishUniversalStageAndAdvance = finishUniversalStageAndAdvance;
 
 
 
+// =============================================================================
+// HELPER TAHAP 4: DINAMISASI RINCIAN ITEM KAK & VALIDASI PAGU
+// =============================================================================
+function tambahItemTahap4() {
+  const container = document.getElementById('t4_items_container');
+  if (!container) return;
+  const count = container.querySelectorAll('.t4-item-card').length;
+  const idx = count + 1;
+  const div = document.createElement('div');
+  div.className = 't4-item-card';
+  div.dataset.itemId = 'NEW_' + Date.now();
+  div.style.cssText = 'background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px; margin-bottom:10px;';
+  div.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+      <strong style="font-size:12px; color:#0f172a;" class="t4-item-label">Item ${idx}</strong>
+      <button type="button" class="btn btn-xs btn-outline-danger" onclick="hapusItemTahap4(this)" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5; background:#fff; color:#dc2626; cursor:pointer;">🗑️ Hapus</button>
+    </div>
+    <div style="display:grid; grid-template-columns: 2fr 0.8fr 0.8fr 1.4fr 1.2fr; gap:8px; margin-bottom:8px;">
+      <div>
+        <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Nama / Uraian Kebutuhan Barang *</label>
+        <input type="text" class="cakra-form-control t4-item-uraian" value="Item Kebutuhan Baru ${idx}" placeholder="cth: PC Server Tower" style="font-size:11px; font-weight:700;" />
+      </div>
+      <div>
+        <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Volume *</label>
+        <input type="number" step="1" min="1" class="cakra-form-control cakra-mono t4-item-vol" value="1" style="font-size:11px; font-weight:700;" oninput="calcTahap4Totals()" />
+      </div>
+      <div>
+        <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Satuan *</label>
+        <input type="text" class="cakra-form-control t4-item-satuan" value="Unit" placeholder="Unit/Set" style="font-size:11px;" />
+      </div>
+      <div>
+        <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Pagu Satuan (Rp) *</label>
+        <input type="number" class="cakra-form-control cakra-mono t4-item-pagu" value="0" style="font-size:11px; font-weight:700;" oninput="calcTahap4Totals()" />
+      </div>
+      <div>
+        <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Subtotal Pagu (Rp)</label>
+        <div class="t4-item-subtotal cakra-mono" style="font-size:11px; font-weight:800; color:#1e40af; padding:5px 8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:4px; height:28px; line-height:16px;">
+          Rp 0
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;">
+      <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Spesifikasi Teknis Detail KAK *</label>
+      <textarea class="cakra-form-control t4-item-spek" rows="2" style="font-size:11px;" placeholder="Cantumkan spesifikasi fungsional terperinci..."></textarea>
+    </div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label style="font-size:10px; font-weight:700; color:#475569;">Target TKDN:</label>
+        <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="40" style="font-size:11px; width:75px;" />
+        <span style="font-size:10.5px; font-weight:700; color:#475569;">%</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label style="font-size:10px; font-weight:700; color:#475569;">Pencatatan SAKTI:</label>
+        <select class="cakra-form-control t4-item-sakti" style="font-size:11px;">
+          <option value="Aset Tetap (BMN)" selected>Aset Tetap (BMN)</option>
+          <option value="Persediaan">Persediaan</option>
+          <option value="Jasa/Habis Pakai">Jasa/Habis Pakai</option>
+        </select>
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+  calcTahap4Totals();
+}
+window.tambahItemTahap4 = tambahItemTahap4;
+
+function hapusItemTahap4(btn) {
+  const card = btn.closest('.t4-item-card');
+  if (!card) return;
+  const container = document.getElementById('t4_items_container');
+  if (container.querySelectorAll('.t4-item-card').length <= 1) {
+    cakraNotify('⚠️ Minimal harus ada 1 item barang dalam paket!', 'warning');
+    return;
+  }
+  card.remove();
+  container.querySelectorAll('.t4-item-card').forEach((c, i) => {
+    const lbl = c.querySelector('.t4-item-label');
+    if (lbl) lbl.textContent = 'Item ' + (i + 1);
+  });
+  calcTahap4Totals();
+}
+window.hapusItemTahap4 = hapusItemTahap4;
+
+function calcTahap4Totals() {
+  const container = document.getElementById('t4_items_container');
+  if (!container) return;
+  let total = 0;
+  container.querySelectorAll('.t4-item-card').forEach(card => {
+    const vol = Number(card.querySelector('.t4-item-vol')?.value || 1);
+    const pagu = Number(card.querySelector('.t4-item-pagu')?.value || 0);
+    const sub = Math.round(vol * pagu);
+    total += sub;
+    const subEl = card.querySelector('.t4-item-subtotal');
+    if (subEl) subEl.textContent = 'Rp ' + sub.toLocaleString('id-ID');
+  });
+
+  const displayEl = document.getElementById('t4_total_pagu_display');
+  if (displayEl) displayEl.textContent = 'Rp ' + total.toLocaleString('id-ID');
+
+  const paket = (CakraState.activePaketCtx?.paket?.id === CakraState.activePaketId ? CakraState.activePaketCtx.paket : null)
+    || (CakraState.pakets || []).find(p => String(p.id) === String(CakraState.activePaketId)) || {};
+  const paguPaket = Number(paket.nilai_pagu || 145000000);
+  const diff = paguPaket - total;
+
+  const badgeEl = document.getElementById('t4_pagu_status_badge');
+  if (badgeEl) {
+    if (diff === 0) {
+      badgeEl.innerHTML = '<span class="cakra-badge cakra-badge-green" style="font-size:11px;">✅ Pagu Item Sesuai Pagu Paket (100%)</span>';
+    } else if (diff > 0) {
+      badgeEl.innerHTML = '<span class="cakra-badge cakra-badge-amber" style="font-size:11px;">⚠️ Sisa Pagu Belum Dialokasikan: Rp ' + diff.toLocaleString('id-ID') + '</span>';
+    } else {
+      badgeEl.innerHTML = '<span class="cakra-badge cakra-badge-red" style="font-size:11px;">❌ Pagu Item Melebihi Pagu Paket: Rp ' + Math.abs(diff).toLocaleString('id-ID') + '</span>';
+    }
+  }
+}
+window.calcTahap4Totals = calcTahap4Totals;
+
+// =============================================================================
+// HELPER TAHAP 5: ACCORDION, DINAMISASI ALTERNATIF, CHECKLIST & JUSTIFIKASI PPK
+// =============================================================================
+function toggleAltCardCollapse(itemId, altIdx) {
+  const body = document.getElementById('alt_body_' + itemId + '_v' + altIdx);
+  const icon = document.getElementById('alt_icon_' + itemId + '_v' + altIdx);
+  if (!body) return;
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? 'block' : 'none';
+  if (icon) icon.textContent = isHidden ? '▼' : '▶';
+}
+window.toggleAltCardCollapse = toggleAltCardCollapse;
+
+function updateAltCardHeader(itemId, altIdx) {
+  const sumberInp = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_sumber');
+  const prodInp = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_produk');
+  const hrgInp = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_harga');
+  const titleEl = document.getElementById('alt_header_title_' + itemId + '_v' + altIdx);
+
+  const sumber = sumberInp?.value.trim() || ('Penyedia ' + altIdx);
+  const prod = prodInp?.value.trim() || 'Produk';
+  const hrg = Number(hrgInp?.value || 0).toLocaleString('id-ID');
+
+  if (titleEl) {
+    titleEl.textContent = 'Alternatif ' + altIdx + ': ' + sumber + ' — ' + prod + ' (Rp ' + hrg + ')';
+  }
+}
+window.updateAltCardHeader = updateAltCardHeader;
+
+function tambahAlternatifTahap5(itemId) {
+  const container = document.getElementById('t5_item_' + itemId + '_alternatifs');
+  if (!container) return;
+  const count = container.querySelectorAll('.t5-alt-card').length;
+  const v = count + 1;
+
+  const div = document.createElement('div');
+  div.className = 't5-alt-card';
+  div.id = 't5_alt_card_' + itemId + '_v' + v;
+  div.dataset.itemId = itemId;
+  div.dataset.altIdx = v;
+  div.style.cssText = 'background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:8px; overflow:hidden;';
+  div.innerHTML = `
+    <div onclick="toggleAltCardCollapse(${itemId}, ${v})" style="background:#f1f5f9; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; border-bottom:1px solid #e2e8f0;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span id="alt_icon_${itemId}_v${v}" style="font-size:11px; color:#475569;">▼</span>
+        <strong id="alt_header_title_${itemId}_v${v}" style="font-size:12px; color:#0f172a;">
+          Alternatif ${v}: Alternatif Baru — Produk Katalog (Rp 0)
+        </strong>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;" onclick="event.stopPropagation()">
+        <span id="badge_item_${itemId}_v${v}" class="cakra-badge cakra-badge-green" style="font-size:10px; padding:2px 8px;">✓ 5/5 Lolos Uji</span>
+        <button type="button" class="btn btn-xs" onclick="toggleVendor5Params(${itemId}, ${v}, true)" style="font-size:9.5px; padding:2px 6px; border:1px solid #bbf7d0; background:#f0fdf4; color:#166534; font-weight:700; border-radius:4px; cursor:pointer;" title="Centang 5/5 Lolos">⚡ Centang Semua</button>
+        <button type="button" class="btn btn-xs btn-outline-danger" onclick="hapusAlternatifTahap5(${itemId}, ${v})" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5; background:#fff; color:#dc2626; cursor:pointer;" title="Hapus Alternatif Ini">🗑️</button>
+      </div>
+    </div>
+    <div id="alt_body_${itemId}_v${v}" style="display:block; padding:10px 12px;">
+      <div style="display:grid; grid-template-columns: 1.5fr 1.5fr 1fr; gap:10px; margin-bottom:8px;">
+        <div>
+          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Merek / Tipe / Nama Produk Tayang di E-Katalog *</label>
+          <input type="text" id="mu_item_${itemId}_v${v}_produk" class="cakra-form-control alt-inp-produk" value="" placeholder="cth: Merek & Tipe Produk" style="font-size:11px; font-weight:700;" oninput="updateAltCardHeader(${itemId}, ${v})" />
+        </div>
+        <div>
+          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Nama Penyedia / Distributor / Toko Daring *</label>
+          <input type="text" id="mu_item_${itemId}_v${v}_sumber" class="cakra-form-control alt-inp-sumber" value="" placeholder="cth: PT. Nama Vendor" style="font-size:11px;" oninput="updateAltCardHeader(${itemId}, ${v})" />
+        </div>
+        <div>
+          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Harga Tayang E-Katalog (Rp/Unit) *</label>
+          <input type="number" id="mu_item_${itemId}_v${v}_harga" class="cakra-form-control cakra-mono alt-inp-harga" value="0" style="font-size:11px; font-weight:700;" oninput="updateAltCardHeader(${itemId}, ${v})" />
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 2.2fr 0.8fr; gap:10px; margin-bottom:8px;">
+        <div>
+          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Tautan Langsung Produk E-Katalog v6 (URL) *</label>
+          <input type="url" id="mu_item_${itemId}_v${v}_url" class="cakra-form-control cakra-mono alt-inp-url" value="" placeholder="https://e-katalog.lkpp.go.id/katalog/produk/detail/..." style="font-size:11px;" />
+        </div>
+        <div>
+          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Klaim Capaian TKDN (%)</label>
+          <div style="display:flex; align-items:center;">
+            <input type="number" step="0.01" id="mu_item_${itemId}_v${v}_tkdn" class="cakra-form-control cakra-mono alt-inp-tkdn" value="40" style="font-size:11px; width:85px;" />
+            <span style="font-size:11px; font-weight:700; color:#475569; margin-left:6px;">%</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:10px; margin-bottom:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px;">
+        <div>
+          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">SLA Pengiriman (Hari Kalender)</label>
+          <div style="display:flex; align-items:center;">
+            <input type="number" id="mu_item_${itemId}_v${v}_sla_hari" class="cakra-form-control cakra-mono alt-inp-sla" value="14" style="font-size:11px; width:80px;" />
+            <span style="font-size:10.5px; color:#64748b; margin-left:6px;">Hari sejak Surat Pesanan</span>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Masa Garansi Resmi Pabrikan</label>
+          <select id="mu_item_${itemId}_v${v}_garansi" class="cakra-form-control alt-sel-garansi" style="font-size:11px;" onchange="onGaransiChange(${itemId}, ${v})">
+            <option value="3 Tahun Onsite Resmi" selected>3 Tahun Onsite Resmi Pabrikan</option>
+            <option value="2 Tahun Onsite Resmi">2 Tahun Onsite Resmi Pabrikan</option>
+            <option value="1 Tahun Onsite Resmi">1 Tahun Onsite Resmi Pabrikan</option>
+            <option value="Tidak Dipersyaratkan (N/A - Bahan Habis Pakai / Jasa)">Tidak Dipersyaratkan (N/A - Bahan Habis Pakai / Jasa)</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:10.5px;">
+        <div style="font-weight:700; color:#1e3a8a; margin-bottom:5px; text-transform:uppercase; font-size:9.5px;">
+          Pengujian 5 Parameter Kelayakan (Pasal 8 Perlem LKPP No. 2/2026):
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:6px;">
+          <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="mu_item_${itemId}_v${v}_p1" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${itemId}, ${v})" style="margin-right:6px;" />
+            <span>1. Spek Teknis KAK</span>
+          </label>
+          <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="mu_item_${itemId}_v${v}_p2" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${itemId}, ${v})" style="margin-right:6px;" />
+            <span>2. Ketersediaan Stok</span>
+          </label>
+          <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="mu_item_${itemId}_v${v}_p3" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${itemId}, ${v})" style="margin-right:6px;" />
+            <span>3. Kewajaran Harga</span>
+          </label>
+          <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="mu_item_${itemId}_v${v}_p4" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${itemId}, ${v})" style="margin-right:6px;" />
+            <span>4. SLA Waktu Kirim</span>
+          </label>
+          <label style="display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="mu_item_${itemId}_v${v}_p5" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${itemId}, ${v})" style="margin-right:6px;" />
+            <span>5. Garansi Resmi Onsite</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+  updateVendorParamBadge(itemId, v);
+  cakraNotify('➕ Alternatif ' + v + ' berhasil ditambahkan.', 'info');
+}
+window.tambahAlternatifTahap5 = tambahAlternatifTahap5;
+
+function hapusAlternatifTahap5(itemId, altIdx) {
+  const container = document.getElementById('t5_item_' + itemId + '_alternatifs');
+  if (!container) return;
+  const cards = container.querySelectorAll('.t5-alt-card');
+  if (cards.length <= 1) {
+    cakraNotify('⚠️ Minimal harus ada 1 alternatif penyedia untuk pengujian pasar!', 'warning');
+    return;
+  }
+  const targetCard = document.getElementById('t5_alt_card_' + itemId + '_v' + altIdx);
+  if (targetCard) targetCard.remove();
+
+  // Renumber remaining cards
+  container.querySelectorAll('.t5-alt-card').forEach((card, idx) => {
+    const newV = idx + 1;
+    card.dataset.altIdx = newV;
+    card.id = 't5_alt_card_' + itemId + '_v' + newV;
+    const body = card.querySelector('[id^="alt_body_"]');
+    if (body) body.id = 'alt_body_' + itemId + '_v' + newV;
+    const icon = card.querySelector('[id^="alt_icon_"]');
+    if (icon) icon.id = 'alt_icon_' + itemId + '_v' + newV;
+    updateAltCardHeader(itemId, newV);
+  });
+  cakraNotify('🗑️ Alternatif berhasil dihapus.', 'info');
+}
+window.hapusAlternatifTahap5 = hapusAlternatifTahap5;
+
+function onGaransiChange(itemId, altIdx) {
+  const sel = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_garansi');
+  const cb5 = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_p5');
+  if (!sel || !cb5) return;
+  if (sel.value.includes('Tidak Dipersyaratkan')) {
+    cb5.checked = true;
+    cb5.disabled = true;
+  } else {
+    cb5.disabled = false;
+  }
+  updateVendorParamBadge(itemId, altIdx);
+}
+window.onGaransiChange = onGaransiChange;
+
 function toggleChecklistAllTahap5(checked = true) {
   const checkboxes = document.querySelectorAll('.tahap5-param-cb');
   checkboxes.forEach(cb => {
@@ -8450,12 +9040,14 @@ function toggleChecklistAllTahap5(checked = true) {
   });
   const items = CakraState.activePaketCtx?.items || [];
   items.forEach(it => {
-    for (let v = 1; v <= 3; v++) {
+    const cards = document.querySelectorAll('#t5_item_' + it.id + '_alternatifs .t5-alt-card');
+    cards.forEach(card => {
+      const v = card.dataset.altIdx || 1;
       updateVendorParamBadge(it.id, v);
-    }
+    });
   });
   if (typeof cakraNotify === 'function') {
-    cakraNotify('⚡ Seluruh 5 parameter untuk semua barang & vendor berhasil dicentang Lolos (5/5)!', 'success');
+    cakraNotify('⚡ Seluruh parameter untuk semua alternatif & barang berhasil dicentang Lolos (5/5)!', 'success');
   }
 }
 window.toggleChecklistAllTahap5 = toggleChecklistAllTahap5;
@@ -8467,7 +9059,7 @@ function toggleVendor5Params(itemId, vendorIdx, checked = true) {
   }
   updateVendorParamBadge(itemId, vendorIdx);
   if (typeof cakraNotify === 'function') {
-    cakraNotify('✓ Parameter Vendor ' + vendorIdx + ' berhasil di-set 5/5 Lolos Uji.', 'info');
+    cakraNotify('✓ Alternatif ' + vendorIdx + ' berhasil di-set 5/5 Lolos Uji.', 'info');
   }
 }
 window.toggleVendor5Params = toggleVendor5Params;
@@ -8508,31 +9100,39 @@ function generateAutoJustifikasiTahap5() {
   let rincianBarang = [];
 
   items.forEach((it, idx) => {
-    const s1 = Number(document.getElementById('mu_item_' + it.id + '_harga_1')?.value || it.harga_survei_1 || 0);
-    const s2 = Number(document.getElementById('mu_item_' + it.id + '_harga_2')?.value || it.harga_survei_2 || s1);
-    const s3 = Number(document.getElementById('mu_item_' + it.id + '_harga_3')?.value || it.harga_survei_3 || s1);
-    const valid = [s1, s2, s3].filter(v => v > 0);
-    const minVal = valid.length ? Math.min(...valid) : 0;
+    const altCards = document.querySelectorAll('#t5_item_' + it.id + '_alternatifs .t5-alt-card');
+    let validPrices = [];
+    let altSummary = [];
+
+    altCards.forEach((card, aIdx) => {
+      const v = card.dataset.altIdx || (aIdx + 1);
+      const hrg = Number(document.getElementById('mu_item_' + it.id + '_v' + v + '_harga')?.value || 0);
+      const sumber = document.getElementById('mu_item_' + it.id + '_v' + v + '_sumber')?.value.trim() || ('Alternatif ' + v);
+      const prod = document.getElementById('mu_item_' + it.id + '_v' + v + '_produk')?.value.trim() || '';
+      let score = 0;
+      for (let p = 1; p <= 5; p++) {
+        if (document.getElementById('mu_item_' + it.id + '_v' + v + '_p' + p)?.checked) score++;
+      }
+      if (hrg > 0) validPrices.push(hrg);
+      altSummary.push('Alt ' + v + ' [' + sumber + (prod ? ' - ' + prod : '') + ']: Rp ' + hrg.toLocaleString('id-ID') + ' (Skor ' + score + '/5)');
+    });
+
+    const minVal = validPrices.length ? Math.min(...validPrices) : Number(it.harga_satuan_hps || 0);
     const totItem = minVal * Number(it.volume || 1);
     totalMin += totItem;
 
-    let skorV1 = 0;
-    for (let p = 1; p <= 5; p++) {
-      if (document.getElementById('mu_item_' + it.id + '_v1_p' + p)?.checked) skorV1++;
-    }
-    const vendorTerpilih = (document.getElementById('mu_item_' + it.id + '_sumber_1')?.value || it.sumber_survei_1 || 'Vendor 1');
-    rincianBarang.push('Item ' + (idx+1) + ' [' + it.uraian_item + ']: Rekomendasi pada ' + vendorTerpilih + ' dengan harga terendah Rp ' + minVal.toLocaleString('id-ID') + ' dan skor kelayakan ' + skorV1 + '/5');
+    rincianBarang.push('Item ' + (idx + 1) + ' [' + it.uraian_item + ' - Vol ' + it.volume + ' ' + it.satuan + ']: ' + altSummary.join(', ') + ' dengan harga pasar terendah Rp ' + minVal.toLocaleString('id-ID'));
   });
 
   const pagu = Number(paket.nilai_pagu || 145000000);
   const efisiensi = Math.max(0, pagu - totalMin);
 
-  const narasi = 'Berdasarkan pengujian komparatif 5 parameter kelayakan per barang dan per vendor (Pasal 8 Peraturan LKPP No. 2 Tahun 2026 jo. Kepka LKPP No. 177/2024), PPK menetapkan hasil evaluasi pasar: ' + rincianBarang.join('; ') + '. Seluruh barang kebutuhan telah lolos 5 parameter kelayakan (Spesifikasi Teknis 100%, Ketersediaan Stok Ready, Kewajaran Harga di bawah Pagu DIPA dengan potensi efisiensi Rp ' + efisiensi.toLocaleString('id-ID') + ', SLA Pengiriman maksimal 14 hari kalender, dan Garansi Resmi Pabrikan minimal 3 tahun onsite). Pelaksanaan pengadaan direkomendasikan melalui E-Purchasing Negosiasi Harga dengan fleksibilitas Skenario Tunggal maupun Multi-Order (Surat Pesanan terpisah per item) sesuai ketersediaan pasar.';
+  const narasi = 'Berdasarkan analisa pasar komparatif dan pengujian kelayakan 5 parameter (Pasal 8 Peraturan LKPP No. 2 Tahun 2026 jo. Kepka LKPP No. 177/2024), PPK mencatat hasil telaah pasar: ' + rincianBarang.join('; ') + '. Seluruh alternatif produk yang tayang telah diverifikasi atas spesifikasi teknis KAK, ketersediaan pasokan distributor, kewajaran harga di bawah Pagu DIPA (potensi efisiensi Rp ' + efisiensi.toLocaleString('id-ID') + '), kesanggupan SLA waktu kirim, dan jaminan garansi resmi pabrikan. Selanjutnya, PPK menyerahkan mandat operasional pelaksanaan transaksi, klarifikasi/negosiasi harga, dan penerbitan Surat Pesanan (baik Skenario Penyedia Tunggal maupun Multi-Order terpisah per item) sepenuhnya kepada Pejabat Pengadaan (PP) sesuai wewenang Pasal 12 ayat (1) huruf a Perpres No. 16/2018 jo. Perpres No. 46/2025.';
 
   const textarea = document.getElementById('mu_alasan_penilaian_ppk_katalog');
   if (textarea) {
     textarea.value = narasi;
-    cakraNotify('⚡ Narasi Justifikasi Formal PPK berbasis evaluasi per vendor berhasil disusun otomatis!', 'success');
+    cakraNotify('⚡ Narasi Justifikasi Formal PPK berbasis hasil uji objektif berhasil disusun otomatis!', 'success');
   }
 }
 window.generateAutoJustifikasiTahap5 = generateAutoJustifikasiTahap5;

@@ -881,3 +881,59 @@ Menjawab dinamika ketersediaan barang di mana penyedia katalog hanya memiliki 1 
 - **Pejabat Pembuat Komitmen (PPK):** `MOHAMMAD NOOR JIHAN` (NIP 19840101 200912 1 001) — Tanpa Gelar
 - **Pejabat Pengadaan:** `INDRAYU FATIKA MAHARDIKA` — Tanpa Gelar
 - Kepatuhan penuh terhadap Keputusan KPU Nomor 1272 Tahun 2025.
+
+
+---
+
+## 31. ARSITEKTUR TAHAP 4 & TAHAP 5 UNIFIED SUITE: EDITOR ITEM KAK, ALTERNATIF VERTIKAL COLLAPSIBLE, & PEMISAHAN TUPOKSI PPK-PP
+
+### 31.1 Latar Belakang & Prinsip Pembenahan Terpadu
+Berdasarkan arahan strategis arsitektur dari Mas emenje (PPK Satker 657811 KPU Kabupaten Ngawi) pada siklus simulasi Paket `PBJ-2026-001`, modul Tahap 4 (Penetapan KAK & Spesifikasi Teknis) dan Tahap 5 (Analisa Pasar & Penilaian Kelayakan Katalog) disempurnakan secara terintegrasi (*Unified Suite*) untuk menegakkan:
+1. **Dinamisasi Item Kebutuhan Hulu-ke-Hilir:** Nama barang, spesifikasi teknis detail, volume, dan pagu anggaran satuan diinput dan dikelola di Tahap 4 sebagai SSOT, kemudian mengalir secara otomatis menjadi objek telaah komparasi di Tahap 5.
+2. **Netralitas Absolut PPK dalam Pengujian Pasar:** Menghilangkan seluruh bias rekomendasi sepihak (seperti label *"Vendor Rekomendasi"* atau *"Pilihan PPK"*). PPK bertugas menguji kelayakan parameter secara objektif tanpa mengunci pilihan penyedia.
+3. **Pemisahan Kewenangan (Tupoksi) PPK vs Pejabat Pengadaan (PP):** Sesuai Pasal 12 ayat (1) huruf a Perpres PBJ jo. Perpres 46/2025, pelaksanaan transaksi, pemilihan penyedia terbaik, negosiasi harga, dan penerbitan Surat Pesanan (baik Skenario Penyedia Tunggal maupun Multi-Order SP-01 & SP-02) merupakan kewenangan atributif Pejabat Pengadaan (PP).
+4. **Ergonomi Kerja UI (Vertical Collapsible Cards):** Mengganti tata letak 3 kolom horizontal yang sempit dengan susunan kartu vertikal yang dapat dilipat (*accordion*), dilengkapi ringkasan status di header kartu.
+
+### 31.2 Fitur Baru Tahap 4: Editor Rincian Item KAK & Validasi Pagu DIPA
+- **Kontainer Dinamis (`#t4_items_container`):** Mendukung penambahan (`[➕ Tambah Item Barang]`) dan penghapusan (`[🗑️ Hapus]`) item barang secara bebas (fleksibel untuk 1, 2, 3, 4+ item).
+- **Atribut Rincian Item Barang:**
+  - Nama / Uraian Kebutuhan Barang (cth: *PC Server Tower Database Operasional*, *PC Workstation SIDALIH*).
+  - Volume & Satuan (cth: 1 Unit, 3 Unit).
+  - Alokasi Pagu Satuan (Rp) & Kalkulasi Subtotal Pagu otomatis.
+  - Rincian Spesifikasi Teknis Fungsional Detail KAK (Processor, RAM, Storage RAID, OS legal, PSU redundant, Garansi).
+  - Target Capaian TKDN (%) & Klasifikasi Penatausahaan BMN/SAKTI (*Aset Tetap BMN*, *Persediaan*, *Jasa/Habis Pakai*).
+- **Validasi Pagu Real-Time:** Menghitung total pagu seluruh item secara instan terhadap Pagu DIPA Paket (`Rp 145.000.000,-`), menampilkan badge status:
+  - `✅ Pagu Item Sesuai Pagu Paket (100%)` jika total tepat sama.
+  - `⚠️ Sisa Pagu Belum Dialokasikan` jika total di bawah pagu.
+  - `❌ Pagu Item Melebihi Pagu Paket` jika total melebihi batas DIPA.
+- **Persistensi Data:** Tersimpan langsung ke tabel `pbj_paket_item` melalui endpoint `POST /api/cakra/paket/:id/items`.
+
+### 31.3 Fitur Baru Tahap 5: Kartu Alternatif Vertikal Collapsible & Uji 5 Parameter Netral
+- **Blok 1: Skenario Transaksi Pasar & Sub-Metode E-Purchasing:**
+  - Pilihan Skenario A (Penyedia Tunggal / Agregator Multibrand) atau Skenario B (Multi-Order / SP-01 & SP-02 Terpisah).
+  - Sub-Metode: Negosiasi Harga, Mini-Kompetisi, Beli Langsung.
+  - Edukasi Yuridis: Menegaskan bahwa Multi-Order bukan pemecahan paket (Pasal 20 Perpres PBJ).
+- **Blok 2: Matriks Alternatif Vertikal & Accordion:**
+  - Kartu alternatif disusun vertikal dan dapat dilipat (*collapsible accordion*).
+  - Header Accordion menampilkan ringkasan langsung: `▼ Alternatif X: [Vendor] — [Produk] (Rp ...) | Status: 5/5 Lolos`.
+  - Penamaan netral: `Alternatif 1`, `Alternatif 2`, `Alternatif 3`, dst.
+  - Tombol dinamis: `[➕ Tambah Alternatif]` dan `[🗑️ Hapus Alternatif]`.
+  - **Tautan E-Katalog v6:** Diletakkan langsung di dalam kartu alternatif per vendor per barang (`alt-inp-url`).
+  - **Form Khusus SLA Pengiriman:** Input angka hari kalender (`alt-inp-sla`).
+  - **Form Khusus Masa Garansi:** Dropdown opsi garansi resmi onsite (3 Tahun, 2 Tahun, 1 Tahun, atau *"Tidak Dipersyaratkan / N/A"* untuk bahan habis pakai/jasa). Jika dipilih *Tidak Dipersyaratkan*, checkbox garansi otomatis tercentang dan terkunci.
+  - **Checklist 5 Parameter Uji Kelayakan Baku (Pasal 8 Perlem LKPP 2/2026):** Spek Teknis KAK, Ketersediaan Stok Ready, Kewajaran Harga, SLA Kirim, Garansi Resmi Onsite.
+  - **Aksi Cepat:** Tombol `[⚡ Centang Semua]` per alternatif dan tombol global `[⚡ Centang Semua Lolos (Seluruh Barang & Alternatif)]`.
+- **Blok 3: Kesimpulan Kelayakan PPK & Delegasi ke PP:**
+  - Status ketersediaan di Katalog Elektronik v6 (Dropdown).
+  - Textarea justifikasi formal PPK dengan tombol `[⚡ Susun Otomatis Narasi PPK]`. Narasi menegaskan pemenuhan 5 parameter dan menyerahkan mandat pemilihan rekanan serta eksekusi transaksi ke Pejabat Pengadaan (PP).
+  - *Blok 3 Ikhtisar lama dihapus (Opsi B disepakati karena redundan).*
+
+### 31.4 Sinkronisasi Dokumen Naskah Dinas (.docx / .pdf / .xlsx)
+- **Tabel KAK Tahap 4 Word (.docx):** Merender tabel terstruktur rincian kebutuhan barang, volume, pagu satuan, subtotal, spesifikasi teknis fungsional, dan klasifikasi BMN.
+- **Tabel Analisa Pasar Tahap 5 Word (.docx):** Merender matriks alternatif per item barang dengan label netral `Alternatif 1`, `Alternatif 2`, `Alternatif 3`, status skor `5/5 LOLOS UJI`, tautan katalog, SLA, garansi, serta Bab V yang menegaskan netralitas PPK dan penyerahan transaksi ke Pejabat Pengadaan.
+- **PDF Resmi:** Dikonversi langsung melalui Microsoft Word COM Object dengan layout presisi tanpa teks bergeser.
+- **Excel Kertas Kerja (.xlsx):** Kertas kerja komparasi matematis dengan formula aktif.
+- **Integritas Penandatangan SSOT (Strictly Tanpa Gelar):**
+  - KPA: `BUDI RAHAYU` (NIP 19830503 200902 1 002)
+  - PPK: `MOHAMMAD NOOR JIHAN` (NIP 19840101 200912 1 001)
+  - PP: `INDRAYU FATIKA MAHARDIKA`
