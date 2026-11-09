@@ -867,9 +867,9 @@ Menjawab dinamika ketersediaan barang di mana penyedia katalog hanya memiliki 1 
 
 ### 30.4 Arsitektur Formulir Interaktif Tahap 5 di SI-PRABU (4 Blok Terstruktur)
 1. **Blok 1 (Strategi Pemenuhan Pasar & Transaksi E-Purchasing):** Pemilihan Skenario A vs B, pilihan sub-metode E-Purchasing (Negosiasi Harga, Mini-Kompetisi, Beli Langsung), serta penjelasan yuridis multi-order.
-2. **Blok 2 (Matriks Komparasi 3 Sumber Pasar per Item):** Input interaktif 3 vendor/sumber per item barang (`pbj_paket_item`), harga survei satuan, live lowest-price badge, dan estimasi total pasar.
-3. **Blok 3 (Checklist 5 Parameter Baku Kelayakan):** Pratinjau status pemenuhan kelayakan 5 parameter sesuai Pasal 8 Perlem LKPP 2/2026.
-4. **Blok 4 (Kesimpulan PPK & Tautan Berkas):** Tombol cerdas `[⚡ Susun Otomatis Narasi PPK]`, textarea justifikasi formal PPK, tautan produk e-Katalog 1 & 2, dan tautan Google Drive dokumen sah bertandatangan.
+2. **Blok 2 (Matriks Komparasi & Evaluasi 5 Parameter per Vendor per Barang dengan Fitur Checklist All):** Evaluasi detail 5 parameter kelayakan per vendor per item (Pasal 8 Perlem LKPP 2/2026), tombol Master `[⚡ Centang Semua Lolos (5/5 Seluruh Barang & Vendor)]`, tombol mikro `[⚡ 5/5 Lolos]` per vendor, live badge status kelayakan (`✓ 5/5 Lolos Uji`, `⚠️ 3-4/5 Catatan`, `✗ <3 Gugur`), komparasi harga survei, dan penyimpanan persisten ke kolom `evaluasi_pasar_json` di tabel `pbj_paket_item`.
+3. **Blok 3 (Ikhtisar Baku 5 Parameter Baku Kelayakan):** Pratinjau status pemenuhan kelayakan 5 parameter sesuai Pasal 8 Perlem LKPP 2/2026.
+4. **Blok 4 (Kesimpulan PPK & Tautan Berkas):** Tombol cerdas `[⚡ Susun Otomatis Narasi PPK]`, textarea justifikasi formal PPK yang terisi otomatis berdasarkan hasil centang parameter vendor, tautan produk e-Katalog 1 & 2, dan tautan Google Drive dokumen sah bertandatangan.
 
 ### 30.5 Standar Output Berkas Tahap 5
 - **Word (.docx):** `05_Berita_Acara_Analisa_Pasar_dan_Penilaian_PPK_Katalog.docx` (Font Cambria, Kop Surat Resmi KPU Ngawi, 5 Bab Evaluasi Komprehensif, Tabel Komparasi, Tabel 5 Parameter, dan Blok Tanda Tangan PPK).

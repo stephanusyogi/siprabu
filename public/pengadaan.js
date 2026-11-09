@@ -7805,93 +7805,118 @@ function generateUniversalModalFields(num, paket, activeTRow) {
           </div>
         </div>
 
-        <!-- BLOK 2: MATRIKS KOMPARASI 3 SUMBER PASAR PER ITEM BARANG -->
+        <!-- BLOK 2: MATRIKS KOMPARASI & EVALUASI 5 PARAMETER PER VENDOR PER BARANG (DENGAN CHECKLIST ALL) -->
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:14px;">
-          <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <span>📊 BLOK 2: MATRIKS KOMPARASI 3 SUMBER PASAR PER ITEM BARANG</span>
-            <span style="font-size:10.5px; color:#64748b;">(Tersinkronisasi Otomatis ke Kertas Kerja HPS Tahap 6)</span>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <span style="font-size:12.5px; font-weight:800; color:#1e3a8a;">📊 BLOK 2: MATRIKS KOMPARASI &amp; PENGUJIAN 5 PARAMETER PER VENDOR PER BARANG</span>
+              <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Evaluasi kelayakan detail per vendor (Pasal 8 Perlem LKPP 2/2026) dilengkapi tombol kilat <em>Checklist All</em>.</div>
+            </div>
+            <button type="button" class="btn btn-sm" onclick="toggleChecklistAllTahap5(true)" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:700; padding:6px 14px; border:none; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.12);">
+              ⚡ Centang Semua Lolos (5/5 Seluruh Barang &amp; Vendor)
+            </button>
           </div>
           ${itemsTahap5.length ? itemsTahap5.map((it, idx) => `
-            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px; margin-bottom:10px;">
-              <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px; margin-bottom:12px;">
+              <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
                 <span>Item ${idx + 1}: ${cakraEsc(it.uraian_item || 'Item PBJ')} (${it.volume} ${it.satuan})</span>
                 <span style="font-size:11px; font-weight:700; color:#0284c7;">Pagu Item: Rp ${Number(it.harga_satuan_hps || (it.volume > 1 ? 26666667 : 65000000)).toLocaleString('id-ID')} / unit</span>
               </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:4px; padding:6px 8px;">
-                  <label style="font-size:10px; font-weight:700; color:#64748b; display:block;">Sumber Survei 1 (Vendor A)</label>
-                  <input type="text" id="mu_item_${it.id}_sumber_1" class="cakra-form-control" style="font-size:11px; margin-bottom:4px; height:28px;" value="${cakraEsc(it.sumber_survei_1 || 'E-Katalog v6 (Vendor A)')}" placeholder="Nama Vendor &amp; Etalase" />
-                  <div style="display:flex; align-items:center;">
-                    <span style="font-size:10px; color:#64748b; margin-right:4px;">Rp</span>
-                    <input type="number" id="mu_item_${it.id}_harga_1" class="cakra-form-control cakra-mono" style="font-size:11px; font-weight:700; height:28px;" value="${Number(it.harga_survei_1 || (idx === 0 ? 63850000 : 25500000))}" />
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
+                ${[1, 2, 3].map(v => `
+                  <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px; display:flex; flex-direction:column; justify-content:space-between;">
+                    <div>
+                      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                        <label style="font-size:10px; font-weight:700; color:#475569;">Vendor ${v} ${v === 1 ? '(Rekomendasi Utama)' : '(Kandidat Pembanding ' + (v-1) + ')'}</label>
+                        <button type="button" onclick="toggleVendor5Params(${it.id}, ${v}, true)" style="font-size:9.5px; padding:2px 6px; border-radius:4px; border:1px solid #bbf7d0; background:#f0fdf4; color:#166534; font-weight:700; cursor:pointer;">⚡ 5/5 Lolos</button>
+                      </div>
+                      <input type="text" id="mu_item_${it.id}_sumber_${v}" class="cakra-form-control" style="font-size:11px; margin-bottom:4px; height:28px;" value="${cakraEsc(it['sumber_survei_' + v] || (v === 1 ? 'E-Katalog v6 (Vendor A)' : (v === 2 ? 'E-Katalog v6 (Vendor B)' : 'E-Katalog v6 (Vendor C)')))}" placeholder="Nama Vendor &amp; Etalase" />
+                      <div style="display:flex; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:10px; color:#64748b; margin-right:4px;">Rp</span>
+                        <input type="number" id="mu_item_${it.id}_harga_${v}" class="cakra-form-control cakra-mono" style="font-size:11px; font-weight:700; height:28px;" value="${Number(it['harga_survei_' + v] || (idx === 0 ? (v === 1 ? 63850000 : (v === 2 ? 64500000 : 64900000)) : (v === 1 ? 25500000 : (v === 2 ? 25800000 : 26000000))))}" />
+                      </div>
+                      
+                      <!-- 5 PARAMETER CHECKLIST PER VENDOR -->
+                      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px; margin-bottom:6px; font-size:10px;">
+                        <div style="font-weight:700; color:#334155; font-size:9px; margin-bottom:4px; text-transform:uppercase;">Checklist 5 Parameter (Pasal 8):</div>
+                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
+                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p1" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
+                          <span>1. Spek Teknis KAK</span>
+                        </label>
+                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
+                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p2" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
+                          <span>2. Ketersediaan Stok</span>
+                        </label>
+                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
+                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p3" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
+                          <span>3. Kewajaran Harga</span>
+                        </label>
+                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
+                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p4" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
+                          <span>4. SLA Waktu Kirim</span>
+                        </label>
+                        <label style="display:flex; align-items:center; margin-bottom:2px; cursor:pointer;">
+                          <input type="checkbox" id="mu_item_${it.id}_v${v}_p5" class="tahap5-param-cb" checked onchange="updateVendorParamBadge(${it.id}, ${v})" style="margin-right:5px;" />
+                          <span>5. Garansi Resmi Onsite</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:2px;">
+                      <span id="badge_item_${it.id}_v${v}" class="cakra-badge cakra-badge-green" style="font-size:9.5px; padding:2px 6px;">✓ 5/5 Lolos Uji</span>
+                      <span style="font-size:9.5px; color:#64748b;">${v === 1 ? 'Pilihan PPK' : 'Pembanding'}</span>
+                    </div>
                   </div>
-                </div>
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:4px; padding:6px 8px;">
-                  <label style="font-size:10px; font-weight:700; color:#64748b; display:block;">Sumber Survei 2 (Vendor B)</label>
-                  <input type="text" id="mu_item_${it.id}_sumber_2" class="cakra-form-control" style="font-size:11px; margin-bottom:4px; height:28px;" value="${cakraEsc(it.sumber_survei_2 || 'E-Katalog v6 (Vendor B)')}" placeholder="Nama Vendor &amp; Etalase" />
-                  <div style="display:flex; align-items:center;">
-                    <span style="font-size:10px; color:#64748b; margin-right:4px;">Rp</span>
-                    <input type="number" id="mu_item_${it.id}_harga_2" class="cakra-form-control cakra-mono" style="font-size:11px; font-weight:700; height:28px;" value="${Number(it.harga_survei_2 || (idx === 0 ? 64500000 : 25800000))}" />
-                  </div>
-                </div>
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:4px; padding:6px 8px;">
-                  <label style="font-size:10px; font-weight:700; color:#64748b; display:block;">Sumber Survei 3 (Vendor C)</label>
-                  <input type="text" id="mu_item_${it.id}_sumber_3" class="cakra-form-control" style="font-size:11px; margin-bottom:4px; height:28px;" value="${cakraEsc(it.sumber_survei_3 || 'E-Katalog v6 (Vendor C)')}" placeholder="Nama Vendor &amp; Etalase" />
-                  <div style="display:flex; align-items:center;">
-                    <span style="font-size:10px; color:#64748b; margin-right:4px;">Rp</span>
-                    <input type="number" id="mu_item_${it.id}_harga_3" class="cakra-form-control cakra-mono" style="font-size:11px; font-weight:700; height:28px;" value="${Number(it.harga_survei_3 || (idx === 0 ? 64900000 : 26000000))}" />
-                  </div>
-                </div>
+                `).join('')}
               </div>
             </div>
           `).join('') : '<div style="font-size:11px; color:#64748b; font-style:italic;">Data item paket sedang dimuat...</div>'}
         </div>
 
-        <!-- BLOK 3: CHECKLIST PENGUJIAN 5 PARAMETER KELAYAKAN KATALOG (PASAL 8 PERLEM 2/2026) -->
+        <!-- BLOK 3: IKHTISAR BAKU 5 PARAMETER KELAYAKAN KATALOG (PASAL 8 PERLEM 2/2026) -->
         <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px;">
           <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
-            <span>⚖️ BLOK 3: PENGUJIAN 5 PARAMETER BAKU KELAYAKAN (PASAL 8 PERLEM 2/2026)</span>
-            <span class="cakra-badge cakra-badge-green" style="font-size:10.5px;">100% Lolos Uji Kelayakan</span>
+            <span>⚖️ BLOK 3: IKHTISAR HASIL UJI 5 PARAMETER BAKU KELAYAKAN (PASAL 8 PERLEM 2/2026)</span>
+            <span class="cakra-badge cakra-badge-green" style="font-size:10.5px;">Audit-Ready BPK</span>
           </div>
           <div style="display:grid; grid-template-columns:1fr; gap:6px;">
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
               <div>
-                <strong style="font-size:11.5px; color:#0f172a;">1. Spesifikasi Teknis &amp; Mutu Kualitas Barang</strong>
-                <div style="font-size:10.5px; color:#64748b;">Processor Server Multi-core, ECC RAM 32GB, RAID-1, redundant power supply / Workstation Core i7, 32GB RAM, GPU dedicated, OS Legal.</div>
+                <strong style="font-size:11.5px; color:#0f172a;">1. Kesesuaian Spesifikasi Teknis &amp; Mutu Mutlak</strong>
+                <div style="font-size:10.5px; color:#64748b;">PC Server (Xeon/ECC RAM 32GB/RAID-1/Dual PSU) &amp; PC Workstation (Core i7/RAM 32GB/GPU Dedicated/TKDN 43.12%).</div>
               </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700; white-space:nowrap; margin-left:8px;">✓ Sesuai 100%</span>
+              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ Sesuai 100%</span>
             </div>
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
               <div>
-                <strong style="font-size:11.5px; color:#0f172a;">2. Ketersediaan Produk &amp; Kepastian Stok Pasokan</strong>
-                <div style="font-size:10.5px; color:#64748b;">Ready stock di distributor resmi Jawa Timur; kapasitas pabrikan menjamin pengiriman tepat waktu.</div>
+                <strong style="font-size:11.5px; color:#0f172a;">2. Ketersediaan Produk &amp; Kepastian Pasokan Stok</strong>
+                <div style="font-size:10.5px; color:#64748b;">Konfirmasi daring stok ready pada distributor resmi Jawa Timur &amp; pabrikan perakitan lokal.</div>
               </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700; white-space:nowrap; margin-left:8px;">✓ Ready Stock</span>
+              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ Ready Stock</span>
             </div>
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
               <div>
                 <strong style="font-size:11.5px; color:#0f172a;">3. Kewajaran Harga &amp; Struktur Pembiayaan</strong>
-                <div style="font-size:10.5px; color:#64748b;">Harga tayang e-katalog mencakup PPN 11%, garansi, ongkir franco Kantor KPU Ngawi; di bawah pagu DIPA (Rp145 Juta).</div>
+                <div style="font-size:10.5px; color:#64748b;">Harga mencakup PPN 11%, garansi, ongkir franco Kab. Ngawi, di bawah pagu DIPA (potensi hemat Rp 4.650.000,-).</div>
               </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700; white-space:nowrap; margin-left:8px;">✓ Wajar &amp; Efisien</span>
+              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ Wajar &amp; Efisien</span>
             </div>
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
               <div>
                 <strong style="font-size:11.5px; color:#0f172a;">4. Layanan Pengiriman &amp; Service Level Agreement (SLA)</strong>
-                <div style="font-size:10.5px; color:#64748b;">Penyedia sanggup memenuhi SLA pengiriman maksimal 14 hari kalender sejak Surat Pesanan diterbitkan.</div>
+                <div style="font-size:10.5px; color:#64748b;">Penyedia terpilih sanggup memenuhi SLA pengiriman maksimal 14 hari kalender terhitung sejak Surat Pesanan terbit.</div>
               </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700; white-space:nowrap; margin-left:8px;">✓ SLA &le; 14 Hari</span>
+              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ SLA &le; 14 Hari</span>
             </div>
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between;">
               <div>
                 <strong style="font-size:11.5px; color:#0f172a;">5. Jaminan Layanan Purna Jual &amp; Garansi Onsite</strong>
-                <div style="font-size:10.5px; color:#64748b;">Garansi resmi pabrikan minimal 3 tahun Onsite NBD untuk Server dan 1 tahun untuk Workstation dengan Service Center Jawa Timur.</div>
+                <div style="font-size:10.5px; color:#64748b;">Garansi resmi pabrikan minimal 3 tahun Onsite NBD untuk Server dan 1 tahun untuk Workstation didukung Service Center Jatim.</div>
               </div>
-              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700; white-space:nowrap; margin-left:8px;">✓ Garansi 3 Th Onsite</span>
+              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:700;">✓ Garansi 3 Th Onsite</span>
             </div>
           </div>
         </div>
-
+        
         <!-- BLOK 4: KESIMPULAN, JUSTIFIKASI FORMAL PPK & TAUTAN BERKAS -->
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
           <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
@@ -8244,6 +8269,33 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
         const valid = [s1, s2, s3].filter(v => v > 0);
         const minVal = valid.length ? Math.min(...valid) : s1;
 
+        const evaluasi = {
+          v1: {
+            nama: name1, harga: s1,
+            p1: document.getElementById('mu_item_' + it.id + '_v1_p1')?.checked ? 1 : 0,
+            p2: document.getElementById('mu_item_' + it.id + '_v1_p2')?.checked ? 1 : 0,
+            p3: document.getElementById('mu_item_' + it.id + '_v1_p3')?.checked ? 1 : 0,
+            p4: document.getElementById('mu_item_' + it.id + '_v1_p4')?.checked ? 1 : 0,
+            p5: document.getElementById('mu_item_' + it.id + '_v1_p5')?.checked ? 1 : 0
+          },
+          v2: {
+            nama: name2, harga: s2,
+            p1: document.getElementById('mu_item_' + it.id + '_v2_p1')?.checked ? 1 : 0,
+            p2: document.getElementById('mu_item_' + it.id + '_v2_p2')?.checked ? 1 : 0,
+            p3: document.getElementById('mu_item_' + it.id + '_v2_p3')?.checked ? 1 : 0,
+            p4: document.getElementById('mu_item_' + it.id + '_v2_p4')?.checked ? 1 : 0,
+            p5: document.getElementById('mu_item_' + it.id + '_v2_p5')?.checked ? 1 : 0
+          },
+          v3: {
+            nama: name3, harga: s3,
+            p1: document.getElementById('mu_item_' + it.id + '_v3_p1')?.checked ? 1 : 0,
+            p2: document.getElementById('mu_item_' + it.id + '_v3_p2')?.checked ? 1 : 0,
+            p3: document.getElementById('mu_item_' + it.id + '_v3_p3')?.checked ? 1 : 0,
+            p4: document.getElementById('mu_item_' + it.id + '_v3_p4')?.checked ? 1 : 0,
+            p5: document.getElementById('mu_item_' + it.id + '_v3_p5')?.checked ? 1 : 0
+          }
+        };
+
         return {
           ...it,
           sumber_survei_1: name1,
@@ -8254,7 +8306,8 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
           harga_survei_3: s3,
           metode_penentuan_hps: 'Terendah',
           harga_satuan_hps: minVal,
-          jumlah_hps: minVal * Number(it.volume || 1)
+          jumlah_hps: minVal * Number(it.volume || 1),
+          evaluasi_pasar_json: evaluasi
         };
       });
 
@@ -8388,30 +8441,98 @@ async function finishUniversalStageAndAdvance(stageNo) {
 window.finishUniversalStageAndAdvance = finishUniversalStageAndAdvance;
 
 
+
+
+function toggleChecklistAllTahap5(checked = true) {
+  const checkboxes = document.querySelectorAll('.tahap5-param-cb');
+  checkboxes.forEach(cb => {
+    cb.checked = checked;
+  });
+  const items = CakraState.activePaketCtx?.items || [];
+  items.forEach(it => {
+    for (let v = 1; v <= 3; v++) {
+      updateVendorParamBadge(it.id, v);
+    }
+  });
+  if (typeof cakraNotify === 'function') {
+    cakraNotify('⚡ Seluruh 5 parameter untuk semua barang & vendor berhasil dicentang Lolos (5/5)!', 'success');
+  }
+}
+window.toggleChecklistAllTahap5 = toggleChecklistAllTahap5;
+
+function toggleVendor5Params(itemId, vendorIdx, checked = true) {
+  for (let p = 1; p <= 5; p++) {
+    const cb = document.getElementById('mu_item_' + itemId + '_v' + vendorIdx + '_p' + p);
+    if (cb) cb.checked = checked;
+  }
+  updateVendorParamBadge(itemId, vendorIdx);
+  if (typeof cakraNotify === 'function') {
+    cakraNotify('✓ Parameter Vendor ' + vendorIdx + ' berhasil di-set 5/5 Lolos Uji.', 'info');
+  }
+}
+window.toggleVendor5Params = toggleVendor5Params;
+
+function updateVendorParamBadge(itemId, vendorIdx) {
+  let count = 0;
+  for (let p = 1; p <= 5; p++) {
+    const cb = document.getElementById('mu_item_' + itemId + '_v' + vendorIdx + '_p' + p);
+    if (cb && cb.checked) count++;
+  }
+  const badge = document.getElementById('badge_item_' + itemId + '_v' + vendorIdx);
+  if (!badge) return;
+  if (count === 5) {
+    badge.className = 'cakra-badge cakra-badge-green';
+    badge.innerHTML = '✓ 5/5 Lolos Uji';
+    badge.style.background = '#dcfce7';
+    badge.style.color = '#15803d';
+  } else if (count >= 3) {
+    badge.className = 'cakra-badge cakra-badge-amber';
+    badge.innerHTML = '⚠️ ' + count + '/5 (Catatan)';
+    badge.style.background = '#fef3c7';
+    badge.style.color = '#b45309';
+  } else {
+    badge.className = 'cakra-badge cakra-badge-red';
+    badge.innerHTML = '✗ ' + count + '/5 (Gugur)';
+    badge.style.background = '#fee2e2';
+    badge.style.color = '#b91c1c';
+  }
+}
+window.updateVendorParamBadge = updateVendorParamBadge;
+
 function generateAutoJustifikasiTahap5() {
   const items = CakraState.activePaketCtx?.items || [];
   const paket = (CakraState.activePaketCtx?.paket?.id === CakraState.activePaketId ? CakraState.activePaketCtx.paket : null)
     || (CakraState.pakets || []).find(p => String(p.id) === String(CakraState.activePaketId)) || {};
   
   let totalMin = 0;
-  items.forEach(it => {
+  let rincianBarang = [];
+
+  items.forEach((it, idx) => {
     const s1 = Number(document.getElementById('mu_item_' + it.id + '_harga_1')?.value || it.harga_survei_1 || 0);
     const s2 = Number(document.getElementById('mu_item_' + it.id + '_harga_2')?.value || it.harga_survei_2 || s1);
     const s3 = Number(document.getElementById('mu_item_' + it.id + '_harga_3')?.value || it.harga_survei_3 || s1);
     const valid = [s1, s2, s3].filter(v => v > 0);
     const minVal = valid.length ? Math.min(...valid) : 0;
-    totalMin += minVal * Number(it.volume || 1);
+    const totItem = minVal * Number(it.volume || 1);
+    totalMin += totItem;
+
+    let skorV1 = 0;
+    for (let p = 1; p <= 5; p++) {
+      if (document.getElementById('mu_item_' + it.id + '_v1_p' + p)?.checked) skorV1++;
+    }
+    const vendorTerpilih = (document.getElementById('mu_item_' + it.id + '_sumber_1')?.value || it.sumber_survei_1 || 'Vendor 1');
+    rincianBarang.push('Item ' + (idx+1) + ' [' + it.uraian_item + ']: Rekomendasi pada ' + vendorTerpilih + ' dengan harga terendah Rp ' + minVal.toLocaleString('id-ID') + ' dan skor kelayakan ' + skorV1 + '/5');
   });
 
   const pagu = Number(paket.nilai_pagu || 145000000);
   const efisiensi = Math.max(0, pagu - totalMin);
 
-  const narasi = `Berdasarkan survei pasar dan analisa teknis pada Katalog Elektronik Versi 6 (Kepka LKPP No. 177/2024), PPK menyatakan produk pengadaan ${paket.nama_paket || 'Perangkat Pengolah Data dan Jaringan'} MEMENUHI 5 (LIMA) PARAMETER BAKU KELAYAKAN Pasal 8 Perlem LKPP No. 2/2026: (1) Spesifikasi teknis memenuhi kebutuhan operasional KPU Ngawi 100%; (2) Ketersediaan produk ready stock terkonfirmasi; (3) Kewajaran harga terverifikasi di bawah Pagu Anggaran dengan estimasi efisiensi Rp ${efisiensi.toLocaleString('id-ID')}; (4) Service Level Agreement (SLA) waktu pengiriman sanggup dipenuhi maksimal 14 hari kalender; (5) Jaminan layanan purna jual dan garansi resmi pabrikan minimal 3 tahun onsite service. Transaksi direkomendasikan melalui E-Purchasing Negosiasi Harga dengan fleksibilitas Skenario Tunggal maupun Multi-Order (Surat Pesanan terpisah per item) sesuai ketersediaan pasar.`;
+  const narasi = 'Berdasarkan pengujian komparatif 5 parameter kelayakan per barang dan per vendor (Pasal 8 Peraturan LKPP No. 2 Tahun 2026 jo. Kepka LKPP No. 177/2024), PPK menetapkan hasil evaluasi pasar: ' + rincianBarang.join('; ') + '. Seluruh barang kebutuhan telah lolos 5 parameter kelayakan (Spesifikasi Teknis 100%, Ketersediaan Stok Ready, Kewajaran Harga di bawah Pagu DIPA dengan potensi efisiensi Rp ' + efisiensi.toLocaleString('id-ID') + ', SLA Pengiriman maksimal 14 hari kalender, dan Garansi Resmi Pabrikan minimal 3 tahun onsite). Pelaksanaan pengadaan direkomendasikan melalui E-Purchasing Negosiasi Harga dengan fleksibilitas Skenario Tunggal maupun Multi-Order (Surat Pesanan terpisah per item) sesuai ketersediaan pasar.';
 
   const textarea = document.getElementById('mu_alasan_penilaian_ppk_katalog');
   if (textarea) {
     textarea.value = narasi;
-    cakraNotify('⚡ Narasi Justifikasi Formal PPK berhasil disusun otomatis!', 'success');
+    cakraNotify('⚡ Narasi Justifikasi Formal PPK berbasis evaluasi per vendor berhasil disusun otomatis!', 'success');
   }
 }
 window.generateAutoJustifikasiTahap5 = generateAutoJustifikasiTahap5;

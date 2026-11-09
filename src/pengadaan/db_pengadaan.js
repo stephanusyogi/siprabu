@@ -128,7 +128,8 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN disposisi_tgl_disposisi DATE DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN target_sertifikat_tkdn VARCHAR(255) DEFAULT 'TKDN 42.50% + Bobot Manfaat Perusahaan (BMP) 10.00%'",
     "ALTER TABLE pbj_paket_item ADD COLUMN kode_barang_bmn VARCHAR(128) DEFAULT '1.01.03.01.001 (Persediaan / BMN)'",
-    "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'"
+    "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'",
+    "ALTER TABLE pbj_paket_item ADD COLUMN evaluasi_pasar_json TEXT DEFAULT NULL"
   ];
 
   for (const sql of ddlStatements) {
@@ -745,8 +746,8 @@ async function savePaketItems(paketId, items) {
         harga_survei_1, sumber_survei_1, harga_survei_2, sumber_survei_2, harga_survei_3, sumber_survei_3,
         metode_penentuan_hps, harga_satuan_hps, jumlah_hps,
         harga_satuan_penawaran, harga_satuan_kontrak, jumlah_kontrak,
-        kode_barang_bmn, jenis_pencatatan_sakti
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        kode_barang_bmn, jenis_pencatatan_sakti, evaluasi_pasar_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         paketId, idx++, it.kategori_item || 'Utama', it.uraian_item || 'Item Barang/Jasa',
         it.spesifikasi_teknis || '', it.satuan || 'Paket', vol,
@@ -756,7 +757,8 @@ async function savePaketItems(paketId, items) {
         s3, it.sumber_survei_3 || 'Standar Biaya / Kontrak Lalu',
         it.metode_penentuan_hps || 'Terendah', hpsSatuan, Math.round(vol * hpsSatuan),
         penawaranSatuan, kontrakSatuan, Math.round(vol * kontrakSatuan),
-        it.kode_barang_bmn || '1.01.03.01.001', it.jenis_pencatatan_sakti || 'Persediaan'
+        it.kode_barang_bmn || '1.01.03.01.001', it.jenis_pencatatan_sakti || 'Persediaan',
+        typeof it.evaluasi_pasar_json === 'object' ? JSON.stringify(it.evaluasi_pasar_json) : (it.evaluasi_pasar_json || null)
       ]
     );
   }
