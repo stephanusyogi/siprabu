@@ -892,10 +892,13 @@ function buildStageSpecificSections(stageNo, ctx, tahapRow, keu) {
 
     case 2:
       paragraphs.push(
-        pText('A. PENETAPAN JENIS, CARA PENGADAAN, DAN PEMAKETAN PBJ', { bold: true, before: 120 }),
-        pText(`1. Jenis Pengadaan ditetapkan sebagai: ${paket.jenis_pengadaan} (${isKonstruksi ? 'Mengacu Lampiran II/III Peraturan LKPP Nomor 3 Tahun 2026' : 'Mengacu Lampiran I Peraturan LKPP Nomor 3 Tahun 2026'}).`),
-        pText(`2. Cara Pengadaan dilaksanakan melalui: ${paket.cara_pengadaan} dengan Metode Pemilihan: ${paket.metode_pemilihan} (${paket.fitur_spse}).`),
-        pText(`3. Pemaketan dilakukan dengan berorientasi pada keluaran/output, ketersediaan pelaku usaha dalam negeri/lokal Kabupaten Ngawi (${isKonstruksi ? 'Segmentasi Subkualifikasi Usaha Kecil K1/K2/K3 atau Menengah/Besar sesuai Pasal 4 Perlem 3/2026' : 'Alokasi UMK-Koperasi'}), serta tidak memecah paket untuk menghindari Tender/Seleksi.`)
+        pText('A. PENETAPAN JENIS, CARA PENGADAAN, METODE PEMILIHAN, DAN PEMAKETAN PBJ', { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `Jenis Pengadaan: Ditetapkan sebagai ${paket.jenis_pengadaan} (${isKonstruksi ? 'Mengacu Lampiran II/III Peraturan LKPP Nomor 3 Tahun 2026' : 'Mengacu Lampiran I Peraturan LKPP Nomor 3 Tahun 2026'}). Ruang lingkup kebutuhan berupa penyediaan komoditas barang inventaris sarana penunjang operasional kantor.`, { level: 1 }),
+        pNumbered('2.', `Cara Pengadaan: Ditetapkan dilaksanakan melalui ${paket.cara_pengadaan} berpedoman pada ketentuan Pasal 18 Peraturan Presiden Nomor 16 Tahun 2018 jo. Peraturan Presiden Nomor 46 Tahun 2025, karena komoditas barang yang dibutuhkan diproduksi dan didistribusikan oleh Pelaku Usaha berbadan hukum/badan usaha yang kompeten.`, { level: 1 }),
+        pNumbered('3.', `Metode Pemilihan Penyedia: Ditetapkan menggunakan ${paket.metode_pemilihan} (${paket.fitur_spse || 'Katalog Elektronik Versi 6'}) berpedoman pada Pasal 38 ayat (1) huruf a dan Pasal 38 ayat (2) Peraturan Presiden Nomor 16 Tahun 2018 jo. Peraturan Presiden Nomor 46 Tahun 2025 serta Keputusan Kepala LKPP Nomor 177 Tahun 2024. Pelaksana pemilihan ditetapkan Pejabat Pengadaan Satker KPU Kabupaten Ngawi karena nilai paket pengadaan s.d. Rp 200.000.000,00 (Dua Ratus Juta Rupiah).`, { level: 1 }),
+        pNumbered('4.', `Bentuk Kontrak: Ditetapkan berupa ${paket.bentuk_kontrak || 'Surat Pesanan'} dengan Jenis Kontrak ${paket.jenis_kontrak || 'Lumsum'}, mengacu pada ketentuan Pasal 27 Perpres PBJ sebagai instrumen perikatan resmi untuk transaksi E-Purchasing pada Katalog Elektronik.`, { level: 1 }),
+        pNumbered('5.', `Kertas Kerja Penetapan Harga: Ditetapkan menyusun ${paket.jenis_kertas_harga || 'HPS'} (karena Pagu Anggaran ${formatRupiah(paket.nilai_pagu)} > Rp 100 Juta, wajib menyusun HPS resmi pada Tahap 6).`, { level: 1 }),
+        pNumbered('6.', `Pemaketan Pengadaan: Dilakukan secara cermat dan bertanggung jawab dengan berorientasi pada keluaran/output, ketersediaan pelaku usaha terdaftar di Katalog Elektronik, komitmen pengutamaan Produk Dalam Negeri (PDN), alokasi Usaha Mikro, Kecil, dan Koperasi (UMK-Koperasi), serta ditegaskan TIDAK MEMECAH PENGADAAN untuk menghindari Tender/Seleksi atau merekayasa batas kewenangan pengadaan.`, { level: 1 })
       );
       break;
 
@@ -1804,14 +1807,15 @@ function buildStage2Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
       ]
     }),
     pText('', { after: 40 }),
-    pText('BUTIR-BUTIR PENETAPAN STRATEGIS PEMAKETAN (PPK):', { bold: true, size: 18, color: '1E3A8A', before: 20, after: 14 }),
-    pNumbered('1.', `Jenis Pengadaan ditetapkan sebagai: ${paket.jenis_pengadaan || 'Barang'} (berpedoman pada Pasal 12 Perpres 16/2018 jo. Perpres 46/2025 dan Perlem LKPP Nomor 2 Tahun 2026).`, { level: 1, size: 17, before: 6, after: 6 }),
-    pNumbered('2.', `Cara Pengadaan dilaksanakan melalui: ${paket.cara_pengadaan || 'Penyedia'} dengan Metode Pemilihan: ${paket.metode_pemilihan || 'E-Purchasing'} (${paket.fitur_spse || 'Katalog Elektronik LKPP v6'}).`, { level: 1, size: 17, before: 0, after: 6 }),
-    pNumbered('3.', `Bentuk Kontrak ditetapkan menggunakan: ${paket.bentuk_kontrak || 'Surat Pesanan'} dengan Jenis Kontrak: ${paket.jenis_kontrak || 'Lumsum'} (Pasal 27 & 28 Perpres PBJ; kepastian hasil keluaran terukur dan risiko terkendali).`, { level: 1, size: 17, before: 0, after: 6 }),
-    pNumbered('4.', `Kertas Kerja Harga ditetapkan menggunakan: ${paket.jenis_kertas_harga || 'HPS'} (karena Pagu Anggaran ${formatRupiah(paket.nilai_pagu)} > Rp 100 Juta, wajib menyusun HPS resmi pada Tahap 6).`, { level: 1, size: 17, before: 0, after: 6 }),
-    pNumbered('5.', `Pemaketan Pengadaan dilakukan dengan berorientasi pada keluaran (output), kepatuhan alokasi kuota minimal 40% anggaran belanja untuk Produk Usaha Mikro, Usaha Kecil & Koperasi (UMK) sesuai Pasal 65 Perpres 46/2025, serta dipastikan tidak memecah paket pengadaan untuk menghindari kewajiban Tender/Seleksi terbuka.`, { level: 1, size: 17, before: 0, after: 6 }),
-    pNumbered('6.', `Landasan Kepatuhan & Integritas: Pelaksanaan tahapan ini mematuhi Pakta Integritas PBJ, bebas dari benturan kepentingan (conflict of interest), dan berpedoman pada Perpres 16/2018 jo. Perpres 46/2025 serta Keputusan Kepala LKPP Nomor 177 Tahun 2024.`, { level: 1, size: 17, before: 0, after: 20 }),
-    pText('Demikian Berita Acara Penetapan Jenis, Cara Pengadaan, dan Pemaketan ini dibuat dan ditetapkan dengan sebenarnya dalam rangkap secukupnya untuk dipergunakan sebagai pedoman pelaksanaan tahapan pengadaan selanjutnya.', { before: 20, after: 60, size: 17 }),
+    pText('BUTIR-BUTIR PENETAPAN STRATEGIS PEMAKETAN (PPK):', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
+    pNumbered('1.', `Jenis Pengadaan: Ditetapkan sebagai ${paket.jenis_pengadaan || 'Barang'} (berpedoman pada Pasal 12 Perpres 16/2018 jo. Perpres 46/2025 dan Perlem LKPP Nomor 2 Tahun 2026).`, { level: 1, size: 16.5, before: 4, after: 4 }),
+    pNumbered('2.', `Cara Pengadaan: Ditetapkan dilaksanakan melalui ${paket.cara_pengadaan || 'Penyedia'} berpedoman pada ketentuan Pasal 18 Perpres 16/2018 jo. Perpres 46/2025.`, { level: 1, size: 16.5, before: 0, after: 4 }),
+    pNumbered('3.', `Metode Pemilihan Penyedia: Ditetapkan menggunakan ${paket.metode_pemilihan || 'E-Purchasing'} (${paket.fitur_spse || 'Katalog Elektronik LKPP v6'}) berpedoman pada ketentuan Pasal 38 ayat (1) huruf a dan ayat (2) Perpres PBJ serta Kepka LKPP No. 177/2024. Pelaksana pemilihan adalah Pejabat Pengadaan Satker KPU Kabupaten Ngawi karena nilai paket s.d. Rp 200.000.000,00.`, { level: 1, size: 16.5, before: 0, after: 4 }),
+    pNumbered('4.', `Bentuk Kontrak & Bukti Transaksi: Ditetapkan menggunakan ${paket.bentuk_kontrak || 'Surat Pesanan'} dengan Jenis Kontrak: ${paket.jenis_kontrak || 'Lumsum'} (Pasal 27 & 28 Perpres PBJ).`, { level: 1, size: 16.5, before: 0, after: 4 }),
+    pNumbered('5.', `Kertas Kerja Harga: Ditetapkan menyusun ${paket.jenis_kertas_harga || 'HPS'} (karena Pagu Anggaran ${formatRupiah(paket.nilai_pagu)} > Rp 100 Juta, wajib menyusun HPS resmi pada Tahap 6).`, { level: 1, size: 16.5, before: 0, after: 4 }),
+    pNumbered('6.', `Pemaketan Pengadaan: Berorientasi pada keluaran (output), kepatuhan alokasi kuota minimal 40% anggaran belanja untuk Produk Usaha Mikro, Usaha Kecil & Koperasi (UMK) sesuai Pasal 65 Perpres 46/2025, komitmen TKDN/PDN, serta dipastikan tidak memecah paket pengadaan untuk menghindari kewajiban Tender terbuka.`, { level: 1, size: 16.5, before: 0, after: 4 }),
+    pNumbered('7.', `Landasan Kepatuhan & Integritas: Pelaksanaan tahapan ini mematuhi Pakta Integritas PBJ, bebas dari benturan kepentingan (conflict of interest), dan berpedoman pada Perpres 16/2018 jo. Perpres 46/2025.`, { level: 1, size: 16.5, before: 0, after: 14 }),
+    pText('Demikian Berita Acara Penetapan Jenis, Cara Pengadaan, dan Pemaketan ini dibuat dan ditetapkan dengan sebenarnya dalam rangkap secukupnya untuk dipergunakan sebagai pedoman pelaksanaan tahapan pengadaan selanjutnya.', { before: 14, after: 40, size: 16.5 }),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
