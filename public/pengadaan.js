@@ -2513,20 +2513,20 @@ function renderCockpitRightDock() {
     </div>
 
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-      <!-- Quick Save Action -->
-      <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" onclick="saveDraftQuickly()" style="font-weight:800; background:#f59e0b; color:#fff; border:none; padding:5px 12px; border-radius:5px; box-shadow:0 1px 2px rgba(245,158,11,0.25); display:flex; align-items:center; gap:5px;" title="Simpan perubahan draf ke database (Ctrl + S)">
-        <span>💾</span> <span>Simpan Draf</span>
+      <!-- Action 1: Ubah Data Tahap N (Pop Up) - Pintu Masuk Pengisian / Perubahan Data -->
+      <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" onclick="openModalTahapUniversal(${stageNo})" style="font-weight:800; background:#f59e0b; color:#fff; border:none; padding:6px 14px; border-radius:6px; box-shadow:0 2px 4px rgba(245,158,11,0.25); display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Buka Formulir Pengisian & Perubahan Data Tahap ${stageNo}">
+        <span>✏️ Ubah Data Tahap ${stageNo} (Pop Up)</span>
       </button>
 
-      <!-- Primary Action: Word Tahap N -->
-      <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="queuePengadaanDownload('docx', ${paket.id}, '${stageNo}')" style="font-weight:700; display:flex; align-items:center; gap:6px; box-shadow:0 1px 2px rgba(37,99,235,0.2);" title="Kirim Naskah Word Tahap ${stageNo} ke Monitoring Unduhan">
-        <span>📄</span> <span>Word Tahap ${stageNo} (.docx)</span>
+      <!-- Action 2: Word Tahap N (.docx) - Selalu Ada di Seluruh 18 Tahap -->
+      <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="directDownloadPengadaanDoc('docx', ${paket.id}, ${stageNo})" style="font-weight:700; background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; box-shadow:0 1px 2px rgba(37,99,235,0.2);" title="Unduh Dokumen Word Resmi Tahap ${stageNo}">
+        <span>📄 Word Tahap ${stageNo} (.docx)</span>
       </button>
 
-      <!-- Secondary Action: Excel Tahap N (Hanya jika tahap bukan 1) -->
-      ${stageNo !== 1 ? `
-        <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" onclick="queuePengadaanDownload('xlsx', ${paket.id}, '${stageNo}')" style="font-weight:700; display:flex; align-items:center; gap:6px;" title="Kirim Kertas Kerja Excel Tahap ${stageNo} ke Monitoring Unduhan">
-          <span>📊</span> <span>Excel Tahap ${stageNo} (.xlsx)</span>
+      <!-- Action 3: Excel Tahap N (.xlsx) - HANYA Muncul di 8 Tahap: 3, 5, 6, 9, 13, 15, 17, 18 -->
+      ${[3, 5, 6, 9, 13, 15, 17, 18].includes(Number(stageNo)) ? `
+        <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" onclick="directDownloadPengadaanDoc('xlsx', ${paket.id}, ${stageNo})" style="font-weight:700; background:#10b981; color:#fff; border:none; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; box-shadow:0 1px 2px rgba(16,185,129,0.2);" title="Unduh Kertas Kerja Excel Resmi Tahap ${stageNo}">
+          <span>📊 Excel Tahap ${stageNo} (.xlsx)</span>
         </button>
       ` : ''}
 
@@ -5417,16 +5417,8 @@ function renderUniversalStageCard(stageNo, activeStageDef, activeTRow, paket, it
             </span>
           </div>
         </div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="directDownloadPengadaanDoc('docx', ${paket.id}, ${num})" style="font-weight:700; background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Unduh Naskah Dokumen Word Resmi Tahap ${num}">
-            <span>📄 Unduh Word (.docx)</span>
-          </button>
-          <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" onclick="directDownloadPengadaanDoc('xlsx', ${paket.id}, ${num})" style="font-weight:700; background:#10b981; color:#fff; border:none; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Unduh Kertas Kerja Excel Resmi Tahap ${num}">
-            <span>📊 Unduh Excel (.xlsx)</span>
-          </button>
-          <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" onclick="openModalTahapUniversal(${num})" style="font-weight:800; background:#f59e0b; color:#fff; border:none; padding:6px 14px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(245,158,11,0.3); cursor:pointer;">
-            <span>✏️ Ubah Data Tahap ${num} (Pop Up)</span>
-          </button>
+        <div style="font-size:11.5px; color:#cbd5e1; font-weight:600; display:flex; align-items:center; gap:6px;">
+          <span>📋 Pratinjau Naskah Sah (Non-Editable)</span>
         </div>
       </div>
 
@@ -5469,11 +5461,12 @@ function renderUniversalStageCard(stageNo, activeStageDef, activeTRow, paket, it
               <a href="${cakraEsc(driveLink)}" target="_blank" class="cakra-btn cakra-btn-success cakra-btn-sm" style="font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#10b981; color:#fff; padding:6px 12px; border-radius:6px;">
                 <span>🔗 Buka di Google Drive</span>
               </a>
-            ` : ''}
-            <button type="button" class="cakra-btn ${hasDrive ? 'cakra-btn-warning' : 'cakra-btn-primary'} cakra-btn-sm" onclick="openModalTahapUniversal(${num})" style="font-size:11px; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer;">
-              ${hasDrive ? '✏️ Ubah via Pop Up' : '+ Tautkan Berkas G-Drive (Pop Up)'}
-            </button>
-          </div>
+            ` : `
+              <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="openModalTahapUniversal(${num})" style="font-size:11px; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer;">
+                + Tautkan Berkas G-Drive (Pop Up)
+              </button>
+            `}
+          </div></div>
         </div>
       </div>
     </div>
@@ -5516,15 +5509,17 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
     `;
   }
 
+  // Active Stage Status & Drive Context (Shared across all stages and bottom nav)
+  const driveLink = String(activeTRow.link_drive_dokumen || '').trim();
+  const hasDrive = driveLink.length > 5;
+  const isDone = activeTRow.status_tahap === 'Selesai' || (hasDrive && activeTRow.status_tahap !== 'Bypass');
+
   // Active Stage Form Content
   let stageFormHtml = '';
 
   if (stageNo === 1) {
     // TAHAP 1: IDENTIFIKASI KEBUTUHAN (FORM MATI RESMI - 100% NON-EDITABLE)
     const isModalMak = String(paket.kode_akun_mak || '').startsWith('53') || paket.bmn_kategori_telaah === 'MODAL';
-    const driveLink = String(activeTRow.link_drive_dokumen || '').trim();
-    const hasDrive = driveLink.length > 5;
-    const isDone = activeTRow.status_tahap === 'Selesai' || (hasDrive && activeTRow.status_tahap !== 'Bypass');
 
     stageFormHtml = `
       <!-- RESUME RESMI DOKUMEN IDENTIFIKASI KEBUTUHAN (FORM MATI) -->
@@ -5542,13 +5537,8 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
               </span>
             </div>
           </div>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="directDownloadPengadaanDoc('docx', ${paket.id}, 1)" style="font-weight:700; background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Unduh Naskah Dokumen Word Resmi Tahap 1">
-              <span>📄 Unduh Word (.docx)</span>
-            </button>
-            <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" onclick="openModalTahap1Input(${paket.id})" style="font-weight:800; background:#f59e0b; color:#fff; border:none; padding:6px 14px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(245,158,11,0.3); cursor:pointer;">
-              <span>✏️ Ubah Data Tahap 1 (Pop Up)</span>
-            </button>
+          <div style="font-size:11.5px; color:#cbd5e1; font-weight:600; display:flex; align-items:center; gap:6px;">
+            <span>📋 Pratinjau Naskah Sah (Non-Editable)</span>
           </div>
         </div>
 
@@ -5635,11 +5625,12 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
                 <a href="${cakraEsc(driveLink)}" target="_blank" class="cakra-btn cakra-btn-success cakra-btn-sm" style="font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#10b981; color:#fff; padding:6px 12px; border-radius:6px;">
                   <span>🔗 Buka di Google Drive</span>
                 </a>
-              ` : ''}
-              <button type="button" class="cakra-btn ${hasDrive ? 'cakra-btn-warning' : 'cakra-btn-primary'} cakra-btn-sm" onclick="openModalTahap1Input(${paket.id})" style="font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer;">
-                ${hasDrive ? '✏️ Ubah via Pop Up' : '+ Tautkan Berkas G-Drive (Pop Up)'}
-              </button>
-            </div>
+              ` : `
+                <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="openModalTahap1Input(${paket.id})" style="font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer;">
+                  + Tautkan Berkas G-Drive (Pop Up)
+                </button>
+              `}
+            </div></div>
           </div>
         </div>
       </div>
@@ -5666,16 +5657,8 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
               </span>
             </div>
           </div>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="directDownloadPengadaanDoc('docx', ${paket.id}, 2)" style="font-weight:700; background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Unduh Naskah Dokumen Word Resmi Tahap 2">
-              <span>📄 Unduh Word (.docx)</span>
-            </button>
-            <button type="button" class="cakra-btn cakra-btn-success cakra-btn-sm" onclick="directDownloadPengadaanDoc('xlsx', ${paket.id}, 2)" style="font-weight:700; background:#10b981; color:#fff; border:none; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Unduh Kertas Kerja Excel Resmi Tahap 2">
-              <span>📊 Unduh Excel (.xlsx)</span>
-            </button>
-            <button type="button" class="cakra-btn cakra-btn-warning cakra-btn-sm" onclick="openModalTahap2Input()" style="font-weight:800; background:#f59e0b; color:#fff; border:none; padding:6px 14px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(245,158,11,0.3); cursor:pointer;">
-              <span>✏️ Ubah Data Tahap 2 (Pop Up)</span>
-            </button>
+          <div style="font-size:11.5px; color:#cbd5e1; font-weight:600; display:flex; align-items:center; gap:6px;">
+            <span>📋 Pratinjau Naskah Sah (Non-Editable)</span>
           </div>
         </div>
 
@@ -5767,11 +5750,12 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
                 <a href="${cakraEsc(driveLink)}" target="_blank" class="cakra-btn cakra-btn-success cakra-btn-sm" style="font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#10b981; color:#fff; padding:6px 12px; border-radius:6px;">
                   <span>🔗 Buka di Google Drive</span>
                 </a>
-              ` : ''}
-              <button type="button" class="cakra-btn ${hasDrive ? 'cakra-btn-warning' : 'cakra-btn-primary'} cakra-btn-sm" onclick="openModalTahap2Input()" style="font-size:11px; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer;">
-                ${hasDrive ? '✏️ Ubah via Pop Up' : '+ Tautkan Berkas G-Drive (Pop Up)'}
-              </button>
-            </div>
+              ` : `
+                <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="openModalTahap2Input()" style="font-size:11px; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer;">
+                  + Tautkan Berkas G-Drive (Pop Up)
+                </button>
+              `}
+            </div></div>
           </div>
         </div>
       </div>
@@ -5820,20 +5804,25 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
           ` : '<span style="color:#94a3b8; font-size:12px; font-weight:700;">Titik Awal (Tahap 1)</span>'}
         </div>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="cakra-btn cakra-btn-warning" onclick="openModalTahapUniversal(${stageNo})" style="font-weight:700; background:#f59e0b; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;" title="Buka Pop Up untuk mengubah data atau memasukkan tautan Google Drive">
-            ✏️ Ubah Data Tahap ${stageNo} via Pop Up
-          </button>
-          <button type="button" class="cakra-btn cakra-btn-success" onclick="finishUniversalStageAndAdvance(${stageNo})" style="font-weight:800; background:#10b981; color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; box-shadow:0 3px 8px rgba(16,185,129,0.3);" title="Selesaikan tahap ini setelah dokumen fisik ditandatangani dan ditautkan ke Google Drive">
-            ✅ Selesaikan Tahap ${stageNo} &amp; Lanjut ${nextStage ? 'ke Tahap ' + nextStage : ''} ➔
-          </button>
-          ${nextStage ? `
-            <button type="button" class="cakra-btn cakra-btn-primary" onclick="selectCockpitStage(${nextStage})" style="font-weight:800; padding:8px 14px; border-radius:6px;">
-              Lanjut ke Tahap ${nextStage} ➔
-            </button>
+          ${isDone ? `
+            ${nextStage ? `
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="selectCockpitStage(${nextStage})" style="font-weight:800; background:#2563eb; color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; box-shadow:0 2px 5px rgba(37,99,235,0.25);" title="Lanjut melihat Tahap ${nextStage}">
+                Lanjut ke Tahap ${nextStage} →
+              </button>
+            ` : `
+              <span class="badge badge-success" style="font-size:12px; padding:8px 16px; background:#047857; color:#fff; font-weight:800; border-radius:6px;">🎉 Seluruh 18 Tahap Selesai</span>
+            `}
           ` : `
-            <span class="badge badge-success" style="font-size:12px; padding:8px 14px; background:#047857; color:#fff; font-weight:800;">🎉 Pengadaan Selesai (18/18)</span>
+            <button type="button" class="cakra-btn cakra-btn-success" onclick="finishUniversalStageAndAdvance(${stageNo})" style="font-weight:800; background:#10b981; color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; box-shadow:0 3px 8px rgba(16,185,129,0.3);" title="Selesaikan tahap ini setelah berkas sah ditautkan">
+              ✓ Selesaikan Tahap ${stageNo} &amp; Lanjut ${nextStage ? 'ke Tahap ' + nextStage : ''} →
+            </button>
+            ${nextStage ? `
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="selectCockpitStage(${nextStage})" style="font-weight:600; padding:8px 14px; border-radius:6px; color:#475569; border:1px solid #cbd5e1; background:#ffffff;" title="Lihat Tahap ${nextStage} tanpa menyelesaikan tahap ini">
+                Lewati ke Tahap ${nextStage} →
+              </button>
+            ` : ''}
           `}
-        </div>
+        </div></div>
       </div>
     </div>
   `;

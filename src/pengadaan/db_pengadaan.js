@@ -126,6 +126,7 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN disposisi_catatan_kpa TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN disposisi_tgl_diajukan DATE DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN disposisi_tgl_disposisi DATE DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN target_sertifikat_tkdn VARCHAR(255) DEFAULT 'TKDN 42.50% + Bobot Manfaat Perusahaan (BMP) 10.00%'",
     "ALTER TABLE pbj_paket_item ADD COLUMN kode_barang_bmn VARCHAR(128) DEFAULT '1.01.03.01.001 (Persediaan / BMN)'",
     "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'"
   ];
@@ -526,7 +527,7 @@ async function savePaket(data) {
         jenis_pengadaan=?, cara_pengadaan=?, metode_pemilihan=?, sub_metode_epurchasing=?, fitur_spse=?, pelaksana_pemilihan=?,
         nilai_pagu=?, jenis_kertas_harga=?, nilai_hps=?, nilai_penawaran_awal=?, nilai_kontrak=?,
         tarif_ppn=?, termasuk_ppn=?, jenis_pph=?, tarif_pph=?,
-        prioritas_pdn_level=?, persen_tkdn_target=?, persen_bmp_target=?, peruntukan_umk=?,
+        prioritas_pdn_level=?, persen_tkdn_target=?, persen_bmp_target=?, target_sertifikat_tkdn=?, peruntukan_umk=?,
         tersedia_di_katalog=?, alasan_penilaian_ppk_katalog=?, link_produk_katalog_1=?, link_produk_katalog_2=?,
         jenis_kontrak=?, bentuk_kontrak=?, masa_pelaksanaan_hari=?, tgl_mulai_kerja=?, tgl_selesai_kontrak=?, tgl_realisasi_selesai=?, hari_terlambat=?,
         persen_uang_muka=?, nilai_uang_muka=?, wajib_jaminan_pelaksanaan=?, nilai_jaminan_pelaksanaan=?,
@@ -551,7 +552,7 @@ async function savePaket(data) {
         Number(p.nilai_pagu ?? cur.nilai_pagu ?? 0), p.jenis_kertas_harga || cur.jenis_kertas_harga || rekomendasi.jenisKertasHarga,
         Number(p.nilai_hps ?? cur.nilai_hps ?? 0), Number(p.nilai_penawaran_awal ?? cur.nilai_penawaran_awal ?? 0), Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0),
         Number(p.tarif_ppn ?? cur.tarif_ppn ?? 11), Number(p.termasuk_ppn ?? cur.termasuk_ppn ?? 1), p.jenis_pph || cur.jenis_pph || 'PPh 22 (1.5%)', Number(p.tarif_pph ?? cur.tarif_pph ?? 1.5),
-        p.prioritas_pdn_level || cur.prioritas_pdn_level || 'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)', Number(p.persen_tkdn_target ?? cur.persen_tkdn_target ?? 40), Number(p.persen_bmp_target ?? cur.persen_bmp_target ?? 15), Number(p.peruntukan_umk ?? cur.peruntukan_umk ?? 1),
+        p.prioritas_pdn_level || cur.prioritas_pdn_level || 'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)', Number(p.persen_tkdn_target ?? cur.persen_tkdn_target ?? 40), Number(p.persen_bmp_target ?? cur.persen_bmp_target ?? 15), p.target_sertifikat_tkdn || cur.target_sertifikat_tkdn || 'TKDN 42.50% + Bobot Manfaat Perusahaan (BMP) 10.00%', Number(p.peruntukan_umk ?? cur.peruntukan_umk ?? 1),
         p.tersedia_di_katalog || cur.tersedia_di_katalog || 'Ya, Tersedia & Sesuai', p.alasan_penilaian_ppk_katalog || cur.alasan_penilaian_ppk_katalog || '', p.link_produk_katalog_1 || cur.link_produk_katalog_1 || '', p.link_produk_katalog_2 || cur.link_produk_katalog_2 || '',
         p.jenis_kontrak || cur.jenis_kontrak || 'Lumsum', p.bentuk_kontrak || cur.bentuk_kontrak || rekomendasi.bentukKontrak, Number(p.masa_pelaksanaan_hari ?? cur.masa_pelaksanaan_hari ?? 14),
         p.tgl_mulai_kerja || cur.tgl_mulai_kerja || '2026-05-18', p.tgl_selesai_kontrak || cur.tgl_selesai_kontrak || '2026-05-31', p.tgl_realisasi_selesai || cur.tgl_realisasi_selesai || '2026-05-30', Number(p.hari_terlambat ?? cur.hari_terlambat ?? 0),
@@ -622,6 +623,10 @@ async function savePaket(data) {
           [updatedTahapAktif, updatedStatusPaket, data.id]
         );
       }
+    }
+
+    if (Array.isArray(data.items) && data.items.length > 0) {
+      await savePaketItems(data.id, data.items);
     }
 
     return data.id;

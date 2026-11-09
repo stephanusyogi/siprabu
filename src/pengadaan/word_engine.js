@@ -6,6 +6,8 @@
  * Pengembang: emenje
  */
 
+const fs = require('fs');
+const path = require('path');
 const {
   Document,
   Packer,
@@ -22,8 +24,11 @@ const {
   BorderStyle,
   ShadingType,
   TabStopType,
-  PageNumber
+  PageNumber,
+  ImageRun
 } = require('docx');
+
+const KPU_LOGO_PATH = path.join(__dirname, '../../public/assets/kpu_logo_official.png');
 
 const {
   DEFINISI_18_TAHAP,
@@ -70,7 +75,7 @@ function pText(text, opts = {}) {
         italics: Boolean(opts.italic),
         underline: opts.underline ? {} : undefined,
         size: opts.size || 21, // 10.5pt default agar proporsional & rapi
-        font: 'Arial',
+        font: 'Cambria',
         color: opts.color || '000000'
       })
     ]
@@ -102,7 +107,7 @@ function pNumbered(prefix, text, opts = {}) {
         text: prefix.endsWith('\t') ? prefix : `${prefix}\t`,
         bold: opts.prefixBold !== undefined ? Boolean(opts.prefixBold) : true,
         size: opts.size || 21,
-        font: 'Arial',
+        font: 'Cambria',
         color: opts.prefixColor || opts.color || '000000'
       }),
       new TextRun({
@@ -110,7 +115,7 @@ function pNumbered(prefix, text, opts = {}) {
         bold: Boolean(opts.bold),
         italics: Boolean(opts.italic),
         size: opts.size || 21,
-        font: 'Arial',
+        font: 'Cambria',
         color: opts.color || '000000'
       })
     ]
@@ -141,6 +146,120 @@ function pLabelValue(label, value) {
 }
 
 function buildKopSuratKpu(settings) {
+  const borderKopCell = {
+    top: BORDER_NONE.top,
+    left: BORDER_NONE.left,
+    right: BORDER_NONE.right,
+    bottom: { style: BorderStyle.SINGLE, size: 24, color: '000000' } // 3pt solid black rule persis KAK Stiker
+  };
+
+  if (fs.existsSync(KPU_LOGO_PATH)) {
+    const logoBuf = fs.readFileSync(KPU_LOGO_PATH);
+
+    return [
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 15, type: WidthType.PERCENTAGE },
+                margins: { bottom: 100, top: 0, left: 0, right: 60 },
+                borders: borderKopCell,
+                verticalAlign: 'center',
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 0 },
+                    children: [
+                      new ImageRun({
+                        data: logoBuf,
+                        transformation: { width: 64, height: 73 }
+                      })
+                    ]
+                  })
+                ]
+              }),
+              new TableCell({
+                width: { size: 85, type: WidthType.PERCENTAGE },
+                margins: { bottom: 100, top: 0, left: 30, right: 0 },
+                borders: borderKopCell,
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 15, line: 240 },
+                    children: [
+                      new TextRun({
+                        text: 'KOMISI PEMILIHAN UMUM',
+                        bold: true,
+                        size: 27,
+                        font: 'Cambria',
+                        color: '000000'
+                      })
+                    ]
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 20, line: 240 },
+                    children: [
+                      new TextRun({
+                        text: (settings?.nama_satker ? settings.nama_satker.replace(/^komisi pemilihan umum\s*/i, '') : 'KABUPATEN NGAWI').toUpperCase(),
+                        bold: true,
+                        size: 29,
+                        font: 'Cambria',
+                        color: '000000'
+                      })
+                    ]
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 10, line: 210 },
+                    children: [
+                      new TextRun({
+                        text: settings?.alamat_satker || 'Jl. Untung Suropati No. 48 Ngawi, Jawa Timur 63218',
+                        size: 19,
+                        font: 'Cambria',
+                        color: '000000'
+                      })
+                    ]
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 10, line: 200 },
+                    children: [
+                      new TextRun({
+                        text: `Telepon ${settings?.telp_satker || '(0351) 743832'} | Faksimile ${settings?.fax_satker || '(0351) 748687'}`,
+                        size: 17,
+                        font: 'Cambria',
+                        color: '000000'
+                      })
+                    ]
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 0, after: 40, line: 200 },
+                    children: [
+                      new TextRun({
+                        text: `Laman: ${settings?.website_satker || 'kab-ngawi.kpu.go.id'} | Pos-el: ${settings?.email_satker || 'kab_ngawi@kpu.go.id'}`,
+                        size: 17,
+                        italics: true,
+                        font: 'Cambria',
+                        color: '000000'
+                      })
+                    ]
+                  })
+                ]
+              })
+            ]
+          })
+        ]
+      }),
+      new Paragraph({ spacing: { before: 0, after: 100 }, children: [] })
+    ];
+  }
+
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -150,7 +269,7 @@ function buildKopSuratKpu(settings) {
           text: (settings.nama_satker || 'KOMISI PEMILIHAN UMUM KABUPATEN NGAWI').toUpperCase(),
           bold: true,
           size: 27,
-          font: 'Arial'
+          font: 'Cambria'
         })
       ]
     }),
@@ -161,7 +280,7 @@ function buildKopSuratKpu(settings) {
         new TextRun({
           text: `${settings.alamat_satker || 'Jl. Untung Suropati No. 48 Ngawi'} — Telp. ${settings.telp_satker || '(0351) 743832'}`,
           size: 19,
-          font: 'Arial'
+          font: 'Cambria'
         })
       ]
     }),
@@ -176,7 +295,7 @@ function buildKopSuratKpu(settings) {
           text: `Laman: ${settings.website_satker || 'kab-ngawi.kpu.go.id'} | Pos-el: ${settings.email_satker || 'kab_ngawi@kpu.go.id'}`,
           italics: true,
           size: 18,
-          font: 'Arial'
+          font: 'Cambria'
         })
       ]
     })
@@ -727,7 +846,7 @@ function buildFooterTanpaParaf(docLabel, paketLabel) {
             size: 14,
             italic: true,
             color: '64748B',
-            font: 'Arial'
+            font: 'Cambria'
           }),
           ...(paketLabel ? [
             new TextRun({
@@ -735,7 +854,7 @@ function buildFooterTanpaParaf(docLabel, paketLabel) {
               size: 13,
               italic: true,
               color: '94A3B8',
-              font: 'Arial'
+              font: 'Cambria'
             })
           ] : [])
         ]
@@ -745,7 +864,7 @@ function buildFooterTanpaParaf(docLabel, paketLabel) {
     children.push(
       new Paragraph({
         spacing: { before: 0, after: 0 },
-        children: [new TextRun({ text: '', size: 14, font: 'Arial' })]
+        children: [new TextRun({ text: '', size: 14, font: 'Cambria' })]
       })
     );
   }
@@ -756,7 +875,7 @@ function buildFooterTanpaParaf(docLabel, paketLabel) {
  * Konten Spesifik & Pasal Hukum Berdasarkan Nomor Tahap (1 s.d. 18)
  */
 function buildStageSpecificSections(stageNo, ctx, tahapRow, keu) {
-  const { paket, penyedia, ppk, kpa, pejabatPengadaan, settings } = ctx;
+  const { paket, items, penyedia, ppk, kpa, pejabatPengadaan, settings } = ctx;
   const infoHari = formatHariTanggalBeritaAcara(tahapRow?.tanggal_dokumen || paket.tgl_mulai_kerja);
   const isKonstruksi = String(paket.jenis_pengadaan || '').includes('Konstruksi');
   const paragraphs = [];
@@ -792,16 +911,49 @@ function buildStageSpecificSections(stageNo, ctx, tahapRow, keu) {
 
     case 4:
       paragraphs.push(
-        pText(`A. KERANGKA ACUAN KERJA (KAK), SPESIFIKASI TEKNIS${isKonstruksi ? ', DED, & RANCANGAN KONSEPTUAL SMKK' : ' & PDN/TKDN'}`, { bold: true, before: 120, after: 30 }),
-        pNumbered('1.', `Uraian Pekerjaan: ${paket.uraian_pekerjaan || paket.nama_paket}.`, { level: 1 }),
-        pNumbered('2.', `Kewajiban Prioritas Produk Dalam Negeri (PDN) & TKDN sesuai Pasal 66 Peraturan Presiden Nomor 46 Tahun 2025 ditetapkan pada tingkat: ${paket.prioritas_pdn_level} (Target TKDN ${paket.persen_tkdn_target}% + BMP ${paket.persen_bmp_target}%).`, { level: 1 }),
-        pNumbered('3.', `Waktu Pelaksanaan Pekerjaan: selama ${paket.masa_pelaksanaan_hari} (${terbilangRupiah(paket.masa_pelaksanaan_hari).replace(' Rupiah', '')}) hari kalender terhitung sejak tanggal mulai kerja (${formatTanggalIndo(paket.tgl_mulai_kerja)} s.d. ${formatTanggalIndo(paket.tgl_selesai_kontrak)}).`, { level: 1 })
+        pText(`A. KERANGKA ACUAN KERJA (KAK), SPESIFIKASI TEKNIS & KEPATUHAN TKDN`, { bold: true, before: 120, after: 30 }),
+        pNumbered('1.', `Ruang Lingkup & Latar Belakang: ${paket.uraian_pekerjaan || paket.nama_paket}. Kebutuhan ini didasarkan pada Formulir Identifikasi Kebutuhan dan Telaah Kelayakan BMN guna menjamin keandalan sistem pemrosesan data pemilih dan operasional KPU Kabupaten Ngawi.`, { level: 1 }),
+        pNumbered('2.', `Kewajiban Pengutamaan Produk Dalam Negeri (PDN) & TKDN: Berpedoman pada Pasal 66 Peraturan Presiden Nomor 46 Tahun 2025, paket ini ditetapkan pada ${paket.prioritas_pdn_level} dengan Komitmen Target: ${paket.target_sertifikat_tkdn || ('TKDN ' + (paket.persen_tkdn_target || 42.5) + '% + BMP ' + (paket.persen_bmp_target || 10) + '%')}. Kewajiban ini mengikat sepanjang tersedia sekurang-kurangnya 3 (tiga) produk atau penyedia dalam negeri yang memenuhi spesifikasi teknis fungsional kebutuhan KPU.`, { level: 1 }),
+        pNumbered('3.', `Waktu Pelaksanaan Pekerjaan: Selama ${paket.masa_pelaksanaan_hari} (${terbilangRupiah(paket.masa_pelaksanaan_hari).replace(' Rupiah', '')}) hari kalender terhitung sejak penerbitan Surat Pesanan (SP), mencakup pengiriman, perakitan/instalasi, konfigurasi RAID, uji coba fungsional, dan serah terima hasil pekerjaan.`, { level: 1 }),
+        pNumbered('4.', `Jaminan Kualitas, Garansi & Layanan Purna Jual: Barang yang diserahkan wajib 100% Baru (Brand New in Box), bergaransi resmi pabrikan/distributor Indonesia (minimal 3 tahun onsite untuk server dan minimal 1 tahun onsite untuk workstation), serta menggunakan Sistem Operasi asli (Windows Server 2025 Standard dan Windows 11 Pro) yang teraktivasi secara legal.`, { level: 1 }),
+        pNumbered('5.', `Klausul DED & SMKK: Sesuai Lampiran II Peraturan LKPP Nomor 3 Tahun 2026, persyaratan Detailed Engineering Design (DED) dan Dokumen Rancangan Konseptual SMKK dinyatakan TIDAK DIPERSYARATKAN (N/A) karena paket ini merupakan Pengadaan Barang.`, { level: 1 }),
+        pText('B. TABEL RINCIAN SPESIFIKASI TEKNIS & KINERJA FUNGSIONAL BARANG', { bold: true, before: 100, after: 30 })
       );
-      if (isKonstruksi) {
-        paragraphs.push(
-          pNumbered('4.', `Khusus Konstruksi (Lampiran II Perlem LKPP 3/2026): Dilengkapi Gambar Rencana Teknis / Detailed Engineering Design (DED) serta Rancangan Konseptual Sistem Manajemen Keselamatan Konstruksi (SMKK) dengan penetapan Tingkat Risiko Keselamatan Konstruksi, identifikasi bahaya, dan kewajiban perlindungan BPJS Ketenagakerjaan Sektor Jasa Konstruksi.`, { level: 1 })
-        );
+      if (items && items.length) {
+        items.forEach((it, idx) => {
+          paragraphs.push(
+            pNumbered(`${idx + 1}.`, `${it.uraian_item} (Kuantitas: ${it.volume} ${it.satuan})`, { bold: true, level: 1 }),
+            pText(`Spesifikasi Teknis: ${it.spesifikasi_teknis || 'Sesuai standar fungsional KAK PPK.'}`, { italic: true, before: 10, after: 30, left: 360 })
+          );
+        });
       }
+
+      const isBelanjaModal = String(paket.kode_akun_mak || '').startsWith('53');
+      paragraphs.push(
+        pText('C. SPESIFIKASI PENATAUSAHAAN BMN DAN REKONSILIASI APLIKASI SAKTI', { bold: true, before: 100, after: 30 }),
+        pNumbered('1.', `Klasifikasi Penatausahaan Aset BMN: Berdasarkan Mata Anggaran Kegiatan (MAK ${paket.kode_akun_mak}), pengadaan ini diklasifikasikan sebagai ${isBelanjaModal ? 'Belanja Modal / Aset Tetap Intrakomptabel (PMK 181/PMK.06/2016 jo. PMK 47/2021)' : 'Belanja Barang / Ekstrakomptabel / Persediaan SAKTI'}.`, { level: 1 }),
+        pNumbered('2.', isBelanjaModal
+          ? `Kewajiban BMN Aset Tetap: Seluruh perangkat wajib dicatatkan ke dalam Aplikasi SAKTI Modul Aset Tetap (Peralatan dan Mesin Kodefikasi SIMAN/SAKTI: 3.10.01.02.xxx). Penyedia wajib melampirkan daftar nomor seri pabrik (Serial Number) per unit, faktur pajak resmi, petunjuk operasional, dan Berita Acara Penerimaan Barang yang memuat NUP sementara untuk rekonsiliasi BMN oleh Pengelola BMN Subbag KUL sebelum pembubuhan stiker/label barcode BMN.`
+          : `Kewajiban BMN Ekstrakomptabel: Barang dicatatkan pada Modul Persediaan SAKTI dan didistribusikan menggunakan Surat Bukti Barang Keluar (SBBK) Persediaan.`, { level: 1 }),
+
+        pText('D. SPESIFIKASI LAYANAN PURNA JUAL & SERVICE LEVEL AGREEMENT (SLA)', { bold: true, before: 100, after: 30 }),
+        pNumbered('1.', `Jangka Waktu Garansi Resmi: Garansi resmi pabrikan/distributor tunggal di Indonesia minimal 3 (tiga) tahun Layanan di Tempat (3 Years Onsite Service NBD) untuk PC Server Tower dan minimal 1 (satu) tahun Layanan di Tempat untuk PC Workstation, mencakup penggantian suku cadang asli dan jasa teknisi di Kantor KPU Kabupaten Ngawi.`, { level: 1 }),
+        pNumbered('2.', `Service Level Agreement (SLA): Penyedia wajib merespons aduan gangguan teknis selambat-lambatnya 1 x 24 jam hari kerja. Apabila penanganan jarak jauh tidak berhasil, teknisi wajib tiba di lokasi Kantor KPU Kabupaten Ngawi selambat-lambatnya 2 x 24 jam.`, { level: 1 }),
+        pNumbered('3.', `Penggantian Unit Rusak Cacat Pabrik (Dead on Arrival - DOA): Apabila unit mengalami kerusakan fungsi atau cacat produksi dalam kurun waktu 14 (empat belas) hari kalender sejak uji coba fungsional, penyedia wajib melakukan penggantian unit baru (one-to-one unit replacement), bukan sekadar reparasi komponen.`, { level: 1 }),
+
+        pText('E. SPESIFIKASI LEGALITAS LISENSI PERANGKAT LUNAK & HAK CIPTA', { bold: true, before: 100, after: 30 }),
+        pNumbered('1.', `Keaslian Lisensi Software: Sistem operasi Microsoft Windows Server 2025 Standard dan Microsoft Windows 11 Pro wajib berupa lisensi asli (Original Equipment Manufacturer / Fully Packaged Product) yang teraktivasi resmi secara daring ke server prinsipal, bebas dari perangkat lunak ilegal/bajakan (Anti-Piracy Compliance).`, { level: 1 }),
+        pNumbered('2.', `Pelepasan Tuntutan Hak Cipta (Indemnification): Penyedia menjamin bahwa seluruh barang dan perangkat lunak yang diserahkan bebas dari sengketa hak kekayaan intelektual (HAKI/paten), dan membebaskan KPU Kabupaten Ngawi dari segala bentuk gugatan hukum pihak ketiga.`, { level: 1 }),
+
+        pText('F. SPESIFIKASI PENGADAAN BERKELANJUTAN (GREEN PROCUREMENT) & K3', { bold: true, before: 100, after: 30 }),
+        pNumbered('1.', `Efisiensi Energi (Pasal 67 Perpres 46/2025): Catu daya (Power Supply) wajib memiliki sertifikasi efisiensi minimal 80 Plus Platinum (atau setara Energy Star) guna meminimalkan konsumsi energi listrik dan disipasi panas di ruang server KPU.`, { level: 1 }),
+        pNumbered('2.', `Kenyamanan Akustik & Lingkungan: Emisi kebisingan kipas pendingin pada workstation saat beban normal di bawah 45 dB (desibel) dan komponen bebas dari zat berbahaya (RoHS Compliant).`, { level: 1 }),
+
+        pText('G. SPESIFIKASI PENGEMASAN, PENGIRIMAN & UJI FUNGSI', { bold: true, before: 100, after: 30 }),
+        pNumbered('1.', `Kondisi Fisik: Barang diserahkan dalam keadaan 100% Baru (Brand New In Box - BNIB), kemasan asli tersegel pabrik dengan pelindung busa guncangan dan plastik kedap air.`, { level: 1 }),
+        pNumbered('2.', `Penyerahan Franco KPU Ngawi: Seluruh biaya pengangkutan, asuransi barang selama ekspedisi, dan biaya bongkar muat di Kantor KPU Kabupaten Ngawi ditanggung sepenuhnya oleh penyedia.`, { level: 1 }),
+        pNumbered('3.', `Uji Fungsi (Testing & Commissioning): Serah terima fisik wajib disertai uji fungsi menyeluruh (pemeriksaan perangkat keras, konfigurasi RAID mirroring, uji nyala 24 jam, dan uji kecepatan komputasi) yang dituangkan dalam Berita Acara Uji Fungsi bersama Tim Teknis KPU Ngawi.`, { level: 1 })
+      );
       break;
 
     case 5:
@@ -1509,7 +1661,8 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
       properties: {
         page: {
           margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 }
-        }
+        },
+        titlePage: true
       },
       headers: {
         default: new Header({
@@ -1532,10 +1685,24 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
               alignment: AlignmentType.RIGHT,
               spacing: { before: 40, after: 0 },
               children: [
-                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Arial' }),
-                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Arial' }),
-                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Arial' }),
-                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Arial' })
+                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Cambria' })
+              ]
+            })
+          ]
+        }),
+        first: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              spacing: { before: 40, after: 0 },
+              children: [
+                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Cambria' })
               ]
             })
           ]
@@ -1674,7 +1841,8 @@ function buildStage2Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
       properties: {
         page: {
           margin: { top: 1200, bottom: 1200, left: 1440, right: 1200 }
-        }
+        },
+        titlePage: true
       },
       headers: {
         default: new Header({
@@ -1697,10 +1865,24 @@ function buildStage2Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
               alignment: AlignmentType.RIGHT,
               spacing: { before: 30, after: 0 },
               children: [
-                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Arial' }),
-                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Arial' }),
-                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Arial' }),
-                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Arial' })
+                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Cambria' })
+              ]
+            })
+          ]
+        }),
+        first: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              spacing: { before: 30, after: 0 },
+              children: [
+                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Cambria' })
               ]
             })
           ]
@@ -1988,6 +2170,16 @@ async function generateWordBuffer(ctx, modeOrStage = 13) {
   const doc = new Document({
     creator: 'SI-PRABU KPU Kabupaten Ngawi (by emenje)',
     title: `Dokumen Pengadaan SI-PRABU - ${ctx.paket.nama_paket}`,
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: 'Cambria',
+            size: 20
+          }
+        }
+      }
+    },
     sections
   });
 
