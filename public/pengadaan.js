@@ -5695,6 +5695,14 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
           </div>
 
           <!-- BARIS 3: RANCANG BANGUN PENGADAAN & CARA (READ-ONLY RESUME) -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:-4px;">
+            <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase;">
+              🧭 Rancang Bangun Pengadaan, Cara &amp; Metode Pemilihan:
+            </div>
+            <button type="button" onclick="openModulMetodePemilihan()" class="cakra-btn" style="background:#eff6ff; color:#1d4ed8; border:1px solid #3b82f6; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+              <span>🎯 Buka Modul Metode Pemilihan</span>
+            </button>
+          </div>
           <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
               <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">1. Jenis Pengadaan</div>
@@ -7182,6 +7190,361 @@ async function submitModalTahap2Input(isSelesaiAction = false) {
   }
 }
 window.submitModalTahap2Input = submitModalTahap2Input;
+
+// =========================================================================
+// MODUL PENENTUAN METODE PEMILIHAN PENGADAAN (DECISION & ADVISORY ENGINE)
+// =========================================================================
+
+function openModulMetodePemilihan() {
+  const modal = document.getElementById('modal-modul-metode-pemilihan');
+  if (!modal) return;
+
+  const paket = (CakraState.activePaketCtx?.paket?.id === CakraState.activePaketId ? CakraState.activePaketCtx.paket : null)
+    || (CakraState.pakets || []).find(p => String(p.id) === String(CakraState.activePaketId)) || {};
+
+  // Prefill dari paket aktif
+  const jenisSel = document.getElementById('mmp_jenis_pengadaan');
+  const paguInp = document.getElementById('mmp_nilai_pagu');
+  const katalogSel = document.getElementById('mmp_katalog');
+  const kondisiSel = document.getElementById('mmp_kondisi_pasar');
+
+  if (jenisSel) jenisSel.value = paket.jenis_pengadaan || 'Barang';
+  if (paguInp) paguInp.value = Number(paket.nilai_pagu) || 145000000;
+  if (katalogSel) {
+    katalogSel.value = (paket.metode_pemilihan === 'E-Purchasing' || !paket.metode_pemilihan) ? 'katalog' : 'non_katalog';
+  }
+  if (kondisiSel) {
+    kondisiSel.value = (katalogSel && katalogSel.value === 'katalog') ? 'katalog_tunggal' : 'pasar_umum';
+  }
+
+  // Buka tab default simulator
+  switchModulMetodeTab('sim');
+  runModulMetodeCalculation();
+
+  modal.style.display = 'flex';
+}
+window.openModulMetodePemilihan = openModulMetodePemilihan;
+
+function closeModulMetodePemilihan() {
+  const modal = document.getElementById('modal-modul-metode-pemilihan');
+  if (modal) modal.style.display = 'none';
+}
+window.closeModulMetodePemilihan = closeModulMetodePemilihan;
+
+function switchModulMetodeTab(tabName) {
+  const tabs = ['sim', 'mat', 'epur', 'audit'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tab-btn-mmp-${t}`);
+    const panel = document.getElementById(`panel-mmp-${t}`);
+    if (btn) {
+      if (t === tabName) {
+        btn.style.background = '#2563eb';
+        btn.style.color = '#ffffff';
+      } else {
+        btn.style.background = 'rgba(255,255,255,0.15)';
+        btn.style.color = '#e2e8f0';
+      }
+    }
+    if (panel) {
+      panel.style.display = t === tabName ? 'block' : 'none';
+    }
+  });
+}
+window.switchModulMetodeTab = switchModulMetodeTab;
+
+let currentModulMetodeResult = null;
+
+function runModulMetodeCalculation() {
+  const jenisSel = document.getElementById('mmp_jenis_pengadaan');
+  const paguInp = document.getElementById('mmp_nilai_pagu');
+  const katalogSel = document.getElementById('mmp_katalog');
+  const kondisiSel = document.getElementById('mmp_kondisi_pasar');
+
+  const jenis = jenisSel ? jenisSel.value : 'Barang';
+  const pagu = Number(paguInp?.value) || 0;
+  const isKatalog = katalogSel ? (katalogSel.value === 'katalog') : true;
+  const kondisi = kondisiSel ? kondisiSel.value : 'katalog_tunggal';
+
+  // Format terbilang pada input
+  const terbilangEl = document.getElementById('mmp_pagu_terbilang');
+  if (terbilangEl) {
+    terbilangEl.textContent = `${cakraFmtRp(pagu)} (${terbilangRupiah(pagu)})`;
+  }
+
+  // ALGORITMA DECISION TREE (Perpres 16/2018 jo. 46/2025, Kepka LKPP 177/2024 & Perlem 3/2026)
+  let caraPengadaan = 'Melalui Penyedia';
+  let metodePemilihan = 'E-Purchasing';
+  let mekanismeSub = 'Mekanisme Negosiasi Harga Bilateral di Katalog Versi 6';
+  let badgeColor = '#1d4ed8';
+  let badgeBg = '#eff6ff';
+  let badgeBorder = '#3b82f6';
+  let pelaksana = 'Pejabat Pengadaan Satker KPU Kabupaten Ngawi';
+  let bentukKontrak = 'Surat Pesanan';
+  let jenisKontrak = 'Lumsum';
+  let jenisKertasHarga = 'HPS';
+  let dasarHukum = '';
+  let rasional = '';
+
+  if (jenis === 'Swakelola') {
+    caraPengadaan = 'Swakelola Tipe I';
+    metodePemilihan = 'Swakelola (Non-Penyedia)';
+    mekanismeSub = 'Direncanakan, Dilaksanakan, dan Diawasi Sendiri oleh KPU Ngawi (SK KPA)';
+    badgeColor = '#047857'; badgeBg = '#f0fdf4'; badgeBorder = '#10b981';
+    pelaksana = 'Tim Penyelenggara Swakelola KPU';
+    bentukKontrak = 'Kontrak Swakelola / Keputusan KPA';
+    jenisKontrak = 'Lumsum';
+    jenisKertasHarga = 'RAB Swakelola';
+    dasarHukum = 'Pasal 18 & 23 Perpres 16/2018 jo. Perpres 46/2025 jo. Perlem LKPP 3/2021';
+    rasional = 'Kegiatan dilaksanakan secara internal satker oleh pegawai KPU atau tim ad-hoc, tidak menggunakan rekanan pihak ketiga komersial.';
+  } else if (jenis === 'Dikecualikan') {
+    caraPengadaan = 'Melalui Penyedia (Mekanisme Pasar)';
+    metodePemilihan = 'Mekanisme Pasar (Dikecualikan)';
+    mekanismeSub = 'Pembayaran Tarif Resmi Pemerintah / Operator Publik Tunggal (BUMN/BUMD)';
+    badgeColor = '#475569'; badgeBg = '#f8fafc'; badgeBorder = '#94a3b8';
+    pelaksana = 'PPK / Pejabat Pengadaan';
+    bentukKontrak = pagu <= 50000000 ? 'Bukti Pembelian / Kuitansi' : 'SPK';
+    jenisKontrak = 'Harga Satuan / Tarif Resmi';
+    jenisKertasHarga = 'Tarif Resmi SK Pemerintah / BUMN';
+    dasarHukum = 'Pasal 61 Perpres 16/2018 jo. Perpres 46/2025 jo. Perlem LKPP 5/2021';
+    rasional = 'Belanja energi listrik (PLN), air minum (PDAM), pos/materai, atau bahan bakar minyak bersubsidi yang harganya telah diatur regulasi pemerintah.';
+  } else if (isKatalog) {
+    caraPengadaan = 'Melalui Penyedia';
+    metodePemilihan = 'E-Purchasing';
+    bentukKontrak = 'Surat Pesanan';
+    jenisKontrak = 'Lumsum';
+
+    if (pagu <= 100000000) {
+      jenisKertasHarga = 'Referensi Harga (Bebas HPS - Kepka LKPP 177/2024)';
+    } else {
+      jenisKertasHarga = 'HPS';
+    }
+
+    if (pagu <= 200000000) {
+      pelaksana = 'Pejabat Pengadaan Satker KPU Kabupaten Ngawi';
+    } else {
+      pelaksana = 'Pejabat Pembuat Komitmen (PPK) / Pokja Pemilihan';
+    }
+
+    if (kondisi === 'katalog_kompetisi') {
+      mekanismeSub = 'Mekanisme Mini-Kompetisi Antar-Penyedia di Etalase Katalog Elektronik LKPP Versi 6';
+      badgeColor = '#059669'; badgeBg = '#ecfdf5'; badgeBorder = '#10b981';
+      dasarHukum = 'Pasal 38 ayat (2) Perpres PBJ jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Lampiran III: Tata Cara E-Purchasing)';
+      rasional = `Terdapat minimal 2 penyedia di etalase yang menyediakan komoditas sejenis. Sistem mengundang mereka untuk saling berlomba memberikan diskon penawaran harga terendah secara transparan. Sangat tepat untuk efisiensi anggaran kas negara.`;
+    } else {
+      mekanismeSub = 'Mekanisme Negosiasi Harga Bilateral di Katalog Elektronik LKPP Versi 6';
+      badgeColor = '#1d4ed8'; badgeBg = '#eff6ff'; badgeBorder = '#3b82f6';
+      dasarHukum = 'Pasal 38 ayat (1) huruf a & ayat (2) Perpres No. 16/2018 jo. Perpres No. 46/2025 jo. Kepka LKPP No. 177/2024';
+      rasional = `Komoditas tercantum di Katalog Elektronik. Dipilih dari 1 penyedia dengan justifikasi fungsional/garansi purna jual, lalu Pejabat Pengadaan/PPK melakukan negosiasi harga dan ongkos kirim langsung di sistem. Wajib menyertakan Berita Acara Analisa Pasar (Tahap 5) dengan membandingkan minimal 3 produk sejenis.`;
+    }
+  } else {
+    // Non-Katalog
+    caraPengadaan = 'Melalui Penyedia';
+
+    if (kondisi === 'khusus_darurat' || kondisi === 'khusus_paten') {
+      metodePemilihan = 'Penunjukan Langsung';
+      mekanismeSub = 'Penunjukan Langsung Kepada 1 Penyedia yang Memenuhi Kualifikasi Khusus';
+      badgeColor = '#b45309'; badgeBg = '#fffbeb'; badgeBorder = '#f59e0b';
+      pelaksana = pagu <= 200000000 ? 'Pejabat Pengadaan Satker KPU Kabupaten Ngawi' : 'Pokja Pemilihan KPU Ngawi';
+      bentukKontrak = pagu <= 200000000 ? 'SPK' : 'Surat Perjanjian';
+      jenisKontrak = 'Lumsum';
+      jenisKertasHarga = 'HPS';
+      dasarHukum = 'Pasal 38 ayat (4) & ayat (5) Perpres 16/2018 jo. Perpres 46/2025';
+      rasional = kondisi === 'khusus_darurat'
+        ? 'Ditetapkan dalam keadaan darurat/bencana atau tahapan pemilu mendesak yang tidak memungkinkan proses pemilihan kompetitif biasa.'
+        : 'Barang/jasa memiliki hak paten, hak cipta tunggal, atau pemegang lisensi eksklusif yang tidak dapat digantikan pihak lain.';
+    } else if (jenis === 'Jasa Konsultansi Nonkonstruksi' || jenis === 'Jasa Konsultansi Konstruksi') {
+      if (pagu <= 100000000) {
+        metodePemilihan = 'Pengadaan Langsung';
+        mekanismeSub = 'Pengadaan Langsung Jasa Konsultansi oleh Pejabat Pengadaan';
+        badgeColor = '#059669'; badgeBg = '#ecfdf5'; badgeBorder = '#10b981';
+        pelaksana = 'Pejabat Pengadaan Satker KPU Kabupaten Ngawi';
+        bentukKontrak = 'SPK';
+        jenisKontrak = 'Waktu Penugasan / Lumsum';
+        jenisKertasHarga = 'HPS (Remunerasi Billing Rate Tenaga Ahli)';
+        dasarHukum = 'Pasal 41 ayat (1) Perpres 16/2018 jo. Perpres 46/2025';
+        rasional = 'Nilai pagu jasa konsultansi s.d. Rp 100 Juta wajib dilaksanakan melalui Pengadaan Langsung oleh Pejabat Pengadaan.';
+      } else {
+        metodePemilihan = 'Seleksi';
+        mekanismeSub = 'Seleksi Terbuka Jasa Konsultansi oleh Pokja Pemilihan';
+        badgeColor = '#0284c7'; badgeBg = '#f0f9ff'; badgeBorder = '#0ea5e9';
+        pelaksana = 'Pokja Pemilihan KPU Ngawi';
+        bentukKontrak = 'Surat Perjanjian';
+        jenisKontrak = 'Waktu Penugasan / Lumsum';
+        jenisKertasHarga = 'HPS (Billing Rate & Direct Cost)';
+        dasarHukum = 'Pasal 41 ayat (2) Perpres 16/2018 jo. Perpres 46/2025';
+        rasional = 'Nilai pagu jasa konsultansi > Rp 100 Juta wajib melalui Seleksi Terbuka menggunakan SPSE.';
+      }
+    } else if (jenis === 'Pekerjaan Konstruksi') {
+      if (pagu <= 400000000) {
+        metodePemilihan = 'Pengadaan Langsung';
+        mekanismeSub = 'Pengadaan Langsung Konstruksi (Pagu s.d. Rp 400 Jt Sesuai Perpres 46/2025 & Perlem 3/2026)';
+        badgeColor = '#059669'; badgeBg = '#ecfdf5'; badgeBorder = '#10b981';
+        pelaksana = 'Pejabat Pengadaan Satker KPU Kabupaten Ngawi';
+        bentukKontrak = pagu <= 50000000 ? 'SPK / Kuitansi' : 'SPK';
+        jenisKontrak = 'Gabungan Lumsum dan Harga Satuan';
+        jenisKertasHarga = pagu <= 10000000 ? 'Bebas HPS' : 'HPS';
+        dasarHukum = 'Pasal 38 ayat (3) Perpres 46/2025 jo. Lampiran II Peraturan LKPP Nomor 3 Tahun 2026';
+        rasional = 'Perubahan besar regulasi Perpres 46/2025 menaikkan ambang batas Pengadaan Langsung Pekerjaan Konstruksi dari semula Rp 200 Juta menjadi s.d. Rp 400.000.000,- yang dialokasikan bagi Usaha Kecil Subkualifikasi K1/K2/K3.';
+      } else if (kondisi === 'pasar_sikar_standar') {
+        metodePemilihan = 'Tender Cepat';
+        mekanismeSub = 'Tender Cepat Pekerjaan Konstruksi melalui SPSE & SIKaP';
+        badgeColor = '#7c3aed'; badgeBg = '#f5f3ff'; badgeBorder = '#8b5cf6';
+        pelaksana = 'Pokja Pemilihan KPU Ngawi';
+        bentukKontrak = 'Surat Perjanjian';
+        jenisKontrak = 'Harga Satuan';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 38 ayat (1) huruf d Perpres 16/2018 jo. Perpres 46/2025';
+        rasional = 'Pekerjaan konstruksi memiliki spesifikasi standar dan pelaku usaha terdaftar pada SIKaP LKPP, durasi pemilihan 3-5 hari kerja.';
+      } else {
+        metodePemilihan = 'Tender';
+        mekanismeSub = 'Tender Terbuka Pekerjaan Konstruksi oleh Pokja Pemilihan';
+        badgeColor = '#dc2626'; badgeBg = '#fef2f2'; badgeBorder = '#ef4444';
+        pelaksana = 'Pokja Pemilihan KPU Ngawi';
+        bentukKontrak = 'Surat Perjanjian';
+        jenisKontrak = 'Harga Satuan';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 38 ayat (1) huruf e Perpres 16/2018 jo. Perpres 46/2025';
+        rasional = 'Pekerjaan konstruksi bernilai di atas Rp 400 Juta wajib dilaksanakan melalui Tender terbuka oleh Pokja Pemilihan.';
+      }
+    } else {
+      // Barang atau Jasa Lainnya Non-Katalog
+      if (pagu <= 10000000) {
+        metodePemilihan = 'Pengadaan Langsung';
+        mekanismeSub = 'Pengadaan Langsung Retail Bebas HPS (Bukti Pembelian Toko)';
+        badgeColor = '#059669'; badgeBg = '#ecfdf5'; badgeBorder = '#10b981';
+        pelaksana = 'Pejabat Pengadaan Satker KPU Kabupaten Ngawi';
+        bentukKontrak = 'Bukti Pembelian';
+        jenisKontrak = 'Lumsum';
+        jenisKertasHarga = 'Bebas HPS (Bukti Pembelian)';
+        dasarHukum = 'Pasal 28 & 38 Perpres 46/2025';
+        rasional = 'Belanja operasional bernilai s.d. Rp 10 Juta dibebaskan dari penyusunan HPS formal, cukup bukti kuitansi toko atau nota pembelian kas kecil.';
+      } else if (pagu <= 50000000) {
+        metodePemilihan = 'Pengadaan Langsung';
+        mekanismeSub = 'Pengadaan Langsung Tingkat Kuitansi Dinas Bermeterai';
+        badgeColor = '#059669'; badgeBg = '#ecfdf5'; badgeBorder = '#10b981';
+        pelaksana = 'Pejabat Pengadaan Satker KPU Kabupaten Ngawi';
+        bentukKontrak = 'Kuitansi';
+        jenisKontrak = 'Lumsum';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 28 & 38 Perpres 46/2025';
+        rasional = 'Belanja bernilai Rp 10 Juta s.d. Rp 50 Juta wajib menyusun HPS pasar dan diterbitkan Kuitansi bermeterai resmi.';
+      } else if (pagu <= 200000000) {
+        metodePemilihan = 'Pengadaan Langsung';
+        mekanismeSub = 'Pengadaan Langsung Format Surat Perintah Kerja (SPK)';
+        badgeColor = '#059669'; badgeBg = '#ecfdf5'; badgeBorder = '#10b981';
+        pelaksana = 'Pejabat Pengadaan Satker KPU Kabupaten Ngawi';
+        bentukKontrak = 'SPK';
+        jenisKontrak = 'Lumsum';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 28 & 38 Perpres 46/2025 jo. Lampiran I Perlem LKPP 3/2026';
+        rasional = 'Belanja barang/jasa lainnya bernilai di atas Rp 50 Juta s.d. Rp 200 Juta wajib diterbitkan SPK dan HPS hasil survei harga pasar.';
+      } else if (kondisi === 'pasar_sikar_standar') {
+        metodePemilihan = 'Tender Cepat';
+        mekanismeSub = 'Tender Cepat Melalui Sistem SIKaP SPSE LKPP';
+        badgeColor = '#7c3aed'; badgeBg = '#f5f3ff'; badgeBorder = '#8b5cf6';
+        pelaksana = 'Pokja Pemilihan KPU Ngawi';
+        bentukKontrak = 'Surat Perjanjian / SPK';
+        jenisKontrak = 'Lumsum';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 38 ayat (1) huruf d Perpres 16/2018 jo. Perpres 46/2025';
+        rasional = 'Pengadaan di atas Rp 200 Juta dengan spesifikasi standar dan rekanan telah terkualifikasi di SIKaP, proses pemilihan kilat 3 hari.';
+      } else {
+        metodePemilihan = 'Tender';
+        mekanismeSub = 'Tender Terbuka Nasional Melalui Portal SPSE LKPP';
+        badgeColor = '#dc2626'; badgeBg = '#fef2f2'; badgeBorder = '#ef4444';
+        pelaksana = 'Pokja Pemilihan KPU Ngawi';
+        bentukKontrak = 'Surat Perjanjian';
+        jenisKontrak = 'Lumsum';
+        jenisKertasHarga = 'HPS';
+        dasarHukum = 'Pasal 38 ayat (1) huruf e Perpres 16/2018 jo. Perpres 46/2025';
+        rasional = 'Pengadaan barang/jasa bernilai > Rp 200 Juta non-katalog yang memerlukan seleksi kualifikasi teknis dan pembuktian kualifikasi oleh Pokja Pemilihan.';
+      }
+    }
+  }
+
+  // Simpan hasil ke memori global
+  currentModulMetodeResult = {
+    jenisPengadaan: jenis,
+    caraPengadaan,
+    metodePemilihan,
+    mekanismeSub,
+    pelaksana,
+    bentukKontrak,
+    jenisKontrak,
+    jenisKertasHarga,
+    dasarHukum,
+    rasional,
+    pagu
+  };
+
+  // Render ke DOM
+  const badgeEl = document.getElementById('mmp_res_badge');
+  const titleEl = document.getElementById('mmp_res_metode_title');
+  const subEl = document.getElementById('mmp_res_metode_sub');
+  const caraEl = document.getElementById('mmp_res_cara');
+  const pelaksanaEl = document.getElementById('mmp_res_pelaksana');
+  const kontrakEl = document.getElementById('mmp_res_kontrak');
+  const hargaEl = document.getElementById('mmp_res_harga');
+  const hukumEl = document.getElementById('mmp_res_hukum');
+  const rasionalEl = document.getElementById('mmp_res_rasional');
+
+  if (badgeEl) {
+    badgeEl.style.color = badgeColor;
+    badgeEl.style.background = badgeBg;
+    badgeEl.style.borderColor = badgeBorder;
+  }
+  if (titleEl) titleEl.textContent = `${metodePemilihan} ${kondisi === 'katalog_kompetisi' ? '(Mini-Kompetisi)' : (isKatalog && metodePemilihan === 'E-Purchasing' ? '(Negosiasi Harga)' : '')}`;
+  if (subEl) subEl.textContent = mekanismeSub;
+  if (caraEl) caraEl.textContent = caraPengadaan;
+  if (pelaksanaEl) pelaksanaEl.textContent = pelaksana;
+  if (kontrakEl) kontrakEl.textContent = `${bentukKontrak} (${jenisKontrak})`;
+  if (hargaEl) hargaEl.textContent = jenisKertasHarga;
+  if (hukumEl) hukumEl.textContent = dasarHukum;
+  if (rasionalEl) rasionalEl.textContent = rasional;
+}
+window.runModulMetodeCalculation = runModulMetodeCalculation;
+
+function applyModulMetodeToTahap2() {
+  if (!currentModulMetodeResult) {
+    runModulMetodeCalculation();
+  }
+  const res = currentModulMetodeResult;
+  if (!res) return;
+
+  // Isi ke form modal Tahap 2
+  const jenisSel = document.getElementById('m2_jenis_pengadaan');
+  const caraSel = document.getElementById('m2_cara_pengadaan');
+  const metodeSel = document.getElementById('m2_metode_pemilihan');
+  const bentukSel = document.getElementById('m2_bentuk_kontrak');
+  const jenisKontrakSel = document.getElementById('m2_jenis_kontrak');
+  const kertasHargaSel = document.getElementById('m2_jenis_kertas_harga');
+
+  if (jenisSel) jenisSel.value = res.jenisPengadaan;
+  if (caraSel) caraSel.value = res.caraPengadaan.startsWith('Swakelola') ? res.caraPengadaan : 'Penyedia';
+  if (metodeSel) {
+    metodeSel.value = res.metodePemilihan.includes('E-Purchasing') ? 'E-Purchasing' : (res.metodePemilihan.includes('Pengadaan Langsung') ? 'Pengadaan Langsung' : res.metodePemilihan);
+  }
+  if (bentukSel) {
+    bentukSel.value = res.bentukKontrak.includes('Surat Pesanan') ? 'Surat Pesanan' : (res.bentukKontrak.includes('SPK') ? 'SPK' : (res.bentukKontrak.includes('Bukti Pembelian') ? 'Bukti Pembelian' : (res.bentukKontrak.includes('Kuitansi') ? 'Kuitansi' : 'Surat Perjanjian')));
+  }
+  if (jenisKontrakSel) {
+    jenisKontrakSel.value = res.jenisKontrak.includes('Harga Satuan') ? 'Harga Satuan' : 'Lumsum';
+  }
+  if (kertasHargaSel) {
+    kertasHargaSel.value = res.jenisKertasHarga.includes('HPS') ? 'HPS' : res.jenisKertasHarga;
+  }
+
+  closeModulMetodePemilihan();
+  cakraNotify(`✅ Rekomendasi Modul (${res.metodePemilihan}) berhasil diterapkan ke Formulir Tahap 2!`, 'success');
+
+  // Jika modal Tahap 2 belum terbuka, buka sekarang
+  const modalT2 = document.getElementById('modal-tahap2-input');
+  if (modalT2 && modalT2.style.display !== 'flex') {
+    openModalTahap2Input();
+  }
+}
+window.applyModulMetodeToTahap2 = applyModulMetodeToTahap2;
+
 
 
 

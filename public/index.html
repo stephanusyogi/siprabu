@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png?v=3.5.0">
   <link rel="shortcut icon" type="image/png" href="/favicon.ico?v=3.5.0">
   <link rel="apple-touch-icon" href="/assets/logo-icon.png?v=3.5.0">
-  <link rel="stylesheet" href="/style.css?v=5.5.0-streamlined-dock">
+  <link rel="stylesheet" href="/style.css?v=5.6.0-modul-metode">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -8115,8 +8115,13 @@
 
             <!-- KELOMPOK 1: JENIS, CARA & METODE -->
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
-              <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
-                <span>🎯 1. Rancang Bangun Pengadaan &amp; Pemilihan</span>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
+                  <span>🧭 1. Rancang Bangun Pengadaan &amp; Pemilihan</span>
+                </div>
+                <button type="button" onclick="openModulMetodePemilihan()" class="cakra-btn" style="background:#eff6ff; color:#1d4ed8; border:1px solid #3b82f6; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                  <span>🎯 Buka Modul Metode Pemilihan</span>
+                </button>
               </div>
               <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
                 <div>
@@ -8232,6 +8237,311 @@
 
 
       <!-- ===================================================================== -->
+      <!-- MODAL: MODUL PENENTUAN METODE PEMILIHAN PENGADAAN (DECISION & ADVISORY) -->
+      <!-- ===================================================================== -->
+      <div id="modal-modul-metode-pemilihan" class="modal-backdrop" style="display:none; z-index:1170;">
+        <div class="modal-box" style="max-width:960px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:14px; box-shadow:0 25px 60px -15px rgba(0,0,0,0.4); border:1px solid #cbd5e1;">
+          
+          <!-- MODAL HEADER -->
+          <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color:#fff; padding:16px 22px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <div>
+                <h3 style="margin:0; font-size:16.5px; font-weight:800; color:#fff; display:flex; align-items:center; gap:8px;">
+                  <span>🎯 Modul Penetapan Cara Pengadaan &amp; Metode Pemilihan</span>
+                </h3>
+                <div style="font-size:12px; color:#bfdbfe; margin-top:3px;">
+                  Decision Engine &amp; Panduan Yuridis Berdasarkan Perpres 16/2018 jo. Perpres 46/2025, Kepka LKPP 177/2024 &amp; Perlem 3/2026
+                </div>
+              </div>
+              <button type="button" class="btn-close" onclick="closeModulMetodePemilihan()" style="color:#fff; background:none; border:none; font-size:24px; cursor:pointer;">✕</button>
+            </div>
+            
+            <!-- SUB-NAV TAB DI HEADER -->
+            <div style="display:flex; gap:8px; margin-top:14px;">
+              <button type="button" id="tab-btn-mmp-sim" onclick="switchModulMetodeTab('sim')" style="background:#2563eb; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                ⚡ Simulator Pohon Keputusan
+              </button>
+              <button type="button" id="tab-btn-mmp-mat" onclick="switchModulMetodeTab('mat')" style="background:rgba(255,255,255,0.15); color:#e2e8f0; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                📊 Matriks 7 Metode PBJ
+              </button>
+              <button type="button" id="tab-btn-mmp-epur" onclick="switchModulMetodeTab('epur')" style="background:rgba(255,255,255,0.15); color:#e2e8f0; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                ⚔️ E-Purchasing vs Mini-Kompetisi
+              </button>
+              <button type="button" id="tab-btn-mmp-audit" onclick="switchModulMetodeTab('audit')" style="background:rgba(255,255,255,0.15); color:#e2e8f0; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                🛡️ Rambu Audit BPK/KPU
+              </button>
+            </div>
+          </div>
+
+          <!-- MODAL BODY -->
+          <div class="modal-body" style="padding:20px; overflow-y:auto; background:#f8fafc; flex:1;">
+            
+            <!-- PANEL 1: SIMULATOR POHON KEPUTUSAN -->
+            <div id="panel-mmp-sim" style="display:block;">
+              <div style="display:grid; grid-template-columns: 1.1fr 1.3fr; gap:16px;">
+                
+                <!-- KOLOM KIRI: INPUT PARAMETER -->
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:12px;">
+                  <div style="font-size:13px; font-weight:800; color:#1e3a8a; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                    📝 1. Parameter Karakteristik Paket
+                  </div>
+
+                  <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Jenis Pengadaan</label>
+                    <select id="mmp_jenis_pengadaan" class="cakra-form-control" onchange="runModulMetodeCalculation()" style="width:100%; padding:7px 10px; font-size:12px;">
+                      <option value="Barang">Barang</option>
+                      <option value="Jasa Lainnya">Jasa Lainnya</option>
+                      <option value="Pekerjaan Konstruksi">Pekerjaan Konstruksi</option>
+                      <option value="Jasa Konsultansi Nonkonstruksi">Jasa Konsultansi Nonkonstruksi</option>
+                      <option value="Jasa Konsultansi Konstruksi">Jasa Konsultansi Konstruksi</option>
+                      <option value="Swakelola">Swakelola (Dikerjakan Sendiri/Institusi/Masyarakat)</option>
+                      <option value="Dikecualikan">Pengadaan Dikecualikan (Tarif Resmi/Publik)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nilai Pagu Anggaran (Rp)</label>
+                    <input type="number" id="mmp_nilai_pagu" class="cakra-form-control cakra-mono" oninput="runModulMetodeCalculation()" style="width:100%; padding:7px 10px; font-size:12.5px; font-weight:700;" value="145000000" />
+                    <div id="mmp_pagu_terbilang" style="font-size:11px; color:#2563eb; font-weight:700; margin-top:2px;">Rp 145.000.000 (Seratus Empat Puluh Lima Juta Rupiah)</div>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Ketersediaan di Katalog Elektronik LKPP (v6)</label>
+                    <select id="mmp_katalog" class="cakra-form-control" onchange="runModulMetodeCalculation()" style="width:100%; padding:7px 10px; font-size:12px;">
+                      <option value="katalog">Tersedia di Katalog Elektronik (Prioritas Mandatori)</option>
+                      <option value="non_katalog">Tidak Tercantum di Katalog Elektronik</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Dinamika Pasar &amp; Kondisi Khusus</label>
+                    <select id="mmp_kondisi_pasar" class="cakra-form-control" onchange="runModulMetodeCalculation()" style="width:100%; padding:7px 10px; font-size:12px;">
+                      <option value="katalog_tunggal">Katalog: Hanya 1 Penyedia / Spesifikasi Khusus Unik</option>
+                      <option value="katalog_kompetisi">Katalog: Tersedia ≥ 2 Penyedia Sejenis (Kompetitif)</option>
+                      <option value="pasar_umum">Non-Katalog: Pasar Umum Terbuka Biasa</option>
+                      <option value="khusus_darurat">Non-Katalog: Keadaan Darurat / Bencana / Kebutuhan Mendesak</option>
+                      <option value="khusus_paten">Non-Katalog: Pemegang Hak Paten / Hak Cipta Tunggal</option>
+                      <option value="pasar_sikar_standar">Non-Katalog: Spesifikasi Standar &amp; Rekanan SIKaP Siap</option>
+                    </select>
+                  </div>
+
+                  <div style="background:#f1f5f9; border-radius:6px; padding:10px; font-size:11px; color:#475569; line-height:1.4;">
+                    💡 <strong>Tips Cerdas:</strong> Simulator ini secara otomatis menerapkan kenaikan batas Pengadaan Langsung Konstruksi s.d. Rp 400 Juta dan pengecualian HPS s.d. Rp 10 Juta sesuai Perpres Nomor 46 Tahun 2025.
+                  </div>
+                </div>
+
+                <!-- KOLOM KANAN: HASIL TELAAH YURIDIS -->
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:12px;">
+                  <div style="font-size:13px; font-weight:800; color:#1e3a8a; border-bottom:1px solid #e2e8f0; padding-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>⚖️ 2. Hasil Telaah &amp; Rekomendasi Yuridis</span>
+                    <span style="font-size:10.5px; font-weight:700; color:#16a34a; background:#dcfce7; padding:2px 8px; border-radius:999px;">Terverifikasi Sah</span>
+                  </div>
+
+                  <!-- BADGE HASIL METODE -->
+                  <div id="mmp_res_badge" style="background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:12px; text-align:center;">
+                    <div style="font-size:11px; font-weight:700; color:#1e40af; text-transform:uppercase;">Rekomendasi Metode Pemilihan Resmi</div>
+                    <div id="mmp_res_metode_title" style="font-size:16px; font-weight:800; color:#1d4ed8; margin-top:2px;">E-Purchasing (Negosiasi Harga)</div>
+                    <div id="mmp_res_metode_sub" style="font-size:11.5px; color:#475569; margin-top:2px;">Mekanisme Negosiasi Bilateral Melalui Katalog Elektronik LKPP Versi 6</div>
+                  </div>
+
+                  <!-- TABEL RINCIAN TELAAH -->
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; font-size:11.5px;">
+                    <div style="background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #f1f5f9;">
+                      <div style="color:#64748b; font-weight:700; font-size:10px; text-transform:uppercase;">Cara Pengadaan</div>
+                      <div id="mmp_res_cara" style="font-weight:800; color:#0f172a; margin-top:2px;">Melalui Penyedia</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #f1f5f9;">
+                      <div style="color:#64748b; font-weight:700; font-size:10px; text-transform:uppercase;">Kewenangan Pelaksana</div>
+                      <div id="mmp_res_pelaksana" style="font-weight:800; color:#1e40af; margin-top:2px;">Pejabat Pengadaan Satker</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #f1f5f9;">
+                      <div style="color:#64748b; font-weight:700; font-size:10px; text-transform:uppercase;">Bentuk Kontrak (Pasal 28)</div>
+                      <div id="mmp_res_kontrak" style="font-weight:800; color:#0f172a; margin-top:2px;">Surat Pesanan</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #f1f5f9;">
+                      <div style="color:#64748b; font-weight:700; font-size:10px; text-transform:uppercase;">Kertas Kerja Harga (Tahap 6)</div>
+                      <div id="mmp_res_harga" style="font-weight:800; color:#b45309; margin-top:2px;">HPS (Harga Perkiraan Sendiri)</div>
+                    </div>
+                  </div>
+
+                  <!-- DASAR HUKUM & RASIONAL -->
+                  <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
+                    <div style="font-size:10.5px; font-weight:700; color:#475569; text-transform:uppercase;">Dasar Hukum Regulasi:</div>
+                    <div id="mmp_res_hukum" style="font-size:11.5px; color:#1e3a8a; font-weight:700; margin-top:2px;">
+                      Pasal 38 ayat (1) huruf a &amp; ayat (2) Perpres No. 16/2018 jo. Perpres No. 46/2025 jo. Kepka LKPP No. 177/2024
+                    </div>
+                    <div style="font-size:10.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-top:8px;">Rasional Pertimbangan:</div>
+                    <div id="mmp_res_rasional" style="font-size:11px; color:#334155; margin-top:2px; line-height:1.4;">
+                      Komoditas telah tercantum dalam Katalog Elektronik, sehingga mandatori menggunakan E-Purchasing. Nilai pagu ≤ Rp 200 Juta dieksekusi oleh Pejabat Pengadaan melalui Negosiasi Harga dengan tetap membandingkan minimal 3 produk sejenis pada Tahap 5.
+                    </div>
+                  </div>
+
+                  <!-- TOMBOL TERAPKAN KE FORMULIR TAHAP 2 -->
+                  <button type="button" onclick="applyModulMetodeToTahap2()" class="cakra-btn" style="background:#2563eb; color:#ffffff; font-weight:800; font-size:12.5px; padding:10px 16px; border-radius:8px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 6px -1px rgba(37,99,235,0.25);">
+                    <span>🎯 Terapkan Rekomendasi Ini ke Formulir Tahap 2</span>
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- PANEL 2: MATRIKS KOMPARASI 7 METODE -->
+            <div id="panel-mmp-mat" style="display:none;">
+              <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">
+                <div style="font-size:13px; font-weight:800; color:#1e3a8a; margin-bottom:12px;">
+                  📊 Matriks Komparasi 7 Metode Pemilihan Penyedia (Perpres 16/2018 jo. 46/2025 &amp; Perlem 3/2026)
+                </div>
+                <div style="overflow-x:auto;">
+                  <table style="width:100%; border-collapse:collapse; font-size:11.5px; text-align:left;">
+                    <thead>
+                      <tr style="background:#1e3a8a; color:#fff;">
+                        <th style="padding:8px 10px; border:1px solid #cbd5e1;">Metode</th>
+                        <th style="padding:8px 10px; border:1px solid #cbd5e1;">Jenis Pengadaan</th>
+                        <th style="padding:8px 10px; border:1px solid #cbd5e1;">Batas Nilai Pagu</th>
+                        <th style="padding:8px 10px; border:1px solid #cbd5e1;">Pelaksana</th>
+                        <th style="padding:8px 10px; border:1px solid #cbd5e1;">Bentuk Kontrak</th>
+                        <th style="padding:8px 10px; border:1px solid #cbd5e1;">Kertas Harga</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="background:#f8fafc;">
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1; font-weight:800; color:#1d4ed8;">1. E-Purchasing</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Barang, Konstruksi, Jasa Lainnya di Katalog</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Tidak Terbatas</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">≤200 Jt: PP<br>&gt;200 Jt: PPK/Pokja</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1; font-weight:700;">Surat Pesanan</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">≤100 Jt: Referensi<br>&gt;100 Jt: HPS</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1; font-weight:800; color:#15803d;">2. Pengadaan Langsung</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Barang/Jasa Lain/Konstruksi/Konsultansi</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Barang/Jasa: s.d. 200 Jt<br>Konstruksi: s.d. 400 Jt<br>Konsultansi: s.d. 100 Jt</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Pejabat Pengadaan</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">≤10 Jt: Bukti Beli<br>≤50 Jt: Kuitansi<br>&gt;50 Jt: SPK</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">≤10 Jt: Bebas HPS<br>&gt;10 Jt: Wajib HPS</td>
+                      </tr>
+                      <tr style="background:#f8fafc;">
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1; font-weight:800; color:#b45309;">3. Penunjukan Langsung</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Semua Jenis (Kriteria Khusus)</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Tidak Terbatas (Darurat, Paten, Rahasia)</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">≤200 Jt: PP<br>&gt;200 Jt: Pokja</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">SPK / Surat Perjanjian</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Wajib HPS</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1; font-weight:800; color:#475569;">4. Repeat Order</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Jasa Konsultansi</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Maks 2 kali perpanjangan</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">PP / Pokja</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Surat Perjanjian</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Evaluasi Kinerja &amp; Harga</td>
+                      </tr>
+                      <tr style="background:#f8fafc;">
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1; font-weight:800; color:#7c3aed;">5. Tender Cepat</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Barang, Konstruksi, Jasa Lainnya</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">&gt; Rp 200 Juta (Spesifikasi Standar)</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Pokja Pemilihan</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Surat Perjanjian / SPK</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Wajib HPS</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1; font-weight:800; color:#dc2626;">6. Tender Terbuka</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Barang, Konstruksi, Jasa Lainnya</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">&gt; Rp 200 Juta (Kompleks / Non-Standar)</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Pokja Pemilihan</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Surat Perjanjian</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Wajib HPS</td>
+                      </tr>
+                      <tr style="background:#f8fafc;">
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1; font-weight:800; color:#0284c7;">7. Seleksi</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Jasa Konsultansi Badan Usaha / Perorangan</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">&gt; Rp 100 Juta</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Pokja Pemilihan</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Surat Perjanjian</td>
+                        <td style="padding:8px 10px; border:1px solid #cbd5e1;">Wajib HPS (Billing Rate)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL 3: E-PURCHASING VS MINI-KOMPETISI -->
+            <div id="panel-mmp-epur" style="display:none;">
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                <div style="background:#ffffff; border:2px solid #3b82f6; border-radius:10px; padding:16px;">
+                  <div style="font-size:14px; font-weight:800; color:#1d4ed8; margin-bottom:8px;">
+                    🤝 1. E-Purchasing: Negosiasi Harga (Bilateral)
+                  </div>
+                  <div style="font-size:12px; color:#334155; line-height:1.5; margin-bottom:12px;">
+                    Pejabat Pengadaan atau PPK memilih <strong>1 (satu) produk dari 1 (satu) penyedia</strong> di katalog, lalu melakukan tawar-menawar harga dan ongkos kirim langsung secara bilateral di sistem.
+                  </div>
+                  <ul style="font-size:11.5px; color:#475569; padding-left:18px; line-height:1.5;">
+                    <li><strong>Jumlah Vendor:</strong> 1 Penyedia terpilih.</li>
+                    <li><strong>Kecepatan:</strong> Sangat Cepat (hitungan jam s.d. 1-2 hari).</li>
+                    <li><strong>Karakter Kebutuhan:</strong> Spesifikasi teknis khusus/unik, brand dengan garansi lokal resmi, pagu efisien (≤ Rp 200 Juta).</li>
+                    <li><strong>Kewajiban Legal:</strong> Tetap wajib membandingkan minimal 3 produk sejenis di Tahap 5 (Analisa Pasar) sebagai justifikasi auditor.</li>
+                  </ul>
+                </div>
+
+                <div style="background:#ffffff; border:2px solid #10b981; border-radius:10px; padding:16px;">
+                  <div style="font-size:14px; font-weight:800; color:#047857; margin-bottom:8px;">
+                    ⚔️ 2. E-Purchasing: Mini-Kompetisi (Katalog v6)
+                  </div>
+                  <div style="font-size:12px; color:#334155; line-height:1.5; margin-bottom:12px;">
+                    PPK atau Pejabat Pengadaan <strong>mengundang sekurang-kurangnya 2 (dua) penyedia sejenis</strong> di etalase katalog untuk saling berlomba memberikan penawaran harga terbaik.
+                  </div>
+                  <ul style="font-size:11.5px; color:#475569; padding-left:18px; line-height:1.5;">
+                    <li><strong>Jumlah Vendor:</strong> Minimal 2 Penyedia diundang.</li>
+                    <li><strong>Kecepatan:</strong> Memerlukan waktu tunggu penawaran (2 - 4 hari kerja).</li>
+                    <li><strong>Karakter Kebutuhan:</strong> Komoditas massal dengan banyak pabrikan (kotak suara, sewa kendaraan, formulir C/D), pagu bernilai besar.</li>
+                    <li><strong>Pemenang:</strong> Ditetapkan secara otomatis oleh sistem kepada harga penawaran terendah yang lolos syarat teknis.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL 4: RAMBU AUDIT BPK/KPU -->
+            <div id="panel-mmp-audit" style="display:none;">
+              <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:10px;">
+                <div style="font-size:13px; font-weight:800; color:#dc2626; margin-bottom:4px;">
+                  🛡️ 5 Rambu Pemeriksaan Auditor (BPK / BPKP / Inspektorat Utama KPU)
+                </div>
+                <div style="font-size:11.5px; background:#fef2f2; border-left:3px solid #ef4444; padding:8px 12px; border-radius:4px; color:#991b1b;">
+                  <strong>1. Larangan Memecah Paket (Pasal 20 Perpres PBJ):</strong> Dilarang keras memecah paket pengadaan menjadi beberapa paket di bawah Rp 200 Juta untuk menghindari kewajiban Tender terbuka.
+                </div>
+                <div style="font-size:11.5px; background:#fffbeb; border-left:3px solid #f59e0b; padding:8px 12px; border-radius:4px; color:#92400e;">
+                  <strong>2. Kewenangan Pejabat Pengadaan:</strong> Hanya berwenang memproses paket s.d. Rp 200 Juta (atau s.d. Rp 400 Juta untuk Konstruksi Perpres 46/2025). Di atas nilai tersebut wajib ditangani oleh Pokja Pemilihan atau PPK (e-purchasing).
+                </div>
+                <div style="font-size:11.5px; background:#f0fdf4; border-left:3px solid #10b981; padding:8px 12px; border-radius:4px; color:#166534;">
+                  <strong>3. Dokumen Komparasi Analisa Pasar (Tahap 5):</strong> Untuk E-Purchasing Negosiasi, wajib menyertakan Berita Acara Analisa Pasar pembanding minimal 3 produk di etalase katalog.
+                </div>
+                <div style="font-size:11.5px; background:#f0f7ff; border-left:3px solid #3b82f6; padding:8px 12px; border-radius:4px; color:#1e40af;">
+                  <strong>4. Kepatuhan TKDN &amp; BMP:</strong> Wajib memilih produk ber-TKDN+BMP minimal 40% apabila barang sejenis sudah tersedia minimal 3 produk dalam negeri di etalase.
+                </div>
+                <div style="font-size:11.5px; background:#f8fafc; border-left:3px solid #64748b; padding:8px 12px; border-radius:4px; color:#334155;">
+                  <strong>5. Jaminan Pelaksanaan:</strong> Wajib diterbitkan sebesar 5% dari nilai kontrak untuk pengadaan non-konsultan bernilai di atas Rp 200 Juta sebelum Surat Pesanan/Kontrak ditandatangani.
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- MODAL FOOTER -->
+          <div class="modal-footer" style="padding:12px 20px; background:#f1f5f9; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:11.5px; color:#64748b;">
+              📄 Dokumen Panduan: <strong>Modul_Metode_Pemilihan_Pengadaan_Barang_Jasa.docx</strong> di folder Bahan Simulasi
+            </div>
+            <button type="button" class="cakra-btn cakra-btn-secondary" onclick="closeModulMetodePemilihan()" style="font-weight:700; padding:6px 16px;">
+              Tutup Modul
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+
+      <!-- ===================================================================== -->
       <!-- MODAL: POP-UP FORMULIR TAHAP UNIVERSAL (TAHAP 3 S.D. 18)               -->
       <!-- ===================================================================== -->
       <div id="modal-tahap-universal" class="modal-backdrop" style="display:none; z-index:1160;">
@@ -8313,10 +8623,9 @@
           </div>
         </div>
       </div>
-
 <script src="/data_juknis.js?v=5.1.0"></script>
-    <script src="/app.js?v=5.5.0-streamlined-dock"></script>
-    <script src="/pengadaan.js?v=5.5.0-streamlined-dock"></script>
+    <script src="/app.js?v=5.6.0-modul-metode"></script>
+    <script src="/pengadaan.js?v=5.6.0-modul-metode"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
