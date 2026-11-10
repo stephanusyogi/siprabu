@@ -2103,24 +2103,38 @@ function savePeriodeSnapshot(periodeId, user = null, isMigrationFrozen = false, 
   const userName = user ? `${user.nama_pejabat} (${user.username})` : (isMigrationFrozen ? 'Sistem Migrasi' : 'Administrator');
   const jsonStr = JSON.stringify(snapshotPayload);
 
-  db.prepare(`
-    INSERT INTO periode_snapshot (periode_id, created_at, created_by, waktu_wib, is_migration_frozen, notes, snapshot_data)
-    VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
-    ON CONFLICT(periode_id) DO UPDATE SET
-      created_at = CURRENT_TIMESTAMP,
-      created_by = excluded.created_by,
-      waktu_wib = excluded.waktu_wib,
-      is_migration_frozen = excluded.is_migration_frozen,
-      notes = excluded.notes,
-      snapshot_data = excluded.snapshot_data
-  `).run(
-    periodeId,
-    userName,
-    waktuWib,
-    isMigrationFrozen ? 1 : 0,
-    notes || '',
-    jsonStr
-  );
+  const existingSnap = db.prepare('SELECT id FROM periode_snapshot WHERE periode_id = ?').get(Number(periodeId));
+  if (existingSnap) {
+    db.prepare(`
+      UPDATE periode_snapshot
+      SET created_at = CURRENT_TIMESTAMP,
+          created_by = ?,
+          waktu_wib = ?,
+          is_migration_frozen = ?,
+          notes = ?,
+          snapshot_data = ?
+      WHERE periode_id = ?
+    `).run(
+      userName,
+      waktuWib,
+      isMigrationFrozen ? 1 : 0,
+      notes || '',
+      jsonStr,
+      periodeId
+    );
+  } else {
+    db.prepare(`
+      INSERT INTO periode_snapshot (periode_id, created_at, created_by, waktu_wib, is_migration_frozen, notes, snapshot_data)
+      VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
+    `).run(
+      periodeId,
+      userName,
+      waktuWib,
+      isMigrationFrozen ? 1 : 0,
+      notes || '',
+      jsonStr
+    );
+  }
 
   clearRkbDatasetCache(periodeId);
   return snapshotPayload;
@@ -7264,25 +7278,36 @@ function submitSubbagUsulan({ periodeId, subbag, gdrive_link, catatan_usulan, us
   const now = formatWaktuResmi();
   const submitter = user ? `${user.nama_pejabat} (${user.username})` : 'PIC Subbag';
 
-  db.prepare(`
-    INSERT INTO subbag_usulan_revisi (
-      periode_id, subbag, status, gdrive_link, catatan_usulan,
-      total_semula, total_menjadi, submitted_at, submitted_by, updated_at
-    ) VALUES (?, ?, 'DIAJUKAN', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(periode_id, subbag) DO UPDATE SET
-      status = 'DIAJUKAN',
-      gdrive_link = excluded.gdrive_link,
-      catatan_usulan = excluded.catatan_usulan,
-      total_semula = excluded.total_semula,
-      total_menjadi = excluded.total_menjadi,
-      submitted_at = excluded.submitted_at,
-      submitted_by = excluded.submitted_by,
-      alasan_pengembalian = '',
-      updated_at = CURRENT_TIMESTAMP
-  `).run(
-    periodeId, cleanSubbag, gdrive_link || '', catatan_usulan || '',
-    total_semula, total_menjadi, now, submitter
-  );
+  const existingUsulan = db.prepare('SELECT id FROM subbag_usulan_revisi WHERE periode_id = ? AND subbag = ?').get(periodeId, cleanSubbag);
+  if (existingUsulan) {
+    db.prepare(`
+      UPDATE subbag_usulan_revisi SET
+        status = 'DIAJUKAN',
+        gdrive_link = ?,
+        catatan_usulan = ?,
+        total_semula = ?,
+        total_menjadi = ?,
+        submitted_at = ?,
+        submitted_by = ?,
+        alasan_pengembalian = '',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE periode_id = ? AND subbag = ?
+    `).run(
+      gdrive_link || '', catatan_usulan || '',
+      total_semula, total_menjadi, now, submitter,
+      periodeId, cleanSubbag
+    );
+  } else {
+    db.prepare(`
+      INSERT INTO subbag_usulan_revisi (
+        periode_id, subbag, status, gdrive_link, catatan_usulan,
+        total_semula, total_menjadi, submitted_at, submitted_by, updated_at
+      ) VALUES (?, ?, 'DIAJUKAN', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(
+      periodeId, cleanSubbag, gdrive_link || '', catatan_usulan || '',
+      total_semula, total_menjadi, now, submitter
+    );
+  }
 
   return getSubbagUsulan(periodeId, cleanSubbag);
 }

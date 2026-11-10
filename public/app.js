@@ -13297,7 +13297,7 @@ function onTahap4DasarPengesahanChange() {
   }
 
   if (isExternalPattern) {
-    if (groupMitra) groupMitra.style.display = 'block';
+    if (groupMitra) groupMitra.style.display = 'flex';
     if (inputMitra) inputMitra.required = true;
     if (groupLinkRkb) groupLinkRkb.style.display = 'none';
     if (inputLinkRkb) inputLinkRkb.required = false;
@@ -13382,9 +13382,9 @@ function onTahap4DasarPengesahanChange() {
     }
     if (groupMitra) groupMitra.style.display = 'none';
     if (inputMitra) inputMitra.required = false;
-    if (groupLinkRkb) groupLinkRkb.style.display = 'block';
+    if (groupLinkRkb) groupLinkRkb.style.display = 'flex';
     if (inputLinkRkb) inputLinkRkb.required = true;
-    if (groupLinkKak) groupLinkKak.style.display = 'block';
+    if (groupLinkKak) groupLinkKak.style.display = 'flex';
     if (inputLinkKak) inputLinkKak.required = true;
     if (inputCatatan) inputCatatan.required = false;
 
@@ -13443,6 +13443,13 @@ function onTahap4DasarPengesahanChange() {
   }
 }
 
+let pendingTahap4Payload = null;
+
+function closeConfirmTahap4Modal() {
+  const modal = document.getElementById('modal-confirm-tahap4');
+  if (modal) modal.style.display = 'none';
+}
+
 async function submitPengesahanTahap4Keseluruhan() {
   const fasePerencanaan = document.getElementById('tahap4-input-fase')?.value || 'PRA_NPHD';
   const dasarPengesahan = document.getElementById('tahap4-input-dasar-pengesahan')?.value || 'BA Pleno Komisioner';
@@ -13460,38 +13467,38 @@ async function submitPengesahanTahap4Keseluruhan() {
   const rawCatatan = document.getElementById('tahap4-input-catatan')?.value?.trim() || '';
 
   if (isExternalPattern && !mitra) {
-    alert('Mitra / Forum Kesepakatan wajib diisi.');
+    showToast('Mitra / Forum Kesepakatan wajib diisi.', 'warning');
     return;
   }
 
   if (!noBa || !tglBa) {
-    alert(isNoBaOptional ? 'Tanggal dokumen wajib diisi.' : 'Nomor dokumen dan Tanggal wajib diisi.');
+    showToast(isNoBaOptional ? 'Tanggal dokumen wajib diisi.' : 'Nomor dokumen dan Tanggal wajib diisi.', 'warning');
     return;
   }
 
   if (!linkBa) {
-    alert('Tautan Google Drive berkas bukti wajib dilampirkan.');
+    showToast('Tautan Google Drive berkas bukti wajib dilampirkan.', 'warning');
     return;
   }
 
   if (!isExternalPattern) {
     if (!linkRkbFinal) {
-      alert('Tautan Google Drive RKB Final bertanda tangan wajib dilampirkan.');
+      showToast('Tautan Google Drive RKB Final bertanda tangan wajib dilampirkan.', 'warning');
       return;
     }
     if (!linkKakGabungan) {
-      alert('Tautan Google Drive KAK Gabungan wajib dilampirkan.');
+      showToast('Tautan Google Drive KAK Gabungan wajib dilampirkan.', 'warning');
       return;
     }
   }
 
   if (isExternalPattern && !rawCatatan) {
-    alert('Catatan / Intisari Kesepakatan wajib diisi.');
+    showToast('Catatan / Intisari Kesepakatan wajib diisi.', 'warning');
     return;
   }
 
   if (!checkVerifikasi || !checkVerifikasi.checked) {
-    alert('Harap beri tanda centang pada verifikasi manual sebelum mengesahkan dan mengunci baseline RKB.');
+    showToast('Harap beri tanda centang pada verifikasi manual sebelum mengesahkan dan mengunci baseline RKB.', 'warning');
     return;
   }
 
@@ -13499,18 +13506,61 @@ async function submitPengesahanTahap4Keseluruhan() {
     ? `[Mitra/Forum: ${mitra}] ${rawCatatan}`
     : rawCatatan;
 
-  const confirmMsg = `PERINGATAN PENGUNCIAN BASELINE RKB:\n\n` +
-    `Anda akan MENGUNCI RESMI RKB siklus ini secara keseluruhan:\n` +
-    `- Fase Perencanaan: ${fasePerencanaan}\n` +
-    `- Dasar Pengesahan: ${dasarPengesahan}\n` +
-    (isExternalPattern ? `- Mitra / Forum: ${mitra}\n` : '') +
-    `- Nomor / Tanggal: ${noBa} (${tglBa})\n\n` +
-    `Dokumen RKB saat ini akan dikunci permanen menjadi Baseline Sah berikutnya, dan sistem otomatis menerbitkan Dokumen Aktif Baru (Duplikat).\n\n` +
-    `Apakah Anda yakin ingin melanjutkan?`;
+  pendingTahap4Payload = {
+    nomor_ba: noBa,
+    tanggal_ba: tglBa,
+    link_scan_ba: linkBa,
+    rkb_final_link: linkRkbFinal,
+    kak_gabungan_link: linkKakGabungan,
+    fase_perencanaan: fasePerencanaan,
+    dasar_pengesahan: dasarPengesahan,
+    verifikasi_manual: true,
+    strict_tahap4: true,
+    catatan
+  };
 
-  if (!confirm(confirmMsg)) return;
+  const namaPeriodeText = document.getElementById('tahap4-draft-nama')?.innerText?.split('\n')[0] || AppState.currentPeriode?.nama_periode || 'RKB Aktif';
+  const totalPaguText = document.getElementById('tahap4-draft-total')?.textContent || 'Rp 0';
 
+  setElText('confirm-tahap4-nama-periode', namaPeriodeText);
+  setElText('confirm-tahap4-total-pagu', totalPaguText);
+  setElText('confirm-tahap4-fase', fasePerencanaan);
+  setElText('confirm-tahap4-dasar', dasarPengesahan);
+  setElText('confirm-tahap4-nomor', noBa);
+  setElText('confirm-tahap4-tanggal', tglBa);
+  setElText('confirm-tahap4-catatan', rawCatatan || catatan || '-');
+
+  const rowMitra = document.getElementById('confirm-tahap4-row-mitra');
+  if (rowMitra) {
+    rowMitra.style.display = isExternalPattern ? 'block' : 'none';
+    setElText('confirm-tahap4-mitra', mitra || '-');
+  }
+
+  const errBox = document.getElementById('modal-confirm-tahap4-error');
+  if (errBox) {
+    errBox.style.display = 'none';
+    errBox.textContent = '';
+  }
+
+  const modal = document.getElementById('modal-confirm-tahap4');
+  if (modal) modal.style.display = 'flex';
+}
+
+async function executePengesahanTahap4Keseluruhan() {
+  if (!pendingTahap4Payload) return;
+  const dasarPengesahan = pendingTahap4Payload.dasar_pengesahan || 'BA Pleno Komisioner';
+  const btnExec = document.getElementById('btn-execute-confirm-tahap4');
   const btnSubmit = document.getElementById('btn-submit-tahap4-final');
+  const errBox = document.getElementById('modal-confirm-tahap4-error');
+
+  if (errBox) {
+    errBox.style.display = 'none';
+    errBox.textContent = '';
+  }
+  if (btnExec) {
+    btnExec.disabled = true;
+    btnExec.textContent = '⏳ Mengunci Baseline & Menerbitkan Duplikat...';
+  }
   if (btnSubmit) {
     btnSubmit.disabled = true;
     btnSubmit.textContent = '🔒 Mengunci Baseline RKB & Menerbitkan Dokumen Aktif Baru...';
@@ -13519,21 +13569,11 @@ async function submitPengesahanTahap4Keseluruhan() {
   try {
     const res = await apiFetch('/api/revisi/pengesahan-tahap4-keseluruhan', {
       method: 'POST',
-      body: JSON.stringify({
-        nomor_ba: noBa,
-        tanggal_ba: tglBa,
-        link_scan_ba: linkBa,
-        rkb_final_link: linkRkbFinal,
-        kak_gabungan_link: linkKakGabungan,
-        fase_perencanaan: fasePerencanaan,
-        dasar_pengesahan: dasarPengesahan,
-        verifikasi_manual: true,
-        strict_tahap4: true,
-        catatan
-      })
+      body: JSON.stringify(pendingTahap4Payload)
     });
 
-    showToast(res.message || 'Baseline RKB berhasil dikunci dan dokumen kerja aktif baru telah diterbitkan!', 'success');
+    closeConfirmTahap4Modal();
+    showToast(res.message || 'Baseline RKB berhasil dikunci dan dokumen kerja aktif baru telah diterbitkan!', 'success', 5000);
 
     // Reload periodes dan RKB dataset
     await loadPeriodes();
@@ -13543,14 +13583,24 @@ async function submitPengesahanTahap4Keseluruhan() {
     // Beralih ke Pusat Siklus Dokumen & Arsip Revisi terpadu
     switchView('view-siklus');
   } catch (err) {
-    alert('Gagal mengesahkan Tahap 4: ' + err.message);
+    if (errBox) {
+      errBox.style.display = 'block';
+      errBox.textContent = 'Gagal mengunci dokumen: ' + err.message;
+    } else {
+      showToast('Gagal mengunci dokumen: ' + err.message, 'error', 5000);
+    }
   } finally {
+    if (btnExec) {
+      btnExec.disabled = false;
+      btnExec.innerHTML = '🔒 Ya, Kunci Baseline &amp; Terbitkan Duplikat Baru';
+    }
     if (btnSubmit) {
       btnSubmit.disabled = false;
       btnSubmit.textContent = getTahap4SubmitButtonLabel(dasarPengesahan);
     }
   }
 }
+
 
 // ----------------------------------------------------------------------------
 // RIWAYAT ARSIP DOKUMEN REVISI (DILEBUR KE PUSAT SIKLUS DOKUMEN - BAB 5 CANON)

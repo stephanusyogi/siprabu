@@ -1257,10 +1257,10 @@
                   </div>
 
                   <!-- Kolom Mitra / Forum Kesepakatan (Muncul untuk Notulensi Audiensi, BA TAPD, & NPHD) -->
-                  <div class="prabu-form-group" id="group-tahap4-mitra" style="display: none;">
-                    <label for="tahap4-input-mitra" id="label-tahap4-mitra">Mitra / Forum Kesepakatan: <span style="color: red;">*</span></label>
-                    <input type="text" id="tahap4-input-mitra" class="form-control" placeholder="Contoh: DPRD dan Bakesbangpol Kab. Ngawi / TAPD Pemkab Ngawi">
-                    <small style="color: #64748b;" id="help-tahap4-mitra">Sebutkan pihak/instansi mitra dalam audiensi, pembahasan TAPD, atau penandatanganan NPHD.</small>
+                  <div class="prabu-form-group" id="group-tahap4-mitra" style="display: none; flex-direction: column; gap: 6px;">
+                    <label for="tahap4-input-mitra" id="label-tahap4-mitra" style="display: block;">Mitra / Forum Kesepakatan: <span style="color: red;">*</span></label>
+                    <input type="text" id="tahap4-input-mitra" class="form-control" style="width: 100%;" placeholder="Contoh: DPRD dan Bakesbangpol Kab. Ngawi / TAPD Pemkab Ngawi">
+                    <small style="color: #64748b; display: block;" id="help-tahap4-mitra">Sebutkan pihak/instansi mitra dalam audiensi, pembahasan TAPD, atau penandatanganan NPHD.</small>
                   </div>
 
                   <div class="prabu-grid-2col">
@@ -7924,6 +7924,76 @@
     </div>
 
     <!-- ================================================================= -->
+    <!-- MODAL: POP-UP KONFIRMASI PENGUNCIAN BASELINE RKB (TAHAP 4)        -->
+    <!-- ================================================================= -->
+    <div id="modal-confirm-tahap4" class="modal-backdrop" style="display: none; z-index: 1098;" onclick="if(event.target===this) closeConfirmTahap4Modal()">
+      <div class="modal-box" style="max-width: 580px; width: 95%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);">
+        <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: #ffffff; padding: 16px 20px;">
+          <div>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #ffffff;" id="modal-confirm-tahap4-title">🔒 Konfirmasi Penguncian Baseline RKB</h3>
+            <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 3px;">Periksa kembali ringkasan penetapan sebelum mengunci dokumen secara permanen</div>
+          </div>
+          <button type="button" class="btn-close" style="color: #ffffff; font-size: 20px;" onclick="closeConfirmTahap4Modal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 18px 20px; background: #ffffff;">
+          <div id="modal-confirm-tahap4-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; color: #991b1b; font-size: 12px; font-weight: 600;"></div>
+
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px; margin-bottom: 10px;">
+              <div>
+                <div style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Dokumen yang Akan Dikunci</div>
+                <div style="font-size: 13.5px; font-weight: 800; color: #0f172a; margin-top: 2px;" id="confirm-tahap4-nama-periode">-</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Total Pagu Baseline</div>
+                <div style="font-size: 16px; font-weight: 800; color: #15803d; font-family: var(--font-mono); margin-top: 2px;" id="confirm-tahap4-total-pagu">Rp 0</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+              <div>
+                <span style="color: #64748b; font-size: 11px;">Fase Perencanaan:</span>
+                <div style="font-weight: 800; color: #1e40af; margin-top: 2px;" id="confirm-tahap4-fase">-</div>
+              </div>
+              <div>
+                <span style="color: #64748b; font-size: 11px;">Dasar Pengesahan:</span>
+                <div style="font-weight: 800; color: #0f172a; margin-top: 2px;" id="confirm-tahap4-dasar">-</div>
+              </div>
+              <div id="confirm-tahap4-row-mitra" style="grid-column: span 2;">
+                <span style="color: #64748b; font-size: 11px;">Mitra / Forum Kesepakatan:</span>
+                <div style="font-weight: 700; color: #0f172a; margin-top: 2px;" id="confirm-tahap4-mitra">-</div>
+              </div>
+              <div>
+                <span style="color: #64748b; font-size: 11px;">Nomor Dokumen:</span>
+                <div style="font-weight: 700; color: #334155; font-family: var(--font-mono); margin-top: 2px;" id="confirm-tahap4-nomor">-</div>
+              </div>
+              <div>
+                <span style="color: #64748b; font-size: 11px;">Tanggal Dokumen:</span>
+                <div style="font-weight: 700; color: #334155; font-family: var(--font-mono); margin-top: 2px;" id="confirm-tahap4-tanggal">-</div>
+              </div>
+              <div style="grid-column: span 2;">
+                <span style="color: #64748b; font-size: 11px;">Catatan / Intisari Kesepakatan:</span>
+                <div style="font-weight: 600; color: #334155; margin-top: 2px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; font-size: 11.5px;" id="confirm-tahap4-catatan">-</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-left: 4px solid #10b981; border-radius: 8px; padding: 11px 14px; font-size: 12px; color: #065f46; line-height: 1.5;">
+            <strong>✨ Otomatisasi Siklus Berikutnya:</strong><br>
+            1. Dokumen di atas akan dikunci permanen sebagai <b>Baseline Sah (Read-Only)</b>.<br>
+            2. Sistem otomatis menerbitkan <b>Dokumen Kerja Aktif Baru (Duplikat)</b> dengan nilai awal yang sama untuk putaran penyesuaian berikutnya.
+          </div>
+        </div>
+        <div class="modal-footer" style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px 20px; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeConfirmTahap4Modal()">Batal / Periksa Lagi</button>
+          <button type="button" id="btn-execute-confirm-tahap4" class="btn btn-success" style="font-weight: 800; padding: 8px 18px;" onclick="executePengesahanTahap4Keseluruhan()">
+            🔒 Ya, Kunci Baseline &amp; Terbitkan Duplikat Baru
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
     <!-- MODAL: POP-UP DETAIL LOG AKTIVITAS (SEMULA VS MENJADI)            -->
     <!-- ================================================================= -->
     <div id="modal-audit-detail" class="modal-backdrop" style="display: none; z-index: 1095;">
@@ -8671,7 +8741,7 @@
         </div>
       </div>
 <script src="/data_juknis.js?v=5.1.0"></script>
-    <script src="/app.js?v=5.8.9-tahap4-adaptive-external-form"></script>
+    <script src="/app.js?v=5.9.0-tahap4-mysql-fix-and-custom-modal"></script>
     <script src="/pengadaan.js?v=5.8.5-tahap6-rich-resume-dashboard"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
