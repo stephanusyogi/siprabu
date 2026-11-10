@@ -5680,7 +5680,9 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
             </div>
             <div>
               <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Subbagian Pengusul</div>
-              <div style="font-size:12.5px; font-weight:800; color:#1e40af; margin-top:2px;">${cakraEsc(paket.pic_subbag || 'KUL')} (KPU Kab. Ngawi)</div>
+              <div style="font-size:12.5px; font-weight:800; color:#1e40af; margin-top:2px;">
+                ${paket.is_multi_subbag ? '<span class="cakra-badge cakra-badge-indigo" style="font-size:10px; margin-bottom:3px; display:inline-block;">Konsolidasi Multi-Subbag</span><br/>' : ''}${cakraEsc(paket.pic_subbag || 'KUL')} (KPU Kab. Ngawi)
+              </div>
             </div>
             <div>
               <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Nomor &amp; Tgl Disposisi KPA</div>
@@ -5688,6 +5690,27 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
               <div style="font-size:11px; color:#64748b; margin-top:2px;">Tgl Disposisi: ${cakraEsc(paket.tgl_disposisi_kpa || '-')}</div>
             </div>
           </div>
+
+          <!-- BARIS KHUSUS: RINCIAN KONSOLIDASI MULTI-SUBBAGIAN (PASAL 21 PERPRES PBJ) -->
+          ${(paket.is_multi_subbag && Array.isArray(paket.subbags) && paket.subbags.length) ? `
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 14px;">
+              <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                <span>🏛️ Rincian Naskah Dinas Pengusul per Subbagian (Konsolidasi Pasal 21 Perpres PBJ):</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:8px;">
+                ${paket.subbags.map((s, idx) => `
+                  <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:11px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                      <span class="cakra-badge cakra-badge-primary" style="font-size:9.5px; font-weight:800;">Subbag ${cakraEsc(s.subbag)}</span>
+                      <span style="color:#64748b; font-size:10.5px;">${cakraEsc(s.tgl_nota || '-')}</span>
+                    </div>
+                    <div style="font-weight:700; color:#0f172a; margin-bottom:2px;" class="cakra-mono">${cakraEsc(s.no_nota || '-')}</div>
+                    <div style="color:#475569; font-style:italic; font-size:10.5px;">${cakraEsc(s.perihal || 'Usulan Kebutuhan Barang')}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
 
           <!-- BARIS 2: NAMA PAKET & URGENSI KEBUTUHAN (KAK) -->
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
@@ -6989,6 +7012,7 @@ function openModalTahap1Input(paketIdOrNew = 'NEW') {
     if (bmnJml) bmnJml.value = 0;
     if (bmnCatatan) bmnCatatan.value = '';
 
+    toggleModalTahap1MultiSubbag(false);
     onModalTahap1MakChange('521211');
   } else {
     if (titleEl) titleEl.textContent = '✏️ Edit Data Pengadaan — Tahap 1: Identifikasi Kebutuhan';
@@ -7025,6 +7049,23 @@ function openModalTahap1Input(paketIdOrNew = 'NEW') {
     if (bmnJml) bmnJml.value = Number(p.bmn_jumlah_eksisting || 0);
     if (bmnCatatan) bmnCatatan.value = p.bmn_catatan_telaah || '';
 
+    let isMulti = !!(p.is_multi_subbag || (Array.isArray(p.subbags) && p.subbags.length > 1));
+    let multiList = [];
+    if (Array.isArray(p.subbags) && p.subbags.length > 0) {
+      multiList = p.subbags;
+    } else if (p.multi_pengusul_json) {
+      try {
+        multiList = typeof p.multi_pengusul_json === 'string' ? JSON.parse(p.multi_pengusul_json) : p.multi_pengusul_json;
+      } catch (e) { multiList = []; }
+    }
+    if (!Array.isArray(multiList)) multiList = [];
+    if (multiList.length > 1) isMulti = true;
+
+    toggleModalTahap1MultiSubbag(isMulti);
+    if (isMulti) {
+      renderModalTahap1PengusulRows(multiList);
+    }
+
     onModalTahap1MakChange(p.kode_akun_mak || '');
   }
 
@@ -7055,6 +7096,128 @@ function onModalTahap1SubbagChange(val) {
   }
 }
 window.onModalTahap1SubbagChange = onModalTahap1SubbagChange;
+
+// =============================================================================
+// HELPER TAHAP 1: KONSOLIDASI MULTI-SUBBAGIAN PENGUSUL
+// =============================================================================
+function toggleModalTahap1MultiSubbag(isMulti) {
+  const boxSingle = document.getElementById('m1_box_subbag_tunggal');
+  const boxMulti = document.getElementById('m1_box_subbag_multi');
+  const radioSingle = document.getElementById('m1_mode_subbag_single');
+  const radioMulti = document.getElementById('m1_mode_subbag_multi');
+  if (radioSingle) radioSingle.checked = !isMulti;
+  if (radioMulti) radioMulti.checked = !!isMulti;
+  if (boxSingle) boxSingle.style.display = isMulti ? 'none' : 'block';
+  if (boxMulti) boxMulti.style.display = isMulti ? 'block' : 'none';
+
+  if (isMulti) {
+    const container = document.getElementById('m1_multi_pengusul_list');
+    if (container && container.querySelectorAll('.m1-pengusul-row').length === 0) {
+      addModalTahap1PengusulRow({ subbag: 'KUL', no_nota: '001/ND.KUL/KPU-Kab-014.329781/V/2026', tgl_nota: '2026-05-04', perihal: 'Usulan Kebutuhan Barang Subbag KUL TA 2026' });
+      addModalTahap1PengusulRow({ subbag: 'RENDATIN', no_nota: '001/ND.RENDATIN/KPU-Kab-014.329781/V/2026', tgl_nota: '2026-05-04', perihal: 'Usulan Kebutuhan Barang Subbag RENDATIN TA 2026' });
+    }
+  }
+}
+window.toggleModalTahap1MultiSubbag = toggleModalTahap1MultiSubbag;
+
+function renderModalTahap1PengusulRows(list) {
+  const container = document.getElementById('m1_multi_pengusul_list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!Array.isArray(list) || list.length === 0) {
+    addModalTahap1PengusulRow({ subbag: 'KUL', no_nota: '001/ND.KUL/KPU-Kab-014.329781/V/2026', tgl_nota: '2026-05-04', perihal: 'Usulan Kebutuhan Barang Subbag KUL TA 2026' });
+    addModalTahap1PengusulRow({ subbag: 'RENDATIN', no_nota: '001/ND.RENDATIN/KPU-Kab-014.329781/V/2026', tgl_nota: '2026-05-04', perihal: 'Usulan Kebutuhan Barang Subbag RENDATIN TA 2026' });
+    return;
+  }
+  list.forEach(item => addModalTahap1PengusulRow(item));
+}
+window.renderModalTahap1PengusulRows = renderModalTahap1PengusulRows;
+
+function addModalTahap1PengusulRow(data = {}) {
+  const container = document.getElementById('m1_multi_pengusul_list');
+  if (!container) return;
+  const count = container.querySelectorAll('.m1-pengusul-row').length;
+  const idx = count + 1;
+  const subbagVal = data.subbag || (idx === 1 ? 'KUL' : (idx === 2 ? 'RENDATIN' : (idx === 3 ? 'TEKNIS' : (idx === 4 ? 'HUKUM' : 'PARSDM'))));
+  const noNota = data.no_nota || ('001/ND.' + subbagVal + '/KPU-Kab-014.329781/V/2026');
+  const tglNota = data.tgl_nota || '2026-05-04';
+  const perihal = data.perihal || ('Usulan Pengadaan Barang Kebutuhan Subbag ' + subbagVal + ' TA 2026');
+
+  const div = document.createElement('div');
+  div.className = 'm1-pengusul-row';
+  div.style.cssText = 'background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:10px; position:relative;';
+  div.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+      <div style="font-size:11.5px; font-weight:800; color:#1e40af;" class="m1-pengusul-title">
+        🏛️ Subbagian Pengusul ${idx}
+      </div>
+      <button type="button" class="btn btn-xs btn-outline-danger" onclick="removeModalTahap1PengusulRow(this)" style="font-size:10px; padding:2px 8px; border-radius:4px; border:1px solid #fca5a5; background:#fff; color:#dc2626; cursor:pointer;">
+        ✕ Hapus Subbag
+      </button>
+    </div>
+    <div style="display:grid; grid-template-columns: 1.2fr 1.4fr 1fr; gap:10px; margin-bottom:8px;">
+      <div>
+        <label style="font-size:10.5px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Subbag Pemohon *</label>
+        <select class="cakra-form-control m1-pengusul-subbag" style="font-size:11px; font-weight:700;" onchange="onModalTahap1MultiSubbagSelect(this)">
+          <option value="KUL" ${subbagVal === 'KUL' ? 'selected' : ''}>Subbag Keuangan, Umum & Logistik (KUL)</option>
+          <option value="RENDATIN" ${subbagVal === 'RENDATIN' ? 'selected' : ''}>Subbag Perencanaan, Data & Informasi (RENDATIN)</option>
+          <option value="TEKNIS" ${subbagVal === 'TEKNIS' ? 'selected' : ''}>Subbag Teknis Penyelenggaraan Pemilu (TEKNIS)</option>
+          <option value="HUKUM" ${subbagVal === 'HUKUM' ? 'selected' : ''}>Subbag Hukum & SDM (HUKUM)</option>
+          <option value="PARSDM" ${subbagVal === 'PARSDM' ? 'selected' : ''}>Subbag Partisipasi Hubmas & SDM (PARSDM)</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:10.5px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Nomor Nota Dinas Pengusul</label>
+        <input type="text" class="cakra-form-control cakra-mono m1-pengusul-no-nota" value="${cakraEsc(noNota)}" style="font-size:11px;" placeholder="cth: 001/ND.../V/2026" />
+      </div>
+      <div>
+        <label style="font-size:10.5px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Tanggal Nota Dinas</label>
+        <input type="date" class="cakra-form-control m1-pengusul-tgl-nota" value="${cakraEsc(tglNota)}" style="font-size:11px;" />
+      </div>
+    </div>
+    <div>
+      <label style="font-size:10.5px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Perihal Nota Dinas</label>
+      <input type="text" class="cakra-form-control m1-pengusul-perihal" value="${cakraEsc(perihal)}" style="font-size:11px;" placeholder="cth: Usulan Kebutuhan Barang..." />
+    </div>
+  `;
+  container.appendChild(div);
+  refreshModalTahap1PengusulTitles();
+}
+window.addModalTahap1PengusulRow = addModalTahap1PengusulRow;
+
+function removeModalTahap1PengusulRow(btn) {
+  const row = btn.closest('.m1-pengusul-row');
+  if (!row) return;
+  const container = document.getElementById('m1_multi_pengusul_list');
+  if (container.querySelectorAll('.m1-pengusul-row').length <= 1) {
+    cakraNotify('⚠️ Minimal harus ada 1 subbag pengusul!', 'warning');
+    return;
+  }
+  row.remove();
+  refreshModalTahap1PengusulTitles();
+}
+window.removeModalTahap1PengusulRow = removeModalTahap1PengusulRow;
+
+function refreshModalTahap1PengusulTitles() {
+  const container = document.getElementById('m1_multi_pengusul_list');
+  if (!container) return;
+  container.querySelectorAll('.m1-pengusul-row').forEach((row, i) => {
+    const t = row.querySelector('.m1-pengusul-title');
+    if (t) t.textContent = '🏛️ Subbagian Pengusul ' + (i + 1);
+  });
+}
+window.refreshModalTahap1PengusulTitles = refreshModalTahap1PengusulTitles;
+
+function onModalTahap1MultiSubbagSelect(sel) {
+  const row = sel.closest('.m1-pengusul-row');
+  if (!row) return;
+  const noNotaInp = row.querySelector('.m1-pengusul-no-nota');
+  const val = sel.value;
+  if (noNotaInp && (!noNotaInp.value || noNotaInp.value.includes('/ND.'))) {
+    noNotaInp.value = '001/ND.' + val + '/KPU-Kab-014.329781/V/2026';
+  }
+}
+window.onModalTahap1MultiSubbagSelect = onModalTahap1MultiSubbagSelect;
 
 function onModalTahap1MakChange(val) {
   const clean = String(val || '').trim();
@@ -7138,6 +7301,37 @@ async function submitModalTahap1Input(isSelesaiAction = false) {
   const statusTahap = isSelesaiAction ? 'Selesai' : (activeTRow.status_tahap === 'Selesai' ? 'Selesai' : 'Draft');
   const targetStageToOpen = isSelesaiAction ? 2 : 1;
 
+  const isMulti = document.getElementById('m1_mode_subbag_multi')?.checked || false;
+  let multiPengusulList = [];
+  let picSubbagVal = '';
+  let noNotaVal = '';
+  let tglNotaVal = '';
+  let perihalVal = '';
+
+  if (isMulti) {
+    const rows = document.querySelectorAll('#m1_multi_pengusul_list .m1-pengusul-row');
+    rows.forEach(r => {
+      const sub = r.querySelector('.m1-pengusul-subbag')?.value || 'KUL';
+      const noN = r.querySelector('.m1-pengusul-no-nota')?.value.trim() || '';
+      const tglN = r.querySelector('.m1-pengusul-tgl-nota')?.value || '2026-05-04';
+      const per = r.querySelector('.m1-pengusul-perihal')?.value.trim() || '';
+      multiPengusulList.push({ subbag: sub, no_nota: noN, tgl_nota: tglN, perihal: per });
+    });
+    if (multiPengusulList.length === 0) {
+      cakraNotify('⚠️ Minimal harus ada 1 Subbagian pengusul pada usulan multi-subbag!', 'warning');
+      return;
+    }
+    picSubbagVal = [...new Set(multiPengusulList.map(x => x.subbag))].join(', ');
+    noNotaVal = multiPengusulList.map(x => x.no_nota).filter(Boolean).join('; ');
+    tglNotaVal = multiPengusulList[0]?.tgl_nota || '2026-05-04';
+    perihalVal = multiPengusulList.map(x => x.perihal).filter(Boolean).join('; ');
+  } else {
+    picSubbagVal = getStr('m1_pic_subbag') || 'KUL';
+    noNotaVal = getStr('m1_no_nota_dinas_pengusul');
+    tglNotaVal = getStr('m1_tgl_nota_dinas_pengusul') || '2026-05-04';
+    perihalVal = getStr('m1_perihal_nota_dinas');
+  }
+
   const payload = {
     ...existingPaket,
     id: isEdit ? CakraState.modalTahap1EditingId : undefined,
@@ -7145,13 +7339,15 @@ async function submitModalTahap1Input(isSelesaiAction = false) {
     kode_rup: getStr('m1_kode_rup') || existingPaket.kode_rup || '',
     nama_paket: namaPaket,
     uraian_pekerjaan: getStr('m1_uraian_pekerjaan'),
-    pic_subbag: getStr('m1_pic_subbag') || 'KUL',
+    pic_subbag: picSubbagVal,
+    is_multi_subbag: isMulti ? 1 : 0,
+    multi_pengusul_json: isMulti ? multiPengusulList : null,
     kode_akun_mak: cleanMak,
     nama_akun_mak: getStr('m1_nama_akun_mak') || (isModalMak ? 'Belanja Modal Peralatan dan Mesin' : 'Belanja Bahan'),
     nilai_pagu: nilaiPagu,
-    no_nota_dinas_pengusul: getStr('m1_no_nota_dinas_pengusul'),
-    tgl_nota_dinas_pengusul: getStr('m1_tgl_nota_dinas_pengusul') || '2026-05-04',
-    perihal_nota_dinas: getStr('m1_perihal_nota_dinas'),
+    no_nota_dinas_pengusul: noNotaVal,
+    tgl_nota_dinas_pengusul: tglNotaVal,
+    perihal_nota_dinas: perihalVal,
     no_disposisi_kpa: getStr('m1_no_disposisi_kpa'),
     tgl_disposisi_kpa: getStr('m1_tgl_disposisi_kpa') || '2026-05-04',
     bmn_sifat_kebutuhan: isModalMak ? getStr('m1_bmn_sifat_kebutuhan') : 'PENGGANTIAN',
@@ -7949,18 +8145,28 @@ function generateUniversalModalFields(num, paket, activeTRow) {
                   <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Spesifikasi Teknis Detail KAK (Processor, RAM, Storage, Port, PSU, OS, Garansi yang Dipersyaratkan) *</label>
                   <textarea class="cakra-form-control t4-item-spek" rows="2" style="font-size:11px; line-height:1.45;" placeholder="Cantumkan spesifikasi fungsional terperinci...">${cakraEsc(it.spesifikasi_teknis || '')}</textarea>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:10px;">
                   <div style="display:flex; align-items:center; gap:6px;">
                     <label style="font-size:10px; font-weight:700; color:#475569; white-space:nowrap;">Target TKDN:</label>
-                    <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="${Number(it.persen_tkdn || 40)}" style="font-size:11px; width:75px;" />
+                    <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="${Number(it.persen_tkdn || 40)}" style="font-size:11px; width:65px;" />
                     <span style="font-size:10.5px; font-weight:700; color:#475569;">%</span>
                   </div>
                   <div style="display:flex; align-items:center; gap:6px;">
-                    <label style="font-size:10px; font-weight:700; color:#475569; white-space:nowrap;">Pencatatan SAKTI:</label>
+                    <label style="font-size:10px; font-weight:700; color:#475569; white-space:nowrap;">SAKTI:</label>
                     <select class="cakra-form-control t4-item-sakti" style="font-size:11px;">
                       <option value="Aset Tetap (BMN)" ${(it.jenis_pencatatan_sakti || 'Aset Tetap (BMN)') === 'Aset Tetap (BMN)' ? 'selected' : ''}>Aset Tetap (BMN)</option>
                       <option value="Persediaan" ${it.jenis_pencatatan_sakti === 'Persediaan' ? 'selected' : ''}>Persediaan</option>
                       <option value="Jasa/Habis Pakai" ${it.jenis_pencatatan_sakti === 'Jasa/Habis Pakai' ? 'selected' : ''}>Jasa/Habis Pakai</option>
+                    </select>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <label style="font-size:10px; font-weight:700; color:#1e40af; white-space:nowrap;">Alokasi Subbag:</label>
+                    <select class="cakra-form-control t4-item-subbag" style="font-size:11px; font-weight:700;">
+                      <option value="KUL" ${(it.pic_subbag_pengguna || 'KUL') === 'KUL' ? 'selected' : ''}>KUL</option>
+                      <option value="RENDATIN" ${it.pic_subbag_pengguna === 'RENDATIN' ? 'selected' : ''}>RENDATIN</option>
+                      <option value="TEKNIS" ${it.pic_subbag_pengguna === 'TEKNIS' ? 'selected' : ''}>TEKNIS</option>
+                      <option value="HUKUM" ${it.pic_subbag_pengguna === 'HUKUM' ? 'selected' : ''}>HUKUM</option>
+                      <option value="PARSDM" ${it.pic_subbag_pengguna === 'PARSDM' ? 'selected' : ''}>PARSDM</option>
                     </select>
                   </div>
                 </div>
@@ -7999,18 +8205,28 @@ function generateUniversalModalFields(num, paket, activeTRow) {
                   <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Spesifikasi Teknis Detail KAK *</label>
                   <textarea class="cakra-form-control t4-item-spek" rows="2" style="font-size:11px;" placeholder="Cantumkan spesifikasi fungsional terperinci..."></textarea>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:10px;">
                   <div style="display:flex; align-items:center; gap:6px;">
                     <label style="font-size:10px; font-weight:700; color:#475569;">Target TKDN:</label>
-                    <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="40" style="font-size:11px; width:75px;" />
+                    <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="40" style="font-size:11px; width:65px;" />
                     <span style="font-size:10.5px; font-weight:700; color:#475569;">%</span>
                   </div>
                   <div style="display:flex; align-items:center; gap:6px;">
-                    <label style="font-size:10px; font-weight:700; color:#475569;">Pencatatan SAKTI:</label>
+                    <label style="font-size:10px; font-weight:700; color:#475569;">SAKTI:</label>
                     <select class="cakra-form-control t4-item-sakti" style="font-size:11px;">
                       <option value="Aset Tetap (BMN)" selected>Aset Tetap (BMN)</option>
                       <option value="Persediaan">Persediaan</option>
                       <option value="Jasa/Habis Pakai">Jasa/Habis Pakai</option>
+                    </select>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <label style="font-size:10px; font-weight:700; color:#1e40af;">Alokasi Subbag:</label>
+                    <select class="cakra-form-control t4-item-subbag" style="font-size:11px; font-weight:700;">
+                      <option value="KUL" selected>KUL</option>
+                      <option value="RENDATIN">RENDATIN</option>
+                      <option value="TEKNIS">TEKNIS</option>
+                      <option value="HUKUM">HUKUM</option>
+                      <option value="PARSDM">PARSDM</option>
                     </select>
                   </div>
                 </div>
@@ -8630,6 +8846,7 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
         const spek = card.querySelector('.t4-item-spek')?.value.trim() || '-';
         const tkdn = Number(card.querySelector('.t4-item-tkdn')?.value || 40);
         const sakti = card.querySelector('.t4-item-sakti')?.value || 'Aset Tetap (BMN)';
+        const subbagPengguna = card.querySelector('.t4-item-subbag')?.value || 'KUL';
 
         return {
           ...matchedOld,
@@ -8642,7 +8859,8 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
           persen_tkdn: tkdn,
           harga_satuan_hps: paguSat,
           jumlah_hps: Math.round(vol * paguSat),
-          jenis_pencatatan_sakti: sakti
+          jenis_pencatatan_sakti: sakti,
+          pic_subbag_pengguna: subbagPengguna
         };
       });
 
@@ -8916,18 +9134,28 @@ function tambahItemTahap4() {
       <label style="font-size:10px; font-weight:700; color:#475569; display:block; margin-bottom:2px;">Spesifikasi Teknis Detail KAK *</label>
       <textarea class="cakra-form-control t4-item-spek" rows="2" style="font-size:11px;" placeholder="Cantumkan spesifikasi fungsional terperinci..."></textarea>
     </div>
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:10px;">
       <div style="display:flex; align-items:center; gap:6px;">
         <label style="font-size:10px; font-weight:700; color:#475569;">Target TKDN:</label>
-        <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="40" style="font-size:11px; width:75px;" />
+        <input type="number" class="cakra-form-control cakra-mono t4-item-tkdn" value="40" style="font-size:11px; width:65px;" />
         <span style="font-size:10.5px; font-weight:700; color:#475569;">%</span>
       </div>
       <div style="display:flex; align-items:center; gap:6px;">
-        <label style="font-size:10px; font-weight:700; color:#475569;">Pencatatan SAKTI:</label>
+        <label style="font-size:10px; font-weight:700; color:#475569;">SAKTI:</label>
         <select class="cakra-form-control t4-item-sakti" style="font-size:11px;">
           <option value="Aset Tetap (BMN)" selected>Aset Tetap (BMN)</option>
           <option value="Persediaan">Persediaan</option>
           <option value="Jasa/Habis Pakai">Jasa/Habis Pakai</option>
+        </select>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label style="font-size:10px; font-weight:700; color:#1e40af;">Alokasi Subbag:</label>
+        <select class="cakra-form-control t4-item-subbag" style="font-size:11px; font-weight:700;">
+          <option value="KUL" selected>KUL</option>
+          <option value="RENDATIN">RENDATIN</option>
+          <option value="TEKNIS">TEKNIS</option>
+          <option value="HUKUM">HUKUM</option>
+          <option value="PARSDM">PARSDM</option>
         </select>
       </div>
     </div>

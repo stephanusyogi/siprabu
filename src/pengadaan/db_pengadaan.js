@@ -127,9 +127,12 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN disposisi_tgl_diajukan DATE DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN disposisi_tgl_disposisi DATE DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN target_sertifikat_tkdn VARCHAR(255) DEFAULT 'TKDN 42.50% + Bobot Manfaat Perusahaan (BMP) 10.00%'",
+    "ALTER TABLE pbj_paket ADD COLUMN is_multi_subbag TINYINT(1) DEFAULT 0",
+    "ALTER TABLE pbj_paket ADD COLUMN multi_pengusul_json TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket_item ADD COLUMN kode_barang_bmn VARCHAR(128) DEFAULT '1.01.03.01.001 (Persediaan / BMN)'",
     "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'",
-    "ALTER TABLE pbj_paket_item ADD COLUMN evaluasi_pasar_json TEXT DEFAULT NULL"
+    "ALTER TABLE pbj_paket_item ADD COLUMN evaluasi_pasar_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket_item ADD COLUMN pic_subbag_pengguna VARCHAR(64) DEFAULT 'KUL'"
   ];
 
   for (const sql of ddlStatements) {
@@ -416,6 +419,15 @@ async function getPaketFullById(paketId) {
   const [pakets] = await pool.query('SELECT * FROM pbj_paket WHERE id = ?', [paketId]);
   if (!pakets.length) return null;
   const paket = pakets[0];
+  if (paket.multi_pengusul_json && typeof paket.multi_pengusul_json === 'string') {
+    try {
+      paket.multi_pengusul_json = JSON.parse(paket.multi_pengusul_json);
+    } catch (e) {
+      paket.multi_pengusul_json = [];
+    }
+  } else if (!paket.multi_pengusul_json) {
+    paket.multi_pengusul_json = [];
+  }
 
   const [items] = await pool.query('SELECT * FROM pbj_paket_item WHERE paket_id = ? ORDER BY urutan ASC, id ASC', [paketId]);
   items.forEach(it => {
@@ -446,6 +458,7 @@ async function getPaketFullById(paketId) {
     items,
     tahaps,
     subbag,
+    subbags: subbags || [],
     penyedia: penyedias[0] || {},
     ppk: pejabatMap[paket.ppk_id] || pejabatMap['PPK'] || {},
     kpa: pejabatMap[paket.kpa_id] || pejabatMap['KPA'] || {},
@@ -533,6 +546,7 @@ async function savePaket(data) {
         rkb_program=?, rkb_kegiatan=?, rkb_subkegiatan=?, rkb_komponen=?, bmn_kategori_telaah=?,
         disposisi_status=?, disposisi_catatan_kpa=?, disposisi_tgl_diajukan=?, disposisi_tgl_disposisi=?,
         no_nota_dinas_pengusul=?, tgl_nota_dinas_pengusul=?, perihal_nota_dinas=?, no_disposisi_kpa=?, tgl_disposisi_kpa=?,
+        is_multi_subbag=?, multi_pengusul_json=?,
         bmn_status_ketersediaan=?, bmn_jumlah_eksisting=?, bmn_kondisi_eksisting=?, bmn_sifat_kebutuhan=?, bmn_kesesuaian_rkbmn=?, bmn_catatan_telaah=?,
         jenis_pengadaan=?, cara_pengadaan=?, metode_pemilihan=?, sub_metode_epurchasing=?, fitur_spse=?, pelaksana_pemilihan=?,
         nilai_pagu=?, jenis_kertas_harga=?, nilai_hps=?, nilai_penawaran_awal=?, nilai_kontrak=?,
@@ -556,6 +570,7 @@ async function savePaket(data) {
         p.bmn_kategori_telaah || cur.bmn_kategori_telaah || (String(p.kode_akun_mak || '').startsWith('53') ? 'MODAL' : 'EKSTRAKOMPTABEL'),
         p.disposisi_status || cur.disposisi_status || 'DISETUJUI', p.disposisi_catatan_kpa || cur.disposisi_catatan_kpa || '', p.disposisi_tgl_diajukan || cur.disposisi_tgl_diajukan || null, p.disposisi_tgl_disposisi || cur.disposisi_tgl_disposisi || null,
         p.no_nota_dinas_pengusul || cur.no_nota_dinas_pengusul || '', p.tgl_nota_dinas_pengusul || cur.tgl_nota_dinas_pengusul || '', p.perihal_nota_dinas || cur.perihal_nota_dinas || '', p.no_disposisi_kpa || cur.no_disposisi_kpa || '', p.tgl_disposisi_kpa || cur.tgl_disposisi_kpa || '',
+        Number(p.is_multi_subbag !== undefined ? p.is_multi_subbag : (cur.is_multi_subbag || 0)), typeof p.multi_pengusul_json === 'object' ? JSON.stringify(p.multi_pengusul_json) : (p.multi_pengusul_json || cur.multi_pengusul_json || null),
         p.bmn_status_ketersediaan || cur.bmn_status_ketersediaan || 'TERSEDIA_RUSAK_BERAT', Number(p.bmn_jumlah_eksisting ?? cur.bmn_jumlah_eksisting ?? 0), p.bmn_kondisi_eksisting || cur.bmn_kondisi_eksisting || '', p.bmn_sifat_kebutuhan || cur.bmn_sifat_kebutuhan || 'PENGGANTIAN', p.bmn_kesesuaian_rkbmn || cur.bmn_kesesuaian_rkbmn || '', p.bmn_catatan_telaah || cur.bmn_catatan_telaah || '',
         p.jenis_pengadaan || cur.jenis_pengadaan || 'Barang', p.cara_pengadaan || cur.cara_pengadaan || 'Penyedia', p.metode_pemilihan || cur.metode_pemilihan || 'E-Purchasing',
         p.sub_metode_epurchasing || cur.sub_metode_epurchasing || 'Negosiasi Harga', p.fitur_spse || cur.fitur_spse || rekomendasi.fiturSpse, p.pelaksana_pemilihan || cur.pelaksana_pemilihan || rekomendasi.pelaksana,
@@ -651,6 +666,7 @@ async function savePaket(data) {
         kode_paket_internal, kode_rup, nama_paket, uraian_pekerjaan, lokasi_pekerjaan,
         sumber_dana, tahun_anggaran, kode_akun_mak, nama_akun_mak, komponen_ro, pic_subbag,
         no_nota_dinas_pengusul, tgl_nota_dinas_pengusul, perihal_nota_dinas, no_disposisi_kpa, tgl_disposisi_kpa,
+        is_multi_subbag, multi_pengusul_json,
         bmn_status_ketersediaan, bmn_jumlah_eksisting, bmn_kondisi_eksisting, bmn_sifat_kebutuhan, bmn_kesesuaian_rkbmn, bmn_catatan_telaah,
         siprabu_rab_id,
         jenis_pengadaan, cara_pengadaan, metode_pemilihan, sub_metode_epurchasing, fitur_spse, pelaksana_pemilihan,
@@ -661,13 +677,14 @@ async function savePaket(data) {
         jenis_kontrak, bentuk_kontrak, masa_pelaksanaan_hari, tgl_mulai_kerja, tgl_selesai_kontrak, tgl_realisasi_selesai,
         penyedia_id, ppk_id, pejabat_pengadaan_id, kpa_id, bendahara_id, tim_teknis_id,
         tahap_aktif, status_paket, nilai_kinerja_akhir, predikat_kinerja, catatan_khusus_ppk
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         kodeInternal, kodeRup, data.nama_paket || 'Paket Pengadaan Baru KPU Kabupaten Ngawi',
         data.uraian_pekerjaan || data.nama_paket || '', 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
         data.sumber_dana || 'APBN DIPA', data.tahun_anggaran || '2026', data.kode_akun_mak || '521211', data.nama_akun_mak || 'Belanja Bahan',
         data.komponen_ro || '6639.BDB.001.051.A', data.pic_subbag || 'KUL',
         data.no_nota_dinas_pengusul || '', data.tgl_nota_dinas_pengusul || '', data.perihal_nota_dinas || '', data.no_disposisi_kpa || '', data.tgl_disposisi_kpa || '',
+        Number(data.is_multi_subbag || 0), typeof data.multi_pengusul_json === 'object' ? JSON.stringify(data.multi_pengusul_json) : (data.multi_pengusul_json || null),
         data.bmn_status_ketersediaan || 'TERSEDIA_RUSAK_BERAT', Number(data.bmn_jumlah_eksisting || 0), data.bmn_kondisi_eksisting || '', data.bmn_sifat_kebutuhan || 'PENGGANTIAN', data.bmn_kesesuaian_rkbmn || '', data.bmn_catatan_telaah || '',
         data.siprabu_rab_id || null,
         data.jenis_pengadaan || 'Barang', data.cara_pengadaan || 'Penyedia', data.metode_pemilihan || 'E-Purchasing',
@@ -755,8 +772,8 @@ async function savePaketItems(paketId, items) {
         harga_survei_1, sumber_survei_1, harga_survei_2, sumber_survei_2, harga_survei_3, sumber_survei_3,
         metode_penentuan_hps, harga_satuan_hps, jumlah_hps,
         harga_satuan_penawaran, harga_satuan_kontrak, jumlah_kontrak,
-        kode_barang_bmn, jenis_pencatatan_sakti, evaluasi_pasar_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        kode_barang_bmn, jenis_pencatatan_sakti, evaluasi_pasar_json, pic_subbag_pengguna
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         paketId, idx++, it.kategori_item || 'Utama', it.uraian_item || 'Item Barang/Jasa',
         it.spesifikasi_teknis || '', it.satuan || 'Paket', vol,
@@ -767,7 +784,8 @@ async function savePaketItems(paketId, items) {
         it.metode_penentuan_hps || 'Terendah', hpsSatuan, Math.round(vol * hpsSatuan),
         penawaranSatuan, kontrakSatuan, Math.round(vol * kontrakSatuan),
         it.kode_barang_bmn || '1.01.03.01.001', it.jenis_pencatatan_sakti || 'Persediaan',
-        typeof it.evaluasi_pasar_json === 'object' ? JSON.stringify(it.evaluasi_pasar_json) : (it.evaluasi_pasar_json || null)
+        typeof it.evaluasi_pasar_json === 'object' ? JSON.stringify(it.evaluasi_pasar_json) : (it.evaluasi_pasar_json || null),
+        it.pic_subbag_pengguna || 'KUL'
       ]
     );
   }

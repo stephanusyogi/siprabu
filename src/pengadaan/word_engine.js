@@ -1195,13 +1195,32 @@ function buildStageLegalComplianceSection(stageNo, ctx, tahapRow, keu) {
  * 4. Lembar Catatan Referensi Regulasi & Audit Internal PBJ (Non-Cetak Resmi)
  */
 function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
-  const { paket, items, subbag, ppk, kpa, settings } = ctx;
+  const { paket, items, subbag, subbags, ppk, kpa, settings } = ctx;
   const sb = subbag || {};
   const kasubagNama = sb.kasubag_nama || 'MOHAMMAD NOOR JIHAN';
   const kasubagNip = sb.kasubag_nip || '19840101 200912 1 001';
   const kasubagJabatan = sb.kasubag_jabatan || `Kepala Subbagian ${paket.pic_subbag || 'Perencanaan, Data dan Informasi'}`;
   const komisionerNama = sb.komisioner_nama || 'PUTRA ADI WIBOWO SW';
   const komisionerJabatan = sb.komisioner_jabatan || `Ketua Divisi ${paket.pic_subbag || 'Perencanaan, Data dan Informasi'}`;
+
+  // Multi-subbag mapping & detection
+  const subbagMap = {};
+  (subbags || []).forEach(s => {
+    subbagMap[s.kode] = s;
+  });
+
+  let multiPengusul = [];
+  if (paket.is_multi_subbag) {
+    if (Array.isArray(paket.subbags) && paket.subbags.length > 0) {
+      multiPengusul = paket.subbags;
+    } else if (paket.multi_pengusul_json) {
+      try {
+        multiPengusul = typeof paket.multi_pengusul_json === 'string' ? JSON.parse(paket.multi_pengusul_json) : paket.multi_pengusul_json;
+      } catch (e) { multiPengusul = []; }
+    }
+  }
+  if (!Array.isArray(multiPengusul)) multiPengusul = [];
+  const isMultiSubbag = !!(paket.is_multi_subbag && multiPengusul.length > 1);
 
   const noNota = paket.no_nota_dinas_pengusul || `001/ND.${paket.pic_subbag || 'RENDATIN'}/KPU-Kab-014.329781/V/2026`;
   const tglNotaStr = formatTanggalIndo(paket.tgl_nota_dinas_pengusul || '2026-05-04');
@@ -1212,112 +1231,247 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
   const tglIdkStr = formatTanggalIndo(tahapRow.tanggal_dokumen || '2026-05-05');
   const hariTanggalIdk = formatHariTanggalBeritaAcara(tahapRow.tanggal_dokumen || '2026-05-05');
 
+  const bmnPengelolaNama = 'NURFANTI SULISTYO W';
+  const bmnPengelolaNip = '19820512 200801 2 007';
+  const bmnPengelolaJabatan = 'Kasubbag Keuangan, Umum & Logistik (Pengelola BMN)';
+  const tglTelaahStr = tglNotaStr;
+
   const children = [];
 
   // =========================================================================
   // DOKUMEN 1: NOTA DINAS PENGUSULAN KEBUTUHAN PENGADAAN (SUBBAG PIC + DIVISI)
+  // JIKA MULTI-SUBBAG: CETAK NOTA DINAS INDIVIDUAL PER SUBBAGIAN DENGAN TTD MASING-MASING
+  // JIKA TUNGGAL: CETAK 1 NOTA DINAS FORMAL
   // =========================================================================
-  children.push(...buildKopSuratKpu(settings));
-  children.push(
-    pText('NOTA DINAS', { bold: true, size: 24, align: AlignmentType.CENTER, before: 30, after: 10 }),
-    pText(`Nomor: ${noNota}`, { size: 18, align: AlignmentType.CENTER, color: '475569', before: 0, after: 120 }),
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Yth.', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Kuasa Pengguna Anggaran (KPA) KPU Kabupaten Ngawi', { bold: true, size: 19 })] })
-          ]
-        }),
-        new TableRow({
-          children: [
-            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Dari', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(`${kasubagJabatan} (${kasubagNama})`, { size: 19 })] })
-          ]
-        }),
-        new TableRow({
-          children: [
-            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Mengetahui', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(`${komisionerJabatan} (${komisionerNama})`, { bold: true, size: 19, color: '1E3A8A' })] })
-          ]
-        }),
-        new TableRow({
-          children: [
-            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Tanggal', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(tglNotaStr, { size: 19 })] })
-          ]
-        }),
-        new TableRow({
-          children: [
-            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Sifat', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Penting / Segera', { size: 19 })] })
-          ]
-        }),
-        new TableRow({
-          children: [
-            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Hal', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
-            new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(perihalNota, { bold: true, size: 19, color: '0F172A' })] })
-          ]
-        })
-      ]
-    }),
-    pText('', { after: 60, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' } } }),
-    pText('Bersama ini kami sampaikan dengan hormat usulan kebutuhan pengadaan barang modal guna menunjang kelancaran tugas pokok kedinasan Komisi Pemilihan Umum Kabupaten Ngawi Tahun Anggaran ' + (paket.tahun_anggaran || '2026') + ', dengan rincian pertimbangan sebagai berikut:'),
-    pNumbered('1.', `Dasar Kebutuhan: ${paket.uraian_pekerjaan || 'Perangkat pendukung kerja operasional yang ada saat ini telah melewati batas usia teknis ekonomis sehingga memerlukan peremajaan/pengadaan baru guna menjamin kestabilan dan kelancaran proses kerja.'}`, { level: 1 }),
-    pNumbered('2.', `Rincian Usulan Barang: Kebutuhan pengadaan "${paket.nama_paket}" meliputi ${items && items.length ? items.map(it => `${it.volume || 1} ${it.satuan || 'Unit'} ${it.uraian_item || ''}`).join(', ') : 'peralatan operasional sesuai rincian KAK'}.`, { level: 1 }),
-    pNumbered('3.', 'Pembebanan Anggaran (Silsilah RKB/DIPA Definitif): Alokasi anggaran telah dialokasikan secara sah pada dokumen perencanaan anggaran definitif Satuan Kerja KPU Kabupaten Ngawi Tahun Anggaran ' + (paket.tahun_anggaran || '2026') + ' dengan rincian hierarki:', { level: 1 }),
-    pNumbered('a.', `Program : ${paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi'}`, { level: 2 }),
-    pNumbered('b.', `Kegiatan : ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)'}`, { level: 2 }),
-    pNumbered('c.', `Sub Kegiatan / Komponen : ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu'}`, { level: 2 }),
-    pNumbered('d.', `Mata Anggaran Kegiatan (MAK) : ${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`, { level: 2, bold: true }),
-    pNumbered('e.', `Nilai Pagu Anggaran : ${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)}).`, { level: 2, bold: true }),
-    pNumbered('4.', 'Target Waktu Pemanfaatan: Barang/jasa ditargetkan telah terpasang, teruji fungsinya, dan siap dioperasikan secara penuh mulai Bulan Juli 2026 guna mendukung agenda tahapan kepemiluan dan operasional satker.', { level: 1 }),
-    pText('Sehubungan dengan hal tersebut di atas, mohon perkenan Bapak Kuasa Pengguna Anggaran (KPA) menyetujui usulan ini dan mendisposisikan kepada Pejabat Pembuat Komitmen (PPK) untuk diproses tahapan pengadaannya sesuai ketentuan perundang-undangan.'),
-    pText('Demikian nota dinas ini kami sampaikan, atas perkenan dan arahan Bapak diucapkan terima kasih.', { before: 40, after: 100 }),
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              borders: BORDER_NONE,
+  if (isMultiSubbag) {
+    multiPengusul.forEach((pSub, pIdx) => {
+      const sInfo = subbagMap[pSub.subbag] || {};
+      const subKasubagNama = sInfo.kasubag_nama || kasubagNama;
+      const subKasubagNip = sInfo.kasubag_nip || kasubagNip;
+      const subKasubagJabatan = sInfo.kasubag_jabatan || `Kepala Subbagian ${pSub.subbag}`;
+      const subKomisionerNama = sInfo.komisioner_nama || komisionerNama;
+      const subKomisionerJabatan = sInfo.komisioner_jabatan || `Ketua Divisi ${pSub.subbag}`;
+      const subNoNota = pSub.no_nota || `001/ND.${pSub.subbag}/KPU-Kab-014.329781/V/2026`;
+      const subTglNotaStr = formatTanggalIndo(pSub.tgl_nota || paket.tgl_nota_dinas_pengusul || '2026-05-04');
+      const subPerihal = pSub.perihal || `Usulan Kebutuhan Pengadaan Barang Kebutuhan Subbagian ${pSub.subbag} TA ${paket.tahun_anggaran || '2026'}`;
+
+      const subItems = (items || []).filter(it => (it.pic_subbag_pengguna || 'KUL') === pSub.subbag);
+      const displayItems = subItems.length ? subItems : items;
+      const subPagu = displayItems.reduce((acc, it) => acc + (Number(it.volume || 1) * Number(it.harga_satuan_hps || 0)), 0);
+
+      children.push(...buildKopSuratKpu(settings));
+      children.push(
+        pText('NOTA DINAS', { bold: true, size: 24, align: AlignmentType.CENTER, before: 30, after: 10 }),
+        pText(`Nomor: ${subNoNota}`, { size: 18, align: AlignmentType.CENTER, color: '475569', before: 0, after: 120 }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
               children: [
-                pText('Mengetahui,', { align: AlignmentType.CENTER, before: 10, after: 10 }),
-                pText(komisionerJabatan, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
-                pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, before: 0, after: 420 }),
-                pText(`( ${komisionerNama} )`, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
-                pText('Anggota KPU Kab. Ngawi', { align: AlignmentType.CENTER, before: 0, after: 10 })
+                new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Yth.', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Kuasa Pengguna Anggaran (KPA) KPU Kabupaten Ngawi', { bold: true, size: 19 })] })
               ]
             }),
-            new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              borders: BORDER_NONE,
+            new TableRow({
               children: [
-                pText('Yang Mengajukan,', { align: AlignmentType.CENTER, before: 10, after: 10 }),
-                pText(kasubagJabatan, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
-                pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, before: 0, after: 420 }),
-                pText(`( ${kasubagNama} )`, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
-                pText(`NIP. ${kasubagNip}`, { align: AlignmentType.CENTER, before: 0, after: 10 })
+                new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Dari', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(`${subKasubagJabatan} (${subKasubagNama})`, { size: 19 })] })
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Mengetahui', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(`${subKomisionerJabatan} (${subKomisionerNama})`, { bold: true, size: 19, color: '1E3A8A' })] })
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Tanggal', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(subTglNotaStr, { size: 19 })] })
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Sifat', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Penting / Segera', { size: 19 })] })
+              ]
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Hal', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+                new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(subPerihal, { bold: true, size: 19, color: '0F172A' })] })
               ]
             })
           ]
-        })
-      ]
-    }),
-    pText('', { after: 120, pageBreakBefore: true })
-  );
+        }),
+        pText('', { after: 60, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' } } }),
+        pText(`Bersama ini kami sampaikan dengan hormat usulan kebutuhan pengadaan barang guna menunjang kelancaran tugas pokok kedinasan Subbagian ${pSub.subbag} Komisi Pemilihan Umum Kabupaten Ngawi Tahun Anggaran ${paket.tahun_anggaran || '2026'}, dengan rincian pertimbangan sebagai berikut:`),
+        pNumbered('1.', `Dasar Kebutuhan: Kebutuhan operasional Subbagian ${pSub.subbag} mendesak untuk menunjang kelancaran tugas pelayanan dan administrasi kepemiluan yang akuntabel guna memastikan keandalan sarana kerja.`, { level: 1 }),
+        pNumbered('2.', `Rincian Usulan Barang Subbagian ${pSub.subbag}: Meliputi ${displayItems && displayItems.length ? displayItems.map(it => `${it.volume || 1} ${it.satuan || 'Unit'} ${it.uraian_item || ''}`).join(', ') : 'kebutuhan barang operasional'}.`, { level: 1 }),
+        pNumbered('3.', 'Pembebanan Anggaran (Silsilah RKB/DIPA Definitif): Alokasi anggaran telah dialokasikan secara sah pada dokumen perencanaan anggaran definitif Satuan Kerja KPU Kabupaten Ngawi Tahun Anggaran ' + (paket.tahun_anggaran || '2026') + ' dengan rincian hierarki:', { level: 1 }),
+        pNumbered('a.', `Program : ${paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi'}`, { level: 2 }),
+        pNumbered('b.', `Kegiatan : ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih'}`, { level: 2 }),
+        pNumbered('c.', `Sub Kegiatan / Komponen : ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Operasional dan Pemeliharaan Sarana Kerja Kantor KPU Kab. Ngawi'}`, { level: 2 }),
+        pNumbered('d.', `Mata Anggaran Kegiatan (MAK) : ${paket.kode_akun_mak || '521211'} - ${paket.nama_akun_mak || 'Belanja Bahan'}`, { level: 2, bold: true }),
+        pNumbered('e.', `Nilai Pagu Usulan Subbag : ${formatRupiah(subPagu || paket.nilai_pagu)} (${terbilangRupiah(subPagu || paket.nilai_pagu)}).`, { level: 2, bold: true }),
+        pNumbered('4.', 'Target Waktu Pemanfaatan: Barang/jasa ditargetkan telah terpasang, teruji fungsinya, dan siap dioperasikan secara penuh mulai Bulan Juli 2026 guna mendukung agenda tahapan kepemiluan dan operasional satker.', { level: 1 }),
+        pText('Sehubungan dengan hal tersebut di atas, mohon perkenan Bapak Kuasa Pengguna Anggaran (KPA) menyetujui usulan ini dan mendisposisikan kepada Pejabat Pembuat Komitmen (PPK) untuk diproses tahapan pengadaannya sesuai ketentuan perundang-undangan.'),
+        pText('Demikian nota dinas ini kami sampaikan, atas perkenan dan arahan Bapak diucapkan terima kasih.', { before: 40, after: 100 }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({
+                  width: { size: 50, type: WidthType.PERCENTAGE },
+                  borders: BORDER_NONE,
+                  children: [
+                    pText('Mengetahui,', { align: AlignmentType.CENTER, before: 10, after: 10 }),
+                    pText(subKomisionerJabatan, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
+                    pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, before: 0, after: 420 }),
+                    pText(`( ${subKomisionerNama} )`, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
+                    pText('Anggota KPU Kab. Ngawi', { align: AlignmentType.CENTER, before: 0, after: 10 })
+                  ]
+                }),
+                new TableCell({
+                  width: { size: 50, type: WidthType.PERCENTAGE },
+                  borders: BORDER_NONE,
+                  children: [
+                    pText('Yang Mengajukan,', { align: AlignmentType.CENTER, before: 10, after: 10 }),
+                    pText(subKasubagJabatan, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
+                    pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, before: 0, after: 420 }),
+                    pText(`( ${subKasubagNama} )`, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
+                    pText(`NIP. ${subKasubagNip}`, { align: AlignmentType.CENTER, before: 0, after: 10 })
+                  ]
+                })
+              ]
+            })
+          ]
+        }),
+        pText('', { after: 120, pageBreakBefore: true })
+      );
+    });
+  } else {
+    // Single subbag Nota Dinas
+    children.push(...buildKopSuratKpu(settings));
+    children.push(
+      pText('NOTA DINAS', { bold: true, size: 24, align: AlignmentType.CENTER, before: 30, after: 10 }),
+      pText(`Nomor: ${noNota}`, { size: 18, align: AlignmentType.CENTER, color: '475569', before: 0, after: 120 }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Yth.', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Kuasa Pengguna Anggaran (KPA) KPU Kabupaten Ngawi', { bold: true, size: 19 })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Dari', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(`${kasubagJabatan} (${kasubagNama})`, { size: 19 })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Mengetahui', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(`${komisionerJabatan} (${komisionerNama})`, { bold: true, size: 19, color: '1E3A8A' })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Tanggal', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(tglNotaStr, { size: 19 })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Sifat', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Penting / Segera', { size: 19 })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Hal', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 19 })] }),
+              new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(perihalNota, { bold: true, size: 19, color: '0F172A' })] })
+            ]
+          })
+        ]
+      }),
+      pText('', { after: 60, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' } } }),
+      pText('Bersama ini kami sampaikan dengan hormat usulan kebutuhan pengadaan barang modal guna menunjang kelancaran tugas pokok kedinasan Komisi Pemilihan Umum Kabupaten Ngawi Tahun Anggaran ' + (paket.tahun_anggaran || '2026') + ', dengan rincian pertimbangan sebagai berikut:'),
+      pNumbered('1.', `Dasar Kebutuhan: ${paket.uraian_pekerjaan || 'Perangkat pendukung kerja operasional yang ada saat ini telah melewati batas usia teknis ekonomis sehingga memerlukan peremajaan/pengadaan baru guna menjamin kestabilan dan kelancaran proses kerja.'}`, { level: 1 }),
+      pNumbered('2.', `Rincian Usulan Barang: Kebutuhan pengadaan "${paket.nama_paket}" meliputi ${items && items.length ? items.map(it => `${it.volume || 1} ${it.satuan || 'Unit'} ${it.uraian_item || ''}`).join(', ') : 'peralatan operasional sesuai rincian KAK'}.`, { level: 1 }),
+      pNumbered('3.', 'Pembebanan Anggaran (Silsilah RKB/DIPA Definitif): Alokasi anggaran telah dialokasikan secara sah pada dokumen perencanaan anggaran definitif Satuan Kerja KPU Kabupaten Ngawi Tahun Anggaran ' + (paket.tahun_anggaran || '2026') + ' dengan rincian hierarki:', { level: 1 }),
+      pNumbered('a.', `Program : ${paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi'}`, { level: 2 }),
+      pNumbered('b.', `Kegiatan : ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)'}`, { level: 2 }),
+      pNumbered('c.', `Sub Kegiatan / Komponen : ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu'}`, { level: 2 }),
+      pNumbered('d.', `Mata Anggaran Kegiatan (MAK) : ${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`, { level: 2, bold: true }),
+      pNumbered('e.', `Nilai Pagu Anggaran : ${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)}).`, { level: 2, bold: true }),
+      pNumbered('4.', 'Target Waktu Pemanfaatan: Barang/jasa ditargetkan telah terpasang, teruji fungsinya, dan siap dioperasikan secara penuh mulai Bulan Juli 2026 guna mendukung agenda tahapan kepemiluan dan operasional satker.', { level: 1 }),
+      pText('Sehubungan dengan hal tersebut di atas, mohon perkenan Bapak Kuasa Pengguna Anggaran (KPA) menyetujui usulan ini dan mendisposisikan kepada Pejabat Pembuat Komitmen (PPK) untuk diproses tahapan pengadaannya sesuai ketentuan perundang-undangan.'),
+      pText('Demikian nota dinas ini kami sampaikan, atas perkenan dan arahan Bapak diucapkan terima kasih.', { before: 40, after: 100 }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Mengetahui,', { align: AlignmentType.CENTER, before: 10, after: 10 }),
+                  pText(komisionerJabatan, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
+                  pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, before: 0, after: 420 }),
+                  pText(`( ${komisionerNama} )`, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
+                  pText('Anggota KPU Kab. Ngawi', { align: AlignmentType.CENTER, before: 0, after: 10 })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Yang Mengajukan,', { align: AlignmentType.CENTER, before: 10, after: 10 }),
+                  pText(kasubagJabatan, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
+                  pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, before: 0, after: 420 }),
+                  pText(`( ${kasubagNama} )`, { bold: true, align: AlignmentType.CENTER, before: 0, after: 10 }),
+                  pText(`NIP. ${kasubagNip}`, { align: AlignmentType.CENTER, before: 0, after: 10 })
+                ]
+              })
+            ]
+          })
+        ]
+      }),
+      pText('', { after: 120, pageBreakBefore: true })
+    );
+  }
 
   // =========================================================================
   // DOKUMEN 2: LEMBAR DISPOSISI KPA KEPADA PPK
+  // MENCANTUMKAN REFERENSI SELURUH NOTA DINAS DAN AMANAT KONSOLIDASI PASAL 21
   // =========================================================================
+  const dispSuratDari = isMultiSubbag
+    ? `Konsolidasi Multi-Subbagian: ${multiPengusul.map(s => `Subbag ${s.subbag}`).join(', ')} (KPU Kabupaten Ngawi)`
+    : `${kasubagJabatan} (${kasubagNama}) / Mengetahui ${komisionerJabatan} (${komisionerNama})`;
+  const dispNoSurat = isMultiSubbag
+    ? multiPengusul.map(s => s.no_nota).join('; ')
+    : noNota;
+  const dispHalSurat = isMultiSubbag
+    ? `Konsolidasi Usulan Kebutuhan Pengadaan: ${paket.nama_paket}`
+    : perihalNota;
+
   children.push(...buildKopSuratKpu(settings));
   children.push(
     pText('LEMBAR DISPOSISI KUASA PENGGUNA ANGGARAN (KPA)', { bold: true, size: 22, align: AlignmentType.CENTER, before: 30, after: 10 }),
@@ -1328,7 +1482,7 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
         new TableRow({
           children: [
             new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('Surat Dari', { bold: true, size: 18 })] }),
-            new TableCell({ width: { size: 44, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(`${kasubagJabatan} (${kasubagNama}) / Mengetahui ${komisionerJabatan} (${komisionerNama})`, { size: 17 })] }),
+            new TableCell({ width: { size: 44, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(dispSuratDari, { size: 17 })] }),
             new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('Tgl Surat', { bold: true, size: 18 })] }),
             new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(tglNotaStr, { size: 17 })] })
           ]
@@ -1336,13 +1490,13 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
         new TableRow({
           children: [
             new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('Nomor Surat', { bold: true, size: 18 })] }),
-            new TableCell({ borders: BORDER_TABLE, columnSpan: 3, children: [pText(noNota, { size: 17 })] })
+            new TableCell({ borders: BORDER_TABLE, columnSpan: 3, children: [pText(dispNoSurat, { size: 17 })] })
           ]
         }),
         new TableRow({
           children: [
             new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('Hal / Perihal', { bold: true, size: 18 })] }),
-            new TableCell({ borders: BORDER_TABLE, columnSpan: 3, children: [pText(perihalNota, { bold: true, size: 17, color: '0F172A' })] })
+            new TableCell({ borders: BORDER_TABLE, columnSpan: 3, children: [pText(dispHalSurat, { bold: true, size: 17, color: '0F172A' })] })
           ]
         }),
         new TableRow({
@@ -1371,22 +1525,27 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
               borders: BORDER_TABLE,
               children: [
                 pText('☑ Pejabat Pembuat Komitmen (PPK)', { bold: true, color: '1E3A8A', size: 17 }),
-                pText('☐ Pejabat Pengadaan (PP)', { size: 17 }),
-                pText('☐ Bendahara Pengeluaran', { size: 17 }),
-                pText('☐ Kasubbag Keuangan, Umum & Logistik (KUL)', { size: 17 }),
-                pText('☐ Arsip / File', { size: 17 })
+                pText('☑ Pejabat Pengadaan (PP)', { size: 17 }),
+                pText('☑ Bendahara Pengeluaran', { size: 17 }),
+                pText('☑ Kasubbag Keuangan, Umum & Logistik (KUL)', { size: 17 }),
+                pText('☑ Arsip / File', { size: 17 })
               ]
             }),
             new TableCell({
               borders: BORDER_TABLE,
               children: [
-                pText('☑ SETUJU UNTUK DIPROSES PENGADAANNYA', { bold: true, color: '047857', size: 17 }),
+                pText(isMultiSubbag ? '☑ SETUJU UNTUK DIPROSES KONSOLIDASI PENGADAAN' : '☑ SETUJU UNTUK DIPROSES PENGADAANNYA', { bold: true, color: '047857', size: 17 }),
                 pText('Catatan Instruksi KPA:', { bold: true, size: 16, before: 20 }),
-                pNumbered('1.', `Segera susun Identifikasi Kebutuhan, KAK, dan HPS mengacu pada DIPA TA ${paket.tahun_anggaran || '2026'} Akun ${paket.kode_akun_mak || '532111'} (Pagu ${formatRupiah(paket.nilai_pagu)}).`, { level: 1, size: 15, hanging: 300, left: 300 }),
-                pNumbered('2.', 'Jadwalkan seluruh rangkaian pengadaan, pengiriman, dan instalasi tuntas pada akhir Juni 2026 agar target pemanfaatan operasional per 1 Juli 2026 terpenuhi.', { level: 1, size: 15, bold: true, color: '1E3A8A', hanging: 300, left: 300 }),
-                pNumbered('3.', 'Prioritaskan metode E-Purchasing (Katalog Elektronik v6) sesuai Kepka LKPP No. 177/2024.', { level: 1, size: 15, hanging: 300, left: 300 }),
-                pNumbered('4.', 'Wajib penuhi afirmasi UMK minimal 40% dan prioritas PDN/TKDN minimal 25%.', { level: 1, size: 15, hanging: 300, left: 300 }),
-                pNumbered('5.', 'Laksanakan seluruh tahapan secara transparan, tertib, dan akuntabel.', { level: 1, size: 15, hanging: 300, left: 300 })
+                ...(isMultiSubbag ? [
+                  pNumbered('1.', `Sesuai Pasal 21 Perpres No. 16/2018 jo. Perpres No. 12/2021 jo. Perpres No. 46/2025 tentang Konsolidasi Pengadaan, lakukan konsolidasi pengadaan atas usulan dari Subbagian ${multiPengusul.map(s => s.subbag).join(' dan ')} menjadi 1 (satu) paket pengadaan terpadu guna mencapai efisiensi anggaran dan efektivitas pelaksanaan.`, { level: 1, size: 15, bold: true, color: '1E3A8A', hanging: 300, left: 300 }),
+                  pNumbered('2.', `Segera susun Identifikasi Kebutuhan gabungan, KAK, dan HPS mengacu pada DIPA TA ${paket.tahun_anggaran || '2026'} Akun ${paket.kode_akun_mak || '521211'} (Total Pagu ${formatRupiah(paket.nilai_pagu)}).`, { level: 1, size: 15, hanging: 300, left: 300 })
+                ] : [
+                  pNumbered('1.', `Segera susun Identifikasi Kebutuhan, KAK, dan HPS mengacu pada DIPA TA ${paket.tahun_anggaran || '2026'} Akun ${paket.kode_akun_mak || '532111'} (Pagu ${formatRupiah(paket.nilai_pagu)}).`, { level: 1, size: 15, hanging: 300, left: 300 })
+                ]),
+                pNumbered(isMultiSubbag ? '3.' : '2.', 'Jadwalkan seluruh rangkaian pengadaan, pengiriman, dan instalasi tuntas pada akhir Juni 2026 agar target pemanfaatan operasional per 1 Juli 2026 terpenuhi.', { level: 1, size: 15, hanging: 300, left: 300 }),
+                pNumbered(isMultiSubbag ? '4.' : '3.', 'Prioritaskan metode E-Purchasing (Katalog Elektronik v6) sesuai Kepka LKPP No. 177/2024.', { level: 1, size: 15, hanging: 300, left: 300 }),
+                pNumbered(isMultiSubbag ? '5.' : '4.', 'Wajib penuhi afirmasi UMK minimal 40% dan prioritas PDN/TKDN minimal 25%.', { level: 1, size: 15, hanging: 300, left: 300 }),
+                pNumbered(isMultiSubbag ? '6.' : '5.', 'Laksanakan seluruh tahapan secara transparan, tertib, dan akuntabel.', { level: 1, size: 15, hanging: 300, left: 300 })
               ]
             })
           ]
@@ -1418,30 +1577,17 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
   // DOKUMEN 3: FORMULIR ANALISIS KETERSEDIAAN BARANG SEJENIS (BMN EKSISTING)
   // Sesuai Pasal 18 Perpres PBJ & Pedoman Teknis Perlem LKPP Perencanaan Pengadaan
   // =========================================================================
-  const noBmnForm = `001/BMN-IDK-${String(paket.id || 1).padStart(3, '0')}/PPK-PBJ/KPU-NGW/V/2026`;
-  const tglTelaahStr = formatTanggalIndo(paket.tgl_nota_dinas_pengusul || '2026-05-04');
-  const bmnPengelolaNama = 'NURFANTI SULISTYO  W';
-  const bmnPengelolaNip = '198410122010122002';
-  const bmnPengelolaJabatan = 'Kepala Subbagian Keuangan, Umum dan Logistik (Pengelola BMN)';
-
   children.push(...buildKopSuratKpu(settings));
   children.push(
-    pText('FORMULIR ANALISIS KETERSEDIAAN BARANG SEJENIS & TELAAH BMN EKSISTING', { bold: true, size: 21, align: AlignmentType.CENTER, before: 20, after: 10 }),
-    pText('(Lampiran Wajib Identifikasi Kebutuhan Berdasarkan Pasal 18 Perpres PBJ & Pedoman Teknis Perlem LKPP)', { size: 16, italic: true, align: AlignmentType.CENTER, color: '475569', before: 0, after: 60 }),
-    pText(`Nomor Berkas Telaah: ${noBmnForm}`, { bold: true, size: 18, align: AlignmentType.CENTER, color: '1E3A8A', before: 0, after: 100 }),
+    pText('FORMULIR ANALISIS KETERSEDIAAN BARANG SEJENIS (BMN EKSISTING)', { bold: true, size: 22, align: AlignmentType.CENTER, before: 30, after: 10 }),
+    pText('Pemeriksaan Kelayakan Pengadaan Barang Milik Negara Sesuai Pasal 18 Perpres No. 16/2018', { size: 17, align: AlignmentType.CENTER, color: '475569', before: 0, after: 100 }),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
         new TableRow({
           children: [
-            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Satuan Kerja / Kode', { bold: true, size: 17 })] }),
-            new TableCell({ width: { size: 75, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText('KPU KABUPATEN NGAWI / 657811', { bold: true, size: 17 })] })
-          ]
-        }),
-        new TableRow({
-          children: [
-            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Paket Pengadaan', { bold: true, size: 17 })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional', { bold: true, size: 17, color: '0F172A' })] })
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Paket Pengadaan', { bold: true, size: 17 })] }),
+            new TableCell({ width: { size: 75, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional', { bold: true, size: 17, color: '0F172A' })] })
           ]
         }),
         new TableRow({
@@ -1453,7 +1599,7 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
         new TableRow({
           children: [
             new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Unit Pengusul (User)', { bold: true, size: 17 })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(`Subbagian ${paket.pic_subbag || 'Perencanaan, Data dan Informasi (RENDATIN)'}`, { size: 17 })] })
+            new TableCell({ borders: BORDER_TABLE, children: [pText(isMultiSubbag ? `Konsolidasi Multi-Subbagian (${multiPengusul.map(s => s.subbag).join(', ')}) KPU Kabupaten Ngawi` : `Subbagian ${paket.pic_subbag || 'Perencanaan, Data dan Informasi (RENDATIN)'}`, { size: 17 })] })
           ]
         }),
         new TableRow({
@@ -1532,7 +1678,7 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
         new TableRow({
           children: [
             new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('3. Catatan Telaah Analisis BMN', { bold: true, size: 17 })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(paket.bmn_catatan_telaah || 'Berdasarkan data SIMAN/SAKTI BMN, server eksisting tidak ekonomis diperbaiki dan tidak mampu menampung beban kerja Pemilu 2026. Direkomendasikan penggantian unit baru.', { size: 16 })] })
+            new TableCell({ borders: BORDER_TABLE, children: [pText(paket.bmn_catatan_telaah || 'Berdasarkan data SIMAN/SAKTI BMN, sarana eksisting tidak ekonomis diperbaiki dan tidak mampu menampung beban kerja satker. Direkomendasikan pengadaan unit baru.', { size: 16 })] })
           ]
         }),
         new TableRow({
@@ -1584,7 +1730,7 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
   children.push(...buildKopSuratKpu(settings));
   children.push(
     pText('FORMULIR IDENTIFIKASI KEBUTUHAN BARANG/JASA PEMERINTAH', { bold: true, size: 22, align: AlignmentType.CENTER, before: 30, after: 10 }),
-    pText('TAHAP 1 (FASE I: PERENCANAAN PENGADAAN) — REGULASI PERPRES NO. 46/2025', { size: 17, align: AlignmentType.CENTER, color: '1E3A8A', before: 0, after: 30 }),
+    pText('TAHAP 1 (FASE I: PERENCANAAN PENGADAAN) – REGULASI PERPRES NO. 46/2025', { size: 17, align: AlignmentType.CENTER, color: '1E3A8A', before: 0, after: 30 }),
     pText(`Nomor: ${noIdk}`, { size: 18, align: AlignmentType.CENTER, color: '475569', before: 0, after: 100 }),
     pText(`${hariTanggalIdk.kalimatFormal}, yang bertanda tangan di bawah ini telah melakukan identifikasi kebutuhan pengadaan barang/jasa sebagai berikut:`),
     new Table({
@@ -1601,21 +1747,21 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
           children: [
             new TableCell({ borders: BORDER_TABLE, children: [pText('1', { align: AlignmentType.CENTER })] }),
             new TableCell({ borders: BORDER_TABLE, children: [pText('Nama Kebutuhan Barang/Jasa', { bold: true })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional', { bold: true, color: '0F172A' })] })
+            new TableCell({ borders: BORDER_TABLE, children: [pText(paket.nama_paket || 'Pengadaan Barang Operasional', { bold: true, color: '0F172A' })] })
           ]
         }),
         new TableRow({
           children: [
             new TableCell({ borders: BORDER_TABLE, children: [pText('2', { align: AlignmentType.CENTER })] }),
             new TableCell({ borders: BORDER_TABLE, children: [pText('Fungsi dan Manfaat Operasional', { bold: true })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(paket.uraian_pekerjaan || 'Mendukung stabilitas pemrosesan data kedinasan, rekapitulasi data kepemiluan, dan kelancaran operasional satker KPU Kabupaten Ngawi.')] })
+            new TableCell({ borders: BORDER_TABLE, children: [pText(paket.uraian_pekerjaan || 'Mendukung stabilitas pemrosesan data kedinasan, administrasi kepemiluan, dan kelancaran operasional satker KPU Kabupaten Ngawi.')] })
           ]
         }),
         new TableRow({
           children: [
             new TableCell({ borders: BORDER_TABLE, children: [pText('3', { align: AlignmentType.CENTER })] }),
             new TableCell({ borders: BORDER_TABLE, children: [pText('Target Pengguna (End-User)', { bold: true })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(`Subbagian ${paket.pic_subbag || 'RENDATIN'} serta Operator Sistem Informasi dan Staf Pelaksana KPU Kabupaten Ngawi.`)] })
+            new TableCell({ borders: BORDER_TABLE, children: [pText(isMultiSubbag ? `Konsolidasi Multi-Subbagian (${multiPengusul.map(s => s.subbag).join(', ')}) serta Staf Pelaksana dan Operator KPU Kabupaten Ngawi.` : `Subbagian ${paket.pic_subbag || 'RENDATIN'} serta Operator Sistem Informasi dan Staf Pelaksana KPU Kabupaten Ngawi.`)] })
           ]
         }),
         new TableRow({
@@ -1638,7 +1784,7 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
             new TableCell({
               borders: BORDER_TABLE,
               children: (items && items.length)
-                ? items.map(it => pText(`• ${it.volume || 1} ${it.satuan || 'Unit'} ${it.uraian_item || ''}: ${it.spesifikasi_teknis || 'Spesifikasi standar KAK'}.`, { size: 17 }))
+                ? items.map(it => pText(`• ${it.volume || 1} ${it.satuan || 'Unit'} ${it.uraian_item || ''}${it.pic_subbag_pengguna ? ` [Alokasi: Subbag ${it.pic_subbag_pengguna}]` : ''}: ${it.spesifikasi_teknis || 'Spesifikasi standar KAK'}.`, { size: 17 }))
                 : [
                     pText('• 1 (satu) Unit PC Server Tower: Intel Xeon E-2324G, 32GB RAM ECC, 2x 1TB SSD RAID-1, Redundant PSU, Windows Server 2025.'),
                     pText('• 3 (tiga) Unit PC Workstation Admin: Intel Core i7-14700, 16GB RAM, 512GB SSD, Monitor 24" IPS, Windows 11 Pro.')
@@ -1668,9 +1814,9 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
               children: [
                 pNumbered('•', `Sumber Dana: APBN DIPA KPU Kabupaten Ngawi TA ${paket.tahun_anggaran || '2026'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
                 pNumbered('•', `Program: ${paket.rkb_program || 'Program Penyelenggaraan Pemilu dalam Proses Konsolidasi Demokrasi'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
-                pNumbered('•', `Kegiatan: ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih (SIDALIH)'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
-                pNumbered('•', `Sub Kegiatan / Komponen: ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Pemeliharaan dan Pengadaan Sarana Pengolah Data Operasional Pemilu'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
-                pNumbered('•', `Kode Akun MAK: ${paket.kode_akun_mak || '532111'} – ${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}`, { level: 1, hanging: 240, size: 17, bold: true, before: 2, after: 2 }),
+                pNumbered('•', `Kegiatan: ${paket.rkb_kegiatan || 'Pengelolaan dan Pelayanan Sistem Informasi dan Data Pemilih'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
+                pNumbered('•', `Sub Kegiatan / Komponen: ${paket.rkb_subkegiatan || paket.rkb_komponen || 'Operasional dan Pemeliharaan Sarana Kerja Kantor'}`, { level: 1, hanging: 240, size: 17, before: 2, after: 2 }),
+                pNumbered('•', `Kode Akun MAK: ${paket.kode_akun_mak || '521211'} – ${paket.nama_akun_mak || 'Belanja Bahan'}`, { level: 1, hanging: 240, size: 17, bold: true, before: 2, after: 2 }),
                 pNumbered('•', `Nilai Pagu Sah: ${formatRupiah(paket.nilai_pagu)} (${terbilangRupiah(paket.nilai_pagu)})`, { level: 1, hanging: 240, size: 17, bold: true, color: '047857', before: 2, after: 2 })
               ]
             })
@@ -1727,7 +1873,7 @@ function buildStage1Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
       headers: {
         default: new Header({
           children: [
-            pText('SI-PRABU v3.0 — Dokumen Resmi Tahap 1: Identifikasi Kebutuhan & Disposisi KPA | KPU Ngawi', {
+            pText('SI-PRABU v3.0 – Dokumen Resmi Tahap 1: Identifikasi Kebutuhan & Disposisi KPA | KPU Ngawi', {
               italic: true,
               size: 16,
               color: '64748B',
