@@ -7539,6 +7539,7 @@ function onLockFaseChange() {
 
   if (fase === 'PRA_NPHD') {
     dasarSelect.innerHTML = `
+      <option value="Notulensi Audiensi">Notulensi Audiensi</option>
       <option value="Surat Usulan KPU">Surat Usulan Resmi KPU ke TAPD</option>
       <option value="BA Pembahasan TAPD">Berita Acara (BA) Pembahasan Bersama TAPD</option>
       <option value="Review Provinsi">Hasil Review KPU Provinsi Jawa Timur</option>
@@ -7615,6 +7616,7 @@ function onRevFaseChange() {
     if (revNama) revNama.value = 'RKB KPU Kabupaten Ngawi (Rasionalisasi Pembahasan Bersama TAPD)';
     if (dasarSelect) {
       dasarSelect.innerHTML = `
+        <option value="Notulensi Audiensi">Notulensi Audiensi</option>
         <option value="Hasil Pembahasan Internal">Hasil Pembahasan &amp; Simulasi Internal</option>
         <option value="Surat Usulan Resmi KPU">Surat Usulan Resmi KPU ke TAPD</option>
         <option value="Review KPU Provinsi">Review KPU Provinsi Jawa Timur</option>
