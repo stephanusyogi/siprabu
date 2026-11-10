@@ -567,6 +567,39 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
       totRow.getCell(c).fill = FILL_TOTAL;
       totRow.getCell(c).border = BORDER_THIN;
     }
+    const totHpsRowIdx = rowIdx;
+    rowIdx++;
+
+    // Pagu Anggaran DIPA Row
+    const paguRow = ws.getRow(rowIdx);
+    ws.mergeCells(`A${rowIdx}:I${rowIdx}`);
+    paguRow.getCell(1).value = 'PAGU ANGGARAN DIPA (BATAS TERTINGGI BELANJA)';
+    paguRow.getCell(1).font = { name: 'Arial', size: 9, bold: true };
+    paguRow.getCell(1).alignment = { horizontal: 'right' };
+    paguRow.getCell(10).value = Number(paket.nilai_pagu || 0);
+    paguRow.getCell(10).numFmt = '#,##0';
+    paguRow.getCell(10).font = { name: 'Arial', size: 9, bold: true };
+    for (let c = 1; c <= 10; c++) {
+      paguRow.getCell(c).border = BORDER_THIN;
+    }
+    const paguRowIdx = rowIdx;
+    rowIdx++;
+
+    // Efisiensi Anggaran Row (Pagu - HPS)
+    const efiRow = ws.getRow(rowIdx);
+    ws.mergeCells(`A${rowIdx}:I${rowIdx}`);
+    const selisihEfisiensi = Number(paket.nilai_pagu || 0) - Number(paket.nilai_hps || 0);
+    const persenEfisiensi = Number(paket.nilai_pagu || 0) > 0 ? (selisihEfisiensi / Number(paket.nilai_pagu)) * 100 : 0;
+    efiRow.getCell(1).value = `EFISIENSI ANGGARAN (PAGU DIPA - TOTAL HPS) [${persenEfisiensi.toFixed(2)}%]`;
+    efiRow.getCell(1).font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF065F46' } };
+    efiRow.getCell(1).alignment = { horizontal: 'right' };
+    efiRow.getCell(10).value = { formula: `J${paguRowIdx}-J${totHpsRowIdx}`, result: selisihEfisiensi };
+    efiRow.getCell(10).numFmt = '#,##0';
+    efiRow.getCell(10).font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF065F46' } };
+    for (let c = 1; c <= 10; c++) {
+      efiRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+      efiRow.getCell(c).border = BORDER_THIN;
+    }
     rowIdx++;
 
     // Terbilang Row

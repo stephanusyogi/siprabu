@@ -8013,6 +8013,17 @@ function openModalTahapUniversal(stageNo) {
   }
 
   modal.style.display = 'flex';
+  const catatanLabel = document.getElementById('mu_catatan_label');
+  if (catatanLabel) {
+    if (num === 6) {
+      catatanLabel.textContent = 'Catatan Khusus PPK atas Penetapan HPS / Referensi Harga';
+    } else if (num === 5) {
+      catatanLabel.textContent = 'Catatan Hasil Survei Harga Pasar & Evaluasi PPK';
+    } else {
+      catatanLabel.textContent = 'Catatan PPK / Pejabat Pengadaan';
+    }
+  }
+
   if (num === 4) {
     setTimeout(() => { if (typeof calcTahap4Totals === 'function') calcTahap4Totals(); }, 50);
   } else if (num === 5) {
@@ -8025,6 +8036,10 @@ function openModalTahapUniversal(stageNo) {
           if (typeof updateVendorParamBadge === 'function') updateVendorParamBadge(it.id, v);
         });
       });
+    }, 50);
+  } else if (num === 6) {
+    setTimeout(() => {
+      if (typeof recalcTahap6Hps === 'function') recalcTahap6Hps();
     }, 50);
   }
 }
@@ -8529,18 +8544,177 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
 
     case 6:
+      const t6Items = CakraState.activePaketCtx?.items || [];
+      const paguNum = Number(paket.nilai_pagu || 0);
+      const curHpsNum = Number(paket.nilai_hps || paket.nilai_pagu || 0);
+      const initSelisih = paguNum - curHpsNum;
+      const initPersen = paguNum > 0 ? (initSelisih / paguNum) * 100 : 0;
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Penetapan Nilai HPS / Kertas Kerja Harga</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Pilihan Kertas Kerja Harga</label>
-            <select id="mu_jenis_kertas_harga" class="cakra-form-control">
-              ${['HPS', 'Referensi Harga (E-Purchasing <=100Jt)', 'Bebas HPS (<=10Jt)', 'RAB Swakelola', 'Estimasi Pasar (Dikecualikan)'].map(k => `<option value="${k}" ${paket.jenis_kertas_harga === k ? 'selected' : ''}>${k}</option>`).join('')}
-            </select>
+        <!-- BLOK 1: KERTAS KERJA & BATAS PAGU -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+            <span>🎯 BLOK 1: KERTAS KERJA PENETAPAN HARGA PPK</span>
+            <span class="cakra-badge cakra-badge-primary" style="font-size:10px;">PPK SATKER 657811</span>
           </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Total Nilai HPS (Rp) *</label>
-            <input type="number" id="mu_nilai_hps" class="cakra-form-control" value="${Number(paket.nilai_hps || paket.nilai_pagu || 0)}" style="font-weight:700; font-size:13px;" />
+          <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:12px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Pilihan Kertas Kerja Harga *</label>
+              <select id="mu_jenis_kertas_harga" class="cakra-form-control" style="font-size:12px; font-weight:600;">
+                <option value="HPS" ${paket.jenis_kertas_harga === 'HPS' || !paket.jenis_kertas_harga ? 'selected' : ''}>HPS — Standar Pengadaan (Pagu &gt; Rp 100 Juta / Non-Katalog)</option>
+                <option value="Referensi Harga (E-Purchasing <=100Jt)" ${paket.jenis_kertas_harga === 'Referensi Harga (E-Purchasing <=100Jt)' ? 'selected' : ''}>Referensi Harga — E-Purchasing Katalog (Pagu &lt;= Rp 100 Juta)</option>
+                <option value="Bebas HPS (<=10Jt)" ${paket.jenis_kertas_harga === 'Bebas HPS (<=10Jt)' ? 'selected' : ''}>Bebas HPS — Pengadaan Langsung (Pagu &lt;= Rp 10 Juta)</option>
+                <option value="RAB Swakelola" ${paket.jenis_kertas_harga === 'RAB Swakelola' ? 'selected' : ''}>RAB Swakelola — Tipe I / II / III / IV</option>
+                <option value="Estimasi Pasar (Dikecualikan)" ${paket.jenis_kertas_harga === 'Estimasi Pasar (Dikecualikan)' ? 'selected' : ''}>Estimasi Pasar — Pengadaan Darurat / Dikecualikan</option>
+              </select>
+              <div style="font-size:10.5px; color:#64748b; margin-top:3px;">
+                💡 Sesuai Pasal 26 Perpres PBJ, pengadaan dengan pagu &gt; Rp 100 Juta wajib menyusun HPS.
+              </div>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Batas Tertinggi Pagu Anggaran DIPA</label>
+              <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:7px 12px; font-weight:800; font-size:13.5px; color:#0f172a;">
+                ${cakraFmtRp(paguNum)}
+              </div>
+              <div style="font-size:10.5px; color:#64748b; margin-top:3px;">
+                Batas pagu anggaran tidak boleh dilampaui oleh total nilai HPS (Pasal 26 ayat 3).
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOK 2: KALKULATOR PENETAPAN HPS PER ITEM -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
+            <span>📊 BLOK 2: KALKULATOR HARGA SATUAN HPS PER ITEM (BERDASARKAN SURVEI TAHAP 5)</span>
+            <span style="font-size:11px; font-weight:700; color:#64748b;">${t6Items.length} Komponen Item</span>
+          </div>
+
+          ${t6Items.length ? t6Items.map((it, idx) => {
+            const s1 = Number(it.harga_survei_1 || 0);
+            const s2 = Number(it.harga_survei_2 || 0);
+            const s3 = Number(it.harga_survei_3 || 0);
+            const candidates = [s1, s2, s3].filter(v => v > 0);
+            const minS = candidates.length ? Math.min(...candidates) : 0;
+            const avgS = candidates.length ? Math.round(candidates.reduce((a, b) => a + b, 0) / candidates.length) : 0;
+            const vol = Number(it.volume || 1);
+            const currentMetode = it.metode_penentuan_hps || 'Terendah';
+            let defaultHrg = Number(it.harga_satuan_hps || 0);
+            if (!defaultHrg) {
+              defaultHrg = currentMetode === 'Rata-rata' ? avgS : (minS || s1);
+            }
+            const subtotal = vol * defaultHrg;
+
+            return `
+              <div class="t6-item-card" data-item-id="${it.id}" data-volume="${vol}" data-s1="${s1}" data-s2="${s2}" data-s3="${s3}" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                  <div>
+                    <div style="font-size:12px; font-weight:800; color:#0f172a;">
+                      ${idx + 1}. ${cakraEsc(it.uraian_item)}
+                      <span class="cakra-badge cakra-badge-secondary" style="font-size:9.5px; margin-left:6px;">${cakraEsc(it.satuan || 'Unit')}</span>
+                      <span class="cakra-badge cakra-badge-info" style="font-size:9.5px; margin-left:4px;">Vol: ${vol}</span>
+                      ${it.pic_subbag_pengguna ? `<span class="cakra-badge cakra-badge-success" style="font-size:9.5px; margin-left:4px;">Subbag: ${cakraEsc(it.pic_subbag_pengguna)}</span>` : ''}
+                    </div>
+                    <div style="font-size:11px; color:#64748b; margin-top:2px;">
+                      Spek: ${cakraEsc(it.spesifikasi_teknis || '-')}
+                    </div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Subtotal HPS Item:</div>
+                    <div id="t6_subtotal_label_${it.id}" style="font-size:14px; font-weight:900; color:#1e40af;">
+                      ${cakraFmtRp(subtotal)}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RIWAYAT SURVEI HARGA PASAR DARI TAHAP 5 -->
+                <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:6px; padding:8px 10px; margin-bottom:10px; font-size:11px;">
+                  <div style="font-weight:700; color:#475569; margin-bottom:4px; font-size:10px; text-transform:uppercase;">
+                    Riwayat Survei Pasar (Tahap 5):
+                  </div>
+                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:6px;">
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:4px; padding:4px 8px;">
+                      <span style="color:#1e40af; font-weight:700;">1. ${cakraEsc(it.sumber_survei_1 || 'Katalog v6')}:</span>
+                      <span style="font-weight:800; color:#0f172a; float:right;">${s1 ? cakraFmtRp(s1) : '-'}</span>
+                    </div>
+                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:4px 8px;">
+                      <span style="color:#166534; font-weight:700;">2. ${cakraEsc(it.sumber_survei_2 || 'Toko/Pasar')}:</span>
+                      <span style="font-weight:800; color:#0f172a; float:right;">${s2 ? cakraFmtRp(s2) : '-'}</span>
+                    </div>
+                    <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:4px; padding:4px 8px;">
+                      <span style="color:#6b21a8; font-weight:700;">3. ${cakraEsc(it.sumber_survei_3 || 'SBM/Riwayat')}:</span>
+                      <span style="font-weight:800; color:#0f172a; float:right;">${s3 ? cakraFmtRp(s3) : '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- FORM PENETAPAN METODE & HARGA SATUAN -->
+                <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:10px; align-items:flex-end;">
+                  <div>
+                    <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">
+                      Metode Penetapan Harga Satuan:
+                    </label>
+                    <select id="t6_metode_${it.id}" class="cakra-form-control" style="font-size:11.5px; padding:5px 8px;" onchange="onTahap6MetodeChange(${it.id})">
+                      <option value="Terendah" ${currentMetode === 'Terendah' ? 'selected' : ''}>Harga Terendah Hasil Survei (${cakraFmtRp(minS)})</option>
+                      <option value="Rata-rata" ${currentMetode === 'Rata-rata' ? 'selected' : ''}>Rata-rata Aritmatika Hasil Survei (${cakraFmtRp(avgS)})</option>
+                      <option value="Sumber 1 (Katalog)" ${currentMetode === 'Sumber 1 (Katalog)' ? 'selected' : ''}>Mengacu Sumber 1 / Katalog (${cakraFmtRp(s1)})</option>
+                      <option value="Sumber 2 (Toko/Pasar)" ${currentMetode === 'Sumber 2 (Toko/Pasar)' ? 'selected' : ''}>Mengacu Sumber 2 / Pembanding (${cakraFmtRp(s2)})</option>
+                      <option value="Sumber 3 (SBM/Riwayat)" ${currentMetode === 'Sumber 3 (SBM/Riwayat)' ? 'selected' : ''}>Mengacu Sumber 3 / SBM (${cakraFmtRp(s3)})</option>
+                      <option value="Manual Input" ${currentMetode === 'Manual Input' ? 'selected' : ''}>Penetapan Mandiri / Nilai Lain (Ketik Manual)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">
+                      Harga Satuan HPS Ditetapkan (Rp) *:
+                    </label>
+                    <input type="number" id="t6_hps_satuan_${it.id}" class="cakra-form-control t6-hps-satuan-input" value="${defaultHrg}" style="font-size:12.5px; font-weight:800; padding:5px 10px;" oninput="onTahap6HargaManualInput(${it.id})" />
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('') : `
+            <div style="font-size:11.5px; color:#64748b; padding:16px; text-align:center; background:#f8fafc; border-radius:6px;">
+              ⚠️ Belum ada rincian item barang pada paket ini. Selesaikan Tahap 4 (Spesifikasi Teknis) terlebih dahulu.
+            </div>
+          `}
+        </div>
+
+        <!-- BLOK 3: RESUME KOMPARASI & VALIDASI KELAYAKAN PAGU DIPA -->
+        <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:10px; padding:14px;">
+          <div style="font-size:12.5px; font-weight:800; color:#1e40af; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
+            <span>📈 BLOK 3: RESUME KOMPARASI PAGU vs TOTAL HPS</span>
+            <span id="t6_persen_efisiensi_badge" class="cakra-badge cakra-badge-success" style="font-size:11px;">Efisiensi: ${initPersen.toFixed(2)}% (${cakraFmtRp(initSelisih)})</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:12px;">
+            <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:8px; padding:10px;">
+              <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Pagu Anggaran DIPA</div>
+              <div style="font-size:15px; font-weight:900; color:#0f172a;">${cakraFmtRp(paguNum)}</div>
+              <div style="font-size:10px; color:#64748b;">Batas Pagu Tertinggi</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:8px; padding:10px;">
+              <div style="font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Total Nilai HPS Ditetapkan</div>
+              <div id="t6_total_hps_label" style="font-size:16px; font-weight:900; color:#1e3a8a;">
+                ${cakraFmtRp(curHpsNum)}
+              </div>
+              <div style="font-size:10px; color:#1e40af;">Termasuk PPN 11% &amp; Keuntungan</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #bbf7d0; border-radius:8px; padding:10px;">
+              <div style="font-size:10px; font-weight:700; color:#166534; text-transform:uppercase;">Selisih / Efisiensi Anggaran</div>
+              <div id="t6_selisih_efisiensi_label" style="font-size:15px; font-weight:900; color:#166534;">
+                ${cakraFmtRp(initSelisih)}
+              </div>
+              <div style="font-size:10px; color:#166534;">Penghematan Keuangan Negara</div>
+            </div>
+          </div>
+
+          <!-- HIDDEN INPUT COMPATIBILITY -->
+          <input type="hidden" id="mu_nilai_hps" value="${curHpsNum}" />
+
+          <!-- STATUS VALIDASI PAGU ANGGARAN (PASAL 26 AYAT 3 PERPRES) -->
+          <div id="t6_status_validasi_pagu" style="padding:10px 12px; border-radius:6px; font-size:11.5px; font-weight:700; line-height:1.45; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">
+            ✅ <b>MEMENUHI KETENTUAN PENGADAAN (PASAL 26 AYAT 3 PERPRES 16/2018 JO 46/2025):</b><br/>
+            Total HPS berada di bawah batas pagu DIPA. Rincian penetapan harga siap disahkan oleh PPK.
           </div>
         </div>
       `;
@@ -8966,6 +9140,40 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
   } else if (num === 6) {
     extraPaketFields.jenis_kertas_harga = getStr('mu_jenis_kertas_harga') || paket.jenis_kertas_harga;
     extraPaketFields.nilai_hps = getNum('mu_nilai_hps') || paket.nilai_hps;
+
+    // Kumpulkan pembaruan metode dan harga satuan HPS per item dari kalkulator pop-up
+    const cards = document.querySelectorAll('.t6-item-card');
+    if (cards.length && CakraState.activePaketCtx?.items) {
+      const origItems = CakraState.activePaketCtx.items;
+      const updatedItems = origItems.map(it => {
+        const selMetode = document.getElementById('t6_metode_' + it.id);
+        const inpSatuan = document.getElementById('t6_hps_satuan_' + it.id);
+        const metode = selMetode ? selMetode.value : (it.metode_penentuan_hps || 'Terendah');
+        const hpsSat = inpSatuan ? Number(inpSatuan.value || 0) : Number(it.harga_satuan_hps || 0);
+        const vol = Number(it.volume || 1);
+        return {
+          ...it,
+          metode_penentuan_hps: metode,
+          harga_satuan_hps: hpsSat,
+          jumlah_hps: Math.round(vol * hpsSat)
+        };
+      });
+
+      try {
+        await cakraApiPost('/api/cakra/paket/' + paket.id + '/items', { items: updatedItems });
+        if (CakraState.activePaketCtx) {
+          const freshCtx = await cakraApiGet('/api/cakra/paket/' + paket.id);
+          if (freshCtx?.items) {
+            CakraState.activePaketCtx.items = freshCtx.items;
+          }
+          if (freshCtx?.paket) {
+            CakraState.activePaketCtx.paket = freshCtx.paket;
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal memperbarui item HPS:', err);
+      }
+    }
   } else if (num === 7) {
     extraPaketFields.bentuk_kontrak = getStr('mu_bentuk_kontrak') || paket.bentuk_kontrak;
     extraPaketFields.jenis_kontrak = getStr('mu_jenis_kontrak') || paket.jenis_kontrak;
@@ -9514,3 +9722,107 @@ function generateAutoJustifikasiTahap5() {
   }
 }
 window.generateAutoJustifikasiTahap5 = generateAutoJustifikasiTahap5;
+
+// =========================================================================
+// HELPER INTERAKTIF TAHAP 6: KALKULATOR PENETAPAN HPS PER ITEM
+// =========================================================================
+function onTahap6MetodeChange(itemId) {
+  const card = document.querySelector('.t6-item-card[data-item-id="' + itemId + '"]');
+  if (!card) return;
+  const metodeSel = document.getElementById('t6_metode_' + itemId);
+  const inpSatuan = document.getElementById('t6_hps_satuan_' + itemId);
+  if (!metodeSel || !inpSatuan) return;
+
+  const s1 = Number(card.dataset.s1 || 0);
+  const s2 = Number(card.dataset.s2 || 0);
+  const s3 = Number(card.dataset.s3 || 0);
+  const candidates = [s1, s2, s3].filter(v => v > 0);
+  const minS = candidates.length ? Math.min(...candidates) : 0;
+  const avgS = candidates.length ? Math.round(candidates.reduce((a, b) => a + b, 0) / candidates.length) : 0;
+
+  const val = metodeSel.value;
+  if (val === 'Terendah') {
+    inpSatuan.value = minS;
+  } else if (val === 'Rata-rata') {
+    inpSatuan.value = avgS;
+  } else if (val === 'Sumber 1 (Katalog)') {
+    inpSatuan.value = s1;
+  } else if (val === 'Sumber 2 (Toko/Pasar)') {
+    inpSatuan.value = s2;
+  } else if (val === 'Sumber 3 (SBM/Riwayat)') {
+    inpSatuan.value = s3;
+  }
+
+  recalcTahap6Hps();
+}
+window.onTahap6MetodeChange = onTahap6MetodeChange;
+
+function onTahap6HargaManualInput(itemId) {
+  const metodeSel = document.getElementById('t6_metode_' + itemId);
+  if (metodeSel && metodeSel.value !== 'Manual Input') {
+    metodeSel.value = 'Manual Input';
+  }
+  recalcTahap6Hps();
+}
+window.onTahap6HargaManualInput = onTahap6HargaManualInput;
+
+function recalcTahap6Hps() {
+  const cards = document.querySelectorAll('.t6-item-card');
+  let grandTotalHps = 0;
+
+  cards.forEach(card => {
+    const itemId = card.dataset.itemId;
+    const vol = Number(card.dataset.volume || 1);
+    const inp = document.getElementById('t6_hps_satuan_' + itemId);
+    const hrgSatuan = inp ? Number(inp.value || 0) : 0;
+    const subtotal = vol * hrgSatuan;
+    grandTotalHps += subtotal;
+
+    const subLabel = document.getElementById('t6_subtotal_label_' + itemId);
+    if (subLabel) {
+      subLabel.textContent = cakraFmtRp(subtotal);
+    }
+  });
+
+  const hiddenHps = document.getElementById('mu_nilai_hps');
+  if (hiddenHps) hiddenHps.value = grandTotalHps;
+
+  const totLabel = document.getElementById('t6_total_hps_label');
+  if (totLabel) totLabel.textContent = cakraFmtRp(grandTotalHps);
+
+  const paket = (CakraState.activePaketCtx?.paket?.id === CakraState.activePaketId ? CakraState.activePaketCtx.paket : null)
+    || (CakraState.pakets || []).find(p => String(p.id) === String(CakraState.activePaketId)) || {};
+  const pagu = Number(paket.nilai_pagu || 0);
+  const selisih = pagu - grandTotalHps;
+  const persen = pagu > 0 ? (selisih / pagu) * 100 : 0;
+
+  const selisihLabel = document.getElementById('t6_selisih_efisiensi_label');
+  if (selisihLabel) selisihLabel.textContent = cakraFmtRp(selisih);
+
+  const badgeEfisiensi = document.getElementById('t6_persen_efisiensi_badge');
+  if (badgeEfisiensi) {
+    if (selisih >= 0) {
+      badgeEfisiensi.className = 'cakra-badge cakra-badge-success';
+      badgeEfisiensi.textContent = 'Efisiensi: ' + persen.toFixed(2) + '% (' + cakraFmtRp(selisih) + ')';
+    } else {
+      badgeEfisiensi.className = 'cakra-badge cakra-badge-danger';
+      badgeEfisiensi.textContent = 'Defisit: ' + persen.toFixed(2) + '% (' + cakraFmtRp(Math.abs(selisih)) + ')';
+    }
+  }
+
+  const valBox = document.getElementById('t6_status_validasi_pagu');
+  if (valBox) {
+    if (grandTotalHps > pagu && pagu > 0) {
+      valBox.style.background = '#fef2f2';
+      valBox.style.border = '1px solid #f87171';
+      valBox.style.color = '#991b1b';
+      valBox.innerHTML = '⚠️ <b>PERINGATAN PELANGGARAN REGULASI (PASAL 26 AYAT 3 PERPRES 16/2018 JO 46/2025):</b><br/>Total HPS (<b>' + cakraFmtRp(grandTotalHps) + '</b>) MELEBIHI Pagu DIPA (<b>' + cakraFmtRp(pagu) + '</b>) sebesar <b>' + cakraFmtRp(Math.abs(selisih)) + '</b>. PPK dilarang menetapkan HPS di atas pagu. Mohon sesuaikan harga satuan atau efisiensi volume.';
+    } else {
+      valBox.style.background = '#ecfdf5';
+      valBox.style.border = '1px solid #a7f3d0';
+      valBox.style.color = '#065f46';
+      valBox.innerHTML = '✅ <b>MEMENUHI KETENTUAN PENGADAAN (PASAL 26 AYAT 3 PERPRES 16/2018 JO 46/2025):</b><br/>Total HPS berada di bawah batas tertinggi Pagu Anggaran DIPA. Rincian penetapan harga memenuhi tata kelola pengadaan dan siap disahkan oleh PPK.';
+    }
+  }
+}
+window.recalcTahap6Hps = recalcTahap6Hps;

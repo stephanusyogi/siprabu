@@ -2017,6 +2017,313 @@ function buildStage2Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
  * - Keputusan KPU Nomor 1272 Tahun 2025 (Pedoman Teknis Pengadaan Barang/Jasa KPU)
  * Format Baku Resmi KPU Kabupaten Ngawi — Akuntabel, Komprehensif, Siap Audit BPK/Inspektorat
  */
+/**
+ * TAHAP 6: PENYUSUNAN DAN PENETAPAN HARGA PERKIRAAN SENDIRI (HPS) / REFERENSI HARGA
+ * Regulasi Baku:
+ * - Pasal 11 ayat (1) huruf d & Pasal 26 Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 46 Tahun 2025
+ * - Peraturan LKPP Nomor 2 Tahun 2026 (Pasal 8 & Pasal 9 tentang Penilaian Katalog & Pembebasan HPS <= 100 Jt)
+ * - Peraturan LKPP Nomor 3 Tahun 2026 Lampiran I (Pedoman Teknis Penyusunan HPS)
+ * - Keputusan KPU Nomor 1272 Tahun 2025 (Standar Tata Naskah Dinas KPU)
+ * Penandatangan: Tanda Tangan Tunggal oleh Pejabat Pembuat Komitmen (PPK)
+ */
+function buildStage6Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
+  const { paket, items, ppk, kpa, settings } = ctx;
+  const isRefHarga = String(paket.jenis_kertas_harga || '').includes('Referensi Harga');
+  const judulNaskah = isRefHarga
+    ? 'BERITA ACARA PENETAPAN REFERENSI HARGA E-PURCHASING'
+    : 'BERITA ACARA PENETAPAN HARGA PERKIRAAN SENDIRI (HPS)';
+  const subJudul = isRefHarga
+    ? 'DOKUMEN TAHAP 06 (FASE II: PERSIAPAN PENGADAAN) — REGULASI PASAL 8 & 9 PERATURAN LKPP NOMOR 2 TAHUN 2026'
+    : 'DOKUMEN TAHAP 06 (FASE II: PERSIAPAN PENGADAAN) — REGULASI PASAL 26 PERPRES 46/2025 & PERLEM LKPP 3/2026';
+  const noHps = tahapRow.nomor_dokumen || `006/HPS/${paket.kode_paket_internal || 'PBJ-2026-001'}/PPK-PBJ/KPU-NGW/V/2026`;
+  const tglHpsStr = formatTanggalIndo(tahapRow.tanggal_dokumen || '2026-05-18');
+  const hariTanggalHps = formatHariTanggalBeritaAcara(tahapRow.tanggal_dokumen || '2026-05-18');
+
+  const children = [];
+
+  // 1. Kop Surat Resmi KPU Kabupaten Ngawi
+  children.push(...buildKopSuratKpu(settings));
+
+  // 2. Judul & Nomor Berita Acara
+  children.push(
+    pText(judulNaskah, {
+      bold: true,
+      size: 21,
+      align: AlignmentType.CENTER,
+      before: 30,
+      after: 8
+    }),
+    pText(subJudul, {
+      size: 15,
+      align: AlignmentType.CENTER,
+      color: '1E3A8A',
+      bold: true,
+      before: 0,
+      after: 16
+    }),
+    pText(`Nomor: ${noHps}`, {
+      size: 17,
+      align: AlignmentType.CENTER,
+      color: '475569',
+      bold: true,
+      before: 0,
+      after: 60
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              borders: {
+                top: { style: BorderStyle.NONE },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.DOUBLE, size: 14, color: '1E3A8A' }
+              },
+              children: [pText('', { before: 0, after: 0 })]
+            })
+          ]
+        })
+      ]
+    }),
+    pText('', { before: 0, after: 30 })
+  );
+
+  // 3. Paragraf Pembuka
+  children.push(
+    pText(`${hariTanggalHps}, bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, Jalan Untung Suropati Nomor 48 Ngawi, Pejabat Pembuat Komitmen (PPK) Satuan Kerja KPU Kabupaten Ngawi berdasarkan wewenang atributif yang diberikan oleh peraturan perundang-undangan telah melaksanakan penyusunan dan menetapkan ${paket.jenis_kertas_harga || 'Harga Perkiraan Sendiri (HPS)'} untuk pelaksanaan paket pengadaan barang/jasa pemerintah sebagai berikut:`, {
+      before: 20,
+      after: 30
+    })
+  );
+
+  // 4. Identitas Paket Pengadaan (Tabel Ringkas)
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 28, type: WidthType.PERCENTAGE }, children: [pText('1. Nama Paket Pekerjaan', { bold: true, size: 17 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 17 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 69, type: WidthType.PERCENTAGE }, children: [pText(paket.nama_paket || '-', { bold: true, size: 17 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 28, type: WidthType.PERCENTAGE }, children: [pText('2. Kode Paket / RUP', { bold: true, size: 17 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 17 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 69, type: WidthType.PERCENTAGE }, children: [pText(`${paket.kode_paket_internal || 'PBJ-2026-001'} | SiRUP: ${paket.kode_rup || '54892019'}`, { size: 17 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 28, type: WidthType.PERCENTAGE }, children: [pText('3. Sumber Dana & Pagu DIPA', { bold: true, size: 17 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 17 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 69, type: WidthType.PERCENTAGE }, children: [pText(`${paket.sumber_dana || 'APBN'} TA 2026 | MAK: ${paket.kode_akun_mak || '532111'} | Pagu: ${formatRupiah(paket.nilai_pagu)}`, { bold: true, color: '1E3A8A', size: 17 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 28, type: WidthType.PERCENTAGE }, children: [pText('4. Metode Pemilihan', { bold: true, size: 17 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 17 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 69, type: WidthType.PERCENTAGE }, children: [pText(`${paket.metode_pemilihan || 'E-Purchasing'} (${paket.sub_metode_epurchasing || 'Negosiasi Harga'})`, { size: 17 })] })
+          ]
+        })
+      ]
+    }),
+    pText('', { before: 0, after: 30 })
+  );
+
+  // 5. Konsiderans Landasan Yuridis
+  children.push(
+    pText('A. LANDASAN YURIDIS PENETAPAN', { bold: true, size: 18, color: '1E3A8A', before: 30, after: 15 }),
+    pNumbered('1.', 'Pasal 11 ayat (1) huruf d dan Pasal 26 Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah jo. Perpres Nomor 46 Tahun 2025 bahwa PPK menetapkan HPS yang dihitung secara keahlian dan menggunakan data yang dapat dipertanggungjawabkan.'),
+    pNumbered('2.', 'Peraturan LKPP Nomor 2 Tahun 2026 Pasal 8 (Penilaian Kelayakan Produk pada Katalog Elektronik) dan Pasal 9 (Ketentuan Penyusunan Referensi Harga untuk E-Purchasing s.d. Rp100 Juta).'),
+    pNumbered('3.', 'Peraturan LKPP Nomor 3 Tahun 2026 Lampiran I tentang Pedoman Teknis Pengadaan Barang/Jasa Pemerintah Melalui Penyedia.'),
+    pNumbered('4.', 'Berita Acara Analisa Pasar dan Penilaian PPK atas Kelayakan Katalog Elektronik Nomor: 005/AP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026 tanggal 18 Mei 2026.')
+  );
+
+  // 6. Tabel Rincian Penetapan Nilai HPS per Item
+  children.push(
+    pText('B. RINCIAN PENETAPAN HARGA PERKIRAAN SENDIRI (HPS) PER ITEM BARANG', { bold: true, size: 18, color: '1E3A8A', before: 50, after: 20 }),
+    pText('Nilai satuan HPS telah memperhitungkan keuntungan wajar, biaya pengiriman franco Kantor KPU Kabupaten Ngawi (SLA <= 14 hari), garansi resmi onsite 3 tahun, serta Pajak Pertambahan Nilai (PPN 11%) sesuai ketentuan perpajakan yang berlaku:', { before: 0, after: 30 })
+  );
+
+  // Buat Tabel HPS
+  const tableRows = [];
+  tableRows.push(
+    new TableRow({
+      tableHeader: true,
+      cantSplit: true,
+      children: [
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 6, type: WidthType.PERCENTAGE }, children: [pText('No', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 16 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 44, type: WidthType.PERCENTAGE }, children: [pText('Uraian Barang / Jasa & Kualifikasi Mutu', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 16 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 8, type: WidthType.PERCENTAGE }, children: [pText('Vol', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 16 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 10, type: WidthType.PERCENTAGE }, children: [pText('Satuan', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 16 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 16, type: WidthType.PERCENTAGE }, children: [pText('Harga Satuan HPS (Rp)', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 16 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 16, type: WidthType.PERCENTAGE }, children: [pText('Total Nilai HPS (Rp)', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 16 })] })
+      ]
+    })
+  );
+
+  let grandTotalHps = 0;
+  (items || []).forEach((it, idx) => {
+    const vol = Number(it.volume) || 1;
+    const hrgSatuan = Number(it.harga_satuan_hps || it.harga_survei_1 || 0);
+    const subtotal = Number(it.jumlah_hps) || (vol * hrgSatuan);
+    grandTotalHps += subtotal;
+
+    tableRows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ borders: BORDER_TABLE, width: { size: 6, type: WidthType.PERCENTAGE }, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 16 })] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 44, type: WidthType.PERCENTAGE }, children: [
+            pText(it.uraian_item || '-', { bold: true, size: 16, after: 2 }),
+            pText(`Spek: ${it.spesifikasi_teknis || '-'}`, { size: 14, color: '475569' })
+          ] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 8, type: WidthType.PERCENTAGE }, children: [pText(String(vol), { align: AlignmentType.CENTER, size: 16 })] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 10, type: WidthType.PERCENTAGE }, children: [pText(it.satuan || 'Unit', { align: AlignmentType.CENTER, size: 16 })] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 16, type: WidthType.PERCENTAGE }, children: [pText(formatRupiah(hrgSatuan), { align: AlignmentType.RIGHT, size: 16 })] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 16, type: WidthType.PERCENTAGE }, children: [pText(formatRupiah(subtotal), { bold: true, align: AlignmentType.RIGHT, size: 16 })] })
+        ]
+      })
+    );
+  });
+
+  // Total Row
+  tableRows.push(
+    new TableRow({
+      cantSplit: true,
+      children: [
+        new TableCell({
+          borders: BORDER_TABLE,
+          columnSpan: 5,
+          shading: { fill: 'F1F5F9', type: ShadingType.CLEAR },
+          children: [pText('TOTAL NILAI HPS (SUDAH TERMASUK PPN 11% & BIAYA PENGIRIMAN)', { bold: true, align: AlignmentType.RIGHT, size: 16 })]
+        }),
+        new TableCell({
+          borders: BORDER_TABLE,
+          shading: { fill: 'F1F5F9', type: ShadingType.CLEAR },
+          children: [pText(formatRupiah(grandTotalHps || paket.nilai_hps), { bold: true, color: '1E3A8A', align: AlignmentType.RIGHT, size: 16 })]
+        })
+      ]
+    })
+  );
+
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: tableRows
+    }),
+    pText(`Terbilang: # ${terbilangRupiah(grandTotalHps || paket.nilai_hps)} #`, {
+      bold: true,
+      italic: true,
+      size: 16,
+      before: 15,
+      after: 40
+    })
+  );
+
+  // 7. Pengendalian Pagu Anggaran & Efisiensi
+  const paguVal = Number(paket.nilai_pagu) || 0;
+  const hpsVal = grandTotalHps || Number(paket.nilai_hps) || 0;
+  const efisiensiVal = Math.max(0, paguVal - hpsVal);
+  const persenEfisiensi = paguVal > 0 ? ((efisiensiVal / paguVal) * 100).toFixed(2) : '0.00';
+
+  children.push(
+    pText('C. PENGENDALIAN BATAS PAGU DIPA & KETENTUAN PELAKSANAAN', { bold: true, size: 18, color: '1E3A8A', before: 40, after: 15 }),
+    pNumbered('1.', `Kesesuaian dengan Pagu DIPA: Total HPS sebesar ${formatRupiah(hpsVal)} berada di bawah Pagu Anggaran DIPA Satker sebesar ${formatRupiah(paguVal)}, menghasilkan potensi efisiensi/penghematan kas negara sebesar ${formatRupiah(efisiensiVal)} (${persenEfisiensi}%).`),
+    pNumbered('2.', 'Sifat Terbuka Total HPS: Nilai total HPS bersifat terbuka dan tidak rahasia. Total HPS ini diserahkan kepada Pejabat Pengadaan / Pokja Pemilihan dalam Dokumen Persiapan Pengadaan (DPP) sebagai batas tertinggi penawaran/negosiasi harga yang sah.'),
+    pNumbered('3.', 'Kerahasiaan Rincian Harga Satuan: Rincian kertas kerja perhitungan harga satuan HPS bersifat rahasia dan dilarang dibocorkan kepada penyedia sebelum batas akhir pemasukan penawaran/selesainya pemilihan demi mencegah terjadinya kartel harga atau persekongkolan tender.'),
+    pNumbered('4.', 'Larangan Perhitungan: Penyusunan HPS ini tidak memperhitungkan biaya tak terduga (contingency), biaya lain-lain, dan Pajak Penghasilan (PPh) yang merupakan kewajiban badan usaha penyedia.'),
+    pText('Demikian Berita Acara Penetapan Harga Perkiraan Sendiri (HPS) ini dibuat dan ditetapkan dengan sebenar-benarnya untuk dipergunakan sebagai acuan baku dalam proses pemilihan penyedia barang/jasa.', {
+      before: 20,
+      after: 80
+    })
+  );
+
+  // 8. Tanda Tangan Tunggal PPK
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 55, type: WidthType.PERCENTAGE }, children: [pText(' ')] }),
+            new TableCell({
+              borders: BORDER_NONE,
+              width: { size: 45, type: WidthType.PERCENTAGE },
+              children: [
+                pText('Ditetapkan di Ngawi', { align: AlignmentType.CENTER, size: 16, before: 0, after: 2, keepWithNext: true }),
+                pText(`Pada tanggal ${tglHpsStr}`, { align: AlignmentType.CENTER, size: 16, before: 0, after: 2, keepWithNext: true }),
+                pText('Pejabat Pembuat Komitmen (PPK)', { bold: true, align: AlignmentType.CENTER, size: 16, before: 0, after: 2, keepWithNext: true }),
+                pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, size: 16, before: 0, after: 240, keepWithNext: true }),
+                pText(`( ${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'} )`, { bold: true, align: AlignmentType.CENTER, size: 16, before: 0, after: 2, keepWithNext: true }),
+                pText(`NIP. ${ppk.nip || '19840101 200912 1 001'}`, { align: AlignmentType.CENTER, size: 15, before: 0, after: 0 })
+              ]
+            })
+          ]
+        })
+      ]
+    })
+  );
+
+  return [
+    {
+      properties: {
+        page: {
+          size: { width: 11906, height: 16838 },
+          margin: { top: 900, right: 900, bottom: 900, left: 900 }
+        }
+      },
+      headers: {
+        default: new Header({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              spacing: { before: 0, after: 30 },
+              children: [
+                new TextRun({
+                  text: `Dokumen Tahap 06 (${isRefHarga ? 'BA-REF' : 'BA-HPS'}) - No: ${noHps}`,
+                  size: 15,
+                  color: '64748B',
+                  font: 'Cambria',
+                  italics: true
+                })
+              ]
+            })
+          ]
+        })
+      },
+      footers: {
+        default: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              spacing: { before: 30, after: 0 },
+              children: [
+                new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Cambria' }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Cambria' })
+              ]
+            })
+          ]
+        })
+      },
+      children
+    }
+  ];
+}
+
 function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
   const { paket, items, ppk, kpa, settings } = ctx;
   const noAp = tahapRow.nomor_dokumen || `005/AP/${paket.kode_paket_internal || "PBJ-2026-001"}/PPK-PBJ/KPU-NGW/V/2026`;
@@ -2454,6 +2761,9 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   }
   if (stageNo === 5) {
     return buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
+  if (stageNo === 6) {
+    return buildStage6Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap

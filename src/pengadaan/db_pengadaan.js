@@ -752,14 +752,19 @@ async function savePaketItems(paketId, items) {
     const s3 = Number(it.harga_survei_3) || s1;
 
     let hpsSatuan = Number(it.harga_satuan_hps) || 0;
-    if (it.metode_penentuan_hps === 'Terendah' && s1 > 0) {
-      const candidates = [s1, s2, s3].filter(v => v > 0);
+    const candidates = [s1, s2, s3].filter(v => v > 0);
+    if (it.metode_penentuan_hps === 'Terendah' && candidates.length > 0) {
       hpsSatuan = Math.min(...candidates);
-    } else if (it.metode_penentuan_hps === 'Rata-rata' && s1 > 0) {
-      const candidates = [s1, s2, s3].filter(v => v > 0);
+    } else if (it.metode_penentuan_hps === 'Rata-rata' && candidates.length > 0) {
       hpsSatuan = Math.round(candidates.reduce((a, b) => a + b, 0) / candidates.length);
-    } else if (!hpsSatuan) {
+    } else if (it.metode_penentuan_hps === 'Sumber 1 (Katalog)' && s1 > 0) {
       hpsSatuan = s1;
+    } else if (it.metode_penentuan_hps === 'Sumber 2 (Toko/Pasar)' && s2 > 0) {
+      hpsSatuan = s2;
+    } else if (it.metode_penentuan_hps === 'Sumber 3 (SBM/Riwayat)' && s3 > 0) {
+      hpsSatuan = s3;
+    } else if (!hpsSatuan) {
+      hpsSatuan = candidates.length > 0 ? Math.min(...candidates) : s1;
     }
 
     const penawaranSatuan = Number(it.harga_satuan_penawaran) || hpsSatuan;
