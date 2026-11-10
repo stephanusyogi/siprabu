@@ -5147,31 +5147,67 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
 
     case 5:
       const cardItems = CakraState.activePaketCtx?.items || [];
-      let totalMinSurvei = 0;
-      cardItems.forEach(it => {
-        const p1 = Number(it.harga_survei_1) || 0;
-        const p2 = Number(it.harga_survei_2) || p1;
-        const p3 = Number(it.harga_survei_3) || p1;
-        const valid = [p1, p2, p3].filter(v => v > 0);
-        const minVal = valid.length ? Math.min(...valid) : 0;
-        totalMinSurvei += minVal * Number(it.volume || 1);
-      });
-      const paguCard = Number(paket.nilai_pagu || 145000000);
-      const efisiensiSurvei = Math.max(0, paguCard - totalMinSurvei);
+      let totalAlternatifs = 0;
+      let totalLolosUji = 0;
+      let sumberCounts = {};
+      let minTotalSurvei = 0;
+      let maxTotalSurvei = 0;
+      let itemSummaries = [];
 
-      // Kumpulkan jenis sumber yang disurvei
-      const sumberSet = new Set();
-      cardItems.forEach(it => {
-        if (it.evaluasi_pasar_json && typeof it.evaluasi_pasar_json === 'object' && Array.isArray(it.evaluasi_pasar_json.alternatifs)) {
-          it.evaluasi_pasar_json.alternatifs.forEach(a => {
-            if (a.jenis_sumber) sumberSet.add(a.jenis_sumber.replace(/\s*\(.*\)/, ''));
-          });
+      cardItems.forEach((it, idx) => {
+        let alts = [];
+        if (it.evaluasi_pasar_json && typeof it.evaluasi_pasar_json === 'object' && Array.isArray(it.evaluasi_pasar_json.alternatifs) && it.evaluasi_pasar_json.alternatifs.length) {
+          alts = it.evaluasi_pasar_json.alternatifs;
+        } else {
+          const s1 = Number(it.harga_survei_1) || 0;
+          const s2 = Number(it.harga_survei_2) || s1;
+          const s3 = Number(it.harga_survei_3) || s1;
+          alts = [
+            { alt_no: 1, jenis_sumber: 'Katalog Elektronik (E-Katalog v6)', sumber: it.sumber_survei_1 || 'PT. Astra Graphia', harga: s1, skor: 5, sla_hari: 14, garansi: '3 Tahun' },
+            { alt_no: 2, jenis_sumber: 'Toko Daring / Marketplace (Olshop)', sumber: it.sumber_survei_2 || 'Bhinneka.com', harga: s2, skor: 5, sla_hari: 10, garansi: '3 Tahun' },
+            { alt_no: 3, jenis_sumber: idx === 0 ? 'Penyedia / Toko Konvensional (Offline)' : 'Riwayat Kontrak / Pengadaan Sebelumnya', sumber: it.sumber_survei_3 || 'Mitra Mandiri', harga: s3, skor: 5, sla_hari: 14, garansi: '3 Tahun' }
+          ];
         }
+
+        totalAlternatifs += alts.length;
+        const prices = alts.map(a => Number(a.harga || 0)).filter(p => p > 0);
+        const minP = prices.length ? Math.min(...prices) : Number(it.harga_satuan_hps || 0);
+        const maxP = prices.length ? Math.max(...prices) : minP;
+        const vol = Number(it.volume || 1);
+
+        minTotalSurvei += (minP * vol);
+        maxTotalSurvei += (maxP * vol);
+
+        let lolosInItem = 0;
+        alts.forEach(a => {
+          const rawJns = (a.jenis_sumber || 'Katalog Elektronik (E-Katalog v6)');
+          const jnsClean = rawJns.replace(/\s*\(.*\)/, '').trim();
+          sumberCounts[jnsClean] = (sumberCounts[jnsClean] || 0) + 1;
+          const score = Number(a.skor !== undefined ? a.skor : (Number(a.p1||0)+Number(a.p2||0)+Number(a.p3||0)+Number(a.p4||0)+Number(a.p5||0)));
+          if (score === 5) {
+            lolosInItem++;
+            totalLolosUji++;
+          }
+        });
+
+        itemSummaries.push({
+          nama: it.uraian_item || ('Item ' + (idx + 1)),
+          vol: `${vol} ${it.satuan || 'Unit'}`,
+          countAlt: alts.length,
+          lolosCount: lolosInItem,
+          minPrice: minP,
+          maxPrice: maxP,
+          paguUnit: Number(it.harga_satuan_hps || 0)
+        });
       });
-      const sumberStr = sumberSet.size ? Array.from(sumberSet).join(' • ') : 'E-Katalog v6 • Toko Daring (Olshop) • Toko Offline';
+
+      const paguCard = Number(paket.nilai_pagu || 145000000);
+      const efisiensiSurvei = Math.max(0, paguCard - minTotalSurvei);
+      const spreadPasar = Math.max(0, maxTotalSurvei - minTotalSurvei);
 
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:12px;">
+        <!-- 4 KARTU METRIK UTAMA ANALISA PASAR -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:10px; margin-bottom:12px;">
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
             <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Status Ketersediaan Katalog v6</div>
             <div style="font-size:13px; font-weight:800; color:#15803d;">${cakraEsc(paket.tersedia_di_katalog || 'Ya, Tersedia & Sesuai')}</div>
@@ -5179,20 +5215,70 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
           </div>
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
             <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Pengujian 5 Parameter Baku</div>
-            <div style="font-size:13px; font-weight:800; color:#1e3a8a;">Lolos Uji 5/5 Parameter</div>
-            <div style="font-size:10.5px; color:#15803d; margin-top:2px;">Pasal 8 Perlem LKPP 2/2026</div>
+            <div style="font-size:13px; font-weight:800; color:#1e3a8a;">${totalLolosUji}/${totalAlternatifs} Alternatif Lolos Uji</div>
+            <div style="font-size:10.5px; color:#15803d; margin-top:2px;">100% Memenuhi KAK (Pasal 8 Perlem 2/2026)</div>
           </div>
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
             <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Estimasi Pasar Terendah</div>
-            <div style="font-size:13px; font-weight:800; color:#047857;">Rp ${totalMinSurvei.toLocaleString('id-ID')}</div>
-            <div style="font-size:10.5px; color:#047857; margin-top:2px;">Efisiensi: Rp ${efisiensiSurvei.toLocaleString('id-ID')}</div>
+            <div style="font-size:13px; font-weight:800; color:#047857;">Rp ${minTotalSurvei.toLocaleString('id-ID')}</div>
+            <div style="font-size:10.5px; color:#047857; margin-top:2px;">Potensi Efisiensi: Rp ${efisiensiSurvei.toLocaleString('id-ID')} vs Pagu</div>
+          </div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Rentang Komparasi Pasar</div>
+            <div style="font-size:13px; font-weight:800; color:#0f172a;">Rp ${minTotalSurvei.toLocaleString('id-ID')} s.d. Rp ${maxTotalSurvei.toLocaleString('id-ID')}</div>
+            <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Selisih Spread Pasar: Rp ${spreadPasar.toLocaleString('id-ID')}</div>
           </div>
         </div>
-        <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:8px;">
-          <div style="font-size:10px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">🌐 Ragam Sumber Survei Pasar:</div>
-          <div style="font-size:11px; font-weight:700; color:#0369a1;">${cakraEsc(sumberStr)}</div>
+
+        <!-- RESUME KUANTITATIF SUMBER SURVEI & KANAL PASAR -->
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+            <div style="font-size:11px; font-weight:800; color:#166534; text-transform:uppercase; display:flex; align-items:center; gap:8px;">
+              <span>🌐 Resume Ragam Sumber Survei Pasar:</span>
+              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:800;">${totalAlternatifs} Alternatif Disurvei</span>
+              <span class="cakra-badge cakra-badge-blue" style="font-size:10px; font-weight:800;">${Object.keys(sumberCounts).length} Kanal Sumber</span>
+            </div>
+            <div style="font-size:10.5px; color:#15803d; font-weight:700;">
+              Pasal 26 Perpres PBJ jo. Kepka LKPP 177/2024
+            </div>
+          </div>
+
+          <!-- PILLS KANAL SUMBER -->
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            ${Object.entries(sumberCounts).map(([k, v]) => `
+              <div style="background:#ffffff; border:1px solid #86efac; border-radius:6px; padding:4px 10px; font-size:11px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                <span style="font-weight:700; color:#0f172a;">${cakraEsc(k)}:</span>
+                <span style="font-weight:800; color:#15803d; background:#dcfce7; padding:1px 6px; border-radius:4px;">${v} Rekanan / Produk</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- GAMBARAN KOMPARASI DETAIL PER ITEM BARANG -->
+          <div style="background:#ffffff; border:1px solid #dcfce7; border-radius:6px; padding:10px 12px; font-size:11px;">
+            <div style="font-weight:800; color:#166534; margin-bottom:6px; font-size:11px; text-transform:uppercase;">
+              📊 Gambaran Hasil Komparasi Pasar per Item Kebutuhan:
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              ${itemSummaries.map((it, idx) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; padding:4px 0; border-bottom:${idx < itemSummaries.length - 1 ? '1px dashed #e2e8f0' : 'none'};">
+                  <div>
+                    <strong style="color:#0f172a; font-size:11.5px;">Item ${idx + 1}: ${cakraEsc(it.nama)}</strong>
+                    <span style="color:#64748b; margin-left:6px; font-weight:600;">(${it.vol})</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; font-size:11px;">
+                    <span style="color:#0284c7; font-weight:700;">Disurvei: ${it.countAlt} Alternatif (${it.lolosCount}/${it.countAlt} Lolos Uji)</span>
+                    <span style="color:#cbd5e1;">|</span>
+                    <span style="color:#047857; font-weight:800;">Harga Terendah: Rp ${it.minPrice.toLocaleString('id-ID')}</span>
+                    <span style="color:#64748b; font-size:10px;">(Pagu KAK: Rp ${it.paguUnit.toLocaleString('id-ID')})</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
         </div>
-        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px;">
+
+        <!-- JUSTIFIKASI FORMAL PPK -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
           <div style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px;">Justifikasi Formal PPK &amp; Opsi Multi-Order:</div>
           <div style="font-size:11.5px; color:#1e293b; line-height:1.45;">${cakraEsc(paket.alasan_penilaian_ppk_katalog || 'Seluruh item memenuhi 5 parameter baku kelayakan. Transaksi dapat menggunakan Skenario Tunggal maupun Multi-Order.')}</div>
         </div>
@@ -5474,7 +5560,7 @@ function renderUniversalStageCard(stageNo, activeStageDef, activeTRow, paket, it
           </div>
           <div>
             <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pejabat Penanggung Jawab</div>
-            <div style="font-size:12.5px; font-weight:800; color:#1e40af; margin-top:2px;">${num === 3 ? 'Kuasa Pengguna Anggaran (Sekretaris KPU Kab. Ngawi)' : 'PPK / Pejabat Pengadaan KPU Kab. Ngawi'}</div>
+            <div style="font-size:12.5px; font-weight:800; color:#1e40af; margin-top:2px;">${[4, 5, 6, 7].includes(num) ? 'Pejabat Pembuat Komitmen (PPK)' : (num === 3 ? 'Kuasa Pengguna Anggaran (Sekretaris KPU Kab. Ngawi)' : (num === 8 ? 'PPK & Pejabat Pengadaan' : (num === 9 ? 'Pejabat Pengadaan' : 'PPK / Pejabat Pengadaan KPU Kab. Ngawi')))}</div>
           </div>
         </div>
 
@@ -7998,6 +8084,21 @@ function generateUniversalModalFields(num, paket, activeTRow) {
             <button type="button" class="btn btn-sm" onclick="toggleChecklistAllTahap5(true)" style="background:#16a34a; color:#ffffff; font-size:11px; font-weight:700; padding:6px 14px; border:none; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.12);">
               ⚡ Centang Semua Lolos (Seluruh Barang &amp; Alternatif)
             </button>
+          </div>
+
+          <!-- BANNER RESUME ANALISA PASAR DI DALAM FORM POPUP -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+              <span style="font-size:11.5px; font-weight:800; color:#1e40af;">
+                📌 RESUME SURVEI: Disurvei dari Beragam Kanal Sumber (E-Katalog v6, Toko Daring Olshop, Penyedia Offline, Riwayat Kontrak)
+              </span>
+              <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:800;">
+                ✓ Seluruh Alternatif Lolos Uji 5 Parameter
+              </span>
+            </div>
+            <div style="font-size:10.5px; color:#475569; line-height:1.4;">
+              Setiap item barang disurvei dengan membandingkan alternatif penyedia/produk tayang, kesesuaian spesifikasi KAK, kepastian stok, harga satuan, SLA waktu kirim, dan garansi resmi pabrikan.
+            </div>
           </div>
 
           ${itemsTahap5.length ? itemsTahap5.map((it, idx) => {

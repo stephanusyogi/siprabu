@@ -475,12 +475,7 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
     ws.getCell(`A${rowIdx}`).alignment = { wrapText: true };
     rowIdx++;
 
-    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[5]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'J', {
-      judulAtas: 'Pejabat Pengadaan',
-      subJudul: settings.nama_satker || 'KPU Kabupaten Ngawi',
-      nama: pejabatPengadaan?.nama_lengkap || 'INDRAYU FATIKA MAHARDIKA',
-      identitas: `NIP. ${pejabatPengadaan?.nip || '-'}`
-    }, 'B');
+    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[5]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'J', null);
   }
 
   // -------------------------------------------------------------------------
