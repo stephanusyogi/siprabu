@@ -3250,6 +3250,17 @@ function renderDashboard() {
 // VIEW 2: PUSAT SIKLUS & RIWAYAT DOKUMEN
 // ============================================================================
 
+function getPrimaryBuktiLinkLabel(dasarPengesahan) {
+  const d = String(dasarPengesahan || '').trim();
+  if (d === 'Notulensi Audiensi') return '📄 Notulensi Audiensi';
+  if (d === 'BA TAPD') return '📄 BA TAPD';
+  if (d === 'NPHD') return '📄 NPHD';
+  if (d === 'Keputusan KPU') return '📄 Keputusan KPU';
+  if (d === 'Surat Usulan KPU') return '📄 Surat Usulan KPU';
+  if (d === 'BA Pleno Komisioner' || d === 'BA Pleno KPU') return '📄 BA Pleno';
+  return d ? `📄 ${escHtml(d)}` : '📄 Dokumen Pengesahan';
+}
+
 function renderSiklus() {
   const p = AppState.currentPeriode;
   if (!p) return;
@@ -3271,10 +3282,11 @@ function renderSiklus() {
   const buktiLinksBox = document.getElementById('siklus-bukti-links');
   if (buktiLinksBox) {
     const baLink = p.gdrive_link_pleno || p.file_pendukung_path || '';
-    const rkbLink = p.rkb_final_link || '';
-    const kakLink = p.kak_gabungan_link || '';
+    const rkbLink = (p.rkb_final_link && p.rkb_final_link !== baLink) ? p.rkb_final_link : '';
+    const kakLink = (p.kak_gabungan_link && p.kak_gabungan_link !== baLink && p.kak_gabungan_link !== rkbLink) ? p.kak_gabungan_link : '';
+    const primaryLabel = getPrimaryBuktiLinkLabel(p.dasar_pengesahan);
     const linksArr = [
-      baLink ? `<a href="${escHtml(baLink)}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px; color:#2563eb; text-decoration:none; font-weight:600;">📄 BA Pleno</a>` : '',
+      baLink ? `<a href="${escHtml(baLink)}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px; color:#2563eb; text-decoration:none; font-weight:600;">${primaryLabel}</a>` : '',
       rkbLink ? `<a href="${escHtml(rkbLink)}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px; color:#15803d; text-decoration:none; font-weight:600;">📊 RKB Final</a>` : '',
       kakLink ? `<a href="${escHtml(kakLink)}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px; color:#7c3aed; text-decoration:none; font-weight:600;">📑 KAK Gabungan</a>` : ''
     ].filter(Boolean);
@@ -3453,10 +3465,11 @@ function renderSiklus() {
       const faseItem = item.fase_perencanaan || item.tahap_revisi || 'PRA_NPHD';
 
       const baLink = item.gdrive_link_pleno || item.file_pendukung_path || '';
-      const rkbLink = item.rkb_final_link || '';
-      const kakLink = item.kak_gabungan_link || '';
+      const rkbLink = (item.rkb_final_link && item.rkb_final_link !== baLink) ? item.rkb_final_link : '';
+      const kakLink = (item.kak_gabungan_link && item.kak_gabungan_link !== baLink && item.kak_gabungan_link !== rkbLink) ? item.kak_gabungan_link : '';
+      const primaryItemLabel = getPrimaryBuktiLinkLabel(item.dasar_pengesahan);
       const linksHtml = [
-        baLink ? `<a href="${escHtml(baLink)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#2563eb; text-decoration:none; font-weight:600;">📄 BA Pleno</a>` : '',
+        baLink ? `<a href="${escHtml(baLink)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#2563eb; text-decoration:none; font-weight:600;">${primaryItemLabel}</a>` : '',
         rkbLink ? `<a href="${escHtml(rkbLink)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#15803d; text-decoration:none; font-weight:600;">📊 RKB Final</a>` : '',
         kakLink ? `<a href="${escHtml(kakLink)}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px; color:#7c3aed; text-decoration:none; font-weight:600;">📑 KAK Gabungan</a>` : ''
       ].filter(Boolean).join(' &bull; ');
@@ -11587,7 +11600,7 @@ function renderRkbWorkflow() {
           <div style="font-size: 24px;">🔒</div>
           <div>
             <div style="font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
-              <span>DOKUMEN TERKUNCI (HASIL SIDANG PLENO KPU)</span>
+              <span>DOKUMEN TERKUNCI (${escapeHtml(dasarPengesahan.toUpperCase())})</span>
               <span class="badge badge-danger">LOCKED</span>
             </div>
             <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">
@@ -11599,7 +11612,7 @@ function renderRkbWorkflow() {
         <div style="display: flex; align-items: center; gap: 8px;">
           ${gdrivePlenoLink ? `
             <a href="${escapeHtml(gdrivePlenoLink)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
-              📂 Berkas BA Pleno / SK (GDrive) ↗
+              📂 Berkas ${escapeHtml(dasarPengesahan)} (GDrive) ↗
             </a>
           ` : ''}
           <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openModalMatriks('SEMUA')" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">

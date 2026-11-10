@@ -2654,7 +2654,8 @@ function clonePeriodeToRevision(sourcePeriodeId, {
       idMap[r.id] = res.lastInsertRowid;
     }
 
-    syncRkbReferenceLinks(newPeriode.id, true);
+    // Duplikasi dokumen revisi wajib 100% identik (1:1) dengan baseline sumber saat diterbitkan
+    // tanpa menjalankan ulang heuristik inisialisasi yang dapat mengubah angka faktor baris.
 
     if (!insideTransaction) db.exec('COMMIT');
   } catch (err) {
@@ -5975,26 +5976,23 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
           }
 
           // 5. Honorarium PPK & PPS (Masa Kerja PPK & Masa Kerja PPS)
-          if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPK' && target_scope === 'PPK') {
+          // Hanya ikat ke @masa_kerja_ppk / @masa_kerja_pps jika faktor memang bernilai masa kerja (bukan jumlah personil atau Rohaniwan)
+          if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPK' && target_scope === 'PPK' && !uraianLower.includes('rohaniwan')) {
             const u2 = String(f2_unit || '').trim().toLowerCase();
             const u3 = String(f3_unit || '').trim().toLowerCase();
-            if (!u2 || u2 === '0' || /^(bulan|bln)$/i.test(u2)) {
+            if (/^(bulan|bln)$/i.test(u2) && Number(f2_val) === Number(masaKerjaPpk)) {
               f2_var = 'masa_kerja_ppk'; f2_val = masaKerjaPpk;
-              if (!u2 || u2 === '0') f2_unit = 'Bulan';
-            } else if (!u3 || u3 === '0' || /^(bulan|bln)$/i.test(u3)) {
+            } else if ((/^(bulan|bln)$/i.test(u3) || Number(f3_val) === Number(masaKerjaPpk)) && Number(f3_val) > 0) {
               f3_var = 'masa_kerja_ppk'; f3_val = masaKerjaPpk;
-              if (!u3 || u3 === '0') f3_unit = 'Bulan';
             }
           }
-          if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPS' && target_scope === 'PPS') {
+          if (String(r.kode_akun || '') === '521213' && basis_pengali === 'PPS' && target_scope === 'PPS' && !uraianLower.includes('rohaniwan')) {
             const u2 = String(f2_unit || '').trim().toLowerCase();
             const u3 = String(f3_unit || '').trim().toLowerCase();
-            if (!u2 || u2 === '0' || /^(bulan|bln)$/i.test(u2)) {
+            if (/^(bulan|bln)$/i.test(u2) && Number(f2_val) === Number(masaKerjaPps)) {
               f2_var = 'masa_kerja_pps'; f2_val = masaKerjaPps;
-              if (!u2 || u2 === '0') f2_unit = 'Bulan';
-            } else if (!u3 || u3 === '0' || /^(bulan|bln)$/i.test(u3)) {
+            } else if ((/^(bulan|bln)$/i.test(u3) || Number(f3_val) === Number(masaKerjaPps)) && Number(f3_val) > 0) {
               f3_var = 'masa_kerja_pps'; f3_val = masaKerjaPps;
-              if (!u3 || u3 === '0') f3_unit = 'Bulan';
             }
           }
 
@@ -7981,7 +7979,7 @@ function finalizeTahap4Keseluruhan({
       finalDasar,
       noBa,
       tglBa,
-      catatan || `Pengesahan Berita Acara Pleno ${noBa}`,
+      catatan || `Pengesahan ${finalDasar}${noBa && noBa !== '-' ? ' ' + noBa : ''}`,
       cleanLinkBa,
       cleanLinkBa,
       cleanLinkRkb,
@@ -8005,10 +8003,10 @@ function finalizeTahap4Keseluruhan({
         is_locked = 1,
         updated_at = CURRENT_TIMESTAMP
       WHERE periode_id = ?
-    `).run(waktuNow, userName, noBa, tglBa, catatan || 'Disahkan berdasarkan Berita Acara Pleno.', cycle.id);
+    `).run(waktuNow, userName, noBa, tglBa, catatan || `Disahkan berdasarkan ${finalDasar}.`, cycle.id);
 
     // 6. Simpan snapshot arsip
-    savePeriodeSnapshot(cycle.id, user, false, `Pengesahan Tahap 4 Keseluruhan BA Pleno ${noBa}`);
+    savePeriodeSnapshot(cycle.id, user, false, `Pengesahan Tahap 4 Keseluruhan (${finalDasar}${noBa && noBa !== '-' ? ' ' + noBa : ''})`);
 
     // 7. Catat log riwayat pengesahan untuk setiap pengajuan
     for (const p of proposals) {
@@ -8020,7 +8018,7 @@ function finalizeTahap4Keseluruhan({
         tahap: 4,
         status: 'SELESAI',
         aksi: 'PENGESAHAN_BA_PLENO',
-        catatan: `Disahkan melalui BA Pleno No: ${noBa} tanggal ${tglBa} (Fase: ${finalFase}, Dasar: ${finalDasar}).`,
+        catatan: `Disahkan melalui ${finalDasar} No: ${noBa} tanggal ${tglBa} (Fase: ${finalFase}, Dasar: ${finalDasar}).`,
         user
       });
     }
