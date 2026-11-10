@@ -2067,34 +2067,15 @@ function buildStage6Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
       color: '475569',
       bold: true,
       before: 0,
-      after: 60
-    }),
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              borders: {
-                top: { style: BorderStyle.NONE },
-                left: { style: BorderStyle.NONE },
-                right: { style: BorderStyle.NONE },
-                bottom: { style: BorderStyle.DOUBLE, size: 14, color: '1E3A8A' }
-              },
-              children: [pText('', { before: 0, after: 0 })]
-            })
-          ]
-        })
-      ]
-    }),
-    pText('', { before: 0, after: 30 })
+      after: 30
+    })
   );
 
   // 3. Paragraf Pembuka
   children.push(
-    pText(`${hariTanggalHps}, bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, Jalan Untung Suropati Nomor 48 Ngawi, Pejabat Pembuat Komitmen (PPK) Satuan Kerja KPU Kabupaten Ngawi berdasarkan wewenang atributif yang diberikan oleh peraturan perundang-undangan telah melaksanakan penyusunan dan menetapkan ${paket.jenis_kertas_harga || 'Harga Perkiraan Sendiri (HPS)'} untuk pelaksanaan paket pengadaan barang/jasa pemerintah sebagai berikut:`, {
-      before: 20,
-      after: 30
+    pText(`${hariTanggalHps.kalimatFormal}, bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, Jalan Untung Suropati Nomor 48 Ngawi, Pejabat Pembuat Komitmen (PPK) Satuan Kerja KPU Kabupaten Ngawi berdasarkan wewenang atributif yang diberikan oleh peraturan perundang-undangan telah melaksanakan penyusunan dan menetapkan ${paket.jenis_kertas_harga || 'Harga Perkiraan Sendiri (HPS)'} untuk pelaksanaan paket pengadaan barang/jasa pemerintah sebagai berikut:`, {
+      before: 10,
+      after: 25
     })
   );
 
