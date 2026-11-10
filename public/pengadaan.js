@@ -5285,22 +5285,155 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
 
     case 6:
+      const t6Items = items || CakraState.activePaketCtx?.items || [];
+      const paguHps = Number(paket.nilai_pagu || 145000000);
+      const totalHpsVal = Number(paket.nilai_hps || 0) || t6Items.reduce((acc, it) => acc + (Number(it.volume || 1) * Number(it.harga_satuan_hps || it.harga_survei_1 || 0)), 0);
+      const selisihEfi = Math.max(0, paguHps - totalHpsVal);
+      const persenEfi = paguHps > 0 ? (selisihEfi / paguHps) * 100 : 0;
+      const isOverPagu = totalHpsVal > paguHps && paguHps > 0;
+      const isRefHarga = String(paket.jenis_kertas_harga || '').includes('Referensi Harga');
+      const metodeSummary = {};
+      t6Items.forEach(it => {
+        const m = it.metode_penentuan_hps || 'Terendah';
+        metodeSummary[m] = (metodeSummary[m] || 0) + 1;
+      });
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Kertas Kerja Penetapan Harga</div>
-            <div style="font-size:14px; font-weight:800; color:#b45309;">${cakraEsc(paket.jenis_kertas_harga || 'HPS')}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Pagu &gt; Rp 100 Juta Wajib HPS</div>
+        <!-- 4 KARTU METRIK UTAMA PENETAPAN HPS & PENGENDALIAN ANGGARAN -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:10px; margin-bottom:12px;">
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Kertas Kerja Penetapan Harga</div>
+            <div style="font-size:13.5px; font-weight:800; color:#b45309;">${cakraEsc(paket.jenis_kertas_harga || 'HPS')}</div>
+            <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Pasal 26 Perpres PBJ (PPK Satker 657811)</div>
           </div>
-          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Nilai HPS Ditetapkan PPK</div>
-            <div style="font-size:15px; font-weight:900; color:#1e3a8a;">${cakraFmtRp(paket.nilai_hps || paket.nilai_pagu)}</div>
-            <div style="font-size:11px; color:#1e40af; margin-top:2px;">Sudah memperhitungkan PPN 11% &amp; Keuntungan Wajar</div>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Batas Tertinggi Pagu DIPA</div>
+            <div style="font-size:14px; font-weight:900; color:#0f172a;">${cakraFmtRp(paguHps)}</div>
+            <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Batas Maksimum Belanja Satker</div>
           </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Rincian Komponen Belanja</div>
-            <div style="font-size:13.5px; font-weight:800; color:#0f172a;">${(items || []).length} Item Rincian Terdaftar</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Daftar harga satuan dan spesifikasi barang</div>
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px;">
+            <div style="font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase; margin-bottom:3px;">Total Nilai HPS Ditetapkan</div>
+            <div style="font-size:15px; font-weight:900; color:#1e3a8a;">${cakraFmtRp(totalHpsVal)}</div>
+            <div style="font-size:10.5px; color:#1e40af; margin-top:2px;">Termasuk PPN 11% &amp; Keuntungan Wajar</div>
+          </div>
+          <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px;">
+            <div style="font-size:10px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:3px;">Efisiensi Anggaran Kas Negara</div>
+            <div style="font-size:14px; font-weight:900; color:#15803d;">${cakraFmtRp(selisihEfi)}</div>
+            <div style="font-size:10.5px; color:#15803d; margin-top:2px;">Penghematan: ${persenEfi.toFixed(2)}% vs Pagu DIPA</div>
+          </div>
+        </div>
+
+        <!-- BANNER VALIDASI KEPATUHAN REGULASI HPS (PASAL 26 PERPRES PBJ) -->
+        ${!isOverPagu ? `
+          <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-size:11.5px; font-weight:800; color:#065f46; display:flex; align-items:center; gap:6px;">
+                <span>✅ STATUS REGULASI: MEMENUHI KETENTUAN PASAL 26 AYAT 3 PERPRES 16/2018 JO 46/2025</span>
+                <span class="cakra-badge cakra-badge-green" style="font-size:9.5px; font-weight:800;">HPS &lt;= PAGU DIPA</span>
+              </div>
+              <div style="font-size:11px; color:#047857; margin-top:2px;">
+                Total HPS berada di bawah batas pagu DIPA dengan potensi penghematan kas negara sebesar <b>${cakraFmtRp(selisihEfi)} (${persenEfi.toFixed(2)}%)</b>.
+              </div>
+            </div>
+            <div style="font-size:10.5px; color:#065f46; font-weight:700; text-align:right;">
+              Kerahasiaan Rincian HPS Terjamin (Pasal 26 ayat 7)
+            </div>
+          </div>
+        ` : `
+          <div style="background:#fef2f2; border:1px solid #f87171; border-radius:8px; padding:10px 14px; margin-bottom:12px;">
+            <div style="font-size:11.5px; font-weight:800; color:#991b1b;">
+              ⚠️ PERINGATAN: TOTAL HPS MELEBIHI PAGU ANGGARAN DIPA!
+            </div>
+            <div style="font-size:11px; color:#b91c1c; margin-top:2px;">
+              Total HPS (${cakraFmtRp(totalHpsVal)}) melampaui Pagu DIPA (${cakraFmtRp(paguHps)}). PPK dilarang menetapkan HPS di atas pagu (Pasal 26 ayat 3).
+            </div>
+          </div>
+        `}
+
+        <!-- DISTRIBUSI METODE PENETAPAN HPS PER ITEM -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+            <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase; display:flex; align-items:center; gap:8px;">
+              <span>🎯 Metode Penetapan Harga Satuan:</span>
+              <span class="cakra-badge cakra-badge-blue" style="font-size:10px; font-weight:800;">${t6Items.length} Item Komponen</span>
+              <span class="cakra-badge cakra-badge-amber" style="font-size:10px; font-weight:800;">${Object.keys(metodeSummary).length} Ragam Metode</span>
+            </div>
+            <div style="font-size:10.5px; color:#64748b; font-weight:600;">
+              Lampiran I Peraturan LKPP Nomor 3 Tahun 2026
+            </div>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            ${Object.entries(metodeSummary).map(([met, count]) => `
+              <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:6px; padding:4px 10px; font-size:11px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                <span style="font-weight:700; color:#1e3a8a;">${cakraEsc(met)}:</span>
+                <span style="font-weight:800; color:#1e40af; background:#dbeafe; padding:1px 6px; border-radius:4px;">${count} Item Komponen</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- TABEL RINCIAN PENETAPAN HARGA SATUAN HPS PER ITEM -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">
+            <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; text-transform:uppercase;">
+              📋 Rincian Penetapan Harga Satuan HPS per Item Barang / Jasa:
+            </div>
+            <div style="font-size:10.5px; color:#64748b; font-weight:600;">
+              Disahkan Tunggal oleh PPK (Tanpa Pejabat Pengadaan)
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${t6Items.length ? t6Items.map((it, idx) => {
+              const vol = Number(it.volume || 1);
+              const hpsSatuan = Number(it.harga_satuan_hps || it.harga_survei_1 || 0);
+              const subtotal = vol * hpsSatuan;
+              const s1 = Number(it.harga_survei_1 || 0);
+              const s2 = Number(it.harga_survei_2 || 0);
+              const s3 = Number(it.harga_survei_3 || 0);
+
+              return `
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:9px 12px; font-size:11px;">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                    <div>
+                      <strong style="color:#0f172a; font-size:12px;">${idx + 1}. ${cakraEsc(it.uraian_item)}</strong>
+                      <span class="cakra-badge cakra-badge-secondary" style="font-size:9.5px; margin-left:6px;">${cakraEsc(it.satuan || 'Unit')}</span>
+                      <span class="cakra-badge cakra-badge-info" style="font-size:9.5px; margin-left:4px;">Vol: ${vol}</span>
+                      ${it.pic_subbag_pengguna ? `<span class="cakra-badge cakra-badge-success" style="font-size:9.5px; margin-left:4px;">Subbag: ${cakraEsc(it.pic_subbag_pengguna)}</span>` : ''}
+                    </div>
+                    <div style="text-align:right;">
+                      <span style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:700;">Subtotal HPS Item: </span>
+                      <strong style="font-size:13.5px; color:#1e40af;">${cakraFmtRp(subtotal)}</strong>
+                    </div>
+                  </div>
+                  <div style="font-size:10.5px; color:#475569; margin-bottom:6px; line-height:1.4;">
+                    Spek: ${cakraEsc(it.spesifikasi_teknis || '-')}
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; padding-top:6px; border-top:1px dashed #cbd5e1; font-size:10.5px;">
+                    <div style="display:flex; gap:10px; color:#64748b; flex-wrap:wrap;">
+                      <span>1. Katalog: <b style="color:#1e40af;">${s1 ? cakraFmtRp(s1) : '-'}</b></span>
+                      <span>2. Toko/Pasar: <b style="color:#166534;">${s2 ? cakraFmtRp(s2) : '-'}</b></span>
+                      <span>3. SBM: <b style="color:#6b21a8;">${s3 ? cakraFmtRp(s3) : '-'}</b></span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span class="cakra-badge cakra-badge-amber" style="font-size:9.5px; font-weight:700;">Metode: ${cakraEsc(it.metode_penentuan_hps || 'Terendah')}</span>
+                      <span style="color:#0f172a; font-weight:800; font-size:11px;">HPS Satuan: ${cakraFmtRp(hpsSatuan)}</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('') : `
+              <div style="font-size:11.5px; color:#64748b; padding:12px; text-align:center; background:#f8fafc; border-radius:6px;">
+                Belum ada rincian item barang pada paket ini. Selesaikan Tahap 4 terlebih dahulu.
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- JUSTIFIKASI / CATATAN PENGENDALIAN PPK -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <div style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px;">Catatan Pengendalian PPK &amp; Kesiapan Pelimpahan Dokumen Persiapan (DPP):</div>
+          <div style="font-size:11.5px; color:#1e293b; line-height:1.45;">
+            ${cakraEsc(activeTRow?.catatan_tahap || paket.catatan_hps || 'Nilai HPS telah ditetapkan secara cermat, akuntabel, dan efisien dengan memperhitungkan PPN 11% dan keuntungan wajar penyedia. Berkas HPS sah siap dilimpahkan ke Pejabat Pengadaan bersama KAK dan Rancangan Kontrak untuk persiapan pemilihan penyedia (Tahap 8 DPP).')}
           </div>
         </div>
       `;
