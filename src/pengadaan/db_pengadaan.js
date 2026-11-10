@@ -418,6 +418,15 @@ async function getPaketFullById(paketId) {
   const paket = pakets[0];
 
   const [items] = await pool.query('SELECT * FROM pbj_paket_item WHERE paket_id = ? ORDER BY urutan ASC, id ASC', [paketId]);
+  items.forEach(it => {
+    if (it.evaluasi_pasar_json && typeof it.evaluasi_pasar_json === 'string') {
+      try {
+        it.evaluasi_pasar_json = JSON.parse(it.evaluasi_pasar_json);
+      } catch (e) {
+        it.evaluasi_pasar_json = null;
+      }
+    }
+  });
   const [tahaps] = await pool.query('SELECT * FROM pbj_paket_tahap WHERE paket_id = ? ORDER BY no_tahap ASC', [paketId]);
   const [pejabats] = await pool.query("SELECT * FROM pbj_pejabat WHERE peran != 'TIM_TEKNIS'");
   const [penyedias] = await pool.query('SELECT * FROM pbj_penyedia WHERE id = ?', [paket.penyedia_id]);

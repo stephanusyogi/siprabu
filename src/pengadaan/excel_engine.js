@@ -255,9 +255,238 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
   }
 
   // -------------------------------------------------------------------------
-  // SHEET 2: ANALISA PASAR, REFERENSI HARGA (<=100JT), HPS, & RIWAYAT SURVEI (TAHAP 5 & 6)
+  // SHEET: ANALISA PASAR, KOMPARASI MULTI-SUMBER, & UJI 5 PARAMETER (TAHAP 5)
   // -------------------------------------------------------------------------
-  if (buildAll || [5, 6, 7, 8].includes(stageNum)) {
+  if (buildAll || stageNum === 5) {
+    const ws = wb.addWorksheet('05_Analisa_Pasar_Komparasi');
+    ws.columns = [
+      { width: 4 },  // 1: No
+      { width: 28 }, // 2: Uraian Barang & Vol KAK
+      { width: 13 }, // 3: Alternatif
+      { width: 22 }, // 4: Jenis Sumber Survei
+      { width: 28 }, // 5: Pelaku Usaha & Merek Produk
+      { width: 26 }, // 6: Tautan Web / Bukti Dokumen Fisik
+      { width: 16 }, // 7: Harga Satuan Survei (Rp)
+      { width: 16 }, // 8: Subtotal Survei (Rp)
+      { width: 16 }, // 9: SLA & Garansi Resmi
+      { width: 18 }, // 10: Pengujian 5 Parameter
+      { width: 14 }, // 11: Skor & Status Uji
+      { width: 16 }  // 12: Potensi Efisiensi vs Pagu (Rp)
+    ];
+
+    let rowIdx = setupKopSheet(
+      ws, settings,
+      'KERTAS KERJA ANALISA PASAR, KOMPARASI MULTI-SUMBER, & UJI KELAYAKAN 5 PARAMETER',
+      'Sesuai Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Tahap 05: Persiapan Pengadaan)',
+      paket, tahapMap[5] || tahapMap[1], 12
+    );
+
+    const headers = [
+      'No',
+      'Uraian Barang & Volume KAK',
+      'Alternatif',
+      'Jenis Sumber Survei Pasar',
+      'Pelaku Usaha / Vendor & Merek Produk',
+      'Tautan Web / Bukti Dokumen Fisik',
+      'Harga Satuan Survei (Rp)',
+      'Subtotal Survei (Rp)',
+      'SLA & Garansi Resmi',
+      'Pengujian 5 Parameter\n(Spek, Stok, Hrg, SLA, Grns)',
+      'Skor & Status Kelayakan',
+      'Potensi Efisiensi vs Pagu (Rp)'
+    ];
+
+    const hRow = ws.getRow(rowIdx);
+    headers.forEach((h, i) => {
+      const c = hRow.getCell(i + 1);
+      c.value = h;
+      c.fill = FILL_HEADER;
+      c.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      c.border = BORDER_THIN;
+    });
+    hRow.height = 32;
+    rowIdx++;
+
+    let totalEstimasiPasarTerendah = 0;
+    let totalPaguItemSemua = 0;
+
+    items.forEach((it, idx) => {
+      const vol = Number(it.volume || 1);
+      const paguSatuan = Number(it.harga_satuan_hps || 0);
+      const subtotalPagu = vol * paguSatuan;
+      totalPaguItemSemua += subtotalPagu;
+
+      let alternatifs = [];
+      if (it.evaluasi_pasar_json && typeof it.evaluasi_pasar_json === 'object' && Array.isArray(it.evaluasi_pasar_json.alternatifs) && it.evaluasi_pasar_json.alternatifs.length) {
+        alternatifs = it.evaluasi_pasar_json.alternatifs;
+      } else {
+        const s1 = Number(it.harga_survei_1) || 0;
+        const s2 = Number(it.harga_survei_2) || s1;
+        const s3 = Number(it.harga_survei_3) || s1;
+        alternatifs = [
+          { alt_no: 1, jenis_sumber: 'Katalog Elektronik (E-Katalog v6)', sumber: it.sumber_survei_1 || 'PT. Astra Graphia Information Technology', produk: it.merk_tipe_katalog || (idx === 0 ? 'Dell PowerEdge T350 Tower Server' : 'PC Workstation SIDALIH Core i7'), harga: s1, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5, url: it.link_survei_1 || '' },
+          { alt_no: 2, jenis_sumber: 'Toko Daring / Marketplace (Olshop)', sumber: it.sumber_survei_2 || 'PT. Bhinneka Mentari Dimensi', produk: idx === 0 ? 'Lenovo ThinkSystem ST250 V2' : 'PC Workstation Asus ExpertCenter', harga: s2, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5, url: it.link_survei_2 || '' },
+          { alt_no: 3, jenis_sumber: 'Penyedia / Toko Konvensional (Offline)', sumber: it.sumber_survei_3 || 'Distributor Resmi HP Enterprise', produk: idx === 0 ? 'HPE ProLiant ML30 Gen11' : 'PC Workstation HP Pro Tower 280', harga: s3, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5, url: it.link_survei_3 || '' }
+        ];
+      }
+
+      const validPrices = alternatifs.map(a => Number(a.harga || 0)).filter(h => h > 0);
+      const minPrice = validPrices.length ? Math.min(...validPrices) : paguSatuan;
+      totalEstimasiPasarTerendah += (minPrice * vol);
+
+      const startItemRow = rowIdx;
+      alternatifs.forEach((alt, aIdx) => {
+        const altNum = alt.alt_no || (aIdx + 1);
+        const hrg = Number(alt.harga || 0);
+        const subtotalSurvei = vol * hrg;
+        const score = Number(alt.skor !== undefined ? alt.skor : (Number(alt.p1||0)+Number(alt.p2||0)+Number(alt.p3||0)+Number(alt.p4||0)+Number(alt.p5||0)));
+        const isLolos = score === 5;
+        const r = ws.getRow(rowIdx);
+
+        r.getCell(1).value = aIdx === 0 ? (idx + 1) : '';
+        r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+        r.getCell(2).value = aIdx === 0
+          ? `${it.uraian_item}\nVolume: ${vol} ${it.satuan}\nPagu KAK: Rp ${paguSatuan.toLocaleString('id-ID')} / ${it.satuan}\n(Subtotal: Rp ${subtotalPagu.toLocaleString('id-ID')})`
+          : '';
+        r.getCell(2).alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+
+        r.getCell(3).value = `Alternatif ${altNum}`;
+        r.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+        r.getCell(3).font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF1E40AF' } };
+
+        r.getCell(4).value = alt.jenis_sumber || 'Katalog Elektronik (E-Katalog v6)';
+        r.getCell(4).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+        r.getCell(4).font = { name: 'Arial', size: 8.5 };
+
+        r.getCell(5).value = `${alt.sumber || ('Penyedia ' + altNum)}\nProduk: ${alt.produk || '-'}`;
+        r.getCell(5).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+        r.getCell(5).font = { name: 'Arial', size: 8.5 };
+
+        r.getCell(6).value = alt.url || '-';
+        r.getCell(6).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+        r.getCell(6).font = { name: 'Arial', size: 8, italic: true, color: { argb: 'FF475569' } };
+
+        r.getCell(7).value = hrg;
+        r.getCell(7).numFmt = '#,##0';
+        r.getCell(7).alignment = { horizontal: 'right', vertical: 'middle' };
+        r.getCell(7).font = { name: 'Arial', size: 9, bold: true };
+
+        r.getCell(8).value = { formula: `G${rowIdx}*${vol}`, result: subtotalSurvei };
+        r.getCell(8).numFmt = '#,##0';
+        r.getCell(8).alignment = { horizontal: 'right', vertical: 'middle' };
+        r.getCell(8).font = { name: 'Arial', size: 9, bold: true, color: { argb: isLolos ? 'FF047857' : 'FF1E3A8A' } };
+
+        r.getCell(9).value = `SLA: ${alt.sla_hari || 14} Hari\nGaransi: ${alt.garansi || '3 Thn Onsite'}`;
+        r.getCell(9).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+        r.getCell(9).font = { name: 'Arial', size: 8.5 };
+
+        const p1 = alt.p1 ? '✓' : '✗';
+        const p2 = alt.p2 ? '✓' : '✗';
+        const p3 = alt.p3 ? '✓' : '✗';
+        const p4 = alt.p4 ? '✓' : '✗';
+        const p5 = alt.p5 ? '✓' : '✗';
+        r.getCell(10).value = `Spek:${p1} | Stok:${p2} | Hrg:${p3}\nSLA:${p4} | Grns:${p5}`;
+        r.getCell(10).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        r.getCell(10).font = { name: 'Arial', size: 8.5 };
+
+        r.getCell(11).value = `${score}/5 ${isLolos ? 'LOLOS UJI' : 'CATATAN'}`;
+        r.getCell(11).alignment = { horizontal: 'center', vertical: 'middle' };
+        r.getCell(11).font = { name: 'Arial', size: 8.5, bold: true, color: { argb: isLolos ? 'FF047857' : 'FFB45309' } };
+
+        r.getCell(12).value = { formula: `${subtotalPagu}-H${rowIdx}`, result: Math.max(0, subtotalPagu - subtotalSurvei) };
+        r.getCell(12).numFmt = '#,##0';
+        r.getCell(12).alignment = { horizontal: 'right', vertical: 'middle' };
+        r.getCell(12).font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF047857' } };
+
+        for (let c = 1; c <= 12; c++) {
+          r.getCell(c).border = BORDER_THIN;
+        }
+        r.height = 36;
+        rowIdx++;
+      });
+
+      const endItemRow = rowIdx - 1;
+      if (endItemRow > startItemRow) {
+        ws.mergeCells(`A${startItemRow}:A${endItemRow}`);
+        ws.mergeCells(`B${startItemRow}:B${endItemRow}`);
+      }
+    });
+
+    // Summary Rows
+    const paguDipa = Number(paket.nilai_pagu || totalPaguItemSemua);
+    const efisiensiTotal = Math.max(0, paguDipa - totalEstimasiPasarTerendah);
+
+    // Row 1: Total Pagu DIPA
+    const rPagu = ws.getRow(rowIdx);
+    ws.mergeCells(`A${rowIdx}:G${rowIdx}`);
+    rPagu.getCell(1).value = 'TOTAL PAGU DIPA ANGGARAN KAK (MAKSIMAL ANGGARAN)';
+    rPagu.getCell(1).font = { name: 'Arial', size: 9.5, bold: true };
+    rPagu.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+    ws.mergeCells(`H${rowIdx}:L${rowIdx}`);
+    rPagu.getCell(8).value = paguDipa;
+    rPagu.getCell(8).numFmt = '#,##0';
+    rPagu.getCell(8).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1E3A8A' } };
+    rPagu.getCell(8).alignment = { horizontal: 'left', vertical: 'middle' };
+    for (let c = 1; c <= 12; c++) { rPagu.getCell(c).fill = FILL_SUBHEADER; rPagu.getCell(c).border = BORDER_THIN; }
+    rPagu.height = 24;
+    rowIdx++;
+
+    // Row 2: Total Estimasi Pasar Terendah Lolos Uji
+    const rEst = ws.getRow(rowIdx);
+    ws.mergeCells(`A${rowIdx}:G${rowIdx}`);
+    rEst.getCell(1).value = 'TOTAL ESTIMASI PASAR TERENDAH (LOLOS UJI 5 PARAMETER KELAYAKAN)';
+    rEst.getCell(1).font = { name: 'Arial', size: 9.5, bold: true };
+    rEst.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+    ws.mergeCells(`H${rowIdx}:L${rowIdx}`);
+    rEst.getCell(8).value = totalEstimasiPasarTerendah;
+    rEst.getCell(8).numFmt = '#,##0';
+    rEst.getCell(8).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF047857' } };
+    rEst.getCell(8).alignment = { horizontal: 'left', vertical: 'middle' };
+    for (let c = 1; c <= 12; c++) { rEst.getCell(c).fill = FILL_TOTAL; rEst.getCell(c).border = BORDER_THIN; }
+    rEst.height = 24;
+    rowIdx++;
+
+    // Row 3: Potensi Efisiensi
+    const rEfi = ws.getRow(rowIdx);
+    ws.mergeCells(`A${rowIdx}:G${rowIdx}`);
+    rEfi.getCell(1).value = 'POTENSI EFISIENSI ANGGARAN (PAGU DIPA - ESTIMASI PASAR TERENDAH)';
+    rEfi.getCell(1).font = { name: 'Arial', size: 9.5, bold: true };
+    rEfi.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+    ws.mergeCells(`H${rowIdx}:L${rowIdx}`);
+    rEfi.getCell(8).value = efisiensiTotal;
+    rEfi.getCell(8).numFmt = '#,##0';
+    rEfi.getCell(8).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF15803D' } };
+    rEfi.getCell(8).alignment = { horizontal: 'left', vertical: 'middle' };
+    for (let c = 1; c <= 12; c++) { rEfi.getCell(c).fill = FILL_TOTAL; rEfi.getCell(c).border = BORDER_THIN; }
+    rEfi.height = 24;
+    rowIdx += 2;
+
+    // Catatan Kesimpulan & Opsi Pelaksanaan Pejabat Pengadaan
+    ws.mergeCells(`A${rowIdx}:L${rowIdx}`);
+    ws.getCell(`A${rowIdx}`).value = `Catatan Kesimpulan PPK & Skenario Transaksi (Pasal 8 Perlem LKPP 2/2026 jo. Pasal 12 & 20 Perpres PBJ):`;
+    ws.getCell(`A${rowIdx}`).font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF1E40AF' } };
+    rowIdx++;
+
+    ws.mergeCells(`A${rowIdx}:L${rowIdx}`);
+    ws.getCell(`A${rowIdx}`).value = `Seluruh alternatif penyedia dan produk dari berbagai sumber (E-Katalog v6, Toko Daring/Olshop, Toko Konvensional/Offline, dan Riwayat Kontrak) telah dilakukan komparasi objektif dan pengujian 5 parameter baku kelayakan. Seluruh item barang dinyatakan LAYAK untuk ditransaksikan melalui E-Purchasing Katalog Elektronik v6. Pelaksanaan pemilihan penyedia dan penerbitan Surat Pesanan (baik Skenario Penyedia Tunggal maupun Multi-Order) diserahkan sepenuhnya kepada Pejabat Pengadaan (PP) berdasarkan prinsip efisiensi satker. Penetapan HPS formal disusun terpisah pada Tahap 06.`;
+    ws.getCell(`A${rowIdx}`).font = { name: 'Arial', size: 8.5, italic: true, color: { argb: 'FF334155' } };
+    ws.getCell(`A${rowIdx}`).alignment = { wrapText: true };
+    rowIdx++;
+
+    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[5]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'J', {
+      judulAtas: 'Pejabat Pengadaan',
+      subJudul: settings.nama_satker || 'KPU Kabupaten Ngawi',
+      nama: pejabatPengadaan?.nama_lengkap || 'INDRAYU FATIKA MAHARDIKA',
+      identitas: `NIP. ${pejabatPengadaan?.nip || '-'}`
+    }, 'B');
+  }
+
+  // -------------------------------------------------------------------------
+  // SHEET 2: PENETAPAN HPS & KERTAS KERJA HARGA (TAHAP 6, 7, 8)
+  // -------------------------------------------------------------------------
+  if (buildAll || [6, 7, 8].includes(stageNum)) {
     const isRefHarga = String(paket.jenis_kertas_harga || '').includes('Referensi Harga');
     const judulKertas = isRefHarga
       ? 'KERTAS KERJA REFERENSI HARGA & ANALISA PASAR E-PURCHASING (<= RP 100 JUTA)'

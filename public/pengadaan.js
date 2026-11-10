@@ -5159,6 +5159,17 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       const paguCard = Number(paket.nilai_pagu || 145000000);
       const efisiensiSurvei = Math.max(0, paguCard - totalMinSurvei);
 
+      // Kumpulkan jenis sumber yang disurvei
+      const sumberSet = new Set();
+      cardItems.forEach(it => {
+        if (it.evaluasi_pasar_json && typeof it.evaluasi_pasar_json === 'object' && Array.isArray(it.evaluasi_pasar_json.alternatifs)) {
+          it.evaluasi_pasar_json.alternatifs.forEach(a => {
+            if (a.jenis_sumber) sumberSet.add(a.jenis_sumber.replace(/\s*\(.*\)/, ''));
+          });
+        }
+      });
+      const sumberStr = sumberSet.size ? Array.from(sumberSet).join(' • ') : 'E-Katalog v6 • Toko Daring (Olshop) • Toko Offline';
+
       return `
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:12px;">
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
@@ -5177,7 +5188,11 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
             <div style="font-size:10.5px; color:#047857; margin-top:2px;">Efisiensi: Rp ${efisiensiSurvei.toLocaleString('id-ID')}</div>
           </div>
         </div>
-        <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:10px;">
+        <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:8px;">
+          <div style="font-size:10px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">🌐 Ragam Sumber Survei Pasar:</div>
+          <div style="font-size:11px; font-weight:700; color:#0369a1;">${cakraEsc(sumberStr)}</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px;">
           <div style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px;">Justifikasi Formal PPK &amp; Opsi Multi-Order:</div>
           <div style="font-size:11.5px; color:#1e293b; line-height:1.45;">${cakraEsc(paket.alasan_penilaian_ppk_katalog || 'Seluruh item memenuhi 5 parameter baku kelayakan. Transaksi dapat menggunakan Skenario Tunggal maupun Multi-Order.')}</div>
         </div>
@@ -7993,6 +8008,7 @@ function generateUniversalModalFields(num, paket, activeTRow) {
               altList = [
                 {
                   alt_no: 1,
+                  jenis_sumber: 'Katalog Elektronik (E-Katalog v6)',
                   sumber: it.sumber_survei_1 || 'PT. Astra Graphia Information Technology',
                   produk: it.merk_tipe_katalog || (idx === 0 ? 'Dell PowerEdge T350 Tower Server' : 'PC Workstation SIDALIH Core i7'),
                   harga: Number(it.harga_survei_1 || (idx === 0 ? 63850000 : 25500000)),
@@ -8004,22 +8020,24 @@ function generateUniversalModalFields(num, paket, activeTRow) {
                 },
                 {
                   alt_no: 2,
-                  sumber: it.sumber_survei_2 || 'PT. Bhinneka Mentari Dimensi',
+                  jenis_sumber: 'Toko Daring / Marketplace (Olshop)',
+                  sumber: it.sumber_survei_2 || 'PT. Bhinneka Mentari Dimensi (Bhinneka.com)',
                   produk: idx === 0 ? 'Lenovo ThinkSystem ST250 V2' : 'PC Workstation Asus ExpertCenter',
                   harga: Number(it.harga_survei_2 || (idx === 0 ? 64500000 : 25800000)),
-                  url: it.link_survei_2 || (idx === 0 ? 'https://e-katalog.lkpp.go.id/katalog/produk/detail/lenovo-thinksystem-st250' : 'https://e-katalog.lkpp.go.id/katalog/produk/detail/asus-expertcenter-d700'),
+                  url: it.link_survei_2 || (idx === 0 ? 'https://www.bhinneka.com/lenovo-thinksystem-st250-v2-server' : 'https://business.blibli.com/p/asus-expertcenter-d700-workstation'),
                   tkdn: Number(it.persen_tkdn || 40),
-                  sla_hari: 14,
+                  sla_hari: 10,
                   garansi: '3 Tahun Onsite Resmi',
                   p1: 1, p2: 1, p3: 1, p4: 1, p5: 1
                 },
                 {
                   alt_no: 3,
-                  sumber: it.sumber_survei_3 || 'Distributor Resmi HP Enterprise',
+                  jenis_sumber: idx === 0 ? 'Penyedia / Toko Konvensional (Offline)' : 'Riwayat Kontrak / Pengadaan Sebelumnya',
+                  sumber: it.sumber_survei_3 || (idx === 0 ? 'CV. Mitra Mandiri Computer Ngawi' : 'Kontrak Pengadaan PC KPU Kab. Ngawi TA 2025'),
                   produk: idx === 0 ? 'HPE ProLiant ML30 Gen11' : 'PC Workstation HP Pro Tower 280',
                   harga: Number(it.harga_survei_3 || (idx === 0 ? 64900000 : 26000000)),
-                  url: it.link_survei_3 || (idx === 0 ? 'https://e-katalog.lkpp.go.id/katalog/produk/detail/hpe-proliant-ml30' : 'https://e-katalog.lkpp.go.id/katalog/produk/detail/hp-pro-tower-280'),
-                  tkdn: Number(it.persen_tkdn || 40),
+                  url: it.link_survei_3 || (idx === 0 ? 'Surat Penawaran No. 042/MMC-NGW/V/2026 tgl 12 Mei 2026' : 'Kontrak No. 018/SP/KPU-NGW/IX/2025 tgl 15 September 2025'),
+                  tkdn: Number(it.persen_tkdn || 38),
                   sla_hari: 14,
                   garansi: '3 Tahun Onsite Resmi',
                   p1: 1, p2: 1, p3: 1, p4: 1, p5: 1
@@ -8060,7 +8078,7 @@ function generateUniversalModalFields(num, paket, activeTRow) {
                           <div style="display:flex; align-items:center; gap:8px;">
                             <span id="alt_icon_${it.id}_v${v}" style="font-size:11px; color:#475569;">▼</span>
                             <strong id="alt_header_title_${it.id}_v${v}" style="font-size:12px; color:#0f172a;">
-                              Alternatif ${v}: ${cakraEsc(vendorName)} — ${cakraEsc(prodName)} (Rp ${hrgVal.toLocaleString('id-ID')})
+                              Alternatif ${v} ${alt.jenis_sumber ? ('[' + alt.jenis_sumber.replace(/\s*\(.*\)/, '') + '] ') : ''}: ${cakraEsc(vendorName)} — ${cakraEsc(prodName)} (Rp ${hrgVal.toLocaleString('id-ID')})
                             </strong>
                           </div>
                           <div style="display:flex; align-items:center; gap:8px;" onclick="event.stopPropagation()">
@@ -8074,25 +8092,35 @@ function generateUniversalModalFields(num, paket, activeTRow) {
 
                         <!-- BODY ACCORDION (COLLAPSIBLE) -->
                         <div id="alt_body_${it.id}_v${v}" style="display:block; padding:10px 12px;">
-                          <div style="display:grid; grid-template-columns: 1.5fr 1.5fr 1fr; gap:10px; margin-bottom:8px;">
+                          <div style="display:grid; grid-template-columns: 1.2fr 1.3fr 1.3fr 1fr; gap:8px; margin-bottom:8px;">
                             <div>
-                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Merek / Tipe / Nama Produk Tayang di E-Katalog *</label>
+                              <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Jenis Sumber Survei Pasar *</label>
+                              <select id="mu_item_${it.id}_v${v}_jenis_sumber" class="cakra-form-control alt-sel-jenis-sumber" style="font-size:10.5px; font-weight:700;" onchange="updateAltCardHeader(${it.id}, ${v})">
+                                <option value="Katalog Elektronik (E-Katalog v6)" ${(alt.jenis_sumber || '').includes('Katalog') ? 'selected' : ''}>Katalog Elektronik (E-Katalog v6)</option>
+                                <option value="Toko Daring / Marketplace (Olshop)" ${(alt.jenis_sumber || '').includes('Daring') || (alt.jenis_sumber || '').includes('Olshop') ? 'selected' : ''}>Toko Daring / Marketplace (Olshop)</option>
+                                <option value="Penyedia / Toko Konvensional (Offline)" ${(alt.jenis_sumber || '').includes('Offline') || (alt.jenis_sumber || '').includes('Konvensional') ? 'selected' : ''}>Penyedia / Toko Konvensional (Offline)</option>
+                                <option value="Riwayat Kontrak / Pengadaan Sebelumnya" ${(alt.jenis_sumber || '').includes('Riwayat') ? 'selected' : ''}>Riwayat Kontrak / Pengadaan Sebelumnya</option>
+                                <option value="Daftar Harga Resmi Pabrikan / SBM" ${(alt.jenis_sumber || '').includes('Pabrikan') || (alt.jenis_sumber || '').includes('SBM') ? 'selected' : ''}>Daftar Harga Resmi Pabrikan / SBM</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Merek / Tipe / Nama Produk *</label>
                               <input type="text" id="mu_item_${it.id}_v${v}_produk" class="cakra-form-control alt-inp-produk" value="${cakraEsc(prodName)}" placeholder="cth: Dell PowerEdge T350 / Lenovo ST250" style="font-size:11px; font-weight:700;" oninput="updateAltCardHeader(${it.id}, ${v})" />
                             </div>
                             <div>
-                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Nama Penyedia / Distributor / Toko Daring *</label>
-                              <input type="text" id="mu_item_${it.id}_v${v}_sumber" class="cakra-form-control alt-inp-sumber" value="${cakraEsc(vendorName)}" placeholder="cth: PT. Astra Graphia" style="font-size:11px;" oninput="updateAltCardHeader(${it.id}, ${v})" />
+                              <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Nama Pelaku Usaha / Penyedia / Toko *</label>
+                              <input type="text" id="mu_item_${it.id}_v${v}_sumber" class="cakra-form-control alt-inp-sumber" value="${cakraEsc(vendorName)}" placeholder="cth: PT. Astra Graphia / Bhinneka / CV. Toko Ngawi" style="font-size:11px;" oninput="updateAltCardHeader(${it.id}, ${v})" />
                             </div>
                             <div>
-                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Harga Tayang E-Katalog (Rp/Unit) *</label>
+                              <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Harga Satuan Survei (Rp) *</label>
                               <input type="number" id="mu_item_${it.id}_v${v}_harga" class="cakra-form-control cakra-mono alt-inp-harga" value="${hrgVal}" style="font-size:11px; font-weight:700;" oninput="updateAltCardHeader(${it.id}, ${v})" />
                             </div>
                           </div>
 
                           <div style="display:grid; grid-template-columns: 2.2fr 0.8fr; gap:10px; margin-bottom:8px;">
                             <div>
-                              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Tautan Langsung Produk E-Katalog v6 (URL) *</label>
-                              <input type="url" id="mu_item_${it.id}_v${v}_url" class="cakra-form-control cakra-mono alt-inp-url" value="${cakraEsc(alt.url || '')}" placeholder="https://e-katalog.lkpp.go.id/katalog/produk/detail/..." style="font-size:11px;" />
+                              <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Tautan Web / Bukti Dokumen Survei Fisik *</label>
+                              <input type="text" id="mu_item_${it.id}_v${v}_url" class="cakra-form-control cakra-mono alt-inp-url" value="${cakraEsc(alt.url || '')}" placeholder="https://... atau No. Surat Penawaran / Toko Fisik / No. Kontrak Lalu" style="font-size:11px;" />
                             </div>
                             <div>
                               <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Klaim Capaian TKDN (%)</label>
@@ -8543,6 +8571,7 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
         if (altCards.length) {
           alternatifs = Array.from(altCards).map((card, aIdx) => {
             const v = card.dataset.altIdx || (aIdx + 1);
+            const jenis_sumber = document.getElementById('mu_item_' + it.id + '_v' + v + '_jenis_sumber')?.value || 'Katalog Elektronik (E-Katalog v6)';
             const sumber = document.getElementById('mu_item_' + it.id + '_v' + v + '_sumber')?.value.trim() || '';
             const produk = document.getElementById('mu_item_' + it.id + '_v' + v + '_produk')?.value.trim() || '';
             const harga = Number(document.getElementById('mu_item_' + it.id + '_v' + v + '_harga')?.value || 0);
@@ -8558,6 +8587,7 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
 
             return {
               alt_no: Number(v),
+              jenis_sumber,
               sumber,
               produk,
               harga,
@@ -8874,14 +8904,23 @@ function updateAltCardHeader(itemId, altIdx) {
   const sumberInp = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_sumber');
   const prodInp = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_produk');
   const hrgInp = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_harga');
+  const jnsSel = document.getElementById('mu_item_' + itemId + '_v' + altIdx + '_jenis_sumber');
   const titleEl = document.getElementById('alt_header_title_' + itemId + '_v' + altIdx);
+
+  const jnsVal = jnsSel?.value || '';
+  let jnsBadge = '';
+  if (jnsVal.includes('Katalog')) jnsBadge = '[E-Katalog v6] ';
+  else if (jnsVal.includes('Daring') || jnsVal.includes('Olshop')) jnsBadge = '[Toko Daring (Olshop)] ';
+  else if (jnsVal.includes('Offline') || jnsVal.includes('Konvensional')) jnsBadge = '[Penyedia Offline] ';
+  else if (jnsVal.includes('Riwayat')) jnsBadge = '[Riwayat Kontrak] ';
+  else if (jnsVal.includes('Pabrikan') || jnsVal.includes('SBM')) jnsBadge = '[Daftar Harga / SBM] ';
 
   const sumber = sumberInp?.value.trim() || ('Penyedia ' + altIdx);
   const prod = prodInp?.value.trim() || 'Produk';
   const hrg = Number(hrgInp?.value || 0).toLocaleString('id-ID');
 
   if (titleEl) {
-    titleEl.textContent = 'Alternatif ' + altIdx + ': ' + sumber + ' — ' + prod + ' (Rp ' + hrg + ')';
+    titleEl.textContent = 'Alternatif ' + altIdx + ' ' + jnsBadge + ': ' + sumber + ' — ' + prod + ' (Rp ' + hrg + ')';
   }
 }
 window.updateAltCardHeader = updateAltCardHeader;
@@ -8913,24 +8952,34 @@ function tambahAlternatifTahap5(itemId) {
       </div>
     </div>
     <div id="alt_body_${itemId}_v${v}" style="display:block; padding:10px 12px;">
-      <div style="display:grid; grid-template-columns: 1.5fr 1.5fr 1fr; gap:10px; margin-bottom:8px;">
+      <div style="display:grid; grid-template-columns: 1.2fr 1.3fr 1.3fr 1fr; gap:8px; margin-bottom:8px;">
         <div>
-          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Merek / Tipe / Nama Produk Tayang di E-Katalog *</label>
+          <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Jenis Sumber Survei Pasar *</label>
+          <select id="mu_item_${itemId}_v${v}_jenis_sumber" class="cakra-form-control alt-sel-jenis-sumber" style="font-size:10.5px; font-weight:700;" onchange="updateAltCardHeader(${itemId}, ${v})">
+            <option value="Katalog Elektronik (E-Katalog v6)" selected>Katalog Elektronik (E-Katalog v6)</option>
+            <option value="Toko Daring / Marketplace (Olshop)">Toko Daring / Marketplace (Olshop)</option>
+            <option value="Penyedia / Toko Konvensional (Offline)">Penyedia / Toko Konvensional (Offline)</option>
+            <option value="Riwayat Kontrak / Pengadaan Sebelumnya">Riwayat Kontrak / Pengadaan Sebelumnya</option>
+            <option value="Daftar Harga Resmi Pabrikan / SBM">Daftar Harga Resmi Pabrikan / SBM</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Merek / Tipe / Nama Produk *</label>
           <input type="text" id="mu_item_${itemId}_v${v}_produk" class="cakra-form-control alt-inp-produk" value="" placeholder="cth: Merek & Tipe Produk" style="font-size:11px; font-weight:700;" oninput="updateAltCardHeader(${itemId}, ${v})" />
         </div>
         <div>
-          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Nama Penyedia / Distributor / Toko Daring *</label>
-          <input type="text" id="mu_item_${itemId}_v${v}_sumber" class="cakra-form-control alt-inp-sumber" value="" placeholder="cth: PT. Nama Vendor" style="font-size:11px;" oninput="updateAltCardHeader(${itemId}, ${v})" />
+          <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Nama Pelaku Usaha / Penyedia / Toko *</label>
+          <input type="text" id="mu_item_${itemId}_v${v}_sumber" class="cakra-form-control alt-inp-sumber" value="" placeholder="cth: PT. Nama Vendor / Bhinneka / CV. Toko Ngawi" style="font-size:11px;" oninput="updateAltCardHeader(${itemId}, ${v})" />
         </div>
         <div>
-          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Harga Tayang E-Katalog (Rp/Unit) *</label>
+          <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Harga Satuan Survei (Rp) *</label>
           <input type="number" id="mu_item_${itemId}_v${v}_harga" class="cakra-form-control cakra-mono alt-inp-harga" value="0" style="font-size:11px; font-weight:700;" oninput="updateAltCardHeader(${itemId}, ${v})" />
         </div>
       </div>
       <div style="display:grid; grid-template-columns: 2.2fr 0.8fr; gap:10px; margin-bottom:8px;">
         <div>
-          <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Tautan Langsung Produk E-Katalog v6 (URL) *</label>
-          <input type="url" id="mu_item_${itemId}_v${v}_url" class="cakra-form-control cakra-mono alt-inp-url" value="" placeholder="https://e-katalog.lkpp.go.id/katalog/produk/detail/..." style="font-size:11px;" />
+          <label style="font-size:10px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Tautan Web / Bukti Dokumen Survei Fisik *</label>
+          <input type="text" id="mu_item_${itemId}_v${v}_url" class="cakra-form-control cakra-mono alt-inp-url" value="" placeholder="https://... atau No. Surat Penawaran / Toko Fisik / No. Kontrak Lalu" style="font-size:11px;" />
         </div>
         <div>
           <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Klaim Capaian TKDN (%)</label>

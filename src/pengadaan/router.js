@@ -331,7 +331,7 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
     }
 
     // 10. DOWNLOAD WORD (.DOCX) — Per Tahap (1-18) atau Gabungan Hulu-Hilir ("ALL")
-    if (pathname.match(/^\/api\/cakra\/download\/docx\/\d+$/) && method === 'GET') {
+    if (pathname.match(/^\/api\/cakra\/download\/docx\/\d+$/) && (method === 'GET' || method === 'HEAD')) {
       const paketId = Number(pathname.split('/').pop());
       const stage = query.tahap || '13';
       const ctx = await getPaketFullById(paketId);
@@ -350,11 +350,12 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Content-Length': buffer.length
       });
+      if (method === 'HEAD') return res.end();
       return res.end(buffer);
     }
 
     // 11. DOWNLOAD EXCEL (.XLSX) — Per Tahap (1-18) atau Master Workbook ("ALL")
-    if (pathname.match(/^\/api\/cakra\/download\/xlsx\/\d+$/) && method === 'GET') {
+    if (pathname.match(/^\/api\/cakra\/download\/xlsx\/\d+$/) && (method === 'GET' || method === 'HEAD')) {
       const paketId = Number(pathname.split('/').pop());
       const stage = query.tahap || 'ALL';
       if (Number(stage) === 1) {
@@ -375,6 +376,7 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Content-Length': buffer.length
       });
+      if (method === 'HEAD') return res.end();
       return res.end(buffer);
     }
 

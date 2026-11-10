@@ -2150,7 +2150,7 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
 
     // BAB IV: PENGUJIAN & PENILAIAN 5 PARAMETER KELAYAKAN PER VENDOR PER BARANG
     pText('IV. PENGUJIAN DAN PENILAIAN 5 PARAMETER KELAYAKAN PER VENDOR PER BARANG (PASAL 8 PERLEM 2/2026)', { bold: true, size: 18, color: '1E3A8A', before: 16, after: 10 }),
-    pText('Berpedoman pada Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Katalog Versi 6), PPK melakukan pengujian kelayakan secara komprehensif pada setiap item belanja barang terhadap 3 (tiga) calon penyedia/produk katalog yang disurvei, mencakup: (1) Spesifikasi Teknis, (2) Ketersediaan Stok, (3) Kewajaran Harga, (4) SLA Pengiriman, dan (5) Garansi Layanan Purna Jual Onsite:', { size: 16.5, before: 0, after: 20 })
+    pText('Berpedoman pada Pasal 8 Peraturan LKPP Nomor 2 Tahun 2026 jo. Keputusan Kepala LKPP Nomor 177 Tahun 2024 (Katalog Versi 6), PPK melakukan pengujian kelayakan secara komprehensif pada setiap item belanja barang terhadap alternatif calon pelaku usaha/produk hasil survei multi-sumber (E-Katalog v6, Toko Daring Olshop, Penyedia Offline, dan Riwayat Kontrak), mencakup: (1) Spesifikasi Teknis, (2) Ketersediaan Stok, (3) Kewajaran Harga, (4) SLA Pengiriman, dan (5) Garansi Layanan Purna Jual Onsite:', { size: 16.5, before: 0, after: 20 })
   );
 
   // Buat Tabel Matriks Evaluasi 5 Parameter Per Alternatif untuk Setiap Item (Netral & Fleksibel)
@@ -2164,9 +2164,9 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
       const s2 = Number(it.harga_survei_2) || s1;
       const s3 = Number(it.harga_survei_3) || s1;
       alternatifs = [
-        { alt_no: 1, sumber: it.sumber_survei_1 || 'PT. Astra Graphia Information Technology', produk: it.merk_tipe_katalog || 'Dell PowerEdge T350 / PC SIDALIH', harga: s1, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 },
-        { alt_no: 2, sumber: it.sumber_survei_2 || 'PT. Bhinneka Mentari Dimensi', produk: 'Lenovo ThinkSystem ST250 / PC SIDALIH', harga: s2, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 },
-        { alt_no: 3, sumber: it.sumber_survei_3 || 'Distributor Resmi HP Enterprise', produk: 'HPE ProLiant ML30 Gen11 / PC SIDALIH', harga: s3, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 }
+        { alt_no: 1, jenis_sumber: 'Katalog Elektronik (E-Katalog v6)', sumber: it.sumber_survei_1 || 'PT. Astra Graphia Information Technology', produk: it.merk_tipe_katalog || 'Dell PowerEdge T350 / PC SIDALIH', harga: s1, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 },
+        { alt_no: 2, jenis_sumber: 'Toko Daring / Marketplace (Olshop)', sumber: it.sumber_survei_2 || 'PT. Bhinneka Mentari Dimensi', produk: 'Lenovo ThinkSystem ST250 / PC SIDALIH', harga: s2, sla_hari: 10, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 },
+        { alt_no: 3, jenis_sumber: 'Penyedia / Toko Konvensional (Offline)', sumber: it.sumber_survei_3 || 'Distributor Resmi HP Enterprise', produk: 'HPE ProLiant ML30 Gen11 / PC SIDALIH', harga: s3, sla_hari: 14, garansi: '3 Tahun Onsite Resmi', p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, skor: 5 }
       ];
     }
 
@@ -2176,8 +2176,8 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
 
     const vendorEvalHeaders = [
       new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('No', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Alternatif Penyedia & Produk Katalog', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
-      new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Harga Tayang Satuan', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Alternatif Pelaku Usaha, Sumber & Produk', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
+      new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('Harga Satuan Survei', { bold: true, size: 15, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
       new TableCell({ width: { size: 7, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('1.Spek', { bold: true, size: 13, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
       new TableCell({ width: { size: 7, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('2.Stok', { bold: true, size: 13, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
       new TableCell({ width: { size: 7, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A' }, children: [pText('3.Hrg', { bold: true, size: 13, align: AlignmentType.CENTER, color: 'FFFFFF' })] }),
@@ -2200,8 +2200,9 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
             new TableCell({ borders: BORDER_TABLE, children: [pText(String(altNum), { align: AlignmentType.CENTER, size: 15, bold: true })] }),
             new TableCell({ borders: BORDER_TABLE, children: [
               pText(`Alternatif ${altNum}: ${alt.sumber || ('Penyedia ' + altNum)}`, { bold: true, size: 14.5 }),
-              pText(alt.produk ? ('Produk: ' + alt.produk) : 'Produk E-Katalog v6', { size: 12.5, color: '1E3A8A' }),
-              alt.url ? pText('Tautan: ' + (alt.url.length > 55 ? alt.url.substring(0, 52) + '...' : alt.url), { size: 10, italic: true, color: '64748B' }) : pText('', { size: 1 })
+              pText(`Sumber: ${alt.jenis_sumber || 'Katalog Elektronik (E-Katalog v6)'}`, { size: 12, italic: true, color: '0284C7' }),
+              pText(alt.produk ? ('Produk: ' + alt.produk) : 'Produk Survei Pasar', { size: 12.5, color: '1E3A8A' }),
+              alt.url ? pText('Tautan/Bukti: ' + (alt.url.length > 55 ? alt.url.substring(0, 52) + '...' : alt.url), { size: 10, italic: true, color: '64748B' }) : pText('', { size: 1 })
             ] }),
             new TableCell({ borders: BORDER_TABLE, children: [
               pText(formatRupiah(hrg), { bold: true, size: 14.5, color: isLolos ? '047857' : '1E3A8A', align: AlignmentType.RIGHT }),
