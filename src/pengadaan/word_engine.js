@@ -61,6 +61,7 @@ const BORDER_PARAF = {
 };
 
 function pText(text, opts = {}) {
+  const isSymbol = /[\u2600-\u27BF]/.test(String(text ?? ''));
   return new Paragraph({
     alignment: opts.align || AlignmentType.LEFT,
     keepNext: Boolean(opts.keepNext),
@@ -75,7 +76,7 @@ function pText(text, opts = {}) {
         italics: Boolean(opts.italic),
         underline: opts.underline ? {} : undefined,
         size: opts.size || 21, // 10.5pt default agar proporsional & rapi
-        font: 'Cambria',
+        font: opts.font || (isSymbol ? 'Segoe UI Symbol' : 'Cambria'),
         color: opts.color || '000000'
       })
     ]
@@ -94,6 +95,8 @@ function pNumbered(prefix, text, opts = {}) {
   const level = opts.level || 1;
   const hangingDxa = opts.hanging || 450;
   const leftDxa = opts.left || (level * hangingDxa);
+  const isPrefixSymbol = /[\u2600-\u27BF]/.test(String(prefix ?? ''));
+  const isTextSymbol = /[\u2600-\u27BF]/.test(String(text ?? ''));
 
   return new Paragraph({
     alignment: opts.align || AlignmentType.LEFT,
@@ -107,7 +110,7 @@ function pNumbered(prefix, text, opts = {}) {
         text: prefix.endsWith('\t') ? prefix : `${prefix}\t`,
         bold: opts.prefixBold !== undefined ? Boolean(opts.prefixBold) : true,
         size: opts.size || 21,
-        font: 'Cambria',
+        font: opts.font || (isPrefixSymbol ? 'Segoe UI Symbol' : 'Cambria'),
         color: opts.prefixColor || opts.color || '000000'
       }),
       new TextRun({
@@ -115,7 +118,7 @@ function pNumbered(prefix, text, opts = {}) {
         bold: Boolean(opts.bold),
         italics: Boolean(opts.italic),
         size: opts.size || 21,
-        font: 'Cambria',
+        font: opts.font || (isTextSymbol ? 'Segoe UI Symbol' : 'Cambria'),
         color: opts.color || '000000'
       })
     ]
@@ -2208,11 +2211,11 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
               pText(formatRupiah(hrg), { bold: true, size: 14.5, color: isLolos ? '047857' : '1E3A8A', align: AlignmentType.RIGHT }),
               pText(alt.sla_hari ? (`SLA ${alt.sla_hari} Hari`) : '', { size: 11, italic: true, color: '64748B', align: AlignmentType.RIGHT })
             ] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p1 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p1 ? '047857' : 'B91C1C' })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p2 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p2 ? '047857' : 'B91C1C' })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p3 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p3 ? '047857' : 'B91C1C' })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p4 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p4 ? '047857' : 'B91C1C' })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p5 ? '✓' : '✗', { align: AlignmentType.CENTER, bold: true, size: 16, color: alt.p5 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p1 ? '✓' : '✗', { font: 'Segoe UI Symbol', align: AlignmentType.CENTER, bold: true, size: 18, color: alt.p1 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p2 ? '✓' : '✗', { font: 'Segoe UI Symbol', align: AlignmentType.CENTER, bold: true, size: 18, color: alt.p2 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p3 ? '✓' : '✗', { font: 'Segoe UI Symbol', align: AlignmentType.CENTER, bold: true, size: 18, color: alt.p3 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p4 ? '✓' : '✗', { font: 'Segoe UI Symbol', align: AlignmentType.CENTER, bold: true, size: 18, color: alt.p4 ? '047857' : 'B91C1C' })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(alt.p5 ? '✓' : '✗', { font: 'Segoe UI Symbol', align: AlignmentType.CENTER, bold: true, size: 18, color: alt.p5 ? '047857' : 'B91C1C' })] }),
             new TableCell({ borders: BORDER_TABLE, children: [
               pText(`${score}/5 ${isLolos ? 'LOLOS UJI' : 'CATATAN'}`, { bold: true, size: 13, color: isLolos ? '047857' : 'B45309', align: AlignmentType.CENTER }),
               pText(isLolos ? 'MEMENUHI SYARAT' : 'PERLU KLARIFIKASI', { size: 11, color: isLolos ? '15803D' : 'B45309', align: AlignmentType.CENTER })
