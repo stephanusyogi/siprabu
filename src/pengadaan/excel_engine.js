@@ -582,12 +582,7 @@ async function generateExcelBuffer(ctx, modeOrStage = 6) {
     ws.getCell(`A${rowIdx}`).value = `Catatan Regulasi & Penilaian PPK atas Katalog Elektronik (Pasal 8 Perlem 2/2026): ${paket.tersedia_di_katalog} — ${paket.alasan_penilaian_ppk_katalog || '-'} | Rumus Konversi Konsultansi: SBOM = SBOB/4,1 (Rp ${sbobSample.sbom.toLocaleString('id-ID')}), SBOH = (SBOB/22)*1,1 (Rp ${sbobSample.sboh.toLocaleString('id-ID')}), SBOJ = (SBOH/8)*1,3 (Rp ${sbobSample.sboj.toLocaleString('id-ID')}).`;
     ws.getCell(`A${rowIdx}`).font = { name: 'Arial', size: 8, italic: true, color: { argb: 'FF334155' } };
 
-    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[6]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'H', {
-      judulAtas: 'Pejabat Pengadaan',
-      subJudul: settings.nama_satker || 'KPU Kabupaten Ngawi',
-      nama: pejabatPengadaan?.nama_lengkap || 'INDRAYU FATIKA MAHARDIKA',
-      identitas: `NIP. ${pejabatPengadaan?.nip || '-'}`
-    }, 'B');
+    appendTandaTanganPPK(ws, rowIdx + 1, ppk, settings, tahapMap[6]?.tanggal_dokumen || paket.tgl_mulai_kerja, 'H');
   }
 
   // -------------------------------------------------------------------------

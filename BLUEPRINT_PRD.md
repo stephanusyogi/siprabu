@@ -937,3 +937,62 @@ Berdasarkan arahan strategis arsitektur dari Mas emenje (PPK Satker 657811 KPU K
   - KPA: `BUDI RAHAYU` (NIP 19830503 200902 1 002)
   - PPK: `MOHAMMAD NOOR JIHAN` (NIP 19840101 200912 1 001)
   - PP: `INDRAYU FATIKA MAHARDIKA`
+
+
+---
+
+## 32. PENYEMPURNAAN ARSITEKTUR TAHAP 1: PENGUSULAN MULTI-SUBBAG & INTEGRITAS NASKAH DINAS 1 HALAMAN
+
+### 32.1 Latar Belakang & Kasus Penggunaan
+Pada praktiknya di Satker KPU Kabupaten Ngawi, seringkali terdapat paket pengadaan gabungan (seperti Belanja ATK, Barang Persediaan Operasional, maupun Belanja Modal/Ekstrakomptabel) yang kebutuhan riilnya bersumber dari lebih dari 1 (satu) subbagian pengusul (contoh: Subbag Keuangan, Umum & Logistik bersama Subbag Perencanaan, Data & Informasi). Sebelumnya sistem hanya memfasilitasi single subbag PIC.
+
+### 32.2 Model Data & Alur Naskah Dinas Multi-Subbag
+- **Struktur Data:** Menggunakan flag `paket.is_multi_subbag = 1` dan pemetaan relasi subbag pengusul (`paket.subbags` atau `multi_pengusul_json`).
+- **Naskah Dinas Terpisah:** Setiap subbagian pengusul memiliki dokumen Nota Dinas mandiri dengan nomor naskah dinas terpisah, ditandatangani oleh Kepala Subbagian pengusul bersama Ketua Divisi (Komisioner) yang membidanginya.
+- **Konsolidasi Formulir LKPP (Dokumen 04):** Daftar rincian barang per subbag dikonsolidasikan ke dalam 1 Formulir Identifikasi Kebutuhan Baku LKPP dengan identifikasi alokasi subbagian yang jelas.
+
+### 32.3 Eliminasi Tanda Tangan Menggantung (Word Engine Hardening)
+- **Discrete Word Sections:** Setiap dokumen naskah dinas di Tahap 1 (Dokumen 01a Nota Dinas Subbag 1, Dokumen 01b Nota Dinas Subbag 2, Dokumen 02 Lembar Disposisi KPA, Dokumen 03 Analisis Ketersediaan BMN, Dokumen 04 Formulir Identifikasi LKPP) dirender sebagai Word Section mandiri.
+- **Margin Dinas Ringkas:** Menerapkan margins `{ top: 900, bottom: 850, left: 1150, right: 1150 }` twips.
+- **Pencegahan Page-Break:** Menerapkan `cantSplit: true` dan `keepWithNext: true` pada seluruh sel dan baris tabel tanda tangan, menjamin **tepat 1 halaman utuh per naskah dinas** tanpa ada nama pejabat yang terlempar ke halaman kosong berikutnya.
+
+---
+
+## 33. PENYEMPURNAAN TAHAP 5: RAGAM SUMBER SURVEI MULTI-KANAL, SIMBOL CENTANG & TANDA TANGAN TUNGGAL EXCEL
+
+### 33.1 Ragam Sumber Survei Multi-Kanal
+Survei pasar di Tahap 5 tidak dibatasi hanya pada E-Katalog v6, melainkan mendukung 4 kanal resmi:
+1. **Katalog Elektronik (E-Katalog v6 LKPP)**
+2. **Toko Daring / Marketplace (Olshop)**
+3. **Penyedia / Toko Konvensional (Surat Penawaran Offline)**
+4. **Riwayat Kontrak / Pengadaan Sebelumnya**
+
+### 33.2 Standardisasi Simbol Uji Kelayakan 5 Parameter
+Tabel Matriks Pengujian 5 Parameter Kelayakan Pasar (Spesifikasi Teknis, Kepastian Stok Ready, Kewajaran Harga, SLA Pengiriman <= 14 hari, dan Garansi Resmi Onsite minimal 3 tahun) pada dokumen Word (.docx) dan PDF distandarisasi menggunakan simbol centang visual (`✓` / Wingdings Checkmark `ü`) menggantikan karakter representasi lama.
+
+### 33.3 Penegakan Segregasi Kewenangan pada Excel Kertas Kerja Tahap 5
+Berdasarkan prinsip kepatuhan PBJ dan instruksi pimpinan, Kertas Kerja Excel Analisa Pasar Tahap 5 ditandatangani secara **TUNGGAL oleh PPK (Mohammad Noor Jihan)**. Kolom tanda tangan Pejabat Pengadaan resmi ditiadakan untuk menjaga netralitas dan independensi Pejabat Pengadaan saat proses negosiasi harga di kemudian hari.
+
+---
+
+## 34. ARSITEKTUR STANDAR TAHAP 6: PENYUSUNAN & PENETAPAN KERTAS KERJA HARGA (HPS / REFERENSI HARGA / RAB)
+
+### 34.1 Kedudukan Yuridis & Taksonomi Kertas Kerja Harga
+Sesuai Pasal 26 Perpres No. 16/2018 jo. Perpres No. 46/2025 jo. Pasal 8 & 9 Peraturan LKPP No. 2 Tahun 2026, sistem mengklasifikasikan 4 format kertas kerja:
+1. **HPS (Harga Perkiraan Sendiri):** Wajib untuk Tender, Seleksi, Pengadaan Langsung > Rp10 Juta s.d. Rp200 Juta, dan E-Purchasing > Rp100 Juta.
+2. **Referensi Harga:** Khusus E-Purchasing Katalog v6 dengan nilai s.d. Rp100.000.000,- (Pasal 9 Perlem 2/2026).
+3. **Bebas HPS:** Pengadaan Langsung s.d. Rp10 Juta atau barang bertarif resmi pemerintah.
+4. **RAB Swakelola:** Rincian biaya upah dan bahan tanpa komponen keuntungan/overhead penyedia.
+
+### 34.2 Ketentuan Kerahasiaan & Larangan Hukum
+- **Keterbukaan Total HPS:** Total nilai HPS terbuka dan tidak rahasia.
+- **Kerahasiaan Rincian Harga Satuan:** Rincian perhitungan HPS bersifat rahasia sampai dengan batas akhir pemasukan penawaran.
+- **Larangan Kontijensi & Margin Ganda:** Dilarang memasukkan biaya tak terduga (*contingency cost*), PPh badan usaha, dan dilarang menambahkan margin keuntungan jika harga survei bersumber dari harga eceran pasar (*retail market price*).
+
+### 34.3 Segregasi Kewenangan & Tanda Tangan Tunggal PPK
+- **PPK:** Pemegang wewenang mutlak penyusunan dan penetapan HPS. Menandatangani SK Penetapan HPS dan Kertas Kerja Excel HPS secara mandiri (*Tanda Tangan Tunggal*).
+- **Pejabat Pengadaan:** Berkedudukan sebagai *pengguna HPS* pada Tahap 8 & 9. Pejabat Pengadaan **dilarang menandatangani dokumen HPS** demi mencegah benturan kepentingan (*conflict of interest*).
+
+### 34.4 Formula Perhitungan & Proteksi Pagu Anggaran
+- Formula: $\text{Total HPS} = \sum (\text{Volume} \times \text{Harga Satuan Survei}) + \text{SLA Ongkir} + \text{PPN 11\%}$.
+- **Fail-Safe Budget Guard:** Sistem secara otomatis memvalidasi bahwa $\text{Total HPS} \le \text{Pagu Anggaran MAK (DIPA Satker)}$. Jika melebihi pagu, sistem memblokir penyimpanan data.
