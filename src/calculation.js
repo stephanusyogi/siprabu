@@ -314,6 +314,72 @@ function resolveVarValue(varCode, fallbackVal, contextType, entityData, kabSumma
   return parsed !== null ? parsed : 1;
 }
 
+/**
+ * Inferensi Cerdas Satuan Faktor Pengali (F1..F4) jika satuan belum tercatat di DB.
+ * Memastikan formula perhitungan di RUH & Cetak Excel/PDF membawa detail satuan (misal: 15 Org x 7 Bln).
+ */
+function inferFactorUnit(row, idx, vNum, allFactors = []) {
+  if (!row) return '';
+  const satVol = String(row.satuan_vol || '').trim().toUpperCase();
+  const uraian = String(row.uraian || '').toLowerCase();
+  const rawNum = Number(vNum) || 0;
+
+  // 1. Standar Satuan Majemuk Orang (SBM Kemenkeu & KPU: OK, OB, OH, OJ, OT, OP)
+  if (satVol === 'OK') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) {
+      if (rawNum <= 12 && (uraian.includes('bulan') || uraian.includes('bln') || uraian.includes('snack') || uraian.includes('makan') || uraian.includes('konsumsi'))) return 'Bln';
+      if (uraian.includes('keg') || uraian.includes('kegiatan') || uraian.includes('rapat') || uraian.includes('sidang') || uraian.includes('pleno') || uraian.includes('bimtek')) return 'Keg';
+      return 'Keg';
+    }
+    if (idx === 2) return 'Hari';
+    if (idx === 3) return 'Kali';
+  }
+  if (satVol === 'OB') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Bln';
+    if (idx === 2) return 'Keg';
+  }
+  if (satVol === 'OH') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Hari';
+    if (idx === 2) return 'Keg';
+  }
+  if (satVol === 'OJ') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Jam';
+    if (idx === 2) return 'Keg';
+  }
+  if (satVol === 'OT') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Thn';
+  }
+  if (satVol === 'OP') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Paket';
+    if (idx === 2) return 'Keg';
+  }
+
+  // 2. Satuan berbasis fisik / dokumen / kuantitas tunggal
+  const singleUnits = ['PAKET', 'BUKU', 'RIM', 'DUS', 'BOX', 'LEMBAR', 'SET', 'UNIT', 'BUAH', 'TITIK', 'KALI', 'KEG', 'BULAN', 'BLN', 'HARI', 'TPS', 'DESA', 'KEC'];
+  if (singleUnits.includes(satVol)) {
+    const formatCapital = satVol === 'BLN' ? 'Bln' : (satVol === 'KEG' ? 'Keg' : (satVol.charAt(0) + satVol.slice(1).toLowerCase()));
+    if (idx === 0) return formatCapital;
+    if (idx === 1) {
+      if (rawNum <= 12 && (uraian.includes('bulan') || uraian.includes('bln'))) return 'Bln';
+      return 'Keg';
+    }
+    if (idx === 2) return 'Kali';
+  }
+
+  // 3. Fallback cerdas berdasarkan teks uraian jika belum terdeteksi
+  if (idx === 0 && (uraian.includes('konsumsi') || uraian.includes('snack') || uraian.includes('makan') || uraian.includes('honor') || uraian.includes('peserta') || uraian.includes('panitia') || uraian.includes('petugas') || uraian.includes('operator'))) {
+    return 'Org';
+  }
+
+  return '';
+}
+
 function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary = null, kuantitasMap = null) {
   if (!kabSummary) {
     if (!cachedWilayah) cachedWilayah = getWilayahData();
@@ -425,6 +491,10 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
       }
     }
 
+    if (!unitLabel) {
+      unitLabel = inferFactorUnit(r, i, vNum, factorSpecs);
+    }
+
     const safeUnit = (unitLabel && unitLabel !== '0') ? unitLabel : '';
 
     // Jika nilai faktor adalah 0, perkalian harus menjadi 0 (jangan diabaikan!)
@@ -488,7 +558,14 @@ function computeRowFactors(r, contextType = 'KAB', entityData = null, kabSummary
     else mult = resolveVarValue(r.basis_pengali, 1, contextType, entityData, kabSummary, kuantitasMap);
   }
 
-  const label = isAdhoc ? (r.label_pengali_adhoc || r.label_pengali_kab || '') : (r.label_pengali_kab || '');
+  let label = isAdhoc ? (r.label_pengali_adhoc || r.label_pengali_kab || '') : (r.label_pengali_kab || '');
+  if (!label) {
+    if (basis === 'PPK' || basis === 'KEC_PPK') label = 'Kec';
+    else if (basis === 'PPS' || basis === 'DESA_PPS') label = 'Desa';
+    else if (basis === 'TPS_RKB') label = 'TPS';
+    else if (basis === 'KOTAK_RKB') label = 'Kotak';
+    else if (basis === 'PASLON') label = 'Paslon';
+  }
   if (basis && basis !== 'NONE' && basis !== 'FIXED') {
     parts.push(`${Number(mult).toLocaleString('id-ID')} ${label}`.trim());
   }
@@ -1564,6 +1641,7 @@ function auditRkbIntegrity(periodeId) {
 }
 
 module.exports = {
+  inferFactorUnit,
   getWilayahData,
   getKuantitasMap,
   resolveVarValue,

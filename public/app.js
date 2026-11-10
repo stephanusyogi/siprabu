@@ -5465,6 +5465,72 @@ function onFactorVarSelectChange(factorIdx) {
   calculateModalTotal();
 }
 
+/**
+ * Inferensi Cerdas Satuan Faktor Pengali (F1..F4) jika satuan kosong di DB.
+ * Memastikan formula perhitungan di RUH & Cetak membawa detail satuan (misal: 15 Org x 7 Bln).
+ */
+function inferFactorUnit(row, idx, vNum) {
+  if (!row) return '';
+  const satVol = String(row.satuan_vol || '').trim().toUpperCase();
+  const uraian = String(row.uraian || '').toLowerCase();
+  const rawNum = Number(vNum) || 0;
+
+  // 1. Standar Satuan Majemuk Orang (SBM Kemenkeu & KPU: OK, OB, OH, OJ, OT, OP)
+  if (satVol === 'OK') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) {
+      if (rawNum <= 12 && (uraian.includes('bulan') || uraian.includes('bln') || uraian.includes('snack') || uraian.includes('makan') || uraian.includes('konsumsi'))) return 'Bln';
+      if (uraian.includes('keg') || uraian.includes('kegiatan') || uraian.includes('rapat') || uraian.includes('sidang') || uraian.includes('pleno') || uraian.includes('bimtek')) return 'Keg';
+      return 'Keg';
+    }
+    if (idx === 2) return 'Hari';
+    if (idx === 3) return 'Kali';
+  }
+  if (satVol === 'OB') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Bln';
+    if (idx === 2) return 'Keg';
+  }
+  if (satVol === 'OH') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Hari';
+    if (idx === 2) return 'Keg';
+  }
+  if (satVol === 'OJ') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Jam';
+    if (idx === 2) return 'Keg';
+  }
+  if (satVol === 'OT') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Thn';
+  }
+  if (satVol === 'OP') {
+    if (idx === 0) return 'Org';
+    if (idx === 1) return 'Paket';
+    if (idx === 2) return 'Keg';
+  }
+
+  // 2. Satuan berbasis fisik / dokumen / kuantitas tunggal
+  const singleUnits = ['PAKET', 'BUKU', 'RIM', 'DUS', 'BOX', 'LEMBAR', 'SET', 'UNIT', 'BUAH', 'TITIK', 'KALI', 'KEG', 'BULAN', 'BLN', 'HARI', 'TPS', 'DESA', 'KEC'];
+  if (singleUnits.includes(satVol)) {
+    const formatCapital = satVol === 'BLN' ? 'Bln' : (satVol === 'KEG' ? 'Keg' : (satVol.charAt(0) + satVol.slice(1).toLowerCase()));
+    if (idx === 0) return formatCapital;
+    if (idx === 1) {
+      if (rawNum <= 12 && (uraian.includes('bulan') || uraian.includes('bln'))) return 'Bln';
+      return 'Keg';
+    }
+    if (idx === 2) return 'Kali';
+  }
+
+  // 3. Fallback cerdas berdasarkan teks uraian jika belum terdeteksi
+  if (idx === 0 && (uraian.includes('konsumsi') || uraian.includes('snack') || uraian.includes('makan') || uraian.includes('honor') || uraian.includes('peserta') || uraian.includes('panitia') || uraian.includes('petugas') || uraian.includes('operator'))) {
+    return 'Org';
+  }
+
+  return '';
+}
+
 function openRowModal(rowId, event) {
   if (event) {
     event.preventDefault();
@@ -5522,13 +5588,13 @@ function openRowModal(rowId, event) {
   setElVal('modal-harga', row.harga_satuan || 0);
   setModalSbmDisplay(row.sbm_id || null, row.harga_satuan);
   setElVal('modal-f1-val', row.f1_val !== null ? row.f1_val : '');
-  setElVal('modal-f1-unit', row.f1_unit || '');
+  setElVal('modal-f1-unit', row.f1_unit || (row.f1_val !== null ? inferFactorUnit(row, 0, row.f1_val) : ''));
   setElVal('modal-f2-val', row.f2_val !== null ? row.f2_val : '');
-  setElVal('modal-f2-unit', row.f2_unit || '');
+  setElVal('modal-f2-unit', row.f2_unit || (row.f2_val !== null ? inferFactorUnit(row, 1, row.f2_val) : ''));
   setElVal('modal-f3-val', row.f3_val !== null ? row.f3_val : '');
-  setElVal('modal-f3-unit', row.f3_unit || '');
+  setElVal('modal-f3-unit', row.f3_unit || (row.f3_val !== null ? inferFactorUnit(row, 2, row.f3_val) : ''));
   setElVal('modal-f4-val', row.f4_val !== null ? row.f4_val : '');
-  setElVal('modal-f4-unit', row.f4_unit || '');
+  setElVal('modal-f4-unit', row.f4_unit || (row.f4_val !== null ? inferFactorUnit(row, 3, row.f4_val) : ''));
 
   // Setup variable selectors for F1..F4 (SSOT Binding)
   populateFactorVarSelects();
@@ -5726,10 +5792,14 @@ function calculateModalTotal() {
   const f3El = document.getElementById('modal-f3-val');
   const f4El = document.getElementById('modal-f4-val');
 
-  const f1u = document.getElementById('modal-f1-unit')?.value || '';
-  const f2u = document.getElementById('modal-f2-unit')?.value || '';
-  const f3u = document.getElementById('modal-f3-unit')?.value || '';
-  const f4u = document.getElementById('modal-f4-unit')?.value || '';
+  const activeModalRow = AppState.activeEditingRow || {
+    uraian: document.getElementById('modal-uraian')?.value || '',
+    satuan_vol: document.getElementById('modal-satuan-vol')?.value || ''
+  };
+  const f1u = (document.getElementById('modal-f1-unit')?.value || '').trim() || (document.getElementById('modal-f1-val')?.value ? inferFactorUnit(activeModalRow, 0, Number(document.getElementById('modal-f1-val')?.value)) : '');
+  const f2u = (document.getElementById('modal-f2-unit')?.value || '').trim() || (document.getElementById('modal-f2-val')?.value ? inferFactorUnit(activeModalRow, 1, Number(document.getElementById('modal-f2-val')?.value)) : '');
+  const f3u = (document.getElementById('modal-f3-unit')?.value || '').trim() || (document.getElementById('modal-f3-val')?.value ? inferFactorUnit(activeModalRow, 2, Number(document.getElementById('modal-f3-val')?.value)) : '');
+  const f4u = (document.getElementById('modal-f4-unit')?.value || '').trim() || (document.getElementById('modal-f4-val')?.value ? inferFactorUnit(activeModalRow, 3, Number(document.getElementById('modal-f4-val')?.value)) : '');
 
   const f1v = (document.getElementById('modal-f1-var')?.value || '').trim();
   const f2v = (document.getElementById('modal-f2-var')?.value || '').trim();
@@ -5862,16 +5932,16 @@ async function submitRowForm() {
     harga_satuan: isHeaderMode ? 0 : (Number(document.getElementById('modal-harga')?.value) || 0),
     sbm_id: isHeaderMode ? null : (document.getElementById('modal-sbm-id')?.value ? Number(document.getElementById('modal-sbm-id').value) : null),
     f1_val: isHeaderMode ? null : (document.getElementById('modal-f1-val')?.value ? Number(document.getElementById('modal-f1-val').value) : null),
-    f1_unit: isHeaderMode ? '' : (document.getElementById('modal-f1-unit')?.value || ''),
+    f1_unit: isHeaderMode ? '' : ((document.getElementById('modal-f1-unit')?.value || '').trim() || (document.getElementById('modal-f1-val')?.value ? inferFactorUnit(AppState.activeEditingRow || { uraian, satuan_vol: document.getElementById('modal-satuan-vol')?.value }, 0, Number(document.getElementById('modal-f1-val')?.value)) : '')),
     f1_var: isHeaderMode ? '' : (document.getElementById('modal-f1-var')?.value || ''),
     f2_val: isHeaderMode ? null : (document.getElementById('modal-f2-val')?.value ? Number(document.getElementById('modal-f2-val').value) : null),
-    f2_unit: isHeaderMode ? '' : (document.getElementById('modal-f2-unit')?.value || ''),
+    f2_unit: isHeaderMode ? '' : ((document.getElementById('modal-f2-unit')?.value || '').trim() || (document.getElementById('modal-f2-val')?.value ? inferFactorUnit(AppState.activeEditingRow || { uraian, satuan_vol: document.getElementById('modal-satuan-vol')?.value }, 1, Number(document.getElementById('modal-f2-val')?.value)) : '')),
     f2_var: isHeaderMode ? '' : (document.getElementById('modal-f2-var')?.value || ''),
     f3_val: isHeaderMode ? null : (document.getElementById('modal-f3-val')?.value ? Number(document.getElementById('modal-f3-val').value) : null),
-    f3_unit: isHeaderMode ? '' : (document.getElementById('modal-f3-unit')?.value || ''),
+    f3_unit: isHeaderMode ? '' : ((document.getElementById('modal-f3-unit')?.value || '').trim() || (document.getElementById('modal-f3-val')?.value ? inferFactorUnit(AppState.activeEditingRow || { uraian, satuan_vol: document.getElementById('modal-satuan-vol')?.value }, 2, Number(document.getElementById('modal-f3-val')?.value)) : '')),
     f3_var: isHeaderMode ? '' : (document.getElementById('modal-f3-var')?.value || ''),
     f4_val: isHeaderMode ? null : (document.getElementById('modal-f4-val')?.value ? Number(document.getElementById('modal-f4-val').value) : null),
-    f4_unit: isHeaderMode ? '' : (document.getElementById('modal-f4-unit')?.value || ''),
+    f4_unit: isHeaderMode ? '' : ((document.getElementById('modal-f4-unit')?.value || '').trim() || (document.getElementById('modal-f4-val')?.value ? inferFactorUnit(AppState.activeEditingRow || { uraian, satuan_vol: document.getElementById('modal-satuan-vol')?.value }, 3, Number(document.getElementById('modal-f4-val')?.value)) : '')),
     f4_var: isHeaderMode ? '' : (document.getElementById('modal-f4-var')?.value || ''),
     basis_pengali: isHeaderMode ? 'NONE' : (document.getElementById('modal-basis-pengali')?.value || 'NONE'),
     satuan_vol: isHeaderMode ? '' : (document.getElementById('modal-satuan-vol')?.value || 'Paket'),

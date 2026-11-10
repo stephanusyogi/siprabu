@@ -1424,6 +1424,7 @@ function initDb() {
   try {
     repairCorruptedDuplicateFactors();
     autoBindRabSbm();
+    enrichBlankFactorUnits();
   } catch (e) {
     console.warn('[SELF-HEALING/AUTO-BIND] Peringatan saat startup:', e.message);
   }
@@ -3635,6 +3636,90 @@ function repairCorruptedDuplicateFactors() {
     return repairedCount;
   } catch (err) {
     console.warn('[SELF-HEALING] Gagal menjalankan reparasi faktor otomatis:', err.message);
+    return 0;
+  }
+}
+
+/**
+ * Pengayaan Otomatis Satuan Faktor Pengali (f1_unit s.d. f4_unit) yang masih kosong di DB
+ * Menjamin RUH Belanja dan Cetak Dokumen membawa satuan detail (e.g. 15 Org x 7 Bln).
+ */
+function enrichBlankFactorUnits() {
+  try {
+    const { inferFactorUnit } = require('./calculation');
+    if (typeof inferFactorUnit !== 'function') return 0;
+
+    const rows = db.prepare(`
+      SELECT id, uraian, satuan_vol,
+             f1_val, f1_unit,
+             f2_val, f2_unit,
+             f3_val, f3_unit,
+             f4_val, f4_unit
+      FROM rab_baris
+      WHERE row_type = 'item'
+        AND (
+          (f1_val IS NOT NULL AND (f1_unit IS NULL OR TRIM(f1_unit) = '')) OR
+          (f2_val IS NOT NULL AND (f2_unit IS NULL OR TRIM(f2_unit) = '')) OR
+          (f3_val IS NOT NULL AND (f3_unit IS NULL OR TRIM(f3_unit) = '')) OR
+          (f4_val IS NOT NULL AND (f4_unit IS NULL OR TRIM(f4_unit) = ''))
+        )
+    `).all();
+
+    if (!rows || rows.length === 0) return 0;
+
+    const updateStmt = db.prepare(`
+      UPDATE rab_baris SET
+        f1_unit = ?,
+        f2_unit = ?,
+        f3_unit = ?,
+        f4_unit = ?
+      WHERE id = ?
+    `);
+
+    let updatedCount = 0;
+    for (const r of rows) {
+      let u1 = r.f1_unit ? String(r.f1_unit).trim() : '';
+      let u2 = r.f2_unit ? String(r.f2_unit).trim() : '';
+      let u3 = r.f3_unit ? String(r.f3_unit).trim() : '';
+      let u4 = r.f4_unit ? String(r.f4_unit).trim() : '';
+      let changed = false;
+
+      if (!u1 && r.f1_val !== null) {
+        const inf = inferFactorUnit(r, 0, r.f1_val);
+        if (inf) { u1 = inf; changed = true; }
+      }
+      if (!u2 && r.f2_val !== null) {
+        const inf = inferFactorUnit(r, 1, r.f2_val);
+        if (inf) { u2 = inf; changed = true; }
+      }
+      if (!u3 && r.f3_val !== null) {
+        const inf = inferFactorUnit(r, 2, r.f3_val);
+        if (inf) { u3 = inf; changed = true; }
+      }
+      if (!u4 && r.f4_val !== null) {
+        const inf = inferFactorUnit(r, 3, r.f4_val);
+        if (inf) { u4 = inf; changed = true; }
+      }
+
+      if (changed) {
+        updateStmt.run(u1, u2, u3, u4, r.id);
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount > 0) {
+      console.log(`[ENRICH-SATUAN] Berhasil memperkaya satuan pada ${updatedCount} baris faktor RKB.`);
+      try {
+        const { clearRkbDatasetCache } = require('./calculation');
+        if (typeof clearRkbDatasetCache === 'function') {
+          clearRkbDatasetCache();
+        }
+      } catch (e) {}
+    }
+
+    return updatedCount;
+  } catch (err) {
+    console.warn('[ENRICH-SATUAN] Gagal menjalankan pengayaan satuan faktor:', err.message);
     return 0;
   }
 }
@@ -8583,6 +8668,7 @@ module.exports = {
   saveRuhPicMatrix,
   updateUserRoleMode,
   repairCorruptedDuplicateFactors,
+  enrichBlankFactorUnits,
   autoBindRabVariables,
   autoBindRabSbm,
   updateUserProfileSelf,
