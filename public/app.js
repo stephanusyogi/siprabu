@@ -13213,6 +13213,8 @@ async function loadTahap4ViewData() {
 
     const proposalsList = res.proposals || [];
     const isReady = Boolean(res.is_ready_for_ratification || res.siap_pengesahan);
+    AppState.tahap4IsReady = isReady;
+    AppState.tahap4PendingSubbags = res.pending_subbags || [];
 
     if (tableBody) {
       if (proposalsList.length === 0) {
@@ -13242,21 +13244,7 @@ async function loadTahap4ViewData() {
       }
     }
 
-    const btnSubmit = document.getElementById('btn-submit-tahap4-final');
-    if (btnSubmit) {
-      if (!isReady) {
-        btnSubmit.disabled = true;
-        btnSubmit.className = 'btn btn-secondary';
-        const pendingStr = (res.pending_subbags && res.pending_subbags.length > 0) ? res.pending_subbags.join(', ') : 'Belum ada pengajuan ACC Pleno';
-        btnSubmit.title = `Belum dapat disahkan: ${pendingStr}`;
-        btnSubmit.innerHTML = `⚠️ Belum Dapat Disahkan (${escHtml(pendingStr)})`;
-      } else {
-        btnSubmit.disabled = false;
-        btnSubmit.className = 'btn btn-success';
-        btnSubmit.title = '';
-        btnSubmit.innerHTML = '🔒 Kunci RKB Keseluruhan &amp; Sahkan BA Pleno (Tahap 4)';
-      }
-    }
+    onTahap4DasarPengesahanChange();
   } catch (err) {
     console.warn('Gagal memuat info tahap 4:', err);
     if (tableBody) {
@@ -13265,56 +13253,267 @@ async function loadTahap4ViewData() {
   }
 }
 
+function getTahap4SubmitButtonLabel(dasar) {
+  if (dasar === 'Notulensi Audiensi') return '🔒 Kunci Baseline RKB & Simpan Hasil Audiensi';
+  if (dasar === 'BA TAPD') return '🔒 Kunci Baseline RKB & Simpan Kesepakatan BA TAPD';
+  if (dasar === 'NPHD') return '🔒 Kunci Baseline RKB & Sahkan Penetapan NPHD';
+  if (dasar === 'Keputusan KPU') return '🔒 Kunci Baseline RKB & Sahkan Keputusan KPU';
+  return '🔒 Kunci RKB Keseluruhan & Sahkan BA Pleno (Tahap 4)';
+}
+
+function onTahap4DasarPengesahanChange() {
+  const dasar = document.getElementById('tahap4-input-dasar-pengesahan')?.value || 'BA Pleno Komisioner';
+  const faseSelect = document.getElementById('tahap4-input-fase');
+  const headerTitle = document.getElementById('tahap4-form-header-title');
+  const groupMitra = document.getElementById('group-tahap4-mitra');
+  const labelMitra = document.getElementById('label-tahap4-mitra');
+  const inputMitra = document.getElementById('tahap4-input-mitra');
+  const helpMitra = document.getElementById('help-tahap4-mitra');
+
+  const labelNoBa = document.getElementById('label-tahap4-nomor-ba');
+  const inputNoBa = document.getElementById('tahap4-input-nomor-ba');
+  const helpNoBa = document.getElementById('help-tahap4-nomor-ba');
+  const labelTglBa = document.getElementById('label-tahap4-tanggal-ba');
+
+  const labelLinkBa = document.getElementById('label-tahap4-link-ba');
+  const helpLinkBa = document.getElementById('help-tahap4-link-ba');
+  const groupLinkRkb = document.getElementById('group-tahap4-link-rkb-final');
+  const inputLinkRkb = document.getElementById('tahap4-input-link-rkb-final');
+  const groupLinkKak = document.getElementById('group-tahap4-link-kak-gabungan');
+  const inputLinkKak = document.getElementById('tahap4-input-link-kak-gabungan');
+
+  const labelCatatan = document.getElementById('label-tahap4-catatan');
+  const inputCatatan = document.getElementById('tahap4-input-catatan');
+  const textVerifikasi = document.getElementById('text-tahap4-verifikasi');
+  const btnSubmit = document.getElementById('btn-submit-tahap4-final');
+
+  const isExternalPattern = ['Notulensi Audiensi', 'BA TAPD', 'NPHD'].includes(dasar);
+  const year = new Date().getFullYear();
+
+  if (dasar === 'NPHD' && faseSelect) {
+    faseSelect.value = 'NPHD';
+  } else if (dasar === 'Notulensi Audiensi' && faseSelect && faseSelect.value === 'NPHD') {
+    faseSelect.value = 'PRA_NPHD';
+  }
+
+  if (isExternalPattern) {
+    if (groupMitra) groupMitra.style.display = 'block';
+    if (inputMitra) inputMitra.required = true;
+    if (groupLinkRkb) groupLinkRkb.style.display = 'none';
+    if (inputLinkRkb) inputLinkRkb.required = false;
+    if (groupLinkKak) groupLinkKak.style.display = 'none';
+    if (inputLinkKak) inputLinkKak.required = false;
+    if (inputCatatan) inputCatatan.required = true;
+
+    if (inputNoBa && /^05\/BA\.01-BA\/3521\/\d{4}$/.test(inputNoBa.value.trim())) {
+      inputNoBa.value = '';
+    }
+
+    if (dasar === 'Notulensi Audiensi') {
+      if (headerTitle) headerTitle.textContent = '📝 Formulir Penguncian Baseline Hasil Audiensi';
+      if (labelMitra) labelMitra.innerHTML = 'Mitra / Forum Audiensi: <span style="color: red;">*</span>';
+      if (inputMitra) inputMitra.placeholder = 'Contoh: DPRD dan Bakesbangpol Kab. Ngawi / TAPD Pemkab Ngawi';
+      if (helpMitra) helpMitra.textContent = 'Sebutkan pihak/instansi mitra yang hadir dalam pelaksanaan audiensi.';
+      if (labelNoBa) labelNoBa.innerHTML = 'Nomor Surat / Notulensi <span style="font-weight:normal;color:#64748b;">(Opsional)</span>:';
+      if (inputNoBa) {
+        inputNoBa.required = false;
+        inputNoBa.placeholder = 'Kosongkan jika notulensi tanpa nomor surat resmi';
+      }
+      if (helpNoBa) {
+        helpNoBa.style.display = 'block';
+        helpNoBa.textContent = 'Opsional: Boleh dikosongkan (otomatis tercatat "-") jika notulensi audiensi tidak bernomor.';
+      }
+      if (labelTglBa) labelTglBa.innerHTML = 'Tanggal Pelaksanaan Audiensi: <span style="color: red;">*</span>';
+      if (labelLinkBa) labelLinkBa.innerHTML = 'Tautan Google Drive Berkas / Folder Dokumentasi Audiensi: <span style="color: red;">*</span>';
+      if (helpLinkBa) helpLinkBa.textContent = 'Wajib (Cukup 1 Tautan): Tautkan berkas notulensi atau folder Google Drive dokumentasi audiensi & RKB usulan.';
+      if (labelCatatan) labelCatatan.innerHTML = 'Catatan / Intisari Hasil Audiensi: <span style="color: red;">*</span>';
+      if (inputCatatan) inputCatatan.placeholder = 'Tuliskan intisari arahan atau kesepakatan hasil audiensi...';
+    } else if (dasar === 'BA TAPD') {
+      if (headerTitle) headerTitle.textContent = '🤝 Formulir Penguncian Baseline Kesepakatan BA TAPD';
+      if (labelMitra) labelMitra.innerHTML = 'Mitra / Forum Pembahasan TAPD: <span style="color: red;">*</span>';
+      if (inputMitra) inputMitra.placeholder = 'Contoh: Tim Anggaran Pemerintah Daerah (TAPD) Kab. Ngawi';
+      if (helpMitra) helpMitra.textContent = 'Sebutkan unsur TAPD / Pemda dalam rapat pembahasan anggaran.';
+      if (labelNoBa) labelNoBa.innerHTML = 'Nomor Berita Acara TAPD <span style="font-weight:normal;color:#64748b;">(Opsional bila menyusul)</span>:';
+      if (inputNoBa) {
+        inputNoBa.required = false;
+        inputNoBa.placeholder = `Contoh: 900/BA-TAPD/404.302/${year} (Kosongkan jika nomor menyusul)`;
+      }
+      if (helpNoBa) {
+        helpNoBa.style.display = 'block';
+        helpNoBa.textContent = 'Isi Nomor BA TAPD jika sudah diterbitkan, atau kosongkan bila penomoran dari Pemda menyusul.';
+      }
+      if (labelTglBa) labelTglBa.innerHTML = 'Tanggal Berita Acara TAPD: <span style="color: red;">*</span>';
+      if (labelLinkBa) labelLinkBa.innerHTML = 'Tautan Google Drive Berkas / Folder BA TAPD &amp; RKB: <span style="color: red;">*</span>';
+      if (helpLinkBa) helpLinkBa.textContent = 'Wajib (Cukup 1 Tautan): Tautkan berkas scan BA TAPD atau folder Google Drive hasil pembahasan TAPD.';
+      if (labelCatatan) labelCatatan.innerHTML = 'Catatan / Pokok Kesepakatan TAPD: <span style="color: red;">*</span>';
+      if (inputCatatan) inputCatatan.placeholder = 'Tuliskan pokok kesepakatan atau rasionalisasi pagu bersama TAPD...';
+    } else if (dasar === 'NPHD') {
+      if (headerTitle) headerTitle.textContent = '🏛️ Formulir Pengesahan & Penguncian Pagu NPHD Resmi';
+      if (labelMitra) labelMitra.innerHTML = 'Pihak Pemberi Hibah (Pemda): <span style="color: red;">*</span>';
+      if (inputMitra) {
+        inputMitra.placeholder = 'Contoh: Pemerintah Kabupaten Ngawi';
+        if (!inputMitra.value.trim()) inputMitra.value = 'Pemerintah Kabupaten Ngawi';
+      }
+      if (helpMitra) helpMitra.textContent = 'Pemerintah Daerah penandatangan Naskah Perjanjian Hibah Daerah (NPHD).';
+      if (labelNoBa) labelNoBa.innerHTML = 'Nomor Naskah Perjanjian Hibah Daerah (NPHD): <span style="color: red;">*</span>';
+      if (inputNoBa) {
+        inputNoBa.required = true;
+        inputNoBa.placeholder = `Contoh: 188/NPHD/404.101/${year} — 01/PR.07-NPHD/3521/${year}`;
+      }
+      if (helpNoBa) {
+        helpNoBa.style.display = 'block';
+        helpNoBa.textContent = 'Cantumkan Nomor NPHD Pemda dan/atau Nomor NPHD KPU.';
+      }
+      if (labelTglBa) labelTglBa.innerHTML = 'Tanggal Penandatanganan NPHD: <span style="color: red;">*</span>';
+      if (labelLinkBa) labelLinkBa.innerHTML = 'Tautan Google Drive Berkas / Folder Naskah NPHD &amp; RKB: <span style="color: red;">*</span>';
+      if (helpLinkBa) helpLinkBa.textContent = 'Wajib (Cukup 1 Tautan): Tautkan berkas scan NPHD bertanda tangan beserta lampiran RKB NPHD.';
+      if (labelCatatan) labelCatatan.innerHTML = 'Catatan / Ketetapan Pagu Hibah NPHD: <span style="color: red;">*</span>';
+      if (inputCatatan) inputCatatan.placeholder = 'Tuliskan ketetapan pagu hibah NPHD resmi...';
+    }
+
+    if (textVerifikasi) {
+      textVerifikasi.textContent = 'Saya telah melakukan verifikasi manual terhadap kesesuaian angka RKB gabungan, kelengkapan tautan bukti Google Drive, dan ketetapan Fase Perencanaan sebelum mengunci baseline secara permanen.';
+    }
+  } else {
+    if (headerTitle) {
+      headerTitle.textContent = dasar === 'Keputusan KPU'
+        ? '📜 Formulir Pengesahan Keputusan KPU (SK KPU)'
+        : '📜 Formulir Pengesahan Berita Acara Pleno Komisioner';
+    }
+    if (groupMitra) groupMitra.style.display = 'none';
+    if (inputMitra) inputMitra.required = false;
+    if (groupLinkRkb) groupLinkRkb.style.display = 'block';
+    if (inputLinkRkb) inputLinkRkb.required = true;
+    if (groupLinkKak) groupLinkKak.style.display = 'block';
+    if (inputLinkKak) inputLinkKak.required = true;
+    if (inputCatatan) inputCatatan.required = false;
+
+    if (labelNoBa) {
+      labelNoBa.innerHTML = dasar === 'Keputusan KPU'
+        ? 'Nomor Keputusan KPU (SK KPU): <span style="color: red;">*</span>'
+        : 'Nomor Berita Acara Pleno (BA Pleno): <span style="color: red;">*</span>';
+    }
+    if (inputNoBa) {
+      inputNoBa.required = true;
+      inputNoBa.placeholder = dasar === 'Keputusan KPU' ? `Contoh: 12/HK.03.1/3521/${year}` : `Contoh: 05/BA.01-BA/3521/${year}`;
+      if (!inputNoBa.value.trim()) {
+        inputNoBa.value = `05/BA.01-BA/3521/${year}`;
+      }
+    }
+    if (helpNoBa) {
+      helpNoBa.style.display = 'none';
+      helpNoBa.textContent = '';
+    }
+    if (labelTglBa) {
+      labelTglBa.innerHTML = dasar === 'Keputusan KPU'
+        ? 'Tanggal Keputusan KPU: <span style="color: red;">*</span>'
+        : 'Tanggal Berita Acara Pleno: <span style="color: red;">*</span>';
+    }
+    if (labelLinkBa) {
+      labelLinkBa.innerHTML = dasar === 'Keputusan KPU'
+        ? '1. Tautan Google Drive SK KPU Bertanda Tangan: <span style="color: red;">*</span>'
+        : '1. Tautan Google Drive BA Pleno Bertanda Tangan: <span style="color: red;">*</span>';
+    }
+    if (helpLinkBa) {
+      helpLinkBa.textContent = 'Wajib: Tautkan berkas scan Berita Acara Rapat Pleno / SK yang telah ditandatangani resmi.';
+    }
+    if (labelCatatan) labelCatatan.textContent = 'Catatan / Risalah Penetapan Pleno:';
+    if (inputCatatan) inputCatatan.placeholder = 'Tuliskan intisari putusan rapat pleno pengesahan revisi RKB ini...';
+    if (textVerifikasi) {
+      textVerifikasi.textContent = 'Saya telah melakukan verifikasi manual terhadap kesesuaian angka RKB gabungan, kelengkapan 3 tautan Google Drive (BA Pleno, RKB Final, KAK Gabungan), dan ketetapan Fase Perencanaan sebelum mengunci baseline secara permanen.';
+    }
+  }
+
+  if (btnSubmit) {
+    const isReady = AppState.tahap4IsReady !== false;
+    if (!isReady) {
+      btnSubmit.disabled = true;
+      btnSubmit.className = 'btn btn-secondary';
+      const pendingStr = (AppState.tahap4PendingSubbags && AppState.tahap4PendingSubbags.length > 0)
+        ? AppState.tahap4PendingSubbags.join(', ')
+        : 'Masih ada pengajuan belum ACC Pleno';
+      btnSubmit.title = `Belum dapat disahkan: ${pendingStr}`;
+      btnSubmit.innerHTML = `⚠️ Belum Dapat Disahkan (${escHtml(pendingStr)})`;
+    } else {
+      btnSubmit.disabled = false;
+      btnSubmit.className = 'btn btn-success';
+      btnSubmit.title = '';
+      btnSubmit.innerHTML = escHtml(getTahap4SubmitButtonLabel(dasar));
+    }
+  }
+}
+
 async function submitPengesahanTahap4Keseluruhan() {
   const fasePerencanaan = document.getElementById('tahap4-input-fase')?.value || 'PRA_NPHD';
   const dasarPengesahan = document.getElementById('tahap4-input-dasar-pengesahan')?.value || 'BA Pleno Komisioner';
-  const noBa = document.getElementById('tahap4-input-nomor-ba')?.value?.trim();
+  const isExternalPattern = ['Notulensi Audiensi', 'BA TAPD', 'NPHD'].includes(dasarPengesahan);
+  const isNoBaOptional = ['Notulensi Audiensi', 'BA TAPD'].includes(dasarPengesahan);
+
+  const mitra = document.getElementById('tahap4-input-mitra')?.value?.trim() || '';
+  const rawNoBa = document.getElementById('tahap4-input-nomor-ba')?.value?.trim() || '';
+  const noBa = rawNoBa || (isNoBaOptional ? '-' : '');
   const tglBa = document.getElementById('tahap4-input-tanggal-ba')?.value;
   const linkBa = document.getElementById('tahap4-input-link-ba')?.value?.trim();
-  const linkRkbFinal = document.getElementById('tahap4-input-link-rkb-final')?.value?.trim();
-  const linkKakGabungan = document.getElementById('tahap4-input-link-kak-gabungan')?.value?.trim();
+  const linkRkbFinal = isExternalPattern ? '' : (document.getElementById('tahap4-input-link-rkb-final')?.value?.trim() || '');
+  const linkKakGabungan = isExternalPattern ? '' : (document.getElementById('tahap4-input-link-kak-gabungan')?.value?.trim() || '');
   const checkVerifikasi = document.getElementById('tahap4-check-verifikasi');
-  const catatan = document.getElementById('tahap4-input-catatan')?.value?.trim();
+  const rawCatatan = document.getElementById('tahap4-input-catatan')?.value?.trim() || '';
+
+  if (isExternalPattern && !mitra) {
+    alert('Mitra / Forum Kesepakatan wajib diisi.');
+    return;
+  }
 
   if (!noBa || !tglBa) {
-    alert('Nomor Berita Acara Pleno dan Tanggal BA Pleno wajib diisi.');
+    alert(isNoBaOptional ? 'Tanggal dokumen wajib diisi.' : 'Nomor dokumen dan Tanggal wajib diisi.');
     return;
   }
 
   if (!linkBa) {
-    alert('Tautan Google Drive Berita Acara Pleno (BA Pleno) bertanda tangan wajib dilampirkan.');
+    alert('Tautan Google Drive berkas bukti wajib dilampirkan.');
     return;
   }
 
-  if (!linkRkbFinal) {
-    alert('Tautan Google Drive RKB Final bertanda tangan wajib dilampirkan.');
-    return;
+  if (!isExternalPattern) {
+    if (!linkRkbFinal) {
+      alert('Tautan Google Drive RKB Final bertanda tangan wajib dilampirkan.');
+      return;
+    }
+    if (!linkKakGabungan) {
+      alert('Tautan Google Drive KAK Gabungan wajib dilampirkan.');
+      return;
+    }
   }
 
-  if (!linkKakGabungan) {
-    alert('Tautan Google Drive KAK Gabungan wajib dilampirkan.');
+  if (isExternalPattern && !rawCatatan) {
+    alert('Catatan / Intisari Kesepakatan wajib diisi.');
     return;
   }
 
   if (!checkVerifikasi || !checkVerifikasi.checked) {
-    alert('Harap beri tanda centang pada verifikasi manual sebelum mengesahkan dan mengunci RKB Tahap 4.');
+    alert('Harap beri tanda centang pada verifikasi manual sebelum mengesahkan dan mengunci baseline RKB.');
     return;
   }
 
-  const confirmMsg = `PERINGATAN PENGESAHAN DOKUMEN TAHAP 4:\n\n` +
+  const catatan = (isExternalPattern && mitra && !rawCatatan.toLowerCase().includes(mitra.toLowerCase()))
+    ? `[Mitra/Forum: ${mitra}] ${rawCatatan}`
+    : rawCatatan;
+
+  const confirmMsg = `PERINGATAN PENGUNCIAN BASELINE RKB:\n\n` +
     `Anda akan MENGUNCI RESMI RKB siklus ini secara keseluruhan:\n` +
     `- Fase Perencanaan: ${fasePerencanaan}\n` +
     `- Dasar Pengesahan: ${dasarPengesahan}\n` +
-    `- Nomor BA Pleno: ${noBa} (${tglBa})\n\n` +
-    `Dokumen RKB saat ini akan dikunci permanen menjadi Baseline Sah berikutnya.\n\n` +
-    `Apakah Anda yakin ingin melanjutkan pengesahan?`;
+    (isExternalPattern ? `- Mitra / Forum: ${mitra}\n` : '') +
+    `- Nomor / Tanggal: ${noBa} (${tglBa})\n\n` +
+    `Dokumen RKB saat ini akan dikunci permanen menjadi Baseline Sah berikutnya, dan sistem otomatis menerbitkan Dokumen Aktif Baru (Duplikat).\n\n` +
+    `Apakah Anda yakin ingin melanjutkan?`;
 
   if (!confirm(confirmMsg)) return;
 
   const btnSubmit = document.getElementById('btn-submit-tahap4-final');
   if (btnSubmit) {
     btnSubmit.disabled = true;
-    btnSubmit.textContent = '🔒 Mengunci RKB & Mengesahkan Dokumen...';
+    btnSubmit.textContent = '🔒 Mengunci Baseline RKB & Menerbitkan Dokumen Aktif Baru...';
   }
 
   try {
@@ -13334,7 +13533,7 @@ async function submitPengesahanTahap4Keseluruhan() {
       })
     });
 
-    showToast(res.message || 'RKB Siklus berhasil dikunci secara keseluruhan dengan BA Pleno!', 'success');
+    showToast(res.message || 'Baseline RKB berhasil dikunci dan dokumen kerja aktif baru telah diterbitkan!', 'success');
 
     // Reload periodes dan RKB dataset
     await loadPeriodes();
@@ -13348,7 +13547,7 @@ async function submitPengesahanTahap4Keseluruhan() {
   } finally {
     if (btnSubmit) {
       btnSubmit.disabled = false;
-      btnSubmit.textContent = '🔒 Kunci RKB Keseluruhan & Sahkan BA Pleno (Tahap 4)';
+      btnSubmit.textContent = getTahap4SubmitButtonLabel(dasarPengesahan);
     }
   }
 }

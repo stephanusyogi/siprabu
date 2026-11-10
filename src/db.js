@@ -7869,18 +7869,25 @@ function finalizeTahap4Keseluruhan({
   catatan = '',
   user = null
 }) {
-  const noBa = (nomor_ba || '').trim();
+  const cleanDasar = (dasar_pengesahan || 'BA Pleno Komisioner').trim();
+  const isExternalPattern = ['Notulensi Audiensi', 'BA TAPD', 'NPHD'].includes(cleanDasar);
+  const isNoBaOptional = ['Notulensi Audiensi', 'BA TAPD'].includes(cleanDasar);
+
+  const rawNoBa = (nomor_ba || '').trim();
+  const noBa = rawNoBa || (isNoBaOptional ? '-' : '');
   const tglBa = (tanggal_ba || '').trim();
   const cleanLinkBa = (link_scan_ba || '').trim();
   const cleanLinkRkb = (rkb_final_link || '').trim();
   const cleanLinkKak = (kak_gabungan_link || '').trim();
 
-  if (!noBa) throw new Error('Nomor Berita Acara Pleno (BA Pleno) wajib diisi.');
-  if (!tglBa) throw new Error('Tanggal Berita Acara Pleno wajib diisi.');
+  if (!noBa) throw new Error(cleanDasar === 'NPHD' ? 'Nomor NPHD wajib diisi.' : 'Nomor Berita Acara Pleno (BA Pleno) wajib diisi.');
+  if (!tglBa) throw new Error('Tanggal dokumen pengesahan wajib diisi.');
   if (strict_tahap4) {
-    if (!cleanLinkBa) throw new Error('Tautan Google Drive BA Pleno bertanda tangan wajib dilampirkan.');
-    if (!cleanLinkRkb) throw new Error('Tautan Google Drive RKB Final bertanda tangan wajib dilampirkan.');
-    if (!cleanLinkKak) throw new Error('Tautan Google Drive KAK Gabungan wajib dilampirkan.');
+    if (!cleanLinkBa) throw new Error('Tautan Google Drive berkas bukti pengesahan wajib dilampirkan.');
+    if (!isExternalPattern) {
+      if (!cleanLinkRkb) throw new Error('Tautan Google Drive RKB Final bertanda tangan wajib dilampirkan.');
+      if (!cleanLinkKak) throw new Error('Tautan Google Drive KAK Gabungan wajib dilampirkan.');
+    }
     if (!verifikasi_manual) throw new Error('Verifikasi manual sebelum pengesahan Tahap 4 wajib dicentang.');
   }
 

@@ -1225,7 +1225,7 @@
             <!-- PANEL KANAN: FORMULIR BERITA ACARA PLENO & PENGUNCIAN KESELURUHAN -->
             <div class="card">
               <div class="card-header" style="background: #f0fdf4; border-bottom: 1px solid #bbf7d0;">
-                <h3 style="color: #166534;">📜 Formulir Pengesahan Berita Acara Pleno Komisioner</h3>
+                <h3 style="color: #166534;" id="tahap4-form-header-title">📜 Formulir Pengesahan Berita Acara Pleno Komisioner</h3>
               </div>
               <div class="card-body">
                 <form id="form-pengesahan-tahap4-rkb" onsubmit="event.preventDefault(); submitPengesahanTahap4Keseluruhan();">
@@ -1244,7 +1244,7 @@
                     <!-- Dasar Pengesahan Terpisah dari Fase (Bab 17.2 Canon) -->
                     <div class="prabu-form-group">
                       <label for="tahap4-input-dasar-pengesahan">Dasar Pengesahan / Acuan Hukum: <span style="color: red;">*</span></label>
-                      <select id="tahap4-input-dasar-pengesahan" class="form-control" required style="font-weight: 600;">
+                      <select id="tahap4-input-dasar-pengesahan" class="form-control" required style="font-weight: 600;" onchange="onTahap4DasarPengesahanChange()">
                         <option value="BA Pleno Komisioner">BA Pleno Komisioner</option>
                         <option value="BA TAPD">BA TAPD</option>
                         <option value="Notulensi Audiensi">Notulensi Audiensi</option>
@@ -1256,42 +1256,50 @@
                     </div>
                   </div>
 
+                  <!-- Kolom Mitra / Forum Kesepakatan (Muncul untuk Notulensi Audiensi, BA TAPD, & NPHD) -->
+                  <div class="prabu-form-group" id="group-tahap4-mitra" style="display: none;">
+                    <label for="tahap4-input-mitra" id="label-tahap4-mitra">Mitra / Forum Kesepakatan: <span style="color: red;">*</span></label>
+                    <input type="text" id="tahap4-input-mitra" class="form-control" placeholder="Contoh: DPRD dan Bakesbangpol Kab. Ngawi / TAPD Pemkab Ngawi">
+                    <small style="color: #64748b;" id="help-tahap4-mitra">Sebutkan pihak/instansi mitra dalam audiensi, pembahasan TAPD, atau penandatanganan NPHD.</small>
+                  </div>
+
                   <div class="prabu-grid-2col">
-                    <!-- Nomor BA Pleno -->
+                    <!-- Nomor Dokumen / BA -->
                     <div class="prabu-form-group">
-                      <label for="tahap4-input-nomor-ba">Nomor Berita Acara Pleno (BA Pleno): <span style="color: red;">*</span></label>
+                      <label for="tahap4-input-nomor-ba" id="label-tahap4-nomor-ba">Nomor Berita Acara Pleno (BA Pleno): <span style="color: red;">*</span></label>
                       <input type="text" id="tahap4-input-nomor-ba" class="form-control" required placeholder="Contoh: 05/BA.01-BA/3521/2029">
+                      <small style="color: #64748b; display: none;" id="help-tahap4-nomor-ba"></small>
                     </div>
 
-                    <!-- Tanggal BA Pleno -->
+                    <!-- Tanggal Dokumen / BA -->
                     <div class="prabu-form-group">
-                      <label for="tahap4-input-tanggal-ba">Tanggal Berita Acara Pleno: <span style="color: red;">*</span></label>
+                      <label for="tahap4-input-tanggal-ba" id="label-tahap4-tanggal-ba">Tanggal Berita Acara Pleno: <span style="color: red;">*</span></label>
                       <input type="date" id="tahap4-input-tanggal-ba" class="form-control" required>
                     </div>
                   </div>
 
-                  <!-- 3 Tautan Google Drive Terpisah (Bab 4.3 & FR-06 Canon) -->
-                  <div class="prabu-form-group">
-                    <label for="tahap4-input-link-ba">1. Tautan Google Drive BA Pleno Bertanda Tangan: <span style="color: red;">*</span></label>
+                  <!-- Tautan Google Drive (Dinamis: 1 Link untuk Eksternal, 3 Link untuk BA Pleno / SK KPU) -->
+                  <div class="prabu-form-group" id="group-tahap4-link-ba">
+                    <label for="tahap4-input-link-ba" id="label-tahap4-link-ba">1. Tautan Google Drive BA Pleno Bertanda Tangan: <span style="color: red;">*</span></label>
                     <input type="url" id="tahap4-input-link-ba" class="form-control" required placeholder="https://drive.google.com/file/d/...">
-                    <small style="color: #64748b;">Wajib: Tautkan berkas scan Berita Acara Rapat Pleno yang telah ditandatangani Ketua &amp; Anggota Komisioner KPU.</small>
+                    <small style="color: #64748b;" id="help-tahap4-link-ba">Wajib: Tautkan berkas scan Berita Acara Rapat Pleno yang telah ditandatangani Ketua &amp; Anggota Komisioner KPU.</small>
                   </div>
 
-                  <div class="prabu-form-group">
-                    <label for="tahap4-input-link-rkb-final">2. Tautan Google Drive RKB Final Bertanda Tangan: <span style="color: red;">*</span></label>
+                  <div class="prabu-form-group" id="group-tahap4-link-rkb-final">
+                    <label for="tahap4-input-link-rkb-final" id="label-tahap4-link-rkb-final">2. Tautan Google Drive RKB Final Bertanda Tangan: <span style="color: red;">*</span></label>
                     <input type="url" id="tahap4-input-link-rkb-final" class="form-control" required placeholder="https://drive.google.com/file/d/...">
                     <small style="color: #64748b;">Wajib: Tautkan berkas RKB gabungan final yang telah ditandatangani resmi.</small>
                   </div>
 
-                  <div class="prabu-form-group">
-                    <label for="tahap4-input-link-kak-gabungan">3. Tautan Google Drive KAK Gabungan: <span style="color: red;">*</span></label>
+                  <div class="prabu-form-group" id="group-tahap4-link-kak-gabungan">
+                    <label for="tahap4-input-link-kak-gabungan" id="label-tahap4-link-kak-gabungan">3. Tautan Google Drive KAK Gabungan: <span style="color: red;">*</span></label>
                     <input type="url" id="tahap4-input-link-kak-gabungan" class="form-control" required placeholder="https://drive.google.com/file/d/...">
                     <small style="color: #64748b;">Wajib: Tautkan berkas Kerangka Acuan Kerja (KAK) gabungan seluruh subbagian.</small>
                   </div>
 
                   <!-- Catatan / Keterangan Legalitas -->
                   <div class="prabu-form-group">
-                    <label for="tahap4-input-catatan">Catatan / Risalah Penetapan Pleno:</label>
+                    <label for="tahap4-input-catatan" id="label-tahap4-catatan">Catatan / Risalah Penetapan Pleno:</label>
                     <textarea id="tahap4-input-catatan" class="form-control" rows="2" placeholder="Tuliskan intisari putusan rapat pleno pengesahan revisi RKB ini..."></textarea>
                   </div>
 
@@ -1299,7 +1307,7 @@
                   <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
                     <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 12px; font-weight: 600; color: #14532d; margin: 0;">
                       <input type="checkbox" id="tahap4-check-verifikasi" required style="margin-top: 3px; transform: scale(1.15);">
-                      <span>
+                      <span id="text-tahap4-verifikasi">
                         Saya telah melakukan verifikasi manual terhadap kesesuaian angka RKB gabungan, kelengkapan 3 tautan Google Drive (BA Pleno, RKB Final, KAK Gabungan), dan ketetapan Fase Perencanaan sebelum mengunci baseline secara permanen.
                       </span>
                     </label>
@@ -8663,7 +8671,7 @@
         </div>
       </div>
 <script src="/data_juknis.js?v=5.1.0"></script>
-    <script src="/app.js?v=5.8.8-tahap4-direct-lock-and-clone"></script>
+    <script src="/app.js?v=5.8.9-tahap4-adaptive-external-form"></script>
     <script src="/pengadaan.js?v=5.8.5-tahap6-rich-resume-dashboard"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
