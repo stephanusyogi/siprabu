@@ -7892,9 +7892,9 @@ function finalizeTahap4Keseluruhan({
   catatan = '',
   user = null
 }) {
-  const cleanDasar = (dasar_pengesahan || 'BA Pleno Komisioner').trim();
-  const isExternalPattern = ['Notulensi Audiensi', 'BA TAPD', 'NPHD'].includes(cleanDasar);
-  const isNoBaOptional = ['Notulensi Audiensi', 'BA TAPD'].includes(cleanDasar);
+  const cleanDasar = (dasar_pengesahan || 'Notulensi Audiensi').trim();
+  const isExternalPattern = cleanDasar !== 'BA Pleno Komisioner';
+  const isNoBaOptional = cleanDasar !== 'BA Pleno Komisioner' && cleanDasar !== 'NPHD';
 
   const rawNoBa = (nomor_ba || '').trim();
   const noBa = rawNoBa || (isNoBaOptional ? '-' : '');

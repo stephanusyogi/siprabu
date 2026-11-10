@@ -1245,11 +1245,12 @@
                     <div class="prabu-form-group">
                       <label for="tahap4-input-dasar-pengesahan">Dasar Pengesahan / Acuan Hukum: <span style="color: red;">*</span></label>
                       <select id="tahap4-input-dasar-pengesahan" class="form-control" required style="font-weight: 600;" onchange="onTahap4DasarPengesahanChange()">
-                        <option value="BA Pleno Komisioner">BA Pleno Komisioner</option>
-                        <option value="BA TAPD">BA TAPD</option>
                         <option value="Notulensi Audiensi">Notulensi Audiensi</option>
-                        <option value="Keputusan KPU">Keputusan KPU</option>
+                        <option value="BA TAPD">BA TAPD</option>
+                        <option value="Hasil Reviu / Koreksi KPU Provinsi">Hasil Reviu / Koreksi KPU Provinsi</option>
+                        <option value="Sinkronisasi Regulasi / Keputusan Terbaru">Sinkronisasi Regulasi / Keputusan Terbaru</option>
                         <option value="NPHD">NPHD</option>
+                        <option value="BA Pleno Komisioner">BA Pleno Komisioner</option>
                         <option value="Lainnya">Lainnya</option>
                       </select>
                       <small style="color: #64748b;">Dipisahkan dari Fase Perencanaan agar acuan hukum tidak tercampur dengan status siklus.</small>
@@ -5551,13 +5552,14 @@
             <div class="form-group">
               <label>Dasar Pengesahan Legalitas:</label>
               <select id="lock-dasar" class="input-select">
-                <option value="Kertas Kerja Penyusunan">Kertas Kerja Penyusunan Internal</option>
                 <option value="Notulensi Audiensi">Notulensi Audiensi</option>
-                <option value="BA TAPD">Berita Acara (BA) Kesepakatan TAPD Pemda</option>
-                <option value="SK KPU">Keputusan KPU (SK KPU Kabupaten Ngawi)</option>
+                <option value="BA TAPD">BA TAPD</option>
+                <option value="Hasil Reviu / Koreksi KPU Provinsi">Hasil Reviu / Koreksi KPU Provinsi</option>
+                <option value="Sinkronisasi Regulasi / Keputusan Terbaru">Sinkronisasi Regulasi / Keputusan Terbaru</option>
+                <option value="NPHD">NPHD</option>
+                <option value="BA Pleno Komisioner">BA Pleno Komisioner</option>
+                <option value="Kertas Kerja Penyusunan">Kertas Kerja Penyusunan Internal</option>
                 <option value="Surat Usulan KPU">Surat Usulan Resmi KPU ke Pemda</option>
-                <option value="Review Provinsi">Hasil Review KPU Provinsi Jawa Timur</option>
-                <option value="NPHD">Naskah Perjanjian Hibah Daerah (NPHD)</option>
                 <option value="Adendum NPHD">Adendum NPHD</option>
               </select>
             </div>
@@ -5619,11 +5621,13 @@
             <div class="form-group">
               <label>Dasar Pengesahan / Acuan:</label>
               <select id="rev-dasar" class="input-select">
-                <option value="Berita Acara (BA) TAPD">Berita Acara (BA) TAPD Pemda</option>
                 <option value="Notulensi Audiensi">Notulensi Audiensi</option>
-                <option value="SK KPU">Surat Keputusan (SK) KPU Ngawi</option>
+                <option value="BA TAPD">BA TAPD</option>
+                <option value="Hasil Reviu / Koreksi KPU Provinsi">Hasil Reviu / Koreksi KPU Provinsi</option>
+                <option value="Sinkronisasi Regulasi / Keputusan Terbaru">Sinkronisasi Regulasi / Keputusan Terbaru</option>
+                <option value="NPHD">NPHD</option>
+                <option value="BA Pleno Komisioner">BA Pleno Komisioner</option>
                 <option value="Surat Permohonan Pergeseran">Surat Permohonan Pergeseran Anggaran ke Pemda</option>
-                <option value="Review KPU Provinsi">Review KPU Provinsi Jawa Timur</option>
                 <option value="Hasil Pembahasan Internal">Hasil Pembahasan &amp; Simulasi Internal</option>
                 <option value="Adendum NPHD">Adendum NPHD</option>
               </select>
@@ -5678,13 +5682,14 @@
             <div class="form-group">
               <label>Dasar Pengesahan / Acuan Hukum:</label>
               <select id="edit-leg-dasar-select" class="input-select" onchange="onEditLegDasarSelectChange()">
-                <option value="Kertas Kerja Penyusunan">Kertas Kerja Penyusunan Internal</option>
                 <option value="Notulensi Audiensi">Notulensi Audiensi</option>
-                <option value="Berita Acara (BA) Pembahasan Bersama TAPD">Berita Acara (BA) Pembahasan Bersama TAPD</option>
+                <option value="BA TAPD">BA TAPD</option>
+                <option value="Hasil Reviu / Koreksi KPU Provinsi">Hasil Reviu / Koreksi KPU Provinsi</option>
+                <option value="Sinkronisasi Regulasi / Keputusan Terbaru">Sinkronisasi Regulasi / Keputusan Terbaru</option>
+                <option value="NPHD">NPHD</option>
+                <option value="BA Pleno Komisioner">BA Pleno Komisioner</option>
+                <option value="Kertas Kerja Penyusunan">Kertas Kerja Penyusunan Internal</option>
                 <option value="Surat Usulan Resmi KPU ke TAPD / Pemda">Surat Usulan Resmi KPU ke TAPD / Pemda</option>
-                <option value="Keputusan KPU (SK KPU Kabupaten Ngawi)">Keputusan KPU (SK KPU Kabupaten Ngawi)</option>
-                <option value="Review KPU Provinsi Jawa Timur">Review KPU Provinsi Jawa Timur</option>
-                <option value="Naskah Perjanjian Hibah Daerah (NPHD)">Naskah Perjanjian Hibah Daerah (NPHD)</option>
                 <option value="Adendum NPHD">Adendum NPHD</option>
                 <option value="CUSTOM">-- Tulis Dasar Kustom Lainnya --</option>
               </select>
@@ -7960,7 +7965,7 @@
                 <div style="font-weight: 800; color: #0f172a; margin-top: 2px;" id="confirm-tahap4-dasar">-</div>
               </div>
               <div id="confirm-tahap4-row-mitra" style="grid-column: span 2;">
-                <span style="color: #64748b; font-size: 11px;">Mitra / Forum Kesepakatan:</span>
+                <span style="color: #64748b; font-size: 11px;" id="confirm-tahap4-label-mitra">Mitra / Forum / Acuan:</span>
                 <div style="font-weight: 700; color: #0f172a; margin-top: 2px;" id="confirm-tahap4-mitra">-</div>
               </div>
               <div>
@@ -8741,7 +8746,7 @@
         </div>
       </div>
 <script src="/data_juknis.js?v=5.1.0"></script>
-    <script src="/app.js?v=5.9.1-fix-clone-exact-and-bukti-label"></script>
+    <script src="/app.js?v=5.9.2-tahap4-7-opsi-dasar-pengesahan"></script>
     <script src="/pengadaan.js?v=5.8.5-tahap6-rich-resume-dashboard"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
