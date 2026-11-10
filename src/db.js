@@ -2217,8 +2217,11 @@ function getOrCreateRevisionCycle(user = null) {
   const nextPhase = (basePhase === 'NPHD' || basePhase === 'PASCA_NPHD') ? 'PASCA_NPHD' : 'PRA_NPHD';
 
   const nextRev = (base.revisi_ke || 0) + 1;
+  const defaultNama = nextPhase === 'PRA_NPHD'
+    ? `RKB KPU Kabupaten Ngawi Pilkada 2029 (Usulan Penyesuaian ${nextRev})`
+    : `RKB KPU Kabupaten Ngawi Pilkada 2029 (Revisi ${nextRev})`;
   active = clonePeriodeToRevision(base.id, {
-    nama_periode: `RKB KPU Kabupaten Ngawi (Revisi ${nextRev})`,
+    nama_periode: defaultNama,
     versi_revisi: `Revisi ${nextRev}`,
     tahap_revisi: nextPhase,
     fase_perencanaan: nextPhase,
@@ -2631,7 +2634,7 @@ function clonePeriodeToRevision(sourcePeriodeId, {
         r.f1_val, r.f1_unit, r.f1_var, r.f2_val, r.f2_unit, r.f2_var, r.f3_val, r.f3_unit, r.f3_var, r.f4_val, r.f4_unit, r.f4_var,
         r.basis_pengali, r.label_pengali_kab, r.label_pengali_adhoc, r.satuan_vol, r.harga_satuan,
         r.pic_bagian, r.sifat_biaya, r.jenis_biaya, r.blokir_rm, r.selalu_tampil_print, parentNewId,
-        r.catatan_realisasi, r.semula_row_id || r.id, null, null, null, null, null,
+        r.catatan_realisasi, r.id, null, null, null, null, null,
         r.catatan_revisi_baris, r.cost_sharing
       );
       idMap[r.id] = res.lastInsertRowid;
@@ -7862,6 +7865,7 @@ function finalizeTahap4Keseluruhan({
   dasar_pengesahan = '',
   verifikasi_manual = false,
   strict_tahap4 = false,
+  auto_open_next_cycle = false,
   catatan = '',
   user = null
 }) {
@@ -7890,13 +7894,10 @@ function finalizeTahap4Keseluruhan({
     if (!cycle) throw new Error('Tidak ada siklus revisi aktif yang siap disahkan.');
     if (cycle.is_locked === 1) throw new Error('Dokumen RKB siklus ini sudah berstatus terkunci.');
 
-    // 2. Ambil seluruh pengajuan dalam siklus ini
+    // 2. Ambil seluruh pengajuan dalam siklus ini (jika ada pengajuan tiket subbagian)
     const proposals = db.prepare('SELECT * FROM revisi_pengajuan WHERE periode_id = ?').all(cycle.id);
-    if (proposals.length === 0) {
-      throw new Error('Pengesahan gabungan ditolak: Siklus ini belum memiliki pengajuan PIC untuk disahkan.');
-    }
 
-    // 3. Pastikan SEMUA pengajuan yang masuk berstatus ACC Pleno
+    // 3. Pastikan jika ada pengajuan subbagian yang masuk, SEMUA harus sudah berstatus ACC Pleno
     const pending = proposals.filter(p => p.status_tahap !== 'ACC_PLENO');
     if (pending.length > 0) {
       const details = pending.map(p => `${p.subbag} (${p.status_tahap})`).join(', ');
@@ -7908,6 +7909,19 @@ function finalizeTahap4Keseluruhan({
     const rawFase = (fase_perencanaan || cycle.fase_perencanaan || cycle.tahap_revisi || 'PRA_NPHD').toUpperCase();
     const finalFase = validFases.includes(rawFase) ? rawFase : 'PRA_NPHD';
     const finalDasar = (dasar_pengesahan || 'BA Pleno Komisioner').trim();
+
+    // Hitung total pagu dokumen yang akan dikunci sebagai baseline
+    let ratifiedPagu = Number(cycle.pagu_nphd) || 0;
+    try {
+      const { calculateRkbDataset } = require('./calculation');
+      const rawRows = db.prepare('SELECT * FROM rab_baris WHERE periode_id = ? ORDER BY urutan ASC, id ASC').all(cycle.id);
+      const calc = calculateRkbDataset(rawRows, cycle.pagu_nphd || null);
+      if (calc && calc.summary && typeof calc.summary.grandTotal === 'number') {
+        if (finalFase === 'PRA_NPHD' || finalFase === 'NPHD' || !ratifiedPagu) {
+          ratifiedPagu = calc.summary.grandTotal;
+        }
+      }
+    } catch (e) {}
 
     // 4. Kunci dokumen RKB siklus ini
     db.prepare(`
@@ -7925,7 +7939,8 @@ function finalizeTahap4Keseluruhan({
         rkb_final_link = ?,
         kak_gabungan_link = ?,
         verifikasi_manual_tahap4 = ?,
-        catatan_pleno = ?
+        catatan_pleno = ?,
+        pagu_nphd = ?
       WHERE id = ?
     `).run(
       new Date().toISOString(),
@@ -7941,6 +7956,7 @@ function finalizeTahap4Keseluruhan({
       cleanLinkKak,
       verifikasi_manual ? 1 : 0,
       catatan,
+      ratifiedPagu,
       cycle.id
     );
 
@@ -7977,10 +7993,16 @@ function finalizeTahap4Keseluruhan({
       });
     }
 
-    // Sesuai aturan bisnis: jangan otomatis membuat siklus/pengajuan kosong berikutnya.
-    // Siklus berikutnya akan dimulai saat ada pengajuan L2 berikutnya.
-
     db.exec('COMMIT');
+
+    let nextActivePeriode = null;
+    if (auto_open_next_cycle) {
+      try {
+        nextActivePeriode = getOrCreateRevisionCycle(user);
+      } catch (e) {
+        console.warn('[TAHAP4-AUTO-CLONE] Gagal membuat duplikat siklus aktif berikutnya:', e.message);
+      }
+    }
 
     try {
       const { clearRkbDatasetCache } = require('./calculation');
@@ -8000,14 +8022,16 @@ function finalizeTahap4Keseluruhan({
         gdrive_link_pleno: cleanLinkBa,
         rkb_final_link: cleanLinkRkb,
         kak_gabungan_link: cleanLinkKak,
-        total_proposals: proposals.length
+        total_proposals: proposals.length,
+        next_active_periode_id: nextActivePeriode ? nextActivePeriode.id : null
       },
-      notes: `Pengesahan Berita Acara Pleno ${noBa} selesai (Fase: ${finalFase}, Dasar: ${finalDasar}). RKB ${cycle.nama_periode} resmi dikunci menjadi dasar anggaran berikutnya.`
+      notes: `Pengesahan Berita Acara Pleno ${noBa} selesai (Fase: ${finalFase}, Dasar: ${finalDasar}). RKB ${cycle.nama_periode} resmi dikunci menjadi dasar anggaran berikutnya.${nextActivePeriode ? ` Dokumen aktif baru (${nextActivePeriode.nama_periode}) otomatis diterbitkan.` : ''}`
     });
 
     return {
       success: true,
       locked_periode: getPeriodeById(cycle.id),
+      next_active_periode: nextActivePeriode,
       nomor_ba: noBa,
       tanggal_ba: tglBa,
       fase_perencanaan: finalFase,
@@ -8150,7 +8174,11 @@ function getRevisionCycleStatus(periodeId = null) {
     }
   }
 
-  const siapPengesahan = proposals.length > 0 && proposals.every(p => p.status_tahap === 'ACC_PLENO');
+  const siapPengesahan = Boolean(
+    activeCycle &&
+    Number(activeCycle.is_locked) === 0 &&
+    proposals.every(p => p.status_tahap === 'ACC_PLENO')
+  );
 
   return {
     dasar_anggaran: baseRatified ? {

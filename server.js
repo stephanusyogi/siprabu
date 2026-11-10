@@ -2773,7 +2773,7 @@ const server = http.createServer(async (req, res) => {
       const activePeriode = cycleStatus.siklus_aktif;
       const dataset = activePeriode ? getCachedRkbDataset(activePeriode.id) : null;
       const totalPagu = dataset?.summary?.grandTotal || 0;
-      const belanjaItems = (dataset?.rows || []).filter(r => r.jenis_baris === 'ITEM');
+      const belanjaItems = (dataset?.rows || []).filter(r => !r.is_header && r.row_type !== 'header');
 
       return sendJson(res, 200, {
         success: true,
@@ -2809,13 +2809,14 @@ const server = http.createServer(async (req, res) => {
           dasar_pengesahan: body.dasar_pengesahan || '',
           verifikasi_manual: Boolean(body.verifikasi_manual),
           strict_tahap4: Boolean(body.strict_tahap4),
+          auto_open_next_cycle: body.auto_open_next_cycle !== false,
           catatan: body.catatan,
           user
         });
         clearRkbDatasetCache();
         return sendJson(res, 200, {
           success: true,
-          message: `RKB Siklus berhasil DIKUNCI RESMI secara keseluruhan dengan Berita Acara Pleno ${result.nomor_ba}. Hasilnya menjadi dasar anggaran berikutnya!`,
+          message: `RKB Siklus berhasil DIKUNCI RESMI secara keseluruhan dengan Berita Acara Pleno ${result.nomor_ba}.${result.next_active_periode ? ` Dokumen kerja aktif baru (${result.next_active_periode.nama_periode}) otomatis diterbitkan!` : ' Hasilnya menjadi dasar anggaran berikutnya!'}`,
           data: result
         });
       } catch (err) {

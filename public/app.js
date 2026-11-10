@@ -2408,7 +2408,7 @@ async function loadMasters() {
 
 async function loadPeriodes() {
   const res = await apiFetch('/api/periodes');
-  AppState.periodesList = (res.periodes || []).filter(p => p.id !== 1000004 && !String(p.nama_periode || '').includes('Revisi 2') && p.versi_revisi !== 'Revisi 2');
+  AppState.periodesList = res.periodes || [];
 
   // ATURAN BARU: Inisialisasi & Dashboard SELALU mengambil draft aktif (is_locked = 0)
   try {
@@ -3254,7 +3254,7 @@ function renderSiklus() {
   const p = AppState.currentPeriode;
   if (!p) return;
 
-  const baselineItem = AppState.periodesList.find(x => x.revisi_ke === 0) || AppState.periodesList[0];
+  const baselineItem = (p.parent_periode_id && AppState.periodesList.find(x => Number(x.id) === Number(p.parent_periode_id))) || AppState.periodesList.find(x => x.revisi_ke === 0) || AppState.periodesList[0];
   const baselinePagu = baselineItem ? (baselineItem.total_pagu || baselineItem.pagu_nphd || 0) : (p.pagu_nphd || 0);
 
   setElText('siklus-nama-dokumen', p.nama_periode);
@@ -3432,7 +3432,9 @@ function renderSiklus() {
       const isActivePlanningSource = activePlanDoc && Number(item.id) === Number(activePlanDoc.id);
       const isLatestLockedSource = latestLockedDoc && Number(item.id) === Number(latestLockedDoc.id);
       const itemPagu = item.total_pagu || 0;
-      const itemDiff = isItemBaseline ? 0 : (itemPagu - baselinePagu);
+      const itemParent = (item.parent_periode_id && AppState.periodesList.find(x => Number(x.id) === Number(item.parent_periode_id))) || baselineItem;
+      const itemBaselinePagu = itemParent ? (itemParent.total_pagu || itemParent.pagu_nphd || 0) : baselinePagu;
+      const itemDiff = isItemBaseline ? 0 : (itemPagu - itemBaselinePagu);
 
       let selisihHtml = '<span class="badge" style="background:#f1f5f9;color:#475569;">🏛️ Baseline</span>';
       if (!isItemBaseline) {
@@ -3627,7 +3629,7 @@ async function submitEditLegalitasForm() {
 
     // Reload period list via apiFetch
     const pData = await apiFetch('/api/periodes');
-    AppState.periodesList = (pData.periodes || []).filter(p => p.id !== 1000004 && !String(p.nama_periode || '').includes('Revisi 2') && p.versi_revisi !== 'Revisi 2');
+    AppState.periodesList = pData.periodes || [];
 
     const updated = AppState.periodesList.find(x => x.id === id);
     if (AppState.currentPeriode && AppState.currentPeriode.id === id && updated) {
@@ -13214,7 +13216,7 @@ async function loadTahap4ViewData() {
 
     if (tableBody) {
       if (proposalsList.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 16px; color: #64748b;">Belum ada pengajuan usulan revisi subbag dalam siklus berjalan.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 16px; color: #15803d; font-weight: 600;">✅ Penyusunan langsung pada Kertas Kerja RKB Aktif (Tidak ada antrean tiket Subbagian yang menggantung — Siap Disahkan &amp; Dikunci).</td></tr>`;
       } else {
         tableBody.innerHTML = proposalsList.map(u => {
           const verBadge = `V${u.versi_usulan || 1}`;
