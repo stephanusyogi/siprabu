@@ -129,6 +129,10 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN target_sertifikat_tkdn VARCHAR(255) DEFAULT 'TKDN 42.50% + Bobot Manfaat Perusahaan (BMP) 10.00%'",
     "ALTER TABLE pbj_paket ADD COLUMN is_multi_subbag TINYINT(1) DEFAULT 0",
     "ALTER TABLE pbj_paket ADD COLUMN multi_pengusul_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN cara_pembayaran VARCHAR(160) DEFAULT 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)'",
+    "ALTER TABLE pbj_paket ADD COLUMN basis_denda VARCHAR(191) DEFAULT '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)'",
+    "ALTER TABLE pbj_paket ADD COLUMN ketentuan_garansi VARCHAR(255) DEFAULT 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%'",
+    "ALTER TABLE pbj_paket ADD COLUMN penyelesaian_sengketa VARCHAR(191) DEFAULT 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP'",
     "ALTER TABLE pbj_paket_item ADD COLUMN kode_barang_bmn VARCHAR(128) DEFAULT '1.01.03.01.001 (Persediaan / BMN)'",
     "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'",
     "ALTER TABLE pbj_paket_item ADD COLUMN evaluasi_pasar_json TEXT DEFAULT NULL",
@@ -142,6 +146,17 @@ async function ensurePaketMissingColumns(pool) {
       // Abaikan jika kolom sudah ada
     }
   }
+
+  // Migrasi satu kali perbaikan bug fallback Uang Muka 50% -> 0% pada paket E-Purchasing Barang Ready Stock (Paket 1)
+  try {
+    const [umFlags] = await pool.query("SELECT `value` FROM pbj_settings WHERE `key` = 'fix_uang_muka_epurchasing_v1'");
+    if (!umFlags || !umFlags.length || umFlags[0].value !== '1') {
+      await pool.query(
+        "UPDATE pbj_paket SET persen_uang_muka = 0, nilai_uang_muka = 0, cara_pembayaran = COALESCE(NULLIF(cara_pembayaran, ''), 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)') WHERE metode_pemilihan = 'E-Purchasing'"
+      );
+      await pool.query("REPLACE INTO pbj_settings (`key`, `value`) VALUES ('fix_uang_muka_epurchasing_v1', '1')");
+    }
+  } catch (e) {}
 }
 
 async function initDatabaseSchemaAndSeed() {
@@ -553,7 +568,8 @@ async function savePaket(data) {
         tarif_ppn=?, termasuk_ppn=?, jenis_pph=?, tarif_pph=?,
         prioritas_pdn_level=?, persen_tkdn_target=?, persen_bmp_target=?, target_sertifikat_tkdn=?, peruntukan_umk=?,
         tersedia_di_katalog=?, alasan_penilaian_ppk_katalog=?, link_produk_katalog_1=?, link_produk_katalog_2=?,
-        jenis_kontrak=?, bentuk_kontrak=?, masa_pelaksanaan_hari=?, tgl_mulai_kerja=?, tgl_selesai_kontrak=?, tgl_realisasi_selesai=?, hari_terlambat=?,
+        jenis_kontrak=?, bentuk_kontrak=?, cara_pembayaran=?, basis_denda=?, ketentuan_garansi=?, penyelesaian_sengketa=?,
+        masa_pelaksanaan_hari=?, tgl_mulai_kerja=?, tgl_selesai_kontrak=?, tgl_realisasi_selesai=?, hari_terlambat=?,
         persen_uang_muka=?, nilai_uang_muka=?, wajib_jaminan_pelaksanaan=?, nilai_jaminan_pelaksanaan=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
         tahap_aktif=?, status_paket=?, skor_kualitas=?, skor_biaya=?, skor_waktu=?, skor_layanan=?,
@@ -579,10 +595,15 @@ async function savePaket(data) {
         Number(p.tarif_ppn ?? cur.tarif_ppn ?? 11), Number(p.termasuk_ppn ?? cur.termasuk_ppn ?? 1), p.jenis_pph || cur.jenis_pph || 'PPh 22 (1.5%)', Number(p.tarif_pph ?? cur.tarif_pph ?? 1.5),
         p.prioritas_pdn_level || cur.prioritas_pdn_level || 'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)', Number(p.persen_tkdn_target ?? cur.persen_tkdn_target ?? 40), Number(p.persen_bmp_target ?? cur.persen_bmp_target ?? 15), p.target_sertifikat_tkdn || cur.target_sertifikat_tkdn || 'TKDN 42.50% + Bobot Manfaat Perusahaan (BMP) 10.00%', Number(p.peruntukan_umk ?? cur.peruntukan_umk ?? 1),
         p.tersedia_di_katalog || cur.tersedia_di_katalog || 'Ya, Tersedia & Sesuai', p.alasan_penilaian_ppk_katalog || cur.alasan_penilaian_ppk_katalog || '', p.link_produk_katalog_1 || cur.link_produk_katalog_1 || '', p.link_produk_katalog_2 || cur.link_produk_katalog_2 || '',
-        p.jenis_kontrak || cur.jenis_kontrak || 'Lumsum', p.bentuk_kontrak || cur.bentuk_kontrak || rekomendasi.bentukKontrak, Number(p.masa_pelaksanaan_hari ?? cur.masa_pelaksanaan_hari ?? 14),
+        p.jenis_kontrak || cur.jenis_kontrak || 'Lumsum', p.bentuk_kontrak || cur.bentuk_kontrak || rekomendasi.bentukKontrak,
+        p.cara_pembayaran || cur.cara_pembayaran || 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)',
+        p.basis_denda || cur.basis_denda || '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)',
+        p.ketentuan_garansi || cur.ketentuan_garansi || 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%',
+        p.penyelesaian_sengketa || cur.penyelesaian_sengketa || 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP',
+        Number(p.masa_pelaksanaan_hari ?? cur.masa_pelaksanaan_hari ?? 14),
         p.tgl_mulai_kerja || cur.tgl_mulai_kerja || '2026-05-18', p.tgl_selesai_kontrak || cur.tgl_selesai_kontrak || '2026-05-31', p.tgl_realisasi_selesai || cur.tgl_realisasi_selesai || '2026-05-30', Number(p.hari_terlambat ?? cur.hari_terlambat ?? 0),
-        Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0), Math.round((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) * Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0)) / 100),
-        Number(p.wajib_jaminan_pelaksanaan ?? cur.wajib_jaminan_pelaksanaan ?? rekomendasi.wajibJaminan), Math.round(Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) * 0.05),
+        Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0), Math.round(((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) || Number(p.nilai_hps ?? cur.nilai_hps ?? 0) || Number(p.nilai_pagu ?? cur.nilai_pagu ?? 0)) * Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0)) / 100),
+        Number(p.wajib_jaminan_pelaksanaan ?? cur.wajib_jaminan_pelaksanaan ?? rekomendasi.wajibJaminan), Math.round((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) || Number(p.nilai_hps ?? cur.nilai_hps ?? 0)) * 0.05),
         p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',

@@ -5438,26 +5438,119 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
         </div>
       `;
 
-    case 7:
+    case 7: {
+      const hpsBasis = Number(paket.nilai_hps || paket.nilai_pagu || 0);
+      const dppEst = Math.round(hpsBasis / (1 + (Number(paket.tarif_ppn ?? 11) / 100)));
+      const dendaPerHariEst = Math.round(dppEst / 1000);
+      const umPersen = Number(paket.persen_uang_muka ?? 0);
+      const umNominal = Math.round((hpsBasis * umPersen) / 100);
+      const caraBayar = paket.cara_pembayaran || 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)';
+      const basisDenda = paket.basis_denda || '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)';
+      const garansiStr = paket.ketentuan_garansi || (String(paket.jenis_pengadaan || '').includes('Konstruksi')
+        ? 'Masa Pemeliharaan Konstruksi 180 Hari Kalender (6 Bulan) — Retensi / Jaminan Pemeliharaan 5%'
+        : 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%');
+      const sengketaStr = paket.penyelesaian_sengketa || 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP';
+      const wajibJaminan = Number(paket.wajib_jaminan_pelaksanaan ?? 0) === 1;
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Bentuk Kontrak</div>
-            <div style="font-size:14px; font-weight:800; color:#0f172a;">${cakraEsc(paket.bentuk_kontrak || 'Surat Pesanan')}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 28 Perpres PBJ</div>
+        <!-- BARIS KARTU UTAMA RANCANGAN KONTRAK -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:12px;">
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Bentuk &amp; Jenis Perikatan</div>
+            <div style="font-size:14.5px; font-weight:800; color:#0f172a;">${cakraEsc(paket.bentuk_kontrak || 'Surat Pesanan')}</div>
+            <div style="font-size:11px; color:#1e40af; font-weight:700; margin-top:2px;">Jenis: ${cakraEsc(paket.jenis_kontrak || 'Lumsum')} (Pasal 27 &amp; 28)</div>
           </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Jenis Kontrak</div>
-            <div style="font-size:14px; font-weight:800; color:#0f172a;">${cakraEsc(paket.jenis_kontrak || 'Lumsum')}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 27 Perpres PBJ</div>
+          <div style="background:${umPersen === 0 ? '#f0fdf4' : '#fffbeb'}; border:1px solid ${umPersen === 0 ? '#86efac' : '#fde68a'}; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:${umPersen === 0 ? '#166534' : '#92400e'}; text-transform:uppercase; margin-bottom:4px;">Kebijakan Uang Muka (Pasal 29)</div>
+            <div style="font-size:14.5px; font-weight:900; color:${umPersen === 0 ? '#15803d' : '#b45309'};">
+              ${umPersen === 0 ? '0% — Tanpa Uang Muka' : `${umPersen}% (${cakraFmtRp(umNominal)})`}
+            </div>
+            <div style="font-size:11px; color:${umPersen === 0 ? '#166534' : '#92400e'}; margin-top:2px;">
+              ${umPersen === 0 ? 'Bayar Sekaligus 100% Pasca-BAST (Bebas Jaminan UM)' : 'Wajib Jaminan Uang Muka 100% Sebelum Cair'}
+            </div>
           </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Uang Muka &amp; Denda</div>
-            <div style="font-size:13px; font-weight:800; color:#15803d;">Uang Muka: ${Number(paket.persen_uang_muka || 50)}%</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Denda 1/1000 per hari</div>
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Jangka Waktu (SLA) &amp; Penyerahan</div>
+            <div style="font-size:14.5px; font-weight:800; color:#0f172a;">${Number(paket.masa_pelaksanaan_hari || 14)} Hari Kalender</div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">Franco: ${cakraEsc(paket.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi')}</div>
+          </div>
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Sanksi Denda 1‰ (Pasal 78)</div>
+            <div style="font-size:14px; font-weight:800; color:#1e3a8a;">1‰ / Hari (${cakraFmtRp(dendaPerHariEst)}/hari)</div>
+            <div style="font-size:11px; color:#1e40af; margin-top:2px;">Dari DPP Sebelum PPN (${cakraFmtRp(dppEst)})</div>
+          </div>
+        </div>
+
+        <!-- 4 KOMPONEN DOKUMEN RESMI TAHAP 7 (BA PENETAPAN + DRAFT KONTRAK + SSUK + SSKK) -->
+        <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:10px 14px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+            <div style="font-size:11.5px; font-weight:800; color:#0369a1; text-transform:uppercase;">
+              📂 4 Komponen Dokumen Resmi Tahap 7 (Tercetak Otomatis dalam Bundel Unduhan Word/PDF):
+            </div>
+            <span class="cakra-badge cakra-badge-info" style="font-size:10px;">Sesuai MDP Perlem LKPP No. 2/2026 &amp; No. 3/2026</span>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px; font-size:11px;">
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:3px solid #1e3a8a; border-radius:6px; padding:7px 9px;">
+              <div style="font-weight:800; color:#1e3a8a;">Dokumen I: BA Penetapan PPK</div>
+              <div style="color:#475569; margin-top:2px;">Pengesahan Rancangan Kontrak, SSUK &amp; SSKK oleh PPK.</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:3px solid #d97706; border-radius:6px; padding:7px 9px;">
+              <div style="font-weight:800; color:#b45309;">Dokumen II: Rancangan ${cakraEsc(paket.bentuk_kontrak || 'Surat Pesanan')}</div>
+              <div style="color:#475569; margin-top:2px;">Draft Naskah Perikatan &amp; Daftar Kuantitas (Tanpa Harga/Vendor).</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:3px solid #0284c7; border-radius:6px; padding:7px 9px;">
+              <div style="font-weight:800; color:#0369a1;">Dokumen III: Naskah SSUK (15 Pasal)</div>
+              <div style="color:#475569; margin-top:2px;">Pasal 1 s.d. 15 Ketentuan Umum Perikatan PBJ Pemerintah.</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:3px solid #15803d; border-radius:6px; padding:7px 9px;">
+              <div style="font-weight:800; color:#166534;">Dokumen IV: Naskah SSKK (Klausul A–O)</div>
+              <div style="color:#475569; margin-top:2px;">15 Klausul Spesifik Pengikat Pasal-Pasal SSUK Paket Ini.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MATRIKS KORESPONDENSI SSUK (15 PASAL) & SSKK (KLAUSUL KHUSUS PPK) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+            <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; text-transform:uppercase;">
+              📜 Matriks Korespondensi SSUK (Syarat Umum) &amp; SSKK (Syarat Khusus Kontrak):
+            </div>
+            <span class="cakra-badge cakra-badge-info" style="font-size:10px;">Penetapan Tunggal PPK • Identitas Penyedia: [DRAFT]</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11.5px; margin-bottom:8px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px;">
+              <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Klausul J &amp; K SSKK (Pasal 10 SSUK — Pembayaran &amp; Uang Muka)</div>
+              <div style="font-weight:700; color:#0f172a; margin-top:2px;">${cakraEsc(caraBayar)} &bull; Uang Muka: ${umPersen}%</div>
+            </div>
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px;">
+              <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Klausul H SSKK (Pasal 9.1 SSUK — Jaminan Pelaksanaan 5%)</div>
+              <div style="font-weight:700; color:${wajibJaminan ? '#b45309' : '#15803d'}; margin-top:2px;">
+                ${wajibJaminan ? `Wajib Jaminan Pelaksanaan 5% (${cakraFmtRp(Math.round(hpsBasis * 0.05))})` : 'Dikecualikan (Bebas Jaminan Pelaksanaan 5%)'}
+              </div>
+            </div>
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px;">
+              <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Klausul I SSKK (Pasal 9.2 SSUK — Garansi / Pemeliharaan)</div>
+              <div style="font-weight:700; color:#0f172a; margin-top:2px;">${cakraEsc(garansiStr)}</div>
+            </div>
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px;">
+              <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Klausul N &amp; O SSKK (Pasal 14 &amp; 15 SSUK — Denda &amp; Sengketa)</div>
+              <div style="font-weight:700; color:#0f172a; margin-top:2px;">${cakraEsc(basisDenda)} &bull; ${cakraEsc(sengketaStr)}</div>
+            </div>
+          </div>
+          <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:7px 10px; font-size:11px; color:#334155;">
+            <strong>Daftar 15 Pasal Baku SSUK yang Mengikat:</strong> Pasal 1 (Definisi) &bull; Pasal 2 (Bahasa, Hukum &amp; Hierarki Dokumen) &bull; Pasal 3 (Larangan KKN &amp; Pakta Integritas) &bull; Pasal 4 (Asal Barang &amp; TKDN/PDN) &bull; Pasal 5 (Wakil Sah &amp; Larangan Subkontrak) &bull; Pasal 6 (Hak &amp; Kewajiban PPK/Penyedia) &bull; Pasal 7 (SLA, Pengiriman Franco &amp; Risiko) &bull; Pasal 8 (Pemeriksaan, Uji Fungsi &amp; BAST) &bull; Pasal 9 (Jaminan &amp; Garansi) &bull; Pasal 10 (Harga Kontrak, Uang Muka, SPM-LS &amp; Pajak) &bull; Pasal 11 (Adendum &amp; SCM) &bull; Pasal 12 (Keadaan Kahar / Force Majeure) &bull; Pasal 13 (Pemutusan Kontrak) &bull; Pasal 14 (Denda Keterlambatan 1‰ DPP) &bull; Pasal 15 (Penyelesaian Sengketa).
+          </div>
+        </div>
+
+        <!-- CATATAN PENGENDALIAN PPK TAHAP 7 -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <div style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px;">Catatan Penetapan Rancangan Kontrak PPK &amp; Kesiapan DPP (Tahap 8):</div>
+          <div style="font-size:11.5px; color:#1e293b; line-height:1.45;">
+            ${cakraEsc(activeTRow?.catatan_tahap || 'Rancangan Kontrak (Draft Surat Pesanan, SSUK, dan SSKK) telah ditetapkan tunggal oleh PPK dengan skema pembayaran Sekaligus 100% pasca-BAST (Uang Muka 0%). Identitas rekanan dan harga satuan kontrak dikosongkan pada tahap persiapan ini untuk diisi sesuai hasil pemilihan/negosiasi Pejabat Pengadaan pada Tahap 9.')}
           </div>
         </div>
       `;
+    }
 
     case 8:
       return `
@@ -8852,37 +8945,180 @@ function generateUniversalModalFields(num, paket, activeTRow) {
         </div>
       `;
 
-    case 7:
+    case 7: {
+      const hpsBasis = Number(paket.nilai_hps || paket.nilai_pagu || 0);
+      const paguBasis = Number(paket.nilai_pagu || 0);
+      const dppEst = Math.round(hpsBasis / (1 + (Number(paket.tarif_ppn ?? 11) / 100)));
+      const dendaHariEst = Math.round(dppEst / 1000);
+      const curUm = Number(paket.persen_uang_muka ?? 0);
+      const curUmRp = Math.round((hpsBasis * curUm) / 100);
+      const curCaraBayar = paket.cara_pembayaran || 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)';
+      const curBasisDenda = paket.basis_denda || '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)';
+      const curGaransi = paket.ketentuan_garansi || (String(paket.jenis_pengadaan || '').includes('Konstruksi')
+        ? 'Masa Pemeliharaan Konstruksi Permanen 180 Hari Kalender (6 Bulan) — Retensi / Jaminan Pemeliharaan 5%'
+        : 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%');
+      const curSengketa = paket.penyelesaian_sengketa || 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP';
+      const curWajibJaminan = Number(paket.wajib_jaminan_pelaksanaan ?? 0);
+      const rekBentuk = paket.metode_pemilihan === 'E-Purchasing' ? 'Surat Pesanan' : (paguBasis <= 10000000 ? 'Bukti Pembelian' : (paguBasis <= 50000000 ? 'Kuitansi' : (paguBasis <= 200000000 ? 'SPK' : 'Surat Perjanjian')));
+
+      const caraBayarOptions = [
+        'Sekaligus (100% melalui SPM-LS setelah BAST 100%)',
+        'Termin (Bertahap sesuai Capaian Progres Fisik Pekerjaan)',
+        'Bulanan (Berdasarkan Tagihan Riil Bulanan)'
+      ];
+      const garansiOptions = [
+        'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%',
+        'Sertifikat Garansi Purna Jual Resmi Onsite 3 Tahun (1.095 Hari Kalender) — Bebas Retensi 5%',
+        'Masa Pemeliharaan Konstruksi Permanen 180 Hari Kalender (6 Bulan) — Retensi / Jaminan Pemeliharaan 5%',
+        'Masa Pemeliharaan Konstruksi Semi-Permanen 90 Hari Kalender (3 Bulan) — Retensi / Jaminan Pemeliharaan 5%',
+        'Tanpa Masa Pemeliharaan (Barang Habis Pakai / Konsumsi)'
+      ];
+      const basisDendaOptions = [
+        '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)',
+        '1 permil per hari dari Bagian Kontrak sebelum PPN yang belum diserahkan'
+      ];
+      const sengketaOptions = [
+        'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP',
+        'Musyawarah untuk Mufakat, dilanjutkan Pengadilan Negeri Ngawi',
+        'Musyawarah untuk Mufakat, dilanjutkan Badan Arbitrase Nasional Indonesia (BANI)'
+      ];
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Rancang Bangun Kontrak &amp; Ketentuan Perikatan</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Bentuk Kontrak</label>
-            <select id="mu_bentuk_kontrak" class="cakra-form-control">
-              ${['Surat Pesanan', 'SPK', 'Surat Perjanjian', 'Kuitansi', 'Bukti Pembelian', 'Kontrak Swakelola'].map(b => `<option value="${b}" ${paket.bentuk_kontrak === b ? 'selected' : ''}>${b}</option>`).join('')}
-            </select>
+        <!-- BANNER PANDUAN REGULASI TAHAP 7 -->
+        <div style="background:linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); border:1px solid #bfdbfe; border-left:4px solid #1d4ed8; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
+          <div style="font-size:12px; font-weight:800; color:#1e3a8a; margin-bottom:4px;">
+            ⚖️ Kertas Kerja PPK Tahap 7: Penyusunan Rancangan Kontrak, SSUK &amp; SSKK (Pasal 27–29 &amp; 78 Perpres 46/2025)
           </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Jenis Kontrak</label>
-            <select id="mu_jenis_kontrak" class="cakra-form-control">
-              ${['Lumsum', 'Harga Satuan', 'Gabungan Lumsum dan Harga Satuan', 'Kontrak Payung', 'Biaya Plus Imbalan', 'Waktu Penugasan'].map(j => `<option value="${j}" ${paket.jenis_kontrak === j ? 'selected' : ''}>${j}</option>`).join('')}
-            </select>
+          <div style="font-size:11px; color:#334155; line-height:1.45;">
+            Pada Tahap 7, PPK menetapkan <b>Bentuk &amp; Jenis Perikatan</b> serta klausul <b>Syarat-Syarat Khusus Kontrak (SSKK)</b> sebagai bagian dari Dokumen Persiapan Pengadaan (DPP). Identitas Penyedia, Nomor Rekening, dan Harga Kontrak hasil negosiasi otomatis berstatus <b>[DRAFT — DIISI PASCA PEMILIHAN TAHAP 9]</b> dan lembar penetapan Tahap 7 ditandatangani <b>Tunggal oleh PPK</b>.
           </div>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Persentase Uang Muka (%)</label>
-            <input type="number" id="mu_persen_uang_muka" class="cakra-form-control" value="${Number(paket.persen_uang_muka || 50)}" />
+
+        <!-- BLOK 1: BENTUK PERIKATAN, JENIS KONTRAK, SLA & LOKASI PENYERAHAN -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">
+            <div style="font-size:12px; font-weight:800; color:#1e3a8a;">
+              📌 BLOK 1: BENTUK PERIKATAN, JENIS KONTRAK, JANGKA WAKTU (SLA) &amp; LOKASI PENYERAHAN
+            </div>
+            <span class="cakra-badge cakra-badge-info" style="font-size:10px;">Rekomendasi Regulasi: ${cakraEsc(rekBentuk)} (Lumsum)</span>
           </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Ketentuan Denda Keterlambatan</label>
-            <select id="mu_basis_denda" class="cakra-form-control">
-              <option value="1 permil per hari dari harga kontrak">1 permil per hari dari harga kontrak</option>
-              <option value="1 permil per hari dari bagian kontrak yang belum selesai">1 permil per hari dari bagian kontrak yang belum selesai</option>
-            </select>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Bentuk Kontrak (Pasal 28 Perpres 46/2025) *</label>
+              <select id="mu_bentuk_kontrak" class="cakra-form-control">
+                ${['Surat Pesanan', 'SPK', 'Surat Perjanjian', 'Kuitansi', 'Bukti Pembelian', 'Kontrak Swakelola'].map(b => `<option value="${b}" ${(paket.bentuk_kontrak || rekBentuk) === b ? 'selected' : ''}>${b}${b === rekBentuk ? ' (Rekomendasi Sistem)' : ''}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Jenis Kontrak (Pasal 27 Perpres 46/2025) *</label>
+              <select id="mu_jenis_kontrak" class="cakra-form-control">
+                ${['Lumsum', 'Harga Satuan', 'Gabungan Lumsum dan Harga Satuan', 'Kontrak Payung', 'Biaya Plus Imbalan', 'Waktu Penugasan'].map(j => `<option value="${j}" ${(paket.jenis_kontrak || 'Lumsum') === j ? 'selected' : ''}>${j}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 2fr; gap:12px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Jangka Waktu Pelaksanaan / SLA (Hari Kalender) *</label>
+              <input type="number" min="1" max="365" id="mu_masa_pelaksanaan_hari" class="cakra-form-control cakra-mono" value="${Number(paket.masa_pelaksanaan_hari || 14)}" />
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Lokasi Penyerahan Barang / Tempat Pekerjaan (Franco) *</label>
+              <input type="text" id="mu_lokasi_pekerjaan" class="cakra-form-control" value="${cakraEsc(paket.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi')}" />
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOK 2: CARA PEMBAYARAN & KEBIJAKAN UANG MUKA (PASAL 29 PERPRES 46/2025) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">
+            <div style="font-size:12px; font-weight:800; color:#1e3a8a;">
+              💰 BLOK 2: CARA PEMBAYARAN &amp; KEBIJAKAN UANG MUKA (PASAL 29 PERPRES 46/2025 &amp; PMK APBN)
+            </div>
+            <span class="cakra-badge cakra-badge-success" style="font-size:10px;">Basis Estimasi HPS: ${cakraFmtRp(hpsBasis)}</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1.25fr 1fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Cara Pembayaran Kontrak (SSKK) *</label>
+              <select id="mu_cara_pembayaran" class="cakra-form-control" onchange="onTahap7CaraBayarChange()">
+                ${caraBayarOptions.map(cb => `<option value="${cb}" ${curCaraBayar === cb ? 'selected' : ''}>${cb}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Persentase Uang Muka (%) *</label>
+              <input type="number" min="0" max="100" step="1" id="mu_persen_uang_muka" class="cakra-form-control cakra-mono" style="font-weight:800;" value="${curUm}" oninput="updateTahap7Preview(${hpsBasis}, ${paguBasis})" />
+            </div>
+          </div>
+
+          <!-- TOMBOL PRESET REGULASI UANG MUKA -->
+          <div style="margin-bottom:10px;">
+            <div style="font-size:10.5px; font-weight:700; color:#64748b; margin-bottom:5px;">Pilihan Cepat Regulasi Uang Muka (Pasal 29 ayat 1 &amp; ayat 2a Perpres 46/2025):</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" style="font-size:10.5px; padding:4px 9px;" onclick="setTahap7PresetUangMuka(0, ${hpsBasis}, ${paguBasis})">
+                ✅ 0% — Tanpa Uang Muka (Bayar Sekaligus 100% Pasca-BAST)
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" style="font-size:10.5px; padding:4px 9px;" onclick="setTahap7PresetUangMuka(50, ${hpsBasis}, ${paguBasis})">
+                🏛️ 50% — Batas Min. UMK (Kontrak Rp 50–200 Jt)
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" style="font-size:10.5px; padding:4px 9px;" onclick="setTahap7PresetUangMuka(30, ${hpsBasis}, ${paguBasis})">
+                🏛️ 30% — Batas Min. UMK (> Rp 200 Jt–2,5 M) / Maks. ≤ 50 Jt
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" style="font-size:10.5px; padding:4px 9px;" onclick="setTahap7PresetUangMuka(20, ${hpsBasis}, ${paguBasis})">
+                🏢 20% — Maks. Non-Kecil (> Rp 2,5 M)
+              </button>
+            </div>
+          </div>
+
+          <!-- KOTAK STATUS LIVE PREVIEW UANG MUKA -->
+          <div id="t7_uang_muka_info_box" style="padding:10px 12px; border-radius:6px; font-size:11px; line-height:1.45; background:${curUm === 0 ? '#f0fdf4' : '#fffbeb'}; border:1px solid ${curUm === 0 ? '#86efac' : '#fde68a'}; color:${curUm === 0 ? '#166534' : '#92400e'};">
+            ${curUm === 0
+              ? `✅ <b>SKEMA TANPA UANG MUKA (0% — Rp 0):</b> Pembayaran dilakukan <b>Sekaligus 100%</b> melalui SPM-LS KPPN setelah barang/pekerjaan selesai 100% dan dibuktikan dengan BAST. Penyedia <b>bebas kewajiban menyerahkan Jaminan Uang Muka</b>.`
+              : `⚠️ <b>SKEMA DENGAN UANG MUKA (${curUm}% — Estimasi ${cakraFmtRp(curUmRp)}):</b> Sesuai Pasal 29 Perpres 46/2025 &amp; PMK Pelaksanaan Anggaran APBN, pencairan Uang Muka <b>wajib didahului Permohonan Tertulis Penyedia + Penyerahan Jaminan Uang Muka (Bank Garansi / Surety Bond) senilai 100% dari Uang Muka (${cakraFmtRp(curUmRp)})</b>.`
+            }
+          </div>
+        </div>
+
+        <!-- BLOK 3: JAMINAN, GARANSI PURNA JUAL, DENDA 1‰ (SEBELUM PPN) & PENYELESAIAN SENGKETA -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px;">
+          <div style="font-size:12px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">
+            🛡️ BLOK 3: JAMINAN PELAKSANAAN, GARANSI / PEMELIHARAAN, DENDA 1‰ (DPP) &amp; PENYELESAIAN SENGKETA
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kewajiban Jaminan Pelaksanaan 5% (Pasal 30 &amp; 33)</label>
+              <select id="mu_wajib_jaminan_pelaksanaan" class="cakra-form-control">
+                <option value="0" ${curWajibJaminan === 0 ? 'selected' : ''}>Dikecualikan / Bebas Jaminan Pelaksanaan (E-Purchasing / PL B/JL ≤ 200 Jt / Konstruksi ≤ 400 Jt)</option>
+                <option value="1" ${curWajibJaminan === 1 ? 'selected' : ''}>Wajib Jaminan Pelaksanaan 5% (${cakraFmtRp(Math.round(hpsBasis * 0.05))})</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Ketentuan Garansi Purna Jual / Masa Pemeliharaan</label>
+              <select id="mu_ketentuan_garansi" class="cakra-form-control">
+                ${garansiOptions.map(g => `<option value="${g}" ${curGaransi === g ? 'selected' : ''}>${g}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Dasar Pengenaan Denda Keterlambatan 1‰ (Pasal 78 ayat 5)</label>
+              <select id="mu_basis_denda" class="cakra-form-control">
+                ${basisDendaOptions.map(bd => `<option value="${bd}" ${(curBasisDenda === bd || (bd.includes('Harga Kontrak') && curBasisDenda === '1 permil per hari dari harga kontrak')) ? 'selected' : ''}>${bd}</option>`).join('')}
+              </select>
+              <div style="font-size:10.5px; color:#1e40af; margin-top:4px; font-weight:600;">
+                💡 Simulasi Denda 1‰ dari DPP Sebelum PPN (${cakraFmtRp(dppEst)}): <b>${cakraFmtRp(dendaHariEst)} / hari kalender</b>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Forum Penyelesaian Perselisihan / Sengketa (SSKK)</label>
+              <select id="mu_penyelesaian_sengketa" class="cakra-form-control">
+                ${sengketaOptions.map(sg => `<option value="${sg}" ${curSengketa === sg ? 'selected' : ''}>${sg}</option>`).join('')}
+              </select>
+            </div>
           </div>
         </div>
       `;
+    }
 
     case 8:
       return `
@@ -9310,8 +9546,24 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
   } else if (num === 7) {
     extraPaketFields.bentuk_kontrak = getStr('mu_bentuk_kontrak') || paket.bentuk_kontrak;
     extraPaketFields.jenis_kontrak = getStr('mu_jenis_kontrak') || paket.jenis_kontrak;
-    extraPaketFields.persen_uang_muka = getNum('mu_persen_uang_muka') || paket.persen_uang_muka;
-    extraPaketFields.basis_denda = getStr('mu_basis_denda') || paket.basis_denda;
+    extraPaketFields.cara_pembayaran = getStr('mu_cara_pembayaran') || paket.cara_pembayaran || 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)';
+    const rawUmEl = document.getElementById('mu_persen_uang_muka');
+    extraPaketFields.persen_uang_muka = (rawUmEl && rawUmEl.value !== '') ? Math.max(0, Number(rawUmEl.value)) : Number(paket.persen_uang_muka ?? 0);
+    extraPaketFields.basis_denda = getStr('mu_basis_denda') || paket.basis_denda || '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)';
+    extraPaketFields.ketentuan_garansi = getStr('mu_ketentuan_garansi') || paket.ketentuan_garansi;
+    extraPaketFields.penyelesaian_sengketa = getStr('mu_penyelesaian_sengketa') || paket.penyelesaian_sengketa;
+    const rawMasaEl = document.getElementById('mu_masa_pelaksanaan_hari');
+    if (rawMasaEl && rawMasaEl.value !== '') {
+      extraPaketFields.masa_pelaksanaan_hari = Math.max(1, Number(rawMasaEl.value));
+    }
+    const rawLok = getStr('mu_lokasi_pekerjaan');
+    if (rawLok) {
+      extraPaketFields.lokasi_pekerjaan = rawLok;
+    }
+    const rawWajibJam = document.getElementById('mu_wajib_jaminan_pelaksanaan');
+    if (rawWajibJam && rawWajibJam.value !== '') {
+      extraPaketFields.wajib_jaminan_pelaksanaan = Number(rawWajibJam.value);
+    }
   } else if (num === 8) {
     extraPaketFields.pelaksana_pemilihan = getStr('mu_pelaksana_pemilihan') || paket.pelaksana_pemilihan;
   } else if (num === 9) {
@@ -9426,6 +9678,68 @@ async function finishUniversalStageAndAdvance(stageNo) {
   }
 }
 window.finishUniversalStageAndAdvance = finishUniversalStageAndAdvance;
+
+// =============================================================================
+// HELPER TAHAP 7: SINKRONISASI CARA BAYAR, PRESET UANG MUKA, & LIVE PREVIEW SSKK
+// =============================================================================
+function onTahap7CaraBayarChange() {
+  const cbEl = document.getElementById('mu_cara_pembayaran');
+  const umEl = document.getElementById('mu_persen_uang_muka');
+  const paket = CakraState.activePaketCtx?.paket || {};
+  const hpsBasis = Number(paket.nilai_hps || paket.nilai_pagu || 0);
+  const paguBasis = Number(paket.nilai_pagu || 0);
+  if (!cbEl || !umEl) return;
+  if (String(cbEl.value || '').startsWith('Sekaligus')) {
+    umEl.value = 0;
+  }
+  updateTahap7Preview(hpsBasis, paguBasis);
+}
+window.onTahap7CaraBayarChange = onTahap7CaraBayarChange;
+
+function setTahap7PresetUangMuka(persenVal, hpsBasis, paguBasis) {
+  const umEl = document.getElementById('mu_persen_uang_muka');
+  const cbEl = document.getElementById('mu_cara_pembayaran');
+  if (umEl) {
+    umEl.value = Number(persenVal || 0);
+  }
+  if (cbEl) {
+    if (Number(persenVal || 0) === 0) {
+      cbEl.value = 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)';
+    } else if (String(cbEl.value || '').startsWith('Sekaligus')) {
+      cbEl.value = 'Termin (Bertahap sesuai Capaian Progres Fisik Pekerjaan)';
+    }
+  }
+  updateTahap7Preview(hpsBasis, paguBasis);
+}
+window.setTahap7PresetUangMuka = setTahap7PresetUangMuka;
+
+function updateTahap7Preview(hpsBasis, paguBasis) {
+  const umEl = document.getElementById('mu_persen_uang_muka');
+  const box = document.getElementById('t7_uang_muka_info_box');
+  if (!umEl || !box) return;
+  const persen = Math.max(0, Number(umEl.value || 0));
+  const basisNominal = Number(hpsBasis || paguBasis || 0);
+  const nominalUm = Math.round((basisNominal * persen) / 100);
+
+  if (persen === 0) {
+    box.style.background = '#f0fdf4';
+    box.style.border = '1px solid #86efac';
+    box.style.color = '#166534';
+    box.innerHTML = `✅ <b>SKEMA TANPA UANG MUKA (0% — Rp 0):</b> Pembayaran dilakukan <b>Sekaligus 100%</b> melalui SPM-LS KPPN setelah barang/pekerjaan selesai 100% dan dibuktikan dengan BAST. Penyedia <b>bebas kewajiban menyerahkan Jaminan Uang Muka</b>.`;
+  } else {
+    let catatanUmk = '';
+    if (paguBasis > 50000000 && paguBasis <= 200000000 && persen < 50) {
+      catatanUmk = `<br/>🚨 <b>Catatan Regulasi Pasal 29 ayat (2a) huruf b:</b> Untuk Penyedia Usaha Mikro/Kecil dengan nilai kontrak &gt; Rp 50 Juta s.d. Rp 200 Juta yang menggunakan skema Uang Muka, batas minimal regulasi adalah <b>50%</b>.`;
+    } else if (paguBasis > 200000000 && paguBasis <= 2500000000 && persen < 30) {
+      catatanUmk = `<br/>🚨 <b>Catatan Regulasi Pasal 29 ayat (2a) huruf c:</b> Untuk Penyedia Usaha Mikro/Kecil dengan nilai kontrak &gt; Rp 200 Juta s.d. Rp 2,5 Miliar yang menggunakan skema Uang Muka, batas minimal regulasi adalah <b>30%</b>.`;
+    }
+    box.style.background = '#fffbeb';
+    box.style.border = '1px solid #fde68a';
+    box.style.color = '#92400e';
+    box.innerHTML = `⚠️ <b>SKEMA DENGAN UANG MUKA (${persen}% — Estimasi ${cakraFmtRp(nominalUm)}):</b> Sesuai Pasal 29 Perpres 46/2025 &amp; PMK Pelaksanaan Anggaran APBN, pencairan Uang Muka <b>wajib didahului Permohonan Tertulis Penyedia + Penyerahan Jaminan Uang Muka (Bank Garansi / Surety Bond) senilai 100% dari Uang Muka (${cakraFmtRp(nominalUm)})</b>.${catatanUmk}`;
+  }
+}
+window.updateTahap7Preview = updateTahap7Preview;
 
 
 

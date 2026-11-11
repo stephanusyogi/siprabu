@@ -1035,14 +1035,22 @@ function buildStageSpecificSections(stageNo, ctx, tahapRow, keu) {
       );
       break;
 
-    case 7:
+    case 7: {
+      const umPersen = Number(paket.persen_uang_muka ?? 0);
+      const caraBayar = paket.cara_pembayaran || 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)';
+      const basisDenda = paket.basis_denda || '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)';
+      const garansiStr = paket.ketentuan_garansi || (isKonstruksi
+        ? `Masa Pemeliharaan minimal 180 hari kalender (6 bulan) untuk pekerjaan permanen dengan Retensi Pemeliharaan 5% (${formatRupiah(keu.nilaiRetensi5Persen)})`
+        : 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%');
+      const sengketaStr = paket.penyelesaian_sengketa || 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP';
       paragraphs.push(
         pText('A. RANCANGAN KONTRAK, SSUK, DAN SYARAT-SYARAT KHUSUS KONTRAK (SSKK)', { bold: true, before: 120, after: 30 }),
-        pNumbered('1.', `Jenis Kontrak: ${paket.jenis_kontrak} | Bentuk Kontrak: ${paket.bentuk_kontrak} (Pasal 27 & Pasal 28 Perpres Nomor 46 Tahun 2025; Pengadaan Langsung Pekerjaan Konstruksi s.d. Rp400 Juta menggunakan SPK).`, { level: 1 }),
-        pNumbered('2.', `Ketentuan Uang Muka (Pasal 29 Perpres 46/2025): Persentase Uang Muka ditetapkan sebesar ${paket.persen_uang_muka || 0}% (${formatRupiah(keu.nilaiUangMuka)}). Apabila Penyedia Usaha Mikro/Kecil mengajukan Uang Muka untuk kontrak > Rp50 Juta, PPK memberikan minimal 50% (untuk kontrak Rp50–200 Juta) atau minimal 30% (untuk kontrak > Rp200 Juta s.d. Rp2,5 Miliar).`, { level: 1 }),
-        pNumbered('3.', `Sanksi Denda Keterlambatan: ditetapkan sebesar 1‰ (satu permil) per hari dari ${paket.basis_denda || 'nilai kontrak sebelum PPN'}.${isKonstruksi ? ' Untuk Pekerjaan Konstruksi berlaku Masa Pemeliharaan minimal 180 hari kalender (6 bulan) untuk pekerjaan permanen atau 90 hari kalender (3 bulan) untuk semi-permanen dengan Retensi Pemeliharaan 5% (Rp ' + keu.nilaiRetensi5Persen.toLocaleString('id-ID') + ') atau Jaminan Pemeliharaan 5%.' : ''}`, { level: 1 })
+        pNumbered('1.', `Bentuk & Jenis Kontrak: ${paket.bentuk_kontrak || 'Surat Pesanan'} (${paket.jenis_kontrak || 'Lumsum'}) sesuai Pasal 27 & Pasal 28 Perpres Nomor 46 Tahun 2025.`, { level: 1 }),
+        pNumbered('2.', `Cara Pembayaran & Kebijakan Uang Muka (Pasal 29 Perpres 46/2025): Cara Pembayaran ditetapkan "${caraBayar}" dengan Persentase Uang Muka sebesar ${umPersen}% (${umPersen === 0 ? 'Tanpa Uang Muka — bebas kewajiban Jaminan Uang Muka' : formatRupiah(keu.nilaiUangMuka) + ' dengan syarat wajib menyerahkan Jaminan Uang Muka 100%'}).`, { level: 1 }),
+        pNumbered('3.', `Jangka Waktu, Garansi & Denda Keterlambatan: Masa pelaksanaan ${paket.masa_pelaksanaan_hari || 14} hari kalender di ${paket.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi'}; ${garansiStr}; Sanksi denda keterlambatan ditetapkan sebesar 1‰ (satu permil) per hari dari ${basisDenda} (Estimasi DPP ${formatRupiah(keu.dpp)} -> ${formatRupiah(keu.dendaPerHari)}/hari); Forum penyelesaian sengketa: ${sengketaStr}.`, { level: 1 })
       );
       break;
+    }
 
     case 8:
       paragraphs.push(
@@ -2721,6 +2729,632 @@ function buildStage5Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
   ];
 }
 
+function buildStage7Sections(ctx, tahapRow, keu, isFirstStageInDoc = true) {
+  const { paket, items, ppk, settings } = ctx;
+  const bentuk = paket.bentuk_kontrak || 'Surat Pesanan';
+  const jenis = paket.jenis_kontrak || 'Lumsum';
+  const noRk = tahapRow.nomor_dokumen || `007/RK/${paket.kode_paket_internal || 'PBJ-2026-001'}/PPK-PBJ/KPU-NGW/V/2026`;
+  const tglRkStr = formatTanggalIndo(tahapRow.tanggal_dokumen || '2026-05-18');
+  const hariTanggalRk = formatHariTanggalBeritaAcara(tahapRow.tanggal_dokumen || '2026-05-18');
+  const isKonstruksi = String(paket.jenis_pengadaan || '').includes('Konstruksi');
+
+  const hpsBasis = Number(paket.nilai_hps || paket.nilai_pagu || 0);
+  const dppEst = Math.round(hpsBasis / (1 + (Number(paket.tarif_ppn ?? 11) / 100)));
+  const dendaHariEst = Math.round(dppEst / 1000);
+  const umPersen = Number(paket.persen_uang_muka ?? 0);
+  const umNominal = Math.round((hpsBasis * umPersen) / 100);
+  const caraBayar = paket.cara_pembayaran || 'Sekaligus (100% melalui SPM-LS setelah BAST 100%)';
+  const basisDenda = paket.basis_denda || '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)';
+  const garansiStr = paket.ketentuan_garansi || (isKonstruksi
+    ? `Masa Pemeliharaan Konstruksi 180 Hari Kalender (6 Bulan) — Retensi / Jaminan Pemeliharaan 5% (${formatRupiah(keu.nilaiRetensi5Persen)})`
+    : 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%');
+  const sengketaStr = paket.penyelesaian_sengketa || 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP';
+  const wajibJaminan = Number(paket.wajib_jaminan_pelaksanaan ?? 0) === 1;
+  const slaHari = Number(paket.masa_pelaksanaan_hari || 14);
+  const slaTerbilang = terbilangRupiah(slaHari).replace(/\s*rupiah$/i, '').toLowerCase();
+  const lokasiStr = paket.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+
+  const makeHeader = (label) => new Header({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 0, after: 30 },
+        children: [
+          new TextRun({
+            text: `${label} | No: ${noRk}`,
+            size: 15,
+            color: '64748B',
+            font: 'Cambria',
+            italics: true
+          })
+        ]
+      })
+    ]
+  });
+
+  const makeFooter = (prefixText = '') => new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 30, after: 0 },
+        children: [
+          ...(prefixText ? [new TextRun({ text: `${prefixText}  —  `, size: 15, color: '64748B', font: 'Cambria', italics: true })] : []),
+          new TextRun({ text: 'Halaman ', size: 16, color: '64748B', font: 'Cambria' }),
+          new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Cambria' }),
+          new TextRun({ text: ' dari ', size: 16, color: '64748B', font: 'Cambria' }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Cambria' })
+        ]
+      })
+    ]
+  });
+
+  const buildPpkSingleSignature = (captionAtas = 'Ditetapkan di Ngawi') => new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ borders: BORDER_NONE, width: { size: 52, type: WidthType.PERCENTAGE }, children: [pText(' ')] }),
+          new TableCell({
+            borders: BORDER_NONE,
+            width: { size: 48, type: WidthType.PERCENTAGE },
+            children: [
+              pText(captionAtas, { align: AlignmentType.CENTER, size: 16, before: 0, after: 2, keepNext: true }),
+              pText(`Pada tanggal ${tglRkStr}`, { align: AlignmentType.CENTER, size: 16, before: 0, after: 2, keepNext: true }),
+              pText('Pejabat Pembuat Komitmen (PPK)', { bold: true, align: AlignmentType.CENTER, size: 16, before: 0, after: 2, keepNext: true }),
+              pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, size: 16, before: 0, after: 210, keepNext: true }),
+              pText(`( ${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'} )`, { bold: true, align: AlignmentType.CENTER, size: 16, before: 0, after: 2, keepNext: true }),
+              pText(`NIP. ${ppk.nip || '19840101 200912 1 001'}`, { align: AlignmentType.CENTER, size: 15, before: 0, after: 0 })
+            ]
+          })
+        ]
+      })
+    ]
+  });
+
+  // =========================================================================
+  // DOKUMEN 1: BERITA ACARA PENETAPAN RANCANGAN KONTRAK, SSUK, DAN SSKK (1 HALAMAN UTUH)
+  // =========================================================================
+  const doc1Children = [
+    ...buildKopSuratKpu(settings),
+    pText(`BERITA ACARA PENETAPAN RANCANGAN KONTRAK (${bentuk.toUpperCase()}), SSUK, DAN SSKK`, {
+      bold: true, size: 20, align: AlignmentType.CENTER, before: 20, after: 6
+    }),
+    pText('DOKUMEN TAHAP 07 (FASE II: PERSIAPAN PENGADAAN OLEH PPK) — PASAL 11 & PASAL 25 PERPRES 46/2025 JO. PERLEM LKPP 2/2026 & 3/2026', {
+      size: 13.5, align: AlignmentType.CENTER, color: '1E3A8A', bold: true, before: 0, after: 12
+    }),
+    pText(`Nomor: ${noRk}`, {
+      size: 16.5, align: AlignmentType.CENTER, color: '475569', bold: true, before: 0, after: 18
+    }),
+    pText(`${hariTanggalRk.kalimatFormal}, bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, Jalan Untung Suropati Nomor 48 Ngawi, Pejabat Pembuat Komitmen (PPK) Satuan Kerja KPU Kabupaten Ngawi melaksanakan penyusunan dan penetapan Rancangan Kontrak (${bentuk} — ${jenis}), Syarat-Syarat Umum Kontrak (SSUK), dan Syarat-Syarat Khusus Kontrak (SSKK) sebagai dokumen persiapan pengadaan yang mengikat untuk paket pekerjaan berikut:`, {
+      size: 15.5, before: 6, after: 14
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 30, type: WidthType.PERCENTAGE }, children: [pText('1. Nama Paket Pekerjaan', { bold: true, size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 67, type: WidthType.PERCENTAGE }, children: [pText(paket.nama_paket || '-', { bold: true, size: 15.5, before: 1, after: 1 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 30, type: WidthType.PERCENTAGE }, children: [pText('2. Kode Paket & Kode RUP SiRUP', { bold: true, size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 67, type: WidthType.PERCENTAGE }, children: [pText(`${paket.kode_paket_internal || 'PBJ-2026-001'} | Kode RUP: ${paket.kode_rup || 'RUP-2026-657811-01'}`, { size: 15.5, before: 1, after: 1 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 30, type: WidthType.PERCENTAGE }, children: [pText('3. Pagu DIPA & Nilai Batas HPS', { bold: true, size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 67, type: WidthType.PERCENTAGE }, children: [pText(`MAK ${paket.kode_akun_mak || '532111'} | Pagu: ${formatRupiah(paket.nilai_pagu)} | ${paket.jenis_kertas_harga || 'HPS'}: ${formatRupiah(hpsBasis)}`, { bold: true, color: '1E3A8A', size: 15.5, before: 1, after: 1 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 30, type: WidthType.PERCENTAGE }, children: [pText('4. Bentuk & Jenis Perikatan', { bold: true, size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 67, type: WidthType.PERCENTAGE }, children: [pText(`${bentuk} — Kontrak ${jenis} (Metode: ${paket.metode_pemilihan || 'E-Purchasing'})`, { bold: true, size: 15.5, before: 1, after: 1 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_NONE, width: { size: 30, type: WidthType.PERCENTAGE }, children: [pText('5. Identitas Calon Penyedia', { bold: true, size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 3, type: WidthType.PERCENTAGE }, children: [pText(':', { size: 15.5, before: 1, after: 1 })] }),
+            new TableCell({ borders: BORDER_NONE, width: { size: 67, type: WidthType.PERCENTAGE }, children: [pText('[DRAFT — AKAN DIISI SETELAH PEMILIHAN PENYEDIA PADA TAHAP 9 & TTD TAHAP 13]', { bold: true, color: 'B45309', size: 15, before: 1, after: 1 })] })
+          ]
+        })
+      ]
+    }),
+    pText('A. LANDASAN YURIDIS PENETAPAN RANCANGAN KONTRAK OLEH PPK', { bold: true, size: 16.5, color: '1E3A8A', before: 16, after: 8 }),
+    pNumbered('1.', 'Pasal 11 ayat (1) huruf c dan Pasal 25 huruf c Peraturan Presiden Nomor 16 Tahun 2018 sebagaimana telah diubah terakhir dengan Peraturan Presiden Nomor 46 Tahun 2025 mewajibkan PPK menyusun dan menetapkan Rancangan Kontrak sebagai bagian dari Dokumen Persiapan Pengadaan (DPP) sebelum diserahkan kepada Pejabat Pengadaan / Pokja Pemilihan pada Tahap 8.', { size: 15, before: 2, after: 4 }),
+    pNumbered('2.', `Pemilihan Bentuk Perikatan "${bentuk}" dengan Jenis Kontrak "${jenis}" telah sesuai dengan ketentuan Pasal 27, Pasal 28, Pasal 29, dan Pasal 78 Perpres Nomor 46 Tahun 2025 jo. Peraturan LKPP Nomor 2 Tahun 2026 dan Peraturan LKPP Nomor 3 Tahun 2026.`, { size: 15, before: 2, after: 4 }),
+    pNumbered('3.', 'Pada tahap persiapan pengadaan ini (Tahap 7), identitas badan usaha penyedia, nomor rekening bank penyedia, serta nilai kontrak hasil negosiasi belum dicantumkan guna menjamin objektivitas pemilihan dan mencegah benturan kepentingan.', { size: 15, before: 2, after: 10 }),
+
+    pText('B. KOMPONEN DOKUMEN RANCANGAN KONTRAK YANG DITETAPKAN DAN DISAHKAN PPK', { bold: true, size: 16.5, color: '1E3A8A', before: 12, after: 8 }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          tableHeader: true,
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 6, type: WidthType.PERCENTAGE }, children: [pText('No', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 34, type: WidthType.PERCENTAGE }, children: [pText('Nama Dokumen Bagian Rancangan Kontrak', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 60, type: WidthType.PERCENTAGE }, children: [pText('Substansi Pokok & Status Pengesahan PPK', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('1', { align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Berita Acara Penetapan Rancangan Kontrak (Dokumen I)', { bold: true, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(`Lembar pengesahan penetapan Rancangan ${bentuk}, SSUK, dan SSKK oleh PPK Nomor: ${noRk}.`, { size: 14.5, before: 2, after: 2 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('2', { align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(`Rancangan Naskah ${bentuk} & Daftar Kuantitas (Dokumen II)`, { bold: true, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(`Format naskah perikatan Kontrak ${jenis} lengkap dengan Rancangan Daftar Kuantitas dan Spesifikasi Teknis (tanpa harga kontrak & tanpa nama rekanan).`, { size: 14.5, before: 2, after: 2 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('3', { align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Syarat-Syarat Umum Kontrak / SSUK (Dokumen III)', { bold: true, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Memuat 15 (lima belas) Pasal ketentuan umum perikatan PBJ (Definisi, Bahasa & Hukum, Larangan KKN, PDN/TKDN, Hak & Kewajiban, Pengiriman, BAPHP/BAST, Garansi, Pembayaran, Adendum, Keadaan Kahar, Pemutusan, Denda 1‰, & Sengketa).', { size: 14.5, before: 2, after: 2 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('4', { align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Syarat-Syarat Khusus Kontrak / SSKK (Dokumen IV)', { bold: true, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(`Memuat 15 (lima belas) Klausul Spesifik SSKK (Klausul A s.d. Klausul O): SLA ${slaHari} Hari Kalender, ${caraBayar}, Uang Muka ${umPersen}%, Garansi Resmi, Denda 1‰ DPP, dan Forum LPS LKPP.`, { size: 14.5, before: 2, after: 2 })] })
+          ]
+        })
+      ]
+    }),
+    pText('Demikian Berita Acara Penetapan Rancangan Kontrak, SSUK, dan SSKK ini ditetapkan secara sah oleh Pejabat Pembuat Komitmen (PPK) beserta ke-3 (tiga) dokumen lampiran yang menjadi satu kesatuan tak terpisahkan untuk diserahkan dalam Dokumen Persiapan Pengadaan (DPP) pada Tahap 8.', {
+      size: 15, before: 14, after: 18, keepNext: true
+    }),
+    buildPpkSingleSignature('Ditetapkan di Ngawi')
+  ];
+
+  // =========================================================================
+  // DOKUMEN 2: RANCANGAN NASKAH PERIKATAN / SURAT PESANAN (DRAFT TANPA NAMA REKANAN & HARGA)
+  // =========================================================================
+  const itemRowsDraft = [
+    new TableRow({
+      tableHeader: true,
+      cantSplit: true,
+      children: [
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 6, type: WidthType.PERCENTAGE }, children: [pText('No', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 44, type: WidthType.PERCENTAGE }, children: [pText('Uraian Barang/Jasa & Spesifikasi Teknis yang Dipesan', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 8, type: WidthType.PERCENTAGE }, children: [pText('Vol', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 10, type: WidthType.PERCENTAGE }, children: [pText('Satuan', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 16, type: WidthType.PERCENTAGE }, children: [pText('Harga Satuan Kontrak (Rp)', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 16, type: WidthType.PERCENTAGE }, children: [pText('Total Harga Kontrak (Rp)', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5 })] })
+      ]
+    })
+  ];
+
+  (items || []).forEach((it, idx) => {
+    itemRowsDraft.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ borders: BORDER_TABLE, width: { size: 6, type: WidthType.PERCENTAGE }, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 14.5 })] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 44, type: WidthType.PERCENTAGE }, children: [
+            pText(it.uraian_item || '-', { bold: true, size: 14.5, after: 2 }),
+            pText(`Spesifikasi Teknis: ${it.spesifikasi_teknis || '-'}`, { size: 13.5, color: '475569' })
+          ] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 8, type: WidthType.PERCENTAGE }, children: [pText(String(it.volume || 1), { align: AlignmentType.CENTER, size: 14.5 })] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 10, type: WidthType.PERCENTAGE }, children: [pText(it.satuan || 'Unit', { align: AlignmentType.CENTER, size: 14.5 })] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 16, type: WidthType.PERCENTAGE }, children: [pText('[Diisi Pasca Negosiasi Tahap 9]', { italic: true, color: '64748B', align: AlignmentType.CENTER, size: 13.5 })] }),
+          new TableCell({ borders: BORDER_TABLE, width: { size: 16, type: WidthType.PERCENTAGE }, children: [pText('[Diisi Pasca Negosiasi Tahap 9]', { italic: true, color: '64748B', align: AlignmentType.CENTER, size: 13.5 })] })
+        ]
+      })
+    );
+  });
+
+  itemRowsDraft.push(
+    new TableRow({
+      cantSplit: true,
+      children: [
+        new TableCell({ borders: BORDER_TABLE, columnSpan: 4, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText(`TOTAL NILAI KONTRAK (${jenis.toUpperCase()} — TERMASUK PPN ${paket.tarif_ppn ?? 11}% & ONGKOS KIRIM FRANCO SATKER)`, { bold: true, align: AlignmentType.RIGHT, size: 14.5 })] }),
+        new TableCell({ borders: BORDER_TABLE, columnSpan: 2, shading: { fill: 'FEF3C7', type: ShadingType.CLEAR }, children: [pText('[DIISI NILAI KONTRAK FINAL PADA TAHAP 13]', { bold: true, color: 'B45309', align: AlignmentType.CENTER, size: 14 })] })
+      ]
+    })
+  );
+
+  const doc2Children = [
+    ...buildKopSuratKpu(settings),
+    pText(`[ RANCANGAN / DRAFT NASKAH PERIKATAN — LAMPIRAN I DOKUMEN PERSIAPAN PENGADAAN TAHAP 07 ]`, {
+      bold: true, size: 14, align: AlignmentType.CENTER, color: 'B45309', before: 10, after: 6
+    }),
+    pText(`RANCANGAN ${bentuk.toUpperCase()} (${(paket.metode_pemilihan || 'E-PURCHASING').toUpperCase()})`, {
+      bold: true, size: 20, align: AlignmentType.CENTER, before: 0, after: 4
+    }),
+    pText(`PAKET PEKERJAAN: ${(paket.nama_paket || '-').toUpperCase()}`, {
+      bold: true, size: 15.5, align: AlignmentType.CENTER, color: '1E3A8A', before: 0, after: 4
+    }),
+    pText(`Nomor Rancangan: ${noRk}  |  Nomor Kontrak Final: [Diisi pada Tahap 13]`, {
+      size: 15, align: AlignmentType.CENTER, color: '475569', bold: true, before: 0, after: 18
+    }),
+    pText(`Pada hari ini [Diisi Hari & Tanggal Penandatanganan Kontrak pada Tahap 13], bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, kami yang bertanda tangan di bawah ini:`, {
+      size: 15, before: 4, after: 10
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+              pText('I. PIHAK KESATU (PEJABAT PEMBUAT KOMITMEN)', { bold: true, size: 14.5, color: '1E3A8A', before: 2, after: 4 }),
+              pText(`Nama Pejabat : ${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'}`, { bold: true, size: 14.5, before: 1, after: 1 }),
+              pText(`NIP : ${ppk.nip || '19840101 200912 1 001'}`, { size: 14, before: 1, after: 1 }),
+              pText(`Jabatan : Pejabat Pembuat Komitmen (PPK) KPU Kabupaten Ngawi`, { size: 14, before: 1, after: 1 }),
+              pText(`Alamat Satker : Jl. Untung Suropati No. 48 Ngawi`, { size: 14, before: 1, after: 1 }),
+              pText('Bertindak untuk dan atas nama Negara Republik Indonesia c.q. Satuan Kerja Komisi Pemilihan Umum Kabupaten Ngawi, selanjutnya disebut PIHAK KESATU (PPK).', { italic: true, size: 13.5, color: '334155', before: 4, after: 2 })
+            ] }),
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'FFFBEB', type: ShadingType.CLEAR }, width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+              pText('II. PIHAK KEDUA (PENYEDIA BARANG/JASA)', { bold: true, size: 14.5, color: 'B45309', before: 2, after: 4 }),
+              pText('Nama Perusahaan : [DRAFT — Diisi Pasca Pemilihan Tahap 9]', { bold: true, size: 14.5, color: '92400E', before: 1, after: 1 }),
+              pText('Nama Wakil Sah : [DRAFT — Diisi Nama Direktur / Kuasa Sah]', { size: 14, before: 1, after: 1 }),
+              pText('Jabatan & Akta/NIB : [DRAFT — Diisi Jabatan & NIB Penyedia]', { size: 14, before: 1, after: 1 }),
+              pText('NPWP & Rekening : [DRAFT — Diisi NPWP & No. Rekening Bank]', { size: 14, before: 1, after: 1 }),
+              pText('Bertindak untuk dan atas nama badan usaha Penyedia Pelaksana Pekerjaan tersebut di atas, selanjutnya disebut PIHAK KEDUA (PENYEDIA).', { italic: true, size: 13.5, color: '334155', before: 4, after: 2 })
+            ] })
+          ]
+        })
+      ]
+    }),
+    pText('Dengan ini PIHAK KESATU dan PIHAK KEDUA sepakat untuk mengikatkan diri dalam Perikatan Pengadaan Barang/Jasa Pemerintah dengan ketentuan pokok dan rincian daftar kuantitas sebagai berikut:', {
+      size: 15, before: 12, after: 10
+    }),
+    pText('A. DAFTAR KUANTITAS DAN SPESIFIKASI TEKNIS BARANG/JASA YANG DIPESAN', { bold: true, size: 16, color: '1E3A8A', before: 6, after: 8 }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: itemRowsDraft
+    }),
+    pText('B. KETENTUAN POKOK PERIKATAN DALAM RANCANGAN KONTRAK INI', { bold: true, size: 16, color: '1E3A8A', before: 16, after: 8 }),
+    pNumbered('1.', `Jenis dan Sifat Perikatan: Perikatan ini menggunakan Bentuk "${bentuk}" dengan Jenis Kontrak "${jenis}" sesuai Pasal 27 dan Pasal 28 Perpres Nomor 46 Tahun 2025, di mana seluruh risiko biaya pengiriman, asuransi ekspedisi, instalasi, uji fungsi, dan pajak ditanggung sepenuhnya oleh PIHAK KEDUA.`, { size: 14.5, before: 2, after: 4 }),
+    pNumbered('2.', `Jangka Waktu Pelaksanaan (SLA) & Tempat Penyerahan: PIHAK KEDUA wajib menyerahkan seluruh barang dalam keadaan 100% baru, orisinil, dan berfungsi baik selambat-lambatnya dalam waktu ${slaHari} (${slaTerbilang}) Hari Kalender sejak diterbitkannya ${bentuk}, diserahkan Franco ${lokasiStr}.`, { size: 14.5, before: 2, after: 4 }),
+    pNumbered('3.', `Cara Pembayaran & Kebijakan Uang Muka: Pembayaran dilakukan secara ${caraBayar}. Kebijakan Uang Muka ditetapkan sebesar ${umPersen}% (${umPersen === 0 ? 'Tanpa Uang Muka' : `Estimasi ${formatRupiah(umNominal)} dengan Jaminan Uang Muka 100%`}).`, { size: 14.5, before: 2, after: 4 }),
+    pNumbered('4.', `Sanksi Denda Keterlambatan: Apabila PIHAK KEDUA terlambat menyerahkan pekerjaan melampaui batas waktu SLA, dikenakan denda keterlambatan sebesar 1‰ (satu permil) per hari kalender keterlambatan dari nilai DPP sebelum PPN sesuai Pasal 78 ayat (5) Perpres Nomor 46 Tahun 2025 jo. PMK Nomor 84 Tahun 2025.`, { size: 14.5, before: 2, after: 4 }),
+    pNumbered('5.', 'Keterikatan pada SSUK dan SSKK: Seluruh ketentuan detail mengenai hak, kewajiban, garansi purna jual, keadaan kahar, pemutusan kontrak, dan penyelesaian sengketa tunduk sepenuhnya pada Dokumen Syarat-Syarat Umum Kontrak (SSUK) dan Syarat-Syarat Khusus Kontrak (SSKK) yang menjadi bagian tak terpisahkan dari naskah perikatan ini.', { size: 14.5, before: 2, after: 14, keepNext: true }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({
+              borders: BORDER_NONE,
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              children: [
+                pText('PIHAK KEDUA (PENYEDIA)', { bold: true, align: AlignmentType.CENTER, size: 15.5, before: 0, after: 2, keepNext: true }),
+                pText('[Nama Perusahaan Penyedia Terpilih]', { align: AlignmentType.CENTER, size: 15, color: 'B45309', before: 0, after: 200, keepNext: true }),
+                pText('( [DRAFT — DITANDATANGANI PADA TAHAP 13] )', { bold: true, align: AlignmentType.CENTER, size: 14.5, color: 'B45309', before: 0, after: 2, keepNext: true }),
+                pText('Jabatan: Direktur / Wakil Sah Penyedia', { align: AlignmentType.CENTER, size: 14.5, color: '64748B', before: 0, after: 0 })
+              ]
+            }),
+            new TableCell({
+              borders: BORDER_NONE,
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              children: [
+                pText(`Ditetapkan Rancangannya di Ngawi, ${tglRkStr}`, { align: AlignmentType.CENTER, size: 15.5, before: 0, after: 2, keepNext: true }),
+                pText('PIHAK KESATU — PEJABAT PEMBUAT KOMITMEN (PPK)', { bold: true, align: AlignmentType.CENTER, size: 15.5, before: 0, after: 2, keepNext: true }),
+                pText('KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, size: 15.5, before: 0, after: 180, keepNext: true }),
+                pText(`( ${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'} )`, { bold: true, align: AlignmentType.CENTER, size: 15.5, before: 0, after: 2, keepNext: true }),
+                pText(`NIP. ${ppk.nip || '19840101 200912 1 001'}`, { align: AlignmentType.CENTER, size: 14.5, before: 0, after: 0 })
+              ]
+            })
+          ]
+        })
+      ]
+    })
+  ];
+
+  // =========================================================================
+  // DOKUMEN 3: DOKUMEN SYARAT-SYARAT UMUM KONTRAK (SSUK) — 15 PASAL LENGKAP
+  // =========================================================================
+  const ssukArticles = [
+    [
+      'PASAL 1 — DEFINISI DAN ISTILAH PERIKATAN',
+      `Dalam Syarat-Syarat Umum Kontrak (SSUK) ini, istilah-istilah berikut memiliki arti yang mengikat secara hukum: (a) "Kontrak" atau "${bentuk}" adalah perjanjian tertulis antara Pejabat Penandatangan Kontrak (PPK) dan Penyedia yang memuat hak dan kewajiban para pihak beserta seluruh dokumen lampirannya; (b) "Pejabat Penandatangan Kontrak" yang selanjutnya disebut PPK adalah pejabat yang bertanggung jawab atas pelaksanaan Pengadaan Barang/Jasa pada Satuan Kerja ${settings.nama_satker || 'KPU Kabupaten Ngawi'}; (c) "Penyedia" adalah Pelaku Usaha berbadan hukum atau perorangan yang menyediakan barang/jasa berdasarkan Kontrak; (d) "Harga Kontrak" adalah total nilai perikatan yang tercantum dalam Kontrak berdasarkan hasil klarifikasi dan negosiasi teknis/harga yang sah; (e) "Dasar Pengenaan Pajak (DPP)" adalah nilai Harga Kontrak dikurangi Pajak Pertambahan Nilai (PPN); (f) "Hari Kalender" adalah setiap hari dalam 1 (satu) tahun sesuai kalender Masehi termasuk hari Sabtu, Minggu, dan hari libur nasional; (g) "SSKK" adalah Syarat-Syarat Khusus Kontrak yang memuat ketentuan spesifik untuk melengkapi dan/atau mengubah pasal-pasal dalam SSUK ini.`
+    ],
+    [
+      'PASAL 2 — BAHASA, HUKUM YANG BERLAKU, DAN HIERARKI DOKUMEN KONTRAK',
+      `1) Bahasa Kontrak menggunakan Bahasa Indonesia yang baku dan Hukum yang digunakan untuk menafsirkan serta melaksanakan Kontrak ini adalah Hukum Negara Republik Indonesia (Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 46 Tahun 2025 serta Peraturan LKPP Nomor 2 Tahun 2026 dan Nomor 3 Tahun 2026).\n2) Seluruh dokumen yang membentuk perikatan ini merupakan satu kesatuan yang saling menjelaskan. Apabila terjadi pertentangan atau perbedaan penafsiran antar-bagian dokumen kontrak, maka urutan kekuatan mengikat secara hierarkis adalah: (a) Adendum Kontrak / Surat Pesanan (apabila ada); (b) Naskah ${bentuk} dan Daftar Kuantitas/Harga Hasil Negosiasi; (c) Syarat-Syarat Khusus Kontrak (SSKK); (d) Syarat-Syarat Umum Kontrak (SSUK); (e) Kerangka Acuan Kerja (KAK) dan Spesifikasi Teknis; serta (f) Dokumen Penawaran / Data Produk Tayang Katalog Elektronik.`
+    ],
+    [
+      'PASAL 3 — LARANGAN KORUPSI, KOLUSI, NEPOTISME (KKN), PENYUAPAN, DAN PAKTA INTEGRITAS',
+      '1) Berdasarkan Undang-Undang Pemberantasan Tindak Pidana Korupsi dan Perpres Pengadaan Barang/Jasa Pemerintah, PPK dan Penyedia dilarang melakukan tindakan Korupsi, Kolusi, Nepotisme (KKN), penyuapan, gratifikasi, penggelembungan harga (mark-up), pemalsuan dokumen spesifikasi/TKDN, maupun persekongkolan.\n2) Penyedia menjamin bahwa tidak ada komisi, rabat, suap, atau imbalan dalam bentuk apa pun yang telah atau akan diberikan kepada pejabat/pegawai KPU Kabupaten Ngawi. Pelanggaran atas pasal ini memberikan hak mutlak kepada PPK untuk memutuskan kontrak secara sepihak, mencairkan jaminan (bila ada), menuntut ganti rugi negara, dan mengusulkan pencantuman Penyedia ke dalam Daftar Hitam Nasional (Blacklist) LKPP.'
+    ],
+    [
+      'PASAL 4 — ASAL BARANG/JASA, KEASLIAN PRODUK, DAN KEWAJIBAN PRODUK DALAM NEGERI (PDN / TKDN)',
+      `1) Seluruh barang/jasa yang diserahkan oleh Penyedia wajib memenuhi kebijakan pengutamaan Produk Dalam Negeri (PDN) dan komitmen Tingkat Komponen Dalam Negeri (TKDN) sebagaimana ditetapkan dalam KAK dan SSKK sesuai Pasal 66 Perpres Nomor 46 Tahun 2025.\n2) Penyedia menjamin 100% bahwa seluruh barang yang diserahkan adalah produk baru (100% Brand New In Box / BNIB), orisinil dari pabrikan/prinsipal resmi (bukan barang rekondisi, refurbished, atau rakitan ilegal), dilengkapi perangkat lunak berlisensi resmi yang sah, serta bebas dari tuntutan pelanggaran Hak Kekayaan Intelektual (HAKI) pihak ketiga.`
+    ],
+    [
+      'PASAL 5 — WAKIL SAH PARA PIHAK, KORESPONDENSI, DAN LARANGAN PENGALIHAN KONTRAK (SUBKONTRAK)',
+      '1) Setiap tindakan hukum, perintah pengiriman, persetujuan teknis, maupun pemberitahuan resmi antara PPK dan Penyedia wajib dilakukan secara tertulis melalui Wakil Sah Para Pihak yang tercantum dalam SSKK.\n2) Penyedia dilarang keras mengalihkan (mensubkontrakkan) seluruh pekerjaan utama dalam Kontrak ini kepada pihak ketiga dengan alasan apa pun. Pelanggaran terhadap larangan subkontrak pekerjaan utama dikenakan sanksi pemutusan kontrak sepihak dan sanksi Daftar Hitam.'
+    ],
+    [
+      'PASAL 6 — HAK DAN KEWAJIBAN PEJABAT PENANDATANGAN KONTRAK (PPK) SERTA PENYEDIA',
+      '1) Hak dan Kewajiban PPK: (a) Mengawasi dan memeriksa pekerjaan yang dilaksanakan oleh Penyedia; (b) Meminta laporan dan dokumen kelengkapan administrasi aset/BMN (termasuk daftar Serial Number pabrik, kartu garansi resmi, dan faktur pajak); (c) Menolak barang yang tidak memenuhi spesifikasi teknis KAK; dan (d) Membayar harga kontrak kepada Penyedia sesuai cara pembayaran dalam SSKK setelah pekerjaan dinyatakan selesai 100%.\n2) Hak dan Kewajiban Penyedia: (a) Menerima pembayaran atas pelaksanaan pekerjaan tepat jumlah dan tepat waktu sesuai ketentuan kontrak; (b) Melaksanakan dan menyelesaikan pengiriman, instalasi, serta uji fungsi barang sesuai jadwal SLA; (c) Menyerahkan barang yang memenuhi spesifikasi teknis, kuantitas, dan garansi purna jual; serta (d) Bertanggung jawab penuh atas keselamatan kerja, pengepakan, dan keutuhan barang hingga serah terima.'
+    ],
+    [
+      'PASAL 7 — JANGKA WAKTU PELAKSANAAN (SLA), PENGEMASAN, PENGIRIMAN, DAN PERALIHAN RISIKO',
+      '1) Jangka waktu pelaksanaan pekerjaan (Service Level Agreement / SLA) dihitung sejak tanggal efektif yang ditetapkan dalam Kontrak/Surat Pesanan sampai dengan penandatanganan Berita Acara Serah Terima (BAST) sebagaimana dirinci dalam SSKK.\n2) Pengiriman barang dilakukan dengan syarat Franco lokasi Satker KPU Kabupaten Ngawi. Seluruh biaya pengepakan pelindung standar pabrik, pengangkutan, bongkar muat, dan asuransi ekspedisi menjadi beban Penyedia. Risiko kehilangan, kerusakan fisik, atau cacat fungsi atas barang tetap berada pada Penyedia sampai dengan barang diperiksa, diuji fungsi, dan diterima secara resmi melalui BAST.'
+    ],
+    [
+      'PASAL 8 — PEMERIKSAAN FISIK, UJI FUNGSI (TESTING & COMMISSIONING), DAN SERAH TERIMA (BAPHP & BAST)',
+      '1) Pada saat barang tiba di lokasi penyerahan, PPK melakukan pemeriksaan fisik, kuantitas, keaslian nomor seri (Serial Number), dan Uji Fungsi (Testing & Commissioning) untuk memastikan kesesuaian 100% terhadap spesifikasi teknis dalam Kontrak.\n2) Apabila dalam pemeriksaan ditemukan barang yang rusak, cacat produksi (Dead on Arrival / DOA), atau tidak sesuai spesifikasi, PPK berhak menolak barang tersebut dan Penyedia wajib mengganti dengan unit baru (one-to-one replacement) atas biaya Penyedia sendiri.\n3) Hasil pemeriksaan yang telah memenuhi syarat 100% dituangkan dalam Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP) dan ditindaklanjuti dengan Berita Acara Serah Terima (BAST) yang ditandatangani oleh PPK dan Penyedia.'
+    ],
+    [
+      'PASAL 9 — JAMINAN PELAKSANAAN, JAMINAN UANG MUKA, DAN GARANSI PURNA JUAL / MASA PEMELIHARAAN',
+      '1) Ketentuan mengenai kewajiban penyerahan Jaminan Pelaksanaan sebesar 5% (lima persen) mengacu pada Pasal 30 dan Pasal 33 Perpres Nomor 46 Tahun 2025 sebagaimana ditetapkan secara spesifik dalam SSKK.\n2) Untuk Pengadaan Barang, Penyedia wajib menyerahkan Sertifikat Garansi Purna Jual Resmi dari Pabrikan/Distributor Resmi (sehingga bebas dari potongan retensi 5%). Untuk Pekerjaan Konstruksi, berlaku ketentuan Masa Pemeliharaan dan Jaminan Pemeliharaan / Retensi 5% sebagaimana diatur dalam SSKK.'
+    ],
+    [
+      'PASAL 10 — HARGA KONTRAK, KEBIJAKAN UANG MUKA, CARA PEMBAYARAN, DAN PERPAJAKAN APBN',
+      '1) Harga Kontrak bersifat mengikat sesuai jenis kontrak yang ditetapkan dalam SSKK dan telah mencakup keuntungan wajar, biaya pengiriman Franco satker, garansi purna jual, serta Pajak Pertambahan Nilai (PPN).\n2) Pemberian Uang Muka (Pasal 29 Perpres Nomor 46 Tahun 2025) hanya dapat dilakukan apabila diizinkan dalam SSKK dan wajib disertai penyerahan Jaminan Uang Muka (Bank Garansi / Surety Bond) bernilai minimal 100% dari nilai Uang Muka yang diajukan.\n3) Pembayaran prestasi pekerjaan dilaksanakan melalui mekanisme Surat Perintah Membayar Langsung (SPM-LS) KPPN pada Aplikasi SAKTI ke rekening bank resmi Penyedia setelah dokumen BAPHP, BAST, Kwitansi/Invoice, Faktur Pajak (e-Faktur), dan Berita Acara Pembayaran (BAP) dinyatakan lengkap dan sah. Bendahara Pengeluaran / KPPN memungut PPN dan PPh sesuai ketentuan perpajakan APBN yang berlaku.'
+    ],
+    [
+      'PASAL 11 — PERUBAHAN KONTRAK (ADENDUM / CCO) DAN PENANGANAN KONTRAK KRITIS (SCM)',
+      '1) Perubahan Kontrak (Adendum) hanya dapat dilakukan berdasarkan kesepakatan tertulis antara PPK dan Penyedia apabila terdapat perubahan jadwal pelaksanaan akibat keadaan kahar atau penyesuaian administratif yang tidak mengubah substansi persaingan dan tidak melampaui Pagu/HPS.\n2) Apabila pelaksanaan pekerjaan mengalami keterlambatan signifikan yang berpotensi melampaui batas waktu SLA, PPK menerbitkan Surat Peringatan (SP-1 s.d. SP-3) dan menggelar Rapat Pembuktian (Show Cause Meeting / SCM) guna mengevaluasi kesanggupan Penyedia.'
+    ],
+    [
+      'PASAL 12 — KEADAAN KAHAR (FORCE MAJEURE)',
+      '1) Keadaan Kahar adalah suatu keadaan yang terjadi di luar kehendak para pihak dan tidak dapat diperkirakan sebelumnya (seperti bencana alam gempa bumi, banjir besar, kebakaran, epidemi, kerusuhan, atau kebijakan moneter/fiskal resmi Pemerintah) sehingga kewajiban dalam Kontrak menjadi tidak dapat dipenuhi.\n2) Penyedia wajib memberitahukan secara tertulis kepada PPK selambat-lambatnya 14 (empat belas) hari kalender sejak terjadinya Keadaan Kahar dengan dilampiri bukti pernyataan resmi instansi berwenang. Keterlambatan akibat Keadaan Kahar yang sah tidak dikenakan sanksi denda keterlambatan.'
+    ],
+    [
+      'PASAL 13 — PENGHENTIAN DAN PEMUTUSAN KONTRAK SEPIHAK OLEH PPK',
+      '1) Penghentian Kontrak dapat dilakukan karena pekerjaan sudah selesai 100% atau karena terjadinya Keadaan Kahar yang tidak memungkinkan kelanjutan pekerjaan.\n2) PPK berwenang melakukan Pemutusan Kontrak secara sepihak (mengesampingkan Pasal 1266 dan Pasal 1267 KUHPerdata) apabila Penyedia: (a) terbukti melakukan KKN/pemalsuan dokumen; (b) lalai/wanprestasi tidak menyelesaikan pekerjaan hingga melampaui batas waktu maksimal keterlambatan setelah diberikan Surat Peringatan; atau (c) dinyatakan pailit oleh pengadilan.'
+    ],
+    [
+      'PASAL 14 — SANKSI FINANSIAL, DENDA KETERLAMBATAN (1‰), DAN DAFTAR HITAM (BLACKLIST)',
+      '1) Sesuai Pasal 78 ayat (5) Peraturan Presiden Nomor 16 Tahun 2018 jo. Perpres Nomor 46 Tahun 2025 serta Peraturan Menteri Keuangan Nomor 84 Tahun 2025, apabila Penyedia terlambat menyelesaikan pekerjaan melampaui jangka waktu pelaksanaan (SLA) yang ditetapkan dalam Kontrak karena kesalahan Penyedia, maka Penyedia dikenakan Sanksi Denda Keterlambatan sebesar 1‰ (satu permil / 1 per 1.000) untuk setiap hari kalender keterlambatan.\n2) Basis pengenaan denda keterlambatan (dihitung dari Harga Kontrak sebelum PPN / DPP atau bagian kontrak) ditetapkan secara tegas dalam SSKK dan dipotong langsung pada saat pengajuan pembayaran tagihan (SPM-LS) atau disetorkan ke Kas Negara.'
+    ],
+    [
+      'PASAL 15 — PENYELESAIAN PERSELISIHAN / SENGKETA KONTRAK',
+      '1) Setiap perselisihan atau sengketa yang timbul antara PPK dan Penyedia sehubungan dengan penafsiran maupun pelaksanaan Kontrak ini wajib terlebih dahulu diselesaikan secara Musyawarah untuk Mufakat dalam jangka waktu 30 (tiga puluh) hari kalender sejak salah satu pihak menyampaikan pemberitahuan tertulis.\n2) Apabila musyawarah untuk mufakat tidak mencapai kesepakatan, maka penyelesaian sengketa ditempuh melalui mekanisme dan domisili hukum sebagaimana ditetapkan secara mengikat dalam SSKK (Layanan Penyelesaian Sengketa / LPS LKPP atau Pengadilan Negeri).'
+    ]
+  ];
+
+  const doc3Children = [
+    ...buildKopSuratKpu(settings),
+    pText('DOKUMEN SYARAT-SYARAT UMUM KONTRAK (SSUK)', {
+      bold: true, size: 20, align: AlignmentType.CENTER, before: 20, after: 6
+    }),
+    pText('STANDAR KETENTUAN UMUM PERIKATAN PENGADAAN BARANG/JASA PEMERINTAH (PERPRES 46/2025 JO. PERLEM LKPP 2/2026 & 3/2026)', {
+      size: 13.5, align: AlignmentType.CENTER, color: '1E3A8A', bold: true, before: 0, after: 8
+    }),
+    pText(`Lampiran II Berita Acara Penetapan Rancangan Kontrak Nomor: ${noRk}`, {
+      size: 15, align: AlignmentType.CENTER, color: '475569', bold: true, before: 0, after: 16
+    }),
+    pText(`Dokumen Syarat-Syarat Umum Kontrak (SSUK) ini memuat ketentuan-ketentuan umum yang mengikat secara hukum antara Pejabat Pembuat Komitmen (PPK) Satker ${settings.nama_satker || 'KPU Kabupaten Ngawi'} dan Penyedia pada pelaksanaan Paket Pekerjaan "${paket.nama_paket || '-'}". Ketentuan dalam SSUK ini berlaku secara utuh sepanjang tidak diubah atau diatur secara khusus di dalam Syarat-Syarat Khusus Kontrak (SSKK).`, {
+      size: 14.5, before: 4, after: 14
+    })
+  ];
+
+  ssukArticles.forEach(([judulPasal, isiPasal]) => {
+    doc3Children.push(
+      pText(judulPasal, { bold: true, size: 15, color: '1E3A8A', before: 10, after: 4, keepNext: true })
+    );
+    const lines = String(isiPasal).split('\n');
+    lines.forEach((ln, idx) => {
+      doc3Children.push(
+        pText(ln, { size: 14, before: 1, after: idx === lines.length - 1 ? 8 : 3 })
+      );
+    });
+  });
+
+  doc3Children.push(
+    pText('Demikian Dokumen Syarat-Syarat Umum Kontrak (SSUK) ini ditetapkan oleh Pejabat Pembuat Komitmen (PPK) sebagai satu kesatuan yang tidak terpisahkan dari Rancangan Kontrak dan Syarat-Syarat Khusus Kontrak (SSKK).', {
+      size: 14.5, before: 12, after: 18, keepNext: true
+    }),
+    buildPpkSingleSignature('Disahkan sebagai Dokumen SSUK di Ngawi')
+  );
+
+  // =========================================================================
+  // DOKUMEN 4: DOKUMEN SYARAT-SYARAT KHUSUS KONTRAK (SSKK) — 15 KLAUSUL KORESPONDENSI SSUK
+  // =========================================================================
+  const sskkMatrixFull = [
+    [
+      'Klausul A\n(Bentuk & Jenis Kontrak)',
+      'Pasal 1 & Pasal 2 SSUK',
+      `1. Bentuk Perikatan: ${bentuk} (${paket.metode_pemilihan || 'E-Purchasing Katalog Elektronik'}).\n2. Jenis Kontrak: Kontrak ${jenis} (Pasal 27 Perpres 46/2025).\n3. Seluruh risiko harga satuan, ongkos kirim, dan instalasi ditanggung penuh oleh Penyedia sesuai nilai kontrak hasil negosiasi.`
+    ],
+    [
+      'Klausul B\n(Keaslian Barang & Target TKDN/PDN)',
+      'Pasal 4 SSUK',
+      `1. Prioritas PDN: ${paket.prioritas_pdn_level || 'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)'}.\n2. Target Capaian TKDN: ${paket.target_sertifikat_tkdn || 'TKDN 42.50% + BMP 10.00%'}.\n3. Seluruh unit wajib 100% Baru (Brand New In Box / BNIB) dan berlisensi resmi.`
+    ],
+    [
+      'Klausul C\n(Wakil Sah Para Pihak & Korespondensi)',
+      'Pasal 5.1 SSUK',
+      `1. Wakil Sah PIHAK KESATU (PPK): ${ppk.nama_lengkap || 'MOHAMMAD NOOR JIHAN'} (NIP. ${ppk.nip || '19840101 200912 1 001'}) — PPK ${settings.nama_satker || 'KPU Kabupaten Ngawi'}, Jl. Untung Suropati No. 48 Ngawi.\n2. Wakil Sah PIHAK KEDUA (Penyedia): [DRAFT — Diisi Nama Direktur / Kuasa Penyedia Terpilih setelah Tahap 9].`
+    ],
+    [
+      'Klausul D\n(Larangan Subkontrak)',
+      'Pasal 5.2 SSUK',
+      'Penyedia DILARANG mengalihkan (mensubkontrakkan) pengadaan dan penyediaan barang utama dalam kontrak ini kepada pihak lain.'
+    ],
+    [
+      'Klausul E\n(Kewajiban Rekonsiliasi Aset BMN SAKTI)',
+      'Pasal 6 SSUK',
+      `Mengingat anggaran bersumber dari MAK ${paket.kode_akun_mak || '532111'} (${paket.nama_akun_mak || 'Belanja Modal Peralatan dan Mesin'}), Penyedia wajib menyerahkan Daftar Nomor Seri Pabrik (Serial Number) per unit, Kartu Garansi Resmi, dan Faktur Pajak guna pencatatan Modul Aset Tetap / Persediaan pada Aplikasi SAKTI.`
+    ],
+    [
+      'Klausul F\n(Jangka Waktu SLA & Lokasi Penyerahan)',
+      'Pasal 7 SSUK',
+      `1. Jangka Waktu Pelaksanaan (SLA): Selama ${slaHari} (${slaTerbilang}) Hari Kalender terhitung sejak tanggal penerbitan ${bentuk}.\n2. Tempat Penyerahan Barang: Franco ${lokasiStr} pada hari dan jam kerja kedinasan.`
+    ],
+    [
+      'Klausul G\n(Pemeriksaan, Uji Fungsi & Penggantian DOA)',
+      'Pasal 8 SSUK',
+      '1. Pemeriksaan fisik dan Uji Fungsi (Testing & Commissioning) dilaksanakan oleh PPK dibantu Tim Teknis/Pengelola BMN KPU Kabupaten Ngawi.\n2. Apabila dalam 14 (empat belas) hari kalender sejak serah terima ditemukan cacat produksi (Dead on Arrival / DOA), Penyedia wajib mengganti dengan unit baru (one-to-one replacement).'
+    ],
+    [
+      'Klausul H\n(Jaminan Pelaksanaan 5%)',
+      'Pasal 9.1 SSUK',
+      wajibJaminan
+        ? `Wajib menyerahkan Jaminan Pelaksanaan sebesar 5% dari Nilai Kontrak (Estimasi ${formatRupiah(Math.round(hpsBasis * 0.05))}) berupa Bank Garansi sebelum penandatanganan kontrak.`
+        : 'DIKECUALIKAN (Tidak Dipersyaratkan Jaminan Pelaksanaan 5%) sesuai ketentuan Pasal 30 & Pasal 33 Perpres Nomor 46 Tahun 2025 untuk E-Purchasing Katalog Elektronik / Pengadaan Langsung s.d. Rp 200 Juta.'
+    ],
+    [
+      'Klausul I\n(Garansi Purna Jual / Pemeliharaan)',
+      'Pasal 9.2 SSUK',
+      garansiStr
+    ],
+    [
+      'Klausul J\n(Kebijakan Pemberian Uang Muka)',
+      'Pasal 10.2 SSUK\n(Pasal 29 Perpres)',
+      umPersen === 0
+        ? '0% (TANPA UANG MUKA). Berdasarkan penilaian PPK atas karakteristik komoditas barang pabrikan siap kirim (ready stock) dan SLA singkat, kontrak ini ditetapkan Tanpa Uang Muka (0%) sehingga Penyedia tidak perlu menyerahkan Jaminan Uang Muka.'
+        : `Dapat diberikan Uang Muka maksimal sebesar ${umPersen}% dari Nilai Kontrak (Estimasi ${formatRupiah(umNominal)}) setelah Penyedia mengajukan permohonan tertulis disertai Jaminan Uang Muka bernilai 100% dari nilai Uang Muka.`
+    ],
+    [
+      'Klausul K\n(Cara Pembayaran Prestasi Pekerjaan)',
+      'Pasal 10.3 SSUK',
+      `${caraBayar}. Pencairan dilakukan melalui SPM-LS KPPN Madiun ke rekening bank Penyedia setelah BAPHP, BAST 100%, Kwitansi/Invoice, e-Faktur Pajak, dan BAP ditandatangani lengkap.`
+    ],
+    [
+      'Klausul L\n(Rekening Bank & Kewajiban Pajak)',
+      'Pasal 10.3 SSUK',
+      `1. Nomor Rekening Bank Penyedia: [DRAFT — Diisi Nama Bank, Cabang, Nomor Rekening, dan Nama Pemilik Rekening Badan Usaha pada Rapat Persiapan Penandatanganan Kontrak Tahap 12].\n2. Pajak: Harga sudah termasuk PPN ${paket.tarif_ppn ?? 11}% dan dipungut ${paket.jenis_pph || 'PPh Pasal 22 (1,5%)'} sesuai ketentuan perpajakan APBN.`
+    ],
+    [
+      'Klausul M\n(Batas Pelaporan Keadaan Kahar)',
+      'Pasal 12 SSUK',
+      'Pemberitahuan tertulis tentang terjadinya Keadaan Kahar (Force Majeure) wajib disampaikan oleh Penyedia kepada PPK paling lambat 14 (empat belas) hari kalender sejak kejadian dengan dilampiri pernyataan resmi instansi berwenang.'
+    ],
+    [
+      'Klausul N\n(Sanksi Denda Keterlambatan 1‰ DPP)',
+      'Pasal 14 SSUK\n(Pasal 78 ayat 5)',
+      `1. Besaran Denda: 1‰ (satu permil / 1 per 1.000) untuk setiap hari kalender keterlambatan.\n2. Basis Perhitungan Denda: ${basisDenda} (sesuai PMK Nomor 84 Tahun 2025).\n3. Simulasi Estimasi Denda: Dari batas HPS ${formatRupiah(hpsBasis)} (Estimasi DPP sebelum PPN = ${formatRupiah(dppEst)}), estimasi denda keterlambatan adalah sekitar ${formatRupiah(dendaHariEst)} per hari kalender.`
+    ],
+    [
+      'Klausul O\n(Penyelesaian Perselisihan / Sengketa)',
+      'Pasal 15 SSUK',
+      `${sengketaStr} (Domisili hukum kepaniteraan apabila ke pengadilan umum: Pengadilan Negeri Ngawi).`
+    ]
+  ];
+
+  const doc4Children = [
+    ...buildKopSuratKpu(settings),
+    pText('DOKUMEN SYARAT-SYARAT KHUSUS KONTRAK (SSKK)', {
+      bold: true, size: 20, align: AlignmentType.CENTER, before: 20, after: 6
+    }),
+    pText('KETENTUAN SPESIFIK PENGIKAT PASAL-PASAL SSUK PADA PAKET PENGADAAN BARANG/JASA PEMERINTAH', {
+      size: 13.5, align: AlignmentType.CENTER, color: '1E3A8A', bold: true, before: 0, after: 8
+    }),
+    pText(`Lampiran III Berita Acara Penetapan Rancangan Kontrak Nomor: ${noRk}`, {
+      size: 15, align: AlignmentType.CENTER, color: '475569', bold: true, before: 0, after: 14
+    }),
+    pText(`Syarat-Syarat Khusus Kontrak (SSKK) ini merupakan bagian mutlak yang melengkapi, menjelaskan, dan/atau mengubah ketentuan pada pasal-pasal dalam Dokumen Syarat-Syarat Umum Kontrak (SSUK) untuk pelaksanaan Paket Pekerjaan "${paket.nama_paket || '-'}" (Kode RUP: ${paket.kode_rup || 'RUP-2026-657811-01'}). Apabila terdapat perbedaan pengaturan antara SSUK dan SSKK ini, maka ketentuan dalam SSKK ini yang berlaku dan mengikat para pihak:`, {
+      size: 14.5, before: 4, after: 12
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          tableHeader: true,
+          cantSplit: true,
+          children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 21, type: WidthType.PERCENTAGE }, children: [pText('Klausul SSKK & Pokok Pengaturan', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 15, type: WidthType.PERCENTAGE }, children: [pText('Acuan Pasal SSUK', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] }),
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, width: { size: 64, type: WidthType.PERCENTAGE }, children: [pText('Rincian Ketentuan Spesifik yang Ditetapkan PPK dalam SSKK', { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER, size: 14.5, before: 2, after: 2 })] })
+          ]
+        }),
+        ...sskkMatrixFull.map(([klausul, pasalAcuan, isiKetentuan]) => new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({
+              borders: BORDER_TABLE,
+              shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
+              width: { size: 21, type: WidthType.PERCENTAGE },
+              children: String(klausul).split('\n').map((ln, i) => pText(ln, { bold: i === 0, size: i === 0 ? 14 : 13, color: i === 0 ? '0F172A' : '475569', before: 1, after: 1 }))
+            }),
+            new TableCell({
+              borders: BORDER_TABLE,
+              width: { size: 15, type: WidthType.PERCENTAGE },
+              children: String(pasalAcuan).split('\n').map(ln => pText(ln, { bold: true, size: 13.5, color: '1E3A8A', align: AlignmentType.CENTER, before: 1, after: 1 }))
+            }),
+            new TableCell({
+              borders: BORDER_TABLE,
+              width: { size: 64, type: WidthType.PERCENTAGE },
+              children: String(isiKetentuan).split('\n').map(ln => pText(ln, { size: 13.5, before: 1, after: 2 }))
+            })
+          ]
+        }))
+      ]
+    }),
+    pText('Demikian Dokumen Syarat-Syarat Khusus Kontrak (SSKK) ini ditetapkan oleh Pejabat Pembuat Komitmen (PPK) Satuan Kerja KPU Kabupaten Ngawi untuk mengikat pelaksanaan kontrak dan dilampirkan dalam Dokumen Persiapan Pengadaan (DPP).', {
+      size: 14.5, before: 14, after: 18, keepNext: true
+    }),
+    buildPpkSingleSignature('Ditetapkan sebagai Dokumen SSKK di Ngawi')
+  ];
+
+  const pageProps = {
+    size: { width: 11906, height: 16838 },
+    margin: { top: 820, right: 860, bottom: 820, left: 860 }
+  };
+
+  return [
+    {
+      properties: {
+        ...(isFirstStageInDoc ? {} : { type: SectionType.NEXT_PAGE }),
+        page: pageProps
+      },
+      headers: { default: makeHeader('Dokumen I Tahap 07: BA Penetapan Rancangan Kontrak, SSUK & SSKK') },
+      footers: { default: makeFooter('Dokumen I — BA Penetapan Rancangan Kontrak') },
+      children: doc1Children
+    },
+    {
+      properties: {
+        type: SectionType.NEXT_PAGE,
+        page: pageProps
+      },
+      headers: { default: makeHeader(`Dokumen II Tahap 07: Rancangan ${bentuk} (Draft Perikatan)`) },
+      footers: { default: makeFooter(`Dokumen II — Rancangan ${bentuk}`) },
+      children: doc2Children
+    },
+    {
+      properties: {
+        type: SectionType.NEXT_PAGE,
+        page: pageProps
+      },
+      headers: { default: makeHeader('Dokumen III Tahap 07: Syarat-Syarat Umum Kontrak (SSUK)') },
+      footers: { default: makeFooter('Dokumen III — Syarat-Syarat Umum Kontrak (SSUK)') },
+      children: doc3Children
+    },
+    {
+      properties: {
+        type: SectionType.NEXT_PAGE,
+        page: pageProps
+      },
+      headers: { default: makeHeader('Dokumen IV Tahap 07: Syarat-Syarat Khusus Kontrak (SSKK)') },
+      footers: { default: makeFooter('Dokumen IV — Syarat-Syarat Khusus Kontrak (SSKK)') },
+      children: doc4Children
+    }
+  ];
+}
+
 function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, settings } = ctx;
   const def = DEFINISI_18_TAHAP.find(d => d.no === stageNo) || DEFINISI_18_TAHAP[0];
@@ -2745,6 +3379,9 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   }
   if (stageNo === 6) {
     return buildStage6Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
+  if (stageNo === 7) {
+    return buildStage7Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap
@@ -3015,5 +3652,6 @@ async function generateWordBuffer(ctx, modeOrStage = 13) {
 }
 
 module.exports = {
-  generateWordBuffer
+  generateWordBuffer,
+  buildSectionsForStage
 };
