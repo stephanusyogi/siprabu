@@ -1382,6 +1382,16 @@ function renderCockpitCenterWorkspace() {
   const container = document.getElementById('cakra-cockpit-tab-content');
   if (!container || !CakraState.activePaketCtx) return;
 
+  const fase = CakraState.activeFase || getFaseByStage(CakraState.activeStageNo || 1);
+  if (!['jadwal', 'dodont'].includes(CakraState.activeCockpitSubTab)) {
+    CakraState.activeCockpitSubTab = `fase${fase}`;
+  }
+
+  // Update phase tabs highlight otomatis sesuai fase aktif
+  document.querySelectorAll('.cakra-sub-tab-btn').forEach(b => b.classList.remove('active'));
+  const activeTabBtn = document.getElementById(`cakra-subtab-btn-${CakraState.activeCockpitSubTab}`);
+  if (activeTabBtn) activeTabBtn.classList.add('active');
+
   if (CakraState.activeCockpitSubTab === 'jadwal') {
     container.innerHTML = buildCockpitJadwalTabHtml();
     return;
@@ -1391,7 +1401,6 @@ function renderCockpitCenterWorkspace() {
     return;
   }
 
-  const fase = CakraState.activeFase || getFaseByStage(CakraState.activeStageNo || 1);
   container.innerHTML = buildCockpitPhaseWorkspaceHtml(fase);
 }
 
