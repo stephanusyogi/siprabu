@@ -5731,21 +5731,74 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 11:
+    case 11: {
+      const kontrakVal = Number(paket.nilai_kontrak || 138000000);
+      const noSppbj = activeTRow.nomor_dokumen || paket.no_sppbj || `011/SPPBJ/${paket.kode_paket_internal || 'PBJ-2026-001'}/PPK-PBJ/KPU-NGW/V/2026`;
+      const tglSppbj = activeTRow.tanggal_dokumen || paket.tgl_sppbj || '2026-05-25';
+      const statusJaminan = paket.status_jaminan_pelaksanaan || 'DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)';
+      const alasanJaminan = paket.alasan_bebas_jaminan || 'Pasal 33 ayat (2) huruf b & ayat (3) Perpres PBJ jo. Kepka LKPP No. 177/2024';
+      const noKesanggupan = paket.no_surat_kesanggupan_penyedia || '028/GPN-NGW/SP-SPPBJ/V/2026';
+      const tglKesanggupan = paket.tgl_surat_kesanggupan || '2026-05-25';
+      const batasTtdKontrak = paket.batas_waktu_ttd_kontrak || '2026-05-27';
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Nomor SPPBJ PPK</div>
-            <div style="font-size:13px; font-weight:800; color:#1e40af;" class="cakra-mono">${cakraEsc(activeTRow.no_sppbj || autoDocNo(11, activeTRow.tanggal_dokumen))}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Surat Penunjukan Penyedia Barang/Jasa Sah</div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+          <!-- KARTU 1: SURAT PENUNJUKAN PENYEDIA (SPPBJ) -->
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">SURAT PENUNJUKAN PENYEDIA (SPPBJ)</div>
+            <div style="font-size:13px; font-weight:800; color:#1e40af; margin-bottom:4px;" class="cakra-mono">${cakraEsc(noSppbj)}</div>
+            <div style="font-size:11.5px; color:#1e293b; margin-top:2px;">
+              <b>Tanggal SPPBJ:</b> ${cakraEsc(tglSppbj)} | <b>Sifat:</b> Segera
+            </div>
+            <div style="font-size:11px; color:#0f172a; margin-top:4px; padding-top:4px; border-top:1px dashed #e2e8f0;">
+              <b>Penyedia:</b> <span style="color:#15803d; font-weight:700;">${cakraEsc(paket.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI')}</span>
+            </div>
+            <div style="font-size:10.5px; color:#475569; margin-top:2px;">
+              <b>KBLI:</b> 46511 (Komputer) | <b>Pimpinan:</b> Hendra Suryawan
+            </div>
+            <div style="font-size:10.5px; color:#64748b; margin-top:4px;">
+              Ditetapkan oleh: <b>MOHAMMAD NOOR JIHAN</b> (PPK Satker 657811)
+            </div>
           </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Ketentuan Jaminan Pelaksanaan</div>
-            <div style="font-size:13.5px; font-weight:800; color:#15803d;">Dibebaskan (Non-Tender / E-Purchasing)</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 33 Perpres PBJ</div>
+
+          <!-- KARTU 2: KETENTUAN JAMINAN PELAKSANAAN & INTEGRITAS -->
+          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">STATUS JAMINAN PELAKSANAAN &amp; INTEGRITAS</div>
+            <div style="font-size:13px; font-weight:800; color:#15803d; margin-bottom:4px;">✅ ${cakraEsc(statusJaminan)}</div>
+            <div style="font-size:10.5px; color:#166534; margin-bottom:4px;">
+              <b>Dasar:</b> ${cakraEsc(alasanJaminan)}
+            </div>
+            <div style="font-size:11px; color:#166534; margin-top:4px; padding-top:4px; border-top:1px dashed #86efac;">
+              <b>Surat Kesanggupan:</b> <span class="cakra-mono" style="font-weight:700;">${cakraEsc(noKesanggupan)}</span>
+            </div>
+            <div style="font-size:10.5px; color:#166534; margin-top:2px;">
+              <b>Tgl Kesanggupan:</b> ${cakraEsc(tglKesanggupan)} | Status: <b>Diterima Lengkap &amp; Sah</b>
+            </div>
+            <div style="font-size:10.5px; color:#15803d; margin-top:2px;">
+              Garansi Resmi Pabrikan 1 Tahun On-Site Replacement
+            </div>
+          </div>
+
+          <!-- KARTU 3: NILAI PENUNJUKAN & JADWAL KONTRAK -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">NILAI PENUNJUKAN &amp; JADWAL KONTRAK</div>
+            <div style="font-size:15px; font-weight:800; color:#1d4ed8;">${formatRupiah(kontrakVal)}</div>
+            <div style="font-size:10.5px; color:#1e40af; margin-top:2px;">
+              Termasuk PPN 11% &amp; PPh 22 1,5% | MAK 532111 Belanja Modal
+            </div>
+            <div style="font-size:11px; color:#1e293b; margin-top:4px; padding-top:4px; border-top:1px dashed #bfdbfe;">
+              <b>Rapat PAM (Tahap 12):</b> Selasa, 26 Mei 2026 (09.00 WIB)
+            </div>
+            <div style="font-size:11px; color:#1e293b; margin-top:2px;">
+              <b>Target TTD Kontrak:</b> <span style="color:#b91c1c; font-weight:700;">${cakraEsc(batasTtdKontrak)}</span> (Maks 14 Hari Kerja)
+            </div>
+            <div style="font-size:10.5px; color:#64748b; margin-top:2px;">
+              Bentuk Naskah: Surat Pesanan E-Purchasing Katalog
+            </div>
           </div>
         </div>
       `;
+    }
 
     case 12:
       return `
@@ -9876,23 +9929,82 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
     }
 
-    case 11:
+    case 11: {
+      const defaultNoSppbj = activeTRow.nomor_dokumen || paket.no_sppbj || `011/SPPBJ/${paket.kode_paket_internal || 'PBJ-2026-001'}/PPK-PBJ/KPU-NGW/V/2026`;
+      const defaultTglSppbj = activeTRow.tanggal_dokumen || paket.tgl_sppbj || '2026-05-25';
+      const defaultStatusJaminan = paket.status_jaminan_pelaksanaan || 'DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)';
+      const defaultAlasan = paket.alasan_bebas_jaminan || 'Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ jo. Kepka LKPP No. 177/2024';
+      const defaultNoKesanggupan = paket.no_surat_kesanggupan_penyedia || '028/GPN-NGW/SP-SPPBJ/V/2026';
+      const defaultTglKesanggupan = paket.tgl_surat_kesanggupan || '2026-05-25';
+      const defaultBatasTtd = paket.batas_waktu_ttd_kontrak || '2026-05-27';
+      const defaultCatatan = paket.catatan_sppbj || 'PPK telah menerbitkan Surat Penunjukan Penyedia Barang/Jasa (SPPBJ) kepada CV. Grafika Pratama Ngawi berdasarkan Berita Acara Reviu Tahap 10. Nilai penunjukan Rp 138.000.000,- (Termasuk PPN 11%). Jaminan Pelaksanaan DIBEBASKAN berdasarkan Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ. Rekanan telah menyampaikan Surat Pernyataan Kesanggupan dan siap menghadiri Rapat PAM Tahap 12.';
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Penerbitan SPPBJ &amp; Ketentuan Jaminan Pelaksanaan</div>
-        <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor SPPBJ PPK</label>
-            <input type="text" id="mu_no_sppbj" class="cakra-form-control cakra-mono" value="${cakraEsc(activeTRow.no_sppbj || generateAutoStageDocNumber(11, paket.kode_paket_internal, activeTRow.tanggal_dokumen))}" />
+        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px;">
+          🎯 Form Penerbitan SPPBJ, Penetapan Jaminan Pelaksanaan &amp; Verifikasi Surat Kesanggupan Rekanan
+        </div>
+
+        <!-- BLOK 1: NASKAH SPPBJ PPK -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#1e293b; text-transform:uppercase; margin-bottom:8px;">
+            📄 1. Naskah Surat Penunjukan Penyedia Barang/Jasa (SPPBJ)
+          </div>
+          <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor SPPBJ PPK</label>
+              <input type="text" id="mu_no_sppbj" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultNoSppbj)}" placeholder="Nomor SPPBJ PPK" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal SPPBJ</label>
+              <input type="date" id="mu_tgl_sppbj" class="cakra-form-control" value="${cakraEsc(defaultTglSppbj)}" />
+            </div>
           </div>
           <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Jaminan Pelaksanaan</label>
-            <select id="mu_wajib_jaminan_pelaksanaan" class="cakra-form-control">
-              <option value="Tidak Wajib (Non-Tender / E-Purchasing)">Tidak Wajib (Non-Tender / E-Purchasing)</option>
-              <option value="Wajib 5% dari Nilai Kontrak">Wajib 5% dari Nilai Kontrak</option>
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Batas Akhir Penandatanganan Kontrak (Maks 14 Hari Kerja)</label>
+            <input type="date" id="mu_batas_waktu_ttd_kontrak" class="cakra-form-control" value="${cakraEsc(defaultBatasTtd)}" />
+          </div>
+        </div>
+
+        <!-- BLOK 2: KETENTUAN JAMINAN PELAKSANAAN -->
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#166534; text-transform:uppercase; margin-bottom:8px;">
+            🛡️ 2. Ketentuan Jaminan Pelaksanaan (Pasal 33 Perpres PBJ)
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status Kewajiban Jaminan Pelaksanaan</label>
+            <select id="mu_status_jaminan_pelaksanaan" class="cakra-form-control" style="font-weight:700; color:#15803d;">
+              <option value="DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)" ${defaultStatusJaminan.includes('DIBEBASKAN') ? 'selected' : ''}>✅ DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)</option>
+              <option value="DIPERSYARATKAN (Wajib 5% dari Nilai Kontrak)" ${defaultStatusJaminan.includes('DIPERSYARATKAN') ? 'selected' : ''}>⚠️ DIPERSYARATKAN (Wajib 5% dari Nilai Kontrak)</option>
             </select>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Dasar Yuridis Pembebasan Jaminan Pelaksanaan</label>
+            <input type="text" id="mu_alasan_bebas_jaminan" class="cakra-form-control" value="${cakraEsc(defaultAlasan)}" placeholder="Dasar Regulasi Pembebasan" />
+          </div>
+        </div>
+
+        <!-- BLOK 3: SURAT PERNYATAAN KESANGGUPAN REKANAN -->
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:8px;">
+            ✍️ 3. Surat Pernyataan Kesanggupan &amp; Penerimaan SPPBJ oleh Rekanan
+          </div>
+          <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Nomor Surat Kesanggupan Rekanan</label>
+              <input type="text" id="mu_no_surat_kesanggupan_penyedia" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultNoKesanggupan)}" placeholder="Nomor Surat Kesanggupan Rekanan" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Tanggal Surat Kesanggupan</label>
+              <input type="date" id="mu_tgl_surat_kesanggupan" class="cakra-form-control" value="${cakraEsc(defaultTglKesanggupan)}" />
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Catatan PPK atas Penerbitan SPPBJ</label>
+            <textarea id="mu_catatan_sppbj" class="cakra-form-control" rows="2">${cakraEsc(defaultCatatan)}</textarea>
           </div>
         </div>
       `;
+    }
 
     case 12:
       return `
@@ -10348,6 +10460,22 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
     }
     if (extraPaketFields.tgl_reviu_ppk) {
       tanggalDokumen = extraPaketFields.tgl_reviu_ppk;
+    }
+  } else if (num === 11) {
+    extraPaketFields.no_sppbj = getStr('mu_no_sppbj') || paket.no_sppbj;
+    extraPaketFields.tgl_sppbj = getStr('mu_tgl_sppbj') || paket.tgl_sppbj;
+    extraPaketFields.status_jaminan_pelaksanaan = getStr('mu_status_jaminan_pelaksanaan') || paket.status_jaminan_pelaksanaan;
+    extraPaketFields.alasan_bebas_jaminan = getStr('mu_alasan_bebas_jaminan') || paket.alasan_bebas_jaminan;
+    extraPaketFields.no_surat_kesanggupan_penyedia = getStr('mu_no_surat_kesanggupan_penyedia') || paket.no_surat_kesanggupan_penyedia;
+    extraPaketFields.tgl_surat_kesanggupan = getStr('mu_tgl_surat_kesanggupan') || paket.tgl_surat_kesanggupan;
+    extraPaketFields.batas_waktu_ttd_kontrak = getStr('mu_batas_waktu_ttd_kontrak') || paket.batas_waktu_ttd_kontrak;
+    extraPaketFields.catatan_sppbj = getStr('mu_catatan_sppbj') || paket.catatan_sppbj;
+
+    if (extraPaketFields.no_sppbj) {
+      nomorDokumen = extraPaketFields.no_sppbj;
+    }
+    if (extraPaketFields.tgl_sppbj) {
+      tanggalDokumen = extraPaketFields.tgl_sppbj;
     }
   } else if (num === 12) {
     extraPaketFields.nama_bank_penyedia = getStr('mu_nama_bank_penyedia') || paket.nama_bank_penyedia;
