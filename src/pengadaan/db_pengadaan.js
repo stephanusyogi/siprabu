@@ -147,9 +147,21 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN no_ba_nego VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN no_bahp VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN kode_tender_spse VARCHAR(64) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_ba_reviu_ppk VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_reviu_ppk VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN kesimpulan_reviu_ppk VARCHAR(191) DEFAULT 'Disetujui Penuh (Dokumen Lengkap, Lanjut SPPBJ Tahap 11)'",
+    "ALTER TABLE pbj_paket ADD COLUMN status_kswp VARCHAR(100) DEFAULT 'Valid / Konfirmasi Sesuai'",
+    "ALTER TABLE pbj_paket ADD COLUMN status_daftar_hitam VARCHAR(100) DEFAULT 'Tidak Tercantum (Bebas Sanksi Daftar Hitam)'",
+    "ALTER TABLE pbj_paket ADD COLUMN bo_nama VARCHAR(191) DEFAULT 'Hendra Suryawan'",
+    "ALTER TABLE pbj_paket ADD COLUMN bo_nik VARCHAR(64) DEFAULT '3521011504820003'",
+    "ALTER TABLE pbj_paket ADD COLUMN bo_posisi VARCHAR(100) DEFAULT 'Pemilik Modal / Direktur (100%)'",
+    "ALTER TABLE pbj_paket ADD COLUMN bo_benturan_kepentingan VARCHAR(100) DEFAULT 'Bebas Benturan Kepentingan'",
+    "ALTER TABLE pbj_paket ADD COLUMN evaluasi_spek_sla VARCHAR(255) DEFAULT 'Sesuai 100% KAK & Garansi Resmi 1 Tahun Pabrikan'",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_reviu_ppk TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_reviu_dpp VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_nego VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bahp VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_reviu_ppk VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_item ADD COLUMN kode_barang_bmn VARCHAR(128) DEFAULT '1.01.03.01.001 (Persediaan / BMN)'",
     "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'",
     "ALTER TABLE pbj_paket_item ADD COLUMN evaluasi_pasar_json TEXT DEFAULT NULL",
@@ -637,6 +649,8 @@ async function savePaket(data) {
         nama_pokja=?, sk_pokja=?,
         id_paket_katalog=?, no_undangan_penawaran=?, no_surat_penawaran=?, tgl_surat_penawaran=?,
         tempat_pemilihan=?, no_ba_nego=?, no_bahp=?, kode_tender_spse=?,
+        no_ba_reviu_ppk=?, tgl_reviu_ppk=?, kesimpulan_reviu_ppk=?, status_kswp=?, status_daftar_hitam=?,
+        bo_nama=?, bo_nik=?, bo_posisi=?, bo_benturan_kepentingan=?, evaluasi_spek_sla=?, catatan_reviu_ppk=?,
         masa_pelaksanaan_hari=?, tgl_mulai_kerja=?, tgl_selesai_kontrak=?, tgl_realisasi_selesai=?, hari_terlambat=?,
         persen_uang_muka=?, nilai_uang_muka=?, wajib_jaminan_pelaksanaan=?, nilai_jaminan_pelaksanaan=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
@@ -681,6 +695,17 @@ async function savePaket(data) {
         p.no_ba_nego || cur.no_ba_nego || null,
         p.no_bahp || cur.no_bahp || null,
         p.kode_tender_spse || cur.kode_tender_spse || null,
+        p.no_ba_reviu_ppk || cur.no_ba_reviu_ppk || null,
+        p.tgl_reviu_ppk || cur.tgl_reviu_ppk || null,
+        p.kesimpulan_reviu_ppk || cur.kesimpulan_reviu_ppk || 'Disetujui Penuh (Dokumen Lengkap, Lanjut SPPBJ Tahap 11)',
+        p.status_kswp || cur.status_kswp || 'Valid / Konfirmasi Sesuai',
+        p.status_daftar_hitam || cur.status_daftar_hitam || 'Tidak Tercantum (Bebas Sanksi Daftar Hitam)',
+        p.bo_nama || cur.bo_nama || 'Hendra Suryawan',
+        p.bo_nik || cur.bo_nik || '3521011504820003',
+        p.bo_posisi || cur.bo_posisi || 'Pemilik Modal / Direktur (100%)',
+        p.bo_benturan_kepentingan || cur.bo_benturan_kepentingan || 'Bebas Benturan Kepentingan',
+        p.evaluasi_spek_sla || cur.evaluasi_spek_sla || 'Sesuai 100% KAK & Garansi Resmi 1 Tahun Pabrikan',
+        p.catatan_reviu_ppk || cur.catatan_reviu_ppk || null,
         Number(p.masa_pelaksanaan_hari ?? cur.masa_pelaksanaan_hari ?? 14),
         p.tgl_mulai_kerja || cur.tgl_mulai_kerja || '2026-05-18', p.tgl_selesai_kontrak || cur.tgl_selesai_kontrak || '2026-05-31', p.tgl_realisasi_selesai || cur.tgl_realisasi_selesai || '2026-05-30', Number(p.hari_terlambat ?? cur.hari_terlambat ?? 0),
         Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0), Math.round(((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) || Number(p.nilai_hps ?? cur.nilai_hps ?? 0) || Number(p.nilai_pagu ?? cur.nilai_pagu ?? 0)) * Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0)) / 100),
@@ -716,8 +741,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -726,7 +751,8 @@ async function savePaket(data) {
            catatan_tahap = VALUES(catatan_tahap),
            no_reviu_dpp = VALUES(no_reviu_dpp),
            no_ba_nego = VALUES(no_ba_nego),
-           no_bahp = VALUES(no_bahp)`,
+           no_bahp = VALUES(no_bahp),
+           no_ba_reviu_ppk = VALUES(no_ba_reviu_ppk)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -736,7 +762,8 @@ async function savePaket(data) {
           su.catatan_tahap || existingStage.catatan_tahap || '',
           su.no_reviu_dpp || existingStage.no_reviu_dpp || null,
           su.no_ba_nego || existingStage.no_ba_nego || null,
-          su.no_bahp || existingStage.no_bahp || null
+          su.no_bahp || existingStage.no_bahp || null,
+          su.no_ba_reviu_ppk || existingStage.no_ba_reviu_ppk || null
         ]
       );
 

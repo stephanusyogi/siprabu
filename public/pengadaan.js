@@ -5648,21 +5648,79 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 10:
+    case 10: {
+      const hpsVal = Number(paket.nilai_hps || paket.nilai_pagu || 0);
+      const paguVal = Number(paket.nilai_pagu || 0);
+      const kontrakVal = Number(paket.nilai_kontrak || 0);
+      const efisiensiHps = Math.max(0, hpsVal - kontrakVal);
+      const persenEfisiensiHps = hpsVal > 0 ? ((efisiensiHps / hpsVal) * 100).toFixed(2) : '0.00';
+      const efisiensiPagu = Math.max(0, paguVal - kontrakVal);
+      const persenEfisiensiPagu = paguVal > 0 ? ((efisiensiPagu / paguVal) * 100).toFixed(2) : '0.00';
+
+      const noBaReviu = activeTRow.nomor_dokumen || paket.no_ba_reviu_ppk || `010/BA-REV/${paket.kode_paket_internal || 'PBJ-2026-001'}/PPK-PBJ/KPU-NGW/V/2026`;
+      const tglReviu = activeTRow.tanggal_dokumen || paket.tgl_reviu_ppk || '2026-05-22';
+      const kesimpulan = paket.kesimpulan_reviu_ppk || 'Disetujui Penuh (Dokumen Lengkap, Lanjut SPPBJ Tahap 11)';
+      const statusKswp = paket.status_kswp || 'Valid / Konfirmasi Sesuai';
+      const statusBlacklist = paket.status_daftar_hitam || 'Tidak Tercantum (Bebas Sanksi Daftar Hitam)';
+      const boNama = paket.bo_nama || 'Hendra Suryawan';
+      const boNik = paket.bo_nik || '3521011504820003';
+      const boPosisi = paket.bo_posisi || 'Pemilik Modal / Direktur (100%)';
+      const boBenturan = paket.bo_benturan_kepentingan || 'Bebas Benturan Kepentingan';
+      const evalSpek = paket.evaluasi_spek_sla || 'Sesuai 100% KAK & Garansi Resmi 1 Tahun Pabrikan On-Site';
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">Konfirmasi Status Wajib Pajak (KSWP)</div>
-            <div style="font-size:13.5px; font-weight:800; color:#15803d;">✅ Valid / Terkonfirmasi</div>
-            <div style="font-size:11px; color:#166534; margin-top:2px;">Integrasi DJP Kemenkeu</div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+          <!-- KARTU 1: HASIL & KEPUTUSAN REVIU PPK -->
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">KEPUTUSAN REVIU HASIL PEMILIHAN (PPK)</div>
+            <div style="font-size:13.5px; font-weight:800; color:#15803d; margin-bottom:4px;">✅ ${cakraEsc(kesimpulan)}</div>
+            <div style="font-size:11.5px; color:#1e293b; margin-top:4px;">
+              <b>No. BA Reviu:</b> <span class="cakra-mono" style="color:#1e40af; font-weight:700;">${cakraEsc(noBaReviu)}</span>
+            </div>
+            <div style="font-size:11px; color:#64748b; margin-top:2px;">
+              <b>Tanggal Reviu:</b> ${cakraEsc(tglReviu)} | <b>Dasar:</b> BAHP-EP No. ${cakraEsc(paket.no_bahp || '009/BAHP-EP/...')}
+            </div>
+            <div style="font-size:10.5px; color:#64748b; margin-top:4px; padding-top:4px; border-top:1px dashed #e2e8f0;">
+              Penelaah: <b>MOHAMMAD NOOR JIHAN</b> (PPK) bersama Pejabat Pengadaan
+            </div>
           </div>
+
+          <!-- KARTU 2: UJI TUNTAS KUALIFIKASI & BENEFICIAL OWNERSHIP -->
           <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">Beneficial Ownership &amp; Blacklist</div>
-            <div style="font-size:13.5px; font-weight:800; color:#15803d;">✅ Bebas Daftar Hitam</div>
-            <div style="font-size:11px; color:#166534; margin-top:2px;">Pemilik Manfaat: ${cakraEsc(paket.bo_nama || 'Direktur Utama')} (Bebas Konflik)</div>
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">UJI TUNTAS INTEGRITAS &amp; BENEFICIAL OWNERSHIP</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span style="font-size:11px; color:#166534;"><b>Status KSWP DJP:</b></span>
+              <span style="font-size:11.5px; font-weight:800; color:#15803d;">✅ ${cakraEsc(statusKswp)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span style="font-size:11px; color:#166534;"><b>SiKAP / Inaproc:</b></span>
+              <span style="font-size:11.5px; font-weight:800; color:#15803d;">✅ ${cakraEsc(statusBlacklist)}</span>
+            </div>
+            <div style="font-size:11px; color:#166534; margin-top:4px; padding-top:4px; border-top:1px dashed #86efac;">
+              <b>Pemilik Manfaat (BO):</b> ${cakraEsc(boNama)} (NIK: ${cakraEsc(boNik)})
+            </div>
+            <div style="font-size:10.5px; color:#166534; margin-top:2px;">
+              <b>Kedudukan:</b> ${cakraEsc(boPosisi)} | <b>Integritas:</b> ${cakraEsc(boBenturan)}
+            </div>
+          </div>
+
+          <!-- KARTU 3: EVALUASI KEUANGAN & KESESUAIAN TEKNIS -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
+            <div style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">NILAI KONTRAK SEPAKAT &amp; EFISIENSI</div>
+            <div style="font-size:15px; font-weight:800; color:#1d4ed8;">${formatRupiah(kontrakVal)}</div>
+            <div style="font-size:11px; color:#1e40af; margin-top:2px;">
+              <b>Efisiensi HPS:</b> ${formatRupiah(efisiensiHps)} (${persenEfisiensiHps}%)
+            </div>
+            <div style="font-size:11px; color:#1e40af; margin-top:1px;">
+              <b>Efisiensi DIPA:</b> ${formatRupiah(efisiensiPagu)} (${persenEfisiensiPagu}%)
+            </div>
+            <div style="font-size:10.5px; color:#334155; margin-top:4px; padding-top:4px; border-top:1px dashed #bfdbfe;">
+              <b>Mutu &amp; SLA:</b> ${cakraEsc(evalSpek)}
+            </div>
           </div>
         </div>
       `;
+    }
 
     case 11:
       return `
@@ -9698,23 +9756,116 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
     }
 
-    case 10:
+    case 10: {
+      const defaultNoBa = activeTRow.nomor_dokumen || paket.no_ba_reviu_ppk || `010/BA-REV/${paket.kode_paket_internal || 'PBJ-2026-001'}/PPK-PBJ/KPU-NGW/V/2026`;
+      const defaultTgl = activeTRow.tanggal_dokumen || paket.tgl_reviu_ppk || '2026-05-22';
+      const defaultKesimpulan = paket.kesimpulan_reviu_ppk || 'Disetujui Penuh (Dokumen Lengkap, Lanjut SPPBJ Tahap 11)';
+      const defaultKswp = paket.status_kswp || 'Valid / Konfirmasi Sesuai';
+      const defaultBlacklist = paket.status_daftar_hitam || 'Tidak Tercantum (Bebas Sanksi Daftar Hitam)';
+      const defaultBoNama = paket.bo_nama || 'Hendra Suryawan';
+      const defaultBoNik = paket.bo_nik || '3521011504820003';
+      const defaultBoPosisi = paket.bo_posisi || 'Pemilik Modal / Direktur (100%)';
+      const defaultBoBenturan = paket.bo_benturan_kepentingan || 'Bebas Benturan Kepentingan';
+      const defaultSpek = paket.evaluasi_spek_sla || 'Sesuai 100% KAK & Garansi Resmi 1 Tahun Pabrikan On-Site';
+      const defaultCatatan = paket.catatan_reviu_ppk || 'PPK telah meneliti Berita Acara Hasil Pemilihan (BAHP-EP) dan seluruh berkas pendukung. Memenuhi syarat legalitas, teknis, harga, KSWP valid, bebas sanksi daftar hitam, dan bebas benturan kepentingan. Disetujui penuh untuk diterbitkan SPPBJ.';
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Reviu Pemilihan &amp; Validasi Integritas Rekanan</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Status Validasi KSWP</label>
-            <select id="mu_status_kswp" class="cakra-form-control">
-              <option value="Valid / Konfirmasi Sesuai">Valid / Konfirmasi Sesuai</option>
-              <option value="Perlu Klarifikasi">Perlu Klarifikasi</option>
-            </select>
+        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px;">
+          🎯 Form Reviu Hasil Pemilihan Penyedia, Uji Tuntas KSWP &amp; Validasi Beneficial Ownership (PPK Gatekeeping)
+        </div>
+
+        <!-- BLOK 1: NASKAH DINAS BERITA ACARA REVIU PPK -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#1e293b; text-transform:uppercase; margin-bottom:8px;">
+            📄 1. Naskah Berita Acara Reviu &amp; Keputusan PPK
+          </div>
+          <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor BA Reviu PPK</label>
+              <input type="text" id="mu_no_ba_reviu_ppk" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultNoBa)}" placeholder="Nomor Berita Acara Reviu PPK" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Reviu PPK</label>
+              <input type="date" id="mu_tgl_reviu_ppk" class="cakra-form-control" value="${cakraEsc(defaultTgl)}" />
+            </div>
           </div>
           <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Beneficial Ownership (Pemilik Manfaat)</label>
-            <input type="text" id="mu_bo_nama" class="cakra-form-control" value="${cakraEsc(paket.bo_nama || 'Direktur Utama')}" placeholder="Nama Pemilik Manfaat" />
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kesimpulan &amp; Keputusan PPK</label>
+            <select id="mu_kesimpulan_reviu_ppk" class="cakra-form-control" style="font-weight:700; color:#15803d;">
+              <option value="Disetujui Penuh (Dokumen Lengkap, Lanjut SPPBJ Tahap 11)" ${defaultKesimpulan.includes('Disetujui') ? 'selected' : ''}>✅ Disetujui Penuh (Dokumen Lengkap, Lanjut SPPBJ Tahap 11)</option>
+              <option value="Perlu Klarifikasi Tambahan kepada Pejabat Pengadaan" ${defaultKesimpulan.includes('Klarifikasi') ? 'selected' : ''}>⚠️ Perlu Klarifikasi Tambahan kepada Pejabat Pengadaan</option>
+              <option value="Ditolak (Tidak Memenuhi Syarat Regulasi / KAK)" ${defaultKesimpulan.includes('Ditolak') ? 'selected' : ''}>❌ Ditolak (Tidak Memenuhi Syarat Regulasi / KAK)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- BLOK 2: INSTRUMEN UJI TUNTAS KUALIFIKASI & INTEGRITAS -->
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#166534; text-transform:uppercase; margin-bottom:8px;">
+            🛡️ 2. Instrumen Uji Tuntas Integritas &amp; Kualifikasi Penyedia
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status KSWP DJP Kemenkeu</label>
+              <select id="mu_status_kswp" class="cakra-form-control">
+                <option value="Valid / Konfirmasi Sesuai" ${defaultKswp.includes('Valid') ? 'selected' : ''}>Valid / Konfirmasi Sesuai</option>
+                <option value="Perlu Klarifikasi SPT" ${defaultKswp.includes('Klarifikasi') ? 'selected' : ''}>Perlu Klarifikasi SPT</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status Daftar Hitam (SiKAP LKPP)</label>
+              <select id="mu_status_daftar_hitam" class="cakra-form-control">
+                <option value="Tidak Tercantum (Bebas Sanksi Daftar Hitam)" ${defaultBlacklist.includes('Tidak') ? 'selected' : ''}>Tidak Tercantum (Bebas Sanksi)</option>
+                <option value="Tercantum Sanksi Aktif" ${defaultBlacklist.includes('Tercantum') ? 'selected' : ''}>Tercantum Sanksi Aktif</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Pernyataan Bebas Benturan Kepentingan (Pasal 7 Perpres 46/2025)</label>
+            <select id="mu_bo_benturan_kepentingan" class="cakra-form-control">
+              <option value="Bebas Benturan Kepentingan" ${defaultBoBenturan.includes('Bebas') ? 'selected' : ''}>Bebas Benturan Kepentingan (Tidak Ada Hubungan Keluarga/Afiliasi)</option>
+              <option value="Terdapat Potensi Benturan Kepentingan" ${defaultBoBenturan.includes('Potensi') ? 'selected' : ''}>Terdapat Potensi Benturan Kepentingan</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- BLOK 3: BENEFICIAL OWNERSHIP (PERPRES 13/2018) -->
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:8px;">
+            👥 3. Validasi Pemilik Manfaat Korporasi (Beneficial Ownership)
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Nama Pemilik Manfaat (BO)</label>
+              <input type="text" id="mu_bo_nama" class="cakra-form-control" value="${cakraEsc(defaultBoNama)}" placeholder="Nama Pemilik Manfaat Sejati" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">NIK Pemilik Manfaat</label>
+              <input type="text" id="mu_bo_nik" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultBoNik)}" placeholder="NIK KTP Pemilik Manfaat" />
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Kedudukan &amp; Persentase Kepemilikan BO</label>
+            <input type="text" id="mu_bo_posisi" class="cakra-form-control" value="${cakraEsc(defaultBoPosisi)}" placeholder="Kedudukan / Saham BO" />
+          </div>
+        </div>
+
+        <!-- BLOK 4: KESESUAIAN TEKNIS & CATATAN REKOMENDASI SPPBJ -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#0f172a; text-transform:uppercase; margin-bottom:8px;">
+            ⚙️ 4. Evaluasi Mutu KAK &amp; Rekomendasi PPK untuk SPPBJ
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kesesuaian Teknis &amp; SLA Garansi Purna Jual</label>
+            <input type="text" id="mu_evaluasi_spek_sla" class="cakra-form-control" value="${cakraEsc(defaultSpek)}" placeholder="Evaluasi Kepatuhan KAK & SLA Garansi" />
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Catatan &amp; Arahan PPK untuk Penerbitan SPPBJ (Tahap 11)</label>
+            <textarea id="mu_catatan_reviu_ppk" class="cakra-form-control" rows="2" placeholder="Catatan atau instruksi khusus PPK">${cakraEsc(defaultCatatan)}</textarea>
           </div>
         </div>
       `;
+    }
 
     case 11:
       return `
@@ -10171,7 +10322,24 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       nomorDokumen = extraPaketFields.no_bahp;
     }
   } else if (num === 10) {
+    extraPaketFields.no_ba_reviu_ppk = getStr('mu_no_ba_reviu_ppk') || paket.no_ba_reviu_ppk;
+    extraPaketFields.tgl_reviu_ppk = getStr('mu_tgl_reviu_ppk') || paket.tgl_reviu_ppk;
+    extraPaketFields.kesimpulan_reviu_ppk = getStr('mu_kesimpulan_reviu_ppk') || paket.kesimpulan_reviu_ppk;
+    extraPaketFields.status_kswp = getStr('mu_status_kswp') || paket.status_kswp;
+    extraPaketFields.status_daftar_hitam = getStr('mu_status_daftar_hitam') || paket.status_daftar_hitam;
     extraPaketFields.bo_nama = getStr('mu_bo_nama') || paket.bo_nama;
+    extraPaketFields.bo_nik = getStr('mu_bo_nik') || paket.bo_nik;
+    extraPaketFields.bo_posisi = getStr('mu_bo_posisi') || paket.bo_posisi;
+    extraPaketFields.bo_benturan_kepentingan = getStr('mu_bo_benturan_kepentingan') || paket.bo_benturan_kepentingan;
+    extraPaketFields.evaluasi_spek_sla = getStr('mu_evaluasi_spek_sla') || paket.evaluasi_spek_sla;
+    extraPaketFields.catatan_reviu_ppk = getStr('mu_catatan_reviu_ppk') || paket.catatan_reviu_ppk;
+
+    if (extraPaketFields.no_ba_reviu_ppk) {
+      nomorDokumen = extraPaketFields.no_ba_reviu_ppk;
+    }
+    if (extraPaketFields.tgl_reviu_ppk) {
+      tanggalDokumen = extraPaketFields.tgl_reviu_ppk;
+    }
   } else if (num === 12) {
     extraPaketFields.nama_bank_penyedia = getStr('mu_nama_bank_penyedia') || paket.nama_bank_penyedia;
     extraPaketFields.no_rekening_penyedia = getStr('mu_no_rekening_penyedia') || paket.no_rekening_penyedia;
@@ -10211,7 +10379,8 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       catatan_tahap: catatanTahap,
       no_reviu_dpp: getStr('mu_no_reviu_dpp') || activeTRow.no_reviu_dpp || '',
       no_ba_nego: extraPaketFields.no_ba_nego || activeTRow.no_ba_nego || '',
-      no_bahp: extraPaketFields.no_bahp || activeTRow.no_bahp || ''
+      no_bahp: extraPaketFields.no_bahp || activeTRow.no_bahp || '',
+      no_ba_reviu_ppk: extraPaketFields.no_ba_reviu_ppk || activeTRow.no_ba_reviu_ppk || ''
     }
   };
 
