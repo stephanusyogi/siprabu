@@ -5688,7 +5688,13 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
           <!-- KARTU 2: UJI TUNTAS KUALIFIKASI & BENEFICIAL OWNERSHIP -->
           <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
             <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">UJI TUNTAS INTEGRITAS &amp; BENEFICIAL OWNERSHIP</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-size:11.5px; font-weight:700; color:#0f172a; margin-bottom:3px;">
+              🏢 <b>${cakraEsc(paket.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI')}</b>
+            </div>
+            <div style="font-size:10.5px; color:#334155; margin-bottom:4px;">
+              <b>KBLI Sah:</b> <span style="background:#dcfce7; color:#166534; font-weight:700; padding:1px 5px; border-radius:4px; border:1px solid #86efac;">46511 (Komputer &amp; Perlengkapan)</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
               <span style="font-size:11px; color:#166534;"><b>Status KSWP DJP:</b></span>
               <span style="font-size:11.5px; font-weight:800; color:#15803d;">✅ ${cakraEsc(statusKswp)}</span>
             </div>
@@ -5713,6 +5719,9 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
             </div>
             <div style="font-size:11px; color:#1e40af; margin-top:1px;">
               <b>Efisiensi DIPA:</b> ${formatRupiah(efisiensiPagu)} (${persenEfisiensiPagu}%)
+            </div>
+            <div style="font-size:10.5px; color:#1e40af; margin-top:2px;">
+              <b>Akun Anggaran:</b> MAK 532111 (Belanja Modal Alat &amp; Mesin)
             </div>
             <div style="font-size:10.5px; color:#334155; margin-top:4px; padding-top:4px; border-top:1px dashed #bfdbfe;">
               <b>Mutu &amp; SLA:</b> ${cakraEsc(evalSpek)}
