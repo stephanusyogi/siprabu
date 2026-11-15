@@ -70,6 +70,7 @@ const PRABU_VIEW_CODES = {
   'view-db-kuantitas': 12,
   'view-db-sbm': 13,
   'view-db-bas': 14,
+  'view-db-kbli': 141,
   'view-db-regulasi': 15,
   'view-db-settings': 16,
   'view-settings': 16,
@@ -109,6 +110,7 @@ const PRABU_CODE_TO_VIEW = {
   12: 'view-db-kuantitas',
   13: 'view-db-sbm',
   14: 'view-db-bas',
+  141: 'view-db-kbli',
   15: 'view-db-regulasi',
   16: 'view-db-settings',
   17: 'view-panduan',
@@ -147,6 +149,7 @@ const PRABU_VIEW_TITLES = {
   'view-db-kuantitas': 'Master Database Kuantitas',
   'view-db-sbm': 'Master Standar Biaya Masukan (SBM)',
   'view-db-bas': 'Master Bagan Akun Standar (BAS)',
+  'view-db-kbli': 'Master KBLI (Klasifikasi Baku Lapangan Usaha)',
   'view-db-regulasi': 'Regulasi & Dasar Hukum JDIH',
   'view-juknis-kegiatan': 'Standar 28 Kegiatan KPT 543/2022',
   'view-db-settings': 'Pengaturan Sistem & Parameter',
@@ -833,8 +836,8 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
   // 1. Terapkan visibilitas pada setiap tombol menu berdasarkan data-view (Mendukung Mode Peran Bergantian & Kumulatif)
   matrix.forEach(item => {
     if (item.menu_key === 'view-pengadaan-kokpit') return;
-    const btn = document.querySelector('button[data-view="' + item.menu_key + '"]');
-    if (!btn) return;
+    const btns = document.querySelectorAll('button[data-view="' + item.menu_key + '"]');
+    if (!btns || btns.length === 0) return;
 
     let isAllowed = false;
     if (isKumulatif) {
@@ -847,7 +850,9 @@ function applyDynamicMenuMatrix(user = AppState.currentUser) {
     } else {
       isAllowed = Boolean(item['allow_l' + activeLevel]);
     }
-    btn.style.display = isAllowed ? 'flex' : 'none';
+    btns.forEach(btn => {
+      btn.style.display = isAllowed ? 'flex' : 'none';
+    });
   });
 
   // 2. Evaluasi Folder (Auto-Hide jika semua submenu di dalamnya 'none')
@@ -2793,6 +2798,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-db-kuantitas') { renderDbKuantitas(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-sbm') { renderDbSbm(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-bas') { renderDbBas(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-db-kbli') { if (typeof renderDbKbli === 'function') renderDbKbli(); }
   else if (viewId === 'view-db-regulasi') { renderDbRegulasi(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-juknis-kegiatan') {
     if (AppState.juknisExpandedSet) AppState.juknisExpandedSet.clear();
@@ -15388,8 +15394,8 @@ function renderMenuMatrixTable() {
     'folder-pengadaan': '2. Pengadaan',
     'folder-pembayaran': '3. Pembayaran',
     'folder-rekap': 'Rekapitulasi Anggaran',
-    'folder-referensi': 'Referensi Standar (SSOT, SBM, BAS)',
-    'folder-database': 'Database Master Wilayah & Paslon',
+    'folder-referensi': 'Referensi Standar (SSOT, SBM, BAS, KBLI)',
+    'folder-database': 'Database Master Wilayah & Rekanan',
     'folder-panduan': 'Panduan & Regulasi',
     'folder-administrasi': 'Administrasi & Pengaturan',
     'folder-developer': 'Konsol Arsitektur Sistem'

@@ -501,47 +501,50 @@ function initDb() {
   safeAddColumn('satker_users', 'can_delete INTEGER DEFAULT 1');
   safeAddColumn('satker_user_roles', 'can_delete INTEGER DEFAULT 1');
 
-  // Registri 33 Halaman Resmi & Matriks Standar Siklus Hulu-ke-Hilir (Perencanaan - Pengadaan - Pembayaran)
+  // Registri 36 Halaman Resmi & Matriks Standar Siklus Hulu-ke-Hilir (Perencanaan - Pengadaan - Pembayaran)
   const canonicalMenus = [
-    { urutan: 1, menu_key: 'view-dashboard', menu_label: 'Beranda (Dashboard)', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
-    { urutan: 2, menu_key: 'view-siklus', menu_label: 'Dokumen Anggaran', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    { urutan: 1, menu_key: 'view-dashboard', menu_label: 'Beranda (Dashboard)', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 2, menu_key: 'view-siklus', menu_label: 'Dokumen Anggaran', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
     // 1. TAHAP PERENCANAAN
-    { urutan: 3, menu_key: 'view-rkb', menu_label: 'RUH Belanja RKB', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 4, menu_key: 'view-revisi-pengajuan', menu_label: 'Pengajuan Usulan Revisi', folder_key: 'folder-perencanaan', flags: [1,1,1,1,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 5, menu_key: 'view-revisi-validasi', menu_label: 'Validasi Revisi', folder_key: 'folder-perencanaan', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 6, menu_key: 'view-revisi-tahap4', menu_label: 'Pengesahan BA Pleno (Tahap 4)', folder_key: 'folder-perencanaan', flags: [1,1,0,0,1,1,1,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 7, menu_key: 'view-revisi-monitoring', menu_label: 'Monitoring Revisi (4 Tahap)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 8, menu_key: 'view-rekap-perencanaan', menu_label: 'Rekap Perencanaan', folder_key: 'folder-perencanaan', flags: [1,1,1,0,1,1,1,1,1,1,0], req_mode: 'VIEWER' },
-    { urutan: 9, menu_key: 'view-juknis-kegiatan', menu_label: 'Standar 28 Kegiatan (KPT 543)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
-    { urutan: 10, menu_key: 'view-panduan', menu_label: 'Panduan Perencanaan', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    // 2. TAHAP PENGADAAN
-    { urutan: 11, menu_key: 'view-pengadaan-paket', menu_label: 'Daftar Paket Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
-    { urutan: 12, menu_key: 'view-pengadaan-kokpit', menu_label: 'Kokpit 18 Tahap', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
-    { urutan: 13, menu_key: 'view-rekap-pengadaan', menu_label: 'Rekap Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 14, menu_key: 'view-panduan-pengadaan', menu_label: 'Panduan Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 3, menu_key: 'view-rkb', menu_label: 'RUH Belanja RKB', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 4, menu_key: 'view-revisi-pengajuan', menu_label: 'Pengajuan Usulan Revisi', folder_key: 'folder-perencanaan', flags: [1,1,1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 5, menu_key: 'view-revisi-validasi', menu_label: 'Validasi Revisi', folder_key: 'folder-perencanaan', flags: [1,1,0,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 6, menu_key: 'view-revisi-tahap4', menu_label: 'Pengesahan BA Pleno (Tahap 4)', folder_key: 'folder-perencanaan', flags: [1,1,0,0,1,1,1,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 7, menu_key: 'view-revisi-monitoring', menu_label: 'Monitoring Revisi (4 Tahap)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 8, menu_key: 'view-rekap-perencanaan', menu_label: 'Rekap Perencanaan', folder_key: 'folder-perencanaan', flags: [1,1,1,0,1,1,1,1,1,1,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 9, menu_key: 'view-juknis-kegiatan', menu_label: 'Standar 28 Kegiatan (KPT 543)', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 10, menu_key: 'view-panduan', menu_label: 'Panduan Perencanaan', folder_key: 'folder-perencanaan', flags: [1,1,1,1,1,1,1,0,0,0,0,0,0], req_mode: 'VIEWER' },
+    // 2. TAHAP PENGADAAN (6 MODUL LENGKAP)
+    { urutan: 11, menu_key: 'view-pengadaan-paket', menu_label: 'Daftar Paket Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 12, menu_key: 'view-pengadaan-kokpit', menu_label: 'Kokpit 18 Tahap', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 13, menu_key: 'view-pengadaan-portal-pengusul', menu_label: 'Portal Pengusulan Nota Dinas & Disposisi KPA', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,0,0,1,1,1,1,0,0], req_mode: 'EDITOR' },
+    { urutan: 14, menu_key: 'view-rekap-pengadaan', menu_label: 'Rekap Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 15, menu_key: 'view-audit-pengadaan', menu_label: 'Audit & Kendali Kepatuhan PBJ', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,0,0,1,0,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 16, menu_key: 'view-panduan-pengadaan', menu_label: 'Panduan Pengadaan', folder_key: 'folder-pengadaan', flags: [1,1,1,1,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
     // 3. TAHAP PEMBAYARAN
-    { urutan: 15, menu_key: 'view-rekap-pelaksanaan', menu_label: 'Rekap Pembayaran', folder_key: 'folder-pembayaran', flags: [1,1,1,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 16, menu_key: 'view-panduan-pelaksanaan', menu_label: 'Panduan Pembayaran', folder_key: 'folder-pembayaran', flags: [1,1,1,0,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 17, menu_key: 'view-rekap-pelaksanaan', menu_label: 'Rekap Pembayaran', folder_key: 'folder-pembayaran', flags: [1,1,1,0,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 18, menu_key: 'view-panduan-pelaksanaan', menu_label: 'Panduan Pembayaran', folder_key: 'folder-pembayaran', flags: [1,1,1,0,1,0,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
     // 4. REFERENSI & DATABASE MASTER (LINTAS MODUL)
-    { urutan: 17, menu_key: 'view-db-kuantitas', menu_label: 'Parameter & Kuantitas SSOT', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 18, menu_key: 'view-db-sbm', menu_label: 'Standar Biaya Masukan (SBM)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 19, menu_key: 'view-db-bas', menu_label: 'Bagan Akun Standar (BAS)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 20, menu_key: 'view-db-ppk', menu_label: 'Master Kecamatan (19 PPK)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,0], req_mode: 'VIEWER' },
-    { urutan: 21, menu_key: 'view-db-pps', menu_label: 'Master Desa & TPS (217 PPS)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,1], req_mode: 'VIEWER' },
-    { urutan: 22, menu_key: 'view-db-paslon', menu_label: 'Master Pasangan Calon (Paslon)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 23, menu_key: 'view-pengadaan-penyedia', menu_label: 'Master Penyedia (Rekanan)', folder_key: 'folder-database', flags: [1,1,1,1,1,1,1,1,1,0,0], req_mode: 'EDITOR' },
+    { urutan: 19, menu_key: 'view-db-kuantitas', menu_label: 'Parameter & Kuantitas SSOT', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 20, menu_key: 'view-db-sbm', menu_label: 'Standar Biaya Masukan (SBM)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 21, menu_key: 'view-db-bas', menu_label: 'Bagan Akun Standar (BAS)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,0,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 22, menu_key: 'view-db-kbli', menu_label: 'Klasifikasi Usaha (KBLI)', folder_key: 'folder-referensi', flags: [1,1,1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 23, menu_key: 'view-db-ppk', menu_label: 'Master Kecamatan (19 PPK)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 24, menu_key: 'view-db-pps', menu_label: 'Master Desa & TPS (217 PPS)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 25, menu_key: 'view-db-paslon', menu_label: 'Master Pasangan Calon (Paslon)', folder_key: 'folder-database', flags: [1,1,1,0,1,1,1,0,0,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 26, menu_key: 'view-pengadaan-penyedia', menu_label: 'Master Penyedia (Rekanan)', folder_key: 'folder-database', flags: [1,1,1,1,1,1,1,1,1,0,0,0,0], req_mode: 'EDITOR' },
     // 5. REGULASI JDIH TERPADU (ROOT MENU)
-    { urutan: 24, menu_key: 'view-db-regulasi', menu_label: 'Regulasi & Dasar Hukum JDIH', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
+    { urutan: 27, menu_key: 'view-db-regulasi', menu_label: 'Regulasi & Dasar Hukum JDIH', folder_key: null, flags: [1,1,1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
     // 6. ADMINISTRASI & KONSOL ARSITEKTUR
-    { urutan: 25, menu_key: 'view-users', menu_label: 'Pengguna', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 26, menu_key: 'view-penandatangan', menu_label: 'Penandatangan', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
-    { urutan: 27, menu_key: 'view-menu-matrix', menu_label: 'Hak Akses', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 28, menu_key: 'view-db-settings', menu_label: 'Pengaturan Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,0,1,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 29, menu_key: 'view-audit', menu_label: 'Log Aktivitas Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'VIEWER' },
-    { urutan: 30, menu_key: 'view-pengumuman', menu_label: 'Pengumuman', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 31, menu_key: 'view-monitoring', menu_label: 'Monitoring Unduhan', folder_key: 'folder-administrasi', flags: [1,1,1,1,1,1,1,1,1,1,1], req_mode: 'VIEWER' },
-    { urutan: 32, menu_key: 'view-developer', menu_label: 'Blueprint & PRD (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
-    { urutan: 33, menu_key: 'view-dev-push', menu_label: 'Pusat Rilis & Push GitHub (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' }
+    { urutan: 28, menu_key: 'view-users', menu_label: 'Pengguna', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 29, menu_key: 'view-penandatangan', menu_label: 'Penandatangan', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,1,1,1,1,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 30, menu_key: 'view-menu-matrix', menu_label: 'Hak Akses', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 31, menu_key: 'view-db-settings', menu_label: 'Pengaturan Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,1,0,1,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 32, menu_key: 'view-audit', menu_label: 'Log Aktivitas Satker', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0,0,0], req_mode: 'VIEWER' },
+    { urutan: 33, menu_key: 'view-pengumuman', menu_label: 'Pengumuman', folder_key: 'folder-administrasi', flags: [1,1,0,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 34, menu_key: 'view-monitoring', menu_label: 'Monitoring Unduhan', folder_key: 'folder-administrasi', flags: [1,1,1,1,1,1,1,1,1,1,1,0,0], req_mode: 'VIEWER' },
+    { urutan: 35, menu_key: 'view-developer', menu_label: 'Blueprint & PRD (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' },
+    { urutan: 36, menu_key: 'view-dev-push', menu_label: 'Pusat Rilis & Push GitHub (DEV)', folder_key: 'folder-developer', flags: [1,0,0,0,0,0,0,0,0,0,0,0,0], req_mode: 'EDITOR' }
   ];
 
   try {

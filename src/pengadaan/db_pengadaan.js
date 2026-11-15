@@ -10,7 +10,8 @@ const mysql = require('mysql2/promise');
 const {
   DEFINISI_18_TAHAP,
   evaluasiJalurRegulasi,
-  susunJadwal18TahapOtomatis
+  susunJadwal18TahapOtomatis,
+  cleanProrateItemPrices
 } = require('./utils');
 
 // Muat .env dari root siprabu_clean
@@ -133,6 +134,22 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN basis_denda VARCHAR(191) DEFAULT '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)'",
     "ALTER TABLE pbj_paket ADD COLUMN ketentuan_garansi VARCHAR(255) DEFAULT 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%'",
     "ALTER TABLE pbj_paket ADD COLUMN penyelesaian_sengketa VARCHAR(191) DEFAULT 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_reviu_dpp VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN kesimpulan_reviu_dpp VARCHAR(191) DEFAULT 'Disetujui Penuh (Dokumen Lengkap, Lanjut Pemilihan Tahap 9)'",
+    "ALTER TABLE pbj_paket ADD COLUMN tempat_reviu_dpp VARCHAR(255) DEFAULT 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi'",
+    "ALTER TABLE pbj_paket ADD COLUMN nama_pokja VARCHAR(255) DEFAULT 'Pokja Pemilihan UKPBJ KPU Provinsi Jawa Timur'",
+    "ALTER TABLE pbj_paket ADD COLUMN sk_pokja VARCHAR(255) DEFAULT 'Surat Keputusan Kepala UKPBJ KPU Provinsi Jawa Timur'",
+    "ALTER TABLE pbj_paket ADD COLUMN id_paket_katalog VARCHAR(128) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_undangan_penawaran VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_surat_penawaran VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_surat_penawaran VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tempat_pemilihan VARCHAR(255) DEFAULT 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_ba_nego VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_bahp VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN kode_tender_spse VARCHAR(64) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_reviu_dpp VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_nego VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bahp VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_item ADD COLUMN kode_barang_bmn VARCHAR(128) DEFAULT '1.01.03.01.001 (Persediaan / BMN)'",
     "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'",
     "ALTER TABLE pbj_paket_item ADD COLUMN evaluasi_pasar_json TEXT DEFAULT NULL",
@@ -407,6 +424,53 @@ async function savePenyedia(data) {
   }
 }
 
+
+async function getKbliList() {
+  const pool = getCakraPool();
+  try {
+    const [rows] = await pool.query('SELECT * FROM master_kbli WHERE is_active = 1 ORDER BY kode ASC');
+    return rows;
+  } catch (err) {
+    console.warn('Gagal load master_kbli:', err.message);
+    return [];
+  }
+}
+
+async function saveKbli(data) {
+  const pool = getCakraPool();
+  const kode = String(data.kode || '').trim();
+  const judul = String(data.judul || '').trim();
+  const sektor = String(data.sektor || '').trim();
+  const kategori_pbj = String(data.kategori_pbj || 'Barang').trim();
+  const deskripsi = String(data.deskripsi || '').trim();
+  const is_active = Number(data.is_active ?? 1);
+
+  if (data.id) {
+    await pool.query(
+      `UPDATE master_kbli 
+       SET kode = ?, judul = ?, sektor = ?, kategori_pbj = ?, deskripsi = ?, is_active = ?
+       WHERE id = ?`,
+      [kode, judul, sektor, kategori_pbj, deskripsi, is_active, Number(data.id)]
+    );
+    return data.id;
+  } else {
+    const [res] = await pool.query(
+      `INSERT INTO master_kbli (kode, judul, sektor, kategori_pbj, deskripsi, is_active)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         judul = VALUES(judul), sektor = VALUES(sektor), kategori_pbj = VALUES(kategori_pbj), deskripsi = VALUES(deskripsi), is_active = 1`,
+      [kode, judul, sektor, kategori_pbj, deskripsi, is_active]
+    );
+    return res.insertId;
+  }
+}
+
+async function deleteKbli(id) {
+  const pool = getCakraPool();
+  await pool.query('UPDATE master_kbli SET is_active = 0 WHERE id = ?', [Number(id)]);
+  return true;
+}
+
 async function getPaketList() {
   const pool = getCakraPool();
   const [rows] = await pool.query(`
@@ -569,6 +633,10 @@ async function savePaket(data) {
         prioritas_pdn_level=?, persen_tkdn_target=?, persen_bmp_target=?, target_sertifikat_tkdn=?, peruntukan_umk=?,
         tersedia_di_katalog=?, alasan_penilaian_ppk_katalog=?, link_produk_katalog_1=?, link_produk_katalog_2=?,
         jenis_kontrak=?, bentuk_kontrak=?, cara_pembayaran=?, basis_denda=?, ketentuan_garansi=?, penyelesaian_sengketa=?,
+        no_reviu_dpp=?, kesimpulan_reviu_dpp=?, tempat_reviu_dpp=?,
+        nama_pokja=?, sk_pokja=?,
+        id_paket_katalog=?, no_undangan_penawaran=?, no_surat_penawaran=?, tgl_surat_penawaran=?,
+        tempat_pemilihan=?, no_ba_nego=?, no_bahp=?, kode_tender_spse=?,
         masa_pelaksanaan_hari=?, tgl_mulai_kerja=?, tgl_selesai_kontrak=?, tgl_realisasi_selesai=?, hari_terlambat=?,
         persen_uang_muka=?, nilai_uang_muka=?, wajib_jaminan_pelaksanaan=?, nilai_jaminan_pelaksanaan=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
@@ -600,6 +668,19 @@ async function savePaket(data) {
         p.basis_denda || cur.basis_denda || '1 permil per hari dari Harga Kontrak sebelum PPN (DPP)',
         p.ketentuan_garansi || cur.ketentuan_garansi || 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%',
         p.penyelesaian_sengketa || cur.penyelesaian_sengketa || 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP',
+        p.no_reviu_dpp || cur.no_reviu_dpp || null,
+        p.kesimpulan_reviu_dpp || cur.kesimpulan_reviu_dpp || 'Disetujui Penuh (Dokumen Lengkap, Lanjut Pemilihan Tahap 9)',
+        p.tempat_reviu_dpp || cur.tempat_reviu_dpp || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+        p.nama_pokja || cur.nama_pokja || 'Pokja Pemilihan UKPBJ KPU Provinsi Jawa Timur',
+        p.sk_pokja || cur.sk_pokja || 'Surat Keputusan Kepala UKPBJ KPU Provinsi Jawa Timur',
+        p.id_paket_katalog || cur.id_paket_katalog || null,
+        p.no_undangan_penawaran || cur.no_undangan_penawaran || null,
+        p.no_surat_penawaran || cur.no_surat_penawaran || null,
+        p.tgl_surat_penawaran || cur.tgl_surat_penawaran || null,
+        p.tempat_pemilihan || cur.tempat_pemilihan || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+        p.no_ba_nego || cur.no_ba_nego || null,
+        p.no_bahp || cur.no_bahp || null,
+        p.kode_tender_spse || cur.kode_tender_spse || null,
         Number(p.masa_pelaksanaan_hari ?? cur.masa_pelaksanaan_hari ?? 14),
         p.tgl_mulai_kerja || cur.tgl_mulai_kerja || '2026-05-18', p.tgl_selesai_kontrak || cur.tgl_selesai_kontrak || '2026-05-31', p.tgl_realisasi_selesai || cur.tgl_realisasi_selesai || '2026-05-30', Number(p.hari_terlambat ?? cur.hari_terlambat ?? 0),
         Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0), Math.round(((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) || Number(p.nilai_hps ?? cur.nilai_hps ?? 0) || Number(p.nilai_pagu ?? cur.nilai_pagu ?? 0)) * Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0)) / 100),
@@ -635,21 +716,27 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
            status_tahap = VALUES(status_tahap),
            link_drive_dokumen = VALUES(link_drive_dokumen),
-           catatan_tahap = VALUES(catatan_tahap)`,
+           catatan_tahap = VALUES(catatan_tahap),
+           no_reviu_dpp = VALUES(no_reviu_dpp),
+           no_ba_nego = VALUES(no_ba_nego),
+           no_bahp = VALUES(no_bahp)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
           su.tanggal_dokumen || existingStage.tanggal_dokumen || '',
           finalStatus,
           driveLink,
-          su.catatan_tahap || existingStage.catatan_tahap || ''
+          su.catatan_tahap || existingStage.catatan_tahap || '',
+          su.no_reviu_dpp || existingStage.no_reviu_dpp || null,
+          su.no_ba_nego || existingStage.no_ba_nego || null,
+          su.no_bahp || existingStage.no_bahp || null
         ]
       );
 
@@ -668,6 +755,22 @@ async function savePaket(data) {
           `UPDATE pbj_paket SET tahap_aktif = ?, status_paket = ? WHERE id = ?`,
           [updatedTahapAktif, updatedStatusPaket, data.id]
         );
+      }
+      // Sinkronkan item rincian dengan harga penawaran & kontrak negosiasi pada Tahap 9
+      if (stageNo === 9 && Number(p.nilai_kontrak) > 0) {
+        const [curItems] = await pool.query('SELECT * FROM pbj_paket_item WHERE paket_id = ? ORDER BY urutan ASC, id ASC', [data.id]);
+        if (curItems && curItems.length > 0) {
+          const totHps = Number(p.nilai_hps || p.nilai_pagu || 0);
+          const totPen = Number(p.nilai_penawaran_awal || totHps);
+          const totNego = Number(p.nilai_kontrak || totPen);
+          const prorated = cleanProrateItemPrices(curItems, totHps, totPen, totNego);
+          for (const it of prorated) {
+            await pool.query(
+              'UPDATE pbj_paket_item SET harga_satuan_penawaran = ?, harga_satuan_kontrak = ?, jumlah_kontrak = ? WHERE id = ?',
+              [it.harga_satuan_penawaran, it.harga_satuan_kontrak, it.jumlah_kontrak, it.id]
+            );
+          }
+        }
       }
     }
 
@@ -951,6 +1054,9 @@ module.exports = {
   savePejabat,
   getPenyediaList,
   savePenyedia,
+  getKbliList,
+  saveKbli,
+  deleteKbli,
   getPaketList,
   getPaketFullById,
   savePaket,

@@ -13,6 +13,9 @@ const {
   savePejabat,
   getPenyediaList,
   savePenyedia,
+  getKbliList,
+  saveKbli,
+  deleteKbli,
   getPaketList,
   getPaketFullById,
   savePaket,
@@ -83,11 +86,12 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
 
     // 1. Bootstrap Data Dashboard & Master Pengadaan
     if (pathname === '/api/cakra/bootstrap' && method === 'GET') {
-      const [settings, pejabats, penyedias, pakets] = await Promise.all([
+      const [settings, pejabats, penyedias, pakets, kblis] = await Promise.all([
         getSettingsMap(),
         getPejabatList(),
         getPenyediaList(),
-        getPaketList()
+        getPaketList(),
+        getKbliList()
       ]);
 
       let totalPagu = 0;
@@ -126,6 +130,7 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
         pejabats,
         penyedias,
         pakets,
+        kblis,
         definisi18Tahap: DEFINISI_18_TAHAP,
         templates: TEMPLATES_PENGADAAN,
         panduanTahap: PANDUAN_18_TAHAP,
@@ -322,6 +327,26 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
       const body = await readJsonBody(req);
       const settings = await saveSettingsMap(body);
       return sendJson(res, 200, { ok: true, settings });
+    }
+
+    // 8B. Master KBLI (Klasifikasi Baku Lapangan Usaha Indonesia)
+    if (pathname === '/api/cakra/kbli' && method === 'GET') {
+      const kblis = await getKbliList();
+      return sendJson(res, 200, { ok: true, kblis });
+    }
+
+    if (pathname === '/api/cakra/kbli' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const id = await saveKbli(body);
+      const kblis = await getKbliList();
+      return sendJson(res, 200, { ok: true, id, kblis });
+    }
+
+    if (pathname.startsWith('/api/cakra/kbli/') && method === 'DELETE') {
+      const kbliId = Number(pathname.split('/').pop());
+      await deleteKbli(kbliId);
+      const kblis = await getKbliList();
+      return sendJson(res, 200, { ok: true, kblis });
     }
 
     // 9. Kalkulator Konversi SBOB Konsultansi

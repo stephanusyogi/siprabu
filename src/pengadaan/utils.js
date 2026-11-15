@@ -21,6 +21,14 @@ function formatRupiah(num, withPrefix = true) {
   return withPrefix ? `Rp ${formatted}` : formatted;
 }
 
+function cleanNamaTanpaGelar(nama) {
+  if (!nama) return '';
+  return String(nama)
+    .replace(/,\s*(S\.Kom\.?|S\.Sos\.?|S\.T\.?|S\.E\.?|S\.H\.?|M\.Si\.?|M\.M\.?|M\.Kom\.?|M\.T\.?|M\.H\.?|Ph\.D\.?|B\.Sc\.?|A\.Md\.?|Dr\.|Prof\.|Hj?\.|Drs\.|Ir\.)/gi, '')
+    .replace(/\b(Dr\.|Prof\.|H\.|Hj\.|Drs\.|Ir\.)\s*/gi, '')
+    .trim();
+}
+
 function terbilangInt(n) {
   n = Math.floor(Math.abs(Number(n) || 0));
   if (n === 0) return '';
@@ -1553,6 +1561,75 @@ function recommendJenisPengadaan({ kode_akun = '', uraian = '', pagu = 0, via_ka
   };
 }
 
+function cleanProrateItemPrices(items, totalHps, totalPenawaran, totalKontrak) {
+  if (!items || items.length === 0) return [];
+  const result = JSON.parse(JSON.stringify(items));
+  const n = result.length;
+
+  if (n === 1) {
+    const vol = Number(result[0].volume || 1);
+    result[0].harga_satuan_penawaran = Math.round(totalPenawaran / vol);
+    result[0].harga_satuan_kontrak = Math.round(totalKontrak / vol);
+    result[0].jumlah_kontrak = totalKontrak;
+    return result;
+  }
+
+  // Cek apakah item sudah memiliki harga negosiasi valid yang jumlahnya sama persis dengan totalKontrak
+  let curSumKontrak = 0;
+  let curSumPen = 0;
+  let allEqualHps = true;
+  for (const it of result) {
+    const v = Number(it.volume || 1);
+    const kSat = Number(it.harga_satuan_kontrak || 0);
+    const pSat = Number(it.harga_satuan_penawaran || 0);
+    const hSat = Number(it.harga_satuan_hps || 0);
+    if (kSat !== hSat) allEqualHps = false;
+    curSumKontrak += (v * kSat);
+    curSumPen += (v * pSat);
+  }
+
+  if (!allEqualHps && curSumKontrak === totalKontrak && curSumPen === totalPenawaran) {
+    return result;
+  }
+
+  // Hitung prorata harga satuan bersih bulat (kelipatan 10.000) agar realistis & akuntabel
+  let absorberIdx = result.findIndex(it => Number(it.volume) === 1);
+  if (absorberIdx === -1) absorberIdx = 0;
+
+  let sumOtherPen = 0;
+  let sumOtherKontrak = 0;
+
+  for (let i = 0; i < n; i++) {
+    if (i === absorberIdx) continue;
+    const it = result[i];
+    const vol = Number(it.volume || 1);
+    const hpsSat = Number(it.harga_satuan_hps || 0);
+    const share = totalHps > 0 ? ((vol * hpsSat) / totalHps) : (1 / n);
+
+    let rawPenSat = (totalPenawaran * share) / vol;
+    let cleanPenSat = Math.round(rawPenSat / 10000) * 10000;
+    it.harga_satuan_penawaran = cleanPenSat;
+    sumOtherPen += (cleanPenSat * vol);
+
+    let rawNegoSat = (totalKontrak * share) / vol;
+    let cleanNegoSat = Math.round(rawNegoSat / 10000) * 10000;
+    it.harga_satuan_kontrak = cleanNegoSat;
+    it.jumlah_kontrak = cleanNegoSat * vol;
+    sumOtherKontrak += (cleanNegoSat * vol);
+  }
+
+  const absItem = result[absorberIdx];
+  const absVol = Number(absItem.volume || 1);
+  const remPen = totalPenawaran - sumOtherPen;
+  const remKontrak = totalKontrak - sumOtherKontrak;
+
+  absItem.harga_satuan_penawaran = Math.round(remPen / absVol);
+  absItem.harga_satuan_kontrak = Math.round(remKontrak / absVol);
+  absItem.jumlah_kontrak = remKontrak;
+
+  return result;
+}
+
 module.exports = {
   recommendJenisPengadaan,
   NAMA_BULAN,
@@ -1566,6 +1643,8 @@ module.exports = {
   terbilangRupiah,
   formatTanggalIndo,
   formatHariTanggalBeritaAcara,
+  cleanNamaTanpaGelar,
+  cleanProrateItemPrices,
   hitungKeuanganKontrak,
   hitungKonversiSbob,
   evaluasiJalurRegulasi,

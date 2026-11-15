@@ -39,7 +39,11 @@ const PRABU_VIEW_CODES = {
   'view-pengadaan-paket': 29,
   'view-pengadaan-kokpit': 30,
   'view-pengadaan-penyedia': 31,
-  'view-panduan-pengadaan': 32
+  'view-panduan-pengadaan': 32,
+  'view-rekap-pengadaan': 33,
+  'view-pengadaan-portal-pengusul': 34,
+  'view-audit-pengadaan': 35,
+  'view-db-kbli': 141
 };
 
 const PRABU_CODE_TO_VIEW = {
@@ -57,6 +61,7 @@ const PRABU_CODE_TO_VIEW = {
   12: 'view-db-kuantitas',
   13: 'view-db-sbm',
   14: 'view-db-bas',
+  141: 'view-db-kbli',
   15: 'view-db-regulasi',
   16: 'view-db-settings',
   17: 'view-panduan',
@@ -74,7 +79,10 @@ const PRABU_CODE_TO_VIEW = {
   29: 'view-pengadaan-paket',
   30: 'view-pengadaan-kokpit',
   31: 'view-pengadaan-penyedia',
-  32: 'view-panduan-pengadaan'
+  32: 'view-panduan-pengadaan',
+  33: 'view-rekap-pengadaan',
+  34: 'view-pengadaan-portal-pengusul',
+  35: 'view-audit-pengadaan'
 };
 
 const SAKTI_VIEW_TITLES = {
@@ -92,6 +100,7 @@ const SAKTI_VIEW_TITLES = {
   'view-db-kuantitas': 'Master Database Kuantitas',
   'view-db-sbm': 'Master Standar Biaya Masukan (SBM)',
   'view-db-bas': 'Master Bagan Akun Standar (BAS)',
+  'view-db-kbli': 'Master KBLI (Klasifikasi Baku Lapangan Usaha)',
   'view-db-regulasi': 'Regulasi & Dasar Hukum',
   'view-db-settings': 'Pengaturan Sistem & Parameter',
   'view-settings': 'Pengaturan Sistem & Parameter',
@@ -110,7 +119,10 @@ const SAKTI_VIEW_TITLES = {
   'view-pengadaan-paket': 'Daftar Paket Pengadaan',
   'view-pengadaan-kokpit': 'Kokpit 18 Tahap Pengadaan',
   'view-pengadaan-penyedia': 'Direktori Penyedia & UMK',
-  'view-panduan-pengadaan': 'Panduan Pengadaan 18 Tahap'
+  'view-panduan-pengadaan': 'Panduan Pengadaan 18 Tahap',
+  'view-rekap-pengadaan': 'Dashboard & Rekapitulasi PBJ',
+  'view-audit-pengadaan': 'Audit Pengadaan & Kendali Kepatuhan',
+  'view-pengadaan-portal-pengusul': 'Portal Pengusulan Nota Dinas & Disposisi KPA'
 };
 
 function bufferToBase64Url(buf) {

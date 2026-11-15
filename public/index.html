@@ -326,7 +326,12 @@
                 <span class="label">Daftar &amp; Kokpit Paket</span>
                 <span class="badge badge-primary badge-sm" id="badge-pengadaan-paket">0</span>
               </button>
-              <!-- 2. DASHBOARD & REKAP PBJ: KONSOLIDASI & ANALITIK EKSEKUTIF (BAB 4.2) -->
+              <!-- 2. PORTAL PENGUSULAN NOTA DINAS & DISPOSISI KPA: HULU ADMINISTRASI PBJ -->
+              <button class="nav-item" data-view="view-pengadaan-portal-pengusul" id="nav-item-pengadaan-portal-pengusul" onclick="switchView('view-pengadaan-portal-pengusul')">
+                <span class="icon">🏛️</span>
+                <span class="label">Portal Pengusul &amp; Disposisi</span>
+              </button>
+              <!-- 3. DASHBOARD & REKAP PBJ: KONSOLIDASI & ANALITIK EKSEKUTIF (BAB 4.2) -->
               <button class="nav-item" data-view="view-rekap-pengadaan" id="nav-item-rekap-pengadaan" onclick="switchView('view-rekap-pengadaan')">
                 <span class="icon">📊</span>
                 <span class="label">Dashboard &amp; Rekap PBJ</span>
@@ -387,6 +392,10 @@
                 <span class="icon">💳</span>
                 <span class="label">Bagan Akun Standar (BAS)</span>
               </button>
+              <button class="nav-item" data-view="view-db-kbli" id="nav-item-db-kbli-ref" onclick="switchView('view-db-kbli')">
+                <span class="icon">🏷️</span>
+                <span class="label">Klasifikasi Usaha (KBLI)</span>
+              </button>
             </div>
           </div>
 
@@ -415,6 +424,10 @@
               <button class="nav-item" data-view="view-pengadaan-penyedia" id="nav-item-pengadaan-penyedia" onclick="switchView('view-pengadaan-penyedia')">
                 <span class="icon">🏢</span>
                 <span class="label">Master Penyedia (Rekanan)</span>
+              </button>
+              <button class="nav-item" data-view="view-db-kbli" id="nav-item-db-kbli" onclick="switchView('view-db-kbli')">
+                <span class="icon">🏷️</span>
+                <span class="label">Master KBLI (Izin Usaha)</span>
               </button>
             </div>
           </div>
@@ -2192,6 +2205,62 @@
         </section>
 
         <!-- ================================================================= -->
+        <!-- VIEW: MASTER KBLI (KLASIFIKASI BAKU LAPANGAN USAHA INDONESIA)     -->
+        <!-- ================================================================= -->
+        <section id="view-db-kbli" class="app-view">
+          <div class="view-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>🏢 KODIFIKASI RESMI BPS 2020 &bull; PERIZINAN BERUSAHA OSS-RBA</span>
+              </div>
+              <h2 class="view-title" style="margin:0; font-size:19px; font-weight:800; color:#0f172a;">Klasifikasi Baku Lapangan Usaha Indonesia (KBLI)</h2>
+              <p class="view-desc" style="font-size:12.5px; color:#475569; margin:4px 0 0;">Basis Data 5-Digit KBLI Izin Berusaha Penyedia Satker 657811 untuk verifikasi izin berusaha &amp; kesesuaian ruang lingkup paket PBJ.</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="openModalKbli()" style="font-weight:700;">
+                ➕ Tambah KBLI Baru
+              </button>
+            </div>
+          </div>
+
+          <div class="card" style="border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05); overflow:hidden;">
+            <div class="toolbar-card" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 16px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+              <div class="filter-group" style="min-width: 200px;">
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kategori PBJ:</label>
+                <select id="filter-db-kbli-kat" class="input-select input-sm" style="font-weight:600;" onchange="filterDbKbli()">
+                  <option value="ALL">-- Semua Kategori PBJ --</option>
+                  <option value="Barang">Barang</option>
+                  <option value="Jasa Lainnya">Jasa Lainnya</option>
+                  <option value="Pekerjaan Konstruksi">Pekerjaan Konstruksi</option>
+                  <option value="Jasa Konsultansi">Jasa Konsultansi</option>
+                </select>
+              </div>
+              <div class="filter-group flex-1" style="min-width: 260px;">
+                <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Pencarian KBLI (Kode 5 Digit / Judul / Sektor / Deskripsi):</label>
+                <input type="text" id="filter-db-kbli-text" class="input-text input-sm" placeholder="Ketik kode (cth: 46511) atau kata kunci (cth: komputer, cetak, katering, konstruksi)..." onkeyup="filterDbKbli()">
+              </div>
+            </div>
+            <div class="table-responsive" style="max-height: 600px; overflow-y:auto;">
+              <table class="table table-striped table-hover" style="margin:0; width:100%;">
+                <thead style="position:sticky; top:0; background:#f1f5f9; z-index:2; border-bottom:2px solid #cbd5e1;">
+                  <tr>
+                    <th style="width: 50px;" class="text-center">No</th>
+                    <th style="width: 120px;">Kode KBLI</th>
+                    <th>Judul Bidang Usaha KBLI</th>
+                    <th style="width: 150px;">Kategori PBJ</th>
+                    <th>Sektor / Lingkup Usaha</th>
+                    <th style="width: 90px;" class="text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="table-db-kbli">
+                  <!-- Rendered via JS renderDbKbli() -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
         <!-- VIEW 7: REGULASI & DASAR HUKUM (PORTAL JDIH PENYUSUNAN & PELAKSANAAN) -->
         <!-- ================================================================= -->
         <section id="view-db-regulasi" class="app-view">
@@ -3372,8 +3441,8 @@
                     <option value="folder-perencanaan">1. Perencanaan</option>
                     <option value="folder-pengadaan">2. Pengadaan</option>
                     <option value="folder-pembayaran">3. Pembayaran</option>
-                    <option value="folder-referensi">Referensi Standar (SSOT, SBM, BAS)</option>
-                    <option value="folder-database">Database Master Wilayah &amp; Paslon</option>
+                    <option value="folder-referensi">Referensi Standar (SSOT, SBM, BAS, KBLI)</option>
+                    <option value="folder-database">Database Master Wilayah &amp; Rekanan</option>
                     <option value="folder-administrasi">Administrasi &amp; Pengaturan</option>
                     <option value="folder-developer">Konsol Arsitektur Sistem</option>
                   </select>
@@ -4196,6 +4265,9 @@
               <p style="font-size:12.5px; color:#475569; margin:4px 0 0;">Basis data master pengadaan: merekam seluruh paket yang telah selesai 100% (arsip digital) maupun yang masih berjalan.</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="cakra-btn cakra-btn-outline" onclick="switchView('view-pengadaan-portal-pengusul')" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#1e40af; border-color:#93c5fd; background:#eff6ff;" title="Buka Portal Pengusulan Nota Dinas Subbag &amp; Disposisi KPA (Hulu Pengadaan)">
+                <span>🏛️</span> Portal Pengusul &amp; Disposisi
+              </button>
               <button type="button" class="cakra-btn" onclick="openModalTahap1Input('NEW')" style="display:inline-flex; align-items:center; gap:6px; font-weight:800; background:#2563eb; color:#fff; padding:6px 14px; border-radius:6px; border:none; cursor:pointer;" title="Mulai buat paket pengadaan baru (Pendaftaran Identitas, Pagu, & Tahap 1)">
                 <span>✨ + Mulai Pengadaan Baru</span>
               </button>
@@ -4542,6 +4614,54 @@
             </div>
           </div>
 
+          
+          <!-- MODAL TAMBAH/EDIT KBLI -->
+          <div id="modal-cakra-kbli" class="modal-backdrop" style="display:none; z-index:1150;" onclick="if(event.target===this) closeCakraKbliModal()">
+            <div class="modal-box" style="max-width:550px; width:95%;">
+              <div class="modal-header">
+                <div>
+                  <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;" id="modal-cakra-kbli-title">🏢 Tambah / Edit KBLI</h3>
+                  <div style="font-size:11.5px; color:#64748b; margin-top:2px;">Kodifikasi Baku Lapangan Usaha Indonesia (BPS 2020)</div>
+                </div>
+                <button type="button" class="btn-close" onclick="closeCakraKbliModal()">✕</button>
+              </div>
+              <div class="modal-body" style="display:grid; gap:10px;">
+                <input type="hidden" id="cakra-kbli-id">
+                <div style="display:grid; grid-template-columns:140px 1fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Kode (5 Digit) *</label>
+                    <input type="text" id="cakra-kbli-kode" class="input-text cakra-mono" placeholder="46511" maxlength="10">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700;">Kategori PBJ *</label>
+                    <select id="cakra-kbli-kategori" class="input-select">
+                      <option value="Barang">Barang</option>
+                      <option value="Jasa Lainnya">Jasa Lainnya</option>
+                      <option value="Pekerjaan Konstruksi">Pekerjaan Konstruksi</option>
+                      <option value="Jasa Konsultansi">Jasa Konsultansi</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px; font-weight:700;">Judul Bidang Usaha *</label>
+                  <input type="text" id="cakra-kbli-judul" class="input-text" placeholder="Perdagangan Besar Komputer dan Perlengkapan Komputer">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px; font-weight:700;">Sektor KBLI</label>
+                  <input type="text" id="cakra-kbli-sektor" class="input-text" placeholder="G - Perdagangan Besar dan Eceran">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px; font-weight:700;">Deskripsi &amp; Ruang Lingkup Usaha</label>
+                  <textarea id="cakra-kbli-deskripsi" class="input-text" rows="3" placeholder="Penjelasan ruang lingkup barang/jasa..."></textarea>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px; border-top:1px solid #e2e8f0;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeCakraKbliModal()">Batal</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveCakraKbliModal()">💾 Simpan KBLI</button>
+              </div>
+            </div>
+          </div>
+
           <!-- MODAL EDIT / TAMBAH PENYEDIA (VENDOR) -->
           <div id="modal-cakra-penyedia" class="modal-backdrop" style="display:none; z-index:1100;" onclick="if(event.target===this) closeCakraPenyediaModal()">
             <div class="modal-box" style="max-width:600px; width:95%;">
@@ -4579,6 +4699,16 @@
                   <div class="form-group" style="margin:0;">
                     <label style="font-size:12px; font-weight:700;">NPWP:</label>
                     <input type="text" id="cakra-penyedia-npwp" class="input-text" placeholder="01.234.567.8-646.000">
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1.2fr; gap:10px;">
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700; color:#166534;">Nomor Induk Berusaha (NIB OSS RBA):</label>
+                    <input type="text" id="cakra-penyedia-nib" class="input-text cakra-mono" placeholder="9120301182451">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px; font-weight:700; color:#1e40af;">KBLI (Klasifikasi Baku Lapangan Usaha):</label>
+                    <input type="text" id="cakra-penyedia-kbli" class="input-text" list="dl-master-kbli" placeholder="46511 (Perdagangan Besar Komputer)">
                   </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:10px;">
@@ -8756,5 +8886,7 @@
         document.body.appendChild(s);
       }
     </script>
-  </body>
+  <!-- DATALIST STANDAR KBLI RESMI BPS 2020 / OSS-RBA -->
+<datalist id="dl-master-kbli"></datalist>
+</body>
 </html>
