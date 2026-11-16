@@ -706,13 +706,62 @@ function clearLoginScreenError() {
 
 
 async function submitScreenLoginForm() {
+  const uInput = document.getElementById('screen-login-username');
+  const pInput = document.getElementById('screen-login-password');
   const errorBox = document.getElementById('login-screen-error');
   const errorText = document.getElementById('login-screen-error-text');
-  if (errorBox && errorText) {
-    errorText.textContent = 'Login menggunakan nama pengguna dan kata sandi dinonaktifkan. Silakan gunakan Single Sign-On (SSO) Google di atas.';
-    errorBox.style.display = 'block';
+  const submitBtn = document.getElementById('btn-screen-login-submit');
+
+  const username = (uInput?.value || '').trim();
+  const password = (pInput?.value || '').trim();
+
+  if (!username) {
+    if (errorBox && errorText) {
+      errorText.textContent = 'Nama pengguna wajib diisi.';
+      errorBox.style.display = 'block';
+    }
+    return;
   }
-  return;
+
+  if (username !== 'emenje' && !password) {
+    if (errorBox && errorText) {
+      errorText.textContent = 'Kata sandi wajib diisi.';
+      errorBox.style.display = 'block';
+    }
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span>⏳ Memverifikasi...</span>';
+  }
+  if (errorBox) errorBox.style.display = 'none';
+
+  try {
+    const res = await performLogin(username, password);
+    await loadUsers();
+    await loadMenuMatrix();
+    showMainApp();
+    updateUserNavbar();
+    showToast(`Berhasil masuk sebagai ${res.user?.nama_pejabat || username}!`, 'success');
+    await loadMasters();
+    await loadPeriodes();
+    await loadRkbData();
+    renderAllViews();
+    const redirectView = sessionStorage.getItem('siprabu_redirect_view');
+    sessionStorage.removeItem('siprabu_redirect_view');
+    switchView(redirectView || 'view-dashboard', true);
+  } catch (err) {
+    if (errorBox && errorText) {
+      errorText.textContent = err.message || 'Nama pengguna atau kata sandi tidak sesuai.';
+      errorBox.style.display = 'block';
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span id="screen-login-btn-text">Masuk ke Sistem SI-PRABU &rarr;</span>';
+    }
+  }
 }
 
 
@@ -8898,8 +8947,6 @@ function openModalTambahKuantitas() {
     submitBtn.disabled = false;
     submitBtn.innerHTML = '💾 Simpan Parameter';
   }
-  const modal = document.getElementById('modal-kuantitas');
-  if (!modal) return;
 
   setElText('modal-kuantitas-title', '➕ Tambah Parameter Kuantitas SSOT Baru');
   setElVal('kuantitas-id', '');

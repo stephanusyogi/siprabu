@@ -85,35 +85,29 @@
           <div id="login-screen-google-hint" style="font-size: 11px; color: #64748b; margin-top: 8px;"></div>
         </div>
 
-        <!-- Pemberitahuan Mode Eksklusif SSO Google -->
-        <div id="login-screen-sso-notice" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 11.5px; color: #475569; text-align: center; margin-top: 14px; line-height: 1.55;">
-          🔒 <strong>Autentikasi Terpusat Aktif</strong><br>
+        <!-- Pemberitahuan Mode Autentikasi -->
+        <div id="login-screen-sso-notice" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #475569; text-align: center; margin-top: 12px; margin-bottom: 14px; line-height: 1.5;">
+          🛡️ <strong>Metode Autentikasi SI-PRABU</strong><br>
           <span style="font-size: 11px; color: #64748b;">
-            Akses masuk sistem saat ini <strong>hanya menggunakan Akun Google</strong> yang telah terdaftar pada Manajemen Pengguna Satker. Login akun lokal dinonaktifkan.
+            Gunakan <strong>SSO Akun Google</strong> untuk akses langsung atau <strong>Akun Pengguna Satker</strong> di bawah ini (tersedia online &amp; offline).
           </span>
         </div>
 
         <!-- Tombol Akses Pengumuman Publik & Kontak Layanan (Pre-Login) -->
-        <div id="login-screen-announcement-btn-box" style="display: none; margin-top: 10px; text-align: center;">
+        <div id="login-screen-announcement-btn-box" style="display: none; margin-top: 10px; margin-bottom: 10px; text-align: center;">
           <button type="button" class="btn btn-outline btn-sm" onclick="openPreLoginAnnouncementModal()" style="width: 100%; font-size: 11.5px; font-weight: 700; color: #0369a1; border: 1px solid #bae6fd; padding: 7px 10px; border-radius: 6px; background: #f0f9ff; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" title="Lihat Informasi & Pengumuman Publik KPU Ngawi">
             <span>📢</span>
             <span id="login-screen-announcement-btn-text">Buka Pengumuman Publik</span>
           </button>
         </div>
 
-        <!-- Divider (Dinonaktifkan Permanen) -->
-        <!-- Shortcut Khusus Lingkungan Lokal Pengembang (Hanya aktif di Localhost) -->
-        <div id="dev-quick-login-box" style="display: none; margin-top: 14px; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 12px;">
-          <button type="button" class="btn btn-outline btn-sm" onclick="quickDeveloperLogin()" style="width: 100%; font-size: 11.5px; font-weight: 700; color: #0284c7; border: 1px dashed #38bdf8; padding: 8px 10px; border-radius: 6px; background: #f0f9ff; cursor: pointer; transition: all 0.2s;" title="Masuk langsung ke Akun Level 0 untuk pengujian lokal">
-            ⚡ Akses Cepat Level 0 (emenje)
-          </button>
-        </div>
-        <div class="login-divider" style="display: none;">
+        <!-- Divider -->
+        <div class="login-divider">
           <span>ATAU MASUK DENGAN AKUN LOKAL</span>
         </div>
 
-        <!-- Form Login Lokal (Dinonaktifkan Permanen) -->
-        <form id="form-screen-login" style="display: none;" onsubmit="event.preventDefault(); submitScreenLoginForm();">
+        <!-- Form Login Lokal (Online & Offline) -->
+        <form id="form-screen-login" onsubmit="event.preventDefault(); submitScreenLoginForm();">
           <div class="login-form-group">
             <label for="screen-login-username">Nama Pengguna (Username):</label>
             <div class="login-input-wrapper">
@@ -134,6 +128,13 @@
             <span id="screen-login-btn-text">Masuk ke Sistem SI-PRABU &rarr;</span>
           </button>
         </form>
+
+        <!-- Shortcut Khusus Lingkungan Lokal Pengembang (Hanya aktif di Localhost) -->
+        <div id="dev-quick-login-box" style="margin-top: 14px; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 12px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="quickDeveloperLogin()" style="width: 100%; font-size: 11.5px; font-weight: 700; color: #0284c7; border: 1px dashed #38bdf8; padding: 8px 10px; border-radius: 6px; background: #f0f9ff; cursor: pointer; transition: all 0.2s;" title="Masuk langsung ke Akun Level 0 untuk pengujian lokal">
+            ⚡ Akses Cepat Level 0 (emenje)
+          </button>
+        </div>
       </div>
 
       <!-- Footer -->
@@ -8914,7 +8915,7 @@
         </div>
       </div>
 <script src="/data_juknis.js?v=5.9.5-20261115-tahap9"></script>
-    <script src="/app.js?v=5.9.9-20261116-ssot-v2"></script>
+    <script src="/app.js?v=5.9.9-20261116-login-fix"></script>
     <script src="/pengadaan.js?v=5.9.8-20261115-tahap11"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
