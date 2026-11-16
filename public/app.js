@@ -8870,6 +8870,12 @@ function renderDbKuantitas() {
       </tr>
     `;
   }).join('');
+
+  const btnTambah = document.getElementById('btn-tambah-param-ssot');
+  if (btnTambah && !btnTambah._hasTambahListener) {
+    btnTambah.addEventListener('click', openModalTambahKuantitas);
+    btnTambah._hasTambahListener = true;
+  }
 }
 
 function filterDbKuantitas() {
@@ -16471,8 +16477,6 @@ window.openPreLoginAnnouncementModal = openPreLoginAnnouncementModal;
 window.closePreLoginAnnouncementModal = closePreLoginAnnouncementModal;
 window.renderDashboardAnnouncementBanner = renderDashboardAnnouncementBanner;
 
-window.setAnnouncementLevelPreset = setAnnouncementLevelPreset;
-
 
 function filterRekapEfisiensiTable() {
   const keyword = (document.getElementById('rekap-efisiensi-search-input')?.value || '').toLowerCase().trim();
@@ -16629,3 +16633,8 @@ function printRekapEfisiensiPdf(mode = 'perencanaan') {
   `);
   win.document.close();
 }
+
+window.filterRekapEfisiensiTable = filterRekapEfisiensiTable;
+window.exportRekapEfisiensiExcel = exportRekapEfisiensiExcel;
+window.printRekapEfisiensiPdf = printRekapEfisiensiPdf;
+
