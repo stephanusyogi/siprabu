@@ -11439,9 +11439,20 @@ function populateKbliDatalist() {
 }
 window.populateKbliDatalist = populateKbliDatalist;
 
-function renderDbKbli() {
+async function renderDbKbli() {
   const tb = document.getElementById('table-db-kbli');
   if (!tb) return;
+  if (!CakraState.kblis || CakraState.kblis.length === 0) {
+    try {
+      const res = await cakraApiGet('/api/cakra/kbli');
+      if (res && res.kblis && res.kblis.length > 0) {
+        CakraState.kblis = res.kblis;
+        populateKbliDatalist();
+      }
+    } catch (e) {
+      console.warn('Gagal memuat KBLI dinamis:', e.message);
+    }
+  }
   filterDbKbli();
 }
 window.renderDbKbli = renderDbKbli;

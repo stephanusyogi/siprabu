@@ -197,6 +197,75 @@ async function ensurePaketMissingColumns(pool) {
   } catch (e) {}
 }
 
+
+const SEED_KBLI_DATA = [
+  { kode: '46511', judul: 'Perdagangan Besar Komputer dan Perlengkapan Komputer', sektor: 'G - Perdagangan Besar dan Eceran', kategori_pbj: 'Barang', deskripsi: 'Mencakup usaha perdagangan besar komputer, periferal komputer, server, workstation, laptop, printer, scanner, dan suku cadangnya.' },
+  { kode: '46512', judul: 'Perdagangan Besar Piranti Lunak (Software)', sektor: 'G - Perdagangan Besar dan Eceran', kategori_pbj: 'Barang', deskripsi: 'Mencakup perdagangan besar piranti lunak standar (off-the-shelf software), sistem operasi, lisensi server, dan aplikasi perkantoran.' },
+  { kode: '46521', judul: 'Perdagangan Besar Perlengkapan Telekomunikasi', sektor: 'G - Perdagangan Besar dan Eceran', kategori_pbj: 'Barang', deskripsi: 'Mencakup perdagangan besar perlengkapan telekomunikasi, switch, router, modem, akses poin, radio komunikasi (HT), dan jaringan telekomunikasi.' },
+  { kode: '46590', judul: 'Perdagangan Besar Mesin, Peralatan dan Perlengkapan Lainnya', sektor: 'G - Perdagangan Besar dan Eceran', kategori_pbj: 'Barang', deskripsi: 'Mencakup perdagangan besar mesin kantor, mesin fotokopi, UPS industri, genset cadangan darurat, dan perlengkapan teknis.' },
+  { kode: '46691', judul: 'Perdagangan Besar Alat Tulis dan Hasil Percetakan / Penerbitan', sektor: 'G - Perdagangan Besar dan Eceran', kategori_pbj: 'Barang', deskripsi: 'Mencakup usaha perdagangan besar buku, alat tulis kantor (ATK), kertas, map, amplop, dan perlengkapan administrasi perkantoran.' },
+  { kode: '46499', judul: 'Perdagangan Besar Berbagai Macam Barang Lainnya YTDL', sektor: 'G - Perdagangan Besar dan Eceran', kategori_pbj: 'Barang', deskripsi: 'Mencakup perdagangan besar berbagai peralatan rumah tangga, mebeler kantor, brankas, meja kursi rapat, dan perlengkapan satker.' },
+  { kode: '18111', judul: 'Industri Pencetakan Berbagai Macam Media Cetak', sektor: 'C - Industri Pengolahan', kategori_pbj: 'Barang', deskripsi: 'Mencakup pencetakan surat suara pemilu/pilkada, formulir C.Hasil, brosur, pamflet, poster, agenda, buku panduan teknis, dan media cetak sosialisasi.' },
+  { kode: '18120', judul: 'Aktivitas Jasa Penunjang Pencetakan', sektor: 'C - Industri Pengolahan', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup jasa penjilidan, laminating, pemotongan presisi, pelipatan surat suara, pengepakan tersegel, dan finishing bahan cetakan.' },
+  { kode: '62019', judul: 'Aktivitas Pemrograman Komputer Lainnya', sektor: 'J - Informasi dan Komunikasi', kategori_pbj: 'Jasa Konsultansi', deskripsi: 'Mencakup penulisan, modifikasi, pengujian, dan pemeliharaan aplikasi piranti lunak, portal web satker, integrasi API, dan sistem informasi kepegawaian/keuangan.' },
+  { kode: '62020', judul: 'Aktivitas Konsultasi Komputer dan Manajemen Fasilitas Komputer', sektor: 'J - Informasi dan Komunikasi', kategori_pbj: 'Jasa Konsultansi', deskripsi: 'Mencakup konsultasi kebutuhan piranti keras dan lunak, audit keamanan siber, dan manajemen operasional ruang server (NOC/Datacenter).' },
+  { kode: '62090', judul: 'Aktivitas Teknologi Informasi dan Jasa Komputer Lainnya', sektor: 'J - Informasi dan Komunikasi', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup jasa instalasi komputer, pemulihan data (disaster recovery), instalasi jaringan LAN/WLAN kantor, dan pemeliharaan perangkat IT.' },
+  { kode: '63111', judul: 'Aktivitas Pengolahan Data', sektor: 'J - Informasi dan Komunikasi', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup pemrosesan data pemilih, tabulasi hasil, entri data verifikasi administrasi, dan layanan pemindaian dokumen arsip digital.' },
+  { kode: '63112', judul: 'Aktivitas Hosting dan Fasilitas Terkait', sektor: 'J - Informasi dan Komunikasi', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup penyediaan infrastruktur web hosting, cloud server VPS, colocation server, streaming server, dan penyimpanan data cloud terenkripsi.' },
+  { kode: '77305', judul: 'Aktivitas Penyewaan Mesin Kantor dan Peralatannya (Termasuk Komputer)', sektor: 'N - Aktivitas Penyewaan dan Sewa Guna Tanpa Hak Opsi', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup penyewaan mesin fotokopi operasional, komputer desktop, laptop rekapitulasi, printer kartu suara, scanner C.Hasil, dan proyektor presentasi.' },
+  { kode: '77100', judul: 'Aktivitas Penyewaan dan Sewa Guna Usaha Tanpa Hak Opsi Mobil, Bus, Truk dan Sejenisnya', sektor: 'N - Aktivitas Penyewaan dan Sewa Guna Tanpa Hak Opsi', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup sewa armada mobil dinas operasional pimpinan, minibus monitoring tahapan, dan truk distribusi logistik bilik/kotak suara ke PPK/PPS.' },
+  { kode: '49431', judul: 'Angkutan Bermotor untuk Barang Umum', sektor: 'H - Pengangkutan dan Pergudangan', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup jasa ekspedisi pengangkutan logistik pemilu/pilkada dari percetakan ke gudang KPU Kabupaten dan distribusi hingga ke tingkat TPS.' },
+  { kode: '52291', judul: 'Jasa Pengurusan Transportasi (Freight Forwarding)', sektor: 'H - Pengangkutan dan Pergudangan', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup pengelolaan rantai pasok logistik, pengawalan distribusi bahan pemilu, penerimaan kargo udara/laut, dan konsolidasi pengiriman.' },
+  { kode: '56210', judul: 'Jasa Boga untuk Suatu Event Tertentu (Event Catering)', sektor: 'I - Penyediaan Akomodasi dan Makan Minum', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup penyediaan makan dan minum prasmanan / kotak rapat koordinasi, bimbingan teknis PPK/PPS, rapat pleno terbuka rekapitulasi, dan adhoc.' },
+  { kode: '56290', judul: 'Penyediaan Jasa Boga Periode Tertentu', sektor: 'I - Penyediaan Akomodasi dan Makan Minum', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup penyediaan makanan dan minuman harian bagi petugas piket posko pemilu, lembur penyusunan laporan keuangan, dan verifikasi faktual.' },
+  { kode: '55110', judul: 'Hotel Bintang', sektor: 'I - Penyediaan Akomodasi dan Makan Minum', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup penyediaan fasilitas penginapan dan ruang pertemuan (meeting package) untuk konsolidasi regional, rakor stakeholder, dan debat publik calon.' },
+  { kode: '82301', judul: 'Penyelenggara Pertemuan, Perjalanan Insentif, Konferensi dan Pameran (EO)', sektor: 'N - Aktivitas Jasa Penunjang Usaha Lainnya', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup perancangan, pengelolaan, sound system, panggung, tata cahaya (lighting), LED screen, dan dekorasi acara debat terbuka paslon atau deklarasi damai.' },
+  { kode: '73100', judul: 'Periklanan (Advertising)', sektor: 'M - Aktivitas Profesional, Ilmiah dan Teknis', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup penayangan iklan sosialisasi pemilu/pilkada di media cetak lokal, radio, televisi swasta/daerah, baliho billboard jalan protokol, dan videotron.' },
+  { kode: '41012', judul: 'Konstruksi Gedung Perkantoran / Bangunan Gedung Pemerintah', sektor: 'F - Konstruksi', kategori_pbj: 'Pekerjaan Konstruksi', deskripsi: 'Mencakup renovasi, rehabilitasi ringan/sedang gedung kantor KPU, aula rapat pleno, penataan ruang server tahan gempa/kebakaran, dan perbaikan atap gudang.' },
+  { kode: '43211', judul: 'Instalasi Listrik', sektor: 'F - Konstruksi', kategori_pbj: 'Pekerjaan Konstruksi', deskripsi: 'Mencakup instalasi kelistrikan daya tinggi, pemasangan panel distribusi otomatis ATS/AMF genset, perbaikan grounding penangkal petir, dan instalasi UPS terpusat.' },
+  { kode: '71101', judul: 'Aktivitas Arsitektur', sektor: 'M - Aktivitas Profesional, Ilmiah dan Teknis', kategori_pbj: 'Jasa Konsultansi', deskripsi: 'Mencakup jasa konsultansi perencanaan teknis renovasi gedung, gambar DED, RKS teknis, dan penyusunan Rencana Anggaran Biaya (EE/HPS Konsultan).' },
+  { kode: '71102', judul: 'Aktivitas Keinsinyuran dan Konsultasi Teknis YBDI (Pengawasan Konstruksi)', sektor: 'M - Aktivitas Profesional, Ilmiah dan Teknis', kategori_pbj: 'Jasa Konsultansi', deskripsi: 'Mencakup jasa pengawasan konstruksi fisik gedung kantor/gudang logistik, verifikasi progres mingguan, dan penyusunan laporan kemajuan pekerjaan BAST.' },
+  { kode: '80100', judul: 'Aktivitas Keamanan Swasta (Jasa Pengamanan / Satpam)', sektor: 'N - Aktivitas Administrasi Kantor & Keamanan', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup penyediaan personel satuan pengamanan (Satpam) 24 jam berlisensi Gada Pratama untuk kantor sekretariat KPU dan gudang logistik pemilu.' },
+  { kode: '81210', judul: 'Aktivitas Kebersihan Umum Bangunan (Cleaning Service)', sektor: 'N - Aktivitas Jasa Kebersihan', kategori_pbj: 'Jasa Lainnya', deskripsi: 'Mencakup penyediaan jasa tenaga kebersihan kantor, perawatan taman, disinfeksi berkala, dan kebersihan ruang kerja.' }
+];
+
+async function ensureMasterKbliTableAndSeed(pool) {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS master_kbli (
+        id INT NOT NULL AUTO_INCREMENT,
+        kode VARCHAR(10) NOT NULL UNIQUE,
+        judul VARCHAR(255) NOT NULL,
+        sektor VARCHAR(128) DEFAULT '',
+        kategori_pbj VARCHAR(64) DEFAULT 'Barang',
+        deskripsi TEXT DEFAULT NULL,
+        is_active TINYINT(1) DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    const [rows] = await pool.query('SELECT COUNT(*) AS cnt FROM master_kbli');
+    if (!rows || !rows[0] || Number(rows[0].cnt) === 0) {
+      for (const item of SEED_KBLI_DATA) {
+        await pool.query(`
+          INSERT INTO master_kbli (kode, judul, sektor, kategori_pbj, deskripsi, is_active)
+          VALUES (?, ?, ?, ?, ?, 1)
+          ON DUPLICATE KEY UPDATE
+            judul = VALUES(judul),
+            sektor = VALUES(sektor),
+            kategori_pbj = VALUES(kategori_pbj),
+            deskripsi = VALUES(deskripsi),
+            is_active = 1
+        `, [item.kode, item.judul, item.sektor, item.kategori_pbj, item.deskripsi]);
+      }
+      console.log('[KBLI-INIT] master_kbli berhasil diinisialisasi & di-seed dengan 28 KBLI BPS 2020.');
+    }
+  } catch (err) {
+    console.warn('[KBLI-INIT-WARN]', err.message);
+  }
+}
+
 async function initDatabaseSchemaAndSeed() {
   if (schemaInitDone) return;
   const pool = getCakraPool();
