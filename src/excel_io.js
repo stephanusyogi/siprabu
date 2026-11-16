@@ -7,7 +7,7 @@
 const ExcelJS = require('exceljs');
 const XLSX = require('xlsx');
 const { db, getRabRows, getPeriodeById, getMasters, getKecamatans, getPenandatanganList, getActivePeriode, getLatestRatifiedPeriode, getSheetMatrix } = require('./db');
-const { calculateRkbDataset, getCachedRkbDataset, getRevisionComparison, getWilayahData, filterAndPruneRkbDataset } = require('./calculation');
+const { calculateRkbDataset, getCachedRkbDataset, getRevisionComparison, getWilayahData, filterAndPruneRkbDataset, getEfisiensiPerencanaanDataset } = require('./calculation');
 const { parseIndonesianNumber } = require('./number_util');
 
 /**
@@ -3547,10 +3547,20 @@ async function exportCostSharingToExcelBuffer(periodeId, { pic = 'SEMUA', mode =
   return await exportRekapToExcelBuffer(periodeId, { pic, mode, tab: 'COST_SHARING', fullCompilation: false });
 }
 
+
+/**
+ * Ekspor Rekapitulasi Efisiensi Perencanaan (SBM vs RUH Belanja) ke format Excel
+ * Meneruskan panggilan ke generator resmi exportRekapToExcelBuffer (Tab EFISIENSI)
+ */
+async function exportEfisiensiToExcelBuffer(periodeId, { pic = 'SEMUA', mode = 'perencanaan' } = {}) {
+  return await exportRekapToExcelBuffer(periodeId, { pic, mode, tab: 'EFISIENSI', fullCompilation: false });
+}
+
 module.exports = {
   exportRkbToExcelBuffer,
   exportRekapToExcelBuffer,
   exportCostSharingToExcelBuffer,
+  exportEfisiensiToExcelBuffer,
   exportSbmToExcelBuffer,
   parseSbmExcelBuffer,
   exportBasToExcelBuffer,

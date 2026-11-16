@@ -8887,6 +8887,28 @@ function filterDbKuantitas() {
   });
 }
 
+function openModalTambahKuantitas() {
+  const modal = document.getElementById('modal-kuantitas');
+  if (!modal) return;
+
+  setElText('modal-kuantitas-title', '➕ Tambah Parameter Kuantitas SSOT Baru');
+  setElVal('kuantitas-id', '');
+  setElVal('kuantitas-input-kode', '');
+  setElVal('kuantitas-input-nama', '');
+  setElVal('kuantitas-input-kategori', 'OPERASIONAL');
+  setElVal('kuantitas-nilai', '');
+  setElVal('kuantitas-satuan', '');
+  setElVal('kuantitas-keterangan', '');
+
+  const editPrev = document.getElementById('modal-kuantitas-edit-preview');
+  if (editPrev) editPrev.style.display = 'none';
+  const addFields = document.getElementById('modal-kuantitas-add-fields');
+  if (addFields) addFields.style.display = 'block';
+
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('kuantitas-input-kode')?.focus(), 100);
+}
+
 function openModalKuantitas(id) {
   const modal = document.getElementById('modal-kuantitas');
   if (!modal) return;
@@ -8904,6 +8926,11 @@ function openModalKuantitas(id) {
   setElVal('kuantitas-satuan', q.satuan || '');
   setElVal('kuantitas-keterangan', q.keterangan || '');
 
+  const editPrev = document.getElementById('modal-kuantitas-edit-preview');
+  if (editPrev) editPrev.style.display = 'block';
+  const addFields = document.getElementById('modal-kuantitas-add-fields');
+  if (addFields) addFields.style.display = 'none';
+
   modal.style.display = 'flex';
   setTimeout(() => document.getElementById('kuantitas-nilai')?.focus(), 100);
 }
@@ -8919,10 +8946,31 @@ function closeModalKuantitas() {
 }
 
 async function submitModalKuantitas() {
-  const id = document.getElementById('kuantitas-id')?.value;
-  const kode = document.getElementById('kuantitas-kode')?.value;
-  const nama = document.getElementById('kuantitas-nama')?.value;
-  const kategori = document.getElementById('kuantitas-kategori')?.value;
+  const idVal = document.getElementById('kuantitas-id')?.value;
+  const isAdd = !idVal;
+
+  let kode = '';
+  let nama = '';
+  let kategori = 'UMUM';
+
+  if (isAdd) {
+    kode = (document.getElementById('kuantitas-input-kode')?.value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/^@+/, '');
+    nama = (document.getElementById('kuantitas-input-nama')?.value || '').trim();
+    kategori = document.getElementById('kuantitas-input-kategori')?.value || 'OPERASIONAL';
+    if (!kode) {
+      showToast('Kode variabel SSOT wajib diisi.', 'error');
+      return;
+    }
+    if (!nama) {
+      showToast('Nama parameter kuantitas wajib diisi.', 'error');
+      return;
+    }
+  } else {
+    kode = document.getElementById('kuantitas-kode')?.value;
+    nama = document.getElementById('kuantitas-nama')?.value;
+    kategori = document.getElementById('kuantitas-kategori')?.value;
+  }
+
   const nilai = parseFloat(document.getElementById('kuantitas-nilai')?.value);
   const satuan = (document.getElementById('kuantitas-satuan')?.value || '').trim();
   const keterangan = (document.getElementById('kuantitas-keterangan')?.value || '').trim();
@@ -8939,26 +8987,24 @@ async function submitModalKuantitas() {
   }
 
   try {
+    const payload = {
+      kode,
+      nama,
+      kategori,
+      nilai,
+      satuan,
+      keterangan
+    };
+    if (!isAdd) {
+      payload.id = Number(idVal);
+    }
     const result = await apiFetch('/api/master/kuantitas', {
       method: 'POST',
-      body: JSON.stringify({
-        id: Number(id),
-        kode,
-        nama,
-        kategori,
-        nilai,
-        satuan,
-        keterangan
-      })
+      body: JSON.stringify(payload)
     });
     if (result.success) {
-      // 1. Pastikan pop up langsung tertutup seketika saat sukses
       closeModalKuantitas();
-
-      // 2. Berikan notifikasi toast konfirmasi
-      showToast(result.message || 'Parameter SSOT berhasil diperbarui!', 'success');
-
-      // 3. Perbarui state dan kalkulasi di latar belakang
+      showToast(result.message || (isAdd ? 'Parameter SSOT baru berhasil ditambahkan!' : 'Parameter SSOT berhasil diperbarui!'), 'success');
       try {
         await loadMasters();
         await loadRkbData();
@@ -8967,7 +9013,7 @@ async function submitModalKuantitas() {
         console.warn('Gagal memuat ulang view master kuantitas:', refreshErr);
       }
     } else {
-      showToast(result.error || 'Gagal memperbarui parameter kuantitas.', 'error');
+      showToast(result.error || 'Gagal menyimpan parameter kuantitas.', 'error');
     }
   } catch (err) {
     showToast('Terjadi kesalahan: ' + err.message, 'error');
@@ -14362,6 +14408,209 @@ function renderRekapTabContent(mode) {
         </div>
       </div>
     `;
+  } else if (tab === 'EFISIENSI') {
+    const efData = state.data?.efisiensi_data || { summary: {}, by_subbag: [], items: [] };
+    const efSum = efData.summary || {};
+    const subList = efData.by_subbag || [];
+    const efItems = efData.items || [];
+
+    const totPlafon = Number(efSum.total_plafon) || 0;
+    const totRuh = Number(efSum.total_ruh) || 0;
+    const totHemat = Number(efSum.total_hemat) || 0;
+    const totOver = Number(efSum.total_over) || 0;
+    const pctHemat = efSum.pct_hemat || '0.00';
+    const kepatuhanPct = efSum.kepatuhan_pct || '100.00';
+
+    contentBox.innerHTML = `
+      <!-- Action Bar Unduh Tab 6 Mandiri -->
+      <div class="rekap-efisiensi-action-bar" style="display:flex; justify-content:space-between; align-items:center; background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:12px 16px; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <div>
+          <div style="font-weight:700; color:#0f766e; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+            <i class="fa fa-line-chart" style="color:#0d9488;"></i> Analisis Efisiensi Perencanaan Anggaran (SBM/SBML Kemenkeu vs RUH Belanja)
+          </div>
+          <div style="font-size:12px; color:#64748b; margin-top:2px;">Evaluasi komparasi pagu plafon Standar Biaya Masukan PMK Kemenkeu &amp; SBML KPU/Pemda terhadap usulan riil RUH Belanja RKB.</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-sm btn-success" onclick="exportRekapEfisiensiExcel('${cleanMode}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+            <i class="fa fa-file-excel-o"></i> Unduh Excel Tab 6 (.xlsx)
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printRekapEfisiensiPdf('${cleanMode}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+            <i class="fa fa-print"></i> Unduh / Cetak PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 Kartu Ringkasan Eksekutif KPI -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:16px;">
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-top:3px solid #0284c7; border-radius:8px; padding:12px 14px;">
+          <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">TOTAL PLAFON SBM/SBML</div>
+          <div style="font-size:18px; font-weight:800; color:#0f172a; margin-top:4px; font-family:var(--font-mono);">${formatRupiah(totPlafon)}</div>
+          <div style="font-size:11px; color:#64748b; margin-top:2px;">Batas Maksimal PMK &amp; SBML</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-top:3px solid #6366f1; border-radius:8px; padding:12px 14px;">
+          <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">TOTAL USULAN RUH BELANJA</div>
+          <div style="font-size:18px; font-weight:800; color:#1e1b4b; margin-top:4px; font-family:var(--font-mono);">${formatRupiah(totRuh)}</div>
+          <div style="font-size:11px; color:#64748b; margin-top:2px;">Alokasi Riil Diusulkan</div>
+        </div>
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-top:3px solid #10b981; border-radius:8px; padding:12px 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:700; color:#166534; text-transform:uppercase;">TOTAL PENGHEMATAN</span>
+            <span style="font-size:10.5px; font-weight:800; background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:4px;">${pctHemat}% HEMAT</span>
+          </div>
+          <div style="font-size:18px; font-weight:800; color:#15803d; margin-top:4px; font-family:var(--font-mono);">${formatRupiah(totHemat)}</div>
+          <div style="font-size:11px; color:#166534; margin-top:2px;">Efisiensi Perencanaan Satker</div>
+        </div>
+        <div style="background:#f0fdff; border:1px solid #bae6fd; border-top:3px solid #0ea5e9; border-radius:8px; padding:12px 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:700; color:#0369a1; text-transform:uppercase;">KEPATUHAN REGULASI</span>
+            <span style="font-size:10.5px; font-weight:800; background:#e0f2fe; color:#0284c7; padding:1px 6px; border-radius:4px;">${kepatuhanPct}% PATUH</span>
+          </div>
+          <div style="font-size:18px; font-weight:800; color:#0369a1; margin-top:4px;">${efSum.count_items || 0} Item Belanja</div>
+          <div style="font-size:11px; color:#0369a1; margin-top:2px;">${efSum.count_hemat || 0} Hemat • ${efSum.count_tepat || 0} Tepat • ${efSum.count_over || 0} Over</div>
+        </div>
+      </div>
+
+      <!-- Tabel 1: Rekapitulasi Efisiensi per Subbagian Pelaksana -->
+      <div style="margin-bottom:20px;">
+        <h4 style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+          <span>I. Rekapitulasi Efisiensi Anggaran per Subbagian Pelaksana</span>
+        </h4>
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover" style="margin-bottom:0;">
+            <thead>
+              <tr style="background:#f1f5f9; color:#1e293b;">
+                <th style="width:40px; text-align:center;">No</th>
+                <th>Subbagian Pelaksana</th>
+                <th style="width:110px; text-align:center;">Item Ber-SBM</th>
+                <th class="text-right" style="width:160px;">Total Plafon SBM (Rp)</th>
+                <th class="text-right" style="width:160px;">Usulan RUH Belanja (Rp)</th>
+                <th class="text-right" style="width:170px;">Efisiensi Penghematan (Rp)</th>
+                <th class="text-right" style="width:120px;">Rasio Efisiensi (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${subList.map((s, idx) => `
+                <tr>
+                  <td class="text-center">${idx + 1}</td>
+                  <td><strong><span class="pic-chip pic-${escHtml(s.pic)}">${escHtml(s.pic)}</span> ${escHtml(s.nama || s.pic)}</strong></td>
+                  <td class="text-center" style="font-family:var(--font-mono); font-weight:600;">${formatNumber(s.items)} item</td>
+                  <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(s.plafon)}</td>
+                  <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(s.ruh)}</td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-weight:700; color:#15803d;">${formatRupiah(s.hemat)}</td>
+                  <td class="text-right" style="font-family:var(--font-mono); font-weight:700; color:#15803d;">${s.pct_hemat}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background:#f0fdfa; font-weight:800; color:#0f766e;">
+                <td colspan="2" class="text-center">TOTAL SATKER KPU KABUPATEN NGAWI</td>
+                <td class="text-center" style="font-family:var(--font-mono);">${formatNumber(efSum.count_items || 0)} item</td>
+                <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(totPlafon)}</td>
+                <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(totRuh)}</td>
+                <td class="text-right" style="font-family:var(--font-mono); color:#15803d; font-size:13px;">${formatRupiah(totHemat)}</td>
+                <td class="text-right" style="font-family:var(--font-mono); color:#15803d; font-size:13px;">${pctHemat}%</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabel 2: Rincian Komparasi Belanja RUH vs Plafon SBM/SBML -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+          <h4 style="font-size:14px; font-weight:700; color:#0f766e; margin:0; display:flex; align-items:center; gap:8px;">
+            <span>II. Rincian Komparasi Item Belanja RUH vs Plafon SBM &amp; SBML</span>
+            <span style="font-size:12px; font-weight:600; background:#ccfbf1; color:#0f766e; padding:2px 8px; border-radius:12px; border:1px solid #99f6e4;">
+              ${formatNumber(efItems.length)} Item
+            </span>
+          </h4>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="text" id="rekap-efisiensi-search-input" class="input-text input-sm" placeholder="Cari uraian atau akun..." onkeyup="filterRekapEfisiensiTable()" style="width:200px;">
+            <select id="rekap-efisiensi-status-filter" class="input-select input-sm" onchange="filterRekapEfisiensiTable()" style="font-weight:600;">
+              <option value="ALL">Semua Status (${efItems.length})</option>
+              <option value="HEMAT">Hanya Efisiensi / Hemat (${efSum.count_hemat || 0})</option>
+              <option value="TEPAT">Tepat Standar (${efSum.count_tepat || 0})</option>
+              <option value="OVER">Melampaui SBM (${efSum.count_over || 0})</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-responsive" style="max-height:550px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:6px;">
+          <table class="table table-bordered table-hover" id="rekap-efisiensi-table" style="margin-bottom:0; font-size:11.5px;">
+            <thead style="position:sticky; top:0; z-index:2; background:#0f766e; color:#ffffff;">
+              <tr>
+                <th style="width:35px; text-align:center;">No</th>
+                <th style="width:85px; text-align:center;">Kode Akun</th>
+                <th style="width:75px; text-align:center;">Kode RKB</th>
+                <th>Uraian Rincian Belanja</th>
+                <th style="width:80px; text-align:center;">Subbag</th>
+                <th style="width:70px; text-align:center;">Sasaran</th>
+                <th class="text-right" style="width:90px;">Volume</th>
+                <th class="text-right" style="width:110px;">Plafon SBM</th>
+                <th class="text-right" style="width:110px;">Harga RUH</th>
+                <th class="text-right" style="width:130px;">Total Plafon SBM</th>
+                <th class="text-right" style="width:130px;">Total Pagu RUH</th>
+                <th class="text-right" style="width:140px;">Efisiensi (Rp)</th>
+                <th style="width:110px; text-align:center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${efItems.length === 0 ? `
+                <tr>
+                  <td colspan="13" class="text-center" style="padding:18px; color:#64748b; font-style:italic;">
+                    Tidak ada rincian belanja terikat SBM/SBML pada cakupan filter ini.
+                  </td>
+                </tr>
+              ` : efItems.map((it, idx) => {
+                let badgeClass = 'badge-success';
+                let statusLabel = 'HEMAT';
+                if (it.status === 'TEPAT') {
+                  badgeClass = 'badge-primary';
+                  statusLabel = 'TEPAT';
+                } else if (it.status === 'OVER') {
+                  badgeClass = 'badge-danger';
+                  statusLabel = 'OVER';
+                }
+                return `
+                  <tr data-status="${escHtml(it.status)}" data-text="${escHtml((it.uraian + ' ' + it.kode_akun + ' ' + it.sbm_uraian).toLowerCase())}">
+                    <td class="text-center" style="font-size:11px;">${idx + 1}</td>
+                    <td class="text-center" style="font-family:var(--font-mono); font-size:11px; font-weight:700; color:#0284c7;">${escHtml(it.kode_akun || '-')}</td>
+                    <td class="text-center" style="font-family:var(--font-mono); font-size:11px; color:#64748b;">${escHtml(it.kode || '-')}</td>
+                    <td>
+                      <strong>${escHtml(it.uraian)}</strong>
+                      <div style="font-size:10px; color:#0d9488; margin-top:2px;">
+                        <i class="fa fa-tag"></i> ${escHtml(it.sbm_uraian)} (${escHtml(it.regulasi)})
+                      </div>
+                    </td>
+                    <td class="text-center"><span class="pic-chip pic-${escHtml(it.pic_bagian)}">${escHtml(it.pic_bagian)}</span></td>
+                    <td class="text-center"><span style="font-size:10.5px; font-weight:700; background:#f1f5f9; padding:2px 6px; border-radius:4px;">${escHtml(it.target_scope || 'KAB')}</span></td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-size:11px;">${formatNumber(it.vol)} ${escHtml(it.satuan || '')}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-size:11px;">${formatRupiah(it.harga_sbm)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-size:11px;">${formatRupiah(it.harga_ruh)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-size:11px;">${formatRupiah(it.total_plafon)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-size:11px;">${formatRupiah(it.total_ruh)}</td>
+                    <td class="text-right" style="font-family:var(--font-mono); font-weight:700; color:${it.selisih > 0 ? '#15803d' : (it.selisih < 0 ? '#b91c1c' : '#0284c7')};">
+                      ${formatRupiah(it.selisih)}
+                    </td>
+                    <td class="text-center">
+                      <span class="badge ${badgeClass}" style="font-size:10px; font-weight:700; padding:3px 6px;">${statusLabel}</span>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+            <tfoot style="position:sticky; bottom:0; background:#f0fdfa; font-weight:800; color:#0f766e;">
+              <tr>
+                <td colspan="9" class="text-center">TOTAL KOMPARASI RINCIAN BELANJA BER-SBM</td>
+                <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(totPlafon)}</td>
+                <td class="text-right" style="font-family:var(--font-mono);">${formatRupiah(totRuh)}</td>
+                <td class="text-right" style="font-family:var(--font-mono); color:#15803d; font-size:12px;">${formatRupiah(totHemat)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `;
   }
 }
 
@@ -14389,7 +14638,8 @@ async function exportRekapExcel(mode = 'perencanaan', isFullCompilation = false)
       'KEGIATAN': 'Kegiatan_RKB',
       'SUBBAGIAN': 'Subbagian',
       'AKUN_BAS': 'Akun_BAS',
-      'COST_SHARING': 'Sumber_Dana'
+      'COST_SHARING': 'Sumber_Dana',
+      'EFISIENSI': 'Efisiensi_Perencanaan'
     };
     const tabLabel = tabLabelMap[activeTab] || activeTab;
     baseName = `Rekap_${tabLabel}_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}`;
@@ -16215,3 +16465,160 @@ window.closePreLoginAnnouncementModal = closePreLoginAnnouncementModal;
 window.renderDashboardAnnouncementBanner = renderDashboardAnnouncementBanner;
 
 window.setAnnouncementLevelPreset = setAnnouncementLevelPreset;
+
+
+function filterRekapEfisiensiTable() {
+  const keyword = (document.getElementById('rekap-efisiensi-search-input')?.value || '').toLowerCase().trim();
+  const statusFilter = document.getElementById('rekap-efisiensi-status-filter')?.value || 'ALL';
+  const table = document.getElementById('rekap-efisiensi-table');
+  if (!table) return;
+
+  table.querySelectorAll('tbody tr[data-status]').forEach(r => {
+    const rStatus = r.getAttribute('data-status') || '';
+    const rText = r.getAttribute('data-text') || '';
+    const matchStatus = (statusFilter === 'ALL' || rStatus === statusFilter);
+    const matchText = (!keyword || rText.includes(keyword));
+    r.style.display = (matchStatus && matchText) ? '' : 'none';
+  });
+}
+
+async function exportRekapEfisiensiExcel(mode = 'perencanaan') {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  const state = AppState.rekapState[cleanMode]?.data;
+  if (!state || !state.periode) {
+    showToast('Data rekap belum dimuat.', 'warning');
+    return;
+  }
+  const pId = state.periode.id;
+  const filterPic = state.filter_pic || 'SEMUA';
+  const filename = `Rekap_Efisiensi_Perencanaan_${cleanMode}_${(state.periode.versi_revisi || 'RKB').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}_${formatClientDownloadTimestamp()}.xlsx`;
+  try {
+    showToast('Mengirim permintaan unduh Rekap Efisiensi Perencanaan ke Monitoring Unduhan...', 'info');
+    const res = await apiFetch('/api/download-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        nama_file: filename,
+        tipe_unduhan: 'EXCEL_EFISIENSI',
+        periode_id: pId,
+        filter_pic: filterPic,
+        filter_sasaran: cleanMode
+      })
+    });
+    if (res && res.success) {
+      showToast('Permintaan unduh Rekap Efisiensi Perencanaan berhasil dikirim ke antrean. Mengalihkan ke Monitoring Unduhan...', 'info');
+      switchView('view-monitoring');
+      if (typeof loadMonitoringView === 'function') loadMonitoringView();
+    } else {
+      window.open(`/api/rekap/${cleanMode}/export-efisiensi-excel?pic=${encodeURIComponent(filterPic)}`, '_blank');
+    }
+  } catch (e) {
+    window.open(`/api/rekap/${cleanMode}/export-efisiensi-excel?pic=${encodeURIComponent(filterPic)}`, '_blank');
+  }
+}
+
+function printRekapEfisiensiPdf(mode = 'perencanaan') {
+  const cleanMode = mode === 'pelaksanaan' ? 'pelaksanaan' : 'perencanaan';
+  const state = AppState.rekapState[cleanMode]?.data;
+  const contentEl = document.getElementById(`rekap-${cleanMode}-content`);
+  if (!state || !contentEl) return;
+
+  const s = (AppState.masters && AppState.masters.settings) || {};
+  const rawSatker = s.nama_satker || 'KPU KABUPATEN NGAWI';
+  const satkerName = rawSatker.toUpperCase().startsWith('KPU ') ? ('KOMISI PEMILIHAN UMUM ' + rawSatker.substring(4).toUpperCase()) : rawSatker.toUpperCase();
+  const alamatSatker = s.alamat_satker || 'Jl. Untung Suropati No. 48 Ngawi';
+  const telpSatker = s.telp_satker || '(0351) 743832';
+  const emailSatker = s.email_satker || 'kab_ngawi@kpu.go.id';
+  const agenda = (s.nama_agenda_pilkada || s.nama_agenda || 'PEMILIHAN BUPATI DAN WAKIL BUPATI NGAWI').toUpperCase();
+  const tahun = s.tahun_anggaran || '2029';
+  const agendaText = agenda.includes(tahun) ? `BELANJA HIBAH DALAM RANGKA ${agenda}` : `BELANJA HIBAH DALAM RANGKA ${agenda} TAHUN ${tahun}`;
+  const kotaTtd = (s.kota_penandatangan || s.kota_ttd || 'Ngawi');
+
+  const win = window.open('', '_blank');
+  if (!win) {
+    window.print();
+    return;
+  }
+  const title = cleanMode === 'pelaksanaan'
+    ? 'REKAPITULASI EFISIENSI PERENCANAAN ANGGARAN (BASELINE SAH)'
+    : 'REKAPITULASI EFISIENSI PERENCANAAN ANGGARAN (RKB AKTIF)';
+
+  const clone = contentEl.cloneNode(true);
+  const actionBars = clone.querySelectorAll('.rekap-efisiensi-action-bar');
+  actionBars.forEach(el => el.remove());
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <title>${escHtml(title)} - SI-PRABU ${escHtml(satkerName)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; font-size: 11px; line-height: 1.4; }
+        .kop-instansi { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 14px; }
+        .kop-instansi h1 { margin: 0 0 2px 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kop-instansi .kop-agenda { margin: 0 0 3px 0; font-size: 12px; font-weight: 700; color: #0f766e; }
+        .kop-instansi .kop-alamat { margin: 0; font-size: 10px; color: #475569; }
+        .sub-title { text-align: center; font-size: 13px; font-weight: bold; color: #0f766e; margin-bottom: 6px; }
+        .meta { margin-bottom: 16px; font-size: 11px; color: #334155; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 16px; page-break-inside: auto; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
+        th, td { border: 1px solid #94a3b8; padding: 5px 6px; text-align: left; }
+        th { background: #f1f5f9; font-weight: bold; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9.5px; font-weight: bold; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-primary { background: #e0f2fe; color: #0369a1; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .pic-chip { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+        .ttd-block { margin-top: 32px; page-break-inside: avoid; }
+        .ttd-table { width: 100%; border: none; margin-top: 20px; }
+        .ttd-table td { border: none; padding: 4px 8px; vertical-align: top; }
+        @media print {
+          body { padding: 0; }
+          @page { size: landscape; margin: 12mm 10mm 15mm 10mm; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="kop-instansi">
+        <h1>${escHtml(satkerName)}</h1>
+        <div class="kop-agenda">${escHtml(agendaText)}</div>
+        <div class="kop-alamat">${escHtml(alamatSatker)} | Telp: ${escHtml(telpSatker)} | Email: ${escHtml(emailSatker)}</div>
+      </div>
+      <div class="sub-title">${escHtml(title)}</div>
+      <div class="meta">
+        Dokumen: <strong>${escHtml(state.periode.nama_periode)}</strong> |
+        Versi: <strong>${escHtml(state.periode.versi_revisi || 'Induk')}</strong> |
+        Dicetak: <strong>${formatDateIndo(new Date())}</strong>
+      </div>
+      ${clone.innerHTML}
+      <div class="ttd-block">
+        <table class="ttd-table">
+          <tr>
+            <td style="width: 50%; text-align: center;">
+              Mengetahui,<br>
+              <strong>Ketua Komisi Pemilihan Umum<br>Kabupaten Ngawi</strong>
+              <div style="height: 60px;"></div>
+              <u><strong>SAMSU MUSTAKIM</strong></u>
+            </td>
+            <td style="width: 50%; text-align: center;">
+              ${escHtml(kotaTtd)}, ${formatDateIndo(new Date())}<br>
+              <strong>Sekretaris KPU Kabupaten Ngawi<br>Selaku Kuasa Pengguna Anggaran (KPA)</strong>
+              <div style="height: 60px;"></div>
+              <u><strong>BUDI RAHAYU</strong></u><br>
+              NIP. 19830503 200902 1 002
+            </td>
+          </tr>
+        </table>
+      </div>
+      <script>
+        window.onload = function() {
+          setTimeout(function() { window.print(); }, 300);
+        };
+      </script>
+    </body>
+    </html>
+  `);
+  win.document.close();
+}

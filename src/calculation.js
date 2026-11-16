@@ -1640,6 +1640,225 @@ function auditRkbIntegrity(periodeId) {
   };
 }
 
+/**
+ * Menghitung resume efisiensi perencanaan dengan membandingkan pagu SBM/SBML vs RUH Belanja (Tab 6)
+ */
+function getEfisiensiPerencanaanDataset(periodeId, { pic = 'SEMUA' } = {}) {
+  const fullDataset = getCachedRkbDataset(periodeId);
+  const activeData = (pic && pic !== 'SEMUA')
+    ? filterAndPruneRkbDataset(fullDataset, { pic })
+    : fullDataset;
+
+  let sbmList = [];
+  try {
+    sbmList = db.prepare('SELECT id, kode_akun, kategori, uraian, satuan, harga_satuan, pagu_sbm, jenis_regulasi, dasar_hukum FROM master_sbm').all();
+  } catch (e) {
+    sbmList = [];
+  }
+  const sbmMap = new Map();
+  sbmList.forEach(s => sbmMap.set(Number(s.id), s));
+
+  function matchItemSbm(r) {
+    if (r.sbm_id && sbmMap.has(Number(r.sbm_id))) {
+      return sbmMap.get(Number(r.sbm_id));
+    }
+
+    const u = (r.uraian || '').toLowerCase().replace(/^[-.\s]+/, '').trim();
+    const scope = (r.target_scope || '').toUpperCase();
+    const akun = String(r.kode_akun || '').trim();
+    const unit = (r.satuan_vol || '').toUpperCase().trim();
+
+    // Saring Belanja Paket Gabungan / Non-SBM (Analisis Pasar)
+    if (/jasa eo|event organizer|pembuatan video|perlengkapan pemungutan suara/i.test(u) && (unit === 'PAKET' || unit === 'KEG')) {
+      return null;
+    }
+    if (/atk.*konsumsi/i.test(u) && (unit === 'PAKET' || unit === 'KEG')) {
+      return null;
+    }
+
+    // 1. KONSUMSI SATUAN
+    if (/makan|snack|kudapan|konsumsi/i.test(u) && (unit === 'OK' || unit === 'KOTAK' || unit === 'DUS' || unit === 'PORSI' || unit === 'ORANG')) {
+      if (/snack|kudapan/i.test(u) && !/makan/i.test(u)) {
+        if (scope === 'PPK' || /ppk|kecamatan/i.test(u)) return sbmMap.get(7);
+        if (scope === 'PPS' || /pps|desa/i.test(u)) return sbmMap.get(10);
+        return sbmMap.get(4);
+      }
+      if (/makan/i.test(u) && !/snack/i.test(u)) {
+        if (scope === 'PPK' || /ppk|kecamatan/i.test(u)) return sbmMap.get(6);
+        if (scope === 'PPS' || /pps|desa/i.test(u)) return sbmMap.get(9);
+        return sbmMap.get(3);
+      }
+      if (scope === 'PPK' || /ppk|kecamatan/i.test(u)) return sbmMap.get(5);
+      if (scope === 'PPS' || /pps|desa/i.test(u)) return sbmMap.get(8);
+      return sbmMap.get(2);
+    }
+
+    // 2. PAKET MEETING HOTEL (Akun 524114)
+    if (akun === '524114' || /halfday|fullday|fullboard/i.test(u)) {
+      if (/halfday/i.test(u)) return sbmMap.get(71);
+      if (/fullday/i.test(u)) return sbmMap.get(72);
+      if (/fullboard.*luar kota/i.test(u)) return sbmMap.get(59);
+    }
+
+    // 3. TRANSPORT & PERJALANAN DINAS
+    if (/transport|perjalanan dinas|perjadin|bantrans|uang harian|tiket|taxi/i.test(u)) {
+      if (/ppk ke kpu/i.test(u)) return sbmMap.get(40);
+      if (/ppk ke pps/i.test(u)) return sbmMap.get(41);
+      if (/pps ke ppk/i.test(u)) return sbmMap.get(42);
+      if (scope === 'PPK' && /peserta/i.test(u) && r.harga_satuan <= 50000) return sbmMap.get(78);
+      if (scope === 'PPS' && /peserta|desa/i.test(u) && r.harga_satuan <= 50000) return sbmMap.get(67);
+
+      if (/uang harian/i.test(u)) {
+        if (r.harga_satuan === 530000 || /jakarta/i.test(u)) return sbmMap.get(76);
+        return sbmMap.get(61);
+      }
+      if (/taxi|taksi/i.test(u)) {
+        if (r.harga_satuan === 256000) return sbmMap.get(77);
+        return sbmMap.get(51);
+      }
+      if (/bantuan transport|uang transport|transport lokal/i.test(u) && (unit === 'OK' || unit === 'OH')) {
+        return sbmMap.get(51);
+      }
+    }
+
+    // 4. HONORARIUM ADHOC (Akun 521213)
+    if (akun === '521213' || (/honor/i.test(u) && !/jasa profesi/i.test(u))) {
+      if (/ketua ppk/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(20);
+      if (/anggota ppk/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(21);
+      if (/sekretaris ppk/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(22);
+      if (/staf.*ppk/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(23);
+      if (/ketua pps/i.test(u) && !/peserta/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(24);
+      if (/anggota pps/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(25);
+      if (/sekretaris pps/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(26);
+      if (/staf.*pps/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(27);
+      if (/pantarlih/i.test(u) && (unit === 'OB' || unit === 'BULAN')) return sbmMap.get(28);
+      if (/ketua kpps/i.test(u) && (unit === 'OB' || unit === 'BULAN' || unit === 'KEG')) return sbmMap.get(29);
+      if (/anggota kpps/i.test(u) && (unit === 'OB' || unit === 'BULAN' || unit === 'KEG')) return sbmMap.get(30);
+      if ((/linmas|ketertiban tps/i.test(u)) && (unit === 'OB' || unit === 'BULAN' || unit === 'KEG')) return sbmMap.get(31);
+      if (/pengarah pokja/i.test(u)) return sbmMap.get(35);
+      if (/penanggung jawab pokja/i.test(u)) return sbmMap.get(36);
+      if (/ketua pokja/i.test(u)) return sbmMap.get(37);
+      if (/sekretaris pokja/i.test(u)) return sbmMap.get(38);
+      if (/anggota pokja/i.test(u)) return sbmMap.get(39);
+    }
+
+    // 5. JASA PROFESI
+    if (/narasumber/i.test(u)) return sbmMap.get(65);
+    if (/moderator/i.test(u)) return sbmMap.get(66);
+    if (/rohaniawan/i.test(u)) return sbmMap.get(73);
+    if (/honor.*juri/i.test(u)) return sbmMap.get(74);
+    if (/tim perumus|panelis/i.test(u)) return sbmMap.get(75);
+
+    // 6. OPERASIONAL ADHOC
+    if (/(internet|wifi).*ppk/i.test(u)) return sbmMap.get(43);
+    if (/distribusi.*ppk ke pps/i.test(u)) return sbmMap.get(44);
+    if (/distribusi.*pps ke tps/i.test(u)) return sbmMap.get(45);
+    if (/bende|sosialisasi keliling/i.test(u)) return sbmMap.get(64);
+    if (/santunan.*meninggal/i.test(u)) return sbmMap.get(46);
+
+    return null;
+  }
+
+  let totalPlafon = 0;
+  let totalRuh = 0;
+  let totalHemat = 0;
+  let totalOver = 0;
+  let totalTepat = 0;
+
+  const subbagStat = {
+    RENDATIN: { pic: 'RENDATIN', nama: 'Perencanaan, Data & Informasi', items: 0, plafon: 0, ruh: 0, hemat: 0, over: 0, tepat: 0, pct_hemat: '0.00' },
+    TEKNIS: { pic: 'TEKNIS', nama: 'Teknis Penyelenggaraan Pemilu', items: 0, plafon: 0, ruh: 0, hemat: 0, over: 0, tepat: 0, pct_hemat: '0.00' },
+    HUKUM: { pic: 'HUKUM', nama: 'Hukum & Pengawasan', items: 0, plafon: 0, ruh: 0, hemat: 0, over: 0, tepat: 0, pct_hemat: '0.00' },
+    PARSDM: { pic: 'PARSDM', nama: 'Sosialisasi, Parmas & SDM', items: 0, plafon: 0, ruh: 0, hemat: 0, over: 0, tepat: 0, pct_hemat: '0.00' },
+    KUL: { pic: 'KUL', nama: 'Keuangan, Umum & Logistik', items: 0, plafon: 0, ruh: 0, hemat: 0, over: 0, tepat: 0, pct_hemat: '0.00' }
+  };
+
+  const items = [];
+
+  (activeData.rows || []).forEach(r => {
+    if (r.is_header) return;
+    const sbm = matchItemSbm(r);
+    if (!sbm) return;
+
+    const vol = Number(r.vol_total || r.computed_volume || 1);
+    const hargaRuh = Number(r.harga_satuan || 0);
+    const hargaSbm = Number(sbm.pagu_sbm || sbm.harga_satuan || 0);
+    const itemTotalRuh = Number(r.computed_total || (vol * hargaRuh));
+    const itemTotalPlafon = vol * hargaSbm;
+    const selisih = itemTotalPlafon - itemTotalRuh;
+
+    totalPlafon += itemTotalPlafon;
+    totalRuh += itemTotalRuh;
+
+    const sub = (r.pic_bagian || 'KUL').toUpperCase().trim();
+    if (subbagStat[sub]) {
+      subbagStat[sub].items++;
+      subbagStat[sub].plafon += itemTotalPlafon;
+      subbagStat[sub].ruh += itemTotalRuh;
+    }
+
+    let status = 'TEPAT';
+    if (selisih > 0) {
+      status = 'HEMAT';
+      totalHemat += selisih;
+      if (subbagStat[sub]) subbagStat[sub].hemat += selisih;
+    } else if (selisih < 0) {
+      status = 'OVER';
+      totalOver += Math.abs(selisih);
+      if (subbagStat[sub]) subbagStat[sub].over += Math.abs(selisih);
+    } else {
+      totalTepat++;
+      if (subbagStat[sub]) subbagStat[sub].tepat++;
+    }
+
+    items.push({
+      id: r.id,
+      kode: r.kode || '-',
+      kode_akun: r.kode_akun || '-',
+      uraian: r.uraian || '-',
+      pic_bagian: sub,
+      target_scope: r.target_scope || 'KAB',
+      vol,
+      satuan: r.satuan_vol || '',
+      harga_sbm: hargaSbm,
+      harga_ruh: hargaRuh,
+      total_plafon: itemTotalPlafon,
+      total_ruh: itemTotalRuh,
+      selisih,
+      status,
+      sbm_uraian: sbm.uraian,
+      regulasi: sbm.jenis_regulasi || 'SBM PMK Kemenkeu',
+      dasar_hukum: sbm.dasar_hukum || '-'
+    });
+  });
+
+  for (const sub of Object.keys(subbagStat)) {
+    const st = subbagStat[sub];
+    st.pct_hemat = st.plafon > 0 ? ((st.hemat / st.plafon) * 100).toFixed(2) : '0.00';
+  }
+
+  const pctHemat = totalPlafon > 0 ? ((totalHemat / totalPlafon) * 100).toFixed(2) : '0.00';
+  const kepatuhanPct = items.length > 0 ? ((((items.length - (items.filter(i => i.status === 'OVER').length)) / items.length) * 100).toFixed(2)) : '100.00';
+
+  return {
+    summary: {
+      total_plafon: totalPlafon,
+      total_ruh: totalRuh,
+      total_hemat: totalHemat,
+      total_over: totalOver,
+      total_tepat: totalTepat,
+      pct_hemat: pctHemat,
+      kepatuhan_pct: kepatuhanPct,
+      count_items: items.length,
+      count_hemat: items.filter(i => i.status === 'HEMAT').length,
+      count_tepat: items.filter(i => i.status === 'TEPAT').length,
+      count_over: items.filter(i => i.status === 'OVER').length
+    },
+    by_subbag: Object.values(subbagStat),
+    items: items.sort((a, b) => b.selisih - a.selisih)
+  };
+}
+
 module.exports = {
   inferFactorUnit,
   getWilayahData,
@@ -1654,5 +1873,6 @@ module.exports = {
   clearRkbDatasetCache,
   getRevisionComparison,
   getRevisionSummary,
-  auditRkbIntegrity
+  auditRkbIntegrity,
+  getEfisiensiPerencanaanDataset
 };

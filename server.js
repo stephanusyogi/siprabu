@@ -144,12 +144,13 @@ const {
   getActiveAnnouncementsForLevel
 } = require('./src/db');
 
-const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset, auditRkbIntegrity } = require('./src/calculation');
+const { calculateRkbDataset, getCachedRkbDataset, clearRkbDatasetCache, getRevisionComparison, getRevisionSummary, filterAndPruneRkbDataset, auditRkbIntegrity, getEfisiensiPerencanaanDataset } = require('./src/calculation');
 const { createToken, verifyToken, revokeToken, getUserFromReq, canEditRow, canManageLifecycle, canManageUsers, isDeveloperUser } = require('./src/auth');
 const { 
   exportRkbToExcelBuffer,
   exportRekapToExcelBuffer,
   exportCostSharingToExcelBuffer,
+  exportEfisiensiToExcelBuffer,
   exportSbmToExcelBuffer, 
   parseSbmExcelBuffer, 
   exportBasToExcelBuffer, 
@@ -207,6 +208,10 @@ async function processDownloadJob(jobId) {
       const mode = (job.filter_sasaran === 'pelaksanaan') ? 'pelaksanaan' : 'perencanaan';
       const targetPeriode = (job.periode_id ? getPeriodeById(job.periode_id) : null) || (mode === 'pelaksanaan' ? getLatestRatifiedPeriode() : (getActivePeriode() || getLatestRatifiedPeriode()));
       buffer = await exportCostSharingToExcelBuffer(targetPeriode ? targetPeriode.id : null, { pic: job.filter_pic, mode });
+    } else if (job.tipe_unduhan === 'EXCEL_EFISIENSI') {
+      const mode = (job.filter_sasaran === 'pelaksanaan') ? 'pelaksanaan' : 'perencanaan';
+      const targetPeriode = (job.periode_id ? getPeriodeById(job.periode_id) : null) || (mode === 'pelaksanaan' ? getLatestRatifiedPeriode() : (getActivePeriode() || getLatestRatifiedPeriode()));
+      buffer = await exportEfisiensiToExcelBuffer(targetPeriode ? targetPeriode.id : null, { pic: job.filter_pic, mode });
     } else if (job.tipe_unduhan === 'EXCEL_MASTER_KECAMATAN') {
       buffer = await exportKecamatanToExcelBuffer();
     } else if (job.tipe_unduhan === 'EXCEL_MASTER_DESA') {
@@ -2597,8 +2602,51 @@ const server = http.createServer(async (req, res) => {
         doc_summary: canViewAll ? fullDataset.summary : activeData.summary,
         kegiatan_rows: kegiatanRows,
         akun_map: akunMap,
-        provinsi_items: provinsiItems
+        provinsi_items: provinsiItems,
+        efisiensi_data: getEfisiensiPerencanaanDataset(targetPeriode.id, { pic: filterPic })
       });
+    }
+
+    // 1e. GET /api/rekap/:mode/export-efisiensi-excel (Khusus Tab 6 Rekap Efisiensi Perencanaan)
+    const rekapEfisiensiExcelMatch = pathname.match(/^\/api\/rekap\/(perencanaan|pelaksanaan)\/export-efisiensi-excel$/);
+    if (rekapEfisiensiExcelMatch && (method === 'GET' || method === 'HEAD')) {
+      const user = getUserFromReq(req);
+      if (!user) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });
+
+      const mode = rekapEfisiensiExcelMatch[1];
+      const targetPeriode = mode === 'pelaksanaan'
+        ? getLatestRatifiedPeriode()
+        : (getActivePeriode() || getLatestRatifiedPeriode());
+
+      if (!targetPeriode) {
+        return sendJson(res, 404, { error: 'Dokumen RKB sumber rekap tidak ditemukan.' });
+      }
+
+      const canViewAll = user.level <= 1 || (user.pic_subbag === 'SEMUA');
+      let filterPic = query.pic || 'SEMUA';
+      if (!canViewAll && user.pic_subbag && user.pic_subbag !== 'SEMUA') {
+        filterPic = user.pic_subbag;
+      }
+
+      const buffer = await exportEfisiensiToExcelBuffer(targetPeriode.id, { pic: filterPic, mode });
+      const filename = `Rekap_Efisiensi_Perencanaan_${(targetPeriode.versi_revisi || 'Induk').replace(/[^a-zA-Z0-9_-]/g, '_')}_${filterPic}_${formatDownloadTimestamp()}.xlsx`;
+
+      recordAuditLog({
+        user,
+        action: 'EXPORT_REKAP_EFISIENSI_EXCEL',
+        entity: 'download_requests',
+        entity_id: targetPeriode.id,
+        new_values: { filename, periode_id: targetPeriode.id, nama_periode: targetPeriode.nama_periode, filter_pic: filterPic },
+        notes: `Unduh Excel Rekapitulasi Efisiensi Perencanaan "${filename}" (${targetPeriode.nama_periode}).`
+      });
+
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': buffer.length
+      });
+      if (method === 'HEAD') return res.end();
+      return res.end(buffer);
     }
 
     // 1d. GET /api/rekap/:mode/export-cost-sharing-excel (Khusus Tab 5 Rekap Sumber Dana)
