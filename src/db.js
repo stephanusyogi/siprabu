@@ -2290,7 +2290,7 @@ function checkRowEditPermission(periodeId, subbag, user = null) {
     if (!isAllowed || mode === 'NONE') {
       throw new Error(`Akses ditolak. Tingkat kewenangan Anda tidak diizinkan mengakses rincian belanja.`);
     }
-    if (mode === 'VIEWER_PIC' || mode === 'VIEWER_ALL' || user.mode_akses === 'VIEWER') {
+    if (mode === 'VIEWER_PIC' || mode === 'VIEWER_ALL' || user.mode_akses === 'VIEWER' || String(user.role_id || '').toLowerCase().startsWith('viewer')) {
       throw new Error(`Akses ditolak. Tingkat kewenangan Anda bersifat Read-Only untuk rincian belanja.`);
     }
     if (mode === 'EDITOR_PIC') {
@@ -5911,9 +5911,8 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
         const l2Lower = currentL2Uraian.toLowerCase();
         const l41Lower = currentL41Uraian.toLowerCase();
 
-        if (runHeuristics) {
-          // 1. Honorarium Penyelenggara Tingkat TPS (3 KPPS > 521213: a. Ketua, b. Anggota, c. Linmas)
-          if (String(r.kode_akun || '') === '521213' && l2Lower === 'kpps' && target_scope === 'TPS') {
+        // 1. Honorarium Penyelenggara Tingkat TPS (3 KPPS > 521213: a. Ketua, b. Anggota, c. Linmas)
+        if (String(r.kode_akun || '') === '521213' && l2Lower === 'kpps' && target_scope === 'TPS') {
             if (uraianLower.includes('ketua')) {
               f1_var = 'kpps_ketua_tps'; f1_val = kppsKetuaPerTps; f1_unit = f1_unit || 'Org';
               f2_var = 'masa_kerja_kpps'; f2_val = masaKerjaKpps; f2_unit = f2_unit || 'Bulan';
@@ -6028,7 +6027,6 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
               if (!u2 || u2 === '0') f2_unit = 'Org';
             }
           }
-        }
 
         // 7. Sinkronisasi nilai F1..F4 yang terikat ke @var SSOT
         const fVals = [f1_val, f2_val, f3_val, f4_val];
@@ -6042,7 +6040,7 @@ function syncRkbReferenceLinks(targetPeriodeId = null, forceInitialHeuristics = 
           let vCode = String(fVars[i] || '').trim();
           if (vCode === '0') vCode = '';
 
-          if (!vCode && runHeuristics) {
+          if (!vCode) {
             const satVolLow = String(r.satuan_vol || '').trim().toLowerCase();
             if ((uLow === 'tps' || satVolLow === 'tps') && vNum >= 100) {
               vCode = 'tps_rkb';
