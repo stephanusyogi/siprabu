@@ -3187,8 +3187,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/master/kuantitas' && method === 'POST') {
       const user = getUserFromReq(req);
-      if (!user || user.level > 1) {
-        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data ini hanya diizinkan untuk Otoritas Level 0 dan Level 1. parameter SSOT.' });
+      if (!user || (user.level > 1 && user.role_id !== 'super_admin' && !isDeveloperUser(user))) {
+        return sendJson(res, 403, { error: 'Akses ditolak. Perubahan data parameter SSOT hanya diizinkan untuk Otoritas Level 0, Level 1, dan Administrator.' });
       }
       try {
         const body = await parseJsonBody(req);

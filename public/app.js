@@ -8889,13 +8889,23 @@ function filterDbKuantitas() {
 
 function openModalTambahKuantitas() {
   const modal = document.getElementById('modal-kuantitas');
+  if (!modal) {
+    console.warn('modal-kuantitas element not found in DOM');
+    return;
+  }
+  const submitBtn = document.getElementById('btn-submit-kuantitas');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '💾 Simpan Parameter';
+  }
+  const modal = document.getElementById('modal-kuantitas');
   if (!modal) return;
 
   setElText('modal-kuantitas-title', '➕ Tambah Parameter Kuantitas SSOT Baru');
   setElVal('kuantitas-id', '');
   setElVal('kuantitas-input-kode', '');
   setElVal('kuantitas-input-nama', '');
-  setElVal('kuantitas-input-kategori', 'OPERASIONAL');
+  setElVal('kuantitas-input-kategori', 'WILAYAH');
   setElVal('kuantitas-nilai', '');
   setElVal('kuantitas-satuan', '');
   setElVal('kuantitas-keterangan', '');
@@ -12223,6 +12233,7 @@ window.triggerImportKecamatan = triggerImportKecamatan;
 window.handleExcelUploadKecamatan = handleExcelUploadKecamatan;
 window.downloadAllSubbagZip = downloadAllSubbagZip;
 window.openModalKuantitas = openModalKuantitas;
+window.openModalTambahKuantitas = openModalTambahKuantitas;
 window.closeModalKuantitas = closeModalKuantitas;
 window.submitModalKuantitas = submitModalKuantitas;
 window.navigateToMaster = navigateToMaster;

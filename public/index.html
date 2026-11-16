@@ -2016,7 +2016,7 @@
               <p class="view-desc">Single Source of Truth untuk Variabel Angka, Volume, Koefisien, dan Indikator RKB.</p>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button type="button" class="btn btn-primary btn-sm" onclick="openModalTambahKuantitas()" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+              <button type="button" id="btn-tambah-param-ssot" class="btn btn-primary btn-sm" onclick="openModalTambahKuantitas()" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                 <i class="fa fa-plus-circle"></i> + Tambah Parameter SSOT
               </button>
             </div>
@@ -7425,10 +7425,10 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- MODAL: EDIT PARAMETER KUANTITAS SSOT                                  -->
+    <!-- MODAL: PARAMETER KUANTITAS SSOT (EDIT & TAMBAH BARU)                 -->
     <!-- ===================================================================== -->
     <div id="modal-kuantitas" class="modal-backdrop" style="display: none; z-index: 1080;" onclick="if (event.target === this) closeModalKuantitas();">
-      <div class="modal-box" style="max-width: 520px;">
+      <div class="modal-box" style="max-width: 540px;">
         <div class="modal-header">
           <h3 id="modal-kuantitas-title" style="margin: 0; font-size: 16px;">📐 Edit Parameter Kuantitas SSOT</h3>
           <button type="button" class="btn-close" onclick="closeModalKuantitas()">&times;</button>
@@ -7439,6 +7439,7 @@
             <input type="hidden" id="kuantitas-kode">
             <input type="hidden" id="kuantitas-nama">
             <input type="hidden" id="kuantitas-kategori">
+
             <!-- Blok Tampilan Saat Mode EDIT -->
             <div id="modal-kuantitas-edit-preview" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -7449,11 +7450,11 @@
             </div>
 
             <!-- Blok Form Input Saat Mode TAMBAH BARU -->
-            <div id="modal-kuantitas-add-fields" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+            <div id="modal-kuantitas-add-fields" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
               <div class="form-group mb-2">
                 <label style="font-size: 11.5px; font-weight: 700; color: #166534;">Kode Variabel SSOT (Huruf kecil &amp; underscore tanpa spasi):</label>
                 <div style="display: flex; align-items: center; gap: 4px;">
-                  <span style="font-family: var(--font-mono); font-weight: 700; color: #15803d; font-size: 14px;">@</span>
+                  <span style="font-family: var(--font-mono); font-weight: 700; color: #15803d; font-size: 15px;">@</span>
                   <input type="text" id="kuantitas-input-kode" class="input-text input-sm" placeholder="cth: hari_kerja_tahun" style="font-family: var(--font-mono); font-weight: 700;">
                 </div>
               </div>
@@ -7464,13 +7465,68 @@
               <div class="form-group mb-0">
                 <label style="font-size: 11.5px; font-weight: 700; color: #166534;">Kategori Parameter:</label>
                 <select id="kuantitas-input-kategori" class="input-select input-sm" style="font-weight: 600;">
-                  <option value="PERSONIL">👥 Personil (Komisioner, Sekretariat)</option>
-                  <option value="WAKTU">⏱️ Waktu &amp; Masa Kerja (Bulan)</option>
-                  <option value="POKJA">📋 Kelompok Kerja (Pokja)</option>
                   <option value="WILAYAH">🏛️ Wilayah &amp; Satker</option>
-                  <option value="OPERASIONAL">⚙️ Operasional &amp; Teknis</option>
-                  <option value="UMUM">📦 Umum &amp; Lainnya</option>
+                  <option value="PEMILIH">🗳️ Pemilih &amp; DPT</option>
+                  <option value="PESERTA">👥 Pasangan Calon / Peserta</option>
+                  <option value="PERSONIL">👥 Personil &amp; Penyelenggara</option>
+                  <option value="WAKTU">⏱️ Waktu &amp; Masa Kerja</option>
+                  <option value="POKJA">📋 Kelompok Kerja (Pokja)</option>
+                  <option value="LOGISTIK">📦 Logistik &amp; Perlengkapan</option>
+                  <option value="UMUM">⚙️ Operasional / Umum</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- Fields Nilai & Satuan (Dipakai Bersama untuk Edit & Tambah) -->
+            <div style="display: grid; grid-template-columns: 1fr 140px; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">Nilai / Volume Angka:</label>
+                <input type="number" id="kuantitas-nilai" class="input-text" required min="0" step="any" placeholder="0" style="font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: #1e40af;">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Satuan:</label>
+                <input type="text" id="kuantitas-satuan" class="input-text" required placeholder="cth: Kab / Kec / TPS / Org">
+              </div>
+            </div>
+
+            <!-- Fields Keterangan / Sumber Data SSOT (Dipakai Bersama untuk Edit & Tambah) -->
+            <div class="form-group">
+              <label style="font-weight: 700;">Keterangan / Sumber Basis Data SSOT:</label>
+              <textarea id="kuantitas-keterangan" class="input-text" rows="2" placeholder="Catatan atau dasar aturan penetapan kuantitas..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModalKuantitas()">Batal</button>
+          <button type="button" id="btn-submit-kuantitas" class="btn btn-primary" onclick="submitModalKuantitas()">💾 Simpan Parameter</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: MASTER KECAMATAN (PPK)                                         -->
+    <!-- ===================================================================== -->
+    <div id="modal-kecamatan" class="modal-backdrop" style="display: none; z-index: 1080;">
+      <div class="modal-box" style="max-width: 580px;">
+        <div class="modal-header">
+          <h3 style="margin: 0; font-size: 16px;">🏛️ Form Master Kecamatan (PPK)</h3>
+          <button type="button" class="btn-close" onclick="closeModalKecamatan()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+          <form id="form-kecamatan" onsubmit="event.preventDefault(); submitModalKecamatan();">
+            <input type="hidden" id="kecamatan-id">
+            <div style="display: grid; grid-template-columns: 90px 120px 1fr; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label style="font-weight: 700;">No Urut:</label>
+                <input type="number" id="kecamatan-no-urut" class="input-text" required min="1" value="1" style="text-align: center;">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Kode Wilayah:</label>
+                <input type="text" id="kecamatan-kode" class="input-text" placeholder="Misal: 35.21.01">
+              </div>
+              <div class="form-group">
+                <label style="font-weight: 700;">Nama Kecamatan:</label>
+                <input type="text" id="kecamatan-nama" class="input-text" required placeholder="Misal: Ngawi, Sine, Kendal">
               </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -7496,7 +7552,6 @@
       </div>
     </div>
 
-    <!-- ===================================================================== -->
     <!-- MODAL: STANDAR BIAYA MASUKAN (SBM)                                    -->
     <!-- ===================================================================== -->
     <div id="modal-sbm" class="modal-backdrop" style="display: none; z-index: 1080;">
@@ -8859,7 +8914,7 @@
         </div>
       </div>
 <script src="/data_juknis.js?v=5.9.5-20261115-tahap9"></script>
-    <script src="/app.js?v=5.9.5-20261115-tahap9"></script>
+    <script src="/app.js?v=5.9.9-20261116-ssot-v2"></script>
     <script src="/pengadaan.js?v=5.9.8-20261115-tahap11"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
