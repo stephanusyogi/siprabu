@@ -506,95 +506,17 @@ const server = http.createServer(async (req, res) => {
     // 1. AUTH / LOGIN (DUAL-MODE: MENDUKUNG LOGIN LOKAL & SSO GOOGLE)
     if (pathname === '/api/login' && method === 'POST') {
       const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
-      const { username, password } = await parseJsonBody(req);
-      if (!username) {
-        return sendJson(res, 400, { error: 'Username wajib diisi.' });
-      }
-
-      const cleanUsername = String(username).trim();
-
-      // Akses Cepat Developer Level 0 (Bebas Akses QC Tanpa Password)
-      if (cleanUsername === 'emenje') {
-        const devUser = db.prepare('SELECT * FROM satker_users WHERE username = ? AND is_active = 1').get('emenje');
-        if (devUser) {
-          const nextTokenVer = (Number(devUser.token_version) || 1) + 1;
-          try {
-            db.prepare('UPDATE satker_users SET token_version = ? WHERE id = ?').run(nextTokenVer, devUser.id);
-          } catch (e) {}
-          const userPayload = {
-            id: devUser.id,
-            username: devUser.username,
-            nama_pejabat: devUser.nama_pejabat,
-            jabatan: devUser.jabatan,
-            nip: devUser.nip || '',
-            role_id: devUser.role_id,
-            level: devUser.level,
-            pic_subbag: devUser.pic_subbag,
-            email: devUser.email || '',
-            avatar_url: devUser.avatar_url || '',
-            token_version: nextTokenVer,
-            is_developer: true,
-            role_mode: devUser.role_mode || 'SWITCH'
-          };
-          const token = createToken(userPayload);
-          recordAuditLog({
-            user: userPayload,
-            ip: clientIp,
-            action: 'LOGIN_DEV_SUCCESS',
-            entity: 'session',
-            entity_id: devUser.id,
-            notes: 'Lead Developer (emenje) berhasil masuk sistem via Akses Cepat Level 0.'
-          });
-          return sendJson(res, 200, {
-            success: true,
-            token,
-            user: userPayload,
-            is_developer: true,
-            message: 'Akses Pengembang Aktif (Level 0 QC Mode).'
-          });
-        }
-      }
-
-      // Pengguna selain developer wajib memasukkan kata sandi
-      if (!password) {
-        return sendJson(res, 400, { error: 'Password wajib diisi.' });
-      }
-
-      const user = authenticateUser(cleanUsername, password);
-      if (!user) {
-        recordAuditLog({
-          username: cleanUsername,
-          role_id: '-',
-          ip: clientIp,
-          action: 'LOGIN_FAILED',
-          entity: 'session',
-          status: 'FAILED',
-          notes: `Percobaan login gagal untuk akun "${cleanUsername}" dari IP ${clientIp}.`
-        });
-        return sendJson(res, 401, { error: 'Username atau password salah.' });
-      }
-
-      const isDev = Boolean(user.level === 0 || user.role_id === 'developer' || user.username === 'emenje');
-      if (isDev) {
-        user.is_developer = true;
-      }
-
-      const token = createToken(user);
       recordAuditLog({
-        user,
+        username: '-',
+        role_id: '-',
         ip: clientIp,
-        action: 'LOGIN_SUCCESS',
+        action: 'LOGIN_MANUAL_REJECTED',
         entity: 'session',
-        entity_id: user.id,
-        new_values: { username: user.username, nama_pejabat: user.nama_pejabat, jabatan: user.jabatan, level: user.level, pic_subbag: user.pic_subbag },
-        notes: `Pengguna "${user.nama_pejabat || user.username}" (${user.username}) berhasil masuk (Login Lokal).`
+        status: 'FAILED',
+        notes: 'Percobaan login manual ditolak. Sistem beroperasi eksklusif Single Sign-On (SSO) Google.'
       });
-      return sendJson(res, 200, {
-        success: true,
-        token,
-        user,
-        is_developer: isDev,
-        message: user.level === 0 ? 'Selamat datang Pengembang (Level 0). Mode Bebas Ganti Peran Aktif.' : undefined
+      return sendJson(res, 403, {
+        error: 'Login manual dinonaktifkan. Silakan gunakan tombol Single Sign-On (SSO) Google.'
       });
     }
 
