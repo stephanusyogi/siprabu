@@ -280,6 +280,7 @@ async function initDatabaseSchemaAndSeed() {
       await migratePejabatTanpaGelarOnce(pool);
       await ensureAllPaketsHave18Stages();
       await seedRegulasiPengadaanToMasterRegulasi(pool);
+      await ensureMasterKbliTableAndSeed(pool);
       schemaInitDone = true;
       return;
     }
@@ -303,6 +304,7 @@ async function initDatabaseSchemaAndSeed() {
     await migratePejabatTanpaGelarOnce(pool);
     await ensureAllPaketsHave18Stages();
     await seedRegulasiPengadaanToMasterRegulasi(pool);
+    await ensureMasterKbliTableAndSeed(pool);
     schemaInitDone = true;
     console.log('[SI-PRABU PENGADAAN] Skema pbj_* & 6 Paket Percontohan KPU Kabupaten Ngawi berhasil dimuat ke siprabu_db.');
   }
@@ -518,6 +520,7 @@ async function savePenyedia(data) {
 async function getKbliList() {
   const pool = getCakraPool();
   try {
+    await ensureMasterKbliTableAndSeed(pool);
     const [rows] = await pool.query('SELECT * FROM master_kbli WHERE is_active = 1 ORDER BY kode ASC');
     return rows;
   } catch (err) {
@@ -528,6 +531,7 @@ async function getKbliList() {
 
 async function saveKbli(data) {
   const pool = getCakraPool();
+  await ensureMasterKbliTableAndSeed(pool);
   const kode = String(data.kode || '').trim();
   const judul = String(data.judul || '').trim();
   const sektor = String(data.sektor || '').trim();
