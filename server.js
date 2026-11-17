@@ -3841,9 +3841,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/paparan/download/pptx') {
+      const localRevisi = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Paparan_RKB_KPU_Ngawi_2029_revisi.pptx');
       const localPath = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Paparan_RKB_KPU_Ngawi_2029.pptx');
       const bundledPath = path.join(PUBLIC_DIR, 'downloads', 'Paparan_RKB_KPU_Ngawi_2029.pptx');
-      const pptxPath = fs.existsSync(localPath) ? localPath : (fs.existsSync(bundledPath) ? bundledPath : null);
+      const pptxPath = fs.existsSync(localRevisi) ? localRevisi : (fs.existsSync(localPath) ? localPath : (fs.existsSync(bundledPath) ? bundledPath : null));
       if (pptxPath) {
         res.writeHead(200, {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',

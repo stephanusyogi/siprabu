@@ -789,34 +789,51 @@ async function generatePowerPoint() {
 
     // SLIDE 10: KEPATUHAN STANDAR BIAYA MASUKAN LAINNYA (SBML - Font Minimal 14)
     else if (s.type === 'sbml_compliance' || s.type === 'santunan_table') {
-      // 1. LEFT PANEL: HONORARIUM BADAN AD HOC (AKUN 521213)
       const lx = 0.8;
       const cardW = 5.72;
+      const rx = 6.81;
+
+      // ======================================================================
+      // 1. LEFT PANEL: HONORARIUM BADAN AD HOC
+      // ======================================================================
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: lx, y: 1.58, w: cardW, h: 4.30,
+        x: lx, y: 1.54, w: cardW, h: 4.34,
         fill: { color: COLOR.slateLight }, line: { color: COLOR.blue, width: 1.4 }
       });
 
-      // Header Card Honor
+      // Header Card Honor (Navy)
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: lx + 0.2, y: 1.74, w: cardW - 0.4, h: 0.62,
+        x: lx + 0.15, y: 1.66, w: cardW - 0.30, h: 0.82,
         fill: { color: COLOR.navy }
       });
-      slide.addText('1. STANDAR HONORARIUM AD HOC (AKUN 521213)', {
-        x: lx + 0.3, y: 1.78, w: 3.3, h: 0.28,
-        fontSize: 15, fontFace: 'Calibri', bold: true, color: COLOR.white
+
+      // Header Row 1: Title & Badge
+      slide.addText('1. STANDAR HONORARIUM AD HOC', {
+        x: lx + 0.25, y: 1.72, w: 3.50, h: 0.28,
+        fontSize: 14.5, fontFace: 'Calibri', bold: true, color: COLOR.white
       });
-      slide.addText('Total Pagu: Rp 26.171.600.000 (Divisi KUL)', {
-        x: lx + 0.3, y: 2.06, w: 3.3, h: 0.26,
-        fontSize: 14, fontFace: 'Calibri', color: '93C5FD'
-      });
+
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: lx + cardW - 2.0, y: 1.84, w: 1.8, h: 0.42,
+        x: lx + cardW - 1.95, y: 1.72, w: 1.70, h: 0.28,
         fill: { color: COLOR.emerald }
       });
       slide.addText('100% PATUH SBML', {
-        x: lx + cardW - 2.0, y: 1.84, w: 1.8, h: 0.42,
-        fontSize: 14, fontFace: 'Calibri', bold: true, color: COLOR.white, align: 'center', valign: 'middle'
+        x: lx + cardW - 1.95, y: 1.72, w: 1.70, h: 0.28,
+        fontSize: 11.5, fontFace: 'Calibri', bold: true, color: COLOR.white, align: 'center', valign: 'middle'
+      });
+
+      // Header Row 2: TOTAL PAGU STRIP (Besar, Kuning Emas, Sangat Jelas)
+      slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+        x: lx + 0.25, y: 2.06, w: cardW - 0.50, h: 0.34,
+        fill: { color: '0F172A' }
+      });
+      slide.addText([
+        { text: 'TOTAL PAGU: ', options: { bold: true, color: '93C5FD', fontSize: 13, fontFace: 'Calibri' } },
+        { text: 'Rp 26.171.600.000', options: { bold: true, color: 'FBBF24', fontSize: 15, fontFace: 'Consolas' } },
+        { text: '  (Akun 521213 • Divisi KUL)', options: { bold: false, color: 'E2E8F0', fontSize: 11.5, fontFace: 'Calibri' } }
+      ], {
+        x: lx + 0.32, y: 2.06, w: cardW - 0.64, h: 0.34,
+        align: 'left', valign: 'middle'
       });
 
       // Sub-cards Honor: PPK, PPS, Pantarlih, KPPS
@@ -844,62 +861,76 @@ async function generatePowerPoint() {
       ];
 
       honorList.forEach((h, idx) => {
-        const hy = 2.42 + (idx * 0.77);
+        const hy = 2.56 + (idx * 0.69);
         slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-          x: lx + 0.2, y: hy, w: cardW - 0.4, h: 0.71,
+          x: lx + 0.15, y: hy, w: cardW - 0.30, h: 0.63,
           fill: { color: COLOR.white }, line: { color: COLOR.border, width: 0.8 }
         });
         slide.addShape(pres.shapes.RECTANGLE, {
-          x: lx + 0.2, y: hy, w: 0.12, h: 0.71,
+          x: lx + 0.15, y: hy, w: 0.12, h: 0.63,
           fill: { color: h.color }
         });
         slide.addText(h.role, {
-          x: lx + 0.38, y: hy + 0.04, w: cardW - 0.6, h: 0.28,
-          fontSize: 15, fontFace: 'Calibri', bold: true, color: h.color
+          x: lx + 0.34, y: hy + 0.03, w: cardW - 0.55, h: 0.24,
+          fontSize: 13.5, fontFace: 'Calibri', bold: true, color: h.color
         });
         slide.addText(h.rates, {
-          x: lx + 0.38, y: hy + 0.32, w: cardW - 0.6, h: 0.36,
-          fontSize: 14, fontFace: 'Calibri', color: COLOR.slateDark, lineSpacingMultiple: 1.05
+          x: lx + 0.34, y: hy + 0.27, w: cardW - 0.55, h: 0.33,
+          fontSize: 12.5, fontFace: 'Calibri', color: COLOR.slateDark, lineSpacingMultiple: 1.05
         });
       });
 
       // Verification Footer Left Card
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: lx + 0.2, y: 5.52, w: cardW - 0.4, h: 0.32,
+        x: lx + 0.15, y: 5.40, w: cardW - 0.30, h: 0.34,
         fill: { color: COLOR.lightBlue }, line: { color: COLOR.blue, width: 0.8 }
       });
       slide.addText('Status: 100% Sesuai Plafon Tertinggi SBML (Deviasi Rp 0)', {
-        x: lx + 0.2, y: 5.52, w: cardW - 0.4, h: 0.32,
-        fontSize: 14, fontFace: 'Calibri', bold: true, color: COLOR.navy, align: 'center', valign: 'middle'
+        x: lx + 0.15, y: 5.40, w: cardW - 0.30, h: 0.34,
+        fontSize: 13, fontFace: 'Calibri', bold: true, color: COLOR.navy, align: 'center', valign: 'middle'
       });
 
-      // 2. RIGHT PANEL: SANTUNAN KECELAKAAN KERJA (AKUN 521219)
-      const rx = 6.81;
+      // ======================================================================
+      // 2. RIGHT PANEL: SANTUNAN KECELAKAAN KERJA
+      // ======================================================================
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: rx, y: 1.58, w: cardW, h: 4.30,
+        x: rx, y: 1.54, w: cardW, h: 4.34,
         fill: { color: COLOR.slateLight }, line: { color: COLOR.rose, width: 1.4 }
       });
 
-      // Header Card Santunan
+      // Header Card Santunan (Rose/Crimson)
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: rx + 0.2, y: 1.74, w: cardW - 0.4, h: 0.62,
+        x: rx + 0.15, y: 1.66, w: cardW - 0.30, h: 0.82,
         fill: { color: COLOR.rose }
       });
-      slide.addText('2. SANTUNAN KECELAKAAN KERJA (AKUN 521219)', {
-        x: rx + 0.3, y: 1.78, w: 3.3, h: 0.28,
-        fontSize: 15, fontFace: 'Calibri', bold: true, color: COLOR.white
+
+      // Header Row 1: Title & Badge
+      slide.addText('2. SANTUNAN KECELAKAAN KERJA', {
+        x: rx + 0.25, y: 1.72, w: 3.50, h: 0.28,
+        fontSize: 14.5, fontFace: 'Calibri', bold: true, color: COLOR.white
       });
-      slide.addText('Total Pagu: Rp 2.283.000.000 (Divisi PARSDM)', {
-        x: rx + 0.3, y: 2.06, w: 3.3, h: 0.26,
-        fontSize: 14, fontFace: 'Calibri', color: 'FFE4E6'
-      });
+
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: rx + cardW - 2.0, y: 1.84, w: 1.8, h: 0.42,
+        x: rx + cardW - 1.95, y: 1.72, w: 1.70, h: 0.28,
         fill: { color: COLOR.darkNavy }
       });
       slide.addText('SBML KPU RI', {
-        x: rx + cardW - 2.0, y: 1.84, w: 1.8, h: 0.42,
-        fontSize: 14, fontFace: 'Calibri', bold: true, color: COLOR.amber, align: 'center', valign: 'middle'
+        x: rx + cardW - 1.95, y: 1.72, w: 1.70, h: 0.28,
+        fontSize: 11.5, fontFace: 'Calibri', bold: true, color: COLOR.amber, align: 'center', valign: 'middle'
+      });
+
+      // Header Row 2: TOTAL PAGU STRIP (Besar, Kuning Emas, Sangat Jelas)
+      slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+        x: rx + 0.25, y: 2.06, w: cardW - 0.50, h: 0.34,
+        fill: { color: '4C0519' }
+      });
+      slide.addText([
+        { text: 'TOTAL PAGU: ', options: { bold: true, color: 'FECDD3', fontSize: 13, fontFace: 'Calibri' } },
+        { text: 'Rp 2.283.000.000', options: { bold: true, color: 'FBBF24', fontSize: 15, fontFace: 'Consolas' } },
+        { text: '  (Akun 521219 • Divisi PARSDM)', options: { bold: false, color: 'FFE4E6', fontSize: 11.5, fontFace: 'Calibri' } }
+      ], {
+        x: rx + 0.32, y: 2.06, w: cardW - 0.64, h: 0.34,
+        align: 'left', valign: 'middle'
       });
 
       // 5 Santunan Categories
@@ -912,43 +943,45 @@ async function generatePowerPoint() {
       ];
 
       santunanItems.forEach((sItem, idx) => {
-        const sy = 2.42 + (idx * 0.47);
+        const sy = 2.56 + (idx * 0.39);
         slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-          x: rx + 0.2, y: sy, w: cardW - 0.4, h: 0.42,
+          x: rx + 0.15, y: sy, w: cardW - 0.30, h: 0.35,
           fill: { color: COLOR.white }, line: { color: COLOR.border, width: 0.8 }
         });
         slide.addText(sItem.jenis, {
-          x: rx + 0.35, y: sy + 0.06, w: 3.2, h: 0.30,
-          fontSize: 14, fontFace: 'Calibri', bold: true, color: COLOR.darkNavy
+          x: rx + 0.28, y: sy + 0.03, w: 3.3, h: 0.28,
+          fontSize: 12.5, fontFace: 'Calibri', bold: true, color: COLOR.darkNavy
         });
         slide.addText(sItem.tarif, {
-          x: rx + 3.4, y: sy + 0.06, w: 1.9, h: 0.30,
-          fontSize: 15, fontFace: 'Consolas', bold: true, color: COLOR.rose, align: 'right'
+          x: rx + 3.4, y: sy + 0.03, w: 1.9, h: 0.28,
+          fontSize: 13.5, fontFace: 'Consolas', bold: true, color: COLOR.rose, align: 'right'
         });
       });
 
       // Pantarlih Protection Card (Bottom of Right Panel)
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: rx + 0.2, y: 4.85, w: cardW - 0.4, h: 0.97,
+        x: rx + 0.15, y: 4.60, w: cardW - 0.30, h: 1.14,
         fill: { color: COLOR.roseLight }, line: { color: COLOR.rose, width: 1 }
       });
-      slide.addText('PROTEKSI SETARA HINGGA TINGKAT PANTARLIH / PPDP', {
-        x: rx + 0.35, y: 4.90, w: cardW - 0.7, h: 0.28,
-        fontSize: 15, fontFace: 'Calibri', bold: true, color: COLOR.rose
+      slide.addText('PROTEKSI SETARA TINGKAT PANTARLIH / PPDP', {
+        x: rx + 0.28, y: 4.66, w: cardW - 0.55, h: 0.24,
+        fontSize: 12.5, fontFace: 'Calibri', bold: true, color: COLOR.rose
       });
       slide.addText('• Alokasi Khusus Pantarlih: Rp 456.600.000 untuk 1.393+ petugas coklit.\n• Perlindungan adil setara bagi seluruh ad hoc tanpa diskriminasi.', {
-        x: rx + 0.35, y: 5.20, w: cardW - 0.7, h: 0.55,
-        fontSize: 14, fontFace: 'Calibri', color: '881337', lineSpacingMultiple: 1.10
+        x: rx + 0.28, y: 4.96, w: cardW - 0.55, h: 0.70,
+        fontSize: 11.5, fontFace: 'Calibri', color: '881337', lineSpacingMultiple: 1.15
       });
 
+      // ======================================================================
       // 3. BOTTOM BANNER ACROSS BOTH
+      // ======================================================================
       slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
         x: 0.8, y: 5.96, w: 11.73, h: 0.60,
         fill: { color: COLOR.darkNavy }, line: { color: COLOR.amber, width: 1.5 }
       });
       slide.addText('LANDASAN SBML: Surat Menkeu No. S-647/MK.02/2022 jo. Keputusan KPU RI No. 472/2022\nSeluruh Komponen Honorarium & Santunan Terverifikasi 100% Patuh Plafon Standar Biaya Masukan Lainnya.', {
         x: 0.9, y: 5.98, w: 11.53, h: 0.56,
-        fontSize: 14, fontFace: 'Calibri', bold: true, color: COLOR.white, align: 'center', lineSpacingMultiple: 1.10
+        fontSize: 13, fontFace: 'Calibri', bold: true, color: COLOR.white, align: 'center', lineSpacingMultiple: 1.10
       });
     }
 
@@ -1078,9 +1111,33 @@ async function generatePowerPoint() {
   }
 
   const pptxPath = path.join(OUTPUT_DIR, 'Paparan_RKB_KPU_Ngawi_2029.pptx');
-  await pres.writeFile({ fileName: pptxPath });
-  console.log(`[PPTX] Berhasil disimpan di: ${pptxPath} (${(fs.statSync(pptxPath).size / 1024).toFixed(1)} KB)`);
-  return pptxPath;
+  const bundledDir = path.join(__dirname, '..', 'public', 'downloads');
+  if (!fs.existsSync(bundledDir)) fs.mkdirSync(bundledDir, { recursive: true });
+  const bundledPptx = path.join(bundledDir, 'Paparan_RKB_KPU_Ngawi_2029.pptx');
+
+  let savedPptxPath = pptxPath;
+  try {
+    await pres.writeFile({ fileName: pptxPath });
+    console.log(`[PPTX] Berhasil disimpan di: ${pptxPath} (${(fs.statSync(pptxPath).size / 1024).toFixed(1)} KB)`);
+  } catch (err) {
+    if (err.code === 'EBUSY') {
+      savedPptxPath = path.join(OUTPUT_DIR, 'Paparan_RKB_KPU_Ngawi_2029_revisi.pptx');
+      await pres.writeFile({ fileName: savedPptxPath });
+      console.log(`[PPTX - INFO] File utama sedang dibuka di PowerPoint. Berhasil disimpan sebagai: ${savedPptxPath}`);
+    } else {
+      throw err;
+    }
+  }
+
+  // Also always write to public/downloads for web download
+  try {
+    await pres.writeFile({ fileName: bundledPptx });
+    console.log(`[PPTX] Berhasil disalin ke public/downloads: ${bundledPptx}`);
+  } catch (e) {
+    console.warn(`[PPTX - WARN] Gagal simpan ke downloads:`, e.message);
+  }
+
+  return savedPptxPath;
 }
 
 // ============================================================================
@@ -1349,10 +1406,33 @@ async function generateWordNotes() {
   });
 
   const docxPath = path.join(OUTPUT_DIR, 'Catatan_Pembicara_Paparan_RKB.docx');
+  const bundledDir = path.join(__dirname, '..', 'public', 'downloads');
+  if (!fs.existsSync(bundledDir)) fs.mkdirSync(bundledDir, { recursive: true });
+  const bundledDocx = path.join(bundledDir, 'Catatan_Pembicara_Paparan_RKB.docx');
+
   const buffer = await docx.Packer.toBuffer(doc);
-  fs.writeFileSync(docxPath, buffer);
-  console.log(`[DOCX] Berhasil disimpan di: ${docxPath} (${(fs.statSync(docxPath).size / 1024).toFixed(1)} KB)`);
-  return docxPath;
+  let savedDocxPath = docxPath;
+  try {
+    fs.writeFileSync(docxPath, buffer);
+    console.log(`[DOCX] Berhasil disimpan di: ${docxPath} (${(fs.statSync(docxPath).size / 1024).toFixed(1)} KB)`);
+  } catch (err) {
+    if (err.code === 'EBUSY') {
+      savedDocxPath = path.join(OUTPUT_DIR, 'Catatan_Pembicara_Paparan_RKB_revisi.docx');
+      fs.writeFileSync(savedDocxPath, buffer);
+      console.log(`[DOCX - INFO] File utama sedang dibuka. Berhasil disimpan sebagai: ${savedDocxPath}`);
+    } else {
+      throw err;
+    }
+  }
+
+  try {
+    fs.writeFileSync(bundledDocx, buffer);
+    console.log(`[DOCX] Berhasil disalin ke public/downloads: ${bundledDocx}`);
+  } catch (e) {
+    console.warn(`[DOCX - WARN] Gagal simpan ke downloads:`, e.message);
+  }
+
+  return savedDocxPath;
 }
 
 // ============================================================================
