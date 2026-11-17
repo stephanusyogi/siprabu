@@ -394,6 +394,12 @@
             </div>
           </div>
 
+          <!-- 6B. PRESENTASI & ARSIP PAPARAN (OUTPUT EKSEKUTIF UNTUK FORUM RESMI) -->
+          <button class="nav-item" data-view="view-presentasi" id="nav-item-presentasi" onclick="switchView('view-presentasi')">
+            <span class="icon">🖥️</span>
+            <span class="label">Presentasi</span>
+          </button>
+
           <!-- 7. REGULASI & DASAR HUKUM JDIH (PORTAL 3 PILAR: PERENCANAAN, PENGADAAN, PEMBAYARAN) -->
           <button class="nav-item" data-view="view-db-regulasi" id="nav-item-regulasi" onclick="switchView('view-db-regulasi')">
             <span class="icon">📜</span>
@@ -2230,6 +2236,124 @@
         </section>
 
         <!-- ================================================================= -->
+        <!-- VIEW: PRESENTASI & MANAJEMEN ARSIP PAPARAN EKSEKUTIF -->
+        <!-- ================================================================= -->
+        <section id="view-presentasi" class="app-view">
+          <div class="view-header">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">
+                <span>🖥️ FORUM EKSEKUTIF &bull; PAPARAN RKB PILKADA 2029</span>
+              </div>
+              <h2 class="view-title">Presentasi &amp; Manajemen Arsip Paparan</h2>
+              <p class="view-desc">
+                Portal resmi pemaparan usulan RKB untuk forum Rapat Pleno, Desk KPU Provinsi Jawa Timur, Audiensi DPRD, dan Bakesbangpol Pemkab Ngawi, dilengkapi sistem penguncian snapshot arsip per agenda.
+              </p>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="btn btn-secondary" onclick="window.open('/paparan', '_blank')">
+                <span>🖥️ Buka Mode Web Slide</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="openLockPaparanModal()">
+                <span>🔒 Kunci Sesi Ini</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CARD 1: SESI PAPARAN AKTIF (LIVE RKB) -->
+          <div class="card p-3 mb-4" style="border-left: 4px solid #2563eb; background: #f8fafc;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 0;">Sesi Paparan Berjalan (Data Live RKB)</h3>
+                  <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 12px;">● LIVE SSOT AKTIF</span>
+                </div>
+                <div style="font-size: 12.5px; color: #64748b; margin-top: 3px;">
+                  Materi presentasi selalu menyedot data terbaru dari database SI-PRABU sebelum dikunci menjadi arsip agenda.
+                </div>
+              </div>
+              <div style="font-size: 12px; color: #475569; background: #e2e8f0; padding: 4px 10px; border-radius: 6px;">
+                PIN Akses Web: <strong style="color: #0f172a; font-family: monospace;">657811</strong>
+              </div>
+            </div>
+
+            <!-- GRID METRIK LIVE -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+              <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Total Pagu Bersama</div>
+                <div style="font-size: 20px; font-weight: 900; color: #1e3a8a; font-family: monospace;" id="pres-live-total-pagu">Rp 68,94 M</div>
+                <div style="font-size: 11px; color: #059669; font-weight: 600;">Penyusunan Berbasis SSOT Riil</div>
+              </div>
+              <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Beban APBD Ngawi</div>
+                <div style="font-size: 20px; font-weight: 900; color: #0f172a; font-family: monospace;" id="pres-live-beban-kab">Rp 56,63 M</div>
+                <div style="font-size: 11px; color: #64748b;">Porsi 82,15% (NPHD Pemkab)</div>
+              </div>
+              <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Sharing APBD Jatim</div>
+                <div style="font-size: 20px; font-weight: 900; color: #047857; font-family: monospace;" id="pres-live-sharing-prov">Rp 12,30 M</div>
+                <div style="font-size: 11px; color: #64748b;">Porsi 17,85% (Kepgub 188)</div>
+              </div>
+              <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Basis Kewilayahan</div>
+                <div style="font-size: 20px; font-weight: 900; color: #7c3aed; font-family: monospace;">1.393 TPS</div>
+                <div style="font-size: 11px; color: #64748b;">19 PPK • 217 PPS • 359.141 KK</div>
+              </div>
+            </div>
+
+            <!-- TOMBOL AKSI CEPAT -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-primary" onclick="window.open('/paparan', '_blank')" style="background: #2563eb; border-color: #2563eb;">
+                <span>🖥️ Buka Mode Presentasi (/paparan)</span>
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="window.open('/api/paparan/download/pptx', '_blank')">
+                <span>📊 Unduh PPTX Terkini</span>
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="window.open('/api/paparan/download/docx', '_blank')">
+                <span>📄 Unduh Catatan Pembicara (DOCX)</span>
+              </button>
+              <button type="button" class="btn btn-warning" onclick="openLockPaparanModal()" style="margin-left: auto; background: #f59e0b; color: #000; border-color: #d97706; font-weight: 700;">
+                <span>🔒 Kunci Sesi Ini (Buat Arsip Agenda)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CARD 2: RIWAYAT ARSIP PAPARAN TERKUNCI -->
+          <div class="card p-3">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <h3 style="font-size: 15px; font-weight: 800; color: #0f172a; margin: 0;">Daftar Riwayat Arsip Paparan Terkunci (Milestone Freeze)</h3>
+                <p style="font-size: 12px; color: #64748b; margin: 2px 0 0;">
+                  Data di bawah ini abadi dan tidak akan berubah meskipun usulan anggaran aktif SI-PRABU terus bergerak.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" id="filter-paparan-snapshot" class="input-text" placeholder="🔍 Cari nama agenda..." style="max-width: 240px; font-size: 12.5px; padding: 6px 10px;" oninput="renderPaparanSnapshotsTable()">
+                <button type="button" class="btn btn-secondary" onclick="loadPaparanSnapshots()" style="padding: 6px 12px; font-size: 12px;">🔄 Segarkan</button>
+              </div>
+            </div>
+
+            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+              <table class="table table-striped table-hover" style="margin: 0; width: 100%;">
+                <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 2; border-bottom: 2px solid #cbd5e1;">
+                  <tr>
+                    <th style="width: 45px;" class="text-center">No</th>
+                    <th style="width: 140px;">Kode Snapshot</th>
+                    <th>Nama Forum / Agenda</th>
+                    <th style="width: 110px;">Tanggal Forum</th>
+                    <th style="width: 150px;" class="text-right">Pagu Terkunci</th>
+                    <th style="width: 170px;">Waktu Kunci &amp; Petugas</th>
+                    <th style="width: 220px;" class="text-center">Aksi Berkas Arsip</th>
+                  </tr>
+                </thead>
+                <tbody id="table-paparan-snapshots-body">
+                  <!-- Rendered dynamically via JS loadPaparanSnapshots() -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+<!-- ================================================================= -->
         <!-- VIEW 7: REGULASI & DASAR HUKUM (PORTAL JDIH PENYUSUNAN & PELAKSANAAN) -->
         <!-- ================================================================= -->
         <section id="view-db-regulasi" class="app-view">
@@ -8871,5 +8995,107 @@
     </script>
   <!-- DATALIST STANDAR KBLI RESMI BPS 2020 / OSS-RBA -->
 <datalist id="dl-master-kbli"></datalist>
+
+        <!-- MODAL KUNCI PAPARAN (SNAPSHOT MILESTONE) -->
+        <div id="modal-kunci-paparan" class="modal-backdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); z-index:9999; align-items:center; justify-content:center;" onclick="if(event.target===this) closeLockPaparanModal()">
+          <div style="background:#ffffff; border-radius:12px; max-width:560px; width:92%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); overflow:hidden;">
+            <div style="background:#0f172a; color:#ffffff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:11px; font-weight:800; color:#f59e0b; letter-spacing:0.5px;">MILESTONE FREEZE ENGINE</div>
+                <h3 style="margin:2px 0 0; font-size:16px; font-weight:800; color:#ffffff;">🔒 Kunci Paparan RKB Sebagai Arsip Agenda</h3>
+              </div>
+              <button type="button" class="btn-close" style="filter:invert(1); background:none; border:none; color:#fff; font-size:18px; cursor:pointer;" onclick="closeLockPaparanModal()">✕</button>
+            </div>
+            <div style="padding:20px; display:grid; gap:12px;">
+              <div style="background:#fef3c7; border:1px solid #fde68a; padding:10px 14px; border-radius:8px; font-size:12px; color:#92400e; line-height:1.5;">
+                <strong>Perhatian:</strong> Penguncian ini akan membekukan seluruh angka pagu, pembagian sharing, dan komposisi belanja saat ini menjadi arsip abadi. Berkas PPTX & DOCX akan disalin ke folder arsip permanen.
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">Nama Forum / Agenda Resmi: <span style="color:#ef4444;">*</span></label>
+                <input type="text" id="modal-lock-event-name" class="input-text" placeholder="Contoh: Desk Koordinasi KPU Provinsi Jawa Timur" style="width:100%; font-size:13px; padding:8px 12px;">
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">Tanggal Pelaksanaan: <span style="color:#ef4444;">*</span></label>
+                  <input type="date" id="modal-lock-event-date" class="input-text" style="width:100%; font-size:13px; padding:7px 10px;">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">Petugas Pengunci:</label>
+                  <input type="text" id="modal-lock-actor" class="input-text" value="PPK Satker 657811" readonly style="width:100%; font-size:13px; padding:7px 10px; background:#f1f5f9;">
+                </div>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">Catatan / Nomor Berita Acara (Opsional):</label>
+                <textarea id="modal-lock-keterangan" class="input-text" rows="2" placeholder="Catatan hasil pembahasan atau nomor dokumen..." style="width:100%; font-size:12.5px; padding:8px 10px;"></textarea>
+              </div>
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:8px; font-size:12px; color:#475569;">
+                <div style="font-weight:700; margin-bottom:4px; color:#0f172a;">Ringkasan Anggaran yang Dibekukan:</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span>Total Kebutuhan Bersama:</span>
+                  <strong style="font-family:monospace; color:#1e3a8a;">Rp 68.936.096.599</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span>Beban APBD Kabupaten Ngawi (82,15%):</span>
+                  <strong style="font-family:monospace; color:#0f172a;">Rp 56.634.331.599</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                  <span>Sharing APBD Provinsi Jatim (17,85%):</span>
+                  <strong style="font-family:monospace; color:#047857;">Rp 12.301.765.000</strong>
+                </div>
+              </div>
+            </div>
+            <div style="background:#f1f5f9; padding:12px 20px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2e8f0;">
+              <button type="button" class="btn btn-secondary" onclick="closeLockPaparanModal()">Batal</button>
+              <button type="button" class="btn btn-primary" id="btn-submit-lock-paparan" onclick="submitLockPaparan()" style="background:#f59e0b; color:#000; border-color:#d97706; font-weight:700;">
+                🔒 Kunci &amp; Buat Arsip Permanen
+              </button>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- MODAL EDIT METADATA ARSIP PAPARAN -->
+        <div id="modal-edit-paparan" class="modal-backdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); z-index:9999; align-items:center; justify-content:center;" onclick="if(event.target===this) closeEditPaparanModal()">
+          <div style="background:#ffffff; border-radius:12px; max-width:540px; width:92%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); overflow:hidden;">
+            <div style="background:#0f172a; color:#ffffff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:11px; font-weight:800; color:#f59e0b; letter-spacing:0.5px;">MANAJEMEN ARSIP PAPARAN</div>
+                <h3 style="margin:2px 0 0; font-size:16px; font-weight:800; color:#ffffff;">✏️ Edit Nama Forum &amp; Tanggal Agenda</h3>
+              </div>
+              <button type="button" class="btn-close" style="filter:invert(1); background:none; border:none; color:#fff; font-size:18px; cursor:pointer;" onclick="closeEditPaparanModal()">✕</button>
+            </div>
+            <div style="padding:20px; display:grid; gap:12px;">
+              <input type="hidden" id="modal-edit-paparan-id">
+              <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:10px 14px; border-radius:8px; font-size:12px; color:#1e40af; line-height:1.5;">
+                <strong>Informasi:</strong> Fitur ini memperbarui identitas nama forum, agenda, dan tanggal pelaksanaan. Angka pagu anggaran terkunci dan berkas fisik presentasi tetap terlindungi.
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 2fr; gap:10px;">
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">Kode Snapshot:</label>
+                  <input type="text" id="modal-edit-paparan-code" class="input-text" readonly style="width:100%; font-size:12px; padding:7px 10px; background:#f1f5f9; font-family:monospace; font-weight:700;">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">Tanggal Pelaksanaan: <span style="color:#ef4444;">*</span></label>
+                  <input type="date" id="modal-edit-paparan-date" class="input-text" style="width:100%; font-size:13px; padding:7px 10px;">
+                </div>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">Nama Forum / Agenda Resmi: <span style="color:#ef4444;">*</span></label>
+                <input type="text" id="modal-edit-paparan-name" class="input-text" placeholder="Contoh: Desk Koordinasi KPU Provinsi Jawa Timur" style="width:100%; font-size:13px; padding:8px 12px;">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label style="font-size:12.5px; font-weight:700; color:#1e293b; display:block; margin-bottom:4px;">Catatan / Nomor Berita Acara (Opsional):</label>
+                <textarea id="modal-edit-paparan-keterangan" class="input-text" rows="2" placeholder="Catatan hasil pembahasan atau nomor dokumen..." style="width:100%; font-size:12.5px; padding:8px 10px;"></textarea>
+              </div>
+            </div>
+            <div style="background:#f1f5f9; padding:12px 20px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2e8f0;">
+              <button type="button" class="btn btn-secondary" onclick="closeEditPaparanModal()">Batal</button>
+              <button type="button" class="btn btn-primary" id="btn-submit-edit-paparan" onclick="submitEditPaparan()" style="background:#2563eb; color:#fff; border-color:#1d4ed8; font-weight:700;">
+                💾 Simpan Perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+
 </body>
 </html>

@@ -8688,6 +8688,164 @@ function updateUserProfileSelf(userId, data, actorUser = null) {
   return getUserById(uid);
 }
 
+// ============================================================================
+// MODUL PRESENTASI & SNAPSHOT PAPARAN EKSEKUTIF RKB (PENGUNCIAN MILESTONE)
+// ============================================================================
+function ensurePaparanSnapshotTable() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rkb_paparan_snapshot (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kode_snapshot VARCHAR(64) NOT NULL UNIQUE,
+      nama_event VARCHAR(255) NOT NULL,
+      tanggal_event VARCHAR(32) NOT NULL,
+      keterangan TEXT,
+      total_pagu REAL DEFAULT 0,
+      beban_kabupaten REAL DEFAULT 0,
+      sharing_provinsi REAL DEFAULT 0,
+      snapshot_payload LONGTEXT NOT NULL,
+      pptx_file VARCHAR(255) DEFAULT '',
+      docx_file VARCHAR(255) DEFAULT '',
+      locked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      locked_by VARCHAR(128) DEFAULT 'PPK Satker 657811',
+      waktu_wib VARCHAR(64) DEFAULT ''
+    );
+  `);
+
+  try {
+    const existing = db.prepare("SELECT COUNT(*) as cnt FROM app_menu_matrix WHERE menu_key = 'view-presentasi'").get()?.cnt || 0;
+    if (existing === 0) {
+      db.prepare(`
+        INSERT INTO app_menu_matrix (
+          menu_key, menu_label, folder_key,
+          allow_l0, allow_l1, allow_l2, allow_l3, allow_l4,
+          allow_l5, allow_l6, allow_l7, allow_l8, allow_l9, allow_l10,
+          mode_l0, mode_l1, mode_l2, mode_l3, mode_l4,
+          mode_l5, mode_l6, mode_l7, mode_l8, mode_l9, mode_l10,
+          required_mode, urutan, is_active
+        ) VALUES (
+          'view-presentasi', 'Presentasi', NULL,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          'EDITOR', 'EDITOR', 'EDITOR', 'EDITOR', 'VIEWER', 'VIEWER', 'VIEWER', 'EDITOR', 'EDITOR', 'EDITOR', 'EDITOR',
+          'VIEWER', 26.5, 1
+        )
+      `).run();
+    }
+  } catch (err) {
+    console.warn('[DB] Gagal register menu view-presentasi:', err.message);
+  }
+}
+
+function getPaparanSnapshots() {
+  ensurePaparanSnapshotTable();
+  return db.prepare(`
+    SELECT id, kode_snapshot, nama_event, tanggal_event, keterangan,
+           total_pagu, beban_kabupaten, sharing_provinsi,
+           pptx_file, docx_file, locked_at, locked_by, waktu_wib
+    FROM rkb_paparan_snapshot
+    ORDER BY id DESC
+  `).all();
+}
+
+function getPaparanSnapshotById(id) {
+  ensurePaparanSnapshotTable();
+  return db.prepare('SELECT * FROM rkb_paparan_snapshot WHERE id = ?').get(id);
+}
+
+function savePaparanSnapshot(data, actorUser = null) {
+  ensurePaparanSnapshotTable();
+  const stmt = db.prepare(`
+    INSERT INTO rkb_paparan_snapshot (
+      kode_snapshot, nama_event, tanggal_event, keterangan,
+      total_pagu, beban_kabupaten, sharing_provinsi,
+      snapshot_payload, pptx_file, docx_file, locked_at, locked_by, waktu_wib
+    ) VALUES (
+      ?, ?, ?, ?,
+      ?, ?, ?,
+      ?, ?, ?, ?, ?, ?
+    )
+  `);
+
+  const now = new Date();
+  const lockedAtFormatted = (data.locked_at && !data.locked_at.includes('T'))
+    ? data.locked_at
+    : now.toISOString().slice(0, 19).replace('T', ' ');
+
+  const waktuWib = typeof getJakartaTimeString === 'function' ? getJakartaTimeString() : now.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+  const actorName = actorUser ? (actorUser.nama_pejabat || actorUser.username) : (data.locked_by || 'PPK Satker 657811');
+
+  const res = stmt.run(
+    data.kode_snapshot,
+    data.nama_event,
+    data.tanggal_event,
+    data.keterangan || '',
+    Number(data.total_pagu) || 0,
+    Number(data.beban_kabupaten) || 0,
+    Number(data.sharing_provinsi) || 0,
+    typeof data.snapshot_payload === 'string' ? data.snapshot_payload : JSON.stringify(data.snapshot_payload),
+    data.pptx_file || '',
+    data.docx_file || '',
+    lockedAtFormatted,
+    actorName,
+    waktuWib
+  );
+
+  const newId = res.lastInsertRowid;
+  recordAuditLog({
+    user: actorUser,
+    action: 'LOCK_PAPARAN_SNAPSHOT',
+    entity: 'rkb_paparan_snapshot',
+    entity_id: newId,
+    new_values: { kode: data.kode_snapshot, event: data.nama_event, pagu: data.total_pagu },
+    notes: `Paparan eksekutif "${data.nama_event}" berhasil dikunci sebagai arsip milestone.`
+  });
+
+  return getPaparanSnapshotById(newId);
+}
+
+function deletePaparanSnapshot(id, actorUser = null) {
+  ensurePaparanSnapshotTable();
+  const existing = getPaparanSnapshotById(id);
+  if (!existing) throw new Error(`Snapshot ID ${id} tidak ditemukan.`);
+
+  db.prepare('DELETE FROM rkb_paparan_snapshot WHERE id = ?').run(id);
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'DELETE_PAPARAN_SNAPSHOT',
+    entity: 'rkb_paparan_snapshot',
+    entity_id: id,
+    notes: `Arsip snapshot paparan "${existing.nama_event}" dihapus.`
+  });
+
+  return { success: true };
+}
+
+function updatePaparanSnapshotMeta(id, data, actorUser = null) {
+  ensurePaparanSnapshotTable();
+  const existing = getPaparanSnapshotById(id);
+  if (!existing) throw new Error(`Snapshot ID ${id} tidak ditemukan.`);
+
+  const namaEvent = (data.nama_event || '').trim() || existing.nama_event;
+  const tanggalEvent = (data.tanggal_event || '').trim() || existing.tanggal_event;
+  const keterangan = data.keterangan !== undefined ? (data.keterangan || '').trim() : (existing.keterangan || '');
+
+  db.prepare(`
+    UPDATE rkb_paparan_snapshot
+    SET nama_event = ?, tanggal_event = ?, keterangan = ?
+    WHERE id = ?
+  `).run(namaEvent, tanggalEvent, keterangan, id);
+
+  recordAuditLog({
+    user: actorUser,
+    action: 'UPDATE_PAPARAN_SNAPSHOT_META',
+    entity: 'rkb_paparan_snapshot',
+    entity_id: id,
+    notes: `Metadata arsip paparan "${existing.kode_snapshot}" diperbarui: Nama Agenda: "${existing.nama_event}" -> "${namaEvent}", Tanggal: "${existing.tanggal_event}" -> "${tanggalEvent}".`
+  });
+
+  return getPaparanSnapshotById(id);
+}
+
 module.exports = {
   db,
   safeAddColumn,
@@ -8817,5 +8975,11 @@ module.exports = {
   getAllAnnouncementsAdmin,
   getActiveAnnouncementsForLevel,
   getPublicAnnouncements,
+  ensurePaparanSnapshotTable,
+  getPaparanSnapshots,
+  getPaparanSnapshotById,
+  savePaparanSnapshot,
+  updatePaparanSnapshotMeta,
+  deletePaparanSnapshot,
   USE_MYSQL
 };

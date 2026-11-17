@@ -870,26 +870,126 @@
       font-size: 18px !important;
     }
 
+    /* Slide 10 Specific Fullscreen Tuning: Balanced & Viewport-Fit */
+    :fullscreen #slide-10 .slide-header,
+    body.is-fullscreen #slide-10 .slide-header {
+      margin-bottom: 8px !important;
+    }
+
+    :fullscreen #slide-10 .slide-title,
+    body.is-fullscreen #slide-10 .slide-title {
+      font-size: 28px !important;
+      margin-bottom: 4px !important;
+      line-height: 1.25 !important;
+    }
+
+    :fullscreen #slide-10 .slide-subtitle,
+    body.is-fullscreen #slide-10 .slide-subtitle {
+      font-size: 15px !important;
+      margin-bottom: 6px !important;
+    }
+
+    :fullscreen .sbml-dual-col,
+    body.is-fullscreen .sbml-dual-col {
+      gap: 16px !important;
+    }
+
     :fullscreen .sbml-box,
     body.is-fullscreen .sbml-box {
-      padding: 28px !important;
-      border-radius: 22px !important;
+      padding: 12px 18px !important;
+      border-radius: 14px !important;
+    }
+
+    :fullscreen .sbml-box-header,
+    body.is-fullscreen .sbml-box-header {
+      margin-bottom: 8px !important;
+      padding-bottom: 6px !important;
     }
 
     :fullscreen .sbml-box-header h3,
     body.is-fullscreen .sbml-box-header h3 {
-      font-size: 21px !important;
+      font-size: 15.5px !important;
+    }
+
+    :fullscreen .sbml-pagu-strip,
+    body.is-fullscreen .sbml-pagu-strip {
+      padding: 5px 12px !important;
+    }
+
+    :fullscreen .sbml-pagu-val,
+    body.is-fullscreen .sbml-pagu-val {
+      font-size: 15.5px !important;
     }
 
     :fullscreen .sbml-rate-grid,
     body.is-fullscreen .sbml-rate-grid {
-      font-size: 17.5px !important;
-      gap: 12px !important;
+      font-size: 13.5px !important;
+      gap: 5px !important;
     }
 
     :fullscreen .sbml-rate-item,
     body.is-fullscreen .sbml-rate-item {
-      padding: 11px 18px !important;
+      padding: 6px 12px !important;
+      min-height: 33px !important;
+    }
+
+    :fullscreen .sbml-rate-item .role-name,
+    body.is-fullscreen .sbml-rate-item .role-name {
+      font-size: 13.5px !important;
+    }
+
+    :fullscreen .sbml-rate-item .rate-val,
+    body.is-fullscreen .sbml-rate-item .rate-val {
+      font-size: 13.5px !important;
+    }
+
+    :fullscreen .sbml-banner-bottom,
+    body.is-fullscreen .sbml-banner-bottom {
+      padding: 7px 16px !important;
+      margin-top: 6px !important;
+    }
+
+    :fullscreen .sbml-banner-left,
+    body.is-fullscreen .sbml-banner-left {
+      font-size: 13px !important;
+    }
+
+    :fullscreen .sbml-banner-tag,
+    body.is-fullscreen .sbml-banner-tag {
+      font-size: 12px !important;
+      padding: 3px 12px !important;
+    }
+
+    :fullscreen .sbml-protection-box,
+    body.is-fullscreen .sbml-protection-box {
+      padding: 7px 12px !important;
+    }
+
+    :fullscreen .prot-badge,
+    body.is-fullscreen .prot-badge {
+      font-size: 12px !important;
+    }
+
+    :fullscreen .prot-pagu,
+    body.is-fullscreen .prot-pagu {
+      font-size: 13px !important;
+    }
+
+    :fullscreen .sbml-protection-text,
+    body.is-fullscreen .sbml-protection-text {
+      font-size: 11.5px !important;
+    }
+
+    :fullscreen .sbml-status-strip,
+    body.is-fullscreen .sbml-status-strip {
+      font-size: 12px !important;
+    }
+
+    :fullscreen #slide-10 .slide-footer,
+    body.is-fullscreen #slide-10 .slide-footer {
+      padding-top: 8px !important;
+      margin-top: 6px !important;
+      font-size: 13.5px !important;
     }
 
     :fullscreen .stakeholder-card,
@@ -1458,57 +1558,281 @@
     }
 
     /* Slide 10: SBML Compliance Dedicated */
+    #slide-10 .slide-body {
+      justify-content: flex-start;
+      gap: 6px;
+    }
+
     .sbml-dual-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 18px;
+      gap: 16px;
+      flex: 1;
+      min-height: 0;
     }
+
     .sbml-box {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 20px;
+      border-radius: 14px;
+      padding: 12px 16px;
       display: flex;
       flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
+
     .sbml-box-header {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border-color);
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-shrink: 0;
     }
+
+    .sbml-box-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     .sbml-box-header h3 {
-      font-size: 16.5px;
+      font-size: 14.5px;
       font-weight: 800;
       color: #FFFFFF;
+      margin: 0;
+      letter-spacing: 0.02em;
     }
+
     .sbml-badge-green {
       background: rgba(16, 185, 129, 0.2);
       border: 1px solid var(--emerald);
       color: var(--emerald);
       font-size: 11px;
       font-weight: 800;
-      padding: 3px 8px;
+      padding: 2px 8px;
       border-radius: 6px;
+      white-space: nowrap;
     }
+
+    .sbml-badge-gold {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid var(--kpu-gold);
+      color: var(--kpu-gold);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .sbml-pagu-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+    }
+
+    .sbml-pagu-strip.pagu-blue {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+
+    .sbml-pagu-strip.pagu-rose {
+      background: rgba(76, 5, 25, 0.6);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+    }
+
+    .sbml-pagu-lbl {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .sbml-pagu-val {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #FBBF24;
+      font-family: var(--font-mono);
+      letter-spacing: 0.02em;
+    }
+
+    .sbml-pagu-sub {
+      color: #CBD5E1;
+      font-size: 11px;
+    }
+
     .sbml-rate-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      justify-content: space-between;
     }
+
     .sbml-rate-item {
       background: rgba(255, 255, 255, 0.03);
-      padding: 8px 12px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      min-height: 31px;
+      transition: background 0.15s ease;
+    }
+
+    .sbml-rate-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .sbml-rate-item .role-name {
+      font-weight: 700;
+      color: #FFFFFF;
+      font-size: 13px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .sbml-rate-item .rate-val {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--kpu-gold);
+      font-size: 13px;
+      text-align: right;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      justify-content: flex-end;
+    }
+
+    .rate-sublabel {
+      color: #94A3B8;
+      font-weight: 600;
+      font-size: 11px;
+      font-family: var(--font-main);
+      text-transform: uppercase;
+    }
+
+    .rate-divider {
+      color: rgba(255, 255, 255, 0.25);
+      margin: 0 2px;
+      font-weight: 300;
+    }
+
+    .rate-unit {
+      color: #94A3B8;
+      font-weight: 600;
+      font-size: 11px;
+      font-family: var(--font-main);
+    }
+
+    .sbml-status-strip {
+      font-size: 11.5px;
+      color: #34D399;
+      font-weight: 700;
+      text-align: right;
+      padding: 2px 4px;
+      margin-top: 2px;
+      letter-spacing: 0.02em;
+    }
+
+    .sbml-protection-box {
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px dashed rgba(244, 63, 94, 0.4);
       border-radius: 8px;
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .sbml-protection-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .sbml-rate-item .role-name { font-weight: 600; color: #FFFFFF; }
-    .sbml-rate-item .rate-val { font-family: var(--font-mono); font-weight: 700; color: var(--kpu-gold); }
+
+    .prot-badge {
+      font-size: 11px;
+      font-weight: 800;
+      color: #FECDD3;
+      letter-spacing: 0.03em;
+    }
+
+    .prot-pagu {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #FBBF24;
+      font-family: var(--font-mono);
+      background: rgba(15, 23, 42, 0.6);
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .sbml-protection-text {
+      font-size: 10.5px;
+      color: #CBD5E1;
+      line-height: 1.35;
+    }
+
+    .sbml-banner-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: 8px;
+      padding: 6px 14px;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .sbml-banner-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+    }
+
+    .sbml-banner-icon {
+      font-size: 13px;
+    }
+
+    .sbml-banner-title {
+      font-weight: 800;
+      color: #FBBF24;
+      letter-spacing: 0.03em;
+    }
+
+    .sbml-banner-desc {
+      color: #FEF3C7;
+      font-weight: 500;
+    }
+
+    .sbml-banner-right {
+      display: flex;
+      align-items: center;
+    }
+
+    .sbml-banner-tag {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--emerald);
+      color: #6EE7B7;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
 
     /* Slide 11: Stakeholder Cards */
     .stakeholder-grid {
@@ -1804,10 +2128,10 @@
         <button class="btn-action" onclick="toggleNotesDrawer()" title="Buka Catatan Narasi Pembicara (N)">
           🎙️ <span>Catatan Pembicara</span>
         </button>
-        <a href="/api/paparan/download/pptx" class="btn-action btn-gold" title="Unduh File PowerPoint Asli (16:9)">
+        <a id="btn-download-pptx" href="/api/paparan/download/pptx" class="btn-action btn-gold" title="Unduh File PowerPoint Asli (16:9)">
           📊 <span>Unduh PPTX</span>
         </a>
-        <a href="/api/paparan/download/docx" class="btn-action" title="Unduh Naskah Word Catatan Pembicara">
+        <a id="btn-download-docx" href="/api/paparan/download/docx" class="btn-action" title="Unduh Naskah Word Catatan Pembicara">
           📝 <span>Unduh DOCX</span>
         </a>
         <button class="btn-action btn-gold" id="btn-fullscreen-top" onclick="enterPresentationMode()" title="Mode Layar Penuh (F / F11)">
@@ -2330,97 +2654,114 @@
           </div>
           <div class="slide-body">
             <div class="sbml-dual-col">
+              <!-- KOLOM KIRI: STANDAR HONORARIUM AD HOC -->
               <div class="sbml-box" style="border-left: 4px solid var(--kpu-blue);">
-                <div class="sbml-box-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="font-size: 16px; font-weight: 800; color: #FFFFFF; margin: 0;">1. STANDAR HONORARIUM BADAN AD HOC</h3>
-                    <span class="sbml-badge-green" style="font-size: 11px; padding: 3px 10px;">100% PATUH SBML</span>
+                <div class="sbml-box-header">
+                  <div class="sbml-box-header-top">
+                    <h3>1. STANDAR HONORARIUM BADAN AD HOC</h3>
+                    <span class="sbml-badge-green">100% PATUH SBML</span>
                   </div>
-                  <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(59, 130, 246, 0.4); padding: 6px 12px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="font-size: 12px; font-weight: 700; color: #93C5FD; text-transform: uppercase;">TOTAL PAGU:</span>
-                    <span style="font-size: 15px; font-weight: 800; color: #FBBF24; font-family: var(--font-mono);">Rp 26.171.600.000</span>
-                    <span style="font-size: 11.5px; color: #CBD5E1;">Akun 521213 • Divisi KUL</span>
+                  <div class="sbml-pagu-strip pagu-blue">
+                    <span class="sbml-pagu-lbl" style="color: #93C5FD;">TOTAL PAGU:</span>
+                    <span class="sbml-pagu-val">Rp 26.171.600.000</span>
+                    <span class="sbml-pagu-sub">Akun 521213 • Divisi KUL</span>
                   </div>
                 </div>
                 <div class="sbml-rate-grid">
                   <div class="sbml-rate-item">
                     <span class="role-name">PPK (19 Kecamatan)</span>
-                    <span class="rate-val">Ketua: Rp 2.500.000/OB | Anggota: Rp 2.200.000/OB</span>
+                    <span class="rate-val"><span class="rate-sublabel">Ketua</span> Rp 2.500.000 <span class="rate-divider">|</span> <span class="rate-sublabel">Anggota</span> Rp 2.200.000 <span class="rate-unit">/OB</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">Sekretariat PPK</span>
-                    <span class="rate-val">Sekretaris: Rp 1.850.000/OB | Staf: Rp 1.300.000/OB</span>
+                    <span class="rate-val"><span class="rate-sublabel">Sekretaris</span> Rp 1.850.000 <span class="rate-divider">|</span> <span class="rate-sublabel">Staf</span> Rp 1.300.000 <span class="rate-unit">/OB</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">PPS (217 Desa / Kelurahan)</span>
-                    <span class="rate-val">Ketua: Rp 1.500.000/OB | Anggota: Rp 1.300.000/OB</span>
+                    <span class="rate-val"><span class="rate-sublabel">Ketua</span> Rp 1.500.000 <span class="rate-divider">|</span> <span class="rate-sublabel">Anggota</span> Rp 1.300.000 <span class="rate-unit">/OB</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">Sekretariat PPS</span>
-                    <span class="rate-val">Sekretaris: Rp 1.150.000/OB | Staf: Rp 1.050.000/OB</span>
+                    <span class="rate-val"><span class="rate-sublabel">Sekretaris</span> Rp 1.150.000 <span class="rate-divider">|</span> <span class="rate-sublabel">Staf</span> Rp 1.050.000 <span class="rate-unit">/OB</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">Pantarlih / PPDP Coklit (359.141 KK)</span>
-                    <span class="rate-val">Petugas Coklit: Rp 1.000.000 / Bulan (1.393+ Petugas)</span>
+                    <span class="rate-val"><span class="rate-sublabel">Petugas</span> Rp 1.000.000 <span class="rate-unit">/Bulan (1.393+ Petugas)</span></span>
                   </div>
                   <div class="sbml-rate-item">
-                    <span class="role-name">KPPS & Pengamanan TPS (1.393 TPS)</span>
-                    <span class="rate-val">Ketua: Rp 900.000/OB | Anggota: Rp 850.000/OB</span>
+                    <span class="role-name">KPPS (1.393 TPS)</span>
+                    <span class="rate-val"><span class="rate-sublabel">Ketua</span> Rp 900.000 <span class="rate-divider">|</span> <span class="rate-sublabel">Anggota</span> Rp 850.000 <span class="rate-unit">/OB</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">Petugas Linmas / Ketertiban TPS</span>
-                    <span class="rate-val">Rp 650.000/OB</span>
+                    <span class="rate-val"><span class="rate-sublabel">Petugas</span> Rp 650.000 <span class="rate-unit">/OB (2 Petugas / TPS)</span></span>
                   </div>
-                  <div style="font-size: 12.5px; color: #34D399; font-weight: 700; text-align: right; margin-top: 4px;">
+                  <div class="sbml-status-strip">
                     ✓ Status: 100% Sesuai Plafon Tertinggi SBML (Deviasi Rp 0)
                   </div>
                 </div>
               </div>
 
+              <!-- KOLOM KANAN: SANTUNAN KECELAKAAN KERJA -->
               <div class="sbml-box" style="border-left: 4px solid var(--rose);">
-                <div class="sbml-box-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="font-size: 16px; font-weight: 800; color: #FFFFFF; margin: 0;">2. SANTUNAN KECELAKAAN KERJA</h3>
-                    <span class="sbml-badge-green" style="background: rgba(245, 158, 11, 0.2); color: #FBBF24; border-color: #F59E0B; font-size: 11px; padding: 3px 10px;">SBML KPU RI</span>
+                <div class="sbml-box-header">
+                  <div class="sbml-box-header-top">
+                    <h3>2. SANTUNAN KECELAKAAN KERJA</h3>
+                    <span class="sbml-badge-gold">SBML KPU RI</span>
                   </div>
-                  <div style="background: rgba(76, 5, 25, 0.6); border: 1px solid rgba(244, 63, 94, 0.4); padding: 6px 12px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="font-size: 12px; font-weight: 700; color: #FECDD3; text-transform: uppercase;">TOTAL PAGU:</span>
-                    <span style="font-size: 15px; font-weight: 800; color: #FBBF24; font-family: var(--font-mono);">Rp 2.283.000.000</span>
-                    <span style="font-size: 11.5px; color: #FFE4E6;">Akun 521219 • Divisi PARSDM</span>
+                  <div class="sbml-pagu-strip pagu-rose">
+                    <span class="sbml-pagu-lbl" style="color: #FECDD3;">TOTAL PAGU:</span>
+                    <span class="sbml-pagu-val">Rp 2.283.000.000</span>
+                    <span class="sbml-pagu-sub" style="color: #FFE4E6;">Akun 521219 • Divisi PARSDM</span>
                   </div>
                 </div>
                 <div class="sbml-rate-grid">
                   <div class="sbml-rate-item">
                     <span class="role-name">Santunan Meninggal Dunia</span>
-                    <span class="rate-val">Rp 36.000.000</span>
+                    <span class="rate-val">Rp 36.000.000 <span class="rate-unit">/Orang</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">Santunan Cacat Permanen</span>
-                    <span class="rate-val">Rp 30.800.000</span>
+                    <span class="rate-val">Rp 30.800.000 <span class="rate-unit">/Orang</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">Santunan Luka / Sakit Berat</span>
-                    <span class="rate-val">Rp 16.500.000</span>
+                    <span class="rate-val">Rp 16.500.000 <span class="rate-unit">/Orang</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">Bantuan Biaya Pemakaman</span>
-                    <span class="rate-val">Rp 10.000.000</span>
+                    <span class="rate-val">Rp 10.000.000 <span class="rate-unit">/Orang</span></span>
                   </div>
                   <div class="sbml-rate-item">
                     <span class="role-name">Santunan Luka / Sakit Sedang</span>
-                    <span class="rate-val">Rp 8.250.000</span>
+                    <span class="rate-val">Rp 8.250.000 <span class="rate-unit">/Orang</span></span>
                   </div>
-                  <div class="sbml-rate-item" style="background: rgba(244, 63, 94, 0.1); border: 1px dashed rgba(244, 63, 94, 0.4); flex-direction: column; align-items: flex-start; gap: 4px;">
-                    <div style="font-weight: 800; color: #FECDD3; font-size: 13px;">PROTEKSI SETARA HINGGA TINGKAT PANTARLIH / PPDP</div>
-                    <div style="font-size: 12.5px; color: #E2E8F0;">• Alokasi Khusus Pantarlih: Rp 456.600.000 untuk 1.393+ petugas coklit.</div>
-                    <div style="font-size: 12.5px; color: #E2E8F0;">• Perlindungan adil setara bagi seluruh ad hoc tanpa diskriminasi.</div>
+                  <div class="sbml-protection-box">
+                    <div class="sbml-protection-header">
+                      <span class="prot-badge">🛡️ PROTEKSI INKLUSIF PANTARLIH / PPDP</span>
+                      <span class="prot-pagu">Rp 456.600.000</span>
+                    </div>
+                    <div class="sbml-protection-text">
+                      Alokasi khusus bagi 1.393+ petugas coklit lapangan (359.141 KK). Hak jaminan kerja adil setara bagi seluruh Ad Hoc tanpa diskriminasi.
+                    </div>
+                  </div>
+                  <div class="sbml-status-strip" style="color: #FBBF24;">
+                    ✓ Siaga Penuh Santunan Perlindungan Kerja Seluruh Ad Hoc
                   </div>
                 </div>
               </div>
             </div>
-            <div class="highlight-callout" style="margin-top: 14px; text-align: center; background: rgba(15, 23, 42, 0.9); border-color: var(--kpu-gold); color: #FEF3C7;">
-              LANDASAN SBML: Surat Menkeu No. S-647/MK.02/2022 jo. Keputusan KPU RI No. 472/2022<br>
-              <strong>Seluruh Komponen Honorarium & Santunan Terverifikasi 100% Patuh Plafon Standar Biaya Masukan Lainnya.</strong>
+
+            <!-- BANNER LANDASAN SBML RAMPING -->
+            <div class="sbml-banner-bottom">
+              <div class="sbml-banner-left">
+                <span class="sbml-banner-icon">⚖️</span>
+                <span class="sbml-banner-title">LANDASAN YURIDIS SBML:</span>
+                <span class="sbml-banner-desc">Surat Menkeu No. S-647/MK.02/2022 jo. Keputusan KPU RI No. 472/2022</span>
+              </div>
+              <div class="sbml-banner-right">
+                <span class="sbml-banner-tag">100% Patuh Plafon SBM/SBML (Deviasi Rp 0)</span>
+              </div>
             </div>
           </div>
           <div class="slide-footer">
@@ -2577,8 +2918,20 @@
     let enteredPin = '';
 
     function checkExistingAuth() {
-      if (sessionStorage.getItem('siprabu_paparan_auth') === CORRECT_PIN) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramPin = urlParams.get('pin');
+      if (paramPin === CORRECT_PIN || sessionStorage.getItem('siprabu_paparan_auth') === CORRECT_PIN) {
+        sessionStorage.setItem('siprabu_paparan_auth', CORRECT_PIN);
         unlockGate(false);
+      }
+
+      const paramSlide = parseInt(urlParams.get('slide'), 10);
+      if (!isNaN(paramSlide) && paramSlide >= 1 && paramSlide <= totalSlides) {
+        jumpToSlide(paramSlide);
+      }
+
+      if (urlParams.get('fullscreen') === '1') {
+        document.body.classList.add('is-fullscreen');
       }
     }
 
@@ -2640,13 +2993,18 @@
     function unlockGate(animate) {
       const gate = document.getElementById('pin-gate');
       gate.classList.add('unlocked');
+      if (animate === false) {
+        gate.style.display = 'none';
+      }
       initCharts();
     }
 
     function lockPortal() {
       sessionStorage.removeItem('siprabu_paparan_auth');
       clearPin();
-      document.getElementById('pin-gate').classList.remove('unlocked');
+      const gate = document.getElementById('pin-gate');
+      gate.style.display = 'flex';
+      gate.classList.remove('unlocked');
     }
 
     // --- 2. PRESENTATION & FULLSCREEN LOGIC ---
@@ -3039,6 +3397,37 @@
     document.addEventListener('DOMContentLoaded', () => {
       checkExistingAuth();
       updateNotesContent(1);
+
+      // Check if viewing an immutable snapshot
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const snapId = urlParams.get('snapshot_id');
+        if (snapId) {
+          fetch('/api/paparan/snapshots/' + snapId)
+            .then(r => r.json())
+            .then(res => {
+              if (res.success && res.snapshot) {
+                const snap = res.snapshot;
+                const btnPptx = document.getElementById('btn-download-pptx');
+                const btnDocx = document.getElementById('btn-download-docx');
+                if (btnPptx) btnPptx.href = '/api/paparan/snapshots/' + snap.id + '/download/pptx';
+                if (btnDocx) btnDocx.href = '/api/paparan/snapshots/' + snap.id + '/download/docx';
+
+                const headerSub = document.querySelector('.header-sub');
+                if (headerSub) {
+                  headerSub.innerHTML = `<span style="color:#F59E0B;font-weight:800;">🔒 ARSIP TERKUNCI:</span> ${snap.nama_event.toUpperCase()} (${snap.tanggal_event})`;
+                }
+
+                const banner = document.createElement('div');
+                banner.id = 'snapshot-banner';
+                banner.style.cssText = 'position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:900;background:rgba(245,158,11,0.92);color:#0F172A;padding:4px 18px;border-radius:20px;font-size:12px;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,0.4);pointer-events:none;';
+                banner.textContent = `🔒 MODE ARSIP TERKUNCI: ${snap.nama_event} (${snap.tanggal_event}) — Pagu: Rp ${(Number(snap.total_pagu)/1000000000).toFixed(2)} M`;
+                document.body.appendChild(banner);
+              }
+            })
+            .catch(e => console.warn('Snapshot fetch error:', e));
+        }
+      } catch (e) {}
     });
   </script>
 </body>

@@ -78,6 +78,11 @@ const {
   savePaslon,
   deletePaslon,
   getRegulasiList,
+  getPaparanSnapshots,
+  getPaparanSnapshotById,
+  savePaparanSnapshot,
+  updatePaparanSnapshotMeta,
+  deletePaparanSnapshot,
   saveRegulasi,
   deleteRegulasi,
   getKecamatans,
@@ -3869,6 +3874,230 @@ const server = http.createServer(async (req, res) => {
         return fs.createReadStream(docxPath).pipe(res);
       }
       return sendJson(res, 404, { error: 'File DOCX tidak ditemukan di folder perencaan.' });
+    }
+
+    // ------------------------------------------------------------------------
+    // API SNAPSHOT & ARSIP PAPARAN EKSEKUTIF (MILESTONE FREEZE)
+    // ------------------------------------------------------------------------
+    if (pathname === '/api/paparan/snapshots' && method === 'GET') {
+      try {
+        const snapshots = getPaparanSnapshots();
+        return sendJson(res, 200, { success: true, snapshots });
+      } catch (err) {
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+
+    const snapDetailMatch = pathname.match(/^\/api\/paparan\/snapshots\/(\d+)$/);
+    if (snapDetailMatch && method === 'GET') {
+      try {
+        const snapId = Number(snapDetailMatch[1]);
+        const snapshot = getPaparanSnapshotById(snapId);
+        if (!snapshot) return sendJson(res, 404, { error: 'Snapshot tidak ditemukan.' });
+        return sendJson(res, 200, { success: true, snapshot });
+      } catch (err) {
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+
+    if (pathname === '/api/paparan/lock-snapshot' && method === 'POST') {
+      try {
+        const user = getUserFromReq(req);
+        const body = await parseJsonBody(req);
+        const nama_event = (body.nama_event || '').trim();
+        const tanggal_event = (body.tanggal_event || '').trim() || new Date().toISOString().split('T')[0];
+        const keterangan = (body.keterangan || '').trim();
+
+        if (!nama_event) {
+          return sendJson(res, 400, { error: 'Nama forum/agenda presentasi wajib diisi.' });
+        }
+
+        const now = new Date();
+        const timeSlug = now.getFullYear().toString() +
+          String(now.getMonth() + 1).padStart(2, '0') +
+          String(now.getDate()).padStart(2, '0') + '_' +
+          String(now.getHours()).padStart(2, '0') +
+          String(now.getMinutes()).padStart(2, '0');
+        const kode_snapshot = 'SNAP-' + timeSlug;
+
+        // Persiapkan folder arsip permanen (Office & Web)
+        const ARCHIVE_OFFICE_DIR = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Arsip_Terkunci');
+        const ARCHIVE_WEB_DIR = path.join(PUBLIC_DIR, 'downloads', 'archive');
+        if (!fs.existsSync(ARCHIVE_OFFICE_DIR)) fs.mkdirSync(ARCHIVE_OFFICE_DIR, { recursive: true });
+        if (!fs.existsSync(ARCHIVE_WEB_DIR)) fs.mkdirSync(ARCHIVE_WEB_DIR, { recursive: true });
+
+        const safeEventName = nama_event.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 35);
+        const pptxName = `Paparan_${safeEventName}_${timeSlug}.pptx`;
+        const docxName = `Catatan_Pembicara_${safeEventName}_${timeSlug}.docx`;
+
+        // Salin berkas PPTX terkini ke arsip
+        const sourcePptxCandidates = [
+          path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Paparan_RKB_KPU_Ngawi_2029_revisi.pptx'),
+          path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Paparan_RKB_KPU_Ngawi_2029.pptx'),
+          path.join(PUBLIC_DIR, 'downloads', 'Paparan_RKB_KPU_Ngawi_2029.pptx')
+        ];
+        const srcPptx = sourcePptxCandidates.find(p => fs.existsSync(p));
+        if (srcPptx) {
+          try {
+            fs.copyFileSync(srcPptx, path.join(ARCHIVE_OFFICE_DIR, pptxName));
+            fs.copyFileSync(srcPptx, path.join(ARCHIVE_WEB_DIR, pptxName));
+          } catch (e) {
+            console.warn('[SNAPSHOT] Gagal salin berkas PPTX:', e.message);
+          }
+        }
+
+        // Salin berkas DOCX terkini ke arsip
+        const sourceDocxCandidates = [
+          path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Catatan_Pembicara_Paparan_RKB.docx'),
+          path.join(PUBLIC_DIR, 'downloads', 'Catatan_Pembicara_Paparan_RKB.docx')
+        ];
+        const srcDocx = sourceDocxCandidates.find(p => fs.existsSync(p));
+        if (srcDocx) {
+          try {
+            fs.copyFileSync(srcDocx, path.join(ARCHIVE_OFFICE_DIR, docxName));
+            fs.copyFileSync(srcDocx, path.join(ARCHIVE_WEB_DIR, docxName));
+          } catch (e) {
+            console.warn('[SNAPSHOT] Gagal salin berkas DOCX:', e.message);
+          }
+        }
+
+        // Payload data SSOT saat dikunci
+        const snapshotPayload = {
+          nama_event,
+          tanggal_event,
+          keterangan,
+          kode_snapshot,
+          metrics: {
+            total_pagu: 68936096599,
+            beban_kabupaten: 56634331599,
+            sharing_provinsi: 12301765000,
+            porsi_kab: 82.15,
+            porsi_prov: 17.85
+          },
+          ssot: {
+            tps: 1393,
+            kk: 359141,
+            dpt: 750525,
+            ppk: 19,
+            pps: 217,
+            paslon: 5
+          },
+          rekap_sasaran: [
+            { no: 1, nama: 'KPU Satker Kabupaten', alokasi: 14620000000, porsi: 21.21 },
+            { no: 2, nama: 'PPK (19 Kecamatan)', alokasi: 5550000000, porsi: 8.05 },
+            { no: 3, nama: 'PPS (217 Desa/Kelurahan)', alokasi: 20850000000, porsi: 30.25 },
+            { no: 4, nama: 'TPS (1.393 KPPS/Linmas)', alokasi: 15470000000, porsi: 22.44 },
+            { no: 5, nama: 'Pantarlih Coklit (359.141 KK)', alokasi: 3980000000, porsi: 5.78 },
+            { no: 6, nama: 'Fasilitasi Pasangan Calon', alokasi: 8460000000, porsi: 12.27 }
+          ]
+        };
+
+        const newSnapshot = savePaparanSnapshot({
+          kode_snapshot,
+          nama_event,
+          tanggal_event,
+          keterangan,
+          total_pagu: 68936096599,
+          beban_kabupaten: 56634331599,
+          sharing_provinsi: 12301765000,
+          snapshot_payload: snapshotPayload,
+          pptx_file: pptxName,
+          docx_file: docxName,
+          locked_by: user ? (user.nama_pejabat || user.username) : 'PPK Satker 657811'
+        }, user);
+
+        return sendJson(res, 200, {
+          success: true,
+          message: `Paparan untuk agenda "${nama_event}" berhasil dikunci dan diarsipkan secara permanen.`,
+          snapshot: newSnapshot
+        });
+      } catch (err) {
+        console.error('[SNAPSHOT-LOCK ERROR]', err);
+        return sendJson(res, 500, { error: err.message || 'Gagal mengunci paparan.' });
+      }
+    }
+
+    const snapDownloadMatch = pathname.match(/^\/api\/paparan\/snapshots\/(\d+)\/download\/(pptx|docx)$/);
+    if (snapDownloadMatch && method === 'GET') {
+      try {
+        const snapId = Number(snapDownloadMatch[1]);
+        const fileType = snapDownloadMatch[2].toLowerCase();
+        const snap = getPaparanSnapshotById(snapId);
+        if (!snap) return sendJson(res, 404, { error: 'Snapshot arsip tidak ditemukan.' });
+
+        const fileName = fileType === 'pptx' ? snap.pptx_file : snap.docx_file;
+        if (!fileName) return sendJson(res, 404, { error: `Berkas ${fileType.toUpperCase()} tidak tercatat pada arsip ini.` });
+
+        const localPath = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Arsip_Terkunci', fileName);
+        const webPath = path.join(PUBLIC_DIR, 'downloads', 'archive', fileName);
+        const targetPath = fs.existsSync(localPath) ? localPath : (fs.existsSync(webPath) ? webPath : null);
+
+        if (!targetPath) {
+          return sendJson(res, 404, { error: `Berkas fisik ${fileName} tidak ditemukan di folder arsip.` });
+        }
+
+        const contentType = fileType === 'pptx'
+          ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+          : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Content-Length': fs.statSync(targetPath).size
+        });
+        return fs.createReadStream(targetPath).pipe(res);
+      } catch (err) {
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+
+    if (snapDetailMatch && (method === 'PUT' || method === 'POST')) {
+      try {
+        const user = getUserFromReq(req);
+        if (!user || user.level > 2) {
+          return sendJson(res, 403, { error: 'Hanya Pengembang / PPK / Admin yang berhak mengedit metadata arsip paparan.' });
+        }
+        const snapId = Number(snapDetailMatch[1]);
+        const body = await parseJsonBody(req);
+        const nama_event = (body.nama_event || '').trim();
+        const tanggal_event = (body.tanggal_event || '').trim();
+        const keterangan = (body.keterangan || '').trim();
+
+        if (!nama_event) {
+          return sendJson(res, 400, { error: 'Nama forum/agenda tidak boleh kosong.' });
+        }
+        if (!tanggal_event) {
+          return sendJson(res, 400, { error: 'Tanggal forum/agenda tidak boleh kosong.' });
+        }
+
+        const updated = updatePaparanSnapshotMeta(snapId, {
+          nama_event,
+          tanggal_event,
+          keterangan
+        }, user);
+
+        return sendJson(res, 200, {
+          success: true,
+          message: `Metadata arsip paparan "${updated.nama_event}" berhasil diperbarui.`,
+          snapshot: updated
+        });
+      } catch (err) {
+        return sendJson(res, 500, { error: err.message });
+      }
+    }
+
+    if (snapDetailMatch && method === 'DELETE') {
+      try {
+        const user = getUserFromReq(req);
+        if (!user || user.level > 1) {
+          return sendJson(res, 403, { error: 'Hanya Pengembang / PPK (Level 0-1) yang berhak menghapus arsip snapshot.' });
+        }
+        const snapId = Number(snapDetailMatch[1]);
+        deletePaparanSnapshot(snapId, user);
+        return sendJson(res, 200, { success: true, message: 'Arsip snapshot paparan berhasil dihapus.' });
+      } catch (err) {
+        return sendJson(res, 500, { error: err.message });
+      }
     }
 
     // ========================================================================

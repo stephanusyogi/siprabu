@@ -1,3 +1,23 @@
+
+function formatDateIndo(val) {
+  if (!val) return '-';
+  try {
+    const d = (val instanceof Date) ? val : new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    const day = d.getDate();
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch (e) {
+    return String(val);
+  }
+}
+window.formatDateIndo = formatDateIndo;
+
 /**
  * SI-PRABU Clean Web Edition v3.0
  * Frontend Application Client
@@ -151,6 +171,7 @@ const PRABU_VIEW_TITLES = {
   'view-db-bas': 'Master Bagan Akun Standar (BAS)',
   'view-db-kbli': 'Master KBLI (Klasifikasi Baku Lapangan Usaha)',
   'view-db-regulasi': 'Regulasi & Dasar Hukum JDIH',
+  'view-presentasi': 'Presentasi & Paparan Eksekutif',
   'view-juknis-kegiatan': 'Standar 28 Kegiatan KPT 543/2022',
   'view-db-settings': 'Pengaturan Sistem & Parameter',
   'view-settings': 'Pengaturan Sistem & Parameter',
@@ -2798,6 +2819,7 @@ function switchView(viewId, updateHistory = true) {
   else if (viewId === 'view-db-bas') { renderDbBas(); renderContextualMasterReminderBanner(viewId); }
   else if (viewId === 'view-db-kbli') { if (typeof renderDbKbli === 'function') renderDbKbli(); }
   else if (viewId === 'view-db-regulasi') { renderDbRegulasi(); renderContextualMasterReminderBanner(viewId); }
+  else if (viewId === 'view-presentasi') { if (typeof loadPresentasiView === 'function') loadPresentasiView(); }
   else if (viewId === 'view-juknis-kegiatan') {
     if (AppState.juknisExpandedSet) AppState.juknisExpandedSet.clear();
     renderJuknisKegiatan();
@@ -16640,4 +16662,328 @@ function printRekapEfisiensiPdf(mode = 'perencanaan') {
 window.filterRekapEfisiensiTable = filterRekapEfisiensiTable;
 window.exportRekapEfisiensiExcel = exportRekapEfisiensiExcel;
 window.printRekapEfisiensiPdf = printRekapEfisiensiPdf;
+
+
+
+// ============================================================================
+// MODUL PRESENTASI & MANAJEMEN ARSIP SNAPSHOT PAPARAN EKSEKUTIF (BAB EKSEKUTIF)
+// ============================================================================
+let paparanSnapshotsList = [];
+
+async function loadPresentasiView() {
+  try {
+    const s = AppState.summary || {};
+    const grandTotal = s.grandTotal || 68936096599;
+    const apbdKab = 56634331599;
+    const apbdProv = 12301765000;
+    
+    const elTot = document.getElementById('pres-live-total-pagu');
+    const elKab = document.getElementById('pres-live-beban-kab');
+    const elProv = document.getElementById('pres-live-sharing-prov');
+    
+    if (elTot) elTot.textContent = 'Rp ' + (grandTotal / 1000000000).toFixed(2).replace('.', ',') + ' M';
+    if (elKab) elKab.textContent = 'Rp ' + (apbdKab / 1000000000).toFixed(2).replace('.', ',') + ' M';
+    if (elProv) elProv.textContent = 'Rp ' + (apbdProv / 1000000000).toFixed(2).replace('.', ',') + ' M';
+  } catch (e) {}
+
+  await loadPaparanSnapshots();
+}
+
+async function loadPaparanSnapshots() {
+  const tbody = document.getElementById('table-paparan-snapshots-body');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 24px; color: #64748b;">Memuat riwayat arsip paparan...</td></tr>';
+  }
+  try {
+    const res = await apiFetch('/api/paparan/snapshots');
+    paparanSnapshotsList = res.snapshots || [];
+    renderPaparanSnapshotsTable();
+  } catch (err) {
+    console.error('Gagal memuat snapshots paparan:', err);
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 24px; color: #ef4444;">Gagal memuat arsip paparan: ' + err.message + '</td></tr>';
+    }
+  }
+}
+
+function renderPaparanSnapshotsTable() {
+  const tbody = document.getElementById('table-paparan-snapshots-body');
+  if (!tbody) return;
+
+  const query = (document.getElementById('filter-paparan-snapshot')?.value || '').toLowerCase().trim();
+  let list = paparanSnapshotsList;
+  if (query) {
+    list = list.filter(s =>
+      (s.nama_event || '').toLowerCase().includes(query) ||
+      (s.kode_snapshot || '').toLowerCase().includes(query) ||
+      (s.keterangan || '').toLowerCase().includes(query)
+    );
+  }
+
+  if (list.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center" style="padding: 36px 20px; color: #64748b;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
+          <div style="font-weight: 700; color: #334155;">Belum Ada Arsip Paparan yang Dikunci</div>
+          <div style="font-size: 12px; margin-top: 4px;">Gunakan tombol <strong>"🔒 Kunci Sesi Ini"</strong> di atas untuk membekukan paparan agenda resmi (Provinsi, DPRD, atau Pemkab).</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const currentUser = AppState.currentUser;
+  const canDelete = currentUser && Number(currentUser.level) <= 1;
+
+  tbody.innerHTML = list.map((s, idx) => {
+    const paguFormatted = 'Rp ' + Number(s.total_pagu || 0).toLocaleString('id-ID');
+    const kabFormatted = 'Rp ' + Number(s.beban_kabupaten || 0).toLocaleString('id-ID');
+    const provFormatted = 'Rp ' + Number(s.sharing_provinsi || 0).toLocaleString('id-ID');
+    const tglEvent = s.tanggal_event ? formatDateIndo(s.tanggal_event) : '-';
+    const lockTime = s.waktu_wib || (s.locked_at ? formatDateIndo(s.locked_at) : '-');
+
+    return `
+      <tr>
+        <td class="text-center" style="font-weight: 700; color: #64748b;">${idx + 1}</td>
+        <td>
+          <span style="font-family: monospace; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+            ${s.kode_snapshot}
+          </span>
+        </td>
+        <td>
+          <strong style="color: #0f172a; font-size: 13.5px;">${escHtml(s.nama_event)}</strong>
+          ${s.keterangan ? `<div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">${escHtml(s.keterangan)}</div>` : ''}
+        </td>
+        <td style="font-size: 12px; font-weight: 600; color: #334155;">${tglEvent}</td>
+        <td class="text-right">
+          <div style="font-family: monospace; font-weight: 800; color: #1e3a8a; font-size: 13px;">${paguFormatted}</div>
+          <div style="font-size: 10.5px; color: #64748b;">Kab: ${kabFormatted} | Prov: ${provFormatted}</div>
+        </td>
+        <td style="font-size: 11.5px; color: #475569;">
+          <div>🔒 ${lockTime}</div>
+          <div style="color: #64748b; font-size: 11px;">Oleh: <strong>${escHtml(s.locked_by || 'PPK Satker 657811')}</strong></div>
+        </td>
+        <td class="text-center">
+          <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm btn-warning" onclick="openEditPaparanModal(${s.id})" title="Edit Nama Agenda & Tanggal" style="padding: 4px 8px; font-size: 11.5px; background: #f59e0b; border-color: #f59e0b; color: #000; font-weight: 700;">
+              <span>✏️ Edit</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="openSnapshotSlide(${s.id})" title="Buka Mode Web Slide Arsip Ini" style="padding: 4px 8px; font-size: 11.5px; background: #2563eb;">
+              <span>👁️ Slide</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="downloadSnapshotFile(${s.id}, 'pptx')" title="Unduh Berkas PPTX Arsip" style="padding: 4px 8px; font-size: 11.5px;">
+              <span>📊 PPTX</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="downloadSnapshotFile(${s.id}, 'docx')" title="Unduh Berkas DOCX Narasi Pembicara" style="padding: 4px 8px; font-size: 11.5px;">
+              <span>📄 DOCX</span>
+            </button>
+            ${canDelete ? `
+              <button type="button" class="btn btn-sm btn-danger" onclick="deletePaparanSnapshotPrompt(${s.id}, '${escHtml(s.nama_event)}')" title="Hapus Arsip" style="padding: 4px 6px; font-size: 11.5px; background: #ef4444; border-color: #ef4444; color: #fff;">
+                <span>🗑️</span>
+              </button>
+            ` : ''}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openSnapshotSlide(snapshotId) {
+  window.open(`/paparan?snapshot_id=${snapshotId}`, '_blank');
+}
+
+function downloadSnapshotFile(snapshotId, type) {
+  window.open(`/api/paparan/snapshots/${snapshotId}/download/${type}`, '_blank');
+}
+
+function openLockPaparanModal() {
+  const modal = document.getElementById('modal-kunci-paparan');
+  if (!modal) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const dateInput = document.getElementById('modal-lock-event-date');
+  if (dateInput) dateInput.value = today;
+
+  const nameInput = document.getElementById('modal-lock-event-name');
+  if (nameInput) {
+    nameInput.value = '';
+    setTimeout(() => nameInput.focus(), 150);
+  }
+
+  const ketInput = document.getElementById('modal-lock-keterangan');
+  if (ketInput) ketInput.value = '';
+
+  const actorInput = document.getElementById('modal-lock-actor');
+  if (actorInput) {
+    actorInput.value = AppState.currentUser?.nama_pejabat || AppState.currentUser?.username || 'PPK Satker 657811';
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeLockPaparanModal() {
+  const modal = document.getElementById('modal-kunci-paparan');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitLockPaparan() {
+  const nameInput = document.getElementById('modal-lock-event-name');
+  const dateInput = document.getElementById('modal-lock-event-date');
+  const ketInput = document.getElementById('modal-lock-keterangan');
+  const submitBtn = document.getElementById('btn-submit-lock-paparan');
+
+  const nama_event = (nameInput?.value || '').trim();
+  const tanggal_event = (dateInput?.value || '').trim();
+  const keterangan = (ketInput?.value || '').trim();
+
+  if (!nama_event) {
+    alert('Nama Forum / Agenda Resmi wajib diisi!');
+    if (nameInput) nameInput.focus();
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Mengunci & Menyimpan Arsip...';
+  }
+
+  try {
+    const res = await apiFetch('/api/paparan/lock-snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nama_event, tanggal_event, keterangan })
+    });
+
+    closeLockPaparanModal();
+    if (typeof showToast === 'function') {
+      showToast(res.message || 'Paparan berhasil dikunci sebagai arsip agenda!', 'success');
+    } else {
+      alert(res.message || 'Paparan berhasil dikunci sebagai arsip agenda!');
+    }
+    await loadPaparanSnapshots();
+  } catch (err) {
+    console.error('Gagal mengunci paparan:', err);
+    alert('Gagal mengunci paparan: ' + err.message);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '🔒 Kunci &amp; Buat Arsip Permanen';
+    }
+  }
+}
+
+async function deletePaparanSnapshotPrompt(id, name) {
+  if (!confirm(`Yakin ingin menghapus arsip paparan "${name}"?\nData dan berkas arsip snapshot ini akan dihapus permanen.`)) {
+    return;
+  }
+  try {
+    const res = await apiFetch(`/api/paparan/snapshots/${id}`, { method: 'DELETE' });
+    if (typeof showToast === 'function') {
+      showToast(res.message || 'Arsip berhasil dihapus.', 'info');
+    } else {
+      alert(res.message || 'Arsip berhasil dihapus.');
+    }
+    await loadPaparanSnapshots();
+  } catch (err) {
+    alert('Gagal menghapus arsip: ' + err.message);
+  }
+}
+
+window.loadPresentasiView = loadPresentasiView;
+window.loadPaparanSnapshots = loadPaparanSnapshots;
+window.renderPaparanSnapshotsTable = renderPaparanSnapshotsTable;
+window.openLockPaparanModal = openLockPaparanModal;
+window.closeLockPaparanModal = closeLockPaparanModal;
+window.submitLockPaparan = submitLockPaparan;
+window.openSnapshotSlide = openSnapshotSlide;
+window.downloadSnapshotFile = downloadSnapshotFile;
+window.deletePaparanSnapshotPrompt = deletePaparanSnapshotPrompt;
+
+function openEditPaparanModal(snapshotId) {
+  const s = paparanSnapshotsList.find(x => x.id === snapshotId);
+  if (!s) return alert('Data arsip tidak ditemukan.');
+
+  const modal = document.getElementById('modal-edit-paparan');
+  if (!modal) return;
+
+  const idInput = document.getElementById('modal-edit-paparan-id');
+  const codeInput = document.getElementById('modal-edit-paparan-code');
+  const nameInput = document.getElementById('modal-edit-paparan-name');
+  const dateInput = document.getElementById('modal-edit-paparan-date');
+  const ketInput = document.getElementById('modal-edit-paparan-keterangan');
+
+  if (idInput) idInput.value = s.id;
+  if (codeInput) codeInput.value = s.kode_snapshot;
+  if (nameInput) nameInput.value = s.nama_event || '';
+  if (dateInput) dateInput.value = s.tanggal_event || '';
+  if (ketInput) ketInput.value = s.keterangan || '';
+
+  modal.style.display = 'flex';
+  if (nameInput) setTimeout(() => nameInput.focus(), 150);
+}
+
+function closeEditPaparanModal() {
+  const modal = document.getElementById('modal-edit-paparan');
+  if (modal) modal.style.display = 'none';
+}
+
+async function submitEditPaparan() {
+  const idInput = document.getElementById('modal-edit-paparan-id');
+  const nameInput = document.getElementById('modal-edit-paparan-name');
+  const dateInput = document.getElementById('modal-edit-paparan-date');
+  const ketInput = document.getElementById('modal-edit-paparan-keterangan');
+  const submitBtn = document.getElementById('btn-submit-edit-paparan');
+
+  const id = Number(idInput?.value);
+  const nama_event = (nameInput?.value || '').trim();
+  const tanggal_event = (dateInput?.value || '').trim();
+  const keterangan = (ketInput?.value || '').trim();
+
+  if (!id) return alert('ID arsip tidak valid.');
+  if (!nama_event) {
+    alert('Nama Forum / Agenda Resmi wajib diisi!');
+    if (nameInput) nameInput.focus();
+    return;
+  }
+  if (!tanggal_event) {
+    alert('Tanggal pelaksanaan forum wajib diisi!');
+    if (dateInput) dateInput.focus();
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Menyimpan...';
+  }
+
+  try {
+    const res = await apiFetch(`/api/paparan/snapshots/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nama_event, tanggal_event, keterangan })
+    });
+
+    closeEditPaparanModal();
+    if (typeof showToast === 'function') {
+      showToast(res.message || 'Metadata arsip berhasil diperbarui!', 'success');
+    } else {
+      alert(res.message || 'Metadata arsip berhasil diperbarui!');
+    }
+    await loadPaparanSnapshots();
+  } catch (err) {
+    console.error('Gagal memperbarui arsip:', err);
+    alert('Gagal memperbarui arsip: ' + err.message);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '💾 Simpan Perubahan';
+    }
+  }
+}
+
+window.openEditPaparanModal = openEditPaparanModal;
+window.closeEditPaparanModal = closeEditPaparanModal;
+window.submitEditPaparan = submitEditPaparan;
 
