@@ -1684,6 +1684,98 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    // 3b-4. ENDPOINT KHUSUS LEAD DEVELOPER: SINKRONISASI DATA RKB AKTIF (LOCAL -> HOSTING)
+    if (pathname === '/api/developer/sync-rkb-from-local' && method === 'POST') {
+      const syncKey = req.headers['x-sync-key'] || req.headers['x-developer-key'];
+      const validSyncKey = process.env.SIPRABU_SYNC_KEY || 'siprabu_sync_kpu_ngawi_2026_emenje';
+      const isSyncKeyValid = Boolean(syncKey && syncKey === validSyncKey);
+
+      const currentUser = getUserFromReq(req);
+      if (!isSyncKeyValid && (!currentUser || !isDeveloperUser(currentUser))) {
+        return sendJson(res, 401, { error: 'Silakan login terlebih dahulu atau gunakan Sync Key pengembang yang valid.' });
+      }
+
+      try {
+        const body = await parseJsonBody(req);
+        const { getCakraPool } = require('./src/pengadaan/db_pengadaan');
+        const pool = getCakraPool();
+
+        const periode = body.periode;
+        if (!periode || !periode.id) {
+          return sendJson(res, 400, { error: 'Data periode tidak valid.' });
+        }
+        const periodeId = Number(periode.id);
+
+        await pool.query('SET FOREIGN_KEY_CHECKS = 0');
+
+        // 1. Update/Replace periode_anggaran secara aman hanya dengan kolom yang valid
+        const [pDesc] = await pool.query('DESCRIBE periode_anggaran');
+        const pValidCols = new Set(pDesc.map(c => c.Field));
+        const pKeys = Object.keys(periode).filter(k => pValidCols.has(k));
+        const pCols = pKeys.map(k => `\`${k}\``).join(', ');
+        const pPlaceholders = pKeys.map(() => '?').join(', ');
+        const pVals = pKeys.map(k => periode[k]);
+        await pool.query(`REPLACE INTO periode_anggaran (${pCols}) VALUES (${pPlaceholders})`, pVals);
+
+        // 2. Bersihkan rab_baris periode aktif lama
+        await pool.query('DELETE FROM rab_baris WHERE periode_id = ?', [periodeId]);
+
+        // 3. Dapatkan kolom sah rab_baris & Masukkan dalam batch chunks
+        const [rDesc] = await pool.query('DESCRIBE rab_baris');
+        const rValidCols = new Set(rDesc.map(c => c.Field));
+
+        let insertedRows = 0;
+        if (Array.isArray(body.rab_baris) && body.rab_baris.length > 0) {
+          const sampleKeys = Object.keys(body.rab_baris[0]).filter(k => rValidCols.has(k));
+          const colList = sampleKeys.map(c => `\`${c}\``).join(', ');
+          const rowHolder = `(${sampleKeys.map(() => '?').join(', ')})`;
+          const chunkSize = 100;
+
+          for (let i = 0; i < body.rab_baris.length; i += chunkSize) {
+            const chunk = body.rab_baris.slice(i, i + chunkSize);
+            const allHolders = chunk.map(() => rowHolder).join(', ');
+            const flatVals = [];
+            for (const r of chunk) {
+              for (const c of sampleKeys) {
+                flatVals.push(r[c] !== undefined ? r[c] : null);
+              }
+            }
+            await pool.query(`INSERT INTO rab_baris (${colList}) VALUES ${allHolders}`, flatVals);
+            insertedRows += chunk.length;
+          }
+        }
+
+        // 4. Update master_kuantitas jika dikirim
+        if (Array.isArray(body.master_kuantitas) && body.master_kuantitas.length > 0) {
+          for (const mk of body.master_kuantitas) {
+            const mkKeys = Object.keys(mk);
+            const mkCols = mkKeys.map(k => `\`${k}\``).join(', ');
+            const mkPlaceholders = mkKeys.map(() => '?').join(', ');
+            await pool.query(`REPLACE INTO master_kuantitas (${mkCols}) VALUES (${mkPlaceholders})`, Object.values(mk));
+          }
+        }
+
+        await pool.query('SET FOREIGN_KEY_CHECKS = 1');
+
+        // 5. Bersihkan cache kalkulasi RKB agar data langsung fresh
+        try {
+          const { clearRkbDatasetCache, getCachedRkbDataset } = require('./src/calculation');
+          clearRkbDatasetCache(periodeId);
+          getCachedRkbDataset(periodeId);
+        } catch (_) {}
+
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Sinkronisasi RKB Aktif ke database Online berhasil 100%!',
+          periode_id: periodeId,
+          total_baris_disinkronkan: insertedRows
+        });
+      } catch (err) {
+        console.error('[SYNC-RKB-ERROR]', err);
+        return sendJson(res, 500, { error: 'Gagal sinkronisasi RKB Aktif: ' + err.message });
+      }
+    }
+
     if (pathname === '/api/developer/blueprint' && method === 'GET') {
       const currentUser = getUserFromReq(req);
       if (!currentUser) return sendJson(res, 401, { error: 'Silakan login terlebih dahulu.' });

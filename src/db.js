@@ -1428,6 +1428,7 @@ function initDb() {
     repairCorruptedDuplicateFactors();
     autoBindRabSbm();
     enrichBlankFactorUnits();
+    ensurePpdpSantunanDetails();
   } catch (e) {
     console.warn('[SELF-HEALING/AUTO-BIND] Peringatan saat startup:', e.message);
   }
@@ -3742,6 +3743,83 @@ function enrichBlankFactorUnits() {
   } catch (err) {
     console.warn('[ENRICH-SATUAN] Gagal menjalankan pengayaan satuan faktor:', err.message);
     return 0;
+  }
+}
+
+/**
+ * Memastikan Rincian Santunan Kecelakaan Kerja untuk PPDP (Pantarlih)
+ * pada Akun 521219 terisi lengkap (identik dengan KPPS - Opsi A)
+ */
+function ensurePpdpSantunanDetails() {
+  try {
+    const periodes = db.prepare("SELECT id FROM periode_anggaran WHERE is_locked = 0 OR id = 1000003").all();
+    for (const p of periodes) {
+      const periodeId = p.id;
+      const existing = db.prepare(`
+        SELECT COUNT(*) as cnt FROM rab_baris 
+        WHERE periode_id = ? AND target_scope = 'PANTARLIH' AND uraian LIKE '%Meninggal Dunia%'
+      `).get(periodeId);
+
+      if (existing && existing.cnt > 0) continue;
+
+      const ppdpHeader = db.prepare(`
+        SELECT * FROM rab_baris 
+        WHERE periode_id = ? AND target_scope = 'PANTARLIH' AND row_type = 'header' AND uraian LIKE '%PPDP%' AND kode = 'd.'
+      `).get(periodeId);
+
+      if (!ppdpHeader) continue;
+
+      const baseUrutan = ppdpHeader.urutan;
+      db.prepare(`
+        UPDATE rab_baris 
+        SET urutan = urutan + 5 
+        WHERE periode_id = ? AND urutan > ?
+      `).run(periodeId, baseUrutan);
+
+      const items = [
+        { urutan: baseUrutan + 1, uraian: '1). Meninggal Dunia', f1_val: 5, f1_unit: 'Org', f2_val: 1, f2_unit: 'Keg', harga_satuan: 36000000, sbm_id: 46 },
+        { urutan: baseUrutan + 2, uraian: '2). Cacat Tetap', f1_val: 2, f1_unit: 'Org', f2_val: 1, f2_unit: 'Keg', harga_satuan: 30800000, sbm_id: 47 },
+        { urutan: baseUrutan + 3, uraian: '3). Luka/Sakit berat', f1_val: 5, f1_unit: 'Org', f2_val: 1, f2_unit: 'Keg', harga_satuan: 16500000, sbm_id: 48 },
+        { urutan: baseUrutan + 4, uraian: '4). Luka/Sakit Sedang', f1_val: 10, f1_unit: 'Org', f2_val: 1, f2_unit: 'Keg', harga_satuan: 8250000, sbm_id: 49 },
+        { urutan: baseUrutan + 5, uraian: '5). Biaya Pemakaman', f1_val: 5, f1_unit: 'Org', f2_val: 1, f2_unit: 'Keg', harga_satuan: 10000000, sbm_id: 50 }
+      ];
+
+      const ins = db.prepare(`
+        INSERT INTO rab_baris (
+          periode_id, urutan, row_type, kode, uraian, level_indent, target_scope, kode_akun,
+          f1_val, f1_unit, f1_var, f2_val, f2_unit, f2_var, f3_val, f3_unit, f3_var, f4_val, f4_unit, f4_var,
+          basis_pengali, label_pengali_kab, label_pengali_adhoc, satuan_vol, harga_satuan,
+          pic_bagian, sifat_biaya, jenis_biaya, blokir_rm, selalu_tampil_print, parent_rkb_row_id,
+          catatan_realisasi, semula_row_id, semula_vol, semula_rincian, semula_satuan, semula_harga, semula_jumlah,
+          catatan_revisi_baris, cost_sharing, sbm_id
+        ) VALUES (
+          ?, ?, 'item', '', ?, 4, 'PANTARLIH', '521219',
+          ?, ?, '', ?, ?, '', null, '', '', null, '', '',
+          'FIXED', '', '', 'OK', ?,
+          'PARSDM', 'UTAMA', 'OPERASIONAL', 0, 1, ?,
+          '', null, null, null, null, null, null,
+          '', 'KABUPATEN', ?
+        )
+      `);
+
+      for (const it of items) {
+        ins.run(periodeId, it.urutan, it.uraian, it.f1_val, it.f1_unit, it.f2_val, it.f2_unit, it.harga_satuan, ppdpHeader.id, it.sbm_id);
+      }
+
+      db.prepare(`
+        UPDATE periode_anggaran 
+        SET total_baris = total_baris + 5, total_items = total_items + 5
+        WHERE id = ?
+      `).run(periodeId);
+
+      try {
+        const { clearRkbDatasetCache } = require('./calculation');
+        clearRkbDatasetCache(periodeId);
+      } catch (_) {}
+    }
+    console.log('[MIGRATION-PPDP-SANTUNAN] Detail PPDP Santunan terverifikasi aktif.');
+  } catch (err) {
+    console.warn('[MIGRATION-PPDP-SANTUNAN]', err.message);
   }
 }
 
