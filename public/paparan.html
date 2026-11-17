@@ -1,0 +1,3037 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Eksekutif Paparan RKB Pilkada 2029 — KPU Kabupaten Ngawi</title>
+  <link rel="icon" type="image/png" href="/assets/kpu_logo_official.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0A0F1D;
+      --bg-card: #111C38;
+      --bg-card-subtle: #162447;
+      --bg-surface: #1E2D5A;
+      --border-color: #263868;
+      --border-accent: #3A4F8A;
+      --primary-navy: #0F172A;
+      --kpu-blue: #2563EB;
+      --kpu-blue-hover: #1D4ED8;
+      --kpu-gold: #F59E0B;
+      --kpu-gold-dark: #D97706;
+      --kpu-gold-light: #FEF3C7;
+      --emerald: #10B981;
+      --emerald-dark: #059669;
+      --rose: #F43F5E;
+      --rose-dark: #BE123C;
+      --purple: #8B5CF6;
+      --text-main: #FFFFFF;
+      --text-body: #E2E8F0;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-body);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    /* Ambient background glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -10vw;
+      left: 10vw;
+      width: 40vw;
+      height: 40vw;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, rgba(10, 15, 29, 0) 70%);
+      z-index: 0;
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -10vw;
+      right: 5vw;
+      width: 45vw;
+      height: 45vw;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.08) 0%, rgba(10, 15, 29, 0) 70%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ==========================================================================
+       PIN SECURITY GATE MODAL
+       ========================================================================== */
+    #pin-gate {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 15, 29, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+
+    #pin-gate.unlocked {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .pin-card {
+      background: linear-gradient(145deg, #121D3B, #0E162E);
+      border: 1px solid var(--border-accent);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(37, 99, 235, 0.2);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 440px;
+      padding: 36px 32px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pin-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--kpu-blue), var(--kpu-gold), var(--kpu-blue));
+    }
+
+    .pin-logo-wrap {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .pin-logo-wrap img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+
+    .pin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: var(--kpu-gold);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .pin-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+
+    .pin-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .pin-dots-container {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .pin-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid var(--border-accent);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .pin-dot.filled {
+      background: var(--kpu-gold);
+      border-color: #FBBF24;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+      transform: scale(1.15);
+    }
+
+    .pin-error {
+      color: var(--rose);
+      font-size: 13px;
+      font-weight: 600;
+      min-height: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: all 0.2s ease;
+    }
+
+    .pin-error.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .pin-keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .pin-key {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: #FFFFFF;
+      border-radius: 14px;
+      height: 52px;
+      font-size: 20px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+
+    .pin-key:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--kpu-blue);
+      transform: translateY(-1px);
+    }
+
+    .pin-key:active {
+      transform: translateY(1px);
+      background: var(--kpu-blue);
+    }
+
+    .pin-key.action-key {
+      font-size: 14px;
+      font-family: var(--font-main);
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .pin-key.action-key:hover {
+      color: #FFFFFF;
+    }
+
+    .pin-footer-hint {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .shake {
+      animation: shake 0.4s ease-in-out;
+    }
+
+    /* ==========================================================================
+       MAIN APP LAYOUT
+       ========================================================================== */
+    .app-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* TOP HEADER (Normal Mode) */
+    header.top-header {
+      background: rgba(15, 23, 42, 0.92);
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+
+    .brand-info h1 {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+    }
+
+    .brand-info p {
+      font-size: 11.5px;
+      color: var(--kpu-gold);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .center-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slide-jump-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-accent);
+      color: #FFFFFF;
+      font-family: var(--font-main);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 10px;
+      outline: none;
+      cursor: pointer;
+      max-width: 300px;
+    }
+
+    .slide-jump-select:focus {
+      border-color: var(--kpu-gold);
+    }
+
+    .nav-arrow-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: #FFFFFF;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      transition: all 0.15s ease;
+    }
+
+    .nav-arrow-btn:hover:not(:disabled) {
+      background: var(--kpu-blue);
+      border-color: var(--kpu-blue);
+    }
+
+    .nav-arrow-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-body);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn-action:hover {
+      background: var(--bg-surface);
+      color: #FFFFFF;
+      border-color: var(--border-accent);
+    }
+
+    .btn-action.btn-gold {
+      background: rgba(245, 158, 11, 0.18);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: var(--kpu-gold);
+    }
+
+    .btn-action.btn-gold:hover {
+      background: var(--kpu-gold);
+      color: #000000;
+    }
+
+    .btn-action.btn-lock {
+      color: var(--rose);
+      border-color: rgba(244, 63, 94, 0.3);
+    }
+
+    .btn-action.btn-lock:hover {
+      background: var(--rose);
+      color: #FFFFFF;
+    }
+
+    /* SLIDE STAGE CONTAINER */
+    .stage-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 20px;
+      overflow: hidden;
+      position: relative;
+      transition: all 0.25s ease;
+    }
+
+    .slide-viewport {
+      width: 100%;
+      max-width: 1320px;
+      height: 100%;
+      max-height: 740px;
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(145deg, #0F172A, #111D3B);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      transition: all 0.25s ease;
+    }
+
+    /* Slide Content Views */
+    .slide-pane {
+      position: absolute;
+      inset: 0;
+      padding: 26px 36px 18px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(20px);
+      transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+      overflow-y: auto;
+    }
+
+    .slide-pane.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+    }
+
+    /* Slide Header Area */
+    .slide-header {
+      margin-bottom: 18px;
+      flex-shrink: 0;
+    }
+
+    .slide-tag {
+      display: inline-block;
+      background: rgba(37, 99, 235, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #93C5FD;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      letter-spacing: 0.04em;
+    }
+
+    .slide-title {
+      font-size: 25px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+      margin-bottom: 6px;
+    }
+
+    .slide-subtitle {
+      font-size: 15.5px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Slide Body Content Area */
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    /* Slide Footer Area */
+    .slide-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 10px;
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .footer-satker {
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .footer-counter {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--kpu-gold);
+    }
+
+    /* BOTTOM DOCK (Normal Mode) */
+    footer.bottom-dock {
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-shrink: 0;
+      background: rgba(10, 15, 29, 0.7);
+      backdrop-filter: blur(8px);
+      transition: all 0.25s ease;
+    }
+
+    .pill-nav-item {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .pill-nav-item:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #FFFFFF;
+      border-color: var(--kpu-blue);
+    }
+
+    .pill-nav-item.active {
+      background: var(--kpu-gold);
+      border-color: #FBBF24;
+      color: #000000;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+      transform: scale(1.15);
+    }
+
+    /* ==========================================================================
+       TRUE FULLSCREEN PRESENTATION MODE (PowerPoint Slide Show Style)
+       ========================================================================== */
+    :fullscreen header.top-header,
+    body.is-fullscreen header.top-header,
+    :fullscreen footer.bottom-dock,
+    body.is-fullscreen footer.bottom-dock {
+      display: none !important;
+    }
+
+    :fullscreen .stage-container,
+    body.is-fullscreen .stage-container {
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      background: #0A0F1D !important;
+    }
+
+    :fullscreen .slide-viewport,
+    body.is-fullscreen .slide-viewport {
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      border-radius: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      aspect-ratio: auto !important;
+    }
+
+    :fullscreen .slide-pane,
+    body.is-fullscreen .slide-pane {
+      padding: 4.5vh 5.5vw 3.5vh !important;
+    }
+
+    /* DYNAMIC FONT MAGNIFICATION IN FULLSCREEN */
+    :fullscreen,
+    body.is-fullscreen {
+      font-size: 19px !important;
+    }
+
+    :fullscreen .slide-tag,
+    body.is-fullscreen .slide-tag {
+      font-size: 17px !important;
+      padding: 6px 20px !important;
+      border-radius: 10px !important;
+    }
+
+    :fullscreen .slide-title,
+    body.is-fullscreen .slide-title {
+      font-size: 36px !important;
+      line-height: 1.3 !important;
+      margin-bottom: 10px !important;
+    }
+
+    :fullscreen .slide-subtitle,
+    body.is-fullscreen .slide-subtitle {
+      font-size: 21px !important;
+      margin-bottom: 16px !important;
+    }
+
+    :fullscreen .cover-title,
+    body.is-fullscreen .cover-title {
+      font-size: 46px !important;
+      line-height: 1.25 !important;
+      margin-bottom: 20px !important;
+    }
+
+    :fullscreen .cover-subtitle,
+    body.is-fullscreen .cover-subtitle {
+      font-size: 25px !important;
+      margin-bottom: 48px !important;
+    }
+
+    :fullscreen .cover-metric-card,
+    body.is-fullscreen .cover-metric-card {
+      padding: 28px 32px !important;
+      border-radius: 20px !important;
+    }
+
+    :fullscreen .metric-label,
+    body.is-fullscreen .metric-label {
+      font-size: 17px !important;
+      margin-bottom: 8px !important;
+    }
+
+    :fullscreen .metric-val,
+    body.is-fullscreen .metric-val {
+      font-size: 36px !important;
+    }
+
+    :fullscreen .metric-sub,
+    body.is-fullscreen .metric-sub {
+      font-size: 16px !important;
+    }
+
+    :fullscreen .pilar-card,
+    body.is-fullscreen .pilar-card {
+      padding: 28px 32px !important;
+      border-radius: 20px !important;
+    }
+
+    :fullscreen .pilar-num,
+    body.is-fullscreen .pilar-num {
+      font-size: 15px !important;
+      margin-bottom: 10px !important;
+    }
+
+    :fullscreen .pilar-title,
+    body.is-fullscreen .pilar-title {
+      font-size: 23px !important;
+      margin-bottom: 14px !important;
+    }
+
+    :fullscreen .pilar-desc,
+    body.is-fullscreen .pilar-desc {
+      font-size: 18.5px !important;
+      line-height: 1.55 !important;
+    }
+
+    :fullscreen .step-card,
+    body.is-fullscreen .step-card {
+      padding: 30px !important;
+      border-radius: 20px !important;
+    }
+
+    :fullscreen .step-badge,
+    body.is-fullscreen .step-badge {
+      font-size: 16px !important;
+      padding: 6px 16px !important;
+    }
+
+    :fullscreen .step-title,
+    body.is-fullscreen .step-title {
+      font-size: 24px !important;
+      margin-bottom: 16px !important;
+    }
+
+    :fullscreen .step-body-list,
+    body.is-fullscreen .step-body-list {
+      font-size: 18px !important;
+      gap: 14px !important;
+    }
+
+    :fullscreen .checklist-title,
+    body.is-fullscreen .checklist-title {
+      font-size: 18px !important;
+      margin-bottom: 12px !important;
+    }
+
+    :fullscreen .checklist-item,
+    body.is-fullscreen .checklist-item {
+      font-size: 17.5px !important;
+      margin-bottom: 10px !important;
+    }
+
+    :fullscreen .stat-bento-card,
+    body.is-fullscreen .stat-bento-card {
+      padding: 28px 32px !important;
+      border-radius: 20px !important;
+    }
+
+    :fullscreen .stat-num,
+    body.is-fullscreen .stat-num {
+      font-size: 48px !important;
+      margin-bottom: 10px !important;
+    }
+
+    :fullscreen .stat-title,
+    body.is-fullscreen .stat-title {
+      font-size: 22px !important;
+      margin-bottom: 6px !important;
+    }
+
+    :fullscreen .stat-desc,
+    body.is-fullscreen .stat-desc {
+      font-size: 17px !important;
+    }
+
+    :fullscreen .chart-container-card,
+    body.is-fullscreen .chart-container-card {
+      height: 500px !important;
+      border-radius: 22px !important;
+      padding: 26px !important;
+    }
+
+    :fullscreen .chart-canvas-wrapper,
+    body.is-fullscreen .chart-canvas-wrapper {
+      height: 440px !important;
+      max-height: 440px !important;
+    }
+
+    :fullscreen .bar-chart-card,
+    body.is-fullscreen .bar-chart-card {
+      height: 500px !important;
+      border-radius: 22px !important;
+      padding: 26px !important;
+    }
+
+    :fullscreen .data-table,
+    body.is-fullscreen .data-table {
+      font-size: 18px !important;
+    }
+
+    :fullscreen .data-table th,
+    body.is-fullscreen .data-table th {
+      padding: 14px 20px !important;
+      font-size: 17px !important;
+    }
+
+    :fullscreen .data-table td,
+    body.is-fullscreen .data-table td {
+      padding: 13px 20px !important;
+    }
+
+    :fullscreen .highlight-callout,
+    body.is-fullscreen .highlight-callout {
+      font-size: 17.5px !important;
+      padding: 18px 22px !important;
+      border-radius: 16px !important;
+    }
+
+    :fullscreen .divisi-card,
+    body.is-fullscreen .divisi-card {
+      padding: 24px !important;
+      border-radius: 18px !important;
+    }
+
+    :fullscreen .divisi-code,
+    body.is-fullscreen .divisi-code {
+      font-size: 16px !important;
+      padding: 5px 14px !important;
+    }
+
+    :fullscreen .divisi-name,
+    body.is-fullscreen .divisi-name {
+      font-size: 19px !important;
+      margin-bottom: 12px !important;
+    }
+
+    :fullscreen .divisi-pagu,
+    body.is-fullscreen .divisi-pagu {
+      font-size: 20px !important;
+      margin-bottom: 16px !important;
+    }
+
+    :fullscreen .divisi-focus-list,
+    body.is-fullscreen .divisi-focus-list {
+      font-size: 16px !important;
+      gap: 14px !important;
+    }
+
+    :fullscreen .personnel-badge-card,
+    body.is-fullscreen .personnel-badge-card {
+      padding: 18px 24px !important;
+      border-radius: 16px !important;
+    }
+
+    :fullscreen .badge-info-col h4,
+    body.is-fullscreen .badge-info-col h4 {
+      font-size: 20px !important;
+    }
+
+    :fullscreen .badge-info-col p,
+    body.is-fullscreen .badge-info-col p {
+      font-size: 16px !important;
+    }
+
+    :fullscreen .badge-stat-col .stat-val,
+    body.is-fullscreen .badge-stat-col .stat-val {
+      font-size: 21px !important;
+    }
+
+    :fullscreen .badge-stat-col .stat-anggaran,
+    body.is-fullscreen .badge-stat-col .stat-anggaran {
+      font-size: 18px !important;
+    }
+
+    :fullscreen .sbml-box,
+    body.is-fullscreen .sbml-box {
+      padding: 28px !important;
+      border-radius: 22px !important;
+    }
+
+    :fullscreen .sbml-box-header h3,
+    body.is-fullscreen .sbml-box-header h3 {
+      font-size: 21px !important;
+    }
+
+    :fullscreen .sbml-rate-grid,
+    body.is-fullscreen .sbml-rate-grid {
+      font-size: 17.5px !important;
+      gap: 12px !important;
+    }
+
+    :fullscreen .sbml-rate-item,
+    body.is-fullscreen .sbml-rate-item {
+      padding: 11px 18px !important;
+    }
+
+    :fullscreen .stakeholder-card,
+    body.is-fullscreen .stakeholder-card {
+      padding: 32px !important;
+      border-radius: 22px !important;
+    }
+
+    :fullscreen .stakeholder-instansi,
+    body.is-fullscreen .stakeholder-instansi {
+      font-size: 26px !important;
+    }
+
+    :fullscreen .stakeholder-date,
+    body.is-fullscreen .stakeholder-date {
+      font-size: 17px !important;
+      margin-bottom: 20px !important;
+    }
+
+    :fullscreen .stakeholder-agenda,
+    body.is-fullscreen .stakeholder-agenda {
+      font-size: 18px !important;
+      gap: 18px !important;
+    }
+
+    :fullscreen .tagline-hero-box,
+    body.is-fullscreen .tagline-hero-box {
+      padding: 36px 44px !important;
+      border-radius: 26px !important;
+    }
+
+    :fullscreen .tagline-quote,
+    body.is-fullscreen .tagline-quote {
+      font-size: 38px !important;
+      margin-bottom: 16px !important;
+    }
+
+    :fullscreen .tagline-subtext,
+    body.is-fullscreen .tagline-subtext {
+      font-size: 19px !important;
+    }
+
+    :fullscreen .pantun-card,
+    body.is-fullscreen .pantun-card {
+      padding: 28px 32px !important;
+      border-radius: 22px !important;
+    }
+
+    :fullscreen .pantun-title,
+    body.is-fullscreen .pantun-title {
+      font-size: 17px !important;
+      margin-bottom: 14px !important;
+    }
+
+    :fullscreen .pantun-verse,
+    body.is-fullscreen .pantun-verse {
+      font-size: 20px !important;
+      line-height: 1.75 !important;
+    }
+
+    :fullscreen .slide-footer,
+    body.is-fullscreen .slide-footer {
+      font-size: 17px !important;
+      padding-top: 18px !important;
+    }
+
+    /* FLOATING AUTO-HIDING PRESENTER DOCK IN FULLSCREEN */
+    #fullscreen-dock {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(0);
+      background: rgba(15, 23, 42, 0.90);
+      border: 1px solid var(--border-accent);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(37, 99, 235, 0.2);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 999px;
+      padding: 8px 18px;
+      display: none;
+      align-items: center;
+      gap: 14px;
+      z-index: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    :fullscreen #fullscreen-dock,
+    body.is-fullscreen #fullscreen-dock {
+      display: flex;
+    }
+
+    #fullscreen-dock.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .fs-dock-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
+      color: #FFFFFF;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .fs-dock-btn:hover {
+      background: var(--kpu-blue);
+      border-color: var(--kpu-blue);
+    }
+
+    .fs-dock-btn.btn-fs-exit {
+      background: rgba(244, 63, 94, 0.2);
+      border-color: rgba(244, 63, 94, 0.4);
+      color: #FECDD3;
+    }
+
+    .fs-dock-btn.btn-fs-exit:hover {
+      background: var(--rose);
+      color: #FFFFFF;
+    }
+
+    .fs-slide-counter {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: var(--kpu-gold);
+      font-size: 14.5px;
+      padding: 0 4px;
+    }
+
+    /* ==========================================================================
+       SLIDE-SPECIFIC DESIGNS (Normal Mode)
+       ========================================================================== */
+    /* Cover */
+    .cover-layout {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      padding: 10px;
+    }
+    .cover-title {
+      font-size: 34px;
+      font-weight: 900;
+      color: #FFFFFF;
+      line-height: 1.25;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+    .cover-subtitle {
+      font-size: 18px;
+      color: #93C5FD;
+      font-weight: 600;
+      line-height: 1.5;
+      margin-bottom: 36px;
+    }
+    .cover-metrics-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .cover-metric-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 22px 26px;
+      border-left: 5px solid var(--kpu-blue);
+    }
+    .cover-metric-card:nth-child(2) { border-left-color: var(--kpu-gold); }
+    .cover-metric-card:nth-child(3) { border-left-color: var(--emerald); }
+    .metric-label {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .metric-val {
+      font-size: 28px;
+      font-weight: 900;
+      font-family: var(--font-mono);
+      color: #FFFFFF;
+    }
+    .metric-sub {
+      font-size: 13.5px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* Slide 2: Dasar Hukum (4 Cards in 2x2 Grid) */
+    .pilar-4-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .pilar-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 22px 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .pilar-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--kpu-blue);
+    }
+    .pilar-card:nth-child(2)::before { background: var(--emerald); }
+    .pilar-card:nth-child(3)::before { background: var(--purple); }
+    .pilar-card:nth-child(4)::before { background: var(--kpu-gold); }
+    .pilar-num {
+      font-size: 12.5px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      color: var(--kpu-gold);
+    }
+    .pilar-title {
+      font-size: 17.5px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    .pilar-desc {
+      font-size: 14.5px;
+      color: var(--text-body);
+      line-height: 1.5;
+    }
+
+    /* Slide 3: SOP 3 Steps */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .step-card.highlight {
+      border-color: var(--kpu-gold);
+      background: linear-gradient(160deg, #162447, #131E3D);
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
+    }
+    .step-badge {
+      font-size: 12px;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 6px;
+      align-self: flex-start;
+      margin-bottom: 12px;
+    }
+    .step-card.highlight .step-badge {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--kpu-gold);
+    }
+    .step-title {
+      font-size: 17.5px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 14px;
+    }
+    .step-body-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 14.5px;
+      color: var(--text-body);
+      line-height: 1.45;
+    }
+    .checklist-box {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .checklist-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--kpu-gold);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .checklist-item {
+      font-size: 13.5px;
+      color: #FFFFFF;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .checklist-item:last-child { margin-bottom: 0; }
+    .chk-icon { color: var(--emerald); font-weight: bold; }
+
+    /* Slide 4: Parameter SSOT */
+    .metrics-6-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .stat-bento-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .stat-bento-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--kpu-blue);
+    }
+    .stat-bento-card.highlight {
+      border-color: rgba(245, 158, 11, 0.5);
+      background: linear-gradient(145deg, #162447, #131E3C);
+    }
+    .stat-num {
+      font-size: 34px;
+      font-weight: 900;
+      font-family: var(--font-mono);
+      color: #FFFFFF;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .stat-bento-card.highlight .stat-num {
+      color: var(--kpu-gold);
+    }
+    .stat-title {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 4px;
+    }
+    .stat-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+
+    /* Slide 5: Rekap 1 Split Layout */
+    .split-layout {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 24px;
+      height: 100%;
+      align-items: center;
+    }
+    .chart-container-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      height: 380px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .chart-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 320px;
+      max-height: 320px;
+    }
+    .rekap-table-wrapper {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14.5px;
+    }
+    .data-table th {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-body);
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table td.num {
+      text-align: right;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+    .data-table tr.total-row td {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--kpu-gold);
+      font-weight: 800;
+      border-top: 2px solid rgba(245, 158, 11, 0.4);
+    }
+    .highlight-callout {
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid var(--kpu-blue);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 14px;
+      color: #93C5FD;
+      line-height: 1.45;
+    }
+
+    /* Slide 6: Rekap 3 Bar Chart */
+    .bar-chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 16px 20px;
+      height: 380px;
+    }
+
+    /* Slide 7: Portofolio 5 Divisi */
+    .divisi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      height: 100%;
+    }
+    .divisi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .divisi-code {
+      font-size: 13px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 6px;
+      align-self: flex-start;
+      margin-bottom: 10px;
+    }
+    .code-kul { background: rgba(37, 99, 235, 0.2); color: #93C5FD; }
+    .code-parsdm { background: rgba(16, 185, 129, 0.2); color: #6EE7B7; }
+    .code-teknis { background: rgba(245, 158, 11, 0.2); color: #FCD34D; }
+    .code-rendatin { background: rgba(139, 92, 246, 0.2); color: #C4B5FD; }
+    .code-hukum { background: rgba(244, 63, 94, 0.2); color: #FDA4AF; }
+    .divisi-name {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    .divisi-pagu {
+      font-size: 15.5px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: var(--kpu-gold);
+      margin-bottom: 12px;
+    }
+    .divisi-focus-list {
+      list-style: none;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      color: var(--text-body);
+      line-height: 1.4;
+    }
+    .divisi-focus-list li {
+      position: relative;
+      padding-left: 14px;
+    }
+    .divisi-focus-list li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: var(--text-muted);
+    }
+
+    /* Slide 9: Klaster Ad Hoc */
+    .adhoc-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 20px;
+      height: 100%;
+      align-items: center;
+    }
+    .personnel-list-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .personnel-badge-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-left: 4px solid var(--kpu-blue);
+    }
+    .personnel-badge-card.card-ppk { border-left-color: var(--kpu-blue); }
+    .personnel-badge-card.card-pps { border-left-color: var(--emerald); }
+    .personnel-badge-card.card-tps { border-left-color: var(--kpu-gold); }
+    .personnel-badge-card.card-pantarlih { border-left-color: var(--purple); }
+    .badge-info-col h4 {
+      font-size: 15.5px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 2px;
+    }
+    .badge-info-col p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    .badge-stat-col {
+      text-align: right;
+    }
+    .badge-stat-col .stat-val {
+      font-size: 16.5px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: #FFFFFF;
+    }
+    .badge-stat-col .stat-anggaran {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--kpu-gold);
+    }
+
+    /* Slide 10: SBML Compliance Dedicated */
+    .sbml-dual-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .sbml-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    .sbml-box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .sbml-box-header h3 {
+      font-size: 16.5px;
+      font-weight: 800;
+      color: #FFFFFF;
+    }
+    .sbml-badge-green {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid var(--emerald);
+      color: var(--emerald);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .sbml-rate-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .sbml-rate-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sbml-rate-item .role-name { font-weight: 600; color: #FFFFFF; }
+    .sbml-rate-item .rate-val { font-family: var(--font-mono); font-weight: 700; color: var(--kpu-gold); }
+
+    /* Slide 11: Stakeholder Cards */
+    .stakeholder-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      height: 100%;
+    }
+    .stakeholder-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+    .stakeholder-instansi {
+      font-size: 21px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 4px;
+    }
+    .stakeholder-date {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--kpu-blue);
+      margin-bottom: 14px;
+    }
+    .stakeholder-agenda {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 14.5px;
+      color: var(--text-body);
+      line-height: 1.5;
+    }
+    .stakeholder-agenda li {
+      position: relative;
+      padding-left: 18px;
+    }
+    .stakeholder-agenda li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--emerald);
+      font-weight: bold;
+    }
+
+    /* Slide 12: Grand Finale Tagline & Pantun */
+    .finale-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      height: 100%;
+      justify-content: center;
+    }
+    .tagline-hero-box {
+      background: linear-gradient(135deg, #0F172A, #162447);
+      border: 2px solid var(--kpu-gold);
+      box-shadow: 0 10px 30px rgba(245, 158, 11, 0.2);
+      border-radius: 18px;
+      padding: 24px 30px;
+      text-align: center;
+    }
+    .tagline-pill {
+      display: inline-block;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid var(--kpu-gold);
+      color: var(--kpu-gold);
+      font-size: 13px;
+      font-weight: 800;
+      padding: 4px 16px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+      letter-spacing: 0.05em;
+    }
+    .tagline-quote {
+      font-size: 27px;
+      font-weight: 900;
+      color: #FFFFFF;
+      letter-spacing: -0.01em;
+      margin-bottom: 10px;
+      line-height: 1.25;
+    }
+    .tagline-subtext {
+      font-size: 15.5px;
+      color: #93C5FD;
+      font-weight: 600;
+      max-width: 850px;
+      margin: 0 auto;
+      line-height: 1.45;
+    }
+    .pantun-duo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .pantun-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 18px 22px;
+      position: relative;
+    }
+    .pantun-card.pantun-1 { border-top: 3px solid var(--emerald); }
+    .pantun-card.pantun-2 { border-top: 3px solid var(--kpu-gold); }
+    .pantun-title {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .pantun-verse {
+      font-style: italic;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #FFFFFF;
+    }
+    .pantun-cakep {
+      margin-top: 6px;
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--kpu-gold);
+    }
+
+    /* SPEAKER NOTES DRAWER */
+    #notes-drawer {
+      position: fixed;
+      top: 0;
+      right: -480px;
+      width: 460px;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.98);
+      border-left: 1px solid var(--border-color);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: -15px 0 35px rgba(0, 0, 0, 0.6);
+      z-index: 700;
+      transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #notes-drawer.open {
+      right: 0;
+    }
+
+    .notes-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .notes-header h3 {
+      font-size: 16.5px;
+      font-weight: 800;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .notes-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+    }
+
+    .notes-close-btn:hover {
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .notes-body {
+      padding: 24px;
+      overflow-y: auto;
+      flex: 1;
+      font-size: 15.5px;
+      line-height: 1.7;
+      color: #CBD5E1;
+    }
+
+    .notes-slide-indicator {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--kpu-gold);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .notes-slide-title {
+      font-size: 17.5px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 16px;
+      line-height: 1.35;
+    }
+
+    .notes-paragraph {
+      margin-bottom: 14px;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ======================================================================
+       PIN SECURITY GATE OVERLAY (Strictly 657811)
+       ====================================================================== -->
+  <div id="pin-gate">
+    <div class="pin-card" id="pin-card-box">
+      <div class="pin-logo-wrap">
+        <img src="/assets/kpu_logo_official.png" alt="Logo KPU">
+      </div>
+      <div class="pin-badge">🔒 DOKUMEN INTERNAL RESMI</div>
+      <h2 class="pin-title">Portal Eksekutif Paparan RKB</h2>
+      <p class="pin-subtitle">Komisi Pemilihan Umum Kabupaten Ngawi — Satker 657811</p>
+
+      <div class="pin-dots-container">
+        <div class="pin-dot" id="dot-0"></div>
+        <div class="pin-dot" id="dot-1"></div>
+        <div class="pin-dot" id="dot-2"></div>
+        <div class="pin-dot" id="dot-3"></div>
+        <div class="pin-dot" id="dot-4"></div>
+        <div class="pin-dot" id="dot-5"></div>
+      </div>
+
+      <div class="pin-error" id="pin-error-msg">❌ PIN Tidak Sesuai. Akses Ditolak!</div>
+
+      <div class="pin-keypad">
+        <button class="pin-key" onclick="pressPin('1')">1</button>
+        <button class="pin-key" onclick="pressPin('2')">2</button>
+        <button class="pin-key" onclick="pressPin('3')">3</button>
+        <button class="pin-key" onclick="pressPin('4')">4</button>
+        <button class="pin-key" onclick="pressPin('5')">5</button>
+        <button class="pin-key" onclick="pressPin('6')">6</button>
+        <button class="pin-key" onclick="pressPin('7')">7</button>
+        <button class="pin-key" onclick="pressPin('8')">8</button>
+        <button class="pin-key" onclick="pressPin('9')">9</button>
+        <button class="pin-key action-key" onclick="clearPin()">BERSIH</button>
+        <button class="pin-key" onclick="pressPin('0')">0</button>
+        <button class="pin-key action-key" onclick="deletePin()">⌫ HAPUS</button>
+      </div>
+
+      <p class="pin-footer-hint">Silakan masukkan 6 digit PIN Satker (Ketik keyboard atau klik angka)</p>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       MAIN APPLICATION LAYOUT
+       ====================================================================== -->
+  <div class="app-wrapper">
+    <!-- TOP HEADER (Normal Mode) -->
+    <header class="top-header" id="top-header-bar">
+      <div class="brand-section">
+        <img src="/assets/kpu_logo_official.png" alt="KPU" class="brand-logo">
+        <div class="brand-info">
+          <h1>KPU KABUPATEN NGAWI</h1>
+          <p>SATKER 657811 • PAPARAN RKB PILKADA 2029</p>
+        </div>
+      </div>
+
+      <div class="center-nav">
+        <button class="nav-arrow-btn" id="btn-prev" onclick="changeSlide(-1)" title="Slide Sebelumnya (Panah Kiri)">◀</button>
+        <select class="slide-jump-select" id="slide-select" onchange="jumpToSlide(parseInt(this.value))">
+          <option value="1">Slide 1: Cover & Identitas Resmi</option>
+          <option value="2">Slide 2: Dasar Hukum Hibah Pemilihan</option>
+          <option value="3">Slide 3: Alur SOP Internal & 3 Berkas Wajib</option>
+          <option value="4">Slide 4: Profil Kewilayahan (SSOT)</option>
+          <option value="5">Slide 5: Rekap 1 - Distribusi Sasaran Belanja</option>
+          <option value="6">Slide 6: Rekap 3 - Distribusi Pagu Divisi</option>
+          <option value="7">Slide 7: Portofolio Prioritas 5 Divisi</option>
+          <option value="8">Slide 8: Rekap 5 - Cost Sharing Jatim</option>
+          <option value="9">Slide 9: Klaster Ad Hoc (PPK-PPS-TPS-Pantarlih)</option>
+          <option value="10">Slide 10: Kepatuhan Standar Biaya (SBML)</option>
+          <option value="11">Slide 11: Konsolidasi Pemangku Kepentingan</option>
+          <option value="12">Slide 12: Komitmen, Tagline & Pantun</option>
+        </select>
+        <button class="nav-arrow-btn" id="btn-next" onclick="changeSlide(1)" title="Slide Selanjutnya (Panah Kanan / Spasi)">▶</button>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn-action" onclick="toggleNotesDrawer()" title="Buka Catatan Narasi Pembicara (N)">
+          🎙️ <span>Catatan Pembicara</span>
+        </button>
+        <a href="/api/paparan/download/pptx" class="btn-action btn-gold" title="Unduh File PowerPoint Asli (16:9)">
+          📊 <span>Unduh PPTX</span>
+        </a>
+        <a href="/api/paparan/download/docx" class="btn-action" title="Unduh Naskah Word Catatan Pembicara">
+          📝 <span>Unduh DOCX</span>
+        </a>
+        <button class="btn-action btn-gold" id="btn-fullscreen-top" onclick="enterPresentationMode()" title="Mode Layar Penuh (F / F11)">
+          ⛶ <span>Layar Penuh</span>
+        </button>
+        <button class="btn-action btn-lock" onclick="lockPortal()" title="Kunci Kembali Portal (Keluar)">
+          🔒 <span>Kunci</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- STAGE VIEWPORT -->
+    <main class="stage-container" id="main-stage">
+      <div class="slide-viewport" id="viewport-box">
+        
+        <!-- ==========================================
+             SLIDE 1: COVER (Tanpa Pill Dokumen Resmi)
+             ========================================== -->
+        <div class="slide-pane active" id="slide-1">
+          <div class="cover-layout">
+            <h1 class="cover-title">
+              USULAN PERENCANAAN KEBUTUHAN ANGGARAN BELANJA (RKB)<br>
+              PEMILIHAN BUPATI DAN WAKIL BUPATI TAHUN 2029
+            </h1>
+            <p class="cover-subtitle">
+              Komisi Pemilihan Umum Kabupaten Ngawi — Satker 657811<br>
+              Disajikan di Hadapan Komisi Pemilihan Umum Provinsi Jawa Timur
+            </p>
+            <div class="cover-metrics-grid-3">
+              <div class="cover-metric-card">
+                <div class="metric-label">TOTAL PAGU BERSAMA</div>
+                <div class="metric-val">Rp 68,94 M</div>
+                <div class="metric-sub">Penyusunan Berbasis Data Riil Lapangan (SSOT)</div>
+              </div>
+              <div class="cover-metric-card">
+                <div class="metric-label">BEBAN APBD KABUPATEN</div>
+                <div class="metric-val">Rp 56,63 M (82,1%)</div>
+                <div class="metric-sub">Diusulkan Melalui NPHD Pemkab Ngawi</div>
+              </div>
+              <div class="cover-metric-card">
+                <div class="metric-label">SHARING APBD PROVINSI</div>
+                <div class="metric-val">Rp 12,30 M (17,9%)</div>
+                <div class="metric-sub">Porsi Pendanaan Bersama APBD Provinsi Jawa Timur</div>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 1 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 2: LANDASAN YURIDIS (2x2 Grid - 4 Regulasi)
+             ========================================== -->
+        <div class="slide-pane" id="slide-2">
+          <div class="slide-header">
+            <span class="slide-tag">LANDASAN YURIDIS</span>
+            <h2 class="slide-title">Dasar Hukum Penyusunan Anggaran Hibah Pemilihan</h2>
+            <p class="slide-subtitle">Hierarki Regulasi Penyelenggaraan Pemilu, Keuangan Daerah, dan Standar Biaya Masukan</p>
+          </div>
+          <div class="slide-body">
+            <div class="pilar-4-grid">
+              <div class="pilar-card">
+                <div class="pilar-num">REGULASI 01</div>
+                <h3 class="pilar-title">1. UU Pemilihan Kepala Daerah</h3>
+                <p class="pilar-desc">UU No. 1 Tahun 2015 jo. UU No. 6 Tahun 2020 (Payung Hukum Pemilihan Gubernur, Bupati, dan Walikota Serentak).</p>
+              </div>
+              <div class="pilar-card">
+                <div class="pilar-num">REGULASI 02</div>
+                <h3 class="pilar-title">2. Regulasi Pendanaan APBD (NPHD)</h3>
+                <p class="pilar-desc">Permendagri No. 54/2019 jo. Permendagri No. 41/2020 (Tata Cara Pendanaan Hibah Pilkada & Skema Pendanaan Bersama).</p>
+              </div>
+              <div class="pilar-card">
+                <div class="pilar-num">REGULASI 03</div>
+                <h3 class="pilar-title">3. Standar Biaya Masukan (SBM & SBML)</h3>
+                <p class="pilar-desc">PMK Standar Biaya Masukan Kemenkeu & Keputusan KPU RI tentang SBML Honorarium serta Tahapan Pemilihan.</p>
+              </div>
+              <div class="pilar-card">
+                <div class="pilar-num">REGULASI 04</div>
+                <h3 class="pilar-title">4. Keputusan Gubernur Jawa Timur No. 188</h3>
+                <p class="pilar-desc">Keputusan Gubernur Jawa Timur Nomor 188/87/KPTS/013/2022 tentang Komponen Pendanaan Bersama (Cost-Sharing) Pilkada Serentak Jawa Timur.</p>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 2 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 3: SOP INTERNAL
+             ========================================== -->
+        <div class="slide-pane" id="slide-3">
+          <div class="slide-header">
+            <span class="slide-tag">TATA KELOLA INTERNAL</span>
+            <h2 class="slide-title">Alur SOP Penyusunan Anggaran Internal: KAK Divisi ke Pleno</h2>
+            <p class="slide-subtitle">Mekanisme Bottom-Up Berjenjang Berbasis Kebutuhan Riil, Kepatuhan SBML & Kelengkapan Administrasi</p>
+          </div>
+          <div class="slide-body">
+            <div class="steps-grid">
+              <div class="step-card">
+                <div class="step-badge">TAHAP 01</div>
+                <h3 class="step-title">Pengajuan Usulan Divisi</h3>
+                <ul class="step-body-list">
+                  <li>• Disusun 5 Komisioner Divisi & Kasubag</li>
+                  <li>• Berbasis rincian output riil & tahapan</li>
+                  <li>• Menjamin kepemilikan program (ownership)</li>
+                </ul>
+              </div>
+              <div class="step-card highlight">
+                <div class="step-badge" style="background: var(--kpu-gold); color: #000;">TAHAP 02 • TELAAH SBM & VERIFIKASI</div>
+                <h3 class="step-title" style="color: var(--kpu-gold);">Telaah SBM & Verifikasi Berkas</h3>
+                <ul class="step-body-list">
+                  <li>• Telaah Standar SBM & SBML KPU RI</li>
+                </ul>
+                <div class="checklist-box">
+                  <div class="checklist-title">
+                    <span>📋 Verifikasi 3 Kelengkapan Administrasi Wajib:</span>
+                  </div>
+                  <div class="checklist-item">
+                    <span class="chk-icon">✓</span>
+                    <span><strong>1. Nodin Resmi Divisi & Kasubag</strong></span>
+                  </div>
+                  <div class="checklist-item">
+                    <span class="chk-icon">✓</span>
+                    <span><strong>2. Lampiran RKB Bertandatangan</strong></span>
+                  </div>
+                  <div class="checklist-item">
+                    <span class="chk-icon">✓</span>
+                    <span><strong>3. Dokumen KAK Kegiatan Lengkap</strong></span>
+                  </div>
+                </div>
+              </div>
+              <div class="step-card">
+                <div class="step-badge">TAHAP 03</div>
+                <h3 class="step-title">Pengesahan Rapat Pleno</h3>
+                <ul class="step-body-list">
+                  <li>• Konsolidasi kolektif kolegial Komisioner</li>
+                  <li>• Penyelarasan lintas divisi & fiskal</li>
+                  <li>• Disahkan sah dalam Berita Acara Pleno</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 3 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 4: PARAMETER SSOT
+             ========================================== -->
+        <div class="slide-pane" id="slide-4">
+          <div class="slide-header">
+            <span class="slide-tag">PARAMETER DATA WILAYAH (SSOT)</span>
+            <h2 class="slide-title">Profil Kewilayahan & Demografi Basis Kebutuhan</h2>
+            <p class="slide-subtitle">Komputasi Anggaran Didasarkan Mutlak pada Single Source of Truth Data Riil Kabupaten Ngawi</p>
+          </div>
+          <div class="slide-body">
+            <div class="metrics-6-grid">
+              <div class="stat-bento-card">
+                <div class="stat-num">19</div>
+                <div class="stat-title">Kecamatan (PPK)</div>
+                <div class="stat-desc">19 Kantor Sekretariat PPK & Aula Rapat</div>
+              </div>
+              <div class="stat-bento-card">
+                <div class="stat-num">217</div>
+                <div class="stat-title">Desa / Kelurahan (PPS)</div>
+                <div class="stat-desc">213 Desa + 4 Kelurahan se-Kabupaten</div>
+              </div>
+              <div class="stat-bento-card">
+                <div class="stat-num">1.393</div>
+                <div class="stat-title">TPS Tersebar Merata</div>
+                <div class="stat-desc">Tempat Pemungutan Suara Reguler & Khusus</div>
+              </div>
+              <div class="stat-bento-card highlight">
+                <div class="stat-num">359.141</div>
+                <div class="stat-title">Kepala Keluarga (KK)</div>
+                <div class="stat-desc">Basis Riil Beban Coklit Petugas Pantarlih</div>
+              </div>
+              <div class="stat-bento-card">
+                <div class="stat-num">750.525</div>
+                <div class="stat-title">Daftar Pemilih Tetap (DPT)</div>
+                <div class="stat-desc">Dasar Presisi Cetak Surat Suara & Formulir</div>
+              </div>
+              <div class="stat-bento-card">
+                <div class="stat-num">5</div>
+                <div class="stat-title">Pasangan Calon (Simulasi)</div>
+                <div class="stat-desc">Proyeksi Maksimal Fasilitasi Debat & APK</div>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 4 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 5: REKAP 1 (SASARAN BELANJA: KPU Kab -> PPK -> PPS -> TPS -> Pantarlih -> Paslon)
+             ========================================== -->
+        <div class="slide-pane" id="slide-5">
+          <div class="slide-header">
+            <span class="slide-tag">REKAP PERENCANAAN NO. 1</span>
+            <h2 class="slide-title">Distribusi Alokasi Berdasarkan Sasaran Belanja</h2>
+            <p class="slide-subtitle">Urutan Berjenjang: KPU Kabupaten → PPK → PPS → TPS → Pantarlih → Pasangan Calon</p>
+          </div>
+          <div class="slide-body">
+            <div class="split-layout">
+              <div class="chart-container-card">
+                <div class="chart-canvas-wrapper">
+                  <canvas id="chart-rekap1"></canvas>
+                </div>
+              </div>
+              <div class="rekap-right-col">
+                <div class="rekap-table-wrapper">
+                  <div style="background: rgba(16, 185, 129, 0.15); border-bottom: 1px solid var(--border-color); padding: 12px 16px;">
+                    <div style="font-size: 13px; font-weight: 800; color: #6EE7B7; text-transform: uppercase;">TOTAL ANGGARAN LANGSUNG KE LAPANGAN</div>
+                    <div style="font-size: 21px; font-weight: 900; color: #FFFFFF; font-family: var(--font-mono);">66,52% (Rp 45,86 Miliar)</div>
+                    <div style="font-size: 12.5px; color: #94A3B8;">Dialokasikan untuk operasional & honorarium desa & TPS.</div>
+                  </div>
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Urutan Kelompok Sasaran</th>
+                        <th class="num">Alokasi (Rp)</th>
+                        <th class="num">Porsi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>1. KPU Satker Kabupaten</strong></td>
+                        <td class="num">Rp 14,62 M</td>
+                        <td class="num">21,21%</td>
+                      </tr>
+                      <tr>
+                        <td><strong>2. PPK (19 Kecamatan)</strong></td>
+                        <td class="num">Rp 5,55 M</td>
+                        <td class="num">8,05%</td>
+                      </tr>
+                      <tr>
+                        <td><strong>3. PPS (217 Desa / Kel)</strong></td>
+                        <td class="num">Rp 20,85 M</td>
+                        <td class="num">30,25%</td>
+                      </tr>
+                      <tr>
+                        <td><strong>4. TPS (1.393 KPPS / Linmas)</strong></td>
+                        <td class="num">Rp 15,47 M</td>
+                        <td class="num">22,44%</td>
+                      </tr>
+                      <tr>
+                        <td><strong>5. Pantarlih Coklit (359.141 KK)</strong></td>
+                        <td class="num">Rp 3,98 M</td>
+                        <td class="num">5,78%</td>
+                      </tr>
+                      <tr>
+                        <td><strong>6. Fasilitasi Pasangan Calon</strong></td>
+                        <td class="num">Rp 8,46 M</td>
+                        <td class="num">12,27%</td>
+                      </tr>
+                      <tr class="total-row">
+                        <td>TOTAL USULAN BERSAMA</td>
+                        <td class="num">Rp 68,94 M</td>
+                        <td class="num">100,0%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="highlight-callout">
+                  💡 <strong>Belanja Satker Kabupaten ditekan 21,21% demi efektivitas hari-H.</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 5 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 6: REKAP 3 (DISTRIBUSI DIVISI)
+             ========================================== -->
+        <div class="slide-pane" id="slide-6">
+          <div class="slide-header">
+            <span class="slide-tag">REKAP PERENCANAAN NO. 3</span>
+            <h2 class="slide-title">Distribusi Alokasi per Komisioner Divisi</h2>
+            <p class="slide-subtitle">Porsi Terbesar pada Divisi KUL untuk Membayar Hak Honorarium Belasan Ribu Personel Ad Hoc</p>
+          </div>
+          <div class="slide-body">
+            <div class="split-layout">
+              <div class="bar-chart-card">
+                <canvas id="chart-rekap3"></canvas>
+              </div>
+              <div class="divisi-detail-col">
+                <div class="rekap-table-wrapper">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Komisioner Divisi</th>
+                        <th>Substansi Belanja Kunci</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong style="color: #93C5FD;">KUL (Rp 37,82 M / 54,9%)</strong></td>
+                        <td>Honorarium Ad Hoc (26,17 M) • Logistik TPS • Gudang</td>
+                      </tr>
+                      <tr>
+                        <td><strong style="color: #6EE7B7;">PARSDM (Rp 21,03 M / 30,5%)</strong></td>
+                        <td>Sosdiklih & Media • Event/Debat • Santunan Kerja (2,28 M)</td>
+                      </tr>
+                      <tr>
+                        <td><strong style="color: #FCD34D;">TEKNIS (Rp 6,37 M / 9,2%)</strong></td>
+                        <td>Pencalonan • Bimtek Tungsura 1.393 KPPS • Rekapitulasi</td>
+                      </tr>
+                      <tr>
+                        <td><strong style="color: #C4B5FD;">RENDATIN (Rp 2,59 M / 3,8%)</strong></td>
+                        <td>Pemutakhiran Sidalih 359.141 KK • Operator Data</td>
+                      </tr>
+                      <tr>
+                        <td><strong style="color: #FDA4AF;">HUKUM (Rp 1,14 M / 1,6%)</strong></td>
+                        <td>Advokasi Sengketa PHPU di MK • Telaah Regulasi & Etik</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="highlight-callout" style="border-color: var(--kpu-gold); color: #FEF3C7; background: rgba(245, 158, 11, 0.1);">
+                  📌 <strong>CATATAN STRATEGIS:</strong> Porsi Divisi KUL paling dominan (54,9%) karena menampung hak keuangan 15.000+ personel ad hoc dan pengadaan logistik utama pemungutan suara.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 6 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 7: PORTOFOLIO 5 DIVISI
+             ========================================== -->
+        <div class="slide-pane" id="slide-7">
+          <div class="slide-header">
+            <span class="slide-tag">PORTOFOLIO DIVISI</span>
+            <h2 class="slide-title">Fokus Program Prioritas 5 Komisioner Divisi</h2>
+            <p class="slide-subtitle">Rincian Output Kunci dan Tanggung Jawab Manajerial Tiap Komisioner</p>
+          </div>
+          <div class="slide-body">
+            <div class="divisi-grid">
+              <div class="divisi-card">
+                <span class="divisi-code code-kul">Divisi KUL</span>
+                <div class="divisi-pagu">(Rp 37,82 M / 54,9%)</div>
+                <ul class="divisi-focus-list">
+                  <li>• Honorarium 15.000+ personel ad hoc non-tunai tepat waktu</li>
+                  <li>• Pengadaan logistik surat suara, kotak, bilik e-Katalog LKPP</li>
+                  <li>• Pergudangan & distribusi aman ke 19 kecamatan & 217 desa</li>
+                </ul>
+              </div>
+              <div class="divisi-card">
+                <span class="divisi-code code-parsdm">Divisi PARSDM</span>
+                <div class="divisi-pagu">(Rp 21,03 M / 30,5%)</div>
+                <ul class="divisi-focus-list">
+                  <li>• Sosialisasi intensif pemilih marjinal, pemula, disabilitas</li>
+                  <li>• Kemitraan media massa, seni budaya lokal & debat paslon</li>
+                  <li>• Jaminan santunan perlindungan kecelakaan kerja ad hoc</li>
+                </ul>
+              </div>
+              <div class="divisi-card">
+                <span class="divisi-code code-teknis">Divisi TEKNIS</span>
+                <div class="divisi-pagu">(Rp 6,37 M / 9,2%)</div>
+                <ul class="divisi-focus-list">
+                  <li>• Verifikasi administrasi & faktual pencalonan bupati/wabup</li>
+                  <li>• Bimtek terpadu Tungsura bagi 1.393 KPPS & 19 PPK</li>
+                  <li>• Rekapitulasi penghitungan suara berjenjang model C-Hasil</li>
+                </ul>
+              </div>
+              <div class="divisi-card">
+                <span class="divisi-code code-rendatin">Divisi RENDATIN</span>
+                <div class="divisi-pagu">(Rp 2,59 M / 3,8%)</div>
+                <ul class="divisi-focus-list">
+                  <li>• Pemutakhiran berkelanjutan 359.141 KK & 750.525 DPT Sidalih</li>
+                  <li>• Bimbingan teknis operator data guna eliminasi data ganda</li>
+                  <li>• Penguatan server, keamanan siber & jaringan komunikasi</li>
+                </ul>
+              </div>
+              <div class="divisi-card">
+                <span class="divisi-code code-hukum">Divisi HUKUM</span>
+                <div class="divisi-pagu">(Rp 1,14 M / 1,6%)</div>
+                <ul class="divisi-focus-list">
+                  <li>• Telaah legalitas keputusan KPU & regulasi teknis tahapan</li>
+                  <li>• Advokasi penanganan sengketa PHPU di Mahkamah Konstitusi</li>
+                  <li>• Pengawasan internal & penegakan kode etik penyelenggara</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 7 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 8: REKAP 5 (COST SHARING JATIM)
+             ========================================== -->
+        <div class="slide-pane" id="slide-8">
+          <div class="slide-header">
+            <span class="slide-tag">REKAP PERENCANAAN NO. 5</span>
+            <h2 class="slide-title">Formula & Rekapitulasi Pendanaan Bersama (Cost-Sharing)</h2>
+            <p class="slide-subtitle">Komparasi Proporsional Beban Fiskal APBD Kabupaten Ngawi vs APBD Provinsi Jawa Timur</p>
+          </div>
+          <div class="slide-body">
+            <div class="split-layout">
+              <div class="chart-container-card">
+                <div style="text-align: center; margin-bottom: 8px;">
+                  <h4 style="font-size: 15.5px; font-weight: 800; color: #FFFFFF;">KOMPOSISI MAKRO SHARING FISKAL</h4>
+                  <p style="font-size: 13.5px; color: var(--text-muted);">Total Bersama: Rp 68,94 Miliar</p>
+                  <p style="font-size: 13px; color: var(--kpu-gold); font-weight: 700;">APBD Kab: Rp 56,63 M (82,1%) | APBD Prov: Rp 12,30 M (17,9%)</p>
+                </div>
+                <div class="chart-canvas-wrapper" style="height: 270px;">
+                  <canvas id="chart-costsharing-pie"></canvas>
+                </div>
+              </div>
+              <div class="chart-container-card">
+                <div style="text-align: center; margin-bottom: 8px;">
+                  <h4 style="font-size: 15.5px; font-weight: 800; color: #FFFFFF;">BEBAN FISKAL PER KOMISIONER DIVISI (Rp M)</h4>
+                  <p style="font-size: 13px; color: #93C5FD;">Provinsi menanggung porsi signifikan pada KUL (Rp 7,80 M) & PARSDM (Rp 3,24 M)</p>
+                </div>
+                <div class="chart-canvas-wrapper" style="height: 270px;">
+                  <canvas id="chart-costsharing-bar"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 8 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 9: KLASTER AD HOC (PPK -> PPS -> TPS -> Pantarlih)
+             ========================================== -->
+        <div class="slide-pane" id="slide-9">
+          <div class="slide-header">
+            <span class="slide-tag">KLUSTER BADAN AD HOC</span>
+            <h2 class="slide-title">Kluster Belanja Badan Ad Hoc: Honorarium & Operasional</h2>
+            <p class="slide-subtitle">Distribusi Pagu Paling Produktif Menjangkau 15.000+ Penyelenggara di 217 Desa dan 1.393 TPS</p>
+          </div>
+          <div class="slide-body">
+            <div class="adhoc-grid">
+              <div class="bar-chart-card" style="height: 380px;">
+                <canvas id="chart-adhoc"></canvas>
+              </div>
+              <div class="personnel-list-wrap">
+                <div class="personnel-badge-card card-ppk">
+                  <div class="badge-info-col">
+                    <h4>PPK (19 Kecamatan)</h4>
+                    <p>5 Komisioner + 3 Sekretariat x 19 Kecamatan</p>
+                  </div>
+                  <div class="badge-stat-col">
+                    <div class="stat-val">152 Orang</div>
+                    <div class="stat-anggaran">Rp 5,55 M (12,1%)</div>
+                  </div>
+                </div>
+                <div class="personnel-badge-card card-pps">
+                  <div class="badge-info-col">
+                    <h4>PPS (217 Desa/Kelurahan)</h4>
+                    <p>3 Komisioner + 3 Sekretariat x 217 Desa</p>
+                  </div>
+                  <div class="badge-stat-col">
+                    <div class="stat-val">1.302 Orang</div>
+                    <div class="stat-anggaran">Rp 20,85 M (45,5%)</div>
+                  </div>
+                </div>
+                <div class="personnel-badge-card card-tps">
+                  <div class="badge-info-col">
+                    <h4>TPS (1.393 TPS)</h4>
+                    <p>7 KPPS + 2 Petugas Linmas x 1.393 TPS</p>
+                  </div>
+                  <div class="badge-stat-col">
+                    <div class="stat-val">12.537 Orang</div>
+                    <div class="stat-anggaran">Rp 15,47 M (33,7%)</div>
+                  </div>
+                </div>
+                <div class="personnel-badge-card card-pantarlih">
+                  <div class="badge-info-col">
+                    <h4>Pantarlih / PPDP Coklit</h4>
+                    <p>Pencocokan & Penelitian Mandiri 359.141 KK</p>
+                  </div>
+                  <div class="badge-stat-col">
+                    <div class="stat-val">1.393+ Petugas</div>
+                    <div class="stat-anggaran">Rp 3,98 M (8,7%)</div>
+                  </div>
+                </div>
+                <div class="highlight-callout" style="margin-top: 4px; padding: 10px 14px; font-size: 13.5px;">
+                  Honorarium Ad Hoc (Akun 521213: Rp 26,17 M) dikelola Divisi KUL — 100% Sesuai SBML Menkeu S-647/MK.02/2022.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 9 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 10: KEPATUHAN STANDAR BIAYA (SBML)
+             ========================================== -->
+        <div class="slide-pane" id="slide-10">
+          <div class="slide-header">
+            <span class="slide-tag">KEPATUHAN STANDAR BIAYA (SBML)</span>
+            <h2 class="slide-title">Kepatuhan SBML: Standar Honorarium & Biaya Santunan Ad Hoc</h2>
+            <p class="slide-subtitle">100% Selaras dengan Surat Menkeu No. S-647/MK.02/2022 & Keputusan KPU RI No. 472 Tahun 2022</p>
+          </div>
+          <div class="slide-body">
+            <div class="sbml-dual-col">
+              <div class="sbml-box" style="border-left: 4px solid var(--kpu-blue);">
+                <div class="sbml-box-header">
+                  <div>
+                    <h3>1. STANDAR HONORARIUM AD HOC (AKUN 521213)</h3>
+                    <p style="font-size: 12.5px; color: #93C5FD;">Total Pagu: Rp 26.171.600.000 (Divisi KUL)</p>
+                  </div>
+                  <span class="sbml-badge-green">100% PATUH SBML</span>
+                </div>
+                <div class="sbml-rate-grid">
+                  <div class="sbml-rate-item">
+                    <span class="role-name">PPK (19 Kecamatan)</span>
+                    <span class="rate-val">Ketua: Rp 2.500.000/OB | Anggota: Rp 2.200.000/OB</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Sekretariat PPK</span>
+                    <span class="rate-val">Sekretaris: Rp 1.850.000/OB | Staf: Rp 1.300.000/OB</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">PPS (217 Desa / Kelurahan)</span>
+                    <span class="rate-val">Ketua: Rp 1.500.000/OB | Anggota: Rp 1.300.000/OB</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Sekretariat PPS</span>
+                    <span class="rate-val">Sekretaris: Rp 1.150.000/OB | Staf: Rp 1.050.000/OB</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Pantarlih / PPDP Coklit (359.141 KK)</span>
+                    <span class="rate-val">Petugas Coklit: Rp 1.000.000 / Bulan (1.393+ Petugas)</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">KPPS & Pengamanan TPS (1.393 TPS)</span>
+                    <span class="rate-val">Ketua: Rp 900.000/OB | Anggota: Rp 850.000/OB</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Petugas Linmas / Ketertiban TPS</span>
+                    <span class="rate-val">Rp 650.000/OB</span>
+                  </div>
+                  <div style="font-size: 12.5px; color: #34D399; font-weight: 700; text-align: right; margin-top: 4px;">
+                    ✓ Status: 100% Sesuai Plafon Tertinggi SBML (Deviasi Rp 0)
+                  </div>
+                </div>
+              </div>
+
+              <div class="sbml-box" style="border-left: 4px solid var(--rose);">
+                <div class="sbml-box-header">
+                  <div>
+                    <h3>2. SANTUNAN KECELAKAAN KERJA (AKUN 521219)</h3>
+                    <p style="font-size: 12.5px; color: #FDA4AF;">Total Pagu: Rp 2.283.000.000 (Divisi PARSDM)</p>
+                  </div>
+                  <span class="sbml-badge-green">SBML KPU RI</span>
+                </div>
+                <div class="sbml-rate-grid">
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Santunan Meninggal Dunia</span>
+                    <span class="rate-val">Rp 36.000.000</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Santunan Cacat Permanen</span>
+                    <span class="rate-val">Rp 30.800.000</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Santunan Luka / Sakit Berat</span>
+                    <span class="rate-val">Rp 16.500.000</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Bantuan Biaya Pemakaman</span>
+                    <span class="rate-val">Rp 10.000.000</span>
+                  </div>
+                  <div class="sbml-rate-item">
+                    <span class="role-name">Santunan Luka / Sakit Sedang</span>
+                    <span class="rate-val">Rp 8.250.000</span>
+                  </div>
+                  <div class="sbml-rate-item" style="background: rgba(244, 63, 94, 0.1); border: 1px dashed rgba(244, 63, 94, 0.4); flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <div style="font-weight: 800; color: #FECDD3; font-size: 13px;">PROTEKSI SETARA HINGGA TINGKAT PANTARLIH / PPDP</div>
+                    <div style="font-size: 12.5px; color: #E2E8F0;">• Alokasi Khusus Pantarlih: Rp 456.600.000 untuk 1.393+ petugas coklit.</div>
+                    <div style="font-size: 12.5px; color: #E2E8F0;">• Perlindungan adil setara bagi seluruh ad hoc tanpa diskriminasi.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="highlight-callout" style="margin-top: 14px; text-align: center; background: rgba(15, 23, 42, 0.9); border-color: var(--kpu-gold); color: #FEF3C7;">
+              LANDASAN SBML: Surat Menkeu No. S-647/MK.02/2022 jo. Keputusan KPU RI No. 472/2022<br>
+              <strong>Seluruh Komponen Honorarium & Santunan Terverifikasi 100% Patuh Plafon Standar Biaya Masukan Lainnya.</strong>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 10 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 11: KONSOLIDASI STAKEHOLDER
+             ========================================== -->
+        <div class="slide-pane" id="slide-11">
+          <div class="slide-header">
+            <span class="slide-tag">KONSOLIDASI STAKEHOLDER</span>
+            <h2 class="slide-title">Upaya Komunikasi & Konsolidasi Pemangku Kepentingan Daerah</h2>
+            <p class="slide-subtitle">Progres Koordinasi Strategis Bersama Lembaga Legislatif dan Eksekutif Kabupaten Ngawi</p>
+          </div>
+          <div class="slide-body">
+            <div class="stakeholder-grid">
+              <div class="stakeholder-card" style="border-top: 4px solid var(--kpu-blue);">
+                <h3 class="stakeholder-instansi">DPRD Kabupaten Ngawi</h3>
+                <div style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 2px;">Bentuk Komunikasi Protokoler:</div>
+                <div style="font-size: 17px; font-weight: 800; color: #FFFFFF; margin-bottom: 4px;">Audiensi dan Konsultasi Kelembagaan</div>
+                <div class="stakeholder-date">Jadwal Pelaksanaan: 28 November 2026</div>
+                <div style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 6px;">Fokus Substansi & Target Output:</div>
+                <ul class="stakeholder-agenda">
+                  <li>• Pemaparan proyeksi kebutuhan riil anggaran Pilkada 2029</li>
+                  <li>• Permohonan dukungan komitmen fiskal daerah bersama Komisi & Pimpinan DPRD</li>
+                  <li>• Transparansi postur pembiayaan demi kepastian tahapan demokrasi daerah</li>
+                </ul>
+              </div>
+              <div class="stakeholder-card" style="border-top: 4px solid var(--emerald);">
+                <h3 class="stakeholder-instansi">Bakesbangpol Kabupaten Ngawi</h3>
+                <div style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 2px;">Bentuk Komunikasi Protokoler:</div>
+                <div style="font-size: 17px; font-weight: 800; color: #FFFFFF; margin-bottom: 4px;">Koordinasi Teknis Kesiapan Pendanaan Hibah</div>
+                <div class="stakeholder-date">Jadwal Pelaksanaan: 28 November 2026</div>
+                <div style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 6px;">Fokus Substansi & Target Output:</div>
+                <ul class="stakeholder-agenda">
+                  <li>• Penyelarasan draf NPHD bersama leading sector hibah Pemkab Ngawi</li>
+                  <li>• Verifikasi administrasi keuangan daerah & sinkronisasi tahapan pencairan APBD</li>
+                  <li>• Harmonisasi regulasi transfer dana hibah demi kelancaran operasional Satker</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 11 dari 12</span>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             SLIDE 12: GRAND FINALE TAGLINE & PANTUN
+             ========================================== -->
+        <div class="slide-pane" id="slide-12">
+          <div class="slide-header">
+            <span class="slide-tag">KOMITMEN & PENUTUP</span>
+            <h2 class="slide-title">Komitmen Integritas Penyelenggaraan Pilkada 2029</h2>
+            <p class="slide-subtitle">Komisi Pemilihan Umum Kabupaten Ngawi — Satker 657811</p>
+          </div>
+          <div class="slide-body">
+            <div class="finale-layout">
+              <div class="tagline-hero-box">
+                <span class="tagline-pill">TAGLINE & KOMITMEN UTAMA KPU KABUPATEN NGAWI</span>
+                <div class="tagline-quote">“AKUNTABEL DI SETIAP RUPIAH, MELAYANI DI SETIAP TAHAPAN”</div>
+                <p class="tagline-subtext">
+                  Anggaran Presisi Berbasis Data Riil, Menjamin Pemilihan Serentak 2029 yang Berintegritas, Transparan, dan Bermartabat bagi Seluruh Masyarakat Kabupaten Ngawi.
+                </p>
+                <div style="font-size: 13.5px; color: var(--text-dim); margin-top: 10px; font-style: italic;">
+                  Disahkan secara resmi melalui Berita Acara Rapat Pleno Komisioner KPU Kabupaten Ngawi — Satker 657811
+                </div>
+              </div>
+
+              <div class="pantun-duo-grid">
+                <div class="pantun-card pantun-1">
+                  <div class="pantun-title">PANTUN SINERGI PERENCANAAN</div>
+                  <div class="pantun-verse">
+                    Pergi ke Ngawi membeli gerabah,<br>
+                    Singgah sebentar di Benteng Pendem.<br>
+                    Perencanaan presisi tertib amanah,<br>
+                    Pilkada sukses, Jawa Timur adem tentrem.
+                  </div>
+                  <div class="pantun-cakep">(Cakep!)</div>
+                </div>
+                <div class="pantun-card pantun-2">
+                  <div class="pantun-title">PANTUN HARMONISASI & INTEGRITAS</div>
+                  <div class="pantun-verse">
+                    Kayu jati diukir rapi,<br>
+                    Kuat terpancang penopang istana.<br>
+                    Usulan RKB kami serahkan sepenuh hati,<br>
+                    Siap diselaraskan demi sukses pilkada.
+                  </div>
+                  <div class="pantun-cakep">(Matur Suwun Sanget!)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="slide-footer">
+            <span class="footer-satker">KPU Kabupaten Ngawi — Satker 657811 | Perencanaan Pilkada 2029</span>
+            <span class="footer-counter">Slide 12 dari 12</span>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- BOTTOM DOCK (Normal Mode) -->
+    <footer class="bottom-dock" id="bottom-dock-bar">
+      <div class="pill-nav-item active" onclick="jumpToSlide(1)">1</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(2)">2</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(3)">3</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(4)">4</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(5)">5</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(6)">6</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(7)">7</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(8)">8</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(9)">9</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(10)">10</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(11)">11</div>
+      <div class="pill-nav-item" onclick="jumpToSlide(12)">12</div>
+    </footer>
+  </div>
+
+  <!-- ======================================================================
+       FLOATING AUTO-HIDING PRESENTER DOCK (Fullscreen Mode Only)
+       ====================================================================== -->
+  <div id="fullscreen-dock">
+    <button class="fs-dock-btn" onclick="changeSlide(-1)">◀ Sebelumnya</button>
+    <span class="fs-slide-counter" id="fs-slide-indicator">Slide 1 / 12</span>
+    <button class="fs-dock-btn" onclick="changeSlide(1)">Selanjutnya ▶</button>
+    <button class="fs-dock-btn" onclick="toggleNotesDrawer()">🎙️ Catatan (N)</button>
+    <button class="fs-dock-btn btn-fs-exit" onclick="exitPresentationMode()">✕ Keluar Layar Penuh (Esc)</button>
+  </div>
+
+  <!-- ======================================================================
+       SPEAKER NOTES DRAWER (SIDE-OVER)
+       ====================================================================== -->
+  <aside id="notes-drawer">
+    <div class="notes-header">
+      <h3>🎙️ Catatan Pembicara</h3>
+      <button class="notes-close-btn" onclick="toggleNotesDrawer()">✕</button>
+    </div>
+    <div class="notes-body" id="notes-content">
+      <!-- Injected dynamically via JS based on active slide -->
+    </div>
+  </aside>
+
+  <!-- ======================================================================
+       CLIENT SCRIPT & INTERACTIVITY
+       ====================================================================== -->
+  <script>
+    // --- 1. PIN SECURITY LOGIC ---
+    const CORRECT_PIN = '657811';
+    let enteredPin = '';
+
+    function checkExistingAuth() {
+      if (sessionStorage.getItem('siprabu_paparan_auth') === CORRECT_PIN) {
+        unlockGate(false);
+      }
+    }
+
+    function pressPin(digit) {
+      if (enteredPin.length < 6) {
+        enteredPin += digit;
+        updatePinDots();
+        if (enteredPin.length === 6) {
+          verifyPin();
+        }
+      }
+    }
+
+    function deletePin() {
+      if (enteredPin.length > 0) {
+        enteredPin = enteredPin.slice(0, -1);
+        updatePinDots();
+        hidePinError();
+      }
+    }
+
+    function clearPin() {
+      enteredPin = '';
+      updatePinDots();
+      hidePinError();
+    }
+
+    function updatePinDots() {
+      for (let i = 0; i < 6; i++) {
+        const dot = document.getElementById('dot-' + i);
+        if (i < enteredPin.length) {
+          dot.classList.add('filled');
+        } else {
+          dot.classList.remove('filled');
+        }
+      }
+    }
+
+    function verifyPin() {
+      if (enteredPin === CORRECT_PIN) {
+        sessionStorage.setItem('siprabu_paparan_auth', CORRECT_PIN);
+        unlockGate(true);
+      } else {
+        const cardBox = document.getElementById('pin-card-box');
+        const errMsg = document.getElementById('pin-error-msg');
+        cardBox.classList.add('shake');
+        errMsg.classList.add('visible');
+        setTimeout(() => {
+          cardBox.classList.remove('shake');
+          clearPin();
+        }, 500);
+      }
+    }
+
+    function hidePinError() {
+      document.getElementById('pin-error-msg').classList.remove('visible');
+    }
+
+    function unlockGate(animate) {
+      const gate = document.getElementById('pin-gate');
+      gate.classList.add('unlocked');
+      initCharts();
+    }
+
+    function lockPortal() {
+      sessionStorage.removeItem('siprabu_paparan_auth');
+      clearPin();
+      document.getElementById('pin-gate').classList.remove('unlocked');
+    }
+
+    // --- 2. PRESENTATION & FULLSCREEN LOGIC ---
+    let fsDockTimer = null;
+
+    function enterPresentationMode() {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(err => console.warn(err));
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
+    }
+
+    function exitPresentationMode() {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    }
+
+    function toggleFullscreen() {
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+      if (isFull) {
+        exitPresentationMode();
+      } else {
+        enterPresentationMode();
+      }
+    }
+
+    function onFullscreenChange() {
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+      if (isFull) {
+        document.body.classList.add('is-fullscreen');
+        showFullscreenDockTemporarily();
+      } else {
+        document.body.classList.remove('is-fullscreen');
+        const fsDock = document.getElementById('fullscreen-dock');
+        if (fsDock) fsDock.classList.remove('visible');
+      }
+
+      // Resize all Chart.js instances to fill expanded canvas
+      setTimeout(() => {
+        if (window.myCharts) {
+          Object.values(window.myCharts).forEach(c => {
+            if (c && typeof c.resize === 'function') c.resize();
+          });
+        }
+      }, 150);
+    }
+
+    function showFullscreenDockTemporarily() {
+      const fsDock = document.getElementById('fullscreen-dock');
+      if (!fsDock) return;
+      fsDock.classList.add('visible');
+      if (fsDockTimer) clearTimeout(fsDockTimer);
+      fsDockTimer = setTimeout(() => {
+        fsDock.classList.remove('visible');
+      }, 2500);
+    }
+
+    document.addEventListener('mousemove', () => {
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+      if (isFull) {
+        showFullscreenDockTemporarily();
+      }
+    });
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener('mozfullscreenchange', onFullscreenChange);
+    document.addEventListener('MSFullscreenChange', onFullscreenChange);
+
+    // Keyboard support
+    window.addEventListener('keydown', (e) => {
+      const gate = document.getElementById('pin-gate');
+      if (!gate.classList.contains('unlocked')) {
+        if (e.key >= '0' && e.key <= '9') {
+          pressPin(e.key);
+        } else if (e.key === 'Backspace') {
+          deletePin();
+        } else if (e.key === 'Escape') {
+          clearPin();
+        }
+        return;
+      }
+
+      // If unlocked, handle presentation shortcuts
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        changeSlide(1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        changeSlide(-1);
+      } else if (e.key === 'Home') {
+        jumpToSlide(1);
+      } else if (e.key === 'End') {
+        jumpToSlide(12);
+      } else if (e.key.toLowerCase() === 'n') {
+        toggleNotesDrawer();
+      } else if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        toggleFullscreen();
+      }
+    });
+
+    // --- 3. SLIDE NAVIGATION & SPEAKER NOTES ---
+    let currentSlide = 1;
+    const totalSlides = 12;
+
+    const SPEAKER_NOTES = {
+      1: {
+        title: "USULAN PERENCANAAN RKB PILKADA 2029 (COVER & IDENTITAS)",
+        notes: "Assalamu’alaikum Warahmatullahi Wabarakatuh,\nSelamat pagi dan salam hormat kami haturkan kepada Pimpinan dan segenap Tim Telaah KPU Provinsi Jawa Timur.\n\nPada kesempatan yang berharga hari ini, kami jajaran Komisi Pemilihan Umum Kabupaten Ngawi (Satker 657811) hadir menyampaikan secara komprehensif Usulan Perencanaan Kebutuhan Anggaran Belanja (RKB) Pemilihan Bupati dan Wakil Bupati Ngawi Tahun 2029.\n\nTotal pagu bersama yang kami susun adalah Rp 68,94 Miliar, yang terbagi atas Beban APBD Kabupaten Ngawi sebesar Rp 56,63 Miliar (82,1%) dan Sharing APBD Provinsi Jawa Timur sebesar Rp 12,30 Miliar (17,9%)."
+      },
+      2: {
+        title: "DASAR HUKUM PENYUSUNAN ANGGARAN HIBAH PEMILIHAN",
+        notes: "Bapak/Ibu Pimpinan KPU Provinsi yang kami muliakan,\n\nPada slide kedua ini, kami menegaskan landasan yuridis formal penyusunan anggaran hibah Pilkada 2029:\n1. UU No. 1/2015 jo. UU No. 6/2020 sebagai payung hukum pelaksanaan Pilkada serentak.\n2. Permendagri No. 54/2019 jo. Permendagri No. 41/2020 yang mengatur tata cara pendanaan belanja hibah Pilkada bersumber APBD.\n3. PMK Standar Biaya Masukan (SBM) Kemenkeu dan Keputusan KPU RI mengenai SBML honorarium dan tahapan pemilihan.\n4. Keputusan Gubernur Jawa Timur Nomor 188/87/KPTS/013/2022 yang menjadi pedoman sah pembagian beban fiskal bersama (Cost-Sharing) antara Pemprov Jawa Timur dan Pemkab Ngawi.\n\nDengan regulasi yang komprehensif ini, seluruh usulan belanja memiliki kepastian dan legitimasi hukum yang kuat."
+      },
+      3: {
+        title: "ALUR SOP PENYUSUNAN INTERNAL & 3 DOKUMEN WAJIB",
+        notes: "Bapak/Ibu sekalian,\n\nDi internal KPU Kabupaten Ngawi, draf RKB ini melalui SOP tata kelola internal 3 tahap:\nTahap 01: Pengajuan Usulan Divisi oleh Komisioner bersama Kasubag.\nTahap 02: Telaah Standar SBM Kemenkeu & SBML KPU RI oleh Tim Keuangan & PPK, dengan 3 dokumen wajib:\n  1. Nodin Resmi Divisi & Kasubag\n  2. Lampiran RKB Bertandatangan\n  3. Dokumen KAK Kegiatan Lengkap\nTahap 03: Pengesahan secara bulat dalam Berita Acara Rapat Pleno Komisioner."
+      },
+      4: {
+        title: "PROFIL KEWILAYAHAN & DEMOGRAFI BASIS KEBUTUHAN (SSOT)",
+        notes: "Pimpinan KPU Provinsi yang kami hormati,\n\nKekuatan utama usulan anggaran KPU Kabupaten Ngawi berpijak pada Single Source of Truth (SSOT) data parameter kewilayahan riil:\n- 19 Kecamatan (PPK) & 217 Desa/Kelurahan (PPS)\n- 1.393 TPS tersebar merata di seluruh Ngawi\n- 359.141 Kepala Keluarga (KK) sebagai basis riil beban Coklit Pantarlih\n- 750.525 DPT sebagai dasar presisi logistik surat suara & formulir\n- Simulasi 5 Pasangan Calon untuk proyeksi fasilitasi kampanye & debat."
+      },
+      5: {
+        title: "DISTRIBUSI ALOKASI BERDASARKAN SASARAN BELANJA",
+        notes: "Bapak/Ibu sekalian,\n\nSlide kelima menyajikan Rekapitulasi Perencanaan No. 1 dengan urutan berjenjang dari kabupaten hingga tingkat operasional lapangan:\n1. KPU Satker Kabupaten: Rp 14,62 Miliar (21,21%)\n2. PPK (19 Kecamatan): Rp 5,55 Miliar (8,05%)\n3. PPS (217 Desa/Kelurahan): Rp 20,85 Miliar (30,25%)\n4. TPS (1.393 KPPS/Linmas): Rp 15,47 Miliar (22,44%)\n5. Pantarlih Coklit (359.141 KK): Rp 3,98 Miliar (5,78%)\n6. Fasilitasi Pasangan Calon: Rp 8,46 Miliar (12,27%)\n\nSebesar 66,52% (Rp 45,86 Miliar) mengalir langsung ke Desa dan TPS, dan belanja Satker Kabupaten ditekan 21,21% demi efektivitas hari-H."
+      },
+      6: {
+        title: "DISTRIBUSI ALOKASI PER KOMISIONER DIVISI",
+        notes: "Pimpinan KPU Provinsi yang kami hormati,\n\nPenyebaran pagu anggaran per Komisioner Divisi pengampu:\n- KUL: Rp 37,82 M (54,9%) — Paling besar karena menampung Honorarium Ad Hoc (Akun 521213: Rp 26,17 M), Logistik TPS (Rp 7,50 M), dan Gudang.\n- PARSDM: Rp 21,03 M (30,5%) — Sosdiklih, Media, Debat Paslon, dan Santunan Kerja Ad Hoc (Akun 521219: Rp 2,28 M).\n- TEKNIS: Rp 6,37 M (9,2%) — Pencalonan, Bimtek Tungsura 1.393 KPPS, dan Rekapitulasi C-Hasil.\n- RENDATIN: Rp 2,59 M (3,8%) — Pemutakhiran Sidalih 359.141 KK dan Operator Data.\n- HUKUM: Rp 1,14 M (1,6%) — Advokasi PHPU di MK dan Telaah Regulasi."
+      },
+      7: {
+        title: "FOKUS PROGRAM PRIORITAS 5 KOMISIONER DIVISI",
+        notes: "Slide ini mempertegas komitmen manajerial 5 Komisioner Divisi:\n- KUL: Honorarium 15.000+ ad hoc non-tunai tepat waktu, logistik e-Katalog, pergudangan aman.\n- PARSDM: Target partisipasi >80%, kemitraan media massa, jaminan santunan kecelakaan kerja ad hoc.\n- TEKNIS: Administrasi pencalonan bebas sengketa, bimtek Tungsura 1.393 KPPS, rekapitulasi C-Hasil presisi.\n- RENDATIN: Sidalih 359.141 KK berkelanjutan, eliminasi data ganda, infrastruktur server & jaringan stabil.\n- HUKUM: Kepastian hukum keputusan KPU, advokasi PHPU di MK, penegakan kode etik internal."
+      },
+      8: {
+        title: "FORMULA & REKAPITULASI PENDANAAN BERSAMA (COST-SHARING)",
+        notes: "Komposisi Makro Sharing Fiskal dari Total Rp 68,94 Miliar:\n- APBD Kabupaten Ngawi: Rp 56,63 Miliar (82,1%)\n- Sharing APBD Provinsi Jawa Timur: Rp 12,30 Miliar (17,9%)\nProvinsi menanggung porsi signifikan pada Divisi KUL (Rp 7,80 M untuk honor Pantarlih & sharing PPK) serta Divisi PARSDM (Rp 3,24 M untuk operasional PPS & konsumsi KPPS)."
+      },
+      9: {
+        title: "KLUSTER BELANJA BADAN AD HOC: HONORARIUM & OPERASIONAL",
+        notes: "Distribusi pagu paling produktif menjangkau 15.000+ penyelenggara di 217 Desa dan 1.393 TPS dengan urutan hierarki berjenjang:\n1. PPK (19 Kecamatan): 152 Orang | Rp 5,55 M (12,1%)\n2. PPS (217 Desa/Kelurahan): 1.302 Orang | Rp 20,85 M (45,5%)\n3. TPS (1.393 TPS): 12.537 Orang | Rp 15,47 M (33,7%)\n4. Pantarlih / PPDP Coklit: 1.393+ Petugas | Rp 3,98 M (8,7%)\nSeluruh honorarium ad hoc (Rp 26,17 M) 100% Sesuai SBML Menkeu S-647/MK.02/2022."
+      },
+      10: {
+        title: "KEPATUHAN STANDAR BIAYA (SBML): HONORARIUM & SANTUNAN",
+        notes: "100% Selaras dengan Surat Menkeu S-647/MK.02/2022 jo. Kep. KPU RI 472/2022:\n1. Honorarium Ad Hoc (Akun 521213: Rp 26.171.600.000): PPK Ketua Rp 2,5 jt/Anggota Rp 2,2 jt; PPS Ketua Rp 1,5 jt/Anggota Rp 1,3 jt; Pantarlih Rp 1 jt; KPPS Ketua Rp 900 rb/Anggota Rp 850 rb; Linmas Rp 650 rb. Deviasi Rp 0!\n2. Santunan Kerja (Akun 521219: Rp 2.283.000.000): Meninggal Rp 36 jt, Cacat Rp 30,8 jt, Luka Berat Rp 16,5 jt, Pemakaman Rp 10 jt, Luka Sedang Rp 8,25 jt. Proteksi Pantarlih Rp 456,6 Juta."
+      },
+      11: {
+        title: "UPAYA KOMUNIKASI & KONSOLIDASI PEMANGKU KEPENTINGAN DAERAH",
+        notes: "Progres Koordinasi Strategis Bersama Legislatif dan Eksekutif Ngawi pada 28 November 2026:\n1. DPRD Kabupaten Ngawi: Audiensi & Konsultasi Kelembagaan untuk pemaparan proyeksi kebutuhan dan komitmen fiskal legislatif.\n2. Bakesbangpol Kabupaten Ngawi: Koordinasi Teknis Kesiapan Pendanaan Hibah untuk penyelarasan draf NPHD dan mekanisme pencairan APBD bertahap."
+      },
+      12: {
+        title: "KOMITMEN INTEGRITAS, TAGLINE & PANTUN PERENCANAAN",
+        notes: "Sebagai penutup usulan RKB KPU Kabupaten Ngawi:\n\n“AKUNTABEL DI SETIAP RUPIAH, MELAYANI DI SETIAP TAHAPAN”\n\nPantun 1: Sinergi Perencanaan\nPergi ke Ngawi membeli gerabah,\nSinggah sebentar di Benteng Pendem.\nPerencanaan presisi tertib amanah,\nPilkada sukses, Jawa Timur adem tentrem.\n(Cakep!)\n\nPantun 2: Harmonisasi & Integritas\nKayu jati diukir rapi,\nKuat terpancang penopang istana.\nUsulan RKB kami serahkan sepenuh hati,\nSiap diselaraskan demi sukses pilkada.\n(Matur Suwun Sanget!)\n\nWassalamu’alaikum Warahmatullahi Wabarakatuh."
+      }
+    };
+
+    function jumpToSlide(num) {
+      if (num < 1 || num > totalSlides) return;
+      document.querySelectorAll('.slide-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.pill-nav-item').forEach(el => el.classList.remove('active'));
+
+      currentSlide = num;
+      const targetPane = document.getElementById('slide-' + num);
+      if (targetPane) targetPane.classList.add('active');
+
+      const pill = document.querySelector('.pill-nav-item:nth-child(' + num + ')');
+      if (pill) pill.classList.add('active');
+
+      const select = document.getElementById('slide-select');
+      if (select) select.value = num;
+
+      document.getElementById('btn-prev').disabled = (num === 1);
+      document.getElementById('btn-next').disabled = (num === totalSlides);
+
+      const fsIndicator = document.getElementById('fs-slide-indicator');
+      if (fsIndicator) fsIndicator.textContent = `Slide ${num} / ${totalSlides}`;
+
+      updateNotesContent(num);
+    }
+
+    function changeSlide(direction) {
+      jumpToSlide(currentSlide + direction);
+      showFullscreenDockTemporarily();
+    }
+
+    function updateNotesContent(num) {
+      const data = SPEAKER_NOTES[num];
+      if (!data) return;
+      const notesEl = document.getElementById('notes-content');
+      notesEl.innerHTML = `
+        <div class="notes-slide-indicator">Slide ${num} dari ${totalSlides}</div>
+        <h4 class="notes-slide-title">${data.title}</h4>
+        <div class="notes-paragraph">${data.notes.replace(/\\n/g, '<br>')}</div>
+      `;
+    }
+
+    function toggleNotesDrawer() {
+      const drawer = document.getElementById('notes-drawer');
+      drawer.classList.toggle('open');
+      if (drawer.classList.contains('open')) {
+        updateNotesContent(currentSlide);
+      }
+    }
+
+    // --- 4. CHART.JS RENDERING ---
+    let chartsInitialized = false;
+    window.myCharts = {};
+
+    function initCharts() {
+      if (chartsInitialized) return;
+      chartsInitialized = true;
+
+      // 1. Chart Slide 5 (Rekap 1 Donut: KPU Kab -> PPK -> PPS -> TPS -> Pantarlih -> Paslon)
+      const ctxRekap1 = document.getElementById('chart-rekap1');
+      if (ctxRekap1) {
+        window.myCharts.rekap1 = new Chart(ctxRekap1, {
+          type: 'doughnut',
+          data: {
+            labels: [
+              'KPU Satker (21,21%)',
+              'PPK 19 Kec (8,05%)',
+              'PPS 217 Desa (30,25%)',
+              'TPS 1.393 (22,44%)',
+              'Pantarlih (5,78%)',
+              'Paslon (12,27%)'
+            ],
+            datasets: [{
+              data: [14.62, 5.55, 20.85, 15.47, 3.98, 8.46],
+              backgroundColor: ['#2563EB', '#059669', '#1E3A8A', '#D97706', '#7C3AED', '#BE123C'],
+              borderWidth: 2,
+              borderColor: '#0F172A'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: { color: '#E2E8F0', font: { family: 'Plus Jakarta Sans', size: 14 } }
+              }
+            },
+            cutout: '62%'
+          }
+        });
+      }
+
+      // 2. Chart Slide 6 (Rekap 3 Horizontal Bar)
+      const ctxRekap3 = document.getElementById('chart-rekap3');
+      if (ctxRekap3) {
+        window.myCharts.rekap3 = new Chart(ctxRekap3, {
+          type: 'bar',
+          data: {
+            labels: ['KUL', 'PARSDM', 'TEKNIS', 'RENDATIN', 'HUKUM'],
+            datasets: [{
+              label: 'Pagu Anggaran (Rp Miliar)',
+              data: [37.82, 21.03, 6.37, 2.59, 1.14],
+              backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#F43F5E'],
+              borderRadius: 6
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                ticks: { color: '#94A3B8', callback: v => 'Rp ' + v + ' M' }
+              },
+              y: {
+                grid: { display: false },
+                ticks: { color: '#FFFFFF', font: { weight: 'bold', size: 14 } }
+              }
+            }
+          }
+        });
+      }
+
+      // 3. Chart Slide 8 (Cost Sharing Pie)
+      const ctxCostPie = document.getElementById('chart-costsharing-pie');
+      if (ctxCostPie) {
+        window.myCharts.costPie = new Chart(ctxCostPie, {
+          type: 'doughnut',
+          data: {
+            labels: ['APBD Kabupaten (82,1%)', 'Sharing APBD Provinsi (17,9%)'],
+            datasets: [{
+              data: [56.63, 12.30],
+              backgroundColor: ['#2563EB', '#F59E0B'],
+              borderWidth: 2,
+              borderColor: '#0F172A'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: '#E2E8F0', font: { size: 13 } }
+              }
+            },
+            cutout: '60%'
+          }
+        });
+      }
+
+      // 4. Chart Slide 8 (Cost Sharing Bar per Divisi)
+      const ctxCostBar = document.getElementById('chart-costsharing-bar');
+      if (ctxCostBar) {
+        window.myCharts.costBar = new Chart(ctxCostBar, {
+          type: 'bar',
+          data: {
+            labels: ['KUL', 'PARSDM', 'TEKNIS', 'RENDATIN', 'HUKUM'],
+            datasets: [
+              {
+                label: 'Kabupaten (Rp M)',
+                data: [30.02, 17.79, 5.22, 2.47, 1.14],
+                backgroundColor: '#2563EB',
+                borderRadius: 4
+              },
+              {
+                label: 'Provinsi (Rp M)',
+                data: [7.80, 3.24, 1.15, 0.11, 0.00],
+                backgroundColor: '#F59E0B',
+                borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: true, grid: { display: false }, ticks: { color: '#FFFFFF', font: { size: 13 } } },
+              y: { stacked: true, grid: { color: 'rgba(255, 255, 255, 0.08)' }, ticks: { color: '#94A3B8' } }
+            },
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#E2E8F0', font: { size: 12 } } }
+            }
+          }
+        });
+      }
+
+      // 5. Chart Slide 9 (Ad Hoc Column)
+      const ctxAdhoc = document.getElementById('chart-adhoc');
+      if (ctxAdhoc) {
+        window.myCharts.adhoc = new Chart(ctxAdhoc, {
+          type: 'bar',
+          data: {
+            labels: ['PPK 19 Kec (12,1%)', 'PPS 217 Desa (45,5%)', 'TPS 1.393 (33,7%)', 'Pantarlih (8,7%)'],
+            datasets: [{
+              label: 'Pagu Belanja (Rp Miliar)',
+              data: [5.55, 20.85, 15.47, 3.98],
+              backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'],
+              borderRadius: 8
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: {
+                grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                ticks: { color: '#94A3B8', callback: v => 'Rp ' + v + ' M' }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#FFFFFF', font: { weight: 'bold', size: 13 } }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Startup check
+    document.addEventListener('DOMContentLoaded', () => {
+      checkExistingAuth();
+      updateNotesContent(1);
+    });
+  </script>
+</body>
+</html>

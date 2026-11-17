@@ -3827,6 +3827,50 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ========================================================================
+    // PAPARAN PRESENTASI RKB PILKADA 2029 (EKSEKUTIF WEB DASHBOARD)
+    // ========================================================================
+    if (pathname === '/paparan' || pathname === '/paparan/' || pathname === '/paparan-rkb' || pathname === '/paparan-rkb/') {
+      const paparanPath = path.join(PUBLIC_DIR, 'paparan.html');
+      if (fs.existsSync(paparanPath)) {
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        return fs.createReadStream(paparanPath).pipe(res);
+      }
+    }
+
+    if (pathname === '/api/paparan/download/pptx') {
+      const localPath = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Paparan_RKB_KPU_Ngawi_2029.pptx');
+      const bundledPath = path.join(PUBLIC_DIR, 'downloads', 'Paparan_RKB_KPU_Ngawi_2029.pptx');
+      const pptxPath = fs.existsSync(localPath) ? localPath : (fs.existsSync(bundledPath) ? bundledPath : null);
+      if (pptxPath) {
+        res.writeHead(200, {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'Content-Disposition': 'attachment; filename="Paparan_RKB_KPU_Ngawi_2029.pptx"',
+          'Content-Length': fs.statSync(pptxPath).size
+        });
+        return fs.createReadStream(pptxPath).pipe(res);
+      }
+      return sendJson(res, 404, { error: 'File PPTX tidak ditemukan di folder perencaan.' });
+    }
+
+    if (pathname === '/api/paparan/download/docx') {
+      const localPath = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Catatan_Pembicara_Paparan_RKB.docx');
+      const bundledPath = path.join(PUBLIC_DIR, 'downloads', 'Catatan_Pembicara_Paparan_RKB.docx');
+      const docxPath = fs.existsSync(localPath) ? localPath : (fs.existsSync(bundledPath) ? bundledPath : null);
+      if (docxPath) {
+        res.writeHead(200, {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'Content-Disposition': 'attachment; filename="Catatan_Pembicara_Paparan_RKB.docx"',
+          'Content-Length': fs.statSync(docxPath).size
+        });
+        return fs.createReadStream(docxPath).pipe(res);
+      }
+      return sendJson(res, 404, { error: 'File DOCX tidak ditemukan di folder perencaan.' });
+    }
+
+    // ========================================================================
     // STATIC ASSETS (FRONTEND)
     // ========================================================================
     return serveStatic(req, res, pathname);
