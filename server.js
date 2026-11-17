@@ -3920,11 +3920,16 @@ const server = http.createServer(async (req, res) => {
           String(now.getMinutes()).padStart(2, '0');
         const kode_snapshot = 'SNAP-' + timeSlug;
 
-        // Persiapkan folder arsip permanen (Office & Web)
-        const ARCHIVE_OFFICE_DIR = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Arsip_Terkunci');
+        // Persiapkan folder arsip permanen (Web & Office jika tersedia)
         const ARCHIVE_WEB_DIR = path.join(PUBLIC_DIR, 'downloads', 'archive');
-        if (!fs.existsSync(ARCHIVE_OFFICE_DIR)) fs.mkdirSync(ARCHIVE_OFFICE_DIR, { recursive: true });
-        if (!fs.existsSync(ARCHIVE_WEB_DIR)) fs.mkdirSync(ARCHIVE_WEB_DIR, { recursive: true });
+        if (!fs.existsSync(ARCHIVE_WEB_DIR)) {
+          try { fs.mkdirSync(ARCHIVE_WEB_DIR, { recursive: true }); } catch (e) {}
+        }
+        const hasOfficeBase = fs.existsSync('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan');
+        const ARCHIVE_OFFICE_DIR = hasOfficeBase ? path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Arsip_Terkunci') : null;
+        if (ARCHIVE_OFFICE_DIR && !fs.existsSync(ARCHIVE_OFFICE_DIR)) {
+          try { fs.mkdirSync(ARCHIVE_OFFICE_DIR, { recursive: true }); } catch (e) {}
+        }
 
         const safeEventName = nama_event.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 35);
         const pptxName = `Paparan_${safeEventName}_${timeSlug}.pptx`;
@@ -3939,10 +3944,14 @@ const server = http.createServer(async (req, res) => {
         const srcPptx = sourcePptxCandidates.find(p => fs.existsSync(p));
         if (srcPptx) {
           try {
-            fs.copyFileSync(srcPptx, path.join(ARCHIVE_OFFICE_DIR, pptxName));
             fs.copyFileSync(srcPptx, path.join(ARCHIVE_WEB_DIR, pptxName));
           } catch (e) {
-            console.warn('[SNAPSHOT] Gagal salin berkas PPTX:', e.message);
+            console.warn('[SNAPSHOT] Gagal salin berkas PPTX ke web:', e.message);
+          }
+          if (ARCHIVE_OFFICE_DIR) {
+            try {
+              fs.copyFileSync(srcPptx, path.join(ARCHIVE_OFFICE_DIR, pptxName));
+            } catch (e) {}
           }
         }
 
@@ -3954,10 +3963,14 @@ const server = http.createServer(async (req, res) => {
         const srcDocx = sourceDocxCandidates.find(p => fs.existsSync(p));
         if (srcDocx) {
           try {
-            fs.copyFileSync(srcDocx, path.join(ARCHIVE_OFFICE_DIR, docxName));
             fs.copyFileSync(srcDocx, path.join(ARCHIVE_WEB_DIR, docxName));
           } catch (e) {
-            console.warn('[SNAPSHOT] Gagal salin berkas DOCX:', e.message);
+            console.warn('[SNAPSHOT] Gagal salin berkas DOCX ke web:', e.message);
+          }
+          if (ARCHIVE_OFFICE_DIR) {
+            try {
+              fs.copyFileSync(srcDocx, path.join(ARCHIVE_OFFICE_DIR, docxName));
+            } catch (e) {}
           }
         }
 
@@ -4028,9 +4041,9 @@ const server = http.createServer(async (req, res) => {
         const fileName = fileType === 'pptx' ? snap.pptx_file : snap.docx_file;
         if (!fileName) return sendJson(res, 404, { error: `Berkas ${fileType.toUpperCase()} tidak tercatat pada arsip ini.` });
 
-        const localPath = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Arsip_Terkunci', fileName);
         const webPath = path.join(PUBLIC_DIR, 'downloads', 'archive', fileName);
-        const targetPath = fs.existsSync(localPath) ? localPath : (fs.existsSync(webPath) ? webPath : null);
+        const localPath = path.join('D:\\OFFICE\\2026\\Aplikasi\\Si Prabu\\PPT Perencanaan', 'Arsip_Terkunci', fileName);
+        const targetPath = fs.existsSync(webPath) ? webPath : (fs.existsSync(localPath) ? localPath : null);
 
         if (!targetPath) {
           return sendJson(res, 404, { error: `Berkas fisik ${fileName} tidak ditemukan di folder arsip.` });

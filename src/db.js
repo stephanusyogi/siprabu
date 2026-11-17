@@ -8733,6 +8733,57 @@ function ensurePaparanSnapshotTable() {
   } catch (err) {
     console.warn('[DB] Gagal register menu view-presentasi:', err.message);
   }
+
+  try {
+    const snapCount = db.prepare("SELECT COUNT(*) as cnt FROM rkb_paparan_snapshot").get()?.cnt || 0;
+    if (snapCount === 0) {
+      const initialPayload = JSON.stringify({
+        nama_event: 'Desk Koordinasi KPU Provinsi Jawa Timur',
+        tanggal_event: '2026-11-18',
+        keterangan: 'Penyelarasan Komponen Cost-Sharing Kepgub 188 dan Hirarki Sasaran Belanja',
+        kode_snapshot: 'SNAP-20261117_1702',
+        metrics: {
+          total_pagu: 68936096599,
+          beban_kabupaten: 56634331599,
+          sharing_provinsi: 12301765000,
+          porsi_kab: 82.15,
+          porsi_prov: 17.85
+        },
+        ssot: { tps: 1393, kk: 359141, dpt: 750525, ppk: 19, pps: 217, paslon: 5 },
+        rekap_sasaran: [
+          { no: 1, nama: 'KPU Satker Kabupaten', alokasi: 14620000000, porsi: 21.21 },
+          { no: 2, nama: 'PPK (19 Kecamatan)', alokasi: 5550000000, porsi: 8.05 },
+          { no: 3, nama: 'PPS (217 Desa/Kelurahan)', alokasi: 20850000000, porsi: 30.25 },
+          { no: 4, nama: 'TPS (1.393 KPPS/Linmas)', alokasi: 15470000000, porsi: 22.44 },
+          { no: 5, nama: 'Pantarlih Coklit (359.141 KK)', alokasi: 3980000000, porsi: 5.78 },
+          { no: 6, nama: 'Fasilitasi Pasangan Calon', alokasi: 8460000000, porsi: 12.27 }
+        ]
+      });
+
+      db.prepare(`
+        INSERT INTO rkb_paparan_snapshot (
+          kode_snapshot, nama_event, tanggal_event, keterangan,
+          total_pagu, beban_kabupaten, sharing_provinsi,
+          snapshot_payload, pptx_file, docx_file,
+          locked_at, locked_by, waktu_wib
+        ) VALUES (
+          'SNAP-20261117_1702',
+          'Desk Koordinasi KPU Provinsi Jawa Timur',
+          '2026-11-18',
+          'Penyelarasan Komponen Cost-Sharing Kepgub 188 dan Hirarki Sasaran Belanja',
+          68936096599, 56634331599, 12301765000,
+          ?,
+          'Paparan_Desk_Koordinasi_KPU_Provinsi_Jawa_T_20261117_1702.pptx',
+          'Catatan_Pembicara_Desk_Koordinasi_KPU_Provinsi_Jawa_T_20261117_1702.docx',
+          '2026-11-17 10:02:57',
+          'PPK Satker 657811',
+          '2026-11-17 17:02:57 WIB'
+        )
+      `).run(initialPayload);
+    }
+  } catch (err) {
+    console.warn('[DB] Gagal seed awal paparan snapshot:', err.message);
+  }
 }
 
 function getPaparanSnapshots() {
