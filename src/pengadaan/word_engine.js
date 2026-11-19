@@ -4983,7 +4983,7 @@ function buildStage10Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
 // =============================================================================
 // TAHAP 11: PENERBITAN SPPBJ & PEMERIKSAAN KETENTUAN JAMINAN PELAKSANAAN
 // Sesuai Perpres 16/2018 jo. Perpres 12/2021 jo. Perpres 46/2025 Pasal 11 ayat (1) huruf f,
-// Pasal 33 ayat (2) huruf b dan ayat (3), Kepka LKPP 177/2024, dan SK KPU 1530/2024
+// Pasal 33 ayat (2) huruf b dan ayat (3), serta SK KPU 1530/2024
 // =============================================================================
 function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, settings } = ctx;
@@ -5017,7 +5017,6 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
 
   // Nomor Naskah Resmi Tahap 11
   const noSppbj = tahapRow.nomor_dokumen || paket.no_sppbj || ('011/SPPBJ/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026');
-  const noSkBjp = '011/SK-BJP/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026';
   const noSuratKesanggupan = paket.no_surat_kesanggupan_penyedia || '028/GPN-NGW/SP-SPPBJ/V/2026';
   const tglSuratKesanggupan = paket.tgl_surat_kesanggupan || '2026-05-25';
   const tglSuratKesanggupanStr = formatTanggalIndo(tglSuratKesanggupan);
@@ -5026,6 +5025,11 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   const tglBahpStr = '21 Mei 2026';
   const noBaReviu = '010/BA-REV/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026';
   const tglBaReviuStr = '22 Mei 2026';
+
+  const wajibJampel = Number(paket.wajib_jaminan_pelaksanaan || 0) === 1 || String(paket.status_jaminan_pelaksanaan || '').includes('DIPERSYARATKAN');
+  const nilaiJampel = Number(paket.nilai_jaminan_pelaksanaan || 0);
+  const statusJampel = String(paket.status_jaminan_pelaksanaan || '');
+  const alasanJampel = paket.alasan_bebas_jaminan || 'Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ (Nilai s.d. Rp 200 Juta / E-Purchasing)';
 
   const makeHeader = (label, docNo) => new Header({
     children: [
@@ -5076,8 +5080,8 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
             borders: BORDER_NONE,
             children: [
               pText(locDate, { align: AlignmentType.CENTER, size: 20, before: 10, after: 10 }),
-              pText('PEJABAT PEMBUAT KOMITMEN (PPK)', { align: AlignmentType.CENTER, bold: true, size: 20, before: 0, after: 5 }),
-              pText((settings.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase(), { align: AlignmentType.CENTER, bold: true, size: 19, color: '1E3A8A', before: 0, after: 380 }),
+              pText('Pejabat Pembuat Komitmen (PPK)', { align: AlignmentType.CENTER, bold: true, size: 20, before: 0, after: 5 }),
+              pText('Satuan Kerja KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, size: 19, before: 0, after: 180 }),
               pText(ppkNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 21, color: '0F172A', before: 0, after: 5 }),
               pText('NIP. ' + ppkNip, { align: AlignmentType.CENTER, size: 19, color: '334155', before: 0, after: 10 })
             ]
@@ -5138,7 +5142,7 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
                       new TableRow({ children: [
                         new TableCell({ borders: BORDER_NONE, children: [pText('Perihal', { size: 20, bold: true })] }),
                         new TableCell({ borders: BORDER_NONE, children: [pText(':', { size: 20 })] }),
-                        new TableCell({ borders: BORDER_NONE, children: [pText('Penunjukan Penyedia untuk Pelaksanaan Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi', { size: 20, bold: true, color: '0F172A' })] })
+                        new TableCell({ borders: BORDER_NONE, children: [pText('Penunjukan Penyedia untuk Pelaksanaan ' + (paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi'), { size: 20, bold: true, color: '0F172A' })] })
                       ]})
                     ]
                   })
@@ -5152,9 +5156,9 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
                   pText('Kepada Yth.:', { align: AlignmentType.LEFT, bold: true, size: 20, before: 20, after: 5 }),
                   pText('Direktur ' + namaPenyedia, { align: AlignmentType.LEFT, bold: true, size: 20, color: '15803D', before: 0, after: 5 }),
                   pText('(d.h. ' + direkturPenyedia + ')', { align: AlignmentType.LEFT, size: 19, color: '475569', before: 0, after: 5 }),
-                  pText(alamatPenyedia, { align: AlignmentType.LEFT, size: 19, color: '334155', before: 0, after: 5 }),
-                  pText('di —', { align: AlignmentType.LEFT, size: 19, before: 5, after: 2 }),
-                  pText('     NGAWI', { align: AlignmentType.LEFT, bold: true, size: 20, before: 0, after: 10 })
+                  pText(alamatPenyedia, { align: AlignmentType.LEFT, size: 18, color: '64748B', before: 0, after: 5 }),
+                  pText('di —', { align: AlignmentType.LEFT, size: 19, before: 0, after: 0 }),
+                  pText('     N G A W I', { align: AlignmentType.LEFT, bold: true, size: 20, color: '0F172A', before: 0, after: 10 })
                 ]
               })
             ]
@@ -5162,36 +5166,31 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
         ]
       }),
 
-      pText('', { before: 40, after: 40 }),
+      pText('', { before: 20, after: 20 }),
+      pText('Dengan hormat,', { size: 21, before: 10, after: 20 }),
 
-      pText('Dengan hormat,', { size: 21, before: 40, after: 30 }),
-      pText('Merujuk pada:', { size: 21, before: 10, after: 20 }),
-      pListItem('1.', 'Berita Acara Hasil Pemilihan (BAHP-EP)', `Pejabat Pengadaan Satker KPU Kabupaten Ngawi Nomor: ${noBahp} tanggal ${tglBahpStr};`),
-      pListItem('2.', 'Berita Acara Reviu Hasil Pemilihan Penyedia oleh PPK', `Nomor: ${noBaReviu} tanggal ${tglBaReviuStr} yang memutuskan Disetujui Penuh untuk Diterbitkan SPPBJ; dan`),
-      pListItem('3.', 'Keputusan Kepala LKPP Nomor 177 Tahun 2024', 'tentang Tata Cara Penyelenggaraan Transaksi melalui Sistem Katalog Elektronik Versi 6.0;'),
+      pText('Berdasarkan dokumen proses pengadaan barang/jasa pemerintah:', { size: 21, align: AlignmentType.JUSTIFIED, before: 10, after: 20 }),
 
-      pText(`maka dengan ini Pejabat Pembuat Komitmen (PPK) Satker Komisi Pemilihan Umum Kabupaten Ngawi secara resmi MENETAPKAN dan MENUNJUK perusahaan Saudara:`, { size: 21, align: AlignmentType.JUSTIFIED, before: 40, after: 40 }),
+      pListItem('1.', 'Berita Acara Hasil Pemilihan (BAHP/BAHP-EP)', `Pejabat Pengadaan Satker KPU Kabupaten Ngawi Nomor: ${noBahp} tanggal ${tglBahpStr}; dan`),
+      pListItem('2.', 'Berita Acara Reviu Hasil Pemilihan Penyedia oleh PPK', `Nomor: ${noBaReviu} tanggal ${tglBaReviuStr} yang memutuskan hasil pemilihan penyedia disetujui penuh untuk diterbitkan Surat Penunjukan Penyedia Barang/Jasa (SPPBJ).`),
 
-      // Tabel Identitas Penunjukan
+      pText('Dengan ini kami beritahukan bahwa proposal penawaran / kesepakatan harga Saudara pada paket pekerjaan:', { size: 21, align: AlignmentType.JUSTIFIED, before: 30, after: 20 }),
+
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         borders: BORDER_TABLE,
         rows: [
           new TableRow({ cantSplit: true, children: [
-            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Penyedia Terpilih', { bold: true, size: 20, before: 20, after: 20 })] }),
-            new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(`${namaPenyedia} (Pimpinan: ${direkturPenyedia})`, { bold: true, color: '15803D', size: 20, before: 20, after: 20 })] })
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Paket Pekerjaan', { bold: true, size: 20, before: 20, after: 20 })] }),
+            new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi', { bold: true, color: '1E3A8A', size: 20, before: 20, after: 20 })] })
           ]}),
           new TableRow({ cantSplit: true, children: [
-            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nomor Induk Berusaha & KBLI', { bold: true, size: 20, before: 20, after: 20 })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(`NIB: ${nibPenyedia} | KBLI: ${kbliPenyedia}`, { bold: true, color: '1E3A8A', size: 19, before: 20, after: 20 })] })
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Kode RUP / Paket Internal', { bold: true, size: 20, before: 20, after: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(`${paket.kode_rup || '54882910'} / ${paket.kode_paket_internal || 'PBJ-2026-001'}`, { size: 20, before: 20, after: 20 })] })
           ]}),
           new TableRow({ cantSplit: true, children: [
-            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('NPWP & Status Fiskal KSWP', { bold: true, size: 20, before: 20, after: 20 })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(`NPWP: ${npwpPenyedia} | Status KSWP: VALID (DJP Kemenkeu)`, { size: 19, before: 20, after: 20 })] })
-          ]}),
-          new TableRow({ cantSplit: true, children: [
-            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Paket Pekerjaan', { bold: true, size: 20, before: 20, after: 20 })] }),
-            new TableCell({ borders: BORDER_TABLE, children: [pText(`${paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi'}`, { bold: true, size: 20, before: 20, after: 20 })] })
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Metode Pemilihan', { bold: true, size: 20, before: 20, after: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(`${metode} (Katalog Elektronik)`, { bold: true, color: '15803D', size: 20, before: 20, after: 20 })] })
           ]}),
           new TableRow({ cantSplit: true, children: [
             new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nilai Penunjukan (Sepakat Final)', { bold: true, size: 20, before: 20, after: 20 })] }),
@@ -5209,9 +5208,12 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
 
       pText('Sebagai Penyedia Barang/Jasa untuk melaksanakan pekerjaan tersebut di atas, dengan ketentuan dan kewajiban hukum sebagai berikut:', { size: 21, align: AlignmentType.JUSTIFIED, before: 40, after: 30 }),
 
-      pListItem('1.', 'Kewajiban Penandatanganan Kontrak', 'Saudara diwajibkan untuk menandatangani Kontrak / Surat Pesanan paling lambat 14 (empat belas) hari kerja setelah diterbitkannya Surat Penunjukan Penyedia Barang/Jasa (SPPBJ) ini. Penandatanganan kontrak dijadwalkan pada hari Rabu, tanggal 27 Mei 2026 bertempat di Kantor KPU Kabupaten Ngawi.'),
-      pListItem('2.', 'Undangan Rapat Persiapan Penandatanganan Kontrak (PAM)', 'Guna mematangkan substansi draf kontrak, verifikasi rekening pembayaran bank rekanan, jadwal pengiriman, dan kesiapan teknis, Saudara diundang menghadiri Rapat Persiapan Penandatanganan Kontrak (Pre-Award Meeting / PAM) Tahap 12 pada hari Selasa, tanggal 26 Mei 2026 pukul 09.00 WIB.'),
-      pListItem('3.', 'Ketentuan Jaminan Pelaksanaan', 'Berdasarkan ketentuan Pasal 33 ayat (2) huruf b dan ayat (3) Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah jo. Peraturan Presiden Nomor 46 Tahun 2025 serta Keputusan Kepala LKPP Nomor 177 Tahun 2024, paket pekerjaan ini DIBEBASKAN DARI KEWAJIBAN MENYERAHKAN JAMINAN PELAKSANAAN dikarenakan pengadaan dilakukan melalui sistem E-Purchasing Katalog Elektronik dengan nilai transaksi di bawah Rp 200.000.000,00.'),
+      pListItem('1.', 'Kewajiban Penandatanganan Kontrak', 'Saudara diwajibkan untuk menandatangani Kontrak / Surat Pesanan paling lambat 14 (empat belas) hari kerja setelah diterbitkannya Surat Penunjukan Penyedia Barang/Jasa (SPPBJ) ini. Kepastian hari, tanggal, dan mekanisme penandatanganan Kontrak akan disepakati bersama dalam Rapat Persiapan Penandatanganan Kontrak (PAM).'),
+      pListItem('2.', 'Undangan Rapat Persiapan Penandatanganan Kontrak (PAM)', 'Guna mematangkan substansi draf kontrak, verifikasi rekening pembayaran bank rekanan, jadwal pengiriman, serta menetapkan jadwal definitif penandatanganan kontrak, Saudara diundang menghadiri Rapat Persiapan Penandatanganan Kontrak (Pre-Award Meeting / PAM) Tahap 12 yang jadwal pelaksanaannya dikoordinasikan lebih lanjut oleh PPK.'),
+      pListItem('3.', 'Ketentuan Jaminan Pelaksanaan', wajibJampel && nilaiJampel > 0
+        ? `Berdasarkan ketentuan Pasal 33 Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah jo. Peraturan Presiden Nomor 46 Tahun 2025, Saudara DIWAJIBKAN MENYERAHKAN JAMINAN PELAKSANAAN sebesar 5% (lima persen) dari ${statusJampel.includes('HPS') ? 'Nilai HPS' : 'Nilai Kontrak'} yaitu senilai ${formatRupiah(nilaiJampel)} (${terbilang(nilaiJampel)} rupiah) dalam bentuk Jaminan Bank atau Surety Bond yang diterbitkan oleh Bank Umum / Perusahaan Penjaminan / Asuransi yang berizin dan teregistrasi OJK sebelum penandatanganan Kontrak paling lambat 14 (empat belas) hari kerja sejak SPPBJ ini diterbitkan.`
+        : `Berdasarkan ketentuan Pasal 33 ayat (2) huruf b dan ayat (3) Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah jo. Peraturan Presiden Nomor 46 Tahun 2025, paket pekerjaan ini TIDAK DIKENAKAN / DIBEBASKAN DARI KEWAJIBAN MENYERAHKAN JAMINAN PELAKSANAAN dikarenakan ${alasanJampel || ('nilai transaksi sebesar ' + formatRupiah(sepakatKontrak) + ' tidak melampaui nilai ambang batas Rp 200.000.000,00 (dua ratus juta rupiah) serta dilaksanakan melalui sistem E-Purchasing Katalog Elektronik')}.`
+      ),
       pListItem('4.', 'Pernyataan Kesanggupan & Integritas Rekanan', 'Saudara diwajibkan menyerahkan Surat Pernyataan Kesanggupan dan Penerimaan Penunjukan bermeterai cukup Rp 10.000,- yang memuat jaminan 100% barang baru original bergaransi resmi pabrikan 1 tahun on-site service, bebas cacat mutu, serta komitmen bebas dari benturan kepentingan dan praktik gratifikasi.'),
       pListItem('5.', 'Sanksi Wanprestasi / Pengunduran Diri', 'Kegagalan Saudara untuk menerima penunjukan ini atau menandatangani Kontrak tanpa alasan yang dapat dipertanggungjawabkan secara hukum akan dikenakan sanksi berupa pengenaan Sanksi Daftar Hitam (Blacklist) Nasional selama 1 (satu) tahun sesuai ketentuan peraturan perundang-undangan.'),
 
@@ -5222,106 +5224,17 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   };
 
   // ===========================================================================
-  // DOKUMEN 02: SURAT PENETAPAN PEMBEBASAN JAMINAN PELAKSANAAN (SK-BJP)
+  // DOKUMEN 02: SURAT PERNYATAAN KESANGGUPAN & PENERIMAAN PENUNJUKAN OLEH PENYEDIA
   // ===========================================================================
   const section2 = {
     properties: {
       type: SectionType.NEXT_PAGE,
       page: pageProps
     },
-    headers: { default: makeHeader('SURAT PENETAPAN PEMBEBASAN JAMINAN PELAKSANAAN', noSkBjp) },
-    footers: { default: makeFooter('Dokumen 02: Penetapan Pembebasan Jaminan Pelaksanaan PPK') },
-    children: [
-      ...buildKopSuratKpu(settings),
-
-      pText('SURAT PENETAPAN PEMBEBASAN JAMINAN PELAKSANAAN', { align: AlignmentType.CENTER, bold: true, size: 24, color: '1E3A8A', before: 40, after: 10 }),
-      pText('NOMOR: ' + noSkBjp, { align: AlignmentType.CENTER, bold: true, size: 20, color: '0F172A', before: 0, after: 40 }),
-
-      pText('TENTANG', { align: AlignmentType.CENTER, bold: true, size: 19, color: '475569', before: 0, after: 10 }),
-      pText('PEMBEBASAN KEWAJIBAN MENYERAHKAN JAMINAN PELAKSANAAN PADA PENGADAAN PERANGKAT PENGOLAH DATA DAN PC SERVER OPERASIONAL KPU KABUPATEN NGAWI', { align: AlignmentType.CENTER, bold: true, size: 20, color: '0F172A', before: 0, after: 60 }),
-
-      pText('PEJABAT PEMBUAT KOMITMEN SATUAN KERJA KOMISI PEMILIHAN UMUM KABUPATEN NGAWI,', { align: AlignmentType.CENTER, bold: true, size: 20, before: 20, after: 40 }),
-
-      new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        borders: BORDER_NONE,
-        rows: [
-          new TableRow({ children: [
-            new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Menimbang', { bold: true, size: 20 })] }),
-            new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { size: 20 })] }),
-            new TableCell({ width: { size: 75, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [
-              pListItem('a.', '', 'bahwa proses pemilihan penyedia untuk paket Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi telah selesai dilaksanakan melalui E-Purchasing Katalog Elektronik Versi 6.0;'),
-              pListItem('b.', '', 'bahwa nilai kontrak yang disepakati adalah sebesar Rp 138.000.000,- (seratus tiga puluh delapan juta rupiah) dan berada di bawah nilai ambang batas Rp 200.000.000,-;'),
-              pListItem('c.', '', 'bahwa berdasarkan regulasi pengadaan barang/jasa pemerintah, transaksi melalui E-Purchasing dan/atau bernilai s.d. Rp 200 Juta tidak dipersyaratkan jaminan pelaksanaan guna efisiensi anggaran dan percepatan belanja negara;'),
-              pListItem('d.', '', 'bahwa berdasarkan pertimbangan sebagaimana dimaksud pada huruf a, b, dan c, perlu menetapkan Surat Penetapan Pembebasan Jaminan Pelaksanaan;')
-            ]})
-          ]}),
-          new TableRow({ children: [
-            new TableCell({ borders: BORDER_NONE, children: [pText('Mengingat', { bold: true, size: 20 })] }),
-            new TableCell({ borders: BORDER_NONE, children: [pText(':', { size: 20 })] }),
-            new TableCell({ borders: BORDER_NONE, children: [
-              pListItem('1.', '', 'Undang-Undang Nomor 7 Tahun 2017 tentang Pemilihan Umum sebagaimana telah diubah dengan UU Nomor 7 Tahun 2023;'),
-              pListItem('2.', '', 'Peraturan Presiden Nomor 16 Tahun 2018 tentang Pengadaan Barang/Jasa Pemerintah jo. Perpres Nomor 12 Tahun 2021 jo. Perpres Nomor 46 Tahun 2025 Pasal 33 ayat (2) huruf b dan ayat (3);'),
-              pListItem('3.', '', 'Keputusan Kepala Lembaga Kebijakan Pengadaan Barang/Jasa Pemerintah Nomor 177 Tahun 2024 tentang Tata Cara Penyelenggaraan E-Purchasing;'),
-              pListItem('4.', '', 'Keputusan Komisi Pemilihan Umum Kabupaten Ngawi Nomor 43 Tahun 2026 tentang Penetapan Pejabat Pembuat Komitmen (PPK) Satuan Kerja KPU Kabupaten Ngawi TA 2026;')
-            ]})
-          ]})
-        ]
-      }),
-
-      pText('MEMUTUSKAN:', { align: AlignmentType.CENTER, bold: true, size: 21, color: '1E3A8A', before: 40, after: 30 }),
-
-      pText('MENETAPKAN:', { align: AlignmentType.LEFT, bold: true, size: 20, before: 10, after: 20 }),
-
-      pListItem('KESATU', '', `Menetapkan PEMBEBASAN KEWAJIBAN MENYERAHKAN JAMINAN PELAKSANAAN (0% / Nihil) kepada Rekanan CV. GRAFIKA PRATAMA NGAWI (Pimpinan: ${direkturPenyedia}) pada paket Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi dengan nilai transaksi Rp 138.000.000,- (Seratus Tiga Puluh Delapan Juta Rupiah).`),
-      pListItem('KEDUA', '', 'Pembebasan kewajiban Jaminan Pelaksanaan sebagaimana dimaksud dalam Diktum KESATU didasarkan pada parameter yuridis kepatuhan sebagai berikut:'),
-      pListItem('  a.', 'Ambang Batas Nilai', 'Nilai Kontrak sebesar Rp 138.000.000,- berada di bawah ambang batas kewajiban penyerahan jaminan pelaksanaan pengadaan barang yaitu paling tinggi Rp 200.000.000,- (Pasal 33 ayat 2 huruf b Perpres PBJ);'),
-      pListItem('  b.', 'Instrumen E-Purchasing', 'Pengadaan dilaksanakan melalui sistem Katalog Elektronik Versi 6.0 (E-Purchasing) yang secara regulasi dikecualikan dari kewajiban jaminan pelaksanaan (Pasal 33 ayat 3 Perpres PBJ);'),
-      pListItem('  c.', 'Mitigasi Risiko Barang Standar', 'Barang yang diadakan merupakan produk pabrikan standar (ready-stock) berspesifikasi baku yang dilindungi Surat Jaminan Purna Jual / Garansi Resmi Pabrikan selama minimal 1 (satu) tahun (365 hari kalender) on-site replacement.'),
-      pListItem('KETIGA', '', 'Meskipun dibebaskan dari Jaminan Pelaksanaan, Penyedia tetap terikat penuh pada ketentuan denda keterlambatan sebesar 1 permil per hari, kewajiban penyerahan barang 100% baru original, serta sanksi pemutusan sepihak dan pencantuman dalam Daftar Hitam (Blacklist) apabila terjadi wanprestasi.'),
-      pListItem('KEEMPAT', '', 'Keputusan ini mulai berlaku pada tanggal ditetapkan dengan ketentuan apabila di kemudian hari terdapat kekeliruan akan dilakukan perbaikan sebagaimana mestinya.'),
-
-      pText('', { before: 40, after: 40 }),
-
-      buildSingleSignPpk('Ditetapkan di: Ngawi\nPada tanggal: ' + tglTahap11Str)
-    ]
-  };
-
-  // ===========================================================================
-  // DOKUMEN 03: SURAT PERNYATAAN KESANGGUPAN & PENERIMAAN PENUNJUKAN OLEH PENYEDIA
-  // ===========================================================================
-  const section3 = {
-    properties: {
-      type: SectionType.NEXT_PAGE,
-      page: pageProps
-    },
     headers: { default: makeHeader('SURAT PERNYATAAN KESANGGUPAN & PENERIMAAN SPPBJ', noSuratKesanggupan) },
-    footers: { default: makeFooter('Dokumen 03: Pernyataan Kesanggupan Rekanan Penyedia') },
+    footers: { default: makeFooter('Dokumen 02: Pernyataan Kesanggupan Penyedia') },
     children: [
-      // Kop Surat Penyedia (CV. GRAFIKA PRATAMA NGAWI)
-      new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        borders: BORDER_NONE,
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                borders: BORDER_NONE,
-                children: [
-                  pText('CV. GRAFIKA PRATAMA NGAWI', { align: AlignmentType.CENTER, bold: true, size: 26, color: '15803D', before: 0, after: 5 }),
-                  pText('PERDAGANGAN BESAR KOMPUTER, PERALATAN TELEKOMUNIKASI & PERCETAKAN UMUM', { align: AlignmentType.CENTER, bold: true, size: 18, color: '0F172A', before: 0, after: 5 }),
-                  pText(alamatPenyedia + ' — Telepon: (0351) 749821 / 0812-3456-7890', { align: AlignmentType.CENTER, size: 17, color: '475569', before: 0, after: 5 }),
-                  pText('Laman: www.grafikapratama.co.id | Pos-el: sales@grafikapratama.co.id | NPWP: ' + npwpPenyedia, { align: AlignmentType.CENTER, size: 17, color: '475569', before: 0, after: 10 })
-                ]
-              })
-            ]
-          })
-        ]
-      }),
-      new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: '15803D' } }, spacing: { after: 120 } }),
-
-      pText('SURAT PERNYATAAN KESANGGUPAN DAN PENERIMAAN PENUNJUKAN PENYEDIA (SPPBJ)', { align: AlignmentType.CENTER, bold: true, size: 22, color: '15803D', before: 40, after: 10 }),
+      pText('SURAT PERNYATAAN KESANGGUPAN DAN PENERIMAAN PENUNJUKAN PENYEDIA (SPPBJ)', { align: AlignmentType.CENTER, bold: true, size: 24, color: '1E3A8A', before: 40, after: 10 }),
       pText('NOMOR: ' + noSuratKesanggupan, { align: AlignmentType.CENTER, bold: true, size: 20, color: '0F172A', before: 0, after: 40 }),
 
       pText('Yang bertanda tangan di bawah ini:', { size: 21, before: 20, after: 20 }),
@@ -5331,7 +5244,7 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
         borders: BORDER_TABLE,
         rows: [
           new TableRow({ cantSplit: true, children: [
-            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Penandatangan', { bold: true, size: 20, before: 20, after: 20 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Penanggung Jawab', { bold: true, size: 20, before: 20, after: 20 })] }),
             new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(direkturPenyedia, { bold: true, color: '0F172A', size: 20, before: 20, after: 20 })] })
           ]}),
           new TableRow({ cantSplit: true, children: [
@@ -5357,7 +5270,7 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
       pText(`Sehubungan dengan telah diterbitkannya Surat Penunjukan Penyedia Barang/Jasa (SPPBJ) Pejabat Pembuat Komitmen Satker KPU Kabupaten Ngawi Nomor: ${noSppbj} tanggal ${tglTahap11Str} untuk paket pekerjaan "${paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi'}", dengan ini kami menyatakan dengan sesungguhnya bahwa:`, { size: 21, align: AlignmentType.JUSTIFIED, before: 30, after: 30 }),
 
       pListItem('1.', 'Menerima Penunjukan Secara Penuh', `Kami MENERIMA DENGAN PENUH TANGGUNG JAWAB penunjukan sebagai Penyedia Barang/Jasa untuk melaksanakan pekerjaan tersebut dengan nilai kesepakatan final sebesar ${formatRupiah(sepakatKontrak)} (Termasuk PPN 11% dan PPh 22 1,5%).`),
-      pListItem('2.', 'Kesiapan Penandatanganan Kontrak & PAM', 'Kami sanggup dan berkomitmen penuh untuk menghadiri Rapat Persiapan Penandatanganan Kontrak (PAM) pada Selasa, 26 Mei 2026 serta menandatangani Kontrak / Surat Pesanan pada Rabu, 27 Mei 2026 sesuai batas waktu yang ditetapkan PPK.'),
+      pListItem('2.', 'Kesiapan Penandatanganan Kontrak & PAM', 'Kami sanggup dan berkomitmen penuh untuk menghadiri Rapat Persiapan Penandatanganan Kontrak (PAM) serta menandatangani Kontrak / Surat Pesanan dalam jangka waktu paling lambat 14 (empat belas) hari kerja sejak diterbitkannya SPPBJ sesuai jadwal yang disepakati bersama PPK.'),
       pListItem('3.', 'Kepatuhan Spesifikasi Teknis & Garansi Resmi', 'Kami menjamin seluruh barang perangkat pengolah data dan PC Server yang kami serahkan 100% dalam kondisi BARU (Brand New In Box), ASLI / ORIGINAL, memenuhi standar Kerangka Acuan Kerja (KAK), serta didukung Sertifikat Garansi Resmi Pabrikan minimal 1 (satu) tahun on-site replacement.'),
       pListItem('4.', 'Integritas & Bebas Benturan Kepentingan', 'Kami menyatakan tidak memiliki hubungan afiliasi atau benturan kepentingan dengan PPK, Pokja/Pejabat Pengadaan, maupun pejabat struktural di lingkungan KPU Kabupaten Ngawi, serta berkomitmen menjunjung tinggi prinsip anti-korupsi, kolusi, dan nepotisme.'),
       pListItem('5.', 'Kesediaan Menerima Sanksi Hukum', 'Apabila di kemudian hari kami mengingkari pernyataan kesanggupan ini atau lalai melaksanakan penandatanganan kontrak, kami bersedia dikenakan sanksi pencantuman dalam Daftar Hitam (Blacklist) Nasional LKPP dan sanksi hukum perdata/pidana yang berlaku.'),
@@ -5396,7 +5309,7 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
     ]
   };
 
-  return [section1, section2, section3];
+  return [section1, section2];
 }
 
 function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {

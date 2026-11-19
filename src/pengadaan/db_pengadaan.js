@@ -735,6 +735,8 @@ async function savePaket(data) {
         bo_nama=?, bo_nik=?, bo_posisi=?, bo_benturan_kepentingan=?, evaluasi_spek_sla=?, catatan_reviu_ppk=?,
         masa_pelaksanaan_hari=?, tgl_mulai_kerja=?, tgl_selesai_kontrak=?, tgl_realisasi_selesai=?, hari_terlambat=?,
         persen_uang_muka=?, nilai_uang_muka=?, wajib_jaminan_pelaksanaan=?, nilai_jaminan_pelaksanaan=?,
+        no_sppbj=?, tgl_sppbj=?, status_jaminan_pelaksanaan=?, alasan_bebas_jaminan=?,
+        no_surat_kesanggupan_penyedia=?, tgl_surat_kesanggupan=?, batas_waktu_ttd_kontrak=?, catatan_sppbj=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
         tahap_aktif=?, status_paket=?, skor_kualitas=?, skor_biaya=?, skor_waktu=?, skor_layanan=?,
         nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?
@@ -791,7 +793,16 @@ async function savePaket(data) {
         Number(p.masa_pelaksanaan_hari ?? cur.masa_pelaksanaan_hari ?? 14),
         p.tgl_mulai_kerja || cur.tgl_mulai_kerja || '2026-05-18', p.tgl_selesai_kontrak || cur.tgl_selesai_kontrak || '2026-05-31', p.tgl_realisasi_selesai || cur.tgl_realisasi_selesai || '2026-05-30', Number(p.hari_terlambat ?? cur.hari_terlambat ?? 0),
         Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0), Math.round(((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) || Number(p.nilai_hps ?? cur.nilai_hps ?? 0) || Number(p.nilai_pagu ?? cur.nilai_pagu ?? 0)) * Number(p.persen_uang_muka ?? cur.persen_uang_muka ?? 0)) / 100),
-        Number(p.wajib_jaminan_pelaksanaan ?? cur.wajib_jaminan_pelaksanaan ?? rekomendasi.wajibJaminan), Math.round((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) || Number(p.nilai_hps ?? cur.nilai_hps ?? 0)) * 0.05),
+        Number(p.wajib_jaminan_pelaksanaan !== undefined ? p.wajib_jaminan_pelaksanaan : (cur.wajib_jaminan_pelaksanaan !== undefined ? cur.wajib_jaminan_pelaksanaan : rekomendasi.wajibJaminan)),
+        Number(p.nilai_jaminan_pelaksanaan !== undefined ? p.nilai_jaminan_pelaksanaan : (cur.nilai_jaminan_pelaksanaan !== undefined ? cur.nilai_jaminan_pelaksanaan : (Number(p.wajib_jaminan_pelaksanaan ?? cur.wajib_jaminan_pelaksanaan ?? rekomendasi.wajibJaminan) ? Math.round((Number(p.nilai_kontrak ?? cur.nilai_kontrak ?? 0) || Number(p.nilai_hps ?? cur.nilai_hps ?? 0)) * 0.05) : 0))),
+        p.no_sppbj || cur.no_sppbj || null,
+        p.tgl_sppbj || cur.tgl_sppbj || null,
+        p.status_jaminan_pelaksanaan || cur.status_jaminan_pelaksanaan || 'DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)',
+        p.alasan_bebas_jaminan || cur.alasan_bebas_jaminan || 'Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ',
+        p.no_surat_kesanggupan_penyedia || cur.no_surat_kesanggupan_penyedia || null,
+        p.tgl_surat_kesanggupan || cur.tgl_surat_kesanggupan || null,
+        p.batas_waktu_ttd_kontrak || cur.batas_waktu_ttd_kontrak || null,
+        p.catatan_sppbj || cur.catatan_sppbj || null,
         p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
@@ -823,8 +834,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -834,7 +845,8 @@ async function savePaket(data) {
            no_reviu_dpp = VALUES(no_reviu_dpp),
            no_ba_nego = VALUES(no_ba_nego),
            no_bahp = VALUES(no_bahp),
-           no_ba_reviu_ppk = VALUES(no_ba_reviu_ppk)`,
+           no_ba_reviu_ppk = VALUES(no_ba_reviu_ppk),
+           no_sppbj = VALUES(no_sppbj)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -845,7 +857,8 @@ async function savePaket(data) {
           su.no_reviu_dpp || existingStage.no_reviu_dpp || null,
           su.no_ba_nego || existingStage.no_ba_nego || null,
           su.no_bahp || existingStage.no_bahp || null,
-          su.no_ba_reviu_ppk || existingStage.no_ba_reviu_ppk || null
+          su.no_ba_reviu_ppk || existingStage.no_ba_reviu_ppk || null,
+          su.no_sppbj || existingStage.no_sppbj || p.no_sppbj || null
         ]
       );
 

@@ -5736,10 +5736,10 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       const noSppbj = activeTRow.nomor_dokumen || paket.no_sppbj || `011/SPPBJ/${paket.kode_paket_internal || 'PBJ-2026-001'}/PPK-PBJ/KPU-NGW/V/2026`;
       const tglSppbj = activeTRow.tanggal_dokumen || paket.tgl_sppbj || '2026-05-25';
       const statusJaminan = paket.status_jaminan_pelaksanaan || 'DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)';
-      const alasanJaminan = paket.alasan_bebas_jaminan || 'Pasal 33 ayat (2) huruf b & ayat (3) Perpres PBJ jo. Kepka LKPP No. 177/2024';
+      const alasanJaminan = paket.alasan_bebas_jaminan || 'Pasal 33 ayat (2) huruf b & ayat (3) Perpres PBJ (Nilai s.d. Rp 200 Juta / E-Purchasing)';
       const noKesanggupan = paket.no_surat_kesanggupan_penyedia || '028/GPN-NGW/SP-SPPBJ/V/2026';
       const tglKesanggupan = paket.tgl_surat_kesanggupan || '2026-05-25';
-      const batasTtdKontrak = paket.batas_waktu_ttd_kontrak || '2026-05-27';
+      const batasTtdKontrak = paket.batas_waktu_ttd_kontrak || 'Paling lambat 14 Hari Kerja sejak SPPBJ';
 
       return `
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
@@ -5787,10 +5787,10 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
               Termasuk PPN 11% &amp; PPh 22 1,5% | MAK 532111 Belanja Modal
             </div>
             <div style="font-size:11px; color:#1e293b; margin-top:4px; padding-top:4px; border-top:1px dashed #bfdbfe;">
-              <b>Rapat PAM (Tahap 12):</b> Selasa, 26 Mei 2026 (09.00 WIB)
+              <b>Rapat PAM (Tahap 12):</b> Disepakati Bersama Rekanan (Sebelum TTD Kontrak)
             </div>
             <div style="font-size:11px; color:#1e293b; margin-top:2px;">
-              <b>Target TTD Kontrak:</b> <span style="color:#b91c1c; font-weight:700;">${cakraEsc(batasTtdKontrak)}</span> (Maks 14 Hari Kerja)
+              <b>Batas Akhir TTD Kontrak:</b> <span style="color:#b91c1c; font-weight:700;">Maksimal 14 Hari Kerja</span> sejak SPPBJ
             </div>
             <div style="font-size:10.5px; color:#64748b; margin-top:2px;">
               Bentuk Naskah: Surat Pesanan E-Purchasing Katalog
@@ -9932,12 +9932,29 @@ function generateUniversalModalFields(num, paket, activeTRow) {
     case 11: {
       const defaultNoSppbj = activeTRow.nomor_dokumen || paket.no_sppbj || `011/SPPBJ/${paket.kode_paket_internal || 'PBJ-2026-001'}/PPK-PBJ/KPU-NGW/V/2026`;
       const defaultTglSppbj = activeTRow.tanggal_dokumen || paket.tgl_sppbj || '2026-05-25';
-      const defaultStatusJaminan = paket.status_jaminan_pelaksanaan || 'DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)';
-      const defaultAlasan = paket.alasan_bebas_jaminan || 'Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ jo. Kepka LKPP No. 177/2024';
       const defaultNoKesanggupan = paket.no_surat_kesanggupan_penyedia || '028/GPN-NGW/SP-SPPBJ/V/2026';
       const defaultTglKesanggupan = paket.tgl_surat_kesanggupan || '2026-05-25';
       const defaultBatasTtd = paket.batas_waktu_ttd_kontrak || '2026-05-27';
       const defaultCatatan = paket.catatan_sppbj || 'PPK telah menerbitkan Surat Penunjukan Penyedia Barang/Jasa (SPPBJ) kepada CV. Grafika Pratama Ngawi berdasarkan Berita Acara Reviu Tahap 10. Nilai penunjukan Rp 138.000.000,- (Termasuk PPN 11%). Jaminan Pelaksanaan DIBEBASKAN berdasarkan Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ. Rekanan telah menyampaikan Surat Pernyataan Kesanggupan dan siap menghadiri Rapat PAM Tahap 12.';
+
+      const nilaiHps = Number(paket.nilai_hps || paket.nilai_pagu || 140350000);
+      const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
+      const rasioPenawaran = nilaiHps > 0 ? ((nilaiKontrak / nilaiHps) * 100) : 100;
+      const autoJampel = hitungAutoJaminanPelaksanaanRegulasi(paket);
+
+      const defaultStatusJaminan = paket.status_jaminan_pelaksanaan || autoJampel.status;
+      const defaultAlasan = (paket.alasan_bebas_jaminan && !paket.alasan_bebas_jaminan.includes('177/2024'))
+        ? paket.alasan_bebas_jaminan
+        : autoJampel.alasan;
+      const defaultNilaiJampel = (paket.nilai_jaminan_pelaksanaan !== undefined && paket.nilai_jaminan_pelaksanaan !== null)
+        ? Number(paket.nilai_jaminan_pelaksanaan)
+        : autoJampel.nilaiJaminan;
+
+      const isDipersyaratkan = defaultStatusJaminan.includes('DIPERSYARATKAN');
+      const isLowBid = defaultStatusJaminan.includes('Penawaran < 80%') || defaultStatusJaminan.includes('HPS');
+      const boxBg = isDipersyaratkan ? (isLowBid ? '#faf5ff' : '#fffbeb') : '#f0fdf4';
+      const boxBorder = isDipersyaratkan ? (isLowBid ? '#d8b4fe' : '#fde68a') : '#86efac';
+      const selColor = isDipersyaratkan ? (isLowBid ? '#7c3aed' : '#b45309') : '#15803d';
 
       return `
         <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px;">
@@ -9965,21 +9982,55 @@ function generateUniversalModalFields(num, paket, activeTRow) {
           </div>
         </div>
 
-        <!-- BLOK 2: KETENTUAN JAMINAN PELAKSANAAN -->
-        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; margin-bottom:12px;">
-          <div style="font-size:11px; font-weight:800; color:#166534; text-transform:uppercase; margin-bottom:8px;">
-            🛡️ 2. Ketentuan Jaminan Pelaksanaan (Pasal 33 Perpres PBJ)
+        <!-- BLOK 2: KETENTUAN JAMINAN PELAKSANAAN & AUTO-CALCULATOR -->
+        <div id="t11_blok_jaminan" style="background:${boxBg}; border:1px solid ${boxBorder}; border-radius:8px; padding:12px; margin-bottom:12px; transition:all 0.2s ease;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-size:11px; font-weight:800; color:#166534; text-transform:uppercase;">
+              🛡️ 2. Ketentuan Jaminan Pelaksanaan (Pasal 33 Perpres PBJ)
+            </div>
+            <button type="button" class="btn btn-xs" style="font-size:10px; padding:2px 8px; border-radius:4px; border:1px solid #86efac; background:#ffffff; color:#166534; font-weight:700; cursor:pointer;" onclick="resetTahap11JaminanOtomatis()" title="Hitung ulang otomatis berdasarkan Nilai Kontrak & HPS">
+              🔄 Hitung Ulang Otomatis
+            </button>
           </div>
-          <div style="margin-bottom:10px;">
-            <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status Kewajiban Jaminan Pelaksanaan</label>
-            <select id="mu_status_jaminan_pelaksanaan" class="cakra-form-control" style="font-weight:700; color:#15803d;">
-              <option value="DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)" ${defaultStatusJaminan.includes('DIBEBASKAN') ? 'selected' : ''}>✅ DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)</option>
-              <option value="DIPERSYARATKAN (Wajib 5% dari Nilai Kontrak)" ${defaultStatusJaminan.includes('DIPERSYARATKAN') ? 'selected' : ''}>⚠️ DIPERSYARATKAN (Wajib 5% dari Nilai Kontrak)</option>
-            </select>
+
+          <!-- STRIP KALKULATOR OTOMATIS -->
+          <div style="background:#ffffff; border:1px solid #bbf7d0; border-radius:6px; padding:8px 10px; margin-bottom:10px; display:grid; grid-template-columns:1fr 1fr 1.2fr 1.2fr; gap:8px;">
+            <div>
+              <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Nilai HPS</div>
+              <div class="cakra-mono" style="font-size:12px; font-weight:800; color:#0f172a;">${cakraFmtRp(nilaiHps)}</div>
+            </div>
+            <div>
+              <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Nilai Kontrak</div>
+              <div class="cakra-mono" style="font-size:12px; font-weight:800; color:#047857;">${cakraFmtRp(nilaiKontrak)}</div>
+            </div>
+            <div>
+              <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Rasio Penawaran</div>
+              <div class="cakra-mono" style="font-size:12px; font-weight:800; color:#1d4ed8;">${rasioPenawaran.toFixed(2)}% ${rasioPenawaran < 80 ? '⚠️ &lt; 80%' : '✅ &ge; 80%'}</div>
+            </div>
+            <div>
+              <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Kalkulasi Jampel</div>
+              <div id="t11_badge_kalkulasi" class="cakra-mono" style="font-size:12px; font-weight:800; color:${selColor};">${defaultNilaiJampel > 0 ? cakraFmtRp(defaultNilaiJampel) + ' (5%)' : 'Rp 0 (0% / Bebas)'}</div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status Kewajiban Jaminan Pelaksanaan</label>
+              <select id="mu_status_jaminan_pelaksanaan" class="cakra-form-control" style="font-weight:700; color:${selColor};" onchange="updateTahap11JaminanPreview()">
+                <option value="DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)" ${defaultStatusJaminan.includes('DIBEBASKAN') ? 'selected' : ''}>✅ DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)</option>
+                <option value="DIPERSYARATKAN (Wajib 5% dari Nilai Kontrak)" ${defaultStatusJaminan.includes('DIPERSYARATKAN') && !defaultStatusJaminan.includes('HPS') ? 'selected' : ''}>⚠️ DIPERSYARATKAN (Wajib 5% dari Nilai Kontrak)</option>
+                <option value="DIPERSYARATKAN (Wajib 5% dari Nilai HPS - Penawaran < 80%)" ${defaultStatusJaminan.includes('Penawaran < 80%') || defaultStatusJaminan.includes('HPS') ? 'selected' : ''}>⚠️ DIPERSYARATKAN (Wajib 5% dari Nilai HPS - Penawaran &lt; 80%)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Besaran Nilai Jampel (Rp)</label>
+              <input type="number" id="mu_nilai_jaminan_pelaksanaan" class="cakra-form-control cakra-mono" style="font-weight:800; color:#0f172a;" value="${defaultNilaiJampel}" placeholder="Nominal Rp Jampel" oninput="updateTahap11JaminanTerbilang()" />
+              <div id="t11_jampel_terbilang" style="font-size:10px; color:${selColor}; margin-top:2px; font-weight:600;">${defaultNilaiJampel > 0 ? cakraFmtRp(defaultNilaiJampel) : 'Nihil / Bebas Jaminan (Rp 0)'}</div>
+            </div>
           </div>
           <div>
-            <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Dasar Yuridis Pembebasan Jaminan Pelaksanaan</label>
-            <input type="text" id="mu_alasan_bebas_jaminan" class="cakra-form-control" value="${cakraEsc(defaultAlasan)}" placeholder="Dasar Regulasi Pembebasan" />
+            <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Dasar Yuridis Pembebasan / Penetapan Jaminan Pelaksanaan</label>
+            <input type="text" id="mu_alasan_bebas_jaminan" class="cakra-form-control" value="${cakraEsc(defaultAlasan)}" placeholder="Dasar Regulasi Pembebasan / Penetapan" />
           </div>
         </div>
 
@@ -10466,6 +10517,11 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
     extraPaketFields.tgl_sppbj = getStr('mu_tgl_sppbj') || paket.tgl_sppbj;
     extraPaketFields.status_jaminan_pelaksanaan = getStr('mu_status_jaminan_pelaksanaan') || paket.status_jaminan_pelaksanaan;
     extraPaketFields.alasan_bebas_jaminan = getStr('mu_alasan_bebas_jaminan') || paket.alasan_bebas_jaminan;
+    extraPaketFields.nilai_jaminan_pelaksanaan = getNum('mu_nilai_jaminan_pelaksanaan');
+    if (extraPaketFields.nilai_jaminan_pelaksanaan === null || isNaN(extraPaketFields.nilai_jaminan_pelaksanaan)) {
+      extraPaketFields.nilai_jaminan_pelaksanaan = 0;
+    }
+    extraPaketFields.wajib_jaminan_pelaksanaan = (extraPaketFields.nilai_jaminan_pelaksanaan > 0 || String(extraPaketFields.status_jaminan_pelaksanaan).includes('DIPERSYARATKAN')) ? 1 : 0;
     extraPaketFields.no_surat_kesanggupan_penyedia = getStr('mu_no_surat_kesanggupan_penyedia') || paket.no_surat_kesanggupan_penyedia;
     extraPaketFields.tgl_surat_kesanggupan = getStr('mu_tgl_surat_kesanggupan') || paket.tgl_surat_kesanggupan;
     extraPaketFields.batas_waktu_ttd_kontrak = getStr('mu_batas_waktu_ttd_kontrak') || paket.batas_waktu_ttd_kontrak;
@@ -10756,6 +10812,185 @@ function onTahap8PelaksanaChange() {
   }
 }
 window.onTahap8PelaksanaChange = onTahap8PelaksanaChange;
+
+
+
+
+// =============================================================================
+// HELPER TAHAP 11: AUTO-CALCULATOR JAMINAN PELAKSANAAN (PASAL 33 PERPRES PBJ)
+// =============================================================================
+function hitungAutoJaminanPelaksanaanRegulasi(paket) {
+  const p = paket || CakraState.activePaket || {};
+  const nilaiHps = Number(p.nilai_hps || p.nilai_pagu || 0);
+  const nilaiKontrak = Number(p.nilai_kontrak || p.nilai_penawaran_awal || nilaiHps);
+  const metode = String(p.metode_pemilihan || '').trim();
+  const jenis = String(p.jenis_pengadaan || 'Barang').trim();
+  const cara = String(p.cara_pengadaan || 'Penyedia').trim();
+
+  const isSwakelola = cara.toLowerCase().includes('swakelola');
+  const isJasaKonsultansi = jenis.toLowerCase().includes('konsultansi');
+  const isEpurchasing = metode.toLowerCase().includes('e-purchasing') || metode.toLowerCase().includes('katalog');
+  const isPengadaanLangsung = metode.toLowerCase().includes('langsung') && !metode.toLowerCase().includes('penunjukan');
+  const isNilaiKecil = nilaiKontrak <= 200000000;
+
+  const rasio = nilaiHps > 0 ? ((nilaiKontrak / nilaiHps) * 100) : 100;
+
+  if (isSwakelola || isJasaKonsultansi || isEpurchasing || isPengadaanLangsung || isNilaiKecil) {
+    let alasan = 'Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ (Nilai s.d. Rp 200 Juta / E-Purchasing)';
+    if (isSwakelola) alasan = 'Swakelola Bebas Jaminan Pelaksanaan';
+    else if (isJasaKonsultansi) alasan = 'Pasal 33 ayat (3) huruf a Perpres PBJ (Jasa Konsultansi Bebas Jaminan Pelaksanaan)';
+    else if (isEpurchasing) alasan = 'Pasal 33 ayat (3) huruf b Perpres PBJ (Pengadaan melalui E-Purchasing Bebas Jaminan Pelaksanaan)';
+    else if (isPengadaanLangsung) alasan = 'Pasal 33 ayat (3) huruf c Perpres PBJ (Pengadaan Langsung Bebas Jaminan Pelaksanaan)';
+    else if (isNilaiKecil) alasan = 'Pasal 33 ayat (1) Perpres PBJ (Nilai Kontrak s.d. Rp 200 Juta Bebas Jaminan Pelaksanaan)';
+
+    return {
+      wajib: 0,
+      status: 'DIBEBASKAN (E-Purchasing / Nilai s.d. Rp 200 Juta)',
+      persen: 0,
+      basis: 'Nihil',
+      nilaiJaminan: 0,
+      rasioPenawaran: rasio,
+      alasan: alasan,
+      keterangan: 'Jaminan Pelaksanaan TIDAK DIKENAKAN / DIBEBASKAN sesuai ketentuan Perpres PBJ.'
+    };
+  }
+
+  // Wajib Jampel (Non-Katalog & Nilai Kontrak > Rp 200.000.000,-)
+  if (rasio < 80) {
+    const nilaiJampel = Math.round(0.05 * nilaiHps);
+    return {
+      wajib: 1,
+      status: 'DIPERSYARATKAN (Wajib 5% dari Nilai HPS - Penawaran < 80%)',
+      persen: 5,
+      basis: 'Nilai HPS',
+      nilaiJaminan: nilaiJampel,
+      rasioPenawaran: rasio,
+      alasan: 'Pasal 33 ayat (2) huruf b Perpres PBJ (Nilai Penawaran < 80% HPS, Jampel 5% dari Nilai HPS)',
+      keterangan: `Penawaran ${rasio.toFixed(2)}% dari HPS (< 80%). Wajib Jaminan Pelaksanaan 5% dari Nilai HPS.`
+    };
+  } else {
+    const nilaiJampel = Math.round(0.05 * nilaiKontrak);
+    return {
+      wajib: 1,
+      status: 'DIPERSYARATKAN (Wajib 5% dari Nilai Kontrak)',
+      persen: 5,
+      basis: 'Nilai Kontrak',
+      nilaiJaminan: nilaiJampel,
+      rasioPenawaran: rasio,
+      alasan: 'Pasal 33 ayat (2) huruf a Perpres PBJ (Nilai Penawaran >= 80% HPS, Jampel 5% dari Nilai Kontrak)',
+      keterangan: `Penawaran ${rasio.toFixed(2)}% dari HPS (>= 80%). Wajib Jaminan Pelaksanaan 5% dari Nilai Kontrak.`
+    };
+  }
+}
+window.hitungAutoJaminanPelaksanaanRegulasi = hitungAutoJaminanPelaksanaanRegulasi;
+
+function updateTahap11JaminanPreview() {
+  const selEl = document.getElementById('mu_status_jaminan_pelaksanaan');
+  const nilaiEl = document.getElementById('mu_nilai_jaminan_pelaksanaan');
+  const alasanEl = document.getElementById('mu_alasan_bebas_jaminan');
+  const badgeEl = document.getElementById('t11_badge_kalkulasi');
+  const terbilangEl = document.getElementById('t11_jampel_terbilang');
+  const boxBlok2 = document.getElementById('t11_blok_jaminan');
+
+  if (!selEl) return;
+  const statusVal = selEl.value;
+
+  const paket = CakraState.activePaket || {};
+  const nilaiHps = Number(paket.nilai_hps || paket.nilai_pagu || 140350000);
+  const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
+
+  if (statusVal.includes('DIBEBASKAN')) {
+    if (nilaiEl) nilaiEl.value = 0;
+    if (alasanEl) {
+      if (paket.metode_pemilihan === 'E-Purchasing') {
+        alasanEl.value = 'Pasal 33 ayat (3) huruf b Perpres PBJ (Pengadaan melalui E-Purchasing Bebas Jaminan Pelaksanaan)';
+      } else if (nilaiKontrak <= 200000000) {
+        alasanEl.value = 'Pasal 33 ayat (1) Perpres PBJ (Nilai Kontrak s.d. Rp 200 Juta Bebas Jaminan Pelaksanaan)';
+      } else {
+        alasanEl.value = 'Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ (Nilai s.d. Rp 200 Juta / E-Purchasing)';
+      }
+    }
+    if (badgeEl) {
+      badgeEl.textContent = 'Rp 0 (0% / Bebas)';
+      badgeEl.style.color = '#15803d';
+    }
+    if (terbilangEl) {
+      terbilangEl.textContent = 'Nihil / Bebas Jaminan (Rp 0)';
+      terbilangEl.style.color = '#15803d';
+    }
+    if (boxBlok2) {
+      boxBlok2.style.background = '#f0fdf4';
+      boxBlok2.style.borderColor = '#86efac';
+    }
+    selEl.style.color = '#15803d';
+  } else if (statusVal.includes('Penawaran < 80%') || statusVal.includes('HPS')) {
+    const nilaiJampel = Math.round(0.05 * nilaiHps);
+    if (nilaiEl) nilaiEl.value = nilaiJampel;
+    if (alasanEl) alasanEl.value = 'Pasal 33 ayat (2) huruf b Perpres PBJ (Nilai Penawaran < 80% HPS, Jampel 5% dari Nilai HPS)';
+    if (badgeEl) {
+      badgeEl.textContent = `${cakraFmtRp(nilaiJampel)} (5% HPS)`;
+      badgeEl.style.color = '#7c3aed';
+    }
+    if (terbilangEl) {
+      terbilangEl.textContent = `5% dari Nilai HPS (${cakraFmtRp(nilaiJampel)})`;
+      terbilangEl.style.color = '#7c3aed';
+    }
+    if (boxBlok2) {
+      boxBlok2.style.background = '#faf5ff';
+      boxBlok2.style.borderColor = '#d8b4fe';
+    }
+    selEl.style.color = '#7c3aed';
+  } else {
+    // 5% Nilai Kontrak
+    const nilaiJampel = Math.round(0.05 * nilaiKontrak);
+    if (nilaiEl) nilaiEl.value = nilaiJampel;
+    if (alasanEl) alasanEl.value = 'Pasal 33 ayat (2) huruf a Perpres PBJ (Nilai Penawaran >= 80% HPS, Jampel 5% dari Nilai Kontrak)';
+    if (badgeEl) {
+      badgeEl.textContent = `${cakraFmtRp(nilaiJampel)} (5% Kontrak)`;
+      badgeEl.style.color = '#b45309';
+    }
+    if (terbilangEl) {
+      terbilangEl.textContent = `5% dari Nilai Kontrak (${cakraFmtRp(nilaiJampel)})`;
+      terbilangEl.style.color = '#b45309';
+    }
+    if (boxBlok2) {
+      boxBlok2.style.background = '#fffbeb';
+      boxBlok2.style.borderColor = '#fde68a';
+    }
+    selEl.style.color = '#b45309';
+  }
+}
+window.updateTahap11JaminanPreview = updateTahap11JaminanPreview;
+
+function updateTahap11JaminanTerbilang() {
+  const nilaiEl = document.getElementById('mu_nilai_jaminan_pelaksanaan');
+  const terbilangEl = document.getElementById('t11_jampel_terbilang');
+  const badgeEl = document.getElementById('t11_badge_kalkulasi');
+  const n = Math.round(Number(nilaiEl?.value || 0));
+  if (terbilangEl) {
+    terbilangEl.textContent = n > 0 ? cakraFmtRp(n) : 'Nihil / Bebas Jaminan (Rp 0)';
+  }
+  if (badgeEl) {
+    badgeEl.textContent = n > 0 ? cakraFmtRp(n) : 'Rp 0 (0% / Bebas)';
+  }
+}
+window.updateTahap11JaminanTerbilang = updateTahap11JaminanTerbilang;
+
+function resetTahap11JaminanOtomatis() {
+  const paket = CakraState.activePaket || {};
+  const calc = hitungAutoJaminanPelaksanaanRegulasi(paket);
+  const selEl = document.getElementById('mu_status_jaminan_pelaksanaan');
+  const nilaiEl = document.getElementById('mu_nilai_jaminan_pelaksanaan');
+  const alasanEl = document.getElementById('mu_alasan_bebas_jaminan');
+
+  if (selEl) selEl.value = calc.status;
+  if (nilaiEl) nilaiEl.value = calc.nilaiJaminan;
+  if (alasanEl) alasanEl.value = calc.alasan;
+
+  updateTahap11JaminanPreview();
+  cakraNotify('✅ Kalkulator Otomatis: Jaminan Pelaksanaan disinkronkan sesuai Pasal 33 Perpres PBJ (' + (calc.wajib ? 'Wajib 5%' : 'Dibebaskan') + ')', 'info');
+}
+window.resetTahap11JaminanOtomatis = resetTahap11JaminanOtomatis;
 
 
 
