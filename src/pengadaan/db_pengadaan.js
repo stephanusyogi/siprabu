@@ -189,9 +189,16 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN catatan_pam TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN metode_pam VARCHAR(50) DEFAULT 'LURING'",
     "ALTER TABLE pbj_paket ADD COLUMN link_zoom_pam VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_kontrak VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_kontrak VARCHAR(32) DEFAULT '2026-05-27'",
+    "ALTER TABLE pbj_paket ADD COLUMN tempat_ttd_kontrak VARCHAR(255) DEFAULT 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi'",
+    "ALTER TABLE pbj_paket ADD COLUMN jenis_meterai VARCHAR(100) DEFAULT 'e-Meterai Resmi Peruri (Rp 10.000)'",
+    "ALTER TABLE pbj_paket ADD COLUMN ketentuan_denda VARCHAR(255) DEFAULT '1/1000 (satu permil) per hari keterlambatan dari Nilai Kontrak sebelum PPN'",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_kontrak TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_sppbj VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_pam VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_undangan_pam VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_kontrak VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_reviu_dpp VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_nego VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bahp VARCHAR(191) DEFAULT NULL",
@@ -767,6 +774,7 @@ async function savePaket(data) {
         nama_bank_penyedia=?, no_rekening_penyedia=?, atas_nama_rekening_penyedia=?,
         legalitas_akta_notaris=?, legalitas_nib=?, legalitas_status_fiskal=?, legalitas_status_spt=?,
         kesepakatan_tgl_ttd_kontrak=?, kesepakatan_jadwal_pelaksanaan=?, catatan_pam=?,
+        no_kontrak=?, tgl_kontrak=?, tempat_ttd_kontrak=?, jenis_meterai=?, ketentuan_denda=?, catatan_kontrak=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
         tahap_aktif=?, status_paket=?, skor_kualitas=?, skor_biaya=?, skor_waktu=?, skor_layanan=?,
         nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?
@@ -850,6 +858,12 @@ async function savePaket(data) {
         p.kesepakatan_tgl_ttd_kontrak || cur.kesepakatan_tgl_ttd_kontrak || '2026-05-27',
         p.kesepakatan_jadwal_pelaksanaan || cur.kesepakatan_jadwal_pelaksanaan || '14 (empat belas) Hari Kalender (27 Mei 2026 s.d. 09 Juni 2026)',
         p.catatan_pam || cur.catatan_pam || null,
+        p.no_kontrak || cur.no_kontrak || null,
+        p.tgl_kontrak || cur.tgl_kontrak || '2026-05-27',
+        p.tempat_ttd_kontrak || cur.tempat_ttd_kontrak || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+        p.jenis_meterai || cur.jenis_meterai || 'e-Meterai Resmi Peruri (Rp 10.000)',
+        p.ketentuan_denda || cur.ketentuan_denda || '1/1000 (satu permil) per hari keterlambatan dari Nilai Kontrak sebelum PPN',
+        p.catatan_kontrak || cur.catatan_kontrak || null,
         p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
@@ -881,8 +895,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -895,7 +909,8 @@ async function savePaket(data) {
            no_ba_reviu_ppk = VALUES(no_ba_reviu_ppk),
            no_sppbj = VALUES(no_sppbj),
            no_ba_pam = VALUES(no_ba_pam),
-           no_undangan_pam = VALUES(no_undangan_pam)`,
+           no_undangan_pam = VALUES(no_undangan_pam),
+           no_kontrak = VALUES(no_kontrak)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -909,7 +924,8 @@ async function savePaket(data) {
           su.no_ba_reviu_ppk || existingStage.no_ba_reviu_ppk || null,
           su.no_sppbj || existingStage.no_sppbj || p.no_sppbj || null,
           su.no_ba_pam || existingStage.no_ba_pam || p.no_ba_pam || null,
-          su.no_undangan_pam || existingStage.no_undangan_pam || p.no_undangan_pam || null
+          su.no_undangan_pam || existingStage.no_undangan_pam || p.no_undangan_pam || null,
+          su.no_kontrak || existingStage.no_kontrak || p.no_kontrak || null
         ]
       );
 

@@ -5960,21 +5960,192 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 13:
+    case 13: {
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const noSp = paket.no_kontrak || activeTRow.nomor_dokumen || ('013/SP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+      const tglSp = paket.tgl_kontrak || activeTRow.tanggal_dokumen || '2026-05-27';
+      const noSskk = '013/SSKK/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026';
+      const noSsuk = '013/SSUK/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026';
+      const noBoq = '013/BOQ-SPEK/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026';
+      const noResumeSakti = '013/RESUME-SAKTI/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026';
+
+      const bentukKontrakVal = paket.bentuk_kontrak || 'Surat Pesanan';
+      const nominalKontrak = Number(paket.nilai_kontrak || 138000000);
+      const bankPenyedia = paket.nama_bank_penyedia || 'Bank Jatim Cabang Ngawi';
+      const rekPenyedia = paket.no_rekening_penyedia || '014-229-8711';
+      const anRekPenyedia = paket.atas_nama_rekening_penyedia || paket.nama_penyedia || 'CV. GRAFIKA PRATAMA';
+      const tglMulai = paket.tgl_mulai_kerja || '2026-05-27';
+      const tglSelesai = paket.tgl_selesai_kontrak || '2026-06-09';
+      const masaHari = paket.masa_pelaksanaan_hari || 14;
+      const jenisMeterai = paket.jenis_meterai || 'e-Meterai Resmi Peruri (Rp 10.000)';
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Nomor Kontrak / Surat Pesanan Final</div>
-            <div style="font-size:13px; font-weight:800; color:#1e40af;" class="cakra-mono">${cakraEsc(paket.no_kontrak || autoDocNo(13, activeTRow.tanggal_dokumen))}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Materiil Bermeterai Rp 10.000 Sah</div>
+        <!-- HEADER DOKUMEN SAH TAHAP 13 -->
+        <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px; font-weight:800; color:#1e3a8a; text-transform:uppercase; letter-spacing:0.5px;">📁 5 DOKUMEN RESMI SAH SURAT PESANAN (E-PURCHASING) TAHAP 13</span>
+            <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:800;">Lengkap 5 Naskah Sah</span>
           </div>
-          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Nilai Kontrak Pengikatan</div>
-            <div style="font-size:15px; font-weight:900; color:#1e3a8a;">${cakraFmtRp(paket.nilai_kontrak || paket.nilai_pagu)}</div>
-            <div style="font-size:11px; color:#1e40af; margin-top:2px;">Pelaksanaan: ${cakraEsc(paket.tgl_mulai_kerja || '2026-05-18')} s.d. ${cakraEsc(paket.tgl_selesai_kerja || '2026-05-31')}</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:11px; color:#475569; font-weight:700;">Bentuk Perikatan:</span>
+            <span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px;">🛒 ${cakraEsc(bentukKontrakVal)} (E-Katalog)</span>
+          </div>
+        </div>
+
+        <!-- GALERI 5 KARTU DOKUMEN RESMI SAH TAHAP 13 -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-bottom:12px;">
+
+          <!-- DOKUMEN 01: SURAT PESANAN DEFINITIF -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #3b82f6; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#1d4ed8; background:#eff6ff; padding:2px 6px; border-radius:4px; border:1px solid #bfdbfe;">DOKUMEN 01</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Terbit Sah</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Surat Pesanan Definitif (SP)</div>
+              <div style="font-size:11px; font-weight:800; color:#1e40af; margin-top:4px;" class="cakra-mono">${cakraEsc(noSp)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Tanggal SP:</b> ${cakraEsc(tglSp)}<br/>
+                <b>Para Pihak:</b> PPK &amp; ${cakraEsc(anRekPenyedia)}<br/>
+                <b>Pengesahan:</b> ${cakraEsc(jenisMeterai)}
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#166534; font-weight:700;">
+              Total: ${cakraFmtRp(nominalKontrak)} (PPN 11%)
+            </div>
+          </div>
+
+          <!-- DOKUMEN 02: SYARAT-SYARAT KHUSUS KONTRAK (SSKK) -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #10b981; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#15803d; background:#f0fdf4; padding:2px 6px; border-radius:4px; border:1px solid #bbf7d0;">DOKUMEN 02</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Lampiran I</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Syarat-Syarat Khusus Kontrak</div>
+              <div style="font-size:11px; font-weight:800; color:#15803d; margin-top:4px;" class="cakra-mono">${cakraEsc(noSskk)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Klausul:</b> 25 Poin Huruf A s.d. Y Definitif<br/>
+                <b>Masa Kerja:</b> ${masaHari} Hari (Franco KPU Ngawi)<br/>
+                <b>Denda:</b> 1/1000 per Hari Keterlambatan
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#15803d; font-weight:700;">
+              Garansi: 1 Tahun Onsite Resmi
+            </div>
+          </div>
+
+          <!-- DOKUMEN 03: SYARAT-SYARAT UMUM KONTRAK (SSUK) -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #f59e0b; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#b45309; background:#fffbeb; padding:2px 6px; border-radius:4px; border:1px solid #fde68a;">DOKUMEN 03</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Lampiran II</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Syarat-Syarat Umum Kontrak</div>
+              <div style="font-size:11px; font-weight:800; color:#b45309; margin-top:4px;" class="cakra-mono">${cakraEsc(noSsuk)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Standar:</b> 67 Klausul Baku LKPP<br/>
+                <b>Perpres:</b> No. 16/2018 jo. No. 12/2021<br/>
+                <b>Sengketa:</b> Pengadilan Negeri Ngawi
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#b45309; font-weight:700;">
+              Kepatuhan Hukum: Standar Audit BPK
+            </div>
+          </div>
+
+          <!-- DOKUMEN 04: DAFTAR KUANTITAS & SPESIFIKASI FINAL (BOQ) -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #8b5cf6; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#6b21a8; background:#faf5ff; padding:2px 6px; border-radius:4px; border:1px solid #e9d5ff;">DOKUMEN 04</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Lampiran III</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Daftar Kuantitas &amp; Spesifikasi</div>
+              <div style="font-size:11px; font-weight:800; color:#6b21a8; margin-top:4px;" class="cakra-mono">${cakraEsc(noBoq)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Rincian:</b> PC Server &amp; PC Desktop Operator<br/>
+                <b>Kualitas:</b> 100% Baru Original Pabrikan<br/>
+                <b>Harga Satuan:</b> Hasil Negosiasi/Katalog Sah
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#6b21a8; font-weight:700;">
+              Sertifikasi: TKDN &amp; Bergaransi Legal
+            </div>
+          </div>
+
+          <!-- DOKUMEN 05: RESUME KOMITMEN SAKTI KEMENKEU -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0284c7; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#0369a1; background:#f0f9ff; padding:2px 6px; border-radius:4px; border:1px solid #bae6fd;">DOKUMEN 05</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Lampiran IV</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Resume Komitmen SAKTI</div>
+              <div style="font-size:11px; font-weight:800; color:#0369a1; margin-top:4px;" class="cakra-mono">${cakraEsc(noResumeSakti)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Satker:</b> 657811 KPU Kab. Ngawi<br/>
+                <b>Supplier:</b> Tipe 3 (Identik NPWP &amp; Akta)<br/>
+                <b>RPD:</b> Sekaligus 100% LS Pasca BASTP
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#0369a1; font-weight:700;">
+              Bebas Retur SP2D KPPN Madiun
+            </div>
+          </div>
+
+        </div>
+
+        <!-- BANNER KESEPAKATAN DEFINITIF KONTRAK & REKENING SAKTI -->
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">💰 Nilai Surat Pesanan Definitif</div>
+            <div style="font-size:15px; font-weight:900; color:#15803d; margin-top:2px;">${cakraFmtRp(nominalKontrak)}</div>
+            <div style="font-size:11px; color:#334155; margin-top:2px;">
+              Termasuk PPN 11% &amp; Ongkos Kirim Franco Satker
+            </div>
+            <div style="font-size:10.5px; color:#166534; margin-top:2px;">
+              🛡️ <b>e-Meterai:</b> ${cakraEsc(jenisMeterai)}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">📅 Jadwal Pelaksanaan Definitif</div>
+            <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:2px;">
+              TMT: <span style="color:#1d4ed8;">${cakraEsc(tglMulai)}</span> s.d. <span style="color:#dc2626;">${cakraEsc(tglSelesai)}</span>
+            </div>
+            <div style="font-size:11px; color:#334155; margin-top:2px;">
+              <b>Durasi:</b> ${masaHari} Hari Kalender
+            </div>
+            <div style="font-size:10.5px; color:#15803d; margin-top:2px;">
+              📦 Penyerahan: Kantor KPU Kab. Ngawi (Franco)
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">🏦 Rekening Pembayaran LS Rekanan</div>
+            <div style="font-size:13px; font-weight:800; color:#15803d; margin-top:2px;">${cakraEsc(bankPenyedia)}</div>
+            <div style="font-size:11px; color:#334155; margin-top:2px;">
+              No. Rek: <b class="cakra-mono">${cakraEsc(rekPenyedia)}</b> a.n. <b>${cakraEsc(anRekPenyedia)}</b>
+            </div>
+            <div style="font-size:10.5px; color:#166534; margin-top:2px;">
+              🛡️ Supplier Tipe 3 SAKTI Kemenkeu (Siap SP2D)
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">📂 Dokumen 00: Bundel Naskah Sah Kontrak</div>
+            <div style="font-size:12.5px; font-weight:800; color:#15803d; margin-top:2px;">
+              Bundel Terpadu Siap Cetak / TTE
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              Terdiri atas Dokumen 01 s.d. 05 lengkap tersusun rapi per section.
+            </div>
+            <div style="font-size:10.5px; color:#1e40af; margin-top:2px;">
+              Status: <b>Lengkap &amp; Memenuhi Standar Audit BPK RI</b>
+            </div>
           </div>
         </div>
       `;
+    }
 
     case 14:
       return `
@@ -8630,6 +8801,12 @@ function openModalTahapUniversal(stageNo) {
         window.calcPamJadwal();
       }
     }, 50);
+  } else if (num === 13) {
+    setTimeout(() => {
+      if (typeof window.calcKontrakJadwal === 'function') {
+        window.calcKontrakJadwal();
+      }
+    }, 50);
   }
 }
 window.openModalTahapUniversal = openModalTahapUniversal;
@@ -8639,6 +8816,107 @@ function closeModalTahapUniversal() {
   if (modal) modal.style.display = 'none';
 }
 window.closeModalTahapUniversal = closeModalTahapUniversal;
+
+
+window.onKontrakBentukChange = function(val) {
+  const noInp = document.getElementById('mu_no_kontrak');
+  const kodePaket = (CakraState.activePaketCtx?.paket?.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+  if (val.includes('Surat Pesanan') || val === 'Surat Pesanan') {
+    if (noInp) noInp.value = '013/SP/' + kodePaket + '/PPK-PBJ/KPU-NGW/V/2026';
+  } else if (val.includes('SPK') || val.includes('Perintah Kerja')) {
+    if (noInp) noInp.value = '013/SPK/' + kodePaket + '/PPK-PBJ/KPU-NGW/V/2026';
+  } else {
+    if (noInp) noInp.value = '013/KTR/' + kodePaket + '/PPK-PBJ/KPU-NGW/V/2026';
+  }
+};
+
+window.onKontrakMeteraiChange = function(val) {
+  const noteEl = document.getElementById('mu_meterai_note');
+  if (!noteEl) return;
+  if (val.includes('Peruri')) {
+    noteEl.textContent = '💡 e-Meterai Resmi Peruri (Rp 10.000) sah memenuhi UU No. 10/2020 & terintegrasi sistem POS Peruri / LKPP.';
+    noteEl.style.color = '#1d4ed8';
+  } else if (val.includes('Tempel')) {
+    noteEl.textContent = '💡 Meterai Tempel Fisik Rp 10.000 wajib ditempel bersilangan dengan tanda tangan basah & tanggal penandatanganan.';
+    noteEl.style.color = '#b45309';
+  } else {
+    noteEl.textContent = '💡 Dokumen Elektronik ditandatangani menggunakan TTE Tersertifikasi Balai Sertifikasi Elektronik (BSrE BSSN).';
+    noteEl.style.color = '#15803d';
+  }
+};
+
+window.calcKontrakJadwal = function(source) {
+  const durasiInp = document.getElementById('mu_masa_pelaksanaan_hari_kontrak');
+  const tMulaiInp = document.getElementById('mu_tgl_mulai_kerja');
+  const tSelesaiInp = document.getElementById('mu_tgl_selesai_kontrak');
+  const tKontrakInp = document.getElementById('mu_tgl_kontrak');
+  const jadwalLabel = document.getElementById('mu_jadwal_pelaksanaan_preview');
+
+  if (!durasiInp || !tMulaiInp || !tSelesaiInp) return;
+
+  // Pastikan TMT terisi (default ke Tanggal SP jika belum diisi)
+  if (!tMulaiInp.value) {
+    if (tKontrakInp && tKontrakInp.value) {
+      tMulaiInp.value = tKontrakInp.value;
+    } else {
+      tMulaiInp.value = '2026-05-27';
+    }
+  }
+
+  // Hitung durasi (minimal 1 hari kalender)
+  let durasi = parseInt(durasiInp.value, 10);
+  if (isNaN(durasi) || durasi < 1) {
+    durasi = 1;
+  }
+
+  const tMulai = tMulaiInp.value;
+  if (tMulai) {
+    const parts = tMulai.split('-').map(Number);
+    if (parts.length === 3) {
+      const y = parts[0];
+      const m = parts[1] - 1;
+      const d = parts[2];
+      const startDate = new Date(y, m, d);
+
+      // Batas Akhir = TMT + (durasi - 1) hari kalender
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + (durasi - 1));
+
+      const yEnd = endDate.getFullYear();
+      const mEnd = String(endDate.getMonth() + 1).padStart(2, '0');
+      const dEnd = String(endDate.getDate()).padStart(2, '0');
+      const tSelesai = `${yEnd}-${mEnd}-${dEnd}`;
+
+      tSelesaiInp.value = tSelesai;
+
+      if (jadwalLabel) {
+        jadwalLabel.innerHTML = `${durasi} Hari Kalender (<b style="color:#1d4ed8;">${tMulai}</b> s.d. <b style="color:#dc2626;">${tSelesai}</b>) — Sesuai Kesepakatan PAM Tahap 12.`;
+      }
+    }
+  }
+};
+
+window.onKontrakTglChange = function(newTgl) {
+  const tMulaiInp = document.getElementById('mu_tgl_mulai_kerja');
+  if (tMulaiInp && newTgl) {
+    tMulaiInp.value = newTgl;
+    if (typeof window.calcKontrakJadwal === 'function') {
+      window.calcKontrakJadwal('tmt');
+    }
+  }
+};
+
+window.onKontrakPresetCatatanChange = function(val) {
+  const catatanEl = document.getElementById('mu_catatan_kontrak');
+  if (!catatanEl) return;
+  if (val === 'PRESET_SP_KATALOG') {
+    catatanEl.value = 'Surat Pesanan E-Purchasing Tahap 13 telah ditandatangani secara sah oleh PPK dan Direktur CV. Grafika Pratama bertanggal 27 Mei 2026. Seluruh klausul SSKK, SSUK, rincian BoQ spesifikasi teknis, dan lembar resume komitmen SAKTI telah disetujui lengkap serta dibubuhi e-Meterai Resmi Peruri Rp 10.000.';
+  } else if (val === 'PRESET_SPK_PL') {
+    catatanEl.value = 'Surat Perintah Kerja (SPK) Pengadaan Langsung telah ditandatangani definitif oleh kedua belah pihak dengan jangka waktu pelaksanaan 14 hari kalender. Rekening pembayaran Bank Jatim Cabang Ngawi telah divalidasi identik dan bebas retur SP2D KPPN.';
+  } else if (val === 'PRESET_PERJANJIAN') {
+    catatanEl.value = 'Surat Perjanjian Kontrak Pengadaan telah ditandatangani sah di hadapan para pihak dengan klausul jaminan garansi resmi distributor 1 tahun onsite dan kepatuhan standar audit BPK RI.';
+  }
+};
 
 window.onPamMetodeChange = function(val) {
   const tempatInp = document.getElementById('mu_tempat_pam');
@@ -10542,30 +10820,189 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
     }
 
-    case 13:
+    case 13: {
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const defaultNoKontrak = paket.no_kontrak || ('013/SP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+      const defaultTglKontrak = paket.tgl_kontrak || '2026-05-27';
+      const defaultTempatTtd = paket.tempat_ttd_kontrak || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+      const defaultNilaiKontrak = Number(paket.nilai_kontrak || 138000000);
+      const defaultBentukKontrak = paket.bentuk_kontrak || 'Surat Pesanan';
+      const defaultCaraBayar = paket.cara_pembayaran || 'Sekaligus 100% (melalui SPM-LS KPPN setelah Serah Terima Hasil Pekerjaan BASTP)';
+      const defaultJenisMeterai = paket.jenis_meterai || 'e-Meterai Resmi Peruri (Rp 10.000)';
+      const defaultTglMulai = paket.tgl_mulai_kerja || '2026-05-27';
+      const defaultTglSelesai = paket.tgl_selesai_kontrak || '2026-06-09';
+      const defaultMasaHari = Number(paket.masa_pelaksanaan_hari || 14);
+      const defaultKetentuanDenda = paket.ketentuan_denda || '1/1000 (satu permil) per hari keterlambatan dari Nilai Kontrak sebelum PPN';
+      const defaultCatatanKontrak = paket.catatan_kontrak || 'Surat Pesanan E-Purchasing Tahap 13 telah ditandatangani secara sah oleh PPK dan Direktur CV. Grafika Pratama bertanggal 27 Mei 2026. Seluruh klausul SSKK, SSUK, rincian BoQ spesifikasi teknis, dan lembar resume komitmen SAKTI telah disetujui lengkap serta dibubuhi e-Meterai Resmi Peruri Rp 10.000.';
+      const namaPenyediaVal = paket.nama_penyedia || 'CV. GRAFIKA PRATAMA';
+      const bankPenyediaVal = paket.nama_bank_penyedia || 'Bank Jatim Cabang Ngawi';
+      const rekPenyediaVal = paket.no_rekening_penyedia || '014-229-8711';
+      const anRekPenyediaVal = paket.atas_nama_rekening_penyedia || namaPenyediaVal;
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Penandatanganan Kontrak / Surat Pesanan Final</div>
-        <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:12px; margin-bottom:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Kontrak / Surat Pesanan</label>
-            <input type="text" id="mu_no_kontrak" class="cakra-form-control cakra-mono" value="${cakraEsc(paket.no_kontrak || generateAutoStageDocNumber(13, paket.kode_paket_internal, activeTRow.tanggal_dokumen))}" />
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
+            <span>🎯 Form Penandatanganan Surat Pesanan Definitif (E-Purchasing), SSKK, SSUK, BoQ &amp; Komitmen SAKTI</span>
           </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nilai Kontrak Final (Rp) *</label>
-            <input type="number" id="mu_nilai_kontrak_final" class="cakra-form-control" value="${Number(paket.nilai_kontrak || paket.nilai_pagu || 0)}" style="font-weight:700;" />
+          <div style="font-size:11px; color:#475569; margin-top:2px;">
+            Puncak Fase IV Kontrak: Pengikatan yuridis perdata antara PPK KPU Kabupaten Ngawi dan Direktur Rekanan dengan e-Meterai Resmi Peruri Rp 10.000.
           </div>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Mulai Kerja</label>
-            <input type="date" id="mu_tgl_mulai_kerja" class="cakra-form-control" value="${cakraEsc(paket.tgl_mulai_kerja || '2026-05-18')}" />
+
+        <!-- 1. NASKAH POKOK SURAT PESANAN (DOKUMEN 01) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>📜 1. Naskah Pokok Surat Pesanan Definitif (Dokumen 01)</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:4px; display:block;">Bentuk Kontrak (Dropdown Adaptif) *</label>
+              <select id="mu_bentuk_kontrak" class="cakra-form-control" style="font-weight:700;" onchange="window.onKontrakBentukChange(this.value)">
+                <option value="Surat Pesanan" ${defaultBentukKontrak === 'Surat Pesanan' ? 'selected' : ''}>🛒 Surat Pesanan (E-Purchasing E-Katalog LKPP)</option>
+                <option value="Surat Perintah Kerja (SPK)" ${defaultBentukKontrak.includes('SPK') ? 'selected' : ''}>📄 Surat Perintah Kerja / SPK (Pengadaan Langsung)</option>
+                <option value="Surat Perjanjian" ${defaultBentukKontrak === 'Surat Perjanjian' ? 'selected' : ''}>📑 Surat Perjanjian Standar (Tender / Nilai &gt; Rp 200 Juta)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Dokumen Kontrak / Surat Pesanan *</label>
+              <input type="text" id="mu_no_kontrak" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultNoKontrak)}" />
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Penandatanganan Surat Pesanan *</label>
+              <input type="date" id="mu_tgl_kontrak" class="cakra-form-control" value="${cakraEsc(defaultTglKontrak)}" onchange="if(window.onKontrakTglChange) window.onKontrakTglChange(this.value);" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tempat Penandatanganan Kontrak</label>
+              <input type="text" id="mu_tempat_ttd_kontrak" class="cakra-form-control" value="${cakraEsc(defaultTempatTtd)}" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. NILAI KONTRAK & KETENTUAN FINANSIAL -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>💰 2. Nilai Kontrak Definitif &amp; Ketentuan Finansial</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nilai Kontrak Final (Rp) *</label>
+              <input type="number" id="mu_nilai_kontrak_final" class="cakra-form-control" value="${defaultNilaiKontrak}" style="font-weight:700; color:#1e3a8a;" />
+              <div style="font-size:10px; color:#1e40af; margin-top:4px;">
+                💡 Termasuk PPN 11% &amp; biaya pengiriman franco Kantor KPU Kabupaten Ngawi.
+              </div>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Pengesahan Bea Meterai *</label>
+              <select id="mu_jenis_meterai" class="cakra-form-control" style="font-weight:700;" onchange="window.onKontrakMeteraiChange(this.value)">
+                <option value="e-Meterai Resmi Peruri (Rp 10.000)" ${defaultJenisMeterai.includes('Peruri') ? 'selected' : ''}>🛡️ e-Meterai Resmi Peruri (Rp 10.000)</option>
+                <option value="Meterai Tempel Fisik Rp 10.000" ${defaultJenisMeterai.includes('Tempel') ? 'selected' : ''}>📜 Meterai Tempel Fisik Rp 10.000</option>
+                <option value="TTE BSrE BSSN" ${defaultJenisMeterai.includes('BSrE') ? 'selected' : ''}>✍️ Tanda Tangan Elektronik (TTE BSrE BSSN)</option>
+              </select>
+            </div>
+          </div>
+          <div id="mu_meterai_note" style="font-size:10.5px; color:#1d4ed8; margin-bottom:10px;">
+            💡 e-Meterai Resmi Peruri (Rp 10.000) sah memenuhi UU No. 10/2020 &amp; terintegrasi sistem POS Peruri / LKPP.
           </div>
           <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Selesai Kerja</label>
-            <input type="date" id="mu_tgl_selesai_kerja" class="cakra-form-control" value="${cakraEsc(paket.tgl_selesai_kerja || '2026-05-31')}" />
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Mekanisme Pembayaran Kontrak *</label>
+            <select id="mu_cara_pembayaran_kontrak" class="cakra-form-control" style="font-weight:700;">
+              <option value="Sekaligus 100% (melalui SPM-LS KPPN setelah Serah Terima Hasil Pekerjaan BASTP)" selected>💵 Pembayaran Sekaligus 100% (SPM-LS KPPN Pasca BASTP Tahap 16-17)</option>
+              <option value="Bertahap (Termin Berdasarkan Kemajuan Prestasi Fisik)">📊 Pembayaran Termin (Bertahap Berdasarkan Progres Fisik)</option>
+            </select>
           </div>
+        </div>
+
+        <!-- 3. JADWAL PELAKSANAAN & KALKULATOR DURASI (URUTAN BARU: DURASI | TMT | BATAS AKHIR) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>📅 3. Jadwal Pelaksanaan Definitif (Kalkulator Hari Otomatis)</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:8px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:4px; display:block;">Durasi (Hari Kalender) *</label>
+              <input type="number" id="mu_masa_pelaksanaan_hari_kontrak" class="cakra-form-control" value="${defaultMasaHari}" min="1" max="365" style="font-weight:700; color:#1e3a8a;" oninput="window.calcKontrakJadwal('durasi')" onchange="window.calcKontrakJadwal('durasi')" />
+              <div style="font-size:10px; color:#64748b; margin-top:3px;">⚡ Ketik/atur durasi hari kalender</div>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Mulai Kerja (TMT) *</label>
+              <input type="date" id="mu_tgl_mulai_kerja" class="cakra-form-control" value="${cakraEsc(defaultTglMulai)}" onchange="window.calcKontrakJadwal('tmt')" style="font-weight:700;" />
+              <div style="font-size:10px; color:#166534; margin-top:3px;">✏️ Dapat diedit (Default: Tgl SP)</div>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Batas Akhir Penyerahan (Sistem) *</label>
+              <input type="date" id="mu_tgl_selesai_kontrak" class="cakra-form-control" value="${cakraEsc(defaultTglSelesai)}" readonly style="font-weight:700; background-color:#f1f5f9; color:#0f172a; cursor:not-allowed; border-color:#cbd5e1;" title="Dihitung otomatis oleh sistem = TMT + (Durasi - 1) Hari Kalender" />
+              <div style="font-size:10px; color:#0284c7; margin-top:3px;">🤖 Dihitung otomatis oleh sistem</div>
+            </div>
+          </div>
+          <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:8px 10px; font-size:11px; color:#475569;">
+            🗓️ <b>Pratinjau Jadwal Definitif:</b> <span id="mu_jadwal_pelaksanaan_preview" style="font-weight:800; color:#1e40af;">${defaultMasaHari} Hari Kalender (<b style="color:#1d4ed8;">${defaultTglMulai}</b> s.d. <b style="color:#dc2626;">${defaultTglSelesai}</b>) — Sesuai Kesepakatan PAM Tahap 12.</span>
+          </div>
+        </div>
+
+        <!-- 4. KETENTUAN DENDA & SYARAT KONTRAK (SSKK & SSUK) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>⚖️ 4. Ketentuan Denda &amp; Syarat Kontrak (SSKK &amp; SSUK - Dokumen 02 &amp; 03)</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:12px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Ketentuan Rumus Denda Keterlambatan *</label>
+              <select id="mu_ketentuan_denda" class="cakra-form-control" style="font-weight:700;">
+                <option value="1/1000 (satu permil) per hari keterlambatan dari Nilai Kontrak sebelum PPN" selected>1/1000 per hari dari Nilai Kontrak sebelum PPN (Standar Perpres 16/2018)</option>
+                <option value="1/1000 (satu permil) per hari keterlambatan dari bagian kontrak yang belum selesai">1/1000 per hari dari bagian kontrak yang belum selesai</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Status Jaminan Pelaksanaan</label>
+              <input type="text" class="cakra-form-control" value="Dikecualikan (Nilai &lt;= Rp 200 Juta)" readonly style="background:#f1f5f9; color:#15803d; font-weight:700;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. VERIFIKASI REKENING BANK & KOMITMEN SAKTI (DOKUMEN 05) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>🏦 5. Verifikasi Rekening Bank &amp; Komitmen SAKTI Kemenkeu (Dokumen 05)</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:8px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nama Bank Operasional</label>
+              <input type="text" class="cakra-form-control" value="${cakraEsc(bankPenyediaVal)}" readonly style="background:#f8fafc; font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Rekening</label>
+              <input type="text" class="cakra-form-control cakra-mono" value="${cakraEsc(rekPenyediaVal)}" readonly style="background:#f8fafc; font-weight:800; color:#15803d;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Atas Nama Pemilik Rekening</label>
+              <input type="text" class="cakra-form-control" value="${cakraEsc(anRekPenyediaVal)}" readonly style="background:#f8fafc; font-weight:700;" />
+            </div>
+          </div>
+          <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:8px 10px; font-size:11px; color:#166534;">
+            🛡️ <b>Validasi SAKTI / SPAN Kemenkeu:</b> Supplier Tipe 3 terverifikasi identik NPWP &amp; Akta Notaris Rekanan, berstatus aktif, serta siap untuk penerbitan SP2D KPPN Madiun bebas retur dana.
+          </div>
+        </div>
+
+        <!-- 6. CATATAN KONTRAK PPK & PRESET TEMPLATE -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label style="font-size:11.5px; font-weight:800; color:#1e3a8a; display:block;">📝 6. Catatan Khusus PPK atas Surat Pesanan Kontrak</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:10.5px; color:#64748b; font-weight:700;">Template Preset:</span>
+              <select class="cakra-form-control" style="font-size:10.5px; padding:2px 8px; width:auto;" onchange="window.onKontrakPresetCatatanChange(this.value)">
+                <option value="">-- Pilih Format Catatan --</option>
+                <option value="PRESET_SP_KATALOG">Surat Pesanan E-Purchasing Definitif (Standar)</option>
+                <option value="PRESET_SPK_PL">Surat Perintah Kerja (SPK Pengadaan Langsung)</option>
+                <option value="PRESET_PERJANJIAN">Surat Perjanjian Standar Tender</option>
+              </select>
+            </div>
+          </div>
+          <textarea id="mu_catatan_kontrak" class="cakra-form-control" rows="3" style="font-size:11.5px; line-height:1.45;">${cakraEsc(defaultCatatanKontrak)}</textarea>
         </div>
       `;
+    }
 
     case 14:
       return `
@@ -11029,10 +11466,26 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       tanggalDokumen = extraPaketFields.tgl_ba_pam;
     }
   } else if (num === 13) {
+    extraPaketFields.bentuk_kontrak = getStr('mu_bentuk_kontrak') || paket.bentuk_kontrak || 'Surat Pesanan';
     extraPaketFields.no_kontrak = getStr('mu_no_kontrak') || paket.no_kontrak;
+    extraPaketFields.tgl_kontrak = getStr('mu_tgl_kontrak') || paket.tgl_kontrak || '2026-05-27';
+    extraPaketFields.tempat_ttd_kontrak = getStr('mu_tempat_ttd_kontrak') || paket.tempat_ttd_kontrak;
     extraPaketFields.nilai_kontrak = getNum('mu_nilai_kontrak_final') || paket.nilai_kontrak;
-    extraPaketFields.tgl_mulai_kerja = getStr('mu_tgl_mulai_kerja') || paket.tgl_mulai_kerja;
-    extraPaketFields.tgl_selesai_kerja = getStr('mu_tgl_selesai_kerja') || paket.tgl_selesai_kerja;
+    extraPaketFields.cara_pembayaran = getStr('mu_cara_pembayaran_kontrak') || paket.cara_pembayaran;
+    extraPaketFields.jenis_meterai = getStr('mu_jenis_meterai') || paket.jenis_meterai || 'e-Meterai Resmi Peruri (Rp 10.000)';
+    extraPaketFields.tgl_mulai_kerja = getStr('mu_tgl_mulai_kerja') || paket.tgl_mulai_kerja || '2026-05-27';
+    extraPaketFields.tgl_selesai_kontrak = getStr('mu_tgl_selesai_kontrak') || getStr('mu_tgl_selesai_kerja') || paket.tgl_selesai_kontrak || '2026-06-09';
+    extraPaketFields.tgl_selesai_kerja = extraPaketFields.tgl_selesai_kontrak;
+    extraPaketFields.masa_pelaksanaan_hari = getNum('mu_masa_pelaksanaan_hari_kontrak') || paket.masa_pelaksanaan_hari || 14;
+    extraPaketFields.ketentuan_denda = getStr('mu_ketentuan_denda') || paket.ketentuan_denda;
+    extraPaketFields.catatan_kontrak = getStr('mu_catatan_kontrak') || paket.catatan_kontrak;
+
+    if (extraPaketFields.no_kontrak) {
+      nomorDokumen = extraPaketFields.no_kontrak;
+    }
+    if (extraPaketFields.tgl_kontrak) {
+      tanggalDokumen = extraPaketFields.tgl_kontrak;
+    }
   } else if (num === 14) {
     extraPaketFields.lokasi_pekerjaan = getStr('mu_lokasi_pekerjaan') || paket.lokasi_pekerjaan;
   } else if (num === 15) {

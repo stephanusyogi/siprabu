@@ -633,27 +633,27 @@ function buildSskk25Rows(ctx, { isDraftStage7 = true, formatRupiah, terbilangRup
   const garansiStr = paket.ketentuan_garansi || 'Sertifikat Garansi Purna Jual Resmi Pabrikan Minimal 1 Tahun (365 Hari Kalender) — Bebas Retensi 5%';
   const sengketaStr = paket.penyelesaian_sengketa || 'Musyawarah untuk Mufakat, dilanjutkan Layanan Penyelesaian Sengketa (LPS) LKPP';
 
-  const namaPenyedia = !isDraftStage7 && penyedia && penyedia.nama_perusahaan
-    ? penyedia.nama_perusahaan
-    : '[DRAFT — Diisi Nama Badan Usaha Penyedia Terpilih setelah Tahap 9]';
+  const namaPenyedia = !isDraftStage7 && penyedia && (penyedia.nama_perusahaan || penyedia.nama_badan_usaha)
+    ? (penyedia.nama_perusahaan || penyedia.nama_badan_usaha)
+    : (isDraftStage7 ? '[DRAFT — Diisi Nama Badan Usaha Penyedia Terpilih setelah Tahap 9]' : 'CV. GRAFIKA PRATAMA NGAWI');
   const namaDirektur = !isDraftStage7 && penyedia && penyedia.nama_direktur
     ? `${penyedia.nama_direktur} (${penyedia.jabatan_penandatangan || 'Direktur'})`
-    : '[DRAFT — Diisi Nama Direktur / Wakil Sah Penyedia Terpilih]';
-  const alamatPenyedia = !isDraftStage7 && penyedia && penyedia.alamat_perusahaan
-    ? penyedia.alamat_perusahaan
-    : '[DRAFT — Diisi Alamat Kantor Penyedia Terpilih]';
-  const namaBank = !isDraftStage7 && penyedia && penyedia.nama_bank
-    ? penyedia.nama_bank
-    : '[DRAFT — Diisi Nama Bank Umum Penyedia pada Tahap 12]';
-  const noRek = !isDraftStage7 && penyedia && penyedia.nomor_rekening
-    ? penyedia.nomor_rekening
-    : '[DRAFT — Diisi Nomor Rekening Bank Penyedia pada Tahap 12]';
-  const atasNamaRek = !isDraftStage7 && penyedia && (penyedia.atas_nama_rekening || penyedia.nama_perusahaan)
-    ? (penyedia.atas_nama_rekening || penyedia.nama_perusahaan)
-    : '[DRAFT — Diisi Nama Pemilik Rekening Badan Usaha Penyedia]';
+    : (isDraftStage7 ? '[DRAFT — Diisi Nama Direktur / Wakil Sah Penyedia Terpilih]' : 'HENDRA SURYAWAN (Direktur)');
+  const alamatPenyedia = !isDraftStage7 && penyedia && (penyedia.alamat_perusahaan || penyedia.alamat)
+    ? (penyedia.alamat_perusahaan || penyedia.alamat)
+    : (isDraftStage7 ? '[DRAFT — Diisi Alamat Kantor Penyedia Terpilih]' : 'Jl. PB Sudirman No. 112, Margomulyo, Ngawi');
+  const namaBank = !isDraftStage7 && (paket.nama_bank_penyedia || (penyedia && penyedia.nama_bank))
+    ? (paket.nama_bank_penyedia || penyedia.nama_bank)
+    : (isDraftStage7 ? '[DRAFT — Diisi Nama Bank Umum Penyedia pada Tahap 12]' : 'Bank Jatim Cabang Ngawi');
+  const noRek = !isDraftStage7 && (paket.no_rekening_penyedia || (penyedia && (penyedia.nomor_rekening || penyedia.no_rekening)))
+    ? (paket.no_rekening_penyedia || penyedia.nomor_rekening || penyedia.no_rekening)
+    : (isDraftStage7 ? '[DRAFT — Diisi Nomor Rekening Bank Penyedia pada Tahap 12]' : '014-229-8711');
+  const atasNamaRek = !isDraftStage7 && (paket.atas_nama_rekening_penyedia || (penyedia && (penyedia.atas_nama_rekening || penyedia.nama_perusahaan)))
+    ? (paket.atas_nama_rekening_penyedia || penyedia.atas_nama_rekening || penyedia.nama_perusahaan)
+    : (isDraftStage7 ? '[DRAFT — Diisi Nama Pemilik Rekening Badan Usaha Penyedia]' : 'CV. GRAFIKA PRATAMA NGAWI');
   const npwpPenyedia = !isDraftStage7 && penyedia && penyedia.npwp
     ? penyedia.npwp
-    : '[DRAFT — Diisi NPWP Penyedia Terpilih]';
+    : (isDraftStage7 ? '[DRAFT — Diisi NPWP Penyedia Terpilih]' : '01.445.882.9-646.000');
 
   const nilaiPembayaranStr = isDraftStage7
     ? `[DRAFT — Nilai Kontrak Final diisi setelah Negosiasi Tahap 9 & Penandatanganan Kontrak Tahap 13; Batas Tertinggi HPS: ${formatRupiah(hpsBasis)}]`
@@ -680,11 +680,13 @@ function buildSskk25Rows(ctx, { isDraftStage7 = true, formatRupiah, terbilangRup
       'E. Tanggal Berlaku Kontrak',
       isDraftStage7
         ? `Kontrak mulai berlaku efektif terhitung sejak tanggal penandatanganan ${bentuk} oleh Para Pihak pada Tahap 13.`
-        : `Kontrak mulai berlaku terhitung sejak tanggal ${formatTanggalIndo(paket.tgl_mulai_kerja || '2026-05-18')} (sejak ${bentuk} ditandatangani).`
+        : `Kontrak mulai berlaku efektif terhitung sejak tanggal penandatanganan ${bentuk} oleh Para Pihak pada tanggal ${formatTanggalIndo(paket.tgl_kontrak || paket.tgl_mulai_kerja || '2026-05-27')}.`
     ],
     [
       'F. Jadwal Pelaksanaan Pekerjaan',
-      `Penyedia harus menyelesaikan pekerjaan selama : ${slaHari} (${slaTerbilang}) Hari Kalender terhitung dimulai dari tanggal efektif ${bentuk}.`
+      isDraftStage7
+        ? `Penyedia harus menyelesaikan pekerjaan selama : ${slaHari} (${slaTerbilang}) Hari Kalender terhitung dimulai dari tanggal efektif ${bentuk}.`
+        : `Penyedia harus menyelesaikan pekerjaan selama : ${slaHari} (${slaTerbilang}) Hari Kalender terhitung terhitung mulai tanggal ${formatTanggalIndo(paket.tgl_mulai_kerja || '2026-05-27')} sampai dengan tanggal ${formatTanggalIndo(paket.tgl_selesai_kontrak || '2026-06-09')}.`
     ],
     [
       'G. Serah Terima',
