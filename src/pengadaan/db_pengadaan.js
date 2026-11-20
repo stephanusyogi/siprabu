@@ -164,9 +164,34 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN alasan_bebas_jaminan VARCHAR(255) DEFAULT 'Pasal 33 ayat (2) huruf b dan ayat (3) Perpres PBJ jo. Kepka LKPP No. 177/2024'",
     "ALTER TABLE pbj_paket ADD COLUMN no_surat_kesanggupan_penyedia VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN tgl_surat_kesanggupan VARCHAR(32) DEFAULT NULL",
-    "ALTER TABLE pbj_paket ADD COLUMN batas_waktu_ttd_kontrak VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN batas_waktu_ttd_kontrak VARCHAR(100) DEFAULT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN batas_waktu_ttd_kontrak VARCHAR(100) DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN catatan_sppbj TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_undangan_pam VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_undangan_pam VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_ba_pam VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_ba_pam VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tempat_pam VARCHAR(255) DEFAULT 'Ruang Rapat Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi'",
+    "ALTER TABLE pbj_paket ADD COLUMN nama_bank_penyedia VARCHAR(191) DEFAULT 'Bank Jatim Cabang Ngawi'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_rekening_penyedia VARCHAR(100) DEFAULT '014-229-8711'",
+    "ALTER TABLE pbj_paket ADD COLUMN atas_nama_rekening_penyedia VARCHAR(191) DEFAULT 'CV. GRAFIKA PRATAMA'",
+    "ALTER TABLE pbj_paket ADD COLUMN legalitas_akta_notaris VARCHAR(255) DEFAULT 'Akta Notaris No. 14 tgl 12-04-2018 jo. Akta Perubahan No. 05 tgl 08-01-2024'",
+    "ALTER TABLE pbj_paket ADD COLUMN legalitas_nib VARCHAR(255) DEFAULT '9120301182451 (KBLI 46511)'",
+    "ALTER TABLE pbj_paket MODIFY COLUMN legalitas_nib VARCHAR(255) DEFAULT '9120301182451 (KBLI 46511)'",
+    "ALTER TABLE pbj_paket ADD COLUMN legalitas_status_fiskal VARCHAR(255) DEFAULT 'Valid (KSWP Valid & SKF Bebas Tunggakan)'",
+    "ALTER TABLE pbj_paket MODIFY COLUMN legalitas_status_fiskal VARCHAR(255) DEFAULT 'Valid (KSWP Valid & SKF Bebas Tunggakan)'",
+    "ALTER TABLE pbj_paket ADD COLUMN legalitas_status_spt VARCHAR(255) DEFAULT 'Tertib (SPT Tahunan 2025 & Pajak Masa Terakhir Sesuai)'",
+    "ALTER TABLE pbj_paket MODIFY COLUMN legalitas_status_spt VARCHAR(255) DEFAULT 'Tertib (SPT Tahunan 2025 & Pajak Masa Terakhir Sesuai)'",
+    "ALTER TABLE pbj_paket MODIFY COLUMN legalitas_akta_notaris VARCHAR(500) DEFAULT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN kesepakatan_jadwal_pelaksanaan VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN kesepakatan_tgl_ttd_kontrak VARCHAR(32) DEFAULT '2026-05-27'",
+    "ALTER TABLE pbj_paket ADD COLUMN kesepakatan_jadwal_pelaksanaan VARCHAR(100) DEFAULT '14 Hari Kalender (27 Mei 2026 s.d. 09 Juni 2026)'",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_pam TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN metode_pam VARCHAR(50) DEFAULT 'LURING'",
+    "ALTER TABLE pbj_paket ADD COLUMN link_zoom_pam VARCHAR(255) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_sppbj VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_pam VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_undangan_pam VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_reviu_dpp VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_nego VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bahp VARCHAR(191) DEFAULT NULL",
@@ -737,6 +762,11 @@ async function savePaket(data) {
         persen_uang_muka=?, nilai_uang_muka=?, wajib_jaminan_pelaksanaan=?, nilai_jaminan_pelaksanaan=?,
         no_sppbj=?, tgl_sppbj=?, status_jaminan_pelaksanaan=?, alasan_bebas_jaminan=?,
         no_surat_kesanggupan_penyedia=?, tgl_surat_kesanggupan=?, batas_waktu_ttd_kontrak=?, catatan_sppbj=?,
+        no_undangan_pam=?, tgl_undangan_pam=?, no_ba_pam=?, tgl_ba_pam=?, tempat_pam=?,
+        metode_pam=?, link_zoom_pam=?,
+        nama_bank_penyedia=?, no_rekening_penyedia=?, atas_nama_rekening_penyedia=?,
+        legalitas_akta_notaris=?, legalitas_nib=?, legalitas_status_fiskal=?, legalitas_status_spt=?,
+        kesepakatan_tgl_ttd_kontrak=?, kesepakatan_jadwal_pelaksanaan=?, catatan_pam=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
         tahap_aktif=?, status_paket=?, skor_kualitas=?, skor_biaya=?, skor_waktu=?, skor_layanan=?,
         nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?
@@ -803,6 +833,23 @@ async function savePaket(data) {
         p.tgl_surat_kesanggupan || cur.tgl_surat_kesanggupan || null,
         p.batas_waktu_ttd_kontrak || cur.batas_waktu_ttd_kontrak || null,
         p.catatan_sppbj || cur.catatan_sppbj || null,
+        p.no_undangan_pam || cur.no_undangan_pam || null,
+        p.tgl_undangan_pam || cur.tgl_undangan_pam || null,
+        p.no_ba_pam || cur.no_ba_pam || null,
+        p.tgl_ba_pam || cur.tgl_ba_pam || null,
+        p.tempat_pam || cur.tempat_pam || 'Ruang Rapat PPK KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+        p.metode_pam || cur.metode_pam || 'LURING',
+        p.link_zoom_pam !== undefined ? p.link_zoom_pam : (cur.link_zoom_pam || null),
+        p.nama_bank_penyedia || cur.nama_bank_penyedia || 'Bank Jatim Cabang Ngawi',
+        p.no_rekening_penyedia || cur.no_rekening_penyedia || '014-229-8711',
+        p.atas_nama_rekening_penyedia || cur.atas_nama_rekening_penyedia || 'CV. GRAFIKA PRATAMA',
+        p.legalitas_akta_notaris || cur.legalitas_akta_notaris || 'Akta Pendirian No. 14 Tgl 12-04-2018 jo. Akta Perubahan No. 05 Tgl 08-01-2024 Notaris Siti Farida, S.H., M.Kn., Ngawi (AHU-0019284.AH.01.01.Tahun 2018)',
+        p.legalitas_nib || cur.legalitas_nib || 'NIB: 9120301182451 (KBLI 46511 - Perdagangan Besar Komputer dan Perlengkapan Komputer)',
+        p.legalitas_status_fiskal || cur.legalitas_status_fiskal || 'Valid / Bebas Tunggakan Pajak (KSWP Valid & SKF KPP Pratama Ngawi No. SKF-10293/WPJ.12/KP.0803/2026)',
+        p.legalitas_status_spt || cur.legalitas_status_spt || 'SPT Tahunan PPh Badan Tahun 2025 Terlapor (BPS: 352101-2026-00384) & PPh Masa 3 Bulan Terakhir Nihil/Lunas',
+        p.kesepakatan_tgl_ttd_kontrak || cur.kesepakatan_tgl_ttd_kontrak || '2026-05-27',
+        p.kesepakatan_jadwal_pelaksanaan || cur.kesepakatan_jadwal_pelaksanaan || '14 (empat belas) Hari Kalender (27 Mei 2026 s.d. 09 Juni 2026)',
+        p.catatan_pam || cur.catatan_pam || null,
         p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
@@ -834,8 +881,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -846,7 +893,9 @@ async function savePaket(data) {
            no_ba_nego = VALUES(no_ba_nego),
            no_bahp = VALUES(no_bahp),
            no_ba_reviu_ppk = VALUES(no_ba_reviu_ppk),
-           no_sppbj = VALUES(no_sppbj)`,
+           no_sppbj = VALUES(no_sppbj),
+           no_ba_pam = VALUES(no_ba_pam),
+           no_undangan_pam = VALUES(no_undangan_pam)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -858,7 +907,9 @@ async function savePaket(data) {
           su.no_ba_nego || existingStage.no_ba_nego || null,
           su.no_bahp || existingStage.no_bahp || null,
           su.no_ba_reviu_ppk || existingStage.no_ba_reviu_ppk || null,
-          su.no_sppbj || existingStage.no_sppbj || p.no_sppbj || null
+          su.no_sppbj || existingStage.no_sppbj || p.no_sppbj || null,
+          su.no_ba_pam || existingStage.no_ba_pam || p.no_ba_pam || null,
+          su.no_undangan_pam || existingStage.no_undangan_pam || p.no_undangan_pam || null
         ]
       );
 

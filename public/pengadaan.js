@@ -5800,21 +5800,165 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 12:
+    case 12: {
+      const metodeVal = String(paket.metode_pam || 'LURING').toUpperCase();
+      const metodeBadge = metodeVal === 'DARING'
+        ? '<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px;">💻 Daring (Teleconference Zoom)</span>'
+        : (metodeVal === 'HYBRID'
+            ? '<span style="background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px;">🌐 Hybrid (Tatap Muka &amp; Zoom)</span>'
+            : '<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px;">🏢 Tatap Muka Luring</span>');
+
+      const noUndangan = paket.no_undangan_pam || ('012/UND-PAM/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026');
+      const tglUndangan = paket.tgl_undangan_pam || '2026-05-25';
+      const noBaPam = paket.no_ba_pam || activeTRow.nomor_dokumen || ('012/BA-PAM/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026');
+      const tglBaPam = paket.tgl_ba_pam || activeTRow.tanggal_dokumen || '2026-05-26';
+      const noVerif = '012/VERIF-LFB/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026';
+      const noNotulen = '012/NOTULEN-PAM/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026';
+
+      const bankPenyedia = paket.nama_bank_penyedia || 'Bank Jatim Cabang Ngawi';
+      const rekPenyedia = paket.no_rekening_penyedia || '014-229-8711';
+      const anRekPenyedia = paket.atas_nama_rekening_penyedia || paket.nama_penyedia || 'CV. GRAFIKA PRATAMA';
+      const tglTtdKontrak = paket.kesepakatan_tgl_ttd_kontrak || '2026-05-27';
+      const jadwalKerja = paket.kesepakatan_jadwal_pelaksanaan || '14 (empat belas) Hari Kalender (27 Mei 2026 s.d. 09 Juni 2026)';
+      const tempatPamStr = paket.tempat_pam || (metodeVal === 'DARING' ? 'Media Teleconference Virtual via Zoom Cloud Meetings' : 'Ruang Rapat PPK Kantor KPU Kabupaten Ngawi');
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Nomor Berita Acara PAM</div>
-            <div style="font-size:13px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(activeTRow.no_pam || autoDocNo(12, activeTRow.tanggal_dokumen))}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Rapat Persiapan Penandatanganan Kontrak</div>
+        <!-- HEADER DOKUMEN SAH TAHAP 12 -->
+        <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px; font-weight:800; color:#1e3a8a; text-transform:uppercase; letter-spacing:0.5px;">📁 4 DOKUMEN RESMI SAH HASIL RAPAT PAM (PRE-AWARD MEETING)</span>
+            <span class="cakra-badge cakra-badge-green" style="font-size:10px; font-weight:800;">Lengkap 4 Naskah</span>
           </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Rekening Pembayaran Bank Rekanan</div>
-            <div style="font-size:13px; font-weight:800; color:#1e40af;">${cakraEsc(paket.nama_bank_penyedia || 'Bank Jatim Cabang Ngawi')}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">No. Rekening: ${cakraEsc(paket.no_rekening_penyedia || '014-229-8711')}</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:11px; color:#475569; font-weight:700;">Metode Rapat:</span>
+            ${metodeBadge}
+          </div>
+        </div>
+
+        <!-- GALERI 4 KARTU DOKUMEN RESMI SAH TAHAP 12 -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:12px;">
+
+          <!-- DOKUMEN 01: SURAT UNDANGAN RAPAT PAM -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #3b82f6; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#1d4ed8; background:#eff6ff; padding:2px 6px; border-radius:4px; border:1px solid #bfdbfe;">DOKUMEN 01</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Terbit Sah</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Surat Undangan Rapat PAM PPK</div>
+              <div style="font-size:11.5px; font-weight:800; color:#1e40af; margin-top:4px;" class="cakra-mono">${cakraEsc(noUndangan)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Tanggal Surat:</b> ${cakraEsc(tglUndangan)}<br/>
+                <b>Sifat:</b> Segera / Penting<br/>
+                <b>Tempat / Media:</b> ${cakraEsc(tempatPamStr)}
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#64748b;">
+              Diterbitkan oleh: <b>MOHAMMAD NOOR JIHAN</b> (PPK Satker 657811)
+            </div>
+          </div>
+
+          <!-- DOKUMEN 02: BERITA ACARA RAPAT PAM (BA-PAM) -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #10b981; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#047857; background:#ecfdf5; padding:2px 6px; border-radius:4px; border:1px solid #a7f3d0;">DOKUMEN 02</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Naskah Utama</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Berita Acara Rapat PAM (BA-PAM)</div>
+              <div style="font-size:11.5px; font-weight:800; color:#047857; margin-top:4px;" class="cakra-mono">${cakraEsc(noBaPam)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Tanggal Rapat:</b> ${cakraEsc(tglBaPam)}<br/>
+                <b>Substansi:</b> 7 Butir Kesepakatan PAM Tuntas Disepakati<br/>
+                <b>Pihak:</b> PPK Satker 657811 &amp; Direktur CV. Grafika Pratama
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#15803d; font-weight:700;">
+              Status: Bebas Jaminan, Denda 1‰ DPP, Garansi 1 Th On-Site
+            </div>
+          </div>
+
+          <!-- DOKUMEN 03: LEMBAR UJI TUNTAS LEGALITAS & PAJAK -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #f59e0b; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#b45309; background:#fffbeb; padding:2px 6px; border-radius:4px; border:1px solid #fde68a;">DOKUMEN 03</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Uji Tuntas Sah</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Lembar Uji Tuntas Legalitas &amp; Pajak</div>
+              <div style="font-size:11.5px; font-weight:800; color:#b45309; margin-top:4px;" class="cakra-mono">${cakraEsc(noVerif)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Akta AHU:</b> Sah Sesuai SK Kemenkumham<br/>
+                <b>NIB OSS-RBA:</b> 9120301182451 (KBLI 46511 Sesuai)<br/>
+                <b>Kepatuhan Pajak:</b> KSWP Valid, SKF Bebas, SPT 2025 Terlapor
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#1e40af; font-weight:700;">
+              Rekening: ${cakraEsc(bankPenyedia)} (Bebas Retur SP2D)
+            </div>
+          </div>
+
+          <!-- DOKUMEN 04: DAFTAR HADIR PRESENSI & NOTULEN -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #8b5cf6; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#6b21a8; background:#faf5ff; padding:2px 6px; border-radius:4px; border:1px solid #e9d5ff;">DOKUMEN 04</span>
+                <span style="font-size:10.5px; font-weight:700; color:#15803d;">✅ Presensi Sah</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">Daftar Hadir &amp; Notulen Kesepakatan</div>
+              <div style="font-size:11.5px; font-weight:800; color:#6b21a8; margin-top:4px;" class="cakra-mono">${cakraEsc(noNotulen)}</div>
+              <div style="font-size:11px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px dashed #e2e8f0; line-height:1.45;">
+                <b>Unsur Hadir:</b> PPK, Tim Teknis, Direktur Rekanan<br/>
+                <b>Metode Bukti:</b> ${metodeVal === 'DARING' ? 'Daring On-Camera & Rekaman Zoom' : 'Presensi Fisik Basah'}<br/>
+                <b>Notulensi:</b> Rangkuman Tanya Jawab & Komitmen Final
+              </div>
+            </div>
+            <div style="margin-top:8px; padding-top:6px; border-top:1px solid #f1f5f9; font-size:10.5px; color:#6b21a8; font-weight:700;">
+              Eviden BPK: Terarsip Cloud &amp; Dokumen Fisik Sah
+            </div>
+          </div>
+
+        </div>
+
+        <!-- BANNER KESEPAKATAN SUBSTANTIF PAM & REKENING SAKTI -->
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">🏦 Rekening Pembayaran LS Rekanan</div>
+            <div style="font-size:13px; font-weight:800; color:#15803d; margin-top:2px;">${cakraEsc(bankPenyedia)}</div>
+            <div style="font-size:11px; color:#334155; margin-top:2px;">
+              No. Rek: <b class="cakra-mono">${cakraEsc(rekPenyedia)}</b> a.n. <b>${cakraEsc(anRekPenyedia)}</b>
+            </div>
+            <div style="font-size:10.5px; color:#166534; margin-top:2px;">
+              🛡️ <b>Validasi SAKTI Kemenkeu:</b> Supplier Tipe 3 (Identik NPWP &amp; Bebas Retur SP2D)
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">📅 Kesepakatan Jadwal Kontrak Definitif</div>
+            <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:2px;">
+              TTD Kontrak: <span style="color:#1d4ed8;">${cakraEsc(tglTtdKontrak)}</span>
+            </div>
+            <div style="font-size:11px; color:#334155; margin-top:2px;">
+              <b>Jangka Waktu:</b> ${cakraEsc(jadwalKerja)}
+            </div>
+            <div style="font-size:10.5px; color:#15803d; margin-top:2px;">
+              📦 Pengiriman: Kantor KPU Kab. Ngawi (Franco Lokasi)
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">📂 Dokumen 00: Bundel Naskah Sah PAM</div>
+            <div style="font-size:12.5px; font-weight:800; color:#15803d; margin-top:2px;">
+              Bundel Lengkap Naskah Sah Terpadu
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              Terdiri atas Dokumen 01, 02, 03, dan 04 lengkap tersusun rapi siap cetak dan TTE.
+            </div>
+            <div style="font-size:10.5px; color:#1e40af; margin-top:2px;">
+              Status: <b>Lengkap &amp; Memenuhi Standar Audit BPK RI</b>
+            </div>
           </div>
         </div>
       `;
+    }
 
     case 13:
       return `
@@ -8478,6 +8622,14 @@ function openModalTahapUniversal(stageNo) {
       if (typeof onTahap9PenyediaChange === 'function') onTahap9PenyediaChange();
       if (typeof updateTahap9EfisiensiPreview === 'function') updateTahap9EfisiensiPreview();
     }, 50);
+  } else if (num === 12) {
+    setTimeout(() => {
+      const durasiSel = document.getElementById('mu_durasi_hari_pam');
+      const jadwalInp = document.getElementById('mu_kesepakatan_jadwal_pelaksanaan');
+      if (durasiSel && jadwalInp && (!jadwalInp.value || !jadwalInp.value.includes('Hari Kalender')) && typeof window.calcPamJadwal === 'function') {
+        window.calcPamJadwal();
+      }
+    }, 50);
   }
 }
 window.openModalTahapUniversal = openModalTahapUniversal;
@@ -8487,6 +8639,122 @@ function closeModalTahapUniversal() {
   if (modal) modal.style.display = 'none';
 }
 window.closeModalTahapUniversal = closeModalTahapUniversal;
+
+window.onPamMetodeChange = function(val) {
+  const tempatInp = document.getElementById('mu_tempat_pam');
+  const zoomWrap = document.getElementById('mu_zoom_wrapper');
+  const zoomInp = document.getElementById('mu_link_zoom_pam');
+  if (val === 'DARING') {
+    if (tempatInp) tempatInp.value = 'Media Teleconference Virtual via Zoom Cloud Meetings';
+    if (zoomWrap) zoomWrap.style.display = 'block';
+    if (zoomInp && !zoomInp.value) zoomInp.value = 'https://zoom.us/j/84291023841 (Meeting ID: 842 9102 3841, Passcode: KPU-NGW)';
+  } else if (val === 'HYBRID') {
+    if (tempatInp) tempatInp.value = 'Ruang Rapat PPK Kantor KPU Kabupaten Ngawi & Daring via Zoom Cloud Meetings';
+    if (zoomWrap) zoomWrap.style.display = 'block';
+    if (zoomInp && !zoomInp.value) zoomInp.value = 'https://zoom.us/j/84291023841 (Meeting ID: 842 9102 3841, Passcode: KPU-NGW)';
+  } else {
+    if (tempatInp) tempatInp.value = 'Ruang Rapat PPK Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+    if (zoomWrap) zoomWrap.style.display = 'none';
+  }
+};
+
+window.onPamAktaStatusChange = function(val) {
+  const aktaInp = document.getElementById('mu_legalitas_akta_notaris');
+  if (!aktaInp) return;
+  if (val === 'SAH') {
+    aktaInp.value = 'Akta Notaris No. 14 tgl 12-04-2018 jo. Akta Perubahan No. 05 tgl 08-01-2024 Notaris Siti Farida, S.H., M.Kn., Ngawi (AHU-0019284.AH.01.01.Tahun 2018)';
+  } else if (val === 'PROSES') {
+    aktaInp.value = 'Akta Notaris No. 14 tgl 12-04-2018 jo. Akta Perubahan No. 05 tgl 08-01-2024 (Proses AHU Kemenkumham)';
+  } else if (val === 'TIDAK_SAH') {
+    aktaInp.value = 'Dokumen Akta Notaris Belum Memenuhi Syarat Pengesahan Kemenkumham';
+  }
+};
+
+window.onPamNibStatusChange = function(val) {
+  const nibInp = document.getElementById('mu_legalitas_nib');
+  if (!nibInp) return;
+  if (val === 'SESUAI') {
+    nibInp.value = '9120301182451 (KBLI 46511 - Perdagangan Besar Komputer dan Perlengkapan Komputer)';
+  } else if (val === 'PROSES_KBLI') {
+    nibInp.value = '9120301182451 (Proses Tambah KBLI 46511)';
+  } else if (val === 'TIDAK_AKTIF') {
+    nibInp.value = 'NIB Tidak Aktif / Belum Terverifikasi OSS-RBA';
+  }
+};
+
+window.onPamFiskalStatusChange = function(val) {
+  const fiskalInp = document.getElementById('mu_legalitas_status_fiskal');
+  if (!fiskalInp) return;
+  if (val === 'BEBAS') {
+    fiskalInp.value = 'Valid / Bebas Tunggakan Pajak (KSWP Valid & SKF KPP Pratama Ngawi No. SKF-10293/WPJ.12/KP.0803/2026)';
+  } else if (val === 'PROSES') {
+    fiskalInp.value = 'KSWP Valid, SKF Fisik KPP Pratama Dalam Proses Penerbitan DJP';
+  } else if (val === 'TUNGGAKAN') {
+    fiskalInp.value = 'Terdapat Tunggakan Pajak Belum Terselesaikan';
+  }
+};
+
+window.onPamSptStatusChange = function(val) {
+  const sptInp = document.getElementById('mu_legalitas_status_spt');
+  if (!sptInp) return;
+  if (val === 'TERTIB') {
+    sptInp.value = 'SPT Tahunan PPh Badan Tahun 2025 Terlapor (BPS: 352101-2026-00384) & PPh Masa Terakhir Sesuai';
+  } else if (val === 'PROSES') {
+    sptInp.value = 'SPT Tahunan 2025 Terlapor, PPh Masa Terakhir Proses Rekonsiliasi';
+  } else if (val === 'BELUM_LAPOR') {
+    sptInp.value = 'Belum Lapor SPT Tahunan PPh Badan Tahun 2025';
+  }
+};
+
+window.onPamBankChange = function(val) {
+  const bankInp = document.getElementById('mu_nama_bank_penyedia');
+  if (bankInp && val !== 'Lainnya') {
+    bankInp.value = val;
+  }
+};
+
+window.calcPamJadwal = function() {
+  const tglTtdInp = document.getElementById('mu_kesepakatan_tgl_ttd_kontrak');
+  const durasiSel = document.getElementById('mu_durasi_hari_pam');
+  const jadwalInp = document.getElementById('mu_kesepakatan_jadwal_pelaksanaan');
+  if (!tglTtdInp || !durasiSel || !jadwalInp) return;
+
+  const tglTtdVal = tglTtdInp.value || '2026-05-27';
+  const hari = parseInt(durasiSel.value || '14', 10);
+  if (isNaN(hari) || hari <= 0) return;
+
+  const terbilangMap = {
+    7: 'tujuh', 10: 'sepuluh', 14: 'empat belas', 21: 'dua puluh satu',
+    30: 'tiga puluh', 45: 'empat puluh lima', 60: 'enam puluh', 90: 'sembilan puluh'
+  };
+  const terbilangStr = terbilangMap[hari] || String(hari);
+
+  try {
+    const dStart = new Date(tglTtdVal + 'T00:00:00');
+    const dEnd = new Date(dStart);
+    dEnd.setDate(dEnd.getDate() + (hari - 1));
+
+    const namaBulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const pad = n => String(n).padStart(2, '0');
+    const fmtIndo = d => pad(d.getDate()) + ' ' + namaBulanIndo[d.getMonth()] + ' ' + d.getFullYear();
+
+    jadwalInp.value = hari + ' (' + terbilangStr + ') Hari Kalender (' + fmtIndo(dStart) + ' s.d. ' + fmtIndo(dEnd) + ')';
+  } catch (err) {
+    console.warn('Gagal kalkulasi jadwal PAM:', err);
+  }
+};
+
+window.onPamPresetCatatanChange = function(val) {
+  const catatanArea = document.getElementById('mu_catatan_pam');
+  if (!catatanArea) return;
+  if (val === 'PRESET_1') {
+    catatanArea.value = 'Seluruh persyaratan legalitas, kewajiban perpajakan (KSWP/SKF/SPT), dan nomor rekening bank rekanan telah diverifikasi lengkap dan absah. Disepakati penandatanganan kontrak definitif pada 27 Mei 2026 dengan masa pelaksanaan 14 hari kalender.';
+  } else if (val === 'PRESET_2') {
+    catatanArea.value = 'Uji tuntas legalitas & fiskal tuntas 100%. Penyedia menyanggupi seluruh ketentuan teknis KAK, SLA garansi resmi 1 tahun on-site replacement, dan rekening bank siap untuk pembayaran LS bebas retur SP2D.';
+  } else if (val === 'PRESET_3') {
+    catatanArea.value = 'Rapat PAM diselenggarakan secara teleconference Zoom sesuai ketentuan UU ITE. Rekaman cloud dan risalah presensi elektronik diarsipkan sebagai bukti dukung sah pengadaan.';
+  }
+};
 
 function generateUniversalModalFields(num, paket, activeTRow) {
   switch (num) {
@@ -10057,20 +10325,222 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
     }
 
-    case 12:
+    case 12: {
+      const defaultNoUndanganPam = paket.no_undangan_pam || ('012/UND-PAM/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026');
+      const defaultTglUndanganPam = paket.tgl_undangan_pam || '2026-05-25';
+      const defaultNoBaPam = paket.no_ba_pam || activeTRow.nomor_dokumen || ('012/BA-PAM/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026');
+      const defaultTglBaPam = paket.tgl_ba_pam || activeTRow.tanggal_dokumen || '2026-05-26';
+      const defaultTempatPam = paket.tempat_pam || 'Ruang Rapat PPK Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+      const defaultMetodePam = String(paket.metode_pam || 'LURING').toUpperCase();
+      const defaultLinkZoomPam = paket.link_zoom_pam || 'https://zoom.us/j/84291023841 (Meeting ID: 842 9102 3841, Passcode: KPU-NGW)';
+
+      const defaultBank = paket.nama_bank_penyedia || 'Bank Jatim Cabang Ngawi';
+      const defaultRek = paket.no_rekening_penyedia || '014-229-8711';
+      const defaultAnRek = paket.atas_nama_rekening_penyedia || paket.nama_penyedia || 'CV. GRAFIKA PRATAMA';
+
+      const defaultAkta = paket.legalitas_akta_notaris || 'Akta Notaris No. 14 tgl 12-04-2018 jo. Akta Perubahan No. 05 tgl 08-01-2024 Notaris Siti Farida, S.H., M.Kn., Ngawi (AHU-0019284.AH.01.01.Tahun 2018)';
+      const defaultNib = paket.legalitas_nib || '9120301182451 (KBLI 46511 - Perdagangan Besar Komputer dan Perlengkapan Komputer)';
+      const defaultFiskal = paket.legalitas_status_fiskal || 'Valid / Bebas Tunggakan Pajak (KSWP Valid & SKF KPP Pratama Ngawi No. SKF-10293/WPJ.12/KP.0803/2026)';
+      const defaultSpt = paket.legalitas_status_spt || 'SPT Tahunan PPh Badan Tahun 2025 Terlapor (BPS: 352101-2026-00384) & PPh Masa Terakhir Sesuai';
+
+      const defaultTglTtd = paket.kesepakatan_tgl_ttd_kontrak || '2026-05-27';
+      const defaultJadwal = paket.kesepakatan_jadwal_pelaksanaan || '14 (empat belas) Hari Kalender (27 Mei 2026 s.d. 09 Juni 2026)';
+      const defaultCatatanPam = paket.catatan_pam || 'Seluruh persyaratan legalitas, kewajiban perpajakan (KSWP/SKF/SPT), dan nomor rekening bank rekanan telah diverifikasi lengkap dan absah. Disepakati penandatanganan kontrak definitif pada 27 Mei 2026 dengan masa pelaksanaan 14 hari kalender.';
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Rapat PAM &amp; Verifikasi Rekening Bank Rekanan</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nama Bank Penyedia</label>
-            <input type="text" id="mu_nama_bank_penyedia" class="cakra-form-control" value="${cakraEsc(paket.nama_bank_penyedia || 'Bank Jatim Cabang Ngawi')}" />
+        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:12px;">
+          🎯 Form Rapat Persiapan Penandatanganan Kontrak (PAM), Uji Tuntas Legalitas &amp; Pajak, dan Verifikasi Rekening Bank Bebas Retur SP2D
+        </div>
+
+        <!-- BLOK 1: UNDANGAN & BERITA ACARA RAPAT PAM (DOKUMEN 01 & 02) -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#334155; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📜 1. Naskah Undangan &amp; Berita Acara Rapat PAM (Dokumen 01 &amp; 02)</span>
+            <span style="font-size:10px; color:#166534; font-weight:700;">Terisi Otomatis Sesuai Kode Paket</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Surat Undangan PAM PPK (Otomatis)</label>
+              <input type="text" id="mu_no_undangan_pam" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultNoUndanganPam)}" placeholder="Nomor Surat Undangan PAM" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Surat Undangan PAM</label>
+              <input type="date" id="mu_tgl_undangan_pam" class="cakra-form-control" value="${cakraEsc(defaultTglUndanganPam)}" />
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:4px; display:block;">Nomor Berita Acara PAM (BA-PAM) * (Otomatis)</label>
+              <input type="text" id="mu_no_ba_pam" class="cakra-form-control cakra-mono" style="font-weight:700;" value="${cakraEsc(defaultNoBaPam)}" placeholder="Nomor BA-PAM" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:4px; display:block;">Tanggal Pelaksanaan Rapat PAM *</label>
+              <input type="date" id="mu_tgl_ba_pam" class="cakra-form-control" style="font-weight:700;" value="${cakraEsc(defaultTglBaPam)}" />
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:4px; display:block;">Metode Pelaksanaan Rapat PAM (Dropdown Adaptif E-Purchasing) *</label>
+            <select id="mu_metode_pam" class="cakra-form-control" style="font-weight:700;" onchange="window.onPamMetodeChange(this.value)">
+              <option value="LURING" ${defaultMetodePam === 'LURING' ? 'selected' : ''}>🏢 Tatap Muka Luring (Ruang Rapat PPK Kantor KPU Kabupaten Ngawi)</option>
+              <option value="DARING" ${defaultMetodePam === 'DARING' ? 'selected' : ''}>💻 Teleconference / Daring Penuh (Zoom Cloud Meetings / Google Meet)</option>
+              <option value="HYBRID" ${defaultMetodePam === 'HYBRID' ? 'selected' : ''}>🌐 Hybrid (Tatap Muka &amp; Teleconference Zoom)</option>
+            </select>
+          </div>
+          <div id="mu_zoom_wrapper" style="margin-bottom:10px; display:${(defaultMetodePam === 'DARING' || defaultMetodePam === 'HYBRID') ? 'block' : 'none'}; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:10px;">
+            <label style="font-size:11px; font-weight:700; color:#1d4ed8; margin-bottom:4px; display:block;">Tautan / Meeting ID &amp; Passcode Teleconference (Zoom / Meet) *</label>
+            <input type="text" id="mu_link_zoom_pam" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultLinkZoomPam)}" placeholder="cth: https://zoom.us/j/... (Meeting ID & Passcode)" />
+            <div style="font-size:10px; color:#1e40af; margin-top:4px;">
+              💡 Tautan/ID Zoom ini akan dicantumkan secara otomatis pada Surat Undangan dan Berita Acara PAM sebagai dasar keabsahan teleconference UU ITE.
+            </div>
           </div>
           <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Rekening Penyedia</label>
-            <input type="text" id="mu_no_rekening_penyedia" class="cakra-form-control cakra-mono" value="${cakraEsc(paket.no_rekening_penyedia || '014-229-8711')}" />
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tempat / Media Pelaksanaan Rapat PAM (Otomatis)</label>
+            <input type="text" id="mu_tempat_pam" class="cakra-form-control" value="${cakraEsc(defaultTempatPam)}" placeholder="Tempat / Media Pelaksanaan" />
+          </div>
+        </div>
+
+        <!-- BLOK 2: HASIL UJI TUNTAS LEGALITAS BADAN USAHA, IZIN & KEPATUHAN FISKAL/PAJAK (DOKUMEN 03) -->
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#166534; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🔍 2. Hasil Uji Tuntas Legalitas Badan Usaha, Izin &amp; Kepatuhan Fiskal/Pajak (Dokumen 03)</span>
+            <span style="font-size:10px; color:#15803d; font-weight:700;">Status Dropdown &amp; Otomatis Terisi</span>
+          </div>
+          
+          <!-- BARIS 1: AKTA & NIB -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div style="background:#ffffff; border:1px solid #86efac; border-radius:6px; padding:8px;">
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status Keabsahan Akta Notaris (Dropdown)</label>
+              <select id="mu_status_akta_opt" class="cakra-form-control" style="font-weight:700; margin-bottom:6px;" onchange="window.onPamAktaStatusChange(this.value)">
+                <option value="SAH" selected>✅ Sah &amp; Absah Sesuai SK Kemenkumham</option>
+                <option value="PROSES">⚠️ Ada Perubahan Baru (Proses AHU Kemenkumham)</option>
+                <option value="TIDAK_SAH">❌ Tidak Sah / Belum Terverifikasi</option>
+              </select>
+              <label style="font-size:10.5px; font-weight:600; color:#475569; margin-bottom:2px; display:block;">Detail Nomor Akta &amp; AHU (Otomatis):</label>
+              <input type="text" id="mu_legalitas_akta_notaris" class="cakra-form-control" style="font-size:11px;" value="${cakraEsc(defaultAkta)}" placeholder="Nomor Akta Notaris & SK Kemenkumham" />
+            </div>
+
+            <div style="background:#ffffff; border:1px solid #86efac; border-radius:6px; padding:8px;">
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status Validitas NIB OSS-RBA (Dropdown)</label>
+              <select id="mu_status_nib_opt" class="cakra-form-control" style="font-weight:700; margin-bottom:6px;" onchange="window.onPamNibStatusChange(this.value)">
+                <option value="SESUAI" selected>✅ Terverifikasi Aktif &amp; KBLI 46511 Sesuai (Komputer)</option>
+                <option value="PROSES_KBLI">⚠️ NIB Aktif, Proses Tambah KBLI 46511</option>
+                <option value="TIDAK_AKTIF">❌ NIB Tidak Aktif / Belum Terverifikasi</option>
+              </select>
+              <label style="font-size:10.5px; font-weight:600; color:#475569; margin-bottom:2px; display:block;">Detail NIB &amp; KBLI Berusaha (Otomatis):</label>
+              <input type="text" id="mu_legalitas_nib" class="cakra-form-control" style="font-size:11px;" value="${cakraEsc(defaultNib)}" placeholder="NIB & KBLI Berusaha" />
+            </div>
+          </div>
+
+          <!-- BARIS 2: KSWP/SKF & SPT PAJAK -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div style="background:#ffffff; border:1px solid #86efac; border-radius:6px; padding:8px;">
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status KSWP &amp; SKF KPP Pratama (Dropdown)</label>
+              <select id="mu_status_fiskal_opt" class="cakra-form-control" style="font-weight:700; margin-bottom:6px;" onchange="window.onPamFiskalStatusChange(this.value)">
+                <option value="BEBAS" selected>✅ KSWP Valid &amp; SKF Bebas Tunggakan Pajak</option>
+                <option value="PROSES">⚠️ KSWP Valid, SKF Fisik Dalam Proses DJP</option>
+                <option value="TUNGGAKAN">❌ Ada Tunggakan Pajak Belum Selesai</option>
+              </select>
+              <label style="font-size:10.5px; font-weight:600; color:#475569; margin-bottom:2px; display:block;">Detail Nomor SKF &amp; KPP Pratama (Otomatis):</label>
+              <input type="text" id="mu_legalitas_status_fiskal" class="cakra-form-control" style="font-size:11px;" value="${cakraEsc(defaultFiskal)}" placeholder="Status KSWP & SKF" />
+            </div>
+
+            <div style="background:#ffffff; border:1px solid #86efac; border-radius:6px; padding:8px;">
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Status SPT Tahunan Badan &amp; Pajak Masa (Dropdown)</label>
+              <select id="mu_status_spt_opt" class="cakra-form-control" style="font-weight:700; margin-bottom:6px;" onchange="window.onPamSptStatusChange(this.value)">
+                <option value="TERTIB" selected>✅ Tertib: SPT 2025 Terlapor &amp; Pajak Masa Sesuai</option>
+                <option value="PROSES">⚠️ SPT 2025 Terlapor, Masa Terakhir Proses</option>
+                <option value="BELUM_LAPOR">❌ Belum Lapor SPT Tahunan PPh Badan</option>
+              </select>
+              <label style="font-size:10.5px; font-weight:600; color:#475569; margin-bottom:2px; display:block;">Bukti Penerimaan Elektronik / BPS (Otomatis):</label>
+              <input type="text" id="mu_legalitas_status_spt" class="cakra-form-control" style="font-size:11px;" value="${cakraEsc(defaultSpt)}" placeholder="BPS SPT Tahunan & Pajak Masa" />
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOK 3: VERIFIKASI REKENING BANK REKANAN (BEBAS RETUR SP2D KPPN) -->
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🏦 3. Verifikasi Rekening Bank Pembayaran LS Rekanan (Bebas Retur SP2D KPPN)</span>
+            <span style="font-size:10px; color:#1d4ed8; font-weight:700;">Integrasi SAKTI Kemenkeu</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Bank Operasional (Dropdown)</label>
+              <select id="mu_sel_bank_penyedia" class="cakra-form-control" style="font-weight:700; margin-bottom:4px;" onchange="window.onPamBankChange(this.value)">
+                <option value="Bank Jatim Cabang Ngawi" ${defaultBank.includes('Jatim') ? 'selected' : ''}>Bank Jatim Cabang Ngawi (Kasda/Giro)</option>
+                <option value="Bank BRI Cabang Ngawi" ${defaultBank.includes('BRI') ? 'selected' : ''}>Bank BRI Cabang Ngawi</option>
+                <option value="Bank BNI Cabang Ngawi" ${defaultBank.includes('BNI') ? 'selected' : ''}>Bank BNI Cabang Ngawi</option>
+                <option value="Bank Mandiri Cabang Ngawi" ${defaultBank.includes('Mandiri') ? 'selected' : ''}>Bank Mandiri Cabang Ngawi</option>
+                <option value="Bank BSI Cabang Ngawi" ${defaultBank.includes('BSI') ? 'selected' : ''}>Bank BSI Cabang Ngawi</option>
+                <option value="Lainnya" ${(!defaultBank.includes('Jatim') && !defaultBank.includes('BRI') && !defaultBank.includes('BNI') && !defaultBank.includes('Mandiri') && !defaultBank.includes('BSI')) ? 'selected' : ''}>Lainnya</option>
+              </select>
+              <input type="text" id="mu_nama_bank_penyedia" class="cakra-form-control" style="font-size:11px;" value="${cakraEsc(defaultBank)}" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Nomor Rekening (Otomatis Rekanan)</label>
+              <input type="text" id="mu_no_rekening_penyedia" class="cakra-form-control cakra-mono" style="font-weight:700;" value="${cakraEsc(defaultRek)}" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Atas Nama Pemilik Rekening (Otomatis)</label>
+              <input type="text" id="mu_atas_nama_rekening_penyedia" class="cakra-form-control" style="font-weight:700; color:#1e40af;" value="${cakraEsc(defaultAnRek)}" />
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#1e40af; margin-bottom:4px; display:block;">Status Validasi Rekening SAKTI / SPAN Kemenkeu (Dropdown)</label>
+            <select id="mu_status_sakti_rekening" class="cakra-form-control" style="font-weight:700; margin-bottom:4px;">
+              <option value="VALID" selected>✅ Tervalidasi SAKTI Supplier Tipe 3 (Identik NPWP &amp; Bebas Retur SP2D KPPN)</option>
+              <option value="PROSES">⚠️ Sedang Proses Pendaftaran Supplier di Aplikasi SAKTI KPPN</option>
+              <option value="BEDA_NAMA">❌ Nama Rekening Tidak Identik NPWP (Potensi Retur SP2D)</option>
+            </select>
+            <div style="font-size:10.5px; color:#1e40af; margin-top:2px;">
+              🛡️ <b>Jaminan PPK:</b> Nama rekening wajib persis dengan NPWP dan Akta Notaris agar proses pencairan dana LS melalui KPPN berjalan lancar tanpa retur SP2D.
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOK 4: KESEPAKATAN TANGGAL TTD KONTRAK DEFINITIF & JADWAL PELAKSANAAN -->
+        <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:800; color:#6b21a8; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🤝 4. Kesepakatan Tanggal TTD Kontrak Definitif &amp; Jadwal Pelaksanaan</span>
+            <span style="font-size:10px; color:#6b21a8; font-weight:700;">Kalkulasi Hari Otomatis</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1.4fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#6b21a8; margin-bottom:4px; display:block;">Tanggal Definitif TTD Kontrak *</label>
+              <input type="date" id="mu_kesepakatan_tgl_ttd_kontrak" class="cakra-form-control" style="font-weight:700;" value="${cakraEsc(defaultTglTtd)}" onchange="window.calcPamJadwal()" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#6b21a8; margin-bottom:4px; display:block;">Durasi Hari Kalender (Dropdown)</label>
+              <select id="mu_durasi_hari_pam" class="cakra-form-control" style="font-weight:700;" onchange="window.calcPamJadwal()">
+                <option value="14" selected>14 Hari Kalender (Standar E-Katalog)</option>
+                <option value="21">21 Hari Kalender</option>
+                <option value="30">30 Hari Kalender (1 Bulan)</option>
+                <option value="45">45 Hari Kalender</option>
+                <option value="60">60 Hari Kalender (2 Bulan)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#6b21a8; margin-bottom:4px; display:block;">Jadwal Pelaksanaan (Terhitung Otomatis)</label>
+              <input type="text" id="mu_kesepakatan_jadwal_pelaksanaan" class="cakra-form-control" style="font-weight:700; color:#6b21a8;" value="${cakraEsc(defaultJadwal)}" />
+            </div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="font-size:11px; font-weight:700; color:#6b21a8; display:block;">Catatan Kesepakatan Rapat PAM</label>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:10.5px; color:#6b21a8; font-weight:600;">Pilih Template Preset:</span>
+                <select id="mu_preset_catatan_pam" class="cakra-form-control" style="font-size:10.5px; padding:2px 6px; width:auto; font-weight:700;" onchange="window.onPamPresetCatatanChange(this.value)">
+                  <option value="PRESET_1" selected>Preset 1: Baku Tahap 12 (Uji Tuntas Lengkap & TTD 27 Mei)</option>
+                  <option value="PRESET_2">Preset 2: Penegasan Garansi 1 Th & Franco Kantor KPU</option>
+                  <option value="PRESET_3">Preset 3: Rapat Daring Teleconference Zoom (UU ITE)</option>
+                </select>
+              </div>
+            </div>
+            <textarea id="mu_catatan_pam" class="cakra-form-control" rows="2">${cakraEsc(defaultCatatanPam)}</textarea>
           </div>
         </div>
       `;
+    }
 
     case 13:
       return `
@@ -10534,8 +11004,30 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       tanggalDokumen = extraPaketFields.tgl_sppbj;
     }
   } else if (num === 12) {
+    extraPaketFields.no_undangan_pam = getStr('mu_no_undangan_pam') || paket.no_undangan_pam;
+    extraPaketFields.tgl_undangan_pam = getStr('mu_tgl_undangan_pam') || paket.tgl_undangan_pam;
+    extraPaketFields.no_ba_pam = getStr('mu_no_ba_pam') || paket.no_ba_pam;
+    extraPaketFields.tgl_ba_pam = getStr('mu_tgl_ba_pam') || paket.tgl_ba_pam;
+    extraPaketFields.metode_pam = getStr('mu_metode_pam') || paket.metode_pam || 'LURING';
+    extraPaketFields.link_zoom_pam = getStr('mu_link_zoom_pam') || paket.link_zoom_pam || null;
+    extraPaketFields.tempat_pam = getStr('mu_tempat_pam') || paket.tempat_pam;
     extraPaketFields.nama_bank_penyedia = getStr('mu_nama_bank_penyedia') || paket.nama_bank_penyedia;
     extraPaketFields.no_rekening_penyedia = getStr('mu_no_rekening_penyedia') || paket.no_rekening_penyedia;
+    extraPaketFields.atas_nama_rekening_penyedia = getStr('mu_atas_nama_rekening_penyedia') || paket.atas_nama_rekening_penyedia;
+    extraPaketFields.legalitas_akta_notaris = getStr('mu_legalitas_akta_notaris') || paket.legalitas_akta_notaris;
+    extraPaketFields.legalitas_nib = getStr('mu_legalitas_nib') || paket.legalitas_nib;
+    extraPaketFields.legalitas_status_fiskal = getStr('mu_legalitas_status_fiskal') || paket.legalitas_status_fiskal;
+    extraPaketFields.legalitas_status_spt = getStr('mu_legalitas_status_spt') || paket.legalitas_status_spt;
+    extraPaketFields.kesepakatan_tgl_ttd_kontrak = getStr('mu_kesepakatan_tgl_ttd_kontrak') || paket.kesepakatan_tgl_ttd_kontrak;
+    extraPaketFields.kesepakatan_jadwal_pelaksanaan = getStr('mu_kesepakatan_jadwal_pelaksanaan') || paket.kesepakatan_jadwal_pelaksanaan;
+    extraPaketFields.catatan_pam = getStr('mu_catatan_pam') || paket.catatan_pam;
+
+    if (extraPaketFields.no_ba_pam) {
+      nomorDokumen = extraPaketFields.no_ba_pam;
+    }
+    if (extraPaketFields.tgl_ba_pam) {
+      tanggalDokumen = extraPaketFields.tgl_ba_pam;
+    }
   } else if (num === 13) {
     extraPaketFields.no_kontrak = getStr('mu_no_kontrak') || paket.no_kontrak;
     extraPaketFields.nilai_kontrak = getNum('mu_nilai_kontrak_final') || paket.nilai_kontrak;

@@ -5312,6 +5312,779 @@ function buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   return [section1, section2];
 }
 
+// =============================================================================
+// TAHAP 12: RAPAT PERSIAPAN PENANDATANGANAN KONTRAK (PRE-AWARD MEETING / PAM) & VERIFIKASI REKENING BANK REKANAN
+// Sesuai Perpres 16/2018 jo. Perpres 12/2021 jo. Perpres 46/2025 Pasal 56,
+// Lampiran Perlem LKPP 12/2021, Keputusan KPU 543/2022, serta Juknis Pembayaran LS KPPN
+// =============================================================================
+function buildStage12Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
+  const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, bendahara, settings } = ctx;
+  const metode = paket.metode_pemilihan || 'E-Purchasing';
+  const tglTahap12Raw = tahapRow.tanggal_dokumen || paket.tgl_ba_pam || '2026-05-26';
+  const tglTahap12Str = formatTanggalIndo(tglTahap12Raw);
+  const hariTanggalTahap12 = formatHariTanggalBeritaAcara(tglTahap12Raw);
+
+  const paguNominal = Number(paket.nilai_pagu || 145000000);
+  const hpsNominal = Number(paket.nilai_hps || 140350000);
+  const sepakatKontrak = Number(paket.nilai_kontrak || 138000000);
+
+  const ppkNama = cleanNamaTanpaGelar((ppk && ppk.nama_lengkap) || 'MOHAMMAD NOOR JIHAN');
+  const ppkNip = (ppk && ppk.nip) || '19910518 201503 1 002';
+
+  const ppNama = cleanNamaTanpaGelar((pejabatPengadaan && pejabatPengadaan.nama_lengkap) || 'INDRAYU FATIKA MAHARDIKA');
+  const ppNip = (pejabatPengadaan && pejabatPengadaan.nip) || '19931024 202012 2 014';
+
+  const kpaNama = cleanNamaTanpaGelar((kpa && kpa.nama_lengkap) || 'BUDI RAHAYU');
+  const kpaNip = (kpa && kpa.nip) || '19720412 199803 1 004';
+
+  const bendaharaNama = cleanNamaTanpaGelar((bendahara && bendahara.nama_lengkap) || 'IMAS MAESAROH');
+  const bendaharaNip = (bendahara && bendahara.nip) || '19820520 200801 2 015';
+
+  const namaPenyedia = (penyedia && penyedia.nama_perusahaan) || 'CV. GRAFIKA PRATAMA NGAWI';
+  const direkturPenyedia = cleanNamaTanpaGelar((penyedia && penyedia.nama_direktur) || 'HENDRA SURYAWAN');
+  const jabatanPenyedia = (penyedia && penyedia.jabatan_penandatangan) || 'Direktur';
+  const npwpPenyedia = (penyedia && penyedia.npwp) || '01.445.882.9-646.000';
+  const nibPenyedia = (penyedia && penyedia.nib) || '9120301182451';
+  const alamatPenyedia = (penyedia && penyedia.alamat) || 'Jl. Ronggowarsito No. 12, Kel. Pelem, Kec. Ngawi, Kab. Ngawi';
+
+  // Naskah Resmi Tahap 12
+  const noUndanganPam = paket.no_undangan_pam || ('012/UND-PAM/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026');
+  const tglUndanganRaw = paket.tgl_undangan_pam || '2026-05-25';
+  const tglUndanganStr = formatTanggalIndo(tglUndanganRaw);
+
+  const noBaPam = tahapRow.nomor_dokumen || paket.no_ba_pam || ('012/BA-PAM/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026');
+  const noVerifLfb = '012/VERIF-LFB/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026';
+  const noNotulenPam = '012/NOTULEN-PAM/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026';
+
+  const metodePam = String(paket.metode_pam || 'LURING').toUpperCase();
+  const linkZoomPam = paket.link_zoom_pam || 'https://zoom.us/j/84291023841 (Meeting ID: 842 9102 3841, Passcode: KPU-NGW)';
+  const tempatPam = paket.tempat_pam || (
+    metodePam === 'DARING'
+      ? 'Media Teleconference Virtual via Zoom Cloud Meetings'
+      : (metodePam === 'HYBRID'
+          ? 'Ruang Rapat PPK Kantor KPU Kabupaten Ngawi & Daring via Zoom Cloud Meetings'
+          : 'Ruang Rapat PPK Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi')
+  );
+  const namaBankPenyedia = paket.nama_bank_penyedia || 'Bank Jatim Cabang Ngawi';
+  const noRekeningPenyedia = paket.no_rekening_penyedia || '014-229-8711';
+  const atasNamaRekening = paket.atas_nama_rekening_penyedia || 'CV. GRAFIKA PRATAMA';
+
+  const legalitasAkta = paket.legalitas_akta_notaris || 'Akta Pendirian No. 14 tgl 12-04-2018 jo. Akta Perubahan No. 05 tgl 08-01-2024 Notaris Siti Farida, S.H., M.Kn., Ngawi (AHU-0019284.AH.01.01.Tahun 2018)';
+  const legalitasNib = paket.legalitas_nib || '9120301182451 (KBLI 46511 - Perdagangan Besar Komputer dan Perlengkapan Komputer)';
+  const legalitasFiskal = paket.legalitas_status_fiskal || 'Valid / Bebas Tunggakan Pajak (KSWP Valid & SKF KPP Pratama Ngawi No. SKF-10293/WPJ.12/KP.0803/2026)';
+  const legalitasSpt = paket.legalitas_status_spt || 'SPT Tahunan PPh Badan Tahun 2025 Terlapor (BPS: 352101-2026-00384) & PPh Masa 3 Bulan Terakhir Nihil/Lunas';
+
+  const tglTtdKontrakRaw = paket.kesepakatan_tgl_ttd_kontrak || '2026-05-27';
+  const tglTtdKontrakStr = formatTanggalIndo(tglTtdKontrakRaw);
+  const jadwalPelaksanaan = paket.kesepakatan_jadwal_pelaksanaan || '14 (empat belas) Hari Kalender (27 Mei 2026 s.d. 09 Juni 2026)';
+
+  const noSppbj = paket.no_sppbj || ('011/SPPBJ/' + (paket.kode_paket_internal || 'PBJ-2026-001') + '/PPK-PBJ/KPU-NGW/V/2026');
+  const tglSppbjStr = formatTanggalIndo(paket.tgl_sppbj || '2026-05-25');
+
+  const makeHeader = (label, docNo) => new Header({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [
+          new TextRun({ text: (settings.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase() + ' | ' + label, size: 16, font: 'Cambria', color: '64748B' }),
+          new TextRun({ text: '  [ ' + docNo + ' ]', size: 15, font: 'Cambria', color: '1E3A8A', bold: true })
+        ]
+      })
+    ]
+  });
+
+  const makeFooter = (label) => new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [
+          new TextRun({ text: 'SI-PRABU v3.0 Satker 657811 — ' + label + ' | Halaman ', size: 16, font: 'Cambria', color: '64748B' }),
+          new TextRun({ children: [PageNumber.CURRENT], size: 16, font: 'Cambria', color: '1E3A8A', bold: true }),
+          new TextRun({ text: ' dari ', size: 16, font: 'Cambria', color: '64748B' }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, font: 'Cambria', color: '1E3A8A', bold: true })
+        ]
+      })
+    ]
+  });
+
+  const buildSingleSignPpk = (locDate) => new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: BORDER_NONE,
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: BORDER_NONE,
+            children: [
+              pText('Tembusan Disampaikan Kepada Yth.:', { bold: true, size: 18, color: '334155', before: 20, after: 10 }),
+              pText('1. Kuasa Pengguna Anggaran (KPA) KPU Kabupaten Ngawi;', { size: 17, color: '475569', before: 0, after: 5 }),
+              pText('2. Pejabat Pengadaan KPU Kabupaten Ngawi;', { size: 17, color: '475569', before: 0, after: 5 }),
+              pText('3. Bendahara Pengeluaran KPU Kabupaten Ngawi;', { size: 17, color: '475569', before: 0, after: 5 }),
+              pText('4. Pertinggal / Arsip Dokumen Pengadaan.', { size: 17, color: '475569', before: 0, after: 10 })
+            ]
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: BORDER_NONE,
+            children: [
+              pText(locDate, { align: AlignmentType.CENTER, size: 20, before: 10, after: 10 }),
+              pText('Pejabat Pembuat Komitmen (PPK)', { align: AlignmentType.CENTER, bold: true, size: 20, before: 0, after: 5 }),
+              pText('Satuan Kerja KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, size: 19, before: 0, after: 180 }),
+              pText(ppkNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 21, color: '0F172A', before: 0, after: 5 }),
+              pText('NIP. ' + ppkNip, { align: AlignmentType.CENTER, size: 19, color: '334155', before: 0, after: 10 })
+            ]
+          })
+        ]
+      })
+    ]
+  });
+
+  const buildDualSignPpkPenyedia = (locDate) => new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: BORDER_NONE,
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: BORDER_NONE,
+            children: [
+              pText('PIHAK KEDUA / PENYEDIA,', { align: AlignmentType.CENTER, size: 20, before: 10, after: 5 }),
+              pText(namaPenyedia, { align: AlignmentType.CENTER, bold: true, size: 20, color: '15803D', before: 0, after: 180 }),
+              pText(direkturPenyedia, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 21, color: '0F172A', before: 0, after: 5 }),
+              pText(jabatanPenyedia, { align: AlignmentType.CENTER, size: 19, color: '334155', before: 0, after: 10 })
+            ]
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: BORDER_NONE,
+            children: [
+              pText(locDate, { align: AlignmentType.CENTER, size: 20, before: 10, after: 5 }),
+              pText('PIHAK KESATU / PPK,', { align: AlignmentType.CENTER, size: 20, before: 0, after: 5 }),
+              pText('Pejabat Pembuat Komitmen', { align: AlignmentType.CENTER, bold: true, size: 20, before: 0, after: 180 }),
+              pText(ppkNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 21, color: '0F172A', before: 0, after: 5 }),
+              pText('NIP. ' + ppkNip, { align: AlignmentType.CENTER, size: 19, color: '334155', before: 0, after: 10 })
+            ]
+          })
+        ]
+      })
+    ]
+  });
+
+  const pageProps = {
+    size: { width: 11906, height: 16838 },
+    margin: { top: 760, right: 820, bottom: 760, left: 820 }
+  };
+
+  // ===========================================================================
+  // DOKUMEN 01: SURAT UNDANGAN RAPAT PERSIAPAN PENANDATANGANAN KONTRAK (PAM)
+  // ===========================================================================
+  const section1 = {
+    properties: {
+      ...(isFirstStageInDoc ? {} : { type: SectionType.NEXT_PAGE }),
+      page: pageProps
+    },
+    headers: { default: makeHeader('SURAT UNDANGAN RAPAT PAM', noUndanganPam) },
+    footers: { default: makeFooter('Dokumen 01: Undangan Rapat PAM PPK') },
+    children: [
+      ...buildKopSuratKpu(settings),
+
+      // Header Surat Dinas
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 60, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  new Table({
+                    width: { size: 100, type: WidthType.PERCENTAGE },
+                    borders: BORDER_NONE,
+                    rows: [
+                      new TableRow({ children: [
+                        new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Nomor', { size: 20, bold: true })] }),
+                        new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { size: 20 })] }),
+                        new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(noUndanganPam, { size: 20, bold: true, color: '1E3A8A' })] })
+                      ]}),
+                      new TableRow({ children: [
+                        new TableCell({ borders: BORDER_NONE, children: [pText('Sifat', { size: 20 })] }),
+                        new TableCell({ borders: BORDER_NONE, children: [pText(':', { size: 20 })] }),
+                        new TableCell({ borders: BORDER_NONE, children: [pText('Penting', { size: 20 })] })
+                      ]}),
+                      new TableRow({ children: [
+                        new TableCell({ borders: BORDER_NONE, children: [pText('Lampiran', { size: 20 })] }),
+                        new TableCell({ borders: BORDER_NONE, children: [pText(':', { size: 20 })] }),
+                        new TableCell({ borders: BORDER_NONE, children: [pText('1 (satu) Berkas Draf Kontrak & Checklist', { size: 20 })] })
+                      ]}),
+                      new TableRow({ children: [
+                        new TableCell({ borders: BORDER_NONE, children: [pText('Perihal', { size: 20, bold: true })] }),
+                        new TableCell({ borders: BORDER_NONE, children: [pText(':', { size: 20 })] }),
+                        new TableCell({ borders: BORDER_NONE, children: [pText('Undangan Rapat Persiapan Penandatanganan Kontrak (PAM) Paket ' + (paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi'), { size: 20, bold: true, color: '0F172A' })] })
+                      ]})
+                    ]
+                  })
+                ]
+              }),
+              new TableCell({
+                width: { size: 40, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Ngawi, ' + tglUndanganStr, { align: AlignmentType.RIGHT, size: 20, before: 0, after: 10 }),
+                  pText('Kepada Yth.:', { align: AlignmentType.LEFT, bold: true, size: 20, before: 20, after: 5 }),
+                  pText('Direktur ' + namaPenyedia, { align: AlignmentType.LEFT, bold: true, size: 20, color: '15803D', before: 0, after: 5 }),
+                  pText('(d.h. ' + direkturPenyedia + ')', { align: AlignmentType.LEFT, size: 19, color: '475569', before: 0, after: 5 }),
+                  pText(alamatPenyedia, { align: AlignmentType.LEFT, size: 18, color: '64748B', before: 0, after: 5 }),
+                  pText('di —', { align: AlignmentType.LEFT, size: 19, before: 0, after: 0 }),
+                  pText('     N G A W I', { align: AlignmentType.LEFT, bold: true, size: 20, color: '0F172A', before: 0, after: 10 })
+                ]
+              })
+            ]
+          })
+        ]
+      }),
+
+      pText('', { before: 20, after: 20 }),
+      pText('Dengan hormat,', { size: 21, before: 10, after: 20 }),
+      pText('Menindaklanjuti Surat Penunjukan Penyedia Barang/Jasa (SPPBJ) Nomor: ' + noSppbj + ' tanggal ' + tglSppbjStr + ' serta Surat Pernyataan Kesanggupan dan Penerimaan Penunjukan Saudara, sesuai ketentuan Pasal 56 Peraturan Presiden Nomor 16 Tahun 2018 jo. Peraturan Presiden Nomor 46 Tahun 2025 dan Lampiran Peraturan LKPP Nomor 12 Tahun 2021, bersama ini Pejabat Pembuat Komitmen (PPK) Satker KPU Kabupaten Ngawi mengundang Saudara untuk menghadiri Rapat Persiapan Penandatanganan Kontrak (Pre-Award Meeting / PAM) yang akan diselenggarakan pada:', { size: 21, align: AlignmentType.JUSTIFIED, before: 10, after: 30 }),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Hari / Tanggal', { bold: true, size: 20, before: 20, after: 20 })] }),
+            new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText('Selasa, 26 Mei 2026', { bold: true, color: '1E3A8A', size: 20, before: 20, after: 20 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Waktu Pelaksanaan', { bold: true, size: 20, before: 20, after: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Pukul 09.30 WIB s.d. Selesai', { size: 20, before: 20, after: 20 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText(metodePam === 'DARING' ? 'Media Rapat' : (metodePam === 'HYBRID' ? 'Tempat & Media Rapat' : 'Tempat Rapat'), { bold: true, size: 20, before: 20, after: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [
+              pText(tempatPam, { bold: (metodePam === 'DARING' || metodePam === 'HYBRID'), color: (metodePam === 'DARING' ? '1E3A8A' : '0F172A'), size: 20, before: (metodePam === 'DARING' || metodePam === 'HYBRID' ? 10 : 20), after: (metodePam === 'DARING' || metodePam === 'HYBRID' ? 5 : 20) }),
+              ...(metodePam === 'DARING' ? [pText('Tautan / Meeting ID & Passcode Zoom: ' + linkZoomPam, { size: 19, color: '2563EB', bold: true, before: 0, after: 10 })] : []),
+              ...(metodePam === 'HYBRID' ? [pText('Tautan Daring (Zoom Cloud Meetings): ' + linkZoomPam, { size: 19, color: '2563EB', bold: true, before: 0, after: 10 })] : [])
+            ] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Agenda Pembahasan', { bold: true, size: 20, before: 20, after: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [
+              pText('1. Penyelarasan dan finalisasi klausul draf Kontrak (Surat Pesanan E-Purchasing Lumsum);', { size: 19, before: 5, after: 5 }),
+              pText('2. Klarifikasi spesifikasi teknis (100% Brand New In Box) dan Sertifikat Garansi Resmi Pabrikan 1 Tahun;', { size: 19, before: 0, after: 5 }),
+              pText('3. Uji tuntas legalitas badan usaha, akta notaris, dan izin berusaha (NIB OSS-RBA);', { size: 19, before: 0, after: 5 }),
+              pText('4. Verifikasi kepatuhan fiskal/pajak (KSWP Valid, SKF Bebas Tunggakan, SPT Tahunan 2025, Pajak Masa);', { size: 19, before: 0, after: 5 }),
+              pText('5. Verifikasi rekening bank rekanan untuk mitigasi risiko retur SP2D SPAN/SAKTI KPPN;', { size: 19, before: 0, after: 5 }),
+              pText('6. Penetapan tanggal definitif penandatanganan kontrak dan jadwal pelaksanaan pekerjaan.', { size: 19, before: 0, after: 10 })
+            ]})
+          ]})
+        ]
+      }),
+
+      metodePam === 'DARING'
+        ? pText('Mengingat rapat diselenggarakan secara Daring (Teleconference) melalui aplikasi Zoom Cloud Meetings, Saudara (Direktur/Penanggung Jawab Sah) diwajibkan bergabung tepat waktu dengan mengaktifkan kamera video (on-camera) serta menyiapkan berkas fisik asli dan file pindaian (scan) berwarna sebagai berikut:', { size: 21, align: AlignmentType.JUSTIFIED, before: 30, after: 20 })
+        : (metodePam === 'HYBRID'
+            ? pText('Mengingat rapat diselenggarakan secara Hybrid (Tatap Muka & Daring Zoom), Saudara (Direktur/Penanggung Jawab Sah) atau perwakilan sah dapat hadir secara fisik di Kantor KPU atau bergabung melalui media teleconference Zoom dengan menyiapkan berkas kelengkapan asli dan salinan legalisir sebagai berikut:', { size: 21, align: AlignmentType.JUSTIFIED, before: 30, after: 20 })
+            : pText('Mengingat pentingnya agenda rapat ini, Saudara (Direktur/Penanggung Jawab Sah) diwajibkan hadir secara langsung dengan membawa berkas kelengkapan fisik asli dan salinan legalisir sebagai berikut:', { size: 21, align: AlignmentType.JUSTIFIED, before: 30, after: 20 })),
+
+      pListItem('1.', 'Legalitas Pendirian Badan Usaha', 'Asli dan Salinan Akta Pendirian Perusahaan No. 14 tgl 12 April 2018 jo. Akta Perubahan Terakhir No. 05 tgl 08 Januari 2024 Notaris Siti Farida, S.H., M.Kn., Ngawi beserta SK Pengesahan Kemenkumham RI;'),
+      pListItem('2.', 'Perizinan Berusaha', 'Asli dan Salinan Nomor Induk Berusaha (NIB) berbasis risiko OSS-RBA Nomor: 9120301182451 dengan KBLI 46511 (Perdagangan Besar Komputer dan Perlengkapan Komputer);'),
+      pListItem('3.', 'Kepatuhan Perpajakan / Fiskal', 'Asli dan Salinan NPWP Badan Usaha, Bukti Konfirmasi Status Wajib Pajak (KSWP Valid), Surat Keterangan Fiskal (SKF) bebas tunggakan dari KPP Pratama Ngawi, Bukti Penerimaan Surat (BPS) SPT Tahunan 2025, dan bukti lapor PPh/PPN Masa 3 bulan terakhir;'),
+      pListItem('4.', 'Rekening Bank Pembayaran LS', 'Asli dan Salinan Buku Tabungan / Rekening Koran Bank Jatim Cabang Ngawi aktif atas nama CV. GRAFIKA PRATAMA (No. Rek: 014-229-8711) untuk verifikasi data supplier SAKTI Kemenkeu;'),
+      pListItem('5.', 'Identitas Diri & Surat Kuasa', 'KTP Elektronik asli Penanggung Jawab / Direktur. Apabila diwakilkan karena alasan mendesak, wajib membawa Surat Kuasa Notaril bermeterai Rp 10.000,- yang memberi wewenang penuh;'),
+      pListItem('6.', 'Stempel Basah Resmi Perusahaan', 'Membawa cap/stempel basah resmi CV. Grafika Pratama untuk pembubuhan paraf dan pengesahan Berita Acara PAM.'),
+
+      pText('Demikian surat undangan ini kami sampaikan. Atas perhatian, kesiapan, dan kehadiran tepat waktu Saudara, kami ucapkan terima kasih.', { size: 21, align: AlignmentType.JUSTIFIED, before: 30, after: 50 }),
+
+      buildSingleSignPpk('Ngawi, ' + tglUndanganStr)
+    ]
+  };
+
+  // ===========================================================================
+  // DOKUMEN 02: BERITA ACARA RAPAT PERSIAPAN PENANDATANGANAN KONTRAK (BA-PAM)
+  // ===========================================================================
+  const section2 = {
+    properties: {
+      type: SectionType.NEXT_PAGE,
+      page: pageProps
+    },
+    headers: { default: makeHeader('BERITA ACARA RAPAT PERSIAPAN PENANDATANGANAN KONTRAK (PAM)', noBaPam) },
+    footers: { default: makeFooter('Dokumen 02: Berita Acara Rapat PAM (BA-PAM)') },
+    children: [
+      ...buildKopSuratKpu(settings),
+
+      pText('BERITA ACARA RAPAT PERSIAPAN PENANDATANGANAN KONTRAK', { align: AlignmentType.CENTER, bold: true, size: 23, color: '1E3A8A', before: 20, after: 5 }),
+      pText('(PRE-AWARD MEETING / PAM)', { align: AlignmentType.CENTER, bold: true, size: 21, color: '1E3A8A', before: 0, after: 10 }),
+      pText('NOMOR: ' + noBaPam, { align: AlignmentType.CENTER, bold: true, size: 20, color: '0F172A', before: 0, after: 40 }),
+
+      metodePam === 'DARING'
+        ? pText('Pada hari ini ' + hariTanggalTahap12 + ', diselenggarakan secara Daring (Virtual Teleconference) melalui aplikasi Zoom Cloud Meetings berdasarkan ketentuan UU Nomor 11 Tahun 2008 jo. UU Nomor 1 Tahun 2024 tentang Informasi dan Transaksi Elektronik (ITE), kami yang bertanda tangan di bawah ini:', { size: 21, align: AlignmentType.JUSTIFIED, before: 10, after: 20 })
+        : (metodePam === 'HYBRID'
+            ? pText('Pada hari ini ' + hariTanggalTahap12 + ', bertempat di ' + tempatPam + ' serta terhubung secara Daring (Virtual Teleconference) melalui aplikasi Zoom Cloud Meetings berdasarkan ketentuan UU ITE, kami yang bertanda tangan di bawah ini:', { size: 21, align: AlignmentType.JUSTIFIED, before: 10, after: 20 })
+            : pText('Pada hari ini ' + hariTanggalTahap12 + ', bertempat di ' + tempatPam + ', kami yang bertanda tangan di bawah ini:', { size: 21, align: AlignmentType.JUSTIFIED, before: 10, after: 20 })),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('1.', { bold: true, size: 20, align: AlignmentType.CENTER })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama / NIP', { bold: true, size: 20 })] }),
+            new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(ppkNama + ' / NIP. ' + ppkNip, { bold: true, size: 20, color: '0F172A' })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('', { size: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Jabatan Kedinasan', { bold: true, size: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Pejabat Pembuat Komitmen (PPK) Satuan Kerja KPU Kabupaten Ngawi, bertindak untuk dan atas nama Kuasa Pengguna Anggaran (KPA) KPU Kabupaten Ngawi, selanjutnya disebut sebagai PIHAK KESATU.', { size: 19 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('2.', { bold: true, size: 20, align: AlignmentType.CENTER })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Penanggung Jawab', { bold: true, size: 20 })] }),
+            new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(direkturPenyedia, { bold: true, size: 20, color: '15803D' })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('', { size: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Jabatan & Badan Usaha', { bold: true, size: 20 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(jabatanPenyedia + ' ' + namaPenyedia + ', NPWP: ' + npwpPenyedia + ', NIB: ' + nibPenyedia + ', beralamat di ' + alamatPenyedia + ', selanjutnya disebut sebagai PIHAK KEDUA.', { size: 19 })] })
+          ]})
+        ]
+      }),
+
+      pText('', { before: 10, after: 10 }),
+      pText('PIHAK KESATU dan PIHAK KEDUA secara bersama-sama telah melaksanakan Rapat Persiapan Penandatanganan Kontrak (Pre-Award Meeting / PAM) untuk paket pekerjaan "' + (paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi') + '" dengan hasil pembahasan dan kesepakatan 7 (tujuh) butir pokok sebagai berikut:', { size: 21, align: AlignmentType.JUSTIFIED, before: 20, after: 20 }),
+
+      pListItem('1.', 'Bentuk & Rancangan Kontrak Pengadaan', 'Para Pihak telah memeriksa dan menyepakati secara mendalam draf Kontrak berupa Surat Pesanan E-Purchasing bentuk Lumsum dengan nilai total kesepakatan final sebesar ' + formatRupiah(sepakatKontrak) + ' (termasuk PPN 11% dan PPh 22 1,5%). Seluruh hak, kewajiban, dan sanksi denda 1 permil per hari keterlambatan dari nilai kontrak sebelum PPN telah dipahami dan disetujui tanpa keberatan.'),
+      pListItem('2.', 'Penetapan Tanggal Definitif Penandatanganan Kontrak', 'Para Pihak bersepakat menetapkan bahwa penandatanganan Kontrak / Surat Pesanan definitif akan dilaksanakan pada hari Rabu, tanggal 27 Mei 2026 bertempat di Ruang Rapat PPK Kantor KPU Kabupaten Ngawi. Tanggal ini ditetapkan secara cermat pada hari kerja ke-2 setelah penerbitan SPPBJ (25 Mei 2026), sehingga memenuhi ketentuan Pasal 56 ayat (2) Perpres PBJ yang mensyaratkan penandatanganan paling lambat 14 (empat belas) hari kerja.'),
+      pListItem('3.', 'Jadwal Pelaksanaan & Pengiriman Barang', 'Jangka waktu pelaksanaan pengadaan disepakati selama 14 (empat belas) hari kalender, terhitung sejak tanggal penandatanganan kontrak yaitu 27 Mei 2026 sampai dengan 09 Juni 2026. PIHAK KEDUA menjamin kesiapan seluruh stok barang dan armada distribusi tiba di Kantor KPU Kabupaten Ngawi paling lambat tanggal 08 Juni 2026 untuk pemeriksaan fisik dan uji fungsi.'),
+      pListItem('4.', 'Spesifikasi Mutu & Garansi Resmi Pabrikan', 'PIHAK KEDUA menegaskan kembali jaminan bahwa 100% unit perangkat PC Server, Laptop, dan perlengkapan komputer yang diserahkan adalah kondisi BARU (Brand New In Box / BNIB), ASLI (Original Pabrikan), bebas cacat mutu tersembunyi, dan dilengkapi Sertifikat Garansi Resmi Pabrikan minimal 1 (satu) tahun penuh dengan layanan perbaikan di tempat (on-site service replacement).'),
+      pListItem('5.', 'Ketentuan Jaminan Pelaksanaan', 'Berdasarkan Pasal 33 ayat (2) huruf b dan ayat (3) Peraturan Presiden Nomor 16 Tahun 2018 jo. Perpres Nomor 46 Tahun 2025, paket pengadaan ini secara yuridis DIBEBASKAN DARI KEWAJIBAN JAMINAN PELAKSANAAN dikarenakan nilai kontrak sebesar Rp 138.000.000,- tidak melebihi ambang batas Rp 200.000.000,- dan dilaksanakan melalui metode E-Purchasing Katalog Elektronik.'),
+      pListItem('6.', 'Hasil Uji Tuntas Legalitas Badan Usaha & Kepatuhan Pajak', 'PIHAK KESATU telah melakukan pemeriksaan fisik dokumen asli dan konfirmasi sistem terhadap akta notaris pendirian/perubahan, NIB OSS-RBA, NPWP, status KSWP (Valid), Surat Keterangan Fiskal (SKF Bebas Tunggakan), dan SPT Tahunan PPh Badan 2025. Seluruh dokumen dinyatakan sah, absah, tertib fiskal, dan memenuhi syarat kualifikasi (dituangkan rinci pada Dokumen 03 Lembar Uji Tuntas).'),
+      pListItem('7.', 'Verifikasi Rekening Bank Rekanan untuk SP2D KPPN', 'Telah dilakukan verifikasi silang terhadap rekening operasional PIHAK KEDUA pada Bank Jatim Cabang Ngawi Nomor Rekening: 014-229-8711 atas nama CV. GRAFIKA PRATAMA. Data rekening dinyatakan valid, aktif, dan cocok 100% huruf demi huruf dengan data NPWP serta data Supplier SAKTI/SPAN Kemenkeu sehingga dijamin bebas risiko retur SP2D pada saat pencairan dana APBN SPM-LS.'),
+
+      pText('Demikian Berita Acara Rapat Persiapan Penandatanganan Kontrak (PAM) ini dibuat dan ditandatangani oleh Para Pihak dalam rangkap 2 (dua) bermeterai cukup yang masing-masing mempunyai kekuatan hukum yang sama untuk dipergunakan sebagaimana mestinya.', { size: 21, align: AlignmentType.JUSTIFIED, before: 30, after: 50 }),
+
+      buildDualSignPpkPenyedia('Ngawi, ' + tglTahap12Str)
+    ]
+  };
+
+  // ===========================================================================
+  // DOKUMEN 03: LEMBAR UJI TUNTAS LEGALITAS, PAJAK/FISKAL & REKENING BANK REKANAN
+  // ===========================================================================
+  const section3 = {
+    properties: {
+      type: SectionType.NEXT_PAGE,
+      page: pageProps
+    },
+    headers: { default: makeHeader('LEMBAR UJI TUNTAS LEGALITAS, PAJAK & BANK REKANAN', noVerifLfb) },
+    footers: { default: makeFooter('Dokumen 03: Lembar Uji Tuntas Legalitas, Fiskal & Bank') },
+    children: [
+      ...buildKopSuratKpu(settings),
+
+      pText('LEMBAR HASIL UJI TUNTAS LEGALITAS BADAN USAHA, KEPATUHAN FISKAL (PAJAK), DAN VERIFIKASI REKENING BANK REKANAN', { align: AlignmentType.CENTER, bold: true, size: 22, color: '1E3A8A', before: 20, after: 5 }),
+      pText('(DUE DILIGENCE CHECKLIST & BANK ACCOUNT VERIFICATION)', { align: AlignmentType.CENTER, bold: true, size: 19, color: '1E3A8A', before: 0, after: 10 }),
+      pText('NOMOR: ' + noVerifLfb, { align: AlignmentType.CENTER, bold: true, size: 20, color: '0F172A', before: 0, after: 30 }),
+
+      pText('Berdasarkan Peraturan Presiden Nomor 16 Tahun 2018 jo. Peraturan Presiden Nomor 46 Tahun 2025 serta petunjuk teknis pengelolaan perbendaharaan negara tentang penerbitan SP2D KPPN, pada hari ini Selasa tanggal 26 Mei 2026, Pejabat Pembuat Komitmen (PPK) didampingi Bendahara Pengeluaran Satker KPU Kabupaten Ngawi telah melaksanakan pemeriksaan uji tuntas (due diligence) terhadap dokumen fisik asli dan catatan elektronik rekanan pelaksana:', { size: 20, align: AlignmentType.JUSTIFIED, before: 10, after: 20 }),
+
+      // Identitas Singkat Paket & Rekanan
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Paket Pengadaan', { bold: true, size: 19, before: 10, after: 10 })] }),
+            new TableCell({ width: { size: 72, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional KPU Kabupaten Ngawi', { bold: true, color: '1E3A8A', size: 19, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Nama Badan Usaha / Rekanan', { bold: true, size: 19, before: 10, after: 10 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(namaPenyedia + ' (Direktur: ' + direkturPenyedia + ')', { bold: true, color: '15803D', size: 19, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('NPWP & NIB Rekanan', { bold: true, size: 19, before: 10, after: 10 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('NPWP: ' + npwpPenyedia + ' | NIB: ' + nibPenyedia, { size: 19, before: 10, after: 10 })] })
+          ]})
+        ]
+      }),
+
+      pText('', { before: 10, after: 10 }),
+      pText('A. MATRIKS UJI TUNTAS LEGALITAS BADAN USAHA & PERIZINAN BERUSAHA', { bold: true, size: 20, color: '1E3A8A', before: 20, after: 10 }),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('No', { bold: true, color: 'FFFFFF', size: 19, align: AlignmentType.CENTER })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Parameter Dokumen', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Rincian Data / Nomor Dokumen', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Hasil Pemeriksaan Fisik Asli', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Status', { bold: true, color: 'FFFFFF', size: 19, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('1', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Akta Notaris Pendirian', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('No. 14 tgl 12-04-2018 Notaris Siti Farida, S.H., M.Kn., Ngawi (AHU-0019284.AH.01.01.Tahun 2018)', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Asli diperlihatkan, legalitas sah, tidak dalam sengketa', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('VALID / SAH', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('2', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Akta Notaris Perubahan Terakhir', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('No. 05 tgl 08-01-2024 Notaris Siti Farida, S.H., M.Kn., Ngawi (AHU-0001092.AH.01.02.Tahun 2024)', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Asli diperlihatkan, susunan pengurus sesuai data profil', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('VALID / SAH', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('3', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Kewenangan Penanggung Jawab', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Hendra Suryawan (Direktur / Pemilik Modal 100%, NIK: 3521011504820003)', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('KTP-el asli diperiksa, cocok dengan nama di akta notaris', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('VALID / SAH', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('4', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Perizinan Berusaha (NIB OSS)', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('NIB: 9120301182451 via Lembaga OSS-RBA BKPM / Kementerian Investasi', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('KBLI 46511 (Perdagangan Komputer) aktif & terverifikasi', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('SESUAI', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('5', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Integritas / Bebas Benturan', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Surat Pernyataan Bebas Benturan Kepentingan tanggal 26 Mei 2026', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Bebas afiliasi dengan PPK, Pokja, dan Pejabat KPU Ngawi', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('MEMENUHI', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]})
+        ]
+      }),
+
+      pText('', { before: 10, after: 10 }),
+      pText('B. MATRIKS UJI TUNTAS KEPATUHAN PERPAJAKAN / FISKAL', { bold: true, size: 20, color: '1E3A8A', before: 20, after: 10 }),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('No', { bold: true, color: 'FFFFFF', size: 19, align: AlignmentType.CENTER })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Parameter Perpajakan', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Nomor Dokumen / Identitas Bukti', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Hasil Verifikasi Sistem DJP', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Status', { bold: true, color: 'FFFFFF', size: 19, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('1', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('NPWP Badan Usaha', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('01.445.882.9-646.000 a.n. CV. GRAFIKA PRATAMA', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Terdaftar aktif pada Kantor Pelayanan Pajak (KPP) Pratama Ngawi', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('AKTIF', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('2', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Status KSWP', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Konfirmasi Status Wajib Pajak (KSWP) DJP Online / Portal Kemenkeu', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Status: VALID (Memenuhi syarat kewajiban formal perpajakan)', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('VALID', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('3', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Surat Keterangan Fiskal (SKF)', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('No. SKF-10293/WPJ.12/KP.0803/2026 tgl 18 Mei 2026', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Diterbitkan KPP Pratama Ngawi: Bebas dari Tunggakan Pajak', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('BEBAS TUNGGAKAN', { bold: true, color: '15803D', size: 16, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('4', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('SPT Tahunan PPh Badan 2025', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Bukti Penerimaan Surat (BPS) No: 352101-2026-00384 tgl 25 April 2026', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Telah lapor tepat waktu via e-Filing DJP Online', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('TERLAPOR', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('5', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Laporan Pajak Masa Terakhir', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('PPh Pasal 21, PPh Pasal 23, dan PPN Masa 3 Bulan (Jan, Feb, Mar 2026)', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Bukti setor (BPN) dan bukti lapor masa nihil/lunas lengkap', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('TERTIB', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]})
+        ]
+      }),
+
+      pText('', { before: 10, after: 10 }),
+      pText('C. MATRIKS VERIFIKASI REKENING BANK REKANAN (MITIGASI RETUR SP2D KPPN)', { bold: true, size: 20, color: '1E3A8A', before: 20, after: 10 }),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('No', { bold: true, color: 'FFFFFF', size: 19, align: AlignmentType.CENTER })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Parameter Rekening Bank', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Data Fisik Buku Tabungan / Bank', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Hasil Konfirmasi SAKTI / SPAN', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Status', { bold: true, color: 'FFFFFF', size: 19, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('1', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Nama Bank Operasional', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(namaBankPenyedia, { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Kode Bank BI / SPAN: 114 (Bank BPD Jatim)', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('VALID', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('2', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Nomor Rekening', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(noRekeningPenyedia, { bold: true, color: '1E3A8A', size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Rekening aktif, tidak terblokir, mutasi lancar per Mei 2026', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('AKTIF', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('3', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Nama Pemilik Rekening', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(atasNamaRekening, { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Persis sama huruf demi huruf dengan NPWP & Akta, bebas singkatan', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('COCOK 100%', { bold: true, color: '15803D', size: 16, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('4', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Domisili Kantor Cabang Bank', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Jl. Ahmad Yani No. 15, Ngawi, Jawa Timur', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Satu wilayah bayar dengan KPPN Ngawi / Madiun', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('SESUAI', { bold: true, color: '15803D', size: 17, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('5', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Verifikasi Data Supplier SAKTI', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Pengecekan Supplier Tipe 3 (Penyedia) pada Aplikasi SAKTI Kemenkeu', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Tervalidasi SPAN Kemenkeu, dijamin bebas dari potensi Retur SP2D', { size: 17 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('BEBAS RETUR', { bold: true, color: '15803D', size: 16, align: AlignmentType.CENTER })] })
+          ]})
+        ]
+      }),
+
+      pText('', { before: 10, after: 10 }),
+      // Box Kesimpulan
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({
+              borders: BORDER_TABLE,
+              shading: { fill: 'F0FDF4', type: ShadingType.CLEAR },
+              children: [
+                pText('KESIMPULAN UJI TUNTAS & REKOMENDASI PPK:', { bold: true, size: 20, color: '15803D', before: 10, after: 5 }),
+                pText('Berdasarkan hasil pemeriksaan uji tuntas fisik dan verifikasi sistem di atas, Badan Usaha ' + namaPenyedia + ' dinyatakan MEMENUHI PERSYARATAN (MS) secara yuridis, kepatuhan fiskal, dan administrasi keuangan. Rekening bank yang didaftarkan dinyatakan SAH, VALID, dan SIAP digunakan untuk pembayaran prestasi kerja melalui mekanisme Surat Perintah Pencairan Dana (SP2D-LS) KPPN. Dengan demikian, proses pengadaan DIREKOMENDASIKAN LANJUT KE PENANDATANGANAN KONTRAK DEFINITIF TAHAP 13.', { size: 19, align: AlignmentType.JUSTIFIED, before: 0, after: 10 })
+              ]
+            })
+          ]})
+        ]
+      }),
+
+      pText('Demikian Lembar Uji Tuntas dan Verifikasi ini dibuat dengan sebenarnya untuk menjadi bagian tak terpisahkan dari Berkas Administrasi Pengadaan Barang/Jasa.', { size: 20, align: AlignmentType.JUSTIFIED, before: 20, after: 40 }),
+
+      // Dual Sign Pemeriksa Satker & Rekanan
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Penyedia Barang/Jasa,', { align: AlignmentType.CENTER, size: 19, before: 0, after: 5 }),
+                  pText(namaPenyedia, { align: AlignmentType.CENTER, bold: true, size: 19, color: '15803D', before: 0, after: 180 }),
+                  pText(direkturPenyedia, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 20, color: '0F172A', before: 0, after: 5 }),
+                  pText(jabatanPenyedia, { align: AlignmentType.CENTER, size: 18, color: '334155', before: 0, after: 10 })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Ngawi, ' + tglTahap12Str, { align: AlignmentType.CENTER, size: 19, before: 0, after: 5 }),
+                  pText('Pejabat Pembuat Komitmen (PPK)', { align: AlignmentType.CENTER, bold: true, size: 19, before: 0, after: 180 }),
+                  pText(ppkNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 20, color: '0F172A', before: 0, after: 5 }),
+                  pText('NIP. ' + ppkNip, { align: AlignmentType.CENTER, size: 18, color: '334155', before: 0, after: 10 })
+                ]
+              })
+            ]
+          }),
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                columnSpan: 2,
+                borders: BORDER_NONE,
+                children: [
+                  pText('Mengetahui / Memverifikasi SAKTI:', { align: AlignmentType.CENTER, size: 18, color: '475569', before: 30, after: 5 }),
+                  pText('Bendahara Pengeluaran KPU Kabupaten Ngawi', { align: AlignmentType.CENTER, bold: true, size: 19, before: 0, after: 160 }),
+                  pText(bendaharaNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 20, color: '0F172A', before: 0, after: 5 }),
+                  pText('NIP. ' + bendaharaNip, { align: AlignmentType.CENTER, size: 18, color: '334155', before: 0, after: 10 })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  };
+
+  // ===========================================================================
+  // DOKUMEN 04: DAFTAR HADIR & NOTULEN KESEPAKATAN RAPAT PAM
+  // ===========================================================================
+  const section4 = {
+    properties: {
+      type: SectionType.NEXT_PAGE,
+      page: pageProps
+    },
+    headers: { default: makeHeader('DAFTAR HADIR & NOTULEN RAPAT PAM', noNotulenPam) },
+    footers: { default: makeFooter('Dokumen 04: Daftar Hadir & Notulen PAM') },
+    children: [
+      ...buildKopSuratKpu(settings),
+
+      pText('DAFTAR HADIR DAN NOTULEN KESEPAKATAN', { align: AlignmentType.CENTER, bold: true, size: 22, color: '1E3A8A', before: 20, after: 5 }),
+      pText('RAPAT PERSIAPAN PENANDATANGANAN KONTRAK (PRE-AWARD MEETING / PAM)', { align: AlignmentType.CENTER, bold: true, size: 20, color: '1E3A8A', before: 0, after: 10 }),
+      pText('NOMOR: ' + noNotulenPam, { align: AlignmentType.CENTER, bold: true, size: 20, color: '0F172A', before: 0, after: 30 }),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Hari / Tanggal', { bold: true, size: 19, before: 10, after: 10 })] }),
+            new TableCell({ width: { size: 75, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText('Selasa, 26 Mei 2026', { bold: true, size: 19, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Waktu Pertemuan', { bold: true, size: 19, before: 10, after: 10 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Pukul 09.30 WIB s.d. 11.45 WIB', { size: 19, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText(metodePam === 'DARING' ? 'Media Rapat' : (metodePam === 'HYBRID' ? 'Tempat & Media Rapat' : 'Tempat Rapat'), { bold: true, size: 19, before: 10, after: 10 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(metodePam === 'DARING' ? 'Virtual Teleconference via Zoom Cloud Meetings (' + linkZoomPam + ')' : tempatPam, { size: 19, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, shading: { fill: 'F8FAFC', type: ShadingType.CLEAR }, children: [pText('Pimpinan Rapat', { bold: true, size: 19, before: 10, after: 10 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(ppkNama + ' (Pejabat Pembuat Komitmen / PPK)', { bold: true, color: '1E3A8A', size: 19, before: 10, after: 10 })] })
+          ]})
+        ]
+      }),
+
+      pText('', { before: 10, after: 10 }),
+      pText('A. DAFTAR HADIR PESERTA RAPAT PAM', { bold: true, size: 20, color: '1E3A8A', before: 20, after: 10 }),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: [
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ width: { size: 6, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('No', { bold: true, color: 'FFFFFF', size: 19, align: AlignmentType.CENTER })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Nama Lengkap', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 34, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Jabatan / Kedudukan', { bold: true, color: 'FFFFFF', size: 19 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: '1E3A8A', type: ShadingType.CLEAR }, children: [pText('Tanda Tangan Kehadiran', { bold: true, color: 'FFFFFF', size: 19, align: AlignmentType.CENTER })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('1', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(ppkNama, { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Pejabat Pembuat Komitmen (PPK)', { size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('1. .................................', { size: 17, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('2', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(direkturPenyedia, { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Direktur ' + namaPenyedia + (metodePam === 'DARING' ? ' (Hadir Daring via Zoom)' : (metodePam === 'HYBRID' ? ' (Hadir Daring/Luring)' : '')), { size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(metodePam === 'DARING' ? '2. Hadir Daring (On-Camera Zoom)' : '2. .................................', { size: 17, align: AlignmentType.RIGHT, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('3', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(ppNama, { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Pejabat Pengadaan KPU Kab. Ngawi', { size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('3. .................................', { size: 17, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('4', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText(bendaharaNama, { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Bendahara Pengeluaran (Verifikator Bank)', { size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('4. .................................', { size: 17, align: AlignmentType.RIGHT, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('5', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Endah Ratnasari', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Staf Pelaksana PPK / Notulis', { size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('5. .................................', { size: 17, before: 10, after: 10 })] })
+          ]}),
+          new TableRow({ cantSplit: true, children: [
+            new TableCell({ borders: BORDER_TABLE, children: [pText('6', { size: 18, align: AlignmentType.CENTER })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Slamet Santoso', { bold: true, size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('Staf Operasional CV. Grafika Pratama', { size: 18 })] }),
+            new TableCell({ borders: BORDER_TABLE, children: [pText('6. .................................', { size: 17, align: AlignmentType.RIGHT, before: 10, after: 10 })] })
+          ]})
+        ]
+      }),
+
+      pText('', { before: 10, after: 10 }),
+      pText('B. NOTULEN KESEPAKATAN RAPAT PAM', { bold: true, size: 20, color: '1E3A8A', before: 20, after: 10 }),
+
+      pListItem('1.', 'Pembukaan Rapat', metodePam === 'DARING'
+        ? 'Rapat dibuka pada pukul 09.30 WIB oleh PPK Satker KPU Kabupaten Ngawi melalui media teleconference Zoom Cloud Meetings. PPK menyampaikan apresiasi atas kehadiran tepat waktu Penyedia secara daring on-camera. PPK menjelaskan fungsi PAM sebagai instrumen pengendalian risiko kontrak hulu sebelum penandatanganan perjanjian berkekuatan hukum, dengan rekaman video rapat tersimpan pada Cloud Drive Satker sebagai bukti eviden audit.'
+        : (metodePam === 'HYBRID'
+            ? 'Rapat dibuka pada pukul 09.30 WIB oleh PPK Satker KPU Kabupaten Ngawi secara Hybrid (Tatap Muka di Ruang Rapat PPK & Daring via Zoom Cloud Meetings). PPK menjelaskan fungsi PAM sebagai instrumen pengendalian risiko kontrak hulu sebelum penandatanganan perjanjian berkekuatan hukum.'
+            : 'Rapat dibuka pada pukul 09.30 WIB oleh PPK Satker KPU Kabupaten Ngawi yang menyampaikan ucapan terima kasih atas kehadiran tepat waktu Penyedia. PPK menjelaskan fungsi PAM sebagai instrumen pengendalian risiko kontrak hulu sebelum penandatanganan perjanjian berkekuatan hukum.')),
+      pListItem('2.', 'Penelaahan Draf Kontrak & Nilai Pekerjaan', 'Dilakukan pembacaan klausul rancangan Surat Pesanan E-Purchasing Lumsum senilai Rp 138.000.000,-. Penyedia menyatakan menerima penuh seluruh klausul kontrak, termasuk ketentuan pembayaran SPM-LS 100% setelah BAST diterbitkan dan denda keterlambatan 1 permil per hari dari nilai kontrak sebelum PPN.'),
+      pListItem('3.', 'Pemeriksaan Uji Tuntas Fisik Legalitas & Pajak', 'Direktur CV. Grafika Pratama memperlihatkan berkas asli Akta Notaris, SK Kemenkumham, NIB OSS-RBA, NPWP, bukti KSWP Valid, SKF Bebas Tunggakan dari KPP Pratama Ngawi, dan BPS SPT Tahunan 2025. Hasil pemeriksaan oleh PPK dan Pejabat Pengadaan menyatakan seluruh dokumen absah dan memenuhi syarat kualifikasi.'),
+      pListItem('4.', 'Verifikasi Validitas Rekening Bank Penampung', 'Bendahara Pengeluaran melakukan konfirmasi rekening Bank Jatim Cabang Ngawi No: 014-229-8711 a.n. CV. GRAFIKA PRATAMA. Nama pemilik rekening dipastikan identik 100% dengan NPWP dan Akta Notaris. Bendahara memastikan pendaftaran Supplier Tipe 3 pada Aplikasi SAKTI bebas potensi retur SP2D.'),
+      pListItem('5.', 'Kesepakatan Tanggal TTD Kontrak & Jadwal Kerja', 'Para Pihak secara bulat menyepakati bahwa penandatanganan Kontrak definitif dilaksanakan pada hari Rabu, 27 Mei 2026 pukul 10.00 WIB di Kantor KPU Kabupaten Ngawi. Jangka waktu pelaksanaan ditetapkan 14 hari kalender (27 Mei - 09 Juni 2026), dengan target serah terima fisik barang pada 08 Juni 2026.'),
+      pListItem('6.', 'Penutupan Rapat', 'Rapat ditutup secara resmi pada pukul 11.45 WIB dengan pembacaan ringkasan kesepakatan serta penandatanganan Berita Acara PAM.'),
+
+      pText('Demikian Notulen Rapat Persiapan Penandatanganan Kontrak (PAM) ini dibuat dengan sebenarnya untuk menjadi pedoman pelaksanaan pengadaan bagi Para Pihak.', { size: 20, align: AlignmentType.JUSTIFIED, before: 20, after: 40 }),
+
+      // TTD Notulis & PPK
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Notulis Rapat PAM,', { align: AlignmentType.CENTER, size: 19, before: 0, after: 180 }),
+                  pText('Endah Ratnasari', { align: AlignmentType.CENTER, bold: true, underline: {}, size: 20, color: '0F172A', before: 0, after: 5 }),
+                  pText('Staf Pelaksana PPK Satker KPU Kab. Ngawi', { align: AlignmentType.CENTER, size: 18, color: '334155', before: 0, after: 10 })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Mengetahui / Menyetujui:', { align: AlignmentType.CENTER, size: 19, before: 0, after: 5 }),
+                  pText('Pejabat Pembuat Komitmen (PPK)', { align: AlignmentType.CENTER, bold: true, size: 19, before: 0, after: 180 }),
+                  pText(ppkNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 20, color: '0F172A', before: 0, after: 5 }),
+                  pText('NIP. ' + ppkNip, { align: AlignmentType.CENTER, size: 18, color: '334155', before: 0, after: 10 })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  };
+
+  return [section1, section2, section3, section4];
+}
+
 function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, settings } = ctx;
   const def = DEFINISI_18_TAHAP.find(d => d.no === stageNo) || DEFINISI_18_TAHAP[0];
@@ -5351,6 +6124,9 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   }
   if (stageNo === 11) {
     return buildStage11Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
+  if (stageNo === 12) {
+    return buildStage12Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap
