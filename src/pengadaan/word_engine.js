@@ -7327,6 +7327,372 @@ function buildStage14Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   return [section1, section2];
 }
 
+// =============================================================================
+// GENERATOR NASKAH RESMI TAHAP 15: PENGENDALIAN KONTRAK & KOMISIONING TEKNIS
+// Dokumen 01: Laporan Pengawasan & Pengendalian Pelaksanaan Kontrak (LAP-WAS)
+// Dokumen 02: Berita Acara Pengujian Fungsi & Komisioning Teknis (BA-KOM)
+// Sesuai Perpres 16/2018 jo. Perpres 46/2025 Pasal 54-57 & Perka LKPP 12/2021
+// =============================================================================
+function buildStage15Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
+  const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, bendahara, settings } = ctx;
+  const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+
+  const noLapWas = paket.no_laporan_pengendalian || tahapRow.nomor_dokumen || ('015/LAP-WAS/' + cleanKode + '/PPK-PBJ/KPU-NGW/VI/2026');
+  const tglLapWasRaw = tahapRow.tanggal_dokumen || paket.tgl_laporan_pengendalian || paket.tgl_selesai_kontrak || '2026-06-09';
+  const tglLapWasStr = formatTanggalIndo(tglLapWasRaw);
+  const hariTanggalLapWas = formatHariTanggalBeritaAcara(tglLapWasRaw);
+
+  const noBaKom = paket.no_ba_komisioning || ('015/BA-KOM/' + cleanKode + '/PPK-PBJ/KPU-NGW/VI/2026');
+  const tglBaKomRaw = paket.tgl_ba_komisioning || tglLapWasRaw;
+  const tglBaKomStr = formatTanggalIndo(tglBaKomRaw);
+  const hariTanggalBaKom = formatHariTanggalBeritaAcara(tglBaKomRaw);
+
+  const noKontrak = paket.no_kontrak || ('013/SP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+  const tglKontrakStr = formatTanggalIndo(paket.tgl_kontrak || '2026-05-27');
+  const noSpp = paket.no_spp || ('014/SPP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+  const tglSppStr = formatTanggalIndo(paket.tgl_spp || '2026-05-27');
+
+  const durasiHari = Number(paket.masa_pelaksanaan_hari || 14);
+  const tglMulaiStr = formatTanggalIndo(paket.tgl_mulai_kerja || '2026-05-27');
+  const tglSelesaiStr = formatTanggalIndo(paket.tgl_selesai_kontrak || '2026-06-09');
+  const lokasiFranco = paket.lokasi_pekerjaan || 'Ruang Server Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+
+  const namaPenyedia = penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI';
+  const direkturPenyedia = penyedia.nama_direktur || 'HENDRA SURYAWAN';
+  const jabatanPenyedia = penyedia.jabatan_penandatangan || 'Direktur';
+  const teknisiRekanan = paket.pic_teknisi_rekanan || 'Ahmad Fauzi (Lead Systems Engineer)';
+  const kontakTeknisi = paket.kontak_teknisi_rekanan || '0812-3456-7890';
+
+  const ppkNama = cleanNamaTanpaGelar((ppk && ppk.nama_lengkap) || 'MOHAMMAD NOOR JIHAN');
+  const ppkNip = (ppk && ppk.nip) || '19910518 201503 1 002';
+
+  const realisasiPersen = Number(paket.realisasi_fisik_persen || 100);
+  const rencanaPersen = Number(paket.rencana_fisik_persen || 100);
+  const deviasiPersen = Number(paket.deviasi_fisik_persen || (realisasiPersen - rencanaPersen));
+  const statusScm = paket.status_scm || 'Normal / Sesuai Jadwal Kontrak (On-Track)';
+  const catatanPengendalian = paket.catatan_pengendalian_ppk || 'Pelaksanaan pengiriman, unboxing, perakitan dual PSU redundant, konfigurasi hardware RAID-1 SSD NVMe, instalasi OS Windows Server 2025 Standard 64-bit resmi, serta pengujian komisioning burn-in berjalan 100% normal dan selesai tepat waktu pada tanggal 9 Juni 2026 tanpa deviasi keterlambatan. Seluruh item memenuhi spesifikasi teknis kontrak dan dinyatakan lulus uji fungsi untuk diproses Serah Terima Pekerjaan (BAST) Tahap 16.';
+
+  // 5 Pilar Pengawasan Kontrak dinamis
+  let milestoneList = [];
+  if (paket.milestone_pengendalian_json) {
+    try {
+      milestoneList = typeof paket.milestone_pengendalian_json === 'string'
+        ? JSON.parse(paket.milestone_pengendalian_json)
+        : paket.milestone_pengendalian_json;
+    } catch (e) {}
+  }
+  if (!Array.isArray(milestoneList) || milestoneList.length === 0) {
+    milestoneList = [
+      { no: 1, target: 'Pilar 1: Pengawasan Waktu & Jadwal Pelaksanaan (Mobilisasi & Instalasi Tepat Waktu)', bobot_rencana: 20, target_waktu: 'Hari ke-3 s.d. 14 (30 Mei - 09 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Mobilisasi, unboxing, dan instalasi tuntas 100% dalam masa kontrak 14 hari kalender' },
+      { no: 2, target: 'Pilar 2: Pengawasan Mutu & Spesifikasi Teknis (QC Segel Pabrikan, Hardware & Lisensi Resmi)', bobot_rencana: 20, target_waktu: 'Hari ke-4 (31 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Merek Dell resmi, segel pabrikan intak, Dual Xeon, 64GB ECC, 2x NVMe & Windows Server 2025 COA' },
+      { no: 3, target: 'Pilar 3: Pengawasan Kuantitas & Volume Barang (Kelengkapan Unit & Aksesoris Franco KPU)', bobot_rencana: 20, target_waktu: 'Hari ke-4 (31 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: '1 unit server lengkap, dual redundant PSU 80+ Platinum, rel rackmount & kabel daya utuh 100%' },
+      { no: 4, target: 'Pilar 4: Pengawasan Fungsi Operasional & Uji Beban (POST, Failover Dual PSU & Burn-In 24 Jam)', bobot_rencana: 20, target_waktu: 'Hari ke-13 (08 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'POST lulus, failover PSU seketika tanpa mati, RAID-1 sinkron 100%, Gigabit LAN & burn-in test stabil' },
+      { no: 5, target: 'Pilar 5: Pengawasan Administrasi & Legalitas Jaminan (Surat Jalan, Garansi 1 Tahun & BA)', bobot_rencana: 20, target_waktu: 'Hari ke-14 (09 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Surat Jalan resmi, sertifikat garansi purna jual resmi 1 tahun on-site, BA-SPL, dan BA-KOM lengkap sah' }
+    ];
+  }
+
+  // Parameter komisioning list dinamis
+  let komisioningList = [];
+  if (paket.parameter_komisioning_json) {
+    try {
+      komisioningList = typeof paket.parameter_komisioning_json === 'string'
+        ? JSON.parse(paket.parameter_komisioning_json)
+        : paket.parameter_komisioning_json;
+    } catch (e) {}
+  }
+  if (!Array.isArray(komisioningList) || komisioningList.length === 0) {
+    komisioningList = [
+      { no: 1, parameter: '⚡ Power On Self Test (POST) & Redundant Power Supply (PSU Failover)', metode: 'Simulasi pemutusan salah satu kabel catu daya AC saat server bekerja penuh (Burn-in)', hasil: 'Redundansi aktif seketika, server tetap beroperasi normal tanpa interupsi daya', status: 'LULUS' },
+      { no: 2, parameter: '⚙️ Verifikasi Spesifikasi Hardware (Dual Xeon, 64GB ECC, 2x NVMe)', metode: 'Inspeksi sistem BIOS/UEFI dan OS Device Manager sesuai lampiran kontrak', hasil: 'Terbaca Dual Intel Xeon Silver, 64GB DDR4 ECC Reg, 2x 1.92TB Enterprise NVMe RAID-1 sinkron 100%', status: 'LULUS' },
+      { no: 3, parameter: '🔥 Stress Test & Burn-in Beban Puncak CPU / Memori (24 Jam Non-Stop)', metode: 'Pengujian utilitas beban kerja CPU & RAM 100% terus menerus selama 24 jam', hasil: 'Suhu CPU stabil maksimal 68°C, tidak terjadi thermal throttling, sistem beroperasi stabil', status: 'LULUS' },
+      { no: 4, parameter: '🌐 Uji Konektivitas Jaringan Gigabit LAN & Redundansi NIC Teaming', metode: 'Transfer data throughput jaringan dan simulasi link down kabel LAN', hasil: 'Bandwidth stabil 1.000 Mbps full duplex, failover NIC port 1 ke port 2 instan tanpa paket loss', status: 'LULUS' },
+      { no: 5, parameter: '🔐 Keaslian Lisensi OS Windows Server 2025 Standard & Driver Resmi', metode: 'Verifikasi sertifikat Certificate of Authenticity (COA) fisik & aktivasi digital online Microsoft', hasil: 'Windows teraktivasi resmi secara digital (Genuine Digital License), seluruh firmware/driver termutakhir', status: 'LULUS' }
+    ];
+  }
+
+  // Tabel 5 Pilar Pengawasan LAP-WAS
+  let milestoneTableRows = [
+    new TableRow({
+      tableHeader: true,
+      cantSplit: true,
+      children: [
+        new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('NO', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 37, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('5 PILAR UTAMA PENGAWASAN KONTRAK', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('BOBOT', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('TARGET WAKTU', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('REALISASI', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('STATUS EVALUASI', { align: AlignmentType.CENTER, bold: true, size: 17 })] })
+      ]
+    })
+  ];
+
+  milestoneList.forEach((m, idx) => {
+    const uraianStr = m.target || m.pilar || m.milestone || m.uraian || `Pilar ${idx + 1}: Pengawasan Kontrak`;
+    const bobotVal = m.bobot !== undefined ? m.bobot : (m.bobot_rencana !== undefined ? m.bobot_rencana : 20);
+    const targetWaktuStr = m.target_waktu || m.target_tgl || m.tgl_target || (m.target_hari ? `Hari ke-${m.target_hari}` : 'Sesuai Jadwal Kontrak');
+    let realisasiStr = '';
+    if (m.realisasi_tgl) {
+      realisasiStr = m.realisasi_tgl;
+    } else if (m.realisasi !== undefined) {
+      realisasiStr = typeof m.realisasi === 'number' ? `${m.realisasi}%` : String(m.realisasi);
+    } else {
+      realisasiStr = `${bobotVal}% (100% Bobot)`;
+    }
+    const statusStr = m.status || 'SELESAI TEPAT WAKTU';
+
+    milestoneTableRows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 17 })] }),
+          new TableCell({ width: { size: 37, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [
+            pText(uraianStr, { bold: true, size: 17, color: '0F172A' }),
+            ...(m.keterangan ? [pText(`Ket: ${m.keterangan}`, { italic: true, size: 15.5, color: '475569', before: 2 })] : [])
+          ] }),
+          new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(`${bobotVal}%`, { align: AlignmentType.CENTER, bold: true, size: 17, color: '1E3A8A' })] }),
+          new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(targetWaktuStr, { align: AlignmentType.CENTER, size: 16.5, color: '475569' })] }),
+          new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(realisasiStr, { align: AlignmentType.CENTER, bold: true, size: 16.5, color: '15803D' })] }),
+          new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(statusStr, { align: AlignmentType.CENTER, bold: true, size: 16, color: '15803D' })] })
+        ]
+      })
+    );
+  });
+
+  // Tabel Komisioning BA-KOM
+  let komisioningTableRows = [
+    new TableRow({
+      tableHeader: true,
+      cantSplit: true,
+      children: [
+        new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('NO', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 26, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('PARAMETER PENGUJIAN FUNGSI', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('METODE PENGUJIAN FAKTUAL', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 27, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('HASIL PENGUKURAN / OBSERVASI', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('KESIMPULAN', { align: AlignmentType.CENTER, bold: true, size: 17 })] })
+      ]
+    })
+  ];
+
+  komisioningList.forEach((k, idx) => {
+    komisioningTableRows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 17 })] }),
+          new TableCell({ width: { size: 26, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(k.parameter || '', { bold: true, size: 17, color: '0F172A' })] }),
+          new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(k.metode || '', { size: 16.5, color: '334155' })] }),
+          new TableCell({ width: { size: 27, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(k.hasil || '', { size: 16.5, color: '334155' })] }),
+          new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(k.status || 'LULUS', { align: AlignmentType.CENTER, bold: true, size: 16, color: '15803D' })] })
+        ]
+      })
+    );
+  });
+
+  const makeHeader = (title, docNo) => new Header({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 0, after: 30 },
+        children: [
+          new TextRun({
+            text: `SI-PRABU v3.0 — ${title} | ${docNo}`,
+            italic: true,
+            size: 15,
+            color: '64748B'
+          })
+        ]
+      })
+    ]
+  });
+
+  const makeFooter = (label) => new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 30, after: 0 },
+        children: [
+          new TextRun({
+            text: `KPU Kabupaten Ngawi — ${label}`,
+            size: 15,
+            color: '64748B'
+          })
+        ]
+      })
+    ]
+  });
+
+  const pageProps = {
+    size: { width: 11906, height: 16838 }, // A4 Portrait
+    margin: { top: 1134, right: 1134, bottom: 1134, left: 1134 }
+  };
+
+  // ==========================================
+  // SECTION 1: LAPORAN PENGENDALIAN KONTRAK (LAP-WAS)
+  // ==========================================
+  const secLapWas = {
+    properties: {
+      page: pageProps
+    },
+    headers: { default: makeHeader('DOKUMEN 01: LAPORAN PENGENDALIAN KONTRAK (LAP-WAS)', noLapWas) },
+    footers: { default: makeFooter('Dokumen 01: Laporan Pengawasan & Pengendalian Pelaksanaan Kontrak') },
+    children: [
+      ...buildKopSuratKpu(settings),
+
+      pText('LAPORAN PENGAWASAN DAN PENGENDALIAN PELAKSANAAN KONTRAK', { align: AlignmentType.CENTER, bold: true, size: 21, color: '0F172A', before: 20, after: 3 }),
+      pText(`Nomor: ${noLapWas}`, { align: AlignmentType.CENTER, bold: true, size: 18.5, color: '1E3A8A', before: 0, after: 4 }),
+      pText(`Pemantauan Kemajuan Fisik (Kurva S / Milestone), Pengawasan Mutu & Pengendalian Kontrak Kritis (SCM)`, { align: AlignmentType.CENTER, italic: true, size: 16.5, color: '475569', before: 0, after: 16 }),
+
+      pText('A. DATA UMUM & IDENTITAS KONTRAK:', { bold: true, size: 18.5, color: '0F172A', before: 0, after: 6 }),
+      pListItem('1.', 'Nama Paket Pekerjaan:', `${paket.nama_paket} (Kode Paket: ${cleanKode})`),
+      pListItem('2.', 'Surat Pesanan / Kontrak:', `${noKontrak} tanggal ${tglKontrakStr}`),
+      pListItem('3.', 'Surat Perintah Pengiriman:', `${noSpp} tanggal ${tglSppStr}`),
+      pListItem('4.', 'Penyedia Barang/Jasa:', `${namaPenyedia} (Direktur: ${direkturPenyedia})`),
+      pListItem('5.', 'Nilai Kontrak Pelaksanaan:', `${formatRupiah(keu.nilaiKontrak)} (Termasuk PPN 11% & Biaya Pengiriman Franco)`),
+      pListItem('6.', 'Jangka Waktu Pelaksanaan:', `${durasiHari} Hari Kalender (${tglMulaiStr} s.d. ${tglSelesaiStr})`),
+      pListItem('7.', 'Lokasi Penyerahan Barang:', `${lokasiFranco}`),
+
+      pText('B. REKAPITULASI 5 PILAR UTAMA PENGAWASAN & PENGENDALIAN KONTRAK:', { bold: true, size: 18.5, color: '0F172A', before: 14, after: 6 }),
+      pText('Berdasarkan pemantauan lapangan yang dilaksanakan oleh Tim Teknis KPU Kabupaten Ngawi bersama Teknisi Rekanan, seluruh aspek pelaksanaan kontrak diawasi dan dievaluasi secara terukur berdasarkan 5 pilar pengawasan substantif dengan rincian capaian sebagai berikut:', { size: 18, align: AlignmentType.JUSTIFIED, before: 0, after: 8 }),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: milestoneTableRows
+      }),
+
+      pText('C. EVALUASI DEVIASI & ANALISIS KONTRAK KRITIS (SHOW CAUSE MEETING / SCM):', { bold: true, size: 18.5, color: '0F172A', before: 14, after: 6 }),
+      pListItem('1.', 'Capaian Progres Kumulatif:', `Target Rencana Fisik: ${rencanaPersen}% | Realisasi Fisik Lapangan: ${realisasiPersen}% | Deviasi: ${deviasiPersen >= 0 ? '+' : ''}${deviasiPersen}% (On-Schedule / Tanpa Keterlambatan).`),
+      pListItem('2.', 'Ambang Batas Kritis LKPP:', 'Sesuai ketentuan LKPP, kontrak dinyatakan Kritis apabila terjadi deviasi negatif keterlambatan fisik melebihi 10% pada Periode I (rencana 0%–70%) atau melebihi 5% pada Periode II (rencana 70%–100%).'),
+      pListItem('3.', 'Kesimpulan Pengendalian SCM:', `Status Pelaksanaan Kontrak berada dalam kategori ${statusScm.toUpperCase()}. Tidak terdapat indikasi keterlambatan atau kelalaian teknis, sehingga Rapat Pembuktian (Show Cause Meeting / SCM) dan Surat Peringatan (SP) TIDAK DIPERLUKAN.`),
+
+      pText('D. KESIMPULAN & REKOMENDASI PEJABAT PEMBUAT KOMITMEN (PPK):', { bold: true, size: 18.5, color: '0F172A', before: 14, after: 6 }),
+      pText(catatanPengendalian, { size: 18, align: AlignmentType.JUSTIFIED, before: 0, after: 20 }),
+
+      // Tanda Tangan LAP-WAS (Tim Teknis Kiri, PPK Kanan)
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Mengetahui / Mengawasi:', { align: AlignmentType.CENTER, italic: true, size: 17, color: '475569', before: 0, after: 2 }),
+                  pText('TIM TEKNIS KPU KABUPATEN NGAWI', { align: AlignmentType.CENTER, bold: true, size: 18, color: '1E3A8A', before: 0, after: 100 }),
+                  pText('( _______________________________ )', { align: AlignmentType.CENTER, bold: true, size: 18, color: '0F172A', before: 0, after: 4 }),
+                  pText('Subbagian Keuangan, Umum & Logistik (KUL)', { align: AlignmentType.CENTER, size: 16, color: '64748B', before: 0, after: 0 })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText(`Ngawi, ${tglLapWasStr}`, { align: AlignmentType.CENTER, size: 18, before: 0, after: 2 }),
+                  pText('PEJABAT PEMBUAT KOMITMEN (PPK)', { align: AlignmentType.CENTER, bold: true, size: 18, before: 0, after: 2 }),
+                  pText('KPU KABUPATEN NGAWI', { align: AlignmentType.CENTER, bold: true, size: 18, color: '1E3A8A', before: 0, after: 100 }),
+                  pText(ppkNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 19, color: '0F172A', before: 0, after: 4 }),
+                  pText(`NIP. ${ppkNip}`, { align: AlignmentType.CENTER, size: 17, color: '334155', before: 0, after: 0 })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  };
+
+  // ==========================================
+  // SECTION 2: BERITA ACARA KOMISIONING TEKNIS (BA-KOM)
+  // ==========================================
+  const secBaKom = {
+    properties: {
+      page: pageProps
+    },
+    headers: { default: makeHeader('DOKUMEN 02: BERITA ACARA PENGUJIAN FUNGSI & KOMISIONING (BA-KOM)', noBaKom) },
+    footers: { default: makeFooter('Dokumen 02: Berita Acara Pengujian Fungsi & Komisioning Teknis') },
+    children: [
+      ...buildKopSuratKpu(settings),
+
+      pText('BERITA ACARA PENGUJIAN FUNGSI DAN KOMISIONING TEKNIS', { align: AlignmentType.CENTER, bold: true, size: 21, color: '0F172A', before: 20, after: 3 }),
+      pText('(TESTING & COMMISSIONING ACCEPTANCE REPORT)', { align: AlignmentType.CENTER, bold: true, size: 18, color: '166534', before: 0, after: 3 }),
+      pText(`Nomor: ${noBaKom}`, { align: AlignmentType.CENTER, bold: true, size: 18.5, color: '1E3A8A', before: 0, after: 4 }),
+      pText(`Pemeriksaan Kelaikan Operasional Perangkat PC Server Database Operasional KPU Kabupaten Ngawi`, { align: AlignmentType.CENTER, italic: true, size: 16.5, color: '475569', before: 0, after: 16 }),
+
+      pText(`Pada hari ini, ${hariTanggalBaKom}, bertempat di Ruang Server Lantai 1 Kantor Komisi Pemilihan Umum Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi, kami yang bertanda tangan di bawah ini:`, { size: 18.5, align: AlignmentType.JUSTIFIED, before: 0, after: 10 }),
+
+      pListItem('I.', 'PIHAK KESATU (Penerima Hasil Uji / PPK):', `${ppkNama}, NIP. ${ppkNip}, Jabatan: Pejabat Pembuat Komitmen (PPK) KPU Kabupaten Ngawi didampingi Tim Teknis KPU Kabupaten Ngawi.`),
+      pListItem('II.', 'PIHAK KEDUA (Pelaksana Uji / Rekanan):', `${direkturPenyedia}, Jabatan: ${jabatanPenyedia} ${namaPenyedia}, dalam hal ini menugaskan Teknisi Lapangan ${teknisiRekanan} (Kontak: ${kontakTeknisi}).`),
+
+      pText('Menyatakan bahwa Para Pihak telah bersama-sama melaksanakan pengujian fungsi teknis (commissioning) dan uji ketahanan beban (burn-in test) secara langsung terhadap perangkat PC Server Tower Operasional yang dikirimkan oleh PIHAK KEDUA berdasarkan Surat Pesanan No. ' + noKontrak + ' dan SPP No. ' + noSpp + ', dengan hasil pengujian faktual sebagai berikut:', { size: 18.5, align: AlignmentType.JUSTIFIED, before: 10, after: 10 }),
+
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_TABLE,
+        rows: komisioningTableRows
+      }),
+
+      pText('KESIMPULAN DAN PERNYATAAN BERSAMA HASIL KOMISIONING:', { bold: true, size: 18.5, color: '0F172A', before: 16, after: 6 }),
+      pListItem('1.', 'Kelaikan Fungsi Barang:', 'Berdasarkan hasil pengujian teknis terhadap seluruh parameter di atas, perangkat PC Server dinyatakan BERFUNGSI NORMAL 100%, seluruh komponen hardware dan sistem operasi berjalan optimal, stabil, dan MEMENUHI PERSYARATAN SPESIFIKASI TEKNIS KONTRAK (LULUS UJI FUNGSI).'),
+      pListItem('2.', 'Dasar Serah Terima Pekerjaan:', 'Berita Acara Pengujian Fungsi dan Komisioning Teknis ini dibuat dan ditandatangani secara sah sebagai dokumen prasyarat mutlak penerbitan Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP) dan Berita Acara Serah Terima Pekerjaan (BAST) pada Tahap 16.'),
+
+      pText('Demikian Berita Acara Pengujian Fungsi dan Komisioning Teknis ini dibuat dengan sebenarnya dalam rangkap 2 (dua) asli berkekuatan hukum sama untuk dipergunakan sebagaimana mestinya.', { size: 18.5, align: AlignmentType.JUSTIFIED, before: 14, after: 20 }),
+
+      // Blok Tanda Tangan Para Pihak & Tim Teknis
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('PIHAK KEDUA (PENYEDIA)', { align: AlignmentType.CENTER, bold: true, size: 18, before: 0, after: 2 }),
+                  pText(namaPenyedia, { align: AlignmentType.CENTER, bold: true, size: 18, color: '1E3A8A', before: 0, after: 100 }),
+                  pText(direkturPenyedia, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 19, color: '0F172A', before: 0, after: 4 }),
+                  pText(jabatanPenyedia, { align: AlignmentType.CENTER, size: 17, color: '334155', before: 0, after: 0 })
+                ]
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('PIHAK KESATU (PPK)', { align: AlignmentType.CENTER, bold: true, size: 18, before: 0, after: 2 }),
+                  pText('KPU KABUPATEN NGAWI', { align: AlignmentType.CENTER, bold: true, size: 18, color: '1E3A8A', before: 0, after: 100 }),
+                  pText(ppkNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 19, color: '0F172A', before: 0, after: 4 }),
+                  pText(`NIP. ${ppkNip}`, { align: AlignmentType.CENTER, size: 17, color: '334155', before: 0, after: 0 })
+                ]
+              })
+            ]
+          }),
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                columnSpan: 2,
+                borders: BORDER_NONE,
+                children: [
+                  pText('Mengetahui / Saksi Pengujian Komisioning:', { align: AlignmentType.CENTER, italic: true, size: 17, color: '475569', before: 16, after: 2 }),
+                  pText('TIM TEKNIS KPU KABUPATEN NGAWI', { align: AlignmentType.CENTER, bold: true, size: 18, color: '1E3A8A', before: 0, after: 80 }),
+                  pText('( _______________________________ )', { align: AlignmentType.CENTER, bold: true, size: 18, color: '0F172A', before: 0, after: 4 }),
+                  pText('Subbagian Keuangan, Umum & Logistik (KUL)', { align: AlignmentType.CENTER, size: 16, color: '64748B', before: 0, after: 0 })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  };
+
+  return [secLapWas, secBaKom];
+}
+
 function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, settings } = ctx;
   const def = DEFINISI_18_TAHAP.find(d => d.no === stageNo) || DEFINISI_18_TAHAP[0];
@@ -7375,6 +7741,9 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   }
   if (stageNo === 14) {
     return buildStage14Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
+  if (stageNo === 15) {
+    return buildStage15Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap

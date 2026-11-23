@@ -6304,21 +6304,268 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 15:
+    case 15: {
+      const penyedia = CakraState.activePaketCtx?.penyedia || {};
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const noLapWas = paket.no_laporan_pengendalian || activeTRow.no_laporan_pengendalian || `015/LAP-WAS/${cleanKode}/PPK/VI/2026`;
+      const tglLapWas = paket.tgl_laporan_pengendalian || activeTRow.tanggal_dokumen || '2026-06-08';
+      const noBaKom = paket.no_ba_komisioning || activeTRow.no_ba_komisioning || `015/BA-KOM/${cleanKode}/PPK/VI/2026`;
+      const tglBaKom = paket.tgl_ba_komisioning || tglLapWas;
+      const rencFisik = paket.rencana_fisik_persen !== undefined && paket.rencana_fisik_persen !== null ? Number(paket.rencana_fisik_persen) : 100;
+      const realFisik = paket.realisasi_fisik_persen !== undefined && paket.realisasi_fisik_persen !== null ? Number(paket.realisasi_fisik_persen) : 100;
+      const devFisik = paket.deviasi_fisik_persen !== undefined && paket.deviasi_fisik_persen !== null ? Number(paket.deviasi_fisik_persen) : 0.00;
+      const statusScm = paket.status_scm || (devFisik < 0 ? 'Kontrak Kritis (Show Cause Meeting)' : 'Normal / Sesuai Kurva S');
+      const picTeknisi = paket.pic_teknisi_rekanan || 'Ahmad Fauzi (Lead Systems Engineer)';
+
+      // 1. Parsing 5 Pilar Utama Pengawasan Kontrak (LAP-WAS)
+      let mileList = [];
+      if (paket.milestone_pengendalian_json) {
+        try {
+          mileList = typeof paket.milestone_pengendalian_json === 'string'
+            ? JSON.parse(paket.milestone_pengendalian_json)
+            : paket.milestone_pengendalian_json;
+        } catch (e) {}
+      }
+      if (!Array.isArray(mileList) || mileList.length === 0) {
+        mileList = window.komisioningPresets?.server?.milestones || [
+          { no: 1, target: 'Mobilisasi & Pengiriman Server Dell ke Franco Kantor KPU Ngawi', bobot_rencana: 20, target_waktu: 'Hari ke-3 (30 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU' },
+          { no: 2, target: 'Unboxing Bersama, Verifikasi Segel Manufaktur & Fisik Komponen', bobot_rencana: 20, target_waktu: 'Hari ke-4 (31 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU' },
+          { no: 3, target: 'Perakitan Rackmount, Catu Daya Dual Redundant PSU & Pengkabelan', bobot_rencana: 20, target_waktu: 'Hari ke-7 (03 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU' },
+          { no: 4, target: 'Konfigurasi Hardware RAID-1 Enterprise NVMe & Instalasi OS Resmi', bobot_rencana: 20, target_waktu: 'Hari ke-10 (06 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU' },
+          { no: 5, target: 'Testing & Commissioning 24 Jam Non-Stop serta Aktivasi Garansi ATPM', bobot_rencana: 20, target_waktu: 'Hari ke-13 (08 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU' }
+        ];
+      }
+
+      // 2. Parsing Parameter Komisioning Teknis (BA-KOM)
+      let komList = [];
+      if (paket.parameter_komisioning_json) {
+        try {
+          komList = typeof paket.parameter_komisioning_json === 'string'
+            ? JSON.parse(paket.parameter_komisioning_json)
+            : paket.parameter_komisioning_json;
+        } catch (e) {}
+      }
+      if (!Array.isArray(komList) || komList.length === 0) {
+        komList = [
+          { no: 1, parameter: '⚡ Power On Self Test (POST) & Redundant Power Supply (PSU Failover)', status: 'LULUS' },
+          { no: 2, parameter: '⚙️ Verifikasi Spesifikasi Hardware (Dual Xeon, 64GB ECC, 2x NVMe)', status: 'LULUS' },
+          { no: 3, parameter: '🔥 Stress Test & Burn-in Beban Puncak CPU / Memori (24 Jam Non-Stop)', status: 'LULUS' },
+          { no: 4, parameter: '🌐 Uji Konektivitas Jaringan Gigabit LAN & Redundansi NIC Teaming', status: 'LULUS' },
+          { no: 5, parameter: '🔐 Keaslian Lisensi OS Windows Server 2025 Standard & Driver Resmi', status: 'LULUS' }
+        ];
+      }
+
+      const isDeviasiNegatif = devFisik < 0;
+      let lapWasBadgeHtml = '';
+      let deviasiKet = '';
+      let catatanScmHtml = '';
+
+      if (!isDeviasiNegatif) {
+        lapWasBadgeHtml = `<span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #86efac;">✅ ON-TRACK ${realFisik}%</span>`;
+        deviasiKet = `<strong style="color:#15803d;">+${devFisik.toFixed(2)}% (Normal)</strong>`;
+        catatanScmHtml = `<div style="font-size:10.5px; color:#15803d; margin-top:8px; font-weight:700;">🛡️ Normal / Bebas Kriteria Ambang Batas Kritis SCM (Perka LKPP 12/2021)</div>`;
+      } else if (statusScm.includes('Meeting II')) {
+        lapWasBadgeHtml = `<span style="background:#fee2e2; color:#dc2626; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5;">🚨 KONTRAK KRITIS SCM II (${realFisik}%)</span>`;
+        deviasiKet = `<strong style="color:#dc2626;">${devFisik.toFixed(2)}% (Kritis SCM Tingkat II)</strong>`;
+        catatanScmHtml = `<div style="font-size:10.5px; color:#dc2626; margin-top:8px; font-weight:700;">🚨 Status: ${cakraEsc(statusScm)}</div>`;
+      } else if (statusScm.includes('Meeting I')) {
+        lapWasBadgeHtml = `<span style="background:#fef3c7; color:#b45309; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fcd34d;">⚠️ KONTRAK KRITIS SCM I (${realFisik}%)</span>`;
+        deviasiKet = `<strong style="color:#b45309;">${devFisik.toFixed(2)}% (Kritis SCM Tingkat I)</strong>`;
+        catatanScmHtml = `<div style="font-size:10.5px; color:#b45309; margin-top:8px; font-weight:700;">⚠️ Status: ${cakraEsc(statusScm)}</div>`;
+      } else {
+        lapWasBadgeHtml = `<span style="background:#fee2e2; color:#dc2626; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5;">🚨 DEVIASI ${devFisik.toFixed(2)}%</span>`;
+        deviasiKet = `<strong style="color:#dc2626;">${devFisik.toFixed(2)}% (Deviasi Negatif)</strong>`;
+        catatanScmHtml = `<div style="font-size:10.5px; color:#dc2626; margin-top:8px; font-weight:700;">🚨 Status: ${cakraEsc(statusScm)}</div>`;
+      }
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Nomor SPMK PPK</div>
-            <div style="font-size:13px; font-weight:800; color:#1e40af;" class="cakra-mono">${cakraEsc(activeTRow.no_spmk || autoDocNo(15, activeTRow.tanggal_dokumen))}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Surat Perintah Mulai Kerja Resmi</div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+          <!-- KARTU 1: LAP-WAS & AMBANG BATAS SCM -->
+          <div style="background:#f8fafc; border:1px solid ${isDeviasiNegatif ? '#fca5a5' : '#cbd5e1'}; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:800; color:#475569; text-transform:uppercase;">📊 LAP-WAS (Dokumen 01)</span>
+                ${lapWasBadgeHtml}
+              </div>
+              <div style="font-size:12px; font-weight:800; color:#1e40af;" class="cakra-mono">${cakraEsc(noLapWas)}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Tanggal: ${cakraEsc(tglLapWas)}</div>
+              
+              <div style="margin-top:10px; padding:8px; background:#ffffff; border:1px solid ${isDeviasiNegatif ? '#fecdd3' : '#e2e8f0'}; border-radius:6px;">
+                <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:3px;">
+                  <span style="color:#64748b;">Target Rencana:</span>
+                  <strong style="color:#0f172a;">${rencFisik}%</strong>
+                </div>
+                <div style="font-size:11px; display:flex; justify-content:space-between; margin-bottom:3px;">
+                  <span style="color:#64748b;">Realisasi Fisik:</span>
+                  <strong style="color:${isDeviasiNegatif ? '#dc2626' : '#15803d'}; font-size:12px;">${realFisik}%</strong>
+                </div>
+                <div style="font-size:11px; display:flex; justify-content:space-between;">
+                  <span style="color:#64748b;">Deviasi Fisik:</span>
+                  ${deviasiKet}
+                </div>
+              </div>
+            </div>
+            ${catatanScmHtml}
           </div>
-          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">Progres Fisik &amp; Pengendalian (SCM)</div>
-            <div style="font-size:14px; font-weight:800; color:#15803d;">Realisasi Fisik: ${Number(paket.realisasi_fisik_persen || 100)}%</div>
-            <div style="font-size:11px; color:#166534; margin-top:2px;">Status: ${cakraEsc(paket.status_scm || 'Normal / Sesuai Kurva S')}</div>
+
+          <!-- KARTU 2: BA-KOM & HASIL UJI KOMISIONING -->
+          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:800; color:#166534; text-transform:uppercase;">🛠️ BA-KOM (Dokumen 02)</span>
+                <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #86efac;">LULUS 100%</span>
+              </div>
+              <div style="font-size:12px; font-weight:800; color:#166534;" class="cakra-mono">${cakraEsc(noBaKom)}</div>
+              <div style="font-size:11px; color:#166534; margin-top:2px;">Lead Engineer: <strong>${cakraEsc(picTeknisi)}</strong></div>
+
+              <div style="margin-top:10px; padding:8px; background:#ffffff; border:1px solid #bbf7d0; border-radius:6px;">
+                <div style="font-size:11px; font-weight:700; color:#15803d; margin-bottom:4px;">Hasil Verifikasi Faktual Pengujian:</div>
+                <div style="font-size:10.5px; color:#334155; line-height:1.4;">
+                  ✅ ${komList.length} Parameter Uji Fungsi &amp; Stress Test 24 Jam dinyatakan LULUS tanpa anomali.
+                </div>
+              </div>
+            </div>
+            <div style="font-size:10.5px; color:#166534; margin-top:8px; font-weight:700;">
+              ✨ Seluruh fitur hardware &amp; software beroperasi optimal
+            </div>
+          </div>
+
+          <!-- KARTU 3: KESIAPAN BAST TAHAP 16 / TINDAK LANJUT SCM -->
+          ${!isDeviasiNegatif ? `
+            <div style="background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <span style="font-size:10.5px; font-weight:800; color:#1e40af; text-transform:uppercase;">🎯 REKOMENDASI PPK</span>
+                  <span style="background:#dbeafe; color:#1d4ed8; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #93c5fd;">SIAP BAST</span>
+                </div>
+                <div style="font-size:12.5px; font-weight:800; color:#1e3a8a;">Lanjut ke Serah Terima (Tahap 16)</div>
+                <div style="font-size:11px; color:#475569; margin-top:4px; line-height:1.4;">
+                  Penyedia telah memenuhi seluruh 5 pilar milestone kontrak tepat waktu, komisioning lulus 100%, nihil denda keterlambatan (Rp 0,-).
+                </div>
+              </div>
+              <div style="margin-top:10px; padding:6px 8px; background:#dbeafe; border-radius:4px; font-size:10.5px; color:#1e40af; font-weight:700;">
+                🚀 Memenuhi syarat terbit BAPHP &amp; BAST Tahap 16
+              </div>
+            </div>
+          ` : `
+            <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <span style="font-size:10.5px; font-weight:800; color:#9f1239; text-transform:uppercase;">🚨 REKOMENDASI PPK</span>
+                  <span style="background:#fee2e2; color:#dc2626; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5;">RAPAT SCM</span>
+                </div>
+                <div style="font-size:12.5px; font-weight:800; color:#9f1239;">Tindak Lanjut Rapat Pembuktian SCM</div>
+                <div style="font-size:11px; color:#881337; margin-top:4px; line-height:1.4;">
+                  Realisasi fisik ${realFisik}% terlambat dari target ${rencFisik}% (deviasi ${devFisik.toFixed(2)}%). PPK wajib menerbitkan Surat Peringatan &amp; memanggil Rekanan dalam Rapat SCM untuk menyepakati Uji Coba Pemenuhan Milestone sebelum BAST.
+                </div>
+              </div>
+              <div style="margin-top:10px; padding:6px 8px; background:#fee2e2; border-radius:4px; font-size:10.5px; color:#b91c1c; font-weight:700;">
+                ⚠️ Belum Memenuhi Syarat BAST &bull; Rekanan Wajib Pembuktian SCM
+              </div>
+            </div>
+          `}
+        </div>
+
+        <!-- TABEL 1: REKAPITULASI 5 PILAR UTAMA PENGAWASAN KONTRAK (LAP-WAS DOKUMEN 01) -->
+        <div style="margin-top:14px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
+          <div style="font-size:11.5px; font-weight:800; color:#0f172a; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span>📊 1. Tabel Rekapitulasi 5 Pilar Utama Pengawasan Kontrak (LAP-WAS Dokumen 01):</span>
+            </div>
+            <span style="font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:12px; background:${isDeviasiNegatif ? '#fee2e2' : '#dcfce7'}; color:${isDeviasiNegatif ? '#dc2626' : '#15803d'}; border:1px solid ${isDeviasiNegatif ? '#fca5a5' : '#86efac'};">
+              ${mileList.length} Pilar | Realisasi: ${realFisik}% (Deviasi: ${devFisik >= 0 ? '+' : ''}${devFisik.toFixed(2)}%)
+            </span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+              <thead>
+                <tr style="background:#f8fafc; color:#334155; font-weight:800; text-align:left;">
+                  <th style="padding:6px 8px; width:35px; text-align:center; border-bottom:2px solid #cbd5e1;">NO</th>
+                  <th style="padding:6px 8px; border-bottom:2px solid #cbd5e1;">5 PILAR UTAMA PENGAWASAN KONTRAK</th>
+                  <th style="padding:6px 8px; width:80px; text-align:center; border-bottom:2px solid #cbd5e1;">BOBOT</th>
+                  <th style="padding:6px 8px; width:150px; text-align:center; border-bottom:2px solid #cbd5e1;">TARGET WAKTU</th>
+                  <th style="padding:6px 8px; width:90px; text-align:center; border-bottom:2px solid #cbd5e1;">REALISASI</th>
+                  <th style="padding:6px 8px; width:170px; text-align:center; border-bottom:2px solid #cbd5e1;">STATUS CAPAIAN</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${mileList.map((m, idx) => {
+                  const no = idx + 1;
+                  const tgt = m.target || m.pilar || `Pilar ${no}`;
+                  const bbt = Number(m.bobot_rencana || m.bobot || 20);
+                  const twk = m.target_waktu || m.target_tgl || `Hari ke-${no * 3}`;
+                  const rls = Number(m.realisasi !== undefined ? m.realisasi : bbt);
+                  const sts = m.status || 'SELESAI TEPAT WAKTU';
+                  
+                  let badgeBg = '#dcfce7';
+                  let badgeColor = '#15803d';
+                  let badgeBorder = '#86efac';
+                  let badgeIcon = '✅';
+                  if (sts.includes('PROSES')) {
+                    badgeBg = '#fef3c7';
+                    badgeColor = '#b45309';
+                    badgeBorder = '#fcd34d';
+                    badgeIcon = '⏳';
+                  } else if (sts.includes('TERLAMBAT') || sts.includes('BELUM')) {
+                    badgeBg = '#fee2e2';
+                    badgeColor = '#dc2626';
+                    badgeBorder = '#fca5a5';
+                    badgeIcon = '⚠️';
+                  }
+
+                  return `
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                      <td style="padding:6px 8px; text-align:center; font-weight:700; color:#64748b;">${no}</td>
+                      <td style="padding:6px 8px; color:#0f172a; font-weight:600;">${cakraEsc(tgt)}</td>
+                      <td style="padding:6px 8px; text-align:center; font-weight:700; color:#334155;">${bbt}%</td>
+                      <td style="padding:6px 8px; text-align:center; color:#64748b; font-size:10.5px;">${cakraEsc(twk)}</td>
+                      <td style="padding:6px 8px; text-align:center; font-weight:800; color:${rls >= bbt ? '#15803d' : (rls > 0 ? '#b45309' : '#dc2626')}; font-size:11.5px;">
+                        ${rls}%
+                      </td>
+                      <td style="padding:6px 8px; text-align:center;">
+                        <span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; padding:2px 8px; border-radius:4px; font-weight:700; font-size:10px;">
+                          ${badgeIcon} ${cakraEsc(sts)}
+                        </span>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABEL 2: VERIFIKASI PENGUJIAN FUNGSI & KOMISIONING TEKNIS (BA-KOM DOKUMEN 02) -->
+        <div style="margin-top:12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+          <div style="font-size:11px; font-weight:800; color:#334155; margin-bottom:6px; display:flex; justify-content:space-between;">
+            <span>🔬 2. Tabel Verifikasi Hasil Pengujian Fungsi &amp; Komisioning Teknis (BA-KOM Dokumen 02):</span>
+            <span style="color:#15803d; font-weight:700;">100% Memenuhi Spesifikasi Teknis</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:10.5px;">
+              <thead>
+                <tr style="background:#f8fafc; color:#475569; font-weight:800; text-align:left;">
+                  <th style="padding:4px 6px; width:30px; text-align:center; border-bottom:1px solid #e2e8f0;">NO</th>
+                  <th style="padding:4px 6px; border-bottom:1px solid #e2e8f0;">PARAMETER PENGUJIAN</th>
+                  <th style="padding:4px 6px; width:150px; text-align:center; border-bottom:1px solid #e2e8f0;">STATUS</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${komList.map((k, idx) => `
+                  <tr>
+                    <td style="padding:5px 6px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#64748b;">${idx + 1}</td>
+                    <td style="padding:5px 6px; border-bottom:1px solid #f1f5f9; color:#1e293b; font-weight:600;">${cakraEsc(k.parameter)}</td>
+                    <td style="padding:5px 6px; text-align:center; border-bottom:1px solid #f1f5f9;">
+                      <span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;">✅ ${cakraEsc(k.status || 'LULUS')}</span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
           </div>
         </div>
       `;
+    }
 
     case 16:
       return `
@@ -8957,6 +9204,15 @@ function openModalTahapUniversal(stageNo) {
         window.initTahap14DynamicFields();
       }
     }, 50);
+  } else if (num === 15) {
+    setTimeout(() => {
+      if (typeof window.calcScmDeviasi === 'function') {
+        window.calcScmDeviasi();
+      }
+      if (typeof window.initTahap15DynamicFields === 'function') {
+        window.initTahap15DynamicFields();
+      }
+    }, 50);
   }
 }
 window.openModalTahapUniversal = openModalTahapUniversal;
@@ -9460,6 +9716,530 @@ window.initTahap14DynamicFields = function() {
 
   window.renderMc0TableRows(mc0Data || window.sppPresets.server.mc0);
   window.renderPascaPengirimanRows(pascaData || window.sppPresets.server.pasca);
+};
+
+window.komisioningPresets = {
+  server: {
+    nama: 'Server & Komputer IT',
+    catatan: 'Berdasarkan hasil pengawasan pelaksanaan kontrak, penyedia telah menyelesaikan seluruh kewajiban pengiriman, instalasi, dan konfigurasi tepat waktu dengan progres fisik 100% (deviasi 0.00%). Hasil pengujian fungsi dan komisioning teknis (BA-KOM) menyatakan seluruh 5 parameter LULUS memenuhi spesifikasi teknis naskah kontrak. Kontrak berkategori NORMAL dan memenuhi syarat untuk dilanjutkan ke Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP) dan Serah Terima Pekerjaan (BAST) Tahap 16.',
+    komisioning: [
+      { no: 1, parameter: '⚡ Power On Self Test (POST) & Redundant Power Supply (PSU Failover)', metode: 'Simulasi pemutusan salah satu kabel catu daya AC saat server bekerja penuh (Burn-in)', hasil: 'Redundansi aktif seketika, server tetap beroperasi normal tanpa interupsi daya', status: 'LULUS' },
+      { no: 2, parameter: '⚙️ Verifikasi Spesifikasi Hardware (Dual Xeon, 64GB ECC, 2x NVMe)', metode: 'Inspeksi sistem BIOS/UEFI dan OS Device Manager sesuai lampiran kontrak', hasil: 'Terbaca Dual Intel Xeon Silver, 64GB DDR4 ECC Reg, 2x 1.92TB Enterprise NVMe RAID-1 sinkron 100%', status: 'LULUS' },
+      { no: 3, parameter: '🔥 Stress Test & Burn-in Beban Puncak CPU / Memori (24 Jam Non-Stop)', metode: 'Pengujian utilitas beban kerja CPU & RAM 100% terus menerus selama 24 jam', hasil: 'Suhu CPU stabil maksimal 68°C, tidak terjadi thermal throttling, sistem beroperasi stabil', status: 'LULUS' },
+      { no: 4, parameter: '🌐 Uji Konektivitas Jaringan Gigabit LAN & Redundansi NIC Teaming', metode: 'Transfer data throughput jaringan dan simulasi link down kabel LAN', hasil: 'Bandwidth stabil 1.000 Mbps full duplex, failover NIC port 1 ke port 2 instan tanpa paket loss', status: 'LULUS' },
+      { no: 5, parameter: '🔐 Keaslian Lisensi OS Windows Server 2025 Standard & Driver Resmi', metode: 'Verifikasi sertifikat Certificate of Authenticity (COA) fisik & aktivasi digital online Microsoft', hasil: 'Windows teraktivasi resmi secara digital (Genuine Digital License), seluruh firmware/driver termutakhir', status: 'LULUS' }
+    ],
+    milestones: [
+      { no: 1, target: 'Pilar 1: Pengawasan Waktu & Jadwal Pelaksanaan (Mobilisasi & Instalasi Tepat Waktu)', bobot_rencana: 20, target_waktu: 'Hari ke-3 s.d. 14 (30 Mei - 09 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Mobilisasi, unboxing, dan instalasi tuntas 100% dalam masa kontrak 14 hari kalender' },
+      { no: 2, target: 'Pilar 2: Pengawasan Mutu & Spesifikasi Teknis (QC Segel, Hardware & Lisensi Resmi)', bobot_rencana: 20, target_waktu: 'Hari ke-4 (31 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Merek Dell resmi, segel pabrikan intak, Dual Xeon, 64GB ECC, 2x NVMe & Windows Server 2025 COA' },
+      { no: 3, target: 'Pilar 3: Pengawasan Kuantitas & Volume Barang (Kelengkapan Unit & Aksesoris Franco)', bobot_rencana: 20, target_waktu: 'Hari ke-4 (31 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: '1 unit server lengkap, dual redundant PSU 80+ Platinum, rel rackmount & kabel daya utuh 100%' },
+      { no: 4, target: 'Pilar 4: Pengawasan Fungsi Operasional & Uji Beban (POST, Failover & Burn-In 24 Jam)', bobot_rencana: 20, target_waktu: 'Hari ke-13 (08 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'POST lulus, failover PSU seketika tanpa mati, RAID-1 sinkron 100%, Gigabit LAN & burn-in test stabil' },
+      { no: 5, target: 'Pilar 5: Pengawasan Administrasi & Legalitas Jaminan (DO, Garansi 1 Tahun & BA)', bobot_rencana: 20, target_waktu: 'Hari ke-14 (09 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Surat Jalan resmi, sertifikat garansi purna jual resmi 1 tahun on-site, BA-SPL, dan BA-KOM lengkap sah' }
+    ]
+  },
+  mebeler: {
+    nama: 'Mebeler Kantor & Ruang Sidang',
+    catatan: 'Pengawasan pekerjaan mebeler menunjukkan seluruh unit meja, kursi, dan lemari arsip telah tiba dan dirakit di lokasi kerja tepat waktu. Uji fungsi mekanik hidrolik dan presisi kunci sentral berfungsi 100% baik. Progres fisik 100%, deviasi 0.00% (Normal). Memenuhi syarat untuk BAST.',
+    komisioning: [
+      { no: 1, parameter: '🪑 Presisi Struktur & Rangka Meja/Kursi', metode: 'Pemeriksaan sambungan baut, stabilitas beban, dan kedataran permukaan meja dengan waterpass', hasil: 'Struktur kokoh, tidak goyang, waterpass datar presisi', status: 'LULUS' },
+      { no: 2, parameter: '🔄 Mekanisme Hidrolik & Putaran Kursi Kerja', metode: 'Uji fungsi tuas naik-turun hidrolik dan rotasi 360 derajat dengan beban kerja', hasil: 'Mekanisme hidrolik responsif halus, roda kursi berputar lancar tanpa hambatan', status: 'LULUS' },
+      { no: 3, parameter: '🔐 Presisi Kunci Sentral & Rel Laci', metode: 'Uji buka-tutup laci sebanyak 10 kali dan penguncian sentral ganda', hasil: 'Rel laci lancar (soft close), anak kunci berfungsi presisi mengunci seluruh laci', status: 'LULUS' },
+      { no: 4, parameter: '✨ Kualitas Finishing HPL & Edging', metode: 'Pemeriksaan visual dan rabaan permukaan atas goresan, kerapian edging lemari/meja', hasil: 'Finishing mulus merata, laminasi HPL rapi tanpa gelembung atau sudut tajam', status: 'LULUS' }
+    ],
+    milestones: [
+      { no: 1, target: 'Pilar 1: Pengawasan Waktu & Jadwal (Pengiriman Unit Mebeler ke Lokasi)', bobot_rencana: 20, target_waktu: 'Hari ke-3 (30 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Bongkar muat aman dan tepat waktu' },
+      { no: 2, target: 'Pilar 2: Pengawasan Mutu Bahan (Pemeriksaan Rangka, Busa & Laminasi HPL)', bobot_rencana: 20, target_waktu: 'Hari ke-5 (01 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Bahan baku sesuai spesifikasi KAK' },
+      { no: 3, target: 'Pilar 3: Pengawasan Kuantitas & Volume (Penghitungan Jumlah Meja, Kursi & Lemari)', bobot_rencana: 20, target_waktu: 'Hari ke-6 (02 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Kuantitas 100% lengkap cocok SPP' },
+      { no: 4, target: 'Pilar 4: Pengawasan Fungsi Operasional (Uji Hidrolik, Rel Laci & Kunci Sentral)', bobot_rencana: 20, target_waktu: 'Hari ke-10 (06 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Mekanik dan hidrolik berfungsi presisi' },
+      { no: 5, target: 'Pilar 5: Pengawasan Administrasi & Garansi (Surat Jalan & Garansi Purna Jual)', bobot_rencana: 20, target_waktu: 'Hari ke-14 (09 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Dokumen DO & jaminan purna jual lengkap' }
+    ]
+  },
+  kendaraan: {
+    nama: 'Kendaraan Dinas Operasional',
+    catatan: 'Pengawasan pengadaan unit kendaraan dinas operasional menunjukkan unit tiba dalam kondisi 100% baru, nomor rangka dan mesin sesuai faktur resmi ATPM, hasil uji jalan (road test) seluruh sistem kemudi, rem ABS, dan AC berfungsi prima. Progres fisik 100%, deviasi 0.00% (Normal). Siap dilanjutkan ke BAST.',
+    komisioning: [
+      { no: 1, parameter: '🚗 Kesesuaian Nomor Rangka & Nomor Mesin', metode: 'Pencocokan fisik nomor rangka (VIN) dan nomor mesin terhadap Faktur Pembelian & Delivery Order', hasil: 'Nomor rangka dan nomor mesin identik 100% dengan dokumen faktur ATPM', status: 'LULUS' },
+      { no: 2, parameter: '💡 Sistem Kelistrikan, Instrumen & Lampu', metode: 'Pengujian headlamp, foglamp, rem, sein, klakson, power window, dan layar instrumen digital', hasil: 'Seluruh instrumen kelistrikan aktif normal tanpa indikator malfungsi (MIL)', status: 'LULUS' },
+      { no: 3, parameter: '❄️ Kinerja Mesin & Sistem Pendingin AC', metode: 'Uji stasioner mesin selama 30 menit dan pengukuran hembusan suhu AC ruang kabin', hasil: 'Putaran idle mesin stabil halus, suhu kabin tercapai sejuk 18°C', status: 'LULUS' },
+      { no: 4, parameter: '🛑 Road Test: Sistem Kemudi, Transmisi & Pengereman ABS', metode: 'Uji jalan dinamis akselerasi, perpindahan gigi, suspensi, dan pengereman darurat', hasil: 'Transmisi responsif mulus, pengereman ABS bekerja presisi, suspensi nyaman stabil', status: 'LULUS' }
+    ],
+    milestones: [
+      { no: 1, target: 'Pilar 1: Pengawasan Waktu & Jadwal (Mobilisasi Towing Carrier Unit ke KPU)', bobot_rencana: 20, target_waktu: 'Hari ke-3 (30 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Tiba tepat waktu di garasi KPU Ngawi' },
+      { no: 2, target: 'Pilar 2: Pengawasan Mutu & Kondisi (Pre-Delivery Inspection Fisik Eksterior/Interior)', bobot_rencana: 20, target_waktu: 'Hari ke-5 (01 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Kondisi 100% baru bebas cacat gores' },
+      { no: 3, target: 'Pilar 3: Pengawasan Kuantitas & Kelengkapan (Toolkit, Dongkrak, Ban Serep & Manual)', bobot_rencana: 20, target_waktu: 'Hari ke-6 (02 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Aksesoris standar pabrik lengkap utuh' },
+      { no: 4, target: 'Pilar 4: Pengawasan Fungsi Operasional (Road Test Mesin, Kemudi, Rem & AC)', bobot_rencana: 20, target_waktu: 'Hari ke-10 (06 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Lulus uji jalan dinamis tanpa kendala' },
+      { no: 5, target: 'Pilar 5: Pengawasan Administrasi & Garansi (Faktur ATPM, STCK & Buku Servis Resmi)', bobot_rencana: 20, target_waktu: 'Hari ke-14 (09 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Dokumen jalan legal dan garansi resmi' }
+    ]
+  },
+  gudang_logistik: {
+    nama: 'Logistik Pemilu (Kotak / Bilik / Tinta)',
+    catatan: 'Pengawasan kedatangan logistik pemilu membuktikan seluruh kuantitas terpenuhi 100%, hasil uji petik (sampling) ketebalan bahan dan daya tahan beban memenuhi spesifikasi KPU RI. Penataan di atas pallet gudang tertata rapi. Progres fisik 100%, deviasi 0.00% (Normal). Siap dilanjutkan ke BAST.',
+    komisioning: [
+      { no: 1, parameter: '📦 Uji Kekuatan Bahan & Daya Tahan Beban Tumpukan', metode: 'Uji tekan vertikal dan simulasi penumpukan beban seberat 50 kg selama 4 jam', hasil: 'Bahan karton/duplex kokoh, tidak terjadi deformasi, tekukan, atau robek', status: 'LULUS' },
+      { no: 2, parameter: '💧 Uji Ketahanan Air & Kelembaban (Water Repellent)', metode: 'Percikan air dan uji kelembaban permukaan pada lembar sampel', hasil: 'Permukaan menolak serapan air (efek daun talas), lapisan dalam tetap kering', status: 'LULUS' },
+      { no: 3, parameter: '🏷️ Presisi Dimensi & Kerapian Cetakan Logo / Barcode', metode: 'Pengukuran milimeter dimensi cetakan dan pemindaian barcode dengan barcode scanner', hasil: 'Dimensi presisi 100% toleransi <1mm, barcode terbaca instan dan akurat', status: 'LULUS' },
+      { no: 4, parameter: '🪵 Kerapian Pengepakan Pallet & Wrapping Kedap Udara', metode: 'Pemeriksaan visual pembungkusan stretch film dan penataan di atas pallet kayu', hasil: 'Terbungkus rapat kedap debu dan air, tersusun rapi pada pallet standar', status: 'LULUS' }
+    ],
+    milestones: [
+      { no: 1, target: 'Pilar 1: Pengawasan Waktu & Jadwal (Kedatangan Truk Kontainer Ekspedisi)', bobot_rencana: 20, target_waktu: 'Hari ke-3 (30 Mei 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Tiba tepat waktu diawasi PPK & Bawaslu' },
+      { no: 2, target: 'Pilar 2: Pengawasan Mutu & Bahan (Uji Petik Laboratorium/Fisik Ketebalan & Air)', bobot_rencana: 20, target_waktu: 'Hari ke-6 (02 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Spesifikasi gramatur & kekuatan lulus' },
+      { no: 3, target: 'Pilar 3: Pengawasan Kuantitas & Volume (Penghitungan Koli/Dos Bersama Rekanan)', bobot_rencana: 20, target_waktu: 'Hari ke-7 (03 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Jumlah koli cocok 100% dengan SPP' },
+      { no: 4, target: 'Pilar 4: Pengawasan Fungsi Operasional (Uji Rancang Bangun & Penataan Pallet Gudang)', bobot_rencana: 20, target_waktu: 'Hari ke-10 (06 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Kotak/bilik mudah dirakit dan kokoh' },
+      { no: 5, target: 'Pilar 5: Pengawasan Administrasi & Pengawalan (Surat Jalan, BA Pengawalan & BAST Gudang)', bobot_rencana: 20, target_waktu: 'Hari ke-14 (09 Juni 2026)', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: 'Administrasi berita acara pengawalan lengkap' }
+    ]
+  },
+  custom: {
+    nama: 'Kustom Kosong (Input Bebas)',
+    catatan: '',
+    komisioning: [
+      { no: 1, parameter: '', metode: '', hasil: '', status: 'LULUS' }
+    ],
+    milestones: [
+      { no: 1, target: 'Pilar 1: Pengawasan Waktu & Jadwal Pelaksanaan', bobot_rencana: 20, target_waktu: 'Sesuai Jadwal', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: '' },
+      { no: 2, target: 'Pilar 2: Pengawasan Mutu & Spesifikasi Teknis', bobot_rencana: 20, target_waktu: 'Sesuai Jadwal', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: '' },
+      { no: 3, target: 'Pilar 3: Pengawasan Kuantitas & Volume Barang/Jasa', bobot_rencana: 20, target_waktu: 'Sesuai Jadwal', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: '' },
+      { no: 4, target: 'Pilar 4: Pengawasan Fungsi Operasional & Komisioning', bobot_rencana: 20, target_waktu: 'Sesuai Jadwal', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: '' },
+      { no: 5, target: 'Pilar 5: Pengawasan Administrasi & Legalitas Jaminan', bobot_rencana: 20, target_waktu: 'Sesuai Jadwal', realisasi: 20, status: 'SELESAI TEPAT WAKTU', keterangan: '' }
+    ]
+  }
+};
+
+window.onPilarStatusChange = function(selectEl) {
+  const tr = selectEl.closest('tr.milestone-row');
+  if (!tr) return;
+  const bobotInp = tr.querySelector('.milestone-bobot');
+  const realInp = tr.querySelector('.milestone-realisasi');
+  const bobot = parseFloat(bobotInp?.value) || 20;
+  const st = selectEl.value;
+
+  let rls = bobot;
+  if (st.includes('TEPAT WAKTU') || st.includes('SELESAI')) {
+    rls = bobot;
+    if (realInp) realInp.style.color = '#15803d';
+  } else if (st.includes('PROSES')) {
+    rls = Math.round(bobot * 0.5 * 10) / 10;
+    if (realInp) realInp.style.color = '#b45309';
+  } else {
+    rls = 0;
+    if (realInp) realInp.style.color = '#dc2626';
+  }
+
+  if (realInp) {
+    realInp.value = rls;
+  }
+  window.updateMilestoneSummaryBadge();
+};
+
+window.onPilarRealisasiInput = function(realInp) {
+  const tr = realInp.closest('tr.milestone-row');
+  if (!tr) return;
+  const bobotInp = tr.querySelector('.milestone-bobot');
+  const statusSel = tr.querySelector('.milestone-status');
+  const bobot = parseFloat(bobotInp?.value) || 20;
+  const rls = parseFloat(realInp.value) || 0;
+
+  if (rls >= bobot) {
+    if (statusSel) statusSel.value = 'SELESAI TEPAT WAKTU';
+    realInp.style.color = '#15803d';
+  } else if (rls > 0) {
+    if (statusSel) statusSel.value = 'DALAM PROSES (ON-TRACK)';
+    realInp.style.color = '#b45309';
+  } else {
+    if (statusSel) statusSel.value = 'TERLAMBAT DARI JADWAL';
+    realInp.style.color = '#dc2626';
+  }
+  window.updateMilestoneSummaryBadge();
+};
+
+window.renderMilestoneTableRows = function(rows) {
+  const tbody = document.getElementById('milestone_table_body');
+  if (!tbody) return;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    rows = window.komisioningPresets.server.milestones;
+  }
+  let html = '';
+  rows.forEach((r, idx) => {
+    const no = idx + 1;
+    const target = r.target || r.pilar || r.milestone || `Pilar ${no}: Pengawasan Bidang Pelaksanaan Kontrak`;
+    const bobot = (r.bobot_rencana !== undefined && r.bobot_rencana !== null) ? Number(r.bobot_rencana) : ((r.bobot !== undefined && r.bobot !== null) ? Number(r.bobot) : 20);
+    const targetWaktu = r.target_waktu || r.target_tgl || (r.target_hari ? 'Hari ke-' + r.target_hari : 'Sesuai Jadwal Kontrak');
+    const status = r.status || 'SELESAI TEPAT WAKTU';
+    
+    // Hitung realisasi jika belum ada nilai eksplisit
+    let realisasi = bobot;
+    if (r.realisasi !== undefined && r.realisasi !== null && !isNaN(Number(r.realisasi))) {
+      realisasi = Number(r.realisasi);
+    } else if (status.includes('PROSES')) {
+      realisasi = Math.round(bobot * 0.5 * 10) / 10;
+    } else if (status.includes('TERLAMBAT') || status.includes('BELUM')) {
+      realisasi = 0;
+    }
+
+    const rlsColor = realisasi >= bobot ? '#15803d' : (realisasi > 0 ? '#b45309' : '#dc2626');
+
+    html += `
+      <tr class="milestone-row" data-row-idx="${no}">
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#475569;" class="milestone-no">${no}</td>
+        <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+          <input type="text" class="cakra-form-control milestone-target" value="${cakraEsc(target)}" placeholder="Uraian Pilar Pengawasan Kontrak..." style="font-weight:700; font-size:11px;" />
+        </td>
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <input type="number" class="cakra-form-control milestone-bobot" value="${bobot}" min="0" max="100" step="1" oninput="window.updateMilestoneSummaryBadge()" style="font-weight:700; font-size:11px; text-align:center;" />
+        </td>
+        <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+          <input type="text" class="cakra-form-control milestone-target-waktu" value="${cakraEsc(targetWaktu)}" placeholder="Target Waktu Pelaksanaan..." style="font-size:10.5px; text-align:center;" />
+        </td>
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <input type="number" class="cakra-form-control milestone-realisasi" value="${realisasi}" min="0" max="100" step="0.5" oninput="window.onPilarRealisasiInput(this)" style="font-weight:800; font-size:11.5px; text-align:center; color:${rlsColor};" />
+        </td>
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <select class="cakra-form-control milestone-status" style="font-weight:700; font-size:10.5px;" onchange="window.onPilarStatusChange(this)">
+            <option value="SELESAI TEPAT WAKTU" ${status.includes('TEPAT WAKTU') || (status.includes('SELESAI') && !status.includes('BELUM')) || status.includes('Selesai') ? 'selected' : ''}>✅ SELESAI (100% Bobot)</option>
+            <option value="DALAM PROSES (ON-TRACK)" ${status.includes('PROSES') ? 'selected' : ''}>⏳ DALAM PROSES (50% Bobot)</option>
+            <option value="TERLAMBAT DARI JADWAL" ${status.includes('TERLAMBAT') || status.includes('BELUM') ? 'selected' : ''}>⚠️ TERLAMBAT / BELUM (0% Bobot)</option>
+          </select>
+        </td>
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 7px; font-size:11px; cursor:pointer;" onclick="window.removeMilestoneRow(this)" title="Hapus Baris Ini">🗑️</button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+  window.updateMilestoneSummaryBadge();
+};
+
+window.addMilestoneRow = function(target = '', bobot = 20, targetWaktu = 'Sesuai Jadwal Kontrak', realisasi = 20, status = 'SELESAI TEPAT WAKTU') {
+  const tbody = document.getElementById('milestone_table_body');
+  if (!tbody) return;
+  const currentCount = tbody.querySelectorAll('tr.milestone-row').length;
+  const no = currentCount + 1;
+  const tr = document.createElement('tr');
+  tr.className = 'milestone-row';
+  tr.dataset.rowIdx = no;
+  const defaultTitle = target || `Pilar ${no}: Pengawasan Tambahan Pelaksanaan Kontrak`;
+  tr.innerHTML = `
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#475569;" class="milestone-no">${no}</td>
+    <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+      <input type="text" class="cakra-form-control milestone-target" value="${cakraEsc(defaultTitle)}" placeholder="Uraian Pilar Pengawasan Tambahan..." style="font-weight:700; font-size:11px;" />
+    </td>
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <input type="number" class="cakra-form-control milestone-bobot" value="${bobot}" min="0" max="100" step="1" oninput="window.updateMilestoneSummaryBadge()" style="font-weight:700; font-size:11px; text-align:center;" />
+    </td>
+    <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+      <input type="text" class="cakra-form-control milestone-target-waktu" value="${cakraEsc(targetWaktu)}" placeholder="Target Waktu..." style="font-size:10.5px; text-align:center;" />
+    </td>
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <input type="number" class="cakra-form-control milestone-realisasi" value="${realisasi}" min="0" max="100" step="0.5" oninput="window.onPilarRealisasiInput(this)" style="font-weight:800; font-size:11.5px; text-align:center; color:#15803d;" />
+    </td>
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <select class="cakra-form-control milestone-status" style="font-weight:700; font-size:10.5px;" onchange="window.onPilarStatusChange(this)">
+        <option value="SELESAI TEPAT WAKTU" ${status.includes('TEPAT WAKTU') || status.includes('Selesai') ? 'selected' : ''}>✅ SELESAI (100% Bobot)</option>
+        <option value="DALAM PROSES (ON-TRACK)" ${status.includes('PROSES') ? 'selected' : ''}>⏳ DALAM PROSES (50% Bobot)</option>
+        <option value="TERLAMBAT DARI JADWAL" ${status.includes('TERLAMBAT') || status.includes('BELUM') ? 'selected' : ''}>⚠️ TERLAMBAT / BELUM (0% Bobot)</option>
+      </select>
+    </td>
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 7px; font-size:11px; cursor:pointer;" onclick="window.removeMilestoneRow(this)" title="Hapus Baris Ini">🗑️</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+  window.updateMilestoneSummaryBadge();
+  const inputEl = tr.querySelector('.milestone-target');
+  if (inputEl) inputEl.focus();
+};
+
+window.removeMilestoneRow = function(btn) {
+  const tr = btn.closest('tr.milestone-row');
+  if (!tr) return;
+  const tbody = tr.parentElement;
+  tr.remove();
+  if (tbody) {
+    const rows = tbody.querySelectorAll('tr.milestone-row');
+    rows.forEach((r, idx) => {
+      r.dataset.rowIdx = idx + 1;
+      const noEl = r.querySelector('.milestone-no');
+      if (noEl) noEl.textContent = idx + 1;
+    });
+  }
+  window.updateMilestoneSummaryBadge();
+};
+
+window.updateMilestoneSummaryBadge = function() {
+  const badgeEl = document.getElementById('milestone_summary_badge');
+  const rows = document.querySelectorAll('#milestone_table_body tr.milestone-row');
+  let totalBobot = 0;
+  let totalRealisasi = 0;
+  let terlambat = 0;
+  let dalamProses = 0;
+
+  rows.forEach(r => {
+    const b = parseFloat(r.querySelector('.milestone-bobot')?.value) || 0;
+    const rl = parseFloat(r.querySelector('.milestone-realisasi')?.value) || 0;
+    const st = r.querySelector('.milestone-status')?.value || '';
+    totalBobot += b;
+    totalRealisasi += rl;
+    if (st.includes('TERLAMBAT') || st.includes('BELUM')) terlambat++;
+    else if (st.includes('PROSES')) dalamProses++;
+  });
+
+  totalBobot = Math.round(totalBobot * 100) / 100;
+  totalRealisasi = Math.round(totalRealisasi * 100) / 100;
+
+  if (badgeEl) {
+    if (rows.length === 0) {
+      badgeEl.style.background = '#f1f5f9';
+      badgeEl.style.color = '#64748b';
+      badgeEl.textContent = 'Belum Ada Pilar Pengawasan';
+    } else if (terlambat > 0) {
+      badgeEl.style.background = '#fee2e2';
+      badgeEl.style.color = '#dc2626';
+      badgeEl.textContent = `${rows.length} Pilar (${terlambat} Terlambat | Realisasi: ${totalRealisasi}%)`;
+    } else if (dalamProses > 0) {
+      badgeEl.style.background = '#fef3c7';
+      badgeEl.style.color = '#b45309';
+      badgeEl.textContent = `${rows.length} Pilar (${dalamProses} Dalam Proses | Realisasi: ${totalRealisasi}%)`;
+    } else {
+      badgeEl.style.background = '#dcfce7';
+      badgeEl.style.color = '#15803d';
+      badgeEl.textContent = `${rows.length} Pilar Pengawasan (Bobot: ${totalBobot}% | Realisasi: ${totalRealisasi}%)`;
+    }
+  }
+
+  // SINKRONKAN OTOMATIS KE INPUT REALISASI FISIK AKTUAL DI ATAS & TRIGGER SCM CALC
+  const realFisikInp = document.getElementById('mu_realisasi_fisik_persen');
+  if (realFisikInp) {
+    realFisikInp.value = totalRealisasi;
+    if (typeof window.calcScmDeviasi === 'function') {
+      window.calcScmDeviasi();
+    }
+  }
+};
+
+window.renderKomisioningTableRows = function(rows) {
+  const tbody = document.getElementById('komisioning_table_body');
+  if (!tbody) return;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    rows = window.komisioningPresets.server.komisioning;
+  }
+  let html = '';
+  rows.forEach((r, idx) => {
+    const no = idx + 1;
+    const param = r.parameter || '';
+    const metode = r.metode || '';
+    const hasil = r.hasil || '';
+    const status = r.status || 'LULUS';
+    html += `
+      <tr class="komisioning-row" data-row-idx="${no}">
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#475569;" class="komisioning-no">${no}</td>
+        <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+          <input type="text" class="cakra-form-control komisioning-param-name" value="${cakraEsc(param)}" placeholder="Nama Pengujian..." style="font-weight:700; font-size:11px;" />
+        </td>
+        <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+          <textarea class="cakra-form-control komisioning-param-metode" rows="2" placeholder="Metode uji atau acuan..." style="font-size:10.5px; line-height:1.4;">${cakraEsc(metode)}</textarea>
+        </td>
+        <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+          <textarea class="cakra-form-control komisioning-param-hasil" rows="2" placeholder="Hasil faktual pengujian..." style="font-size:10.5px; line-height:1.4;">${cakraEsc(hasil)}</textarea>
+        </td>
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <select class="cakra-form-control komisioning-param-status" style="font-weight:700; font-size:10.5px;" onchange="window.updateKomisioningSummaryBadge()">
+            <option value="LULUS" ${status === 'LULUS' ? 'selected' : ''}>✅ LULUS</option>
+            <option value="LULUS BERSYARAT" ${status === 'LULUS BERSYARAT' ? 'selected' : ''}>⚠️ LULUS BERSYARAT</option>
+            <option value="TIDAK LULUS" ${status === 'TIDAK LULUS' ? 'selected' : ''}>❌ TIDAK LULUS</option>
+          </select>
+        </td>
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 7px; font-size:11px; cursor:pointer;" onclick="window.removeKomisioningRow(this)" title="Hapus Baris Ini">🗑️</button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+  window.updateKomisioningSummaryBadge();
+};
+
+window.addKomisioningRow = function(param = '', metode = '', hasil = '', status = 'LULUS') {
+  const tbody = document.getElementById('komisioning_table_body');
+  if (!tbody) return;
+  const currentCount = tbody.querySelectorAll('tr.komisioning-row').length;
+  const no = currentCount + 1;
+  const tr = document.createElement('tr');
+  tr.className = 'komisioning-row';
+  tr.dataset.rowIdx = no;
+  tr.innerHTML = `
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#475569;" class="komisioning-no">${no}</td>
+    <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+      <input type="text" class="cakra-form-control komisioning-param-name" value="${cakraEsc(param)}" placeholder="Nama Parameter Baru..." style="font-weight:700; font-size:11px;" />
+    </td>
+    <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+      <textarea class="cakra-form-control komisioning-param-metode" rows="2" placeholder="Metode uji atau acuan..." style="font-size:10.5px; line-height:1.4;">${cakraEsc(metode)}</textarea>
+    </td>
+    <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+      <textarea class="cakra-form-control komisioning-param-hasil" rows="2" placeholder="Hasil faktual pengujian..." style="font-size:10.5px; line-height:1.4;">${cakraEsc(hasil)}</textarea>
+    </td>
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <select class="cakra-form-control komisioning-param-status" style="font-weight:700; font-size:10.5px;" onchange="window.updateKomisioningSummaryBadge()">
+        <option value="LULUS" ${status === 'LULUS' ? 'selected' : ''}>✅ LULUS</option>
+        <option value="LULUS BERSYARAT" ${status === 'LULUS BERSYARAT' ? 'selected' : ''}>⚠️ LULUS BERSYARAT</option>
+        <option value="TIDAK LULUS" ${status === 'TIDAK LULUS' ? 'selected' : ''}>❌ TIDAK LULUS</option>
+      </select>
+    </td>
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 7px; font-size:11px; cursor:pointer;" onclick="window.removeKomisioningRow(this)" title="Hapus Baris Ini">🗑️</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+  window.updateKomisioningSummaryBadge();
+  const inputEl = tr.querySelector('.komisioning-param-name');
+  if (inputEl) inputEl.focus();
+};
+
+window.removeKomisioningRow = function(btn) {
+  const tr = btn.closest('tr.komisioning-row');
+  if (!tr) return;
+  const tbody = tr.parentElement;
+  tr.remove();
+  if (tbody) {
+    const rows = tbody.querySelectorAll('tr.komisioning-row');
+    rows.forEach((r, idx) => {
+      r.dataset.rowIdx = idx + 1;
+      const noEl = r.querySelector('.komisioning-no');
+      if (noEl) noEl.textContent = idx + 1;
+    });
+  }
+  window.updateKomisioningSummaryBadge();
+};
+
+window.updateKomisioningSummaryBadge = function() {
+  const badgeEl = document.getElementById('komisioning_summary_badge');
+  if (!badgeEl) return;
+  const rows = document.querySelectorAll('#komisioning_table_body tr.komisioning-row');
+  const total = rows.length;
+  let lulus = 0;
+  let bersyarat = 0;
+  let tidak = 0;
+  rows.forEach(r => {
+    const st = r.querySelector('.komisioning-param-status')?.value;
+    if (st === 'LULUS') lulus++;
+    else if (st === 'LULUS BERSYARAT') bersyarat++;
+    else tidak++;
+  });
+  if (total === 0) {
+    badgeEl.style.background = '#f1f5f9';
+    badgeEl.style.color = '#64748b';
+    badgeEl.textContent = 'Belum Ada Parameter Uji';
+  } else if (tidak > 0) {
+    badgeEl.style.background = '#fee2e2';
+    badgeEl.style.color = '#dc2626';
+    badgeEl.textContent = `${total} Parameter (${tidak} Gagal / Tidak Lulus)`;
+  } else if (bersyarat > 0) {
+    badgeEl.style.background = '#fef3c7';
+    badgeEl.style.color = '#d97706';
+    badgeEl.textContent = `${total} Parameter (${bersyarat} Lulus Bersyarat)`;
+  } else {
+    badgeEl.style.background = '#dcfce7';
+    badgeEl.style.color = '#15803d';
+    badgeEl.textContent = `${total} Parameter (100% Lulus Komisioning)`;
+  }
+};
+
+window.calcScmDeviasi = function() {
+  const rencInp = document.getElementById('mu_rencana_fisik_persen');
+  const realInp = document.getElementById('mu_realisasi_fisik_persen');
+  const devInp = document.getElementById('mu_deviasi_fisik_persen');
+  const scmSelect = document.getElementById('mu_status_scm');
+  const scmBadge = document.getElementById('mu_scm_eval_badge');
+  if (!rencInp || !realInp || !devInp) return;
+
+  const renc = parseFloat(rencInp.value) || 0;
+  const real = parseFloat(realInp.value) || 0;
+  const dev = Math.round((real - renc) * 100) / 100;
+  devInp.value = (dev >= 0 ? '+' : '') + dev.toFixed(2) + '%';
+
+  let statusText = 'Normal / Sesuai Kurva S';
+  let badgeHtml = '';
+
+  if (dev >= 0) {
+    devInp.style.color = '#15803d';
+    statusText = 'Normal / Sesuai Kurva S';
+    badgeHtml = '<span style="display:inline-block; padding:4px 8px; border-radius:4px; font-weight:800; font-size:11px; background:#dcfce7; color:#15803d;">✅ ON-TRACK (Normal / Bebas Kritis)</span>';
+  } else {
+    devInp.style.color = '#dc2626';
+    const absDev = Math.abs(dev);
+    if (renc <= 70 && absDev > 10) {
+      statusText = 'Kontrak Kritis (Show Cause Meeting I)';
+      badgeHtml = `<span style="display:inline-block; padding:4px 8px; border-radius:4px; font-weight:800; font-size:11px; background:#fee2e2; color:#dc2626;">🚨 KONTRAK KRITIS PERIODE I (Deviasi ${dev}% &gt; -10% Rencana 0-70%) - Wajib SCM Tingkat I</span>`;
+    } else if (renc > 70 && absDev > 5) {
+      statusText = 'Kontrak Kritis (Show Cause Meeting II)';
+      badgeHtml = `<span style="display:inline-block; padding:4px 8px; border-radius:4px; font-weight:800; font-size:11px; background:#fee2e2; color:#dc2626;">🚨 KONTRAK KRITIS PERIODE II (Deviasi ${dev}% &gt; -5% Rencana 70-100%) - Wajib SCM Tingkat II</span>`;
+    } else {
+      statusText = 'Keterlambatan Ringan (Monitoring Intensif)';
+      badgeHtml = `<span style="display:inline-block; padding:4px 8px; border-radius:4px; font-weight:800; font-size:11px; background:#fef3c7; color:#b45309;">⚠️ KETERLAMBATAN RINGAN (Deviasi ${dev}%) - Dalam Batas Toleransi</span>`;
+    }
+  }
+
+  if (scmSelect && !scmSelect.dataset.userChanged) {
+    for (let i = 0; i < scmSelect.options.length; i++) {
+      if (scmSelect.options[i].value.includes(statusText) || statusText.includes(scmSelect.options[i].value)) {
+        scmSelect.selectedIndex = i;
+        break;
+      }
+    }
+  }
+  if (scmBadge) {
+    scmBadge.innerHTML = badgeHtml;
+  }
+};
+
+window.applyKomisioningPreset = function(presetKey) {
+  const preset = window.komisioningPresets[presetKey];
+  if (!preset) return;
+
+  const catatanInp = document.getElementById('mu_catatan_pengendalian_ppk');
+  if (catatanInp && preset.catatan) {
+    catatanInp.value = preset.catatan;
+  }
+
+  window.renderMilestoneTableRows(preset.milestones);
+  window.renderKomisioningTableRows(preset.komisioning);
+  window._activeKomisioningMilestones = preset.milestones;
+
+  cakraNotify(`⚡ Berhasil memuat preset: ${preset.nama}! Parameter uji fungsi dan catatan PPK telah disesuaikan.`, 'success');
+};
+
+window.initTahap15DynamicFields = function() {
+  const paket = (CakraState.activePaketCtx?.paket?.id === CakraState.activePaketId ? CakraState.activePaketCtx.paket : null)
+    || (CakraState.pakets || []).find(p => String(p.id) === String(CakraState.activePaketId)) || {};
+  let komData = null;
+
+  if (paket.parameter_komisioning_json) {
+    try {
+      komData = typeof paket.parameter_komisioning_json === 'string'
+        ? JSON.parse(paket.parameter_komisioning_json)
+        : paket.parameter_komisioning_json;
+    } catch (e) {
+      console.warn('Gagal parse parameter_komisioning_json:', e);
+    }
+  }
+
+  let mileData = null;
+  if (paket.milestone_pengendalian_json) {
+    try {
+      mileData = typeof paket.milestone_pengendalian_json === 'string'
+        ? JSON.parse(paket.milestone_pengendalian_json)
+        : paket.milestone_pengendalian_json;
+    } catch (e) {
+      console.warn('Gagal parse milestone_pengendalian_json:', e);
+    }
+  }
+
+  window.renderMilestoneTableRows(mileData || window.komisioningPresets.server.milestones);
+  window.renderKomisioningTableRows(komData || window.komisioningPresets.server.komisioning);
+  if (typeof window.updateMilestoneSummaryBadge === 'function') {
+    window.updateMilestoneSummaryBadge();
+  } else if (typeof window.calcScmDeviasi === 'function') {
+    window.calcScmDeviasi();
+  }
 };
 
 window.onPamMetodeChange = function(val) {
@@ -11835,24 +12615,193 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
     }
 
-    case 15:
+    case 15: {
+      const penyedia = CakraState.activePaketCtx?.penyedia || {};
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const noLapWas = paket.no_laporan_pengendalian || activeTRow.no_laporan_pengendalian || `015/LAP-WAS/${cleanKode}/PPK/VI/2026`;
+      const tglLapWas = paket.tgl_laporan_pengendalian || activeTRow.tanggal_dokumen || '2026-06-08';
+      const noBaKom = paket.no_ba_komisioning || activeTRow.no_ba_komisioning || `015/BA-KOM/${cleanKode}/PPK/VI/2026`;
+      const tglBaKom = paket.tgl_ba_komisioning || tglLapWas;
+      const picTeknisi = paket.pic_teknisi_rekanan || 'Ahmad Fauzi (Lead Systems Engineer)';
+      const kontakTeknisi = paket.kontak_teknisi_rekanan || '0812-3456-7890';
+      const rencFisik = paket.rencana_fisik_persen !== undefined && paket.rencana_fisik_persen !== null ? Number(paket.rencana_fisik_persen) : 100;
+      const realFisik = paket.realisasi_fisik_persen !== undefined && paket.realisasi_fisik_persen !== null ? Number(paket.realisasi_fisik_persen) : 100;
+      const devFisik = paket.deviasi_fisik_persen !== undefined && paket.deviasi_fisik_persen !== null ? Number(paket.deviasi_fisik_persen) : 0.00;
+      const statusScm = paket.status_scm || 'Normal / Sesuai Kurva S';
+      const catatanPpk = paket.catatan_pengendalian_ppk || 'Berdasarkan hasil pengawasan pelaksanaan kontrak, penyedia telah menyelesaikan seluruh kewajiban pengiriman, instalasi, dan konfigurasi tepat waktu dengan progres fisik 100% (deviasi 0.00%). Hasil pengujian fungsi dan komisioning teknis (BA-KOM) menyatakan seluruh 5 parameter LULUS memenuhi spesifikasi teknis naskah kontrak. Kontrak berkategori NORMAL dan memenuhi syarat untuk dilanjutkan ke Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP) dan Serah Terima Pekerjaan (BAST) Tahap 16.';
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Surat Perintah Mulai Kerja (SPMK) &amp; Pengendalian SCM</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Progres Fisik (%)</label>
-            <input type="number" id="mu_realisasi_fisik_persen" class="cakra-form-control" value="${Number(paket.realisasi_fisik_persen || 100)}" />
-          </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Status Pengendalian SCM</label>
-            <select id="mu_status_scm" class="cakra-form-control">
-              <option value="Normal / Sesuai Kurva S">Normal / Sesuai Kurva S</option>
-              <option value="Kontrak Kritis (Show Cause Meeting I)">Kontrak Kritis (Show Cause Meeting I)</option>
-              <option value="Adendum / Perpanjangan Waktu">Adendum / Perpanjangan Waktu</option>
-            </select>
+        <!-- HEADER RUJUKAN KONTRAK & SPP TAHAP 13-14 -->
+        <div style="background:linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border:1px solid #bae6fd; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-size:12px; font-weight:800; color:#0369a1; text-transform:uppercase; letter-spacing:0.5px;">📋 Rujukan Pelaksanaan Kontrak &amp; Surat Perintah Pengiriman (SPP)</div>
+              <div style="font-size:11.5px; color:#334155; margin-top:2px;">
+                No. SP / Kontrak: <strong class="cakra-mono" style="color:#0f172a;">${cakraEsc(paket.no_kontrak || '013/SP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026')}</strong> | 
+                No. SPP: <strong class="cakra-mono" style="color:#0f172a;">${cakraEsc(paket.no_spp || '014/SPP/PBJ-2026-001/PPK/V/2026')}</strong>
+              </div>
+            </div>
+            <div style="font-size:11px; text-align:right;">
+              <span style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:4px; font-weight:700; border:1px solid #86efac;">Penyedia: ${cakraEsc(penyedia?.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI')}</span>
+            </div>
           </div>
         </div>
+
+        <!-- 1. IDENTITAS LAPORAN PENGAWASAN KEMAJUAN (LAP-WAS) -->
+        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+          <span>📊 1. Laporan Pengawasan &amp; Pengendalian Kemajuan Kontrak (LAP-WAS - Dokumen 01)</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Dokumen Laporan Pengendalian (LAP-WAS) *</label>
+            <input type="text" id="mu_no_laporan_pengendalian" class="cakra-form-control cakra-mono" value="${cakraEsc(noLapWas)}" required />
+          </div>
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Laporan Pengendalian *</label>
+            <input type="date" id="mu_tgl_laporan_pengendalian" class="cakra-form-control" value="${cakraEsc(tglLapWas)}" required />
+          </div>
+        </div>
+
+        <!-- 2. KALKULATOR MONITORING PROGRES FISIK & AMBANG BATAS SCM -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:12px; font-weight:800; color:#334155; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📈 2. Monitoring Kemajuan Fisik &amp; Evaluasi Ambang Batas Kritis (SCM LKPP)</span>
+            <div id="mu_scm_eval_badge"></div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; margin-bottom:4px; display:block;">Target Rencana Fisik (%)</label>
+              <input type="number" id="mu_rencana_fisik_persen" class="cakra-form-control" value="${rencFisik}" min="0" max="100" step="0.1" oninput="window.calcScmDeviasi()" style="font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; margin-bottom:4px; display:block;">Realisasi Fisik Aktual (%)</label>
+              <input type="number" id="mu_realisasi_fisik_persen" class="cakra-form-control" value="${realFisik}" min="0" max="100" step="0.1" oninput="window.calcScmDeviasi()" style="font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; margin-bottom:4px; display:block;">Deviasi Fisik Progres (%)</label>
+              <input type="text" id="mu_deviasi_fisik_persen" class="cakra-form-control cakra-mono" value="${devFisik >= 0 ? '+' : ''}${devFisik.toFixed(2)}%" readonly style="font-weight:800; background:#f1f5f9; cursor:not-allowed;" />
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#475569; margin-bottom:4px; display:block;">Status Hasil Evaluasi Pengendalian Kontrak</label>
+            <select id="mu_status_scm" class="cakra-form-control" style="font-weight:700;" onchange="this.dataset.userChanged = 'true';">
+              <option value="Normal / Sesuai Kurva S" ${statusScm.includes('Normal') ? 'selected' : ''}>✅ Normal / Sesuai Kurva S (On-Track Bebas SCM)</option>
+              <option value="Kontrak Kritis (Show Cause Meeting I)" ${statusScm.includes('Meeting I') ? 'selected' : ''}>🚨 Kontrak Kritis (Show Cause Meeting Tingkat I)</option>
+              <option value="Kontrak Kritis (Show Cause Meeting II)" ${statusScm.includes('Meeting II') ? 'selected' : ''}>🚨 Kontrak Kritis (Show Cause Meeting Tingkat II)</option>
+              <option value="Kontrak Kritis (Show Cause Meeting III / Terminasi)" ${statusScm.includes('Meeting III') ? 'selected' : ''}>⛔ Kontrak Kritis (SCM III / Rekomendasi Pemutusan Kontrak)</option>
+              <option value="Adendum / Perpanjangan Waktu" ${statusScm.includes('Adendum') ? 'selected' : ''}>📑 Adendum / Pemberian Kesempatan Perpanjangan Waktu</option>
+            </select>
+          </div>
+
+          <!-- TABEL DINAMIS REKAPITULASI 5 PILAR UTAMA PENGAWASAN KONTRAK (LAP-WAS) -->
+          <div style="margin-top:12px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+              <span style="font-size:11.5px; font-weight:800; color:#0f172a;">📋 Tabel Rekapitulasi 5 Pilar Utama Pengawasan Kontrak (LAP-WAS Dokumen 01):</span>
+              <span id="milestone_summary_badge" style="font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px; background:#dcfce7; color:#15803d;">5 Pilar (Total Bobot 100%)</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse; font-size:10.5px;" id="milestone_table">
+                <thead>
+                  <tr style="background:#f1f5f9; color:#334155; font-weight:800; text-align:left;">
+                    <th style="padding:5px 6px; width:30px; text-align:center; border-bottom:1px solid #cbd5e1;">NO</th>
+                    <th style="padding:5px 6px; width:38%; border-bottom:1px solid #cbd5e1;">5 PILAR UTAMA PENGAWASAN KONTRAK</th>
+                    <th style="padding:5px 6px; width:10%; text-align:center; border-bottom:1px solid #cbd5e1;">BOBOT (%)</th>
+                    <th style="padding:5px 6px; width:18%; text-align:center; border-bottom:1px solid #cbd5e1;">TARGET WAKTU</th>
+                    <th style="padding:5px 6px; width:12%; text-align:center; border-bottom:1px solid #cbd5e1;">REALISASI (%)</th>
+                    <th style="padding:5px 6px; width:18%; text-align:center; border-bottom:1px solid #cbd5e1;">STATUS CAPAIAN</th>
+                    <th style="padding:5px 6px; width:35px; text-align:center; border-bottom:1px solid #cbd5e1;">AKSI</th>
+                  </tr>
+                </thead>
+                <tbody id="milestone_table_body">
+                  <!-- Diisi via renderMilestoneTableRows (5 Pilar Pengawasan) -->
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10.5px; padding:3px 8px;" onclick="window.addMilestoneRow()">
+                ➕ Tambah Pilar Pengawasan
+              </button>
+              <span style="font-size:10px; color:#166534; font-weight:600;">⚡ Persentase realisasi terhitung otomatis dari status pilar (Selesai = 100% bobot, Dalam Proses = 50%, Terlambat/Belum = 0%), terintegrasi langsung ke Realisasi Fisik &amp; Evaluasi SCM LKPP.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. IDENTITAS BERITA ACARA PENGUJIAN FUNGSI & KOMISIONING TEKNIS (BA-KOM) -->
+        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+          <span>🛠️ 3. Berita Acara Pengujian Fungsi &amp; Komisioning Teknis (BA-KOM - Dokumen 02)</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Dokumen BA Komisioning (BA-KOM) *</label>
+            <input type="text" id="mu_no_ba_komisioning" class="cakra-form-control cakra-mono" value="${cakraEsc(noBaKom)}" required />
+          </div>
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Pelaksanaan Pengujian Komisioning *</label>
+            <input type="date" id="mu_tgl_ba_komisioning" class="cakra-form-control" value="${cakraEsc(tglBaKom)}" required />
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nama Lead Engineer / Teknisi Rekanan *</label>
+            <input type="text" id="mu_pic_teknisi_rekanan" class="cakra-form-control" value="${cakraEsc(picTeknisi)}" placeholder="Contoh: Ahmad Fauzi (Lead Systems Engineer)" required />
+          </div>
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kontak Telepon / WhatsApp Teknisi Rekanan *</label>
+            <input type="text" id="mu_kontak_teknisi_rekanan" class="cakra-form-control" value="${cakraEsc(kontakTeknisi)}" placeholder="0812-xxxx-xxxx" required />
+          </div>
+        </div>
+
+        <!-- 4. TABEL VERIFIKASI HASIL PENGUJIAN FUNGSI & KOMISIONING (DINAMIS & PRESET) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:12px; font-weight:800; color:#1e293b;">🔬 Tabel Verifikasi Parameter Pengujian Fungsi &amp; Komisioning:</span>
+              <span id="komisioning_summary_badge" style="font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px; background:#dcfce7; color:#15803d;">5 Parameter (100% Lulus Komisioning)</span>
+            </div>
+            <!-- TOOLBAR PRESET KOMODITAS -->
+            <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+              <span style="font-size:10.5px; font-weight:700; color:#64748b; margin-right:4px;">⚡ Load Preset:</span>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyKomisioningPreset('server')" title="Preset Server IT &amp; Komputer">🖥️ Server IT</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyKomisioningPreset('mebeler')" title="Preset Mebeler Kantor">🪑 Mebeler</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyKomisioningPreset('kendaraan')" title="Preset Kendaraan Dinas">🚗 Kendaraan</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyKomisioningPreset('gudang_logistik')" title="Preset Logistik Pemilu">📦 Logistik</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyKomisioningPreset('custom')" title="Preset Kosong">📝 Kustom</button>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:11px;" id="komisioning_table">
+              <thead>
+                <tr style="background:#f1f5f9; color:#334155; font-weight:800; text-align:left;">
+                  <th style="padding:6px 8px; width:35px; text-align:center; border-bottom:1px solid #cbd5e1;">NO</th>
+                  <th style="padding:6px 8px; width:28%; border-bottom:1px solid #cbd5e1;">PARAMETER PENGUJIAN</th>
+                  <th style="padding:6px 8px; width:28%; border-bottom:1px solid #cbd5e1;">METODE UJI &amp; ACUAN</th>
+                  <th style="padding:6px 8px; width:26%; border-bottom:1px solid #cbd5e1;">HASIL PENGUJIAN FAKTUAL</th>
+                  <th style="padding:6px 8px; width:120px; text-align:center; border-bottom:1px solid #cbd5e1;">STATUS HASIL</th>
+                  <th style="padding:6px 8px; width:40px; text-align:center; border-bottom:1px solid #cbd5e1;">AKSI</th>
+                </tr>
+              </thead>
+              <tbody id="komisioning_table_body">
+                <!-- Diisi via renderKomisioningTableRows -->
+              </tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" class="cakra-btn cakra-btn-primary" style="font-size:11px; padding:4px 10px;" onclick="window.addKomisioningRow()">
+              ➕ Tambah Baris Parameter Uji
+            </button>
+            <span style="font-size:10.5px; color:#64748b;">💡 Anda dapat menambah, mengedit, atau menghapus parameter uji komisioning sesuai karakteristik teknis barang.</span>
+          </div>
+        </div>
+
+        <!-- 5. CATATAN KESIMPULAN EVALUASI PENGAWASAN PPK -->
+        <div style="margin-bottom:14px;">
+          <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">📝 5. Catatan Evaluasi &amp; Kesimpulan Pengendalian PPK *</label>
+          <textarea id="mu_catatan_pengendalian_ppk" class="cakra-form-control" rows="3" style="font-size:11px; line-height:1.5;">${cakraEsc(catatanPpk)}</textarea>
+        </div>
       `;
+    }
 
     case 16:
       return `
@@ -12357,8 +13306,71 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       tanggalDokumen = extraPaketFields.tgl_spp;
     }
   } else if (num === 15) {
-    extraPaketFields.realisasi_fisik_persen = getNum('mu_realisasi_fisik_persen') || paket.realisasi_fisik_persen;
-    extraPaketFields.status_scm = getStr('mu_status_scm') || paket.status_scm;
+    extraPaketFields.no_laporan_pengendalian = getStr('mu_no_laporan_pengendalian') || paket.no_laporan_pengendalian;
+    extraPaketFields.tgl_laporan_pengendalian = getStr('mu_tgl_laporan_pengendalian') || paket.tgl_laporan_pengendalian || '2026-06-08';
+    extraPaketFields.no_ba_komisioning = getStr('mu_no_ba_komisioning') || paket.no_ba_komisioning;
+    extraPaketFields.tgl_ba_komisioning = getStr('mu_tgl_ba_komisioning') || paket.tgl_ba_komisioning || extraPaketFields.tgl_laporan_pengendalian;
+    extraPaketFields.rencana_fisik_persen = getNum('mu_rencana_fisik_persen') !== null ? getNum('mu_rencana_fisik_persen') : (paket.rencana_fisik_persen || 100);
+    extraPaketFields.realisasi_fisik_persen = getNum('mu_realisasi_fisik_persen') !== null ? getNum('mu_realisasi_fisik_persen') : (paket.realisasi_fisik_persen || 100);
+    extraPaketFields.deviasi_fisik_persen = Math.round((extraPaketFields.realisasi_fisik_persen - extraPaketFields.rencana_fisik_persen) * 100) / 100;
+    extraPaketFields.status_scm = getStr('mu_status_scm') || paket.status_scm || 'Normal / Sesuai Kurva S';
+    extraPaketFields.pic_teknisi_rekanan = getStr('mu_pic_teknisi_rekanan') || paket.pic_teknisi_rekanan;
+    extraPaketFields.kontak_teknisi_rekanan = getStr('mu_kontak_teknisi_rekanan') || paket.kontak_teknisi_rekanan;
+    extraPaketFields.catatan_pengendalian_ppk = getStr('mu_catatan_pengendalian_ppk') || paket.catatan_pengendalian_ppk;
+
+    // Harvest Parameter Komisioning (Dinamis dari Tabel)
+    const komRows = [];
+    document.querySelectorAll('#komisioning_table_body tr.komisioning-row').forEach((tr, idx) => {
+      const param = tr.querySelector('.komisioning-param-name')?.value?.trim() || '';
+      const metode = tr.querySelector('.komisioning-param-metode')?.value?.trim() || '';
+      const hasil = tr.querySelector('.komisioning-param-hasil')?.value?.trim() || '';
+      const status = tr.querySelector('.komisioning-param-status')?.value || 'LULUS';
+      if (param || metode || hasil) {
+        komRows.push({ no: idx + 1, parameter: param, metode: metode, hasil: hasil, status: status });
+      }
+    });
+    if (komRows.length > 0) {
+      extraPaketFields.parameter_komisioning_json = JSON.stringify(komRows);
+    }
+
+    // Harvest 5 Pilar Pengawasan Kontrak (Dinamis dari Tabel DOM)
+    const mileRows = [];
+    document.querySelectorAll('#milestone_table_body tr.milestone-row').forEach((tr, idx) => {
+      const tgt = tr.querySelector('.milestone-target')?.value?.trim() || '';
+      const bbtVal = tr.querySelector('.milestone-bobot')?.value;
+      const bbt = (bbtVal !== undefined && bbtVal !== '' && !isNaN(Number(bbtVal))) ? Number(bbtVal) : 20;
+      const twk = tr.querySelector('.milestone-target-waktu')?.value?.trim() || '';
+      const rlsVal = tr.querySelector('.milestone-realisasi')?.value;
+      const rls = (rlsVal !== undefined && rlsVal !== '' && !isNaN(Number(rlsVal))) ? Number(rlsVal) : bbt;
+      const sts = tr.querySelector('.milestone-status')?.value || 'SELESAI TEPAT WAKTU';
+      if (tgt) {
+        mileRows.push({
+          no: idx + 1,
+          pilar: tgt,
+          target: tgt,
+          bobot_rencana: bbt,
+          target_waktu: twk,
+          realisasi: rls,
+          status: sts,
+          keterangan: 'Terverifikasi pengawasan lapangan oleh Tim Teknis KPU Ngawi'
+        });
+      }
+    });
+    if (mileRows.length > 0) {
+      extraPaketFields.milestone_pengendalian_json = JSON.stringify(mileRows);
+      const sumRls = mileRows.reduce((acc, cur) => acc + (Number(cur.realisasi) || 0), 0);
+      extraPaketFields.realisasi_fisik_persen = Math.round(sumRls * 100) / 100;
+      extraPaketFields.deviasi_fisik_persen = Math.round((extraPaketFields.realisasi_fisik_persen - extraPaketFields.rencana_fisik_persen) * 100) / 100;
+    } else if (window._activeKomisioningMilestones && Array.isArray(window._activeKomisioningMilestones)) {
+      extraPaketFields.milestone_pengendalian_json = JSON.stringify(window._activeKomisioningMilestones);
+    }
+
+    if (extraPaketFields.no_laporan_pengendalian) {
+      nomorDokumen = extraPaketFields.no_laporan_pengendalian;
+    }
+    if (extraPaketFields.tgl_laporan_pengendalian) {
+      tanggalDokumen = extraPaketFields.tgl_laporan_pengendalian;
+    }
   } else if (num === 16) {
     extraPaketFields.no_bast = getStr('mu_no_bast') || paket.no_bast;
   } else if (num === 17) {
@@ -12393,10 +13405,23 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
   };
 
   try {
-    await cakraApiPost('/api/cakra/paket', payload);
+    const res = await cakraApiPost('/api/cakra/paket', payload);
+    if (res && res.data) {
+      CakraState.activePaketCtx = res.data;
+      if (res.data.paket) {
+        const pIdx = (CakraState.pakets || []).findIndex(p => Number(p.id) === Number(res.data.paket.id));
+        if (pIdx !== -1) {
+          CakraState.pakets[pIdx] = res.data.paket;
+        }
+      }
+    }
+    const activePId = res?.data?.id || res?.data?.paket?.id || paket.id;
     closeModalTahapUniversal();
     await initCakraApp();
-    await openPaketInCockpit(paket.id, targetStageToOpen, false);
+    await openPaketInCockpit(activePId, targetStageToOpen, false);
+    if (typeof renderCockpitCenterWorkspace === 'function') {
+      renderCockpitCenterWorkspace();
+    }
     if (isSelesaiAction) {
       cakraNotify('🎉 Tahap ' + num + ' (' + activeDef.nama + ') Resmi Selesai & Terkunci! Membuka Tahap ' + targetStageToOpen + '.', 'success');
     } else {

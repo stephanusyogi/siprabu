@@ -215,6 +215,19 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN catatan_spp TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN parameter_kesiapan_lokasi_json TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN ketentuan_pasca_pengiriman_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_laporan_pengendalian VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_laporan_pengendalian VARCHAR(32) DEFAULT '2026-06-09'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_ba_komisioning VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_ba_komisioning VARCHAR(32) DEFAULT '2026-06-09'",
+    "ALTER TABLE pbj_paket ADD COLUMN realisasi_fisik_persen DECIMAL(5,2) DEFAULT 100.00",
+    "ALTER TABLE pbj_paket ADD COLUMN rencana_fisik_persen DECIMAL(5,2) DEFAULT 100.00",
+    "ALTER TABLE pbj_paket ADD COLUMN deviasi_fisik_persen DECIMAL(5,2) DEFAULT 0.00",
+    "ALTER TABLE pbj_paket ADD COLUMN status_scm VARCHAR(100) DEFAULT 'Normal / Sesuai Jadwal Kontrak (On-Track)'",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_pengendalian_ppk TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN parameter_komisioning_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN milestone_pengendalian_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_laporan_pengendalian VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_komisioning VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_sppbj VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_pam VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_undangan_pam VARCHAR(191) DEFAULT NULL",
@@ -799,6 +812,9 @@ async function savePaket(data) {
         no_kontrak=?, tgl_kontrak=?, tempat_ttd_kontrak=?, jenis_meterai=?, ketentuan_denda=?, catatan_kontrak=?,
         no_spp=?, tgl_spp=?, no_ba_spl=?, tgl_ba_spl=?, kondisi_ruang_server=?, pic_teknisi_rekanan=?, kontak_teknisi_rekanan=?, catatan_spp=?,
         parameter_kesiapan_lokasi_json=?, ketentuan_pasca_pengiriman_json=?,
+        no_laporan_pengendalian=?, tgl_laporan_pengendalian=?, no_ba_komisioning=?, tgl_ba_komisioning=?,
+        realisasi_fisik_persen=?, rencana_fisik_persen=?, deviasi_fisik_persen=?, status_scm=?,
+        catatan_pengendalian_ppk=?, parameter_komisioning_json=?, milestone_pengendalian_json=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
         tahap_aktif=?, status_paket=?, skor_kualitas=?, skor_biaya=?, skor_waktu=?, skor_layanan=?,
         nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?
@@ -898,6 +914,17 @@ async function savePaket(data) {
         p.catatan_spp || cur.catatan_spp || null,
         p.parameter_kesiapan_lokasi_json !== undefined ? (typeof p.parameter_kesiapan_lokasi_json === 'string' ? p.parameter_kesiapan_lokasi_json : JSON.stringify(p.parameter_kesiapan_lokasi_json)) : cur.parameter_kesiapan_lokasi_json || null,
         p.ketentuan_pasca_pengiriman_json !== undefined ? (typeof p.ketentuan_pasca_pengiriman_json === 'string' ? p.ketentuan_pasca_pengiriman_json : JSON.stringify(p.ketentuan_pasca_pengiriman_json)) : cur.ketentuan_pasca_pengiriman_json || null,
+        p.no_laporan_pengendalian || cur.no_laporan_pengendalian || null,
+        p.tgl_laporan_pengendalian || cur.tgl_laporan_pengendalian || '2026-06-09',
+        p.no_ba_komisioning || cur.no_ba_komisioning || null,
+        p.tgl_ba_komisioning || cur.tgl_ba_komisioning || '2026-06-09',
+        Number(p.realisasi_fisik_persen ?? cur.realisasi_fisik_persen ?? 100),
+        Number(p.rencana_fisik_persen ?? cur.rencana_fisik_persen ?? 100),
+        Number(p.deviasi_fisik_persen ?? cur.deviasi_fisik_persen ?? 0),
+        p.status_scm || cur.status_scm || 'Normal / Sesuai Jadwal Kontrak (On-Track)',
+        p.catatan_pengendalian_ppk || cur.catatan_pengendalian_ppk || null,
+        p.parameter_komisioning_json !== undefined ? (typeof p.parameter_komisioning_json === 'string' ? p.parameter_komisioning_json : JSON.stringify(p.parameter_komisioning_json)) : cur.parameter_komisioning_json || null,
+        p.milestone_pengendalian_json !== undefined ? (typeof p.milestone_pengendalian_json === 'string' ? p.milestone_pengendalian_json : JSON.stringify(p.milestone_pengendalian_json)) : cur.milestone_pengendalian_json || null,
         p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
@@ -929,8 +956,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -946,7 +973,9 @@ async function savePaket(data) {
            no_undangan_pam = VALUES(no_undangan_pam),
            no_kontrak = VALUES(no_kontrak),
            no_spp = VALUES(no_spp),
-           no_ba_spl = VALUES(no_ba_spl)`,
+           no_ba_spl = VALUES(no_ba_spl),
+           no_laporan_pengendalian = VALUES(no_laporan_pengendalian),
+           no_ba_komisioning = VALUES(no_ba_komisioning)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -963,7 +992,9 @@ async function savePaket(data) {
           su.no_undangan_pam || existingStage.no_undangan_pam || p.no_undangan_pam || null,
           su.no_kontrak || existingStage.no_kontrak || p.no_kontrak || null,
           su.no_spp || existingStage.no_spp || p.no_spp || null,
-          su.no_ba_spl || existingStage.no_ba_spl || p.no_ba_spl || null
+          su.no_ba_spl || existingStage.no_ba_spl || p.no_ba_spl || null,
+          su.no_laporan_pengendalian || existingStage.no_laporan_pengendalian || p.no_laporan_pengendalian || null,
+          su.no_ba_komisioning || existingStage.no_ba_komisioning || p.no_ba_komisioning || null
         ]
       );
 
