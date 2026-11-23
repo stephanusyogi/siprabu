@@ -34,6 +34,23 @@ async function main() {
   const paketsForOnline = pakets.map(p => {
     const clone = { ...p };
     delete clone.target_sertifikat_tkdn;
+    delete clone.no_spp;
+    delete clone.tgl_spp;
+    delete clone.no_ba_spl;
+    delete clone.tgl_ba_spl;
+    delete clone.kondisi_ruang_server;
+    delete clone.pic_teknisi_rekanan;
+    delete clone.kontak_teknisi_rekanan;
+    delete clone.catatan_spp;
+    delete clone.parameter_kesiapan_lokasi_json;
+    delete clone.ketentuan_pasca_pengiriman_json;
+    return clone;
+  });
+
+  const tahapsForOnline = tahaps.map(t => {
+    const clone = { ...t };
+    delete clone.no_spp;
+    delete clone.no_ba_spl;
     return clone;
   });
 
@@ -41,7 +58,7 @@ async function main() {
     replace_all: true,
     pbj_paket: paketsForOnline,
     pbj_paket_item: items,
-    pbj_paket_tahap: tahaps,
+    pbj_paket_tahap: tahapsForOnline,
     pbj_pejabat: pejabats,
     pbj_penyedia: penyedias,
     pbj_settings: settings

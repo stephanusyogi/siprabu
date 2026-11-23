@@ -80,6 +80,19 @@ function cakraEsc(str) {
     .replace(/"/g, '&quot;');
 }
 
+function cakraFormatTanggalIndo(dateStr) {
+  if (!dateStr) return '-';
+  const clean = String(dateStr).trim().split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length !== 3) return clean;
+  const d = parseInt(parts[2], 10);
+  const m = parseInt(parts[1], 10);
+  const y = parts[0];
+  const bulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  return `${d} ${bulan[m] || ''} ${y}`;
+}
+window.cakraFormatTanggalIndo = cakraFormatTanggalIndo;
+
 function cakraNotify(msg, type = 'success') {
   if (typeof window.showToast === 'function') {
     window.showToast(msg, type);
@@ -6147,21 +6160,149 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 14:
+    case 14: {
+      const isSpp = String(paket.jenis_pengadaan || '').toLowerCase().includes('barang');
+      const docName = isSpp ? 'Surat Perintah Pengiriman (SPP)' : 'Surat Perintah Mulai Kerja (SPMK)';
+      const noSpp = paket.no_spp || activeTRow.no_spp || activeTRow.nomor_dokumen || autoDocNo(14, activeTRow.tanggal_dokumen);
+      const tglSpp = paket.tgl_spp || activeTRow.tanggal_dokumen || paket.tgl_kontrak || '2026-05-27';
+      const noBaSpl = paket.no_ba_spl || activeTRow.no_ba_spl || '014/BA-SPL/PBJ-2026-001/PPK/V/2026';
+      const tglBaSpl = paket.tgl_ba_spl || tglSpp;
+      const masaHari = paket.masa_pelaksanaan_hari || 14;
+      const tglMulai = paket.tgl_mulai_kerja || tglSpp;
+      const tglSelesai = paket.tgl_selesai_kontrak || paket.tgl_selesai_kerja || '2026-06-09';
+      const lokasi = paket.lokasi_pekerjaan || 'Ruang Server Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+      const kondisiRuang = paket.kondisi_ruang_server || 'Ruang Server KPU Kabupaten Ngawi siap 100% (Listrik 220V UPS terproteksi, Grounding 1.8 Ohm, AC Inverter 20°C, Keamanan Terkunci, Jaringan LAN Gigabit)';
+      
+      const penyedia = CakraState.activePaketCtx?.penyedia || (CakraState.penyedias || []).find(p => String(p.id) === String(paket.id_penyedia)) || {};
+      const penyediaNama = penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI';
+      const penyediaDirektur = penyedia.nama_direktur || 'Hendra Suryawan';
+      
+      let picTeknisi = paket.pic_teknisi_rekanan || '';
+      if (!picTeknisi || picTeknisi.includes('ANUGERAH BERKAH') || picTeknisi.includes('Bambang Irawan')) {
+        picTeknisi = 'Ahmad Fauzi / Tim Teknisi ' + penyediaNama;
+      }
+      const kontakTeknisi = paket.kontak_teknisi_rekanan || '0812-3456-7890';
+      const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const noKontrak = paket.no_kontrak || ('013/SP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+
+      let pascaList = [];
+      if (paket.ketentuan_pasca_pengiriman_json) {
+        try {
+          pascaList = typeof paket.ketentuan_pasca_pengiriman_json === 'string'
+            ? JSON.parse(paket.ketentuan_pasca_pengiriman_json)
+            : paket.ketentuan_pasca_pengiriman_json;
+        } catch (e) {}
+      }
+      if (!Array.isArray(pascaList) || pascaList.length === 0) {
+        pascaList = [
+          { judul: 'Unboxing Bersama', deskripsi: 'Pemeriksaan segel resmi manufaktur Dell' },
+          { judul: 'Perakitan & Dual PSU', deskripsi: 'Pemasangan chassis & redundant PSU' },
+          { judul: 'Hardware RAID-1', deskripsi: 'Konfigurasi RAID-1 NVMe SSD' },
+          { judul: 'Instalasi & Lisensi OS', deskripsi: 'Aktivasi Windows Server 2025 COA' },
+          { judul: 'Komisioning & Garansi On-Site', deskripsi: 'Burn-in test & garansi 1 tahun' }
+        ];
+      }
+
+      let mc0List = [];
+      if (paket.parameter_kesiapan_lokasi_json) {
+        try {
+          mc0List = typeof paket.parameter_kesiapan_lokasi_json === 'string'
+            ? JSON.parse(paket.parameter_kesiapan_lokasi_json)
+            : paket.parameter_kesiapan_lokasi_json;
+        } catch (e) {}
+      }
+      if (!Array.isArray(mc0List) || mc0List.length === 0) {
+        mc0List = [
+          { parameter: 'Catu Daya Listrik', status: 'MEMENUHI SYARAT' },
+          { parameter: 'Pembumian (Grounding)', status: 'MEMENUHI SYARAT' },
+          { parameter: 'Tata Udara & Suhu (AC)', status: 'MEMENUHI SYARAT' },
+          { parameter: 'Keamanan Fisik & Ruang', status: 'MEMENUHI SYARAT' },
+          { parameter: 'Konektivitas Jaringan LAN', status: 'MEMENUHI SYARAT' }
+        ];
+      }
+
+      const mc0Memenuhi = mc0List.filter(m => m.status === 'MEMENUHI SYARAT').length;
+      const mc0Persen = mc0List.length > 0 ? Math.round((mc0Memenuhi / mc0List.length) * 100) : 100;
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Nomor Surat Penyerahan Lokasi (SPL)</div>
-            <div style="font-size:13px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(activeTRow.no_spl || autoDocNo(14, activeTRow.tanggal_dokumen))}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Serah terima area kerja resmi</div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+          <!-- Kartu 1: SPP & Jadwal Definitif -->
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase;">🚚 ${docName}</span>
+              <span class="cakra-badge" style="background:#dbeafe; color:#1e40af; font-size:10px; font-weight:700;">Pasal 54 Perpres PBJ</span>
+            </div>
+            <div style="font-size:13px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(noSpp)}</div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              <b>Tanggal Terbit:</b> ${cakraFormatTanggalIndo(tglSpp)}
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              <b>Dasar SP (Kontrak):</b> <span class="cakra-mono" style="font-weight:700; color:#0f172a;">${cakraEsc(noKontrak)}</span>
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              <b>Penerima SPP:</b> <span style="font-weight:700; color:#1e40af;">${cakraEsc(penyediaNama)}</span> (${cakraEsc(penyediaDirektur)})
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              <b>Nilai SPP:</b> <span style="font-weight:800; color:#15803d;">${formatRupiah(nilaiKontrak)}</span> <span style="font-size:10px; color:#64748b;">(PPN 11% &amp; Ongkir)</span>
+            </div>
+            <div style="font-size:11px; color:#334155; margin-top:2px;">
+              <b>Jadwal:</b> <span style="font-weight:700; color:#15803d;">${masaHari} Hari Kalender</span> (<span style="color:#1d4ed8; font-weight:700;">${cakraFormatTanggalIndo(tglMulai)}</span> s.d. <span style="color:#b91c1c; font-weight:700;">${cakraFormatTanggalIndo(tglSelesai)}</span>)
+            </div>
+            <div style="font-size:10.5px; color:#475569; margin-top:4px; padding-top:4px; border-top:1px dashed #e2e8f0;">
+              📍 <b>Franco:</b> ${cakraEsc(lokasi)}
+            </div>
           </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Lokasi Pelaksanaan Pekerjaan</div>
-            <div style="font-size:13px; font-weight:800; color:#1e293b;">${cakraEsc(paket.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi')}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Kondisi area siap pakai</div>
+
+          <!-- Kartu 2: BoQ SPP & Pasca Pengiriman -->
+          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">📦 BoQ &amp; Pasca Pengiriman</span>
+              <span class="cakra-badge" style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:700;">${pascaList.length} Klausul SOP</span>
+            </div>
+            <div style="font-size:11.5px; font-weight:800; color:#0f172a; margin-bottom:4px;">
+              PC Server Tower Operasional <span style="font-size:10.5px; font-weight:600; color:#15803d;">(1 Paket)</span>
+            </div>
+            <div style="font-size:10.5px; color:#475569; line-height:1.4; margin-bottom:6px;">
+              Intel Xeon E-2324G &bull; RAM 32GB ECC &bull; Dual 1TB NVMe RAID-1 &bull; Dual PSU 500W Platinum &bull; OS Windows Server 2025 Standard COA
+            </div>
+            <div style="font-size:10px; color:#166534; line-height:1.5; background:#ffffff; border:1px solid #bbf7d0; border-radius:6px; padding:6px 8px;">
+              ${pascaList.map((p, idx) => `<div><b>${idx + 1}.</b> ${cakraEsc(p.judul || p.deskripsi || '')}</div>`).join('')}
+            </div>
+            <div style="font-size:10.5px; color:#15803d; margin-top:6px; font-weight:700; display:flex; justify-content:space-between;">
+              <span>📂 Dokumen 01 (SPP) Definitif</span>
+              <span>✅ Dinamis &amp; Editable</span>
+            </div>
+          </div>
+
+          <!-- Kartu 3: Kesiapan Lokasi & Teknisi Rekanan -->
+          <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:10.5px; font-weight:700; color:#9d174d; text-transform:uppercase;">🏢 BA-SPL &amp; Kesiapan MC-0</span>
+              <span class="cakra-badge" style="background:#fce7f3; color:#be185d; font-size:10px; font-weight:700;">${mc0Persen}% Memenuhi (${mc0List.length} Param)</span>
+            </div>
+            <div style="font-size:12px; font-weight:800; color:#9d174d; margin-bottom:2px;">
+              BA-SPL: <span class="cakra-mono">${cakraEsc(noBaSpl)}</span>
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              <b>Tanggal BA:</b> ${cakraFormatTanggalIndo(tglBaSpl)}
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              <b>Teknisi Lapangan:</b> <span style="font-weight:700; color:#0f172a;">${cakraEsc(picTeknisi)}</span>
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">
+              <b>Kontak WhatsApp:</b> <span class="cakra-mono" style="font-weight:700; color:#1e40af;">${cakraEsc(kontakTeknisi)}</span>
+            </div>
+            <div style="font-size:10px; color:#831843; margin-top:4px; padding-top:4px; border-top:1px dashed #fbcfe8;">
+              ⚡ <b>${mc0List.length} Parameter MC-0:</b> ${mc0List.map(m => cakraEsc(m.parameter || '')).join(', ')}
+            </div>
+            <div style="font-size:10px; color:#15803d; margin-top:3px; font-weight:700;">
+              🔑 Hak Akses Lokasi Resmi Diserahkan ke Teknisi
+            </div>
           </div>
         </div>
       `;
+    }
 
     case 15:
       return `
@@ -8807,6 +8948,15 @@ function openModalTahapUniversal(stageNo) {
         window.calcKontrakJadwal();
       }
     }, 50);
+  } else if (num === 14) {
+    setTimeout(() => {
+      if (typeof window.calcSppJadwal === 'function') {
+        window.calcSppJadwal();
+      }
+      if (typeof window.initTahap14DynamicFields === 'function') {
+        window.initTahap14DynamicFields();
+      }
+    }, 50);
   }
 }
 window.openModalTahapUniversal = openModalTahapUniversal;
@@ -8916,6 +9066,400 @@ window.onKontrakPresetCatatanChange = function(val) {
   } else if (val === 'PRESET_PERJANJIAN') {
     catatanEl.value = 'Surat Perjanjian Kontrak Pengadaan telah ditandatangani sah di hadapan para pihak dengan klausul jaminan garansi resmi distributor 1 tahun onsite dan kepatuhan standar audit BPK RI.';
   }
+};
+
+window.calcSppJadwal = function(source) {
+  const durasiInp = document.getElementById('mu_masa_pelaksanaan_hari_spp');
+  const tMulaiInp = document.getElementById('mu_tgl_mulai_kerja_spp');
+  const tSelesaiInp = document.getElementById('mu_tgl_selesai_kontrak_spp');
+  const tSppInp = document.getElementById('mu_tgl_spp');
+  const jadwalLabel = document.getElementById('mu_jadwal_spp_preview');
+
+  if (!durasiInp || !tMulaiInp || !tSelesaiInp) return;
+
+  if (!tMulaiInp.value) {
+    if (tSppInp && tSppInp.value) {
+      tMulaiInp.value = tSppInp.value;
+    } else {
+      tMulaiInp.value = '2026-05-27';
+    }
+  }
+
+  let durasi = parseInt(durasiInp.value, 10);
+  if (isNaN(durasi) || durasi < 1) {
+    durasi = 1;
+  }
+
+  const tMulai = tMulaiInp.value;
+  if (tMulai) {
+    const parts = tMulai.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const dt = new Date(year, month, day);
+      dt.setDate(dt.getDate() + (durasi - 1));
+      const endY = dt.getFullYear();
+      const endM = String(dt.getMonth() + 1).padStart(2, '0');
+      const endD = String(dt.getDate()).padStart(2, '0');
+      const tSelesai = `${endY}-${endM}-${endD}`;
+      tSelesaiInp.value = tSelesai;
+
+      if (jadwalLabel) {
+        jadwalLabel.innerHTML = `${durasi} Hari Kalender (<b style="color:#1d4ed8;">${tMulai}</b> s.d. <b style="color:#dc2626;">${tSelesai}</b>) — Pengiriman, Perakitan Hardware &amp; Instalasi OS Windows Server 2025.`;
+      }
+    }
+  }
+};
+
+window.onSppTanggalChange = function(newTgl) {
+  const tMulaiInp = document.getElementById('mu_tgl_mulai_kerja_spp');
+  if (tMulaiInp && newTgl) {
+    tMulaiInp.value = newTgl;
+    if (typeof window.calcSppJadwal === 'function') {
+      window.calcSppJadwal('tmt');
+    }
+  }
+  const tBaSplInp = document.getElementById('mu_tgl_ba_spl');
+  if (tBaSplInp && newTgl) {
+    tBaSplInp.value = newTgl;
+  }
+};
+
+/* =============================================================================
+ * PUSTAKA PRESET & LOGIKA DINAMIS TAHAP 14 (SPP & BA-SPL MC-0)
+ * ============================================================================= */
+window.sppPresets = {
+  server: {
+    nama: 'Ruang Server & IT Data Center',
+    lokasi: 'Ruang Server Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+    kondisi: 'Ruang Server KPU Kabupaten Ngawi siap 100% (Listrik 220V UPS terproteksi, Grounding 1.8 Ohm, AC Inverter 20°C, Keamanan Terkunci, Jaringan LAN Gigabit)',
+    catatan: 'Penyedia CV. GRAFIKA PRATAMA NGAWI wajib melakukan pengiriman tepat waktu dengan packing kayu aman, melakukan unboxing bersama PPK & Tim Teknis, perakitan hardware, setup dual PSU redundant, konfigurasi RAID-1 SSD NVMe, instalasi dan aktivasi OS Windows Server 2025 Standard 64-bit resmi, pengujian komisioning fungsi hingga beroperasi normal 100%, serta memberikan garansi resmi on-site selama 1 (satu) tahun penuh.',
+    mc0: [
+      { no: 1, parameter: '⚡ Catu Daya Listrik', kondisi: 'Tegangan 220 Volt stabil, terproteksi UPS Online 3 KVA & genset otomatis gedung.', status: 'MEMENUHI SYARAT' },
+      { no: 2, parameter: '🔌 Pembumian (Grounding)', kondisi: 'Nilai tahanan grounding terukur 1.8 Ohm (Standar IT perangkat server < 5.0 Ohm).', status: 'MEMENUHI SYARAT' },
+      { no: 3, parameter: '❄️ Tata Udara & Suhu (AC)', kondisi: 'Dual AC Inverter beroperasi stabil di suhu 18°C – 20°C, kelembaban terjaga 45%–55%.', status: 'MEMENUHI SYARAT' },
+      { no: 4, parameter: '🔒 Keamanan Fisik & Ruang', kondisi: 'Akses pintu terkunci 24 jam, bebas kebocoran atap/air, bebas debu, dan terawasi.', status: 'MEMENUHI SYARAT' },
+      { no: 5, parameter: '🌐 Konektivitas Jaringan LAN', kondisi: 'Tersedia port RJ45 Gigabit Ethernet terhubung langsung ke Core Switch KPU Ngawi.', status: 'MEMENUHI SYARAT' }
+    ],
+    pasca: [
+      { no: 1, judul: 'Unboxing Bersama', deskripsi: 'Pembukaan segel resmi manufaktur Dell bersama PPK & Tim Teknis di Ruang Server.' },
+      { no: 2, judul: 'Perakitan & Dual PSU', deskripsi: 'Pemasangan chassis tower, manajemen kabel internal, dan redundansi dual PSU 500W Platinum.' },
+      { no: 3, judul: 'Hardware RAID-1', deskripsi: 'Konfigurasi RAID-1 Mirroring pada dual enterprise SSD NVMe 1TB untuk integritas data.' },
+      { no: 4, judul: 'Instalasi & Lisensi OS', deskripsi: 'Instalasi clean & aktivasi lisensi resmi Windows Server 2025 Standard 64-bit COA OEM/OLP.' },
+      { no: 5, judul: 'Komisioning & Garansi On-Site', deskripsi: 'Uji ketahanan beban (burn-in test), uji failover daya PSU, dan aktivasi garansi resmi pabrikan on-site 1 tahun.' }
+    ]
+  },
+  mebeler: {
+    nama: 'Mebeler & Perabot Kantor',
+    lokasi: 'Aula & Ruang Kerja Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+    kondisi: 'Ruangan kerja dan aula KPU Ngawi siap 100% (Akses pintu dan selasar bersih, lantai rata/kering, layout penataan perabot telah disepakati).',
+    catatan: 'Penyedia wajib melakukan pengiriman dengan armada tertutup, pembongkaran hati-hati, perakitan meja/kursi/lemari arsip sesuai denah layout, pembersihan sisa kemasan/kardus, serta pengujian kekokohan struktur dan mekanisme hidrolik perabot.',
+    mc0: [
+      { no: 1, parameter: '🚪 Akses Masuk & Selasar', kondisi: 'Lebar pintu (min 90 cm) dan koridor bebas rintangan untuk mobilisasi unit perabot kantor.', status: 'MEMENUHI SYARAT' },
+      { no: 2, parameter: '🧹 Kebersihan & Kerataan Lantai', kondisi: 'Lantai ruangan bersih, rata (leveling baik), bebas genangan/kelembaban tinggi.', status: 'MEMENUHI SYARAT' },
+      { no: 3, parameter: '📐 Layout & Titik Penempatan', kondisi: 'Denah layout penataan posisi meja, kursi, dan partisi telah disetujui bersama pengguna ruang.', status: 'MEMENUHI SYARAT' }
+    ],
+    pasca: [
+      { no: 1, judul: 'Pemeriksaan Visual & Cacat Fisik', deskripsi: 'Pemeriksaan bersama terhadap goresan, cacat cat, presisi tepi HPL/kayu, dan engsel pintu lemari.' },
+      { no: 2, judul: 'Perakitan & Ergonomi', deskripsi: 'Perakitan modul mebeler menggunakan baut pengunci standar manufaktur dan penyetelan ketinggian kaki meja.' },
+      { no: 3, judul: 'Uji Stabilitas & Pembersihan Area', deskripsi: 'Uji fungsi laci, kunci sentral, mekanisme hidrolik kursi kerja, serta pembersihan sisa plastik dan debu.' }
+    ]
+  },
+  kendaraan: {
+    nama: 'Kendaraan Dinas Operasional',
+    lokasi: 'Area Parkir & Garasi Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+    kondisi: 'Area parkir dan garasi KPU Ngawi siap 100% (Area beratap aman, akses gerbang luas untuk mobilisasi truk pengangkut/towing, staf penerima standby).',
+    catatan: 'Penyedia wajib mengirimkan unit kendaraan dalam kondisi 100% baru, melaksanakan Pre-Delivery Inspection (PDI) bersama PPK, menyerahkan seluruh perkakas darurat standar, buku manual dan garansi ATPM, serta memastikan kelengkapan dokumen jalan sementara sebelum STNK/BPKB terbit.',
+    mc0: [
+      { no: 1, parameter: '🅿️ Kesiapan Area Garasi', kondisi: 'Area garasi beratap, lantai semen/paving rata, terlindung dari hujan dan terik matahari langsung.', status: 'MEMENUHI SYARAT' },
+      { no: 2, parameter: '🚧 Akses Gerbang & Manuver', kondisi: 'Akses pintu gerbang kantor luas memadai untuk manuver truk towing/carrier pengangkut kendaraan.', status: 'MEMENUHI SYARAT' },
+      { no: 3, parameter: '👨‍✈️ Tim Penerima & Uji Jalan', kondisi: 'Staf operasional dan penanggung jawab teknis siap melaksanakan checklist PDI dan uji fungsi kendaraan.', status: 'MEMENUHI SYARAT' }
+    ],
+    pasca: [
+      { no: 1, judul: 'Pre-Delivery Inspection (PDI)', deskripsi: 'Pemeriksaan nomor rangka/mesin sesuai faktur, kondisi cat bodi, interior, lampu, rem, dan kelistrikan.' },
+      { no: 2, judul: 'Kelengkapan Standar & Toolkit', deskripsi: 'Verifikasi kelengkapan ban serep, dongkrak, kunci roda, segitiga pengaman, P3K, buku pedoman, dan buku servis.' },
+      { no: 3, judul: 'Uji Fungsi Jalan (Road Test)', deskripsi: 'Uji operasional jarak pendek untuk memastikan transmisi, sistem pendingin (AC), suspensi, dan speedometer bekerja normal.' }
+    ]
+  },
+  gudang_logistik: {
+    nama: 'Gudang Logistik Pemilu',
+    lokasi: 'Gudang Logistik KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+    kondisi: 'Gudang Logistik siap 100% (Atap bebas bocor, sirkulasi udara baik, pallet kayu/plastik tertata rapi, sistem keamanan ganda dan CCTV aktif, APAR tersedia).',
+    catatan: 'Penyedia wajib melakukan pembongkaran dengan tenaga bongkar muat berpengalaman, penataan rapi di atas pallet berjarak dari dinding, penghitungan fisik bersama PPK dan Tim Bawaslu, serta penandatanganan checklist penerimaan barang secara rinci.',
+    mc0: [
+      { no: 1, parameter: '🏗️ Bebas Bocor & Kelembaban', kondisi: 'Struktur atap dan talang air telah diperiksa bebas kebocoran, kelembaban ruangan aman dari risiko jamur.', status: 'MEMENUHI SYARAT' },
+      { no: 2, parameter: '🪵 Ketersediaan Pallet Pengalas', kondisi: 'Pallet kayu/plastik telah diposisikan dengan ketinggian 10-15 cm dari lantai dan jarak 30 cm dari dinding.', status: 'MEMENUHI SYARAT' },
+      { no: 3, parameter: '🧯 Proteksi Kebakaran (APAR)', kondisi: 'Tabung APAR bertekanan normal tersedia di setiap sudut pintu akses dan bebas halangan.', status: 'MEMENUHI SYARAT' },
+      { no: 4, parameter: '🔐 Keamanan Fisik & CCTV', kondisi: 'Pintu gudang berpengunci ganda, kamera pengawas CCTV 24 jam beroperasi dengan rekaman aktif.', status: 'MEMENUHI SYARAT' },
+      { no: 5, parameter: '🐜 Bebas Hama & Rayap', kondisi: 'Area gudang telah difumigasi dan terpasang perangkap serangga/tikus berkala.', status: 'MEMENUHI SYARAT' }
+    ],
+    pasca: [
+      { no: 1, judul: 'Hitung Fisik Bersama', deskripsi: 'Penghitungan kuantitas per dos/koli bersama PPK, Tim Teknis, dan disaksikan Bawaslu/Kepolisian.' },
+      { no: 2, judul: 'Uji Mutu Spesifikasi (Sampling)', deskripsi: 'Pemeriksaan ketebalan bahan, ketajaman cetak, presisi nomor seri/barcode sesuai spesifikasi KPU RI.' },
+      { no: 3, judul: 'Penataan Pallet & Kartu Gudang', deskripsi: 'Penataan rapi sesuai zona TPS/Kecamatan, penempelan label identitas, dan pencatatan pada kartu kendali gudang.' }
+    ]
+  },
+  custom: {
+    nama: 'Kustom Kosong (Input Bebas)',
+    lokasi: '',
+    kondisi: '',
+    catatan: '',
+    mc0: [
+      { no: 1, parameter: '', kondisi: '', status: 'MEMENUHI SYARAT' }
+    ],
+    pasca: [
+      { no: 1, judul: '', deskripsi: '' }
+    ]
+  }
+};
+
+window.renderMc0TableRows = function(rows) {
+  const tbody = document.getElementById('mc0_table_body');
+  if (!tbody) return;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    rows = window.sppPresets.server.mc0;
+  }
+  let html = '';
+  rows.forEach((r, idx) => {
+    const no = idx + 1;
+    const param = r.parameter || '';
+    const kondisi = r.kondisi || '';
+    const status = r.status || 'MEMENUHI SYARAT';
+    html += `
+      <tr class="mc0-row" data-row-idx="${no}">
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#475569;" class="mc0-no">${no}</td>
+        <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+          <input type="text" class="cakra-form-control mc0-param-name" value="${cakraEsc(param)}" placeholder="Contoh: Catu Daya Listrik..." style="font-weight:700; font-size:11px;" />
+        </td>
+        <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+          <textarea class="cakra-form-control mc0-param-kondisi" rows="2" placeholder="Hasil pengukuran atau observasi..." style="font-size:10.5px; line-height:1.4;">${cakraEsc(kondisi)}</textarea>
+        </td>
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <select class="cakra-form-control mc0-param-status" style="font-weight:700; font-size:10.5px;" onchange="window.updateMc0SummaryBadge()">
+            <option value="MEMENUHI SYARAT" ${status === 'MEMENUHI SYARAT' ? 'selected' : ''}>✅ MEMENUHI SYARAT</option>
+            <option value="MEMENUHI DENGAN CATATAN" ${status === 'MEMENUHI DENGAN CATATAN' ? 'selected' : ''}>⚠️ MEMENUHI DG CATATAN</option>
+            <option value="TIDAK MEMENUHI SYARAT" ${status === 'TIDAK MEMENUHI SYARAT' ? 'selected' : ''}>❌ TIDAK MEMENUHI</option>
+          </select>
+        </td>
+        <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 7px; font-size:11px; cursor:pointer;" onclick="window.removeMc0Row(this)" title="Hapus Baris Ini">🗑️</button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+  window.updateMc0SummaryBadge();
+};
+
+window.addMc0Row = function(param = '', kondisi = '', status = 'MEMENUHI SYARAT') {
+  const tbody = document.getElementById('mc0_table_body');
+  if (!tbody) return;
+  const currentCount = tbody.querySelectorAll('tr.mc0-row').length;
+  const no = currentCount + 1;
+  const tr = document.createElement('tr');
+  tr.className = 'mc0-row';
+  tr.dataset.rowIdx = no;
+  tr.innerHTML = `
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#475569;" class="mc0-no">${no}</td>
+    <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+      <input type="text" class="cakra-form-control mc0-param-name" value="${cakraEsc(param)}" placeholder="Nama Parameter Baru..." style="font-weight:700; font-size:11px;" />
+    </td>
+    <td style="padding:6px 8px; border-bottom:1px solid #f1f5f9;">
+      <textarea class="cakra-form-control mc0-param-kondisi" rows="2" placeholder="Hasil pengukuran atau observasi..." style="font-size:10.5px; line-height:1.4;">${cakraEsc(kondisi)}</textarea>
+    </td>
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <select class="cakra-form-control mc0-param-status" style="font-weight:700; font-size:10.5px;" onchange="window.updateMc0SummaryBadge()">
+        <option value="MEMENUHI SYARAT" ${status === 'MEMENUHI SYARAT' ? 'selected' : ''}>✅ MEMENUHI SYARAT</option>
+        <option value="MEMENUHI DENGAN CATATAN" ${status === 'MEMENUHI DENGAN CATATAN' ? 'selected' : ''}>⚠️ MEMENUHI DG CATATAN</option>
+        <option value="TIDAK MEMENUHI SYARAT" ${status === 'TIDAK MEMENUHI SYARAT' ? 'selected' : ''}>❌ TIDAK MEMENUHI</option>
+      </select>
+    </td>
+    <td style="padding:6px 8px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 7px; font-size:11px; cursor:pointer;" onclick="window.removeMc0Row(this)" title="Hapus Baris Ini">🗑️</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+  window.updateMc0SummaryBadge();
+  const inputEl = tr.querySelector('.mc0-param-name');
+  if (inputEl) inputEl.focus();
+};
+
+window.removeMc0Row = function(btn) {
+  const tr = btn.closest('tr.mc0-row');
+  if (!tr) return;
+  const tbody = tr.parentElement;
+  tr.remove();
+  if (tbody) {
+    const rows = tbody.querySelectorAll('tr.mc0-row');
+    rows.forEach((r, idx) => {
+      r.dataset.rowIdx = idx + 1;
+      const noEl = r.querySelector('.mc0-no');
+      if (noEl) noEl.textContent = idx + 1;
+    });
+  }
+  window.updateMc0SummaryBadge();
+};
+
+window.updateMc0SummaryBadge = function() {
+  const badgeEl = document.getElementById('mc0_summary_badge');
+  if (!badgeEl) return;
+  const rows = document.querySelectorAll('#mc0_table_body tr.mc0-row');
+  const total = rows.length;
+  let memenuhi = 0;
+  let catatan = 0;
+  let tidak = 0;
+  rows.forEach(r => {
+    const st = r.querySelector('.mc0-param-status')?.value;
+    if (st === 'MEMENUHI SYARAT') memenuhi++;
+    else if (st === 'MEMENUHI DENGAN CATATAN') catatan++;
+    else tidak++;
+  });
+  if (total === 0) {
+    badgeEl.style.background = '#f1f5f9';
+    badgeEl.style.color = '#64748b';
+    badgeEl.textContent = 'Belum Ada Parameter';
+  } else if (tidak > 0) {
+    badgeEl.style.background = '#fee2e2';
+    badgeEl.style.color = '#dc2626';
+    badgeEl.textContent = `${total} Parameter (${tidak} Tidak Memenuhi)`;
+  } else if (catatan > 0) {
+    badgeEl.style.background = '#fef3c7';
+    badgeEl.style.color = '#d97706';
+    badgeEl.textContent = `${total} Parameter (${catatan} Bersyarat)`;
+  } else {
+    badgeEl.style.background = '#dcfce7';
+    badgeEl.style.color = '#15803d';
+    badgeEl.textContent = `${total} Parameter (100% Memenuhi Syarat)`;
+  }
+};
+
+window.renderPascaPengirimanRows = function(items) {
+  const container = document.getElementById('pasca_pengiriman_list');
+  const badgeEl = document.getElementById('pasca_count_badge');
+  if (!container) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    items = window.sppPresets.server.pasca;
+  }
+  let html = '';
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  items.forEach((it, idx) => {
+    const no = idx + 1;
+    const letter = alphabet[idx] || String(no);
+    const judul = it.judul || '';
+    const deskripsi = it.deskripsi || '';
+    html += `
+      <div class="pasca-item-row" data-idx="${no}" style="display:flex; align-items:flex-start; gap:8px; background:#ffffff; border:1px solid #bbf7d0; border-radius:6px; padding:6px 10px;">
+        <span class="pasca-letter" style="font-weight:800; color:#15803d; font-size:11px; padding-top:4px; min-width:20px;">${letter}.</span>
+        <div style="flex:1; display:flex; gap:8px; flex-wrap:wrap;">
+          <input type="text" class="cakra-form-control pasca-judul" value="${cakraEsc(judul)}" placeholder="Judul SOP / Ketentuan..." style="font-weight:700; font-size:11px; flex:1; min-width:180px;" />
+          <textarea class="cakra-form-control pasca-deskripsi" rows="2" placeholder="Rincian pelaksanaan pasca pengiriman..." style="font-size:10.5px; line-height:1.4; flex:2; min-width:260px;">${cakraEsc(deskripsi)}</textarea>
+        </div>
+        <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 7px; font-size:11px; cursor:pointer; margin-top:2px;" onclick="window.removePascaRow(this)" title="Hapus Butir Ini">🗑️</button>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+  if (badgeEl) {
+    badgeEl.textContent = `${items.length} Klausul`;
+  }
+};
+
+window.addPascaRow = function(judul = '', deskripsi = '') {
+  const container = document.getElementById('pasca_pengiriman_list');
+  const badgeEl = document.getElementById('pasca_count_badge');
+  if (!container) return;
+  const currentCount = container.querySelectorAll('.pasca-item-row').length;
+  const no = currentCount + 1;
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  const letter = alphabet[currentCount] || String(no);
+  const div = document.createElement('div');
+  div.className = 'pasca-item-row';
+  div.dataset.idx = no;
+  div.style.cssText = 'display:flex; align-items:flex-start; gap:8px; background:#ffffff; border:1px solid #bbf7d0; border-radius:6px; padding:6px 10px;';
+  div.innerHTML = `
+    <span class="pasca-letter" style="font-weight:800; color:#15803d; font-size:11px; padding-top:4px; min-width:20px;">${letter}.</span>
+    <div style="flex:1; display:flex; gap:8px; flex-wrap:wrap;">
+      <input type="text" class="cakra-form-control pasca-judul" value="${cakraEsc(judul)}" placeholder="Judul Ketentuan Baru..." style="font-weight:700; font-size:11px; flex:1; min-width:180px;" />
+      <textarea class="cakra-form-control pasca-deskripsi" rows="2" placeholder="Rincian pelaksanaan pasca pengiriman..." style="font-size:10.5px; line-height:1.4; flex:2; min-width:260px;">${cakraEsc(deskripsi)}</textarea>
+    </div>
+    <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 7px; font-size:11px; cursor:pointer; margin-top:2px;" onclick="window.removePascaRow(this)" title="Hapus Butir Ini">🗑️</button>
+  `;
+  container.appendChild(div);
+  const newCount = container.querySelectorAll('.pasca-item-row').length;
+  if (badgeEl) badgeEl.textContent = `${newCount} Klausul`;
+  const judulInput = div.querySelector('.pasca-judul');
+  if (judulInput) judulInput.focus();
+};
+
+window.removePascaRow = function(btn) {
+  const div = btn.closest('.pasca-item-row');
+  if (!div) return;
+  const container = div.parentElement;
+  div.remove();
+  if (container) {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+    const items = container.querySelectorAll('.pasca-item-row');
+    items.forEach((it, idx) => {
+      it.dataset.idx = idx + 1;
+      const letterEl = it.querySelector('.pasca-letter');
+      if (letterEl) letterEl.textContent = (alphabet[idx] || String(idx + 1)) + '.';
+    });
+    const badgeEl = document.getElementById('pasca_count_badge');
+    if (badgeEl) badgeEl.textContent = `${items.length} Klausul`;
+  }
+};
+
+window.applySppPreset = function(presetKey) {
+  const preset = window.sppPresets[presetKey];
+  if (!preset) return;
+
+  const lokasiInp = document.getElementById('mu_lokasi_pekerjaan');
+  if (lokasiInp && preset.lokasi) {
+    lokasiInp.value = preset.lokasi;
+  }
+  const kondisiInp = document.getElementById('mu_kondisi_ruang_server');
+  if (kondisiInp && preset.kondisi) {
+    kondisiInp.value = preset.kondisi;
+  }
+  const catatanInp = document.getElementById('mu_catatan_spp');
+  if (catatanInp && preset.catatan) {
+    catatanInp.value = preset.catatan;
+  }
+
+  window.renderMc0TableRows(preset.mc0);
+  window.renderPascaPengirimanRows(preset.pasca);
+
+  cakraNotify(`⚡ Berhasil memuat preset: ${preset.nama}! Anda dapat menambah/mengedit baris sesuai kebutuhan.`, 'success');
+};
+
+window.initTahap14DynamicFields = function() {
+  const paket = CakraState.activePaketCtx?.paket || {};
+  let mc0Data = null;
+  let pascaData = null;
+
+  if (paket.parameter_kesiapan_lokasi_json) {
+    try {
+      mc0Data = typeof paket.parameter_kesiapan_lokasi_json === 'string'
+        ? JSON.parse(paket.parameter_kesiapan_lokasi_json)
+        : paket.parameter_kesiapan_lokasi_json;
+    } catch (e) {
+      console.warn('Gagal parse parameter_kesiapan_lokasi_json:', e);
+    }
+  }
+
+  if (paket.ketentuan_pasca_pengiriman_json) {
+    try {
+      pascaData = typeof paket.ketentuan_pasca_pengiriman_json === 'string'
+        ? JSON.parse(paket.ketentuan_pasca_pengiriman_json)
+        : paket.ketentuan_pasca_pengiriman_json;
+    } catch (e) {
+      console.warn('Gagal parse ketentuan_pasca_pengiriman_json:', e);
+    }
+  }
+
+  window.renderMc0TableRows(mc0Data || window.sppPresets.server.mc0);
+  window.renderPascaPengirimanRows(pascaData || window.sppPresets.server.pasca);
 };
 
 window.onPamMetodeChange = function(val) {
@@ -11004,14 +11548,292 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
     }
 
-    case 14:
+    case 14: {
+      const isSpp = String(paket.jenis_pengadaan || '').toLowerCase().includes('barang');
+      const docTitle = isSpp ? 'Surat Perintah Pengiriman (SPP)' : 'Surat Perintah Mulai Kerja (SPMK)';
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const defaultNoSpp = paket.no_spp || activeTRow.no_spp || ('014/SPP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+      const defaultTglSpp = paket.tgl_spp || activeTRow.tanggal_dokumen || paket.tgl_kontrak || '2026-05-27';
+      const defaultLokasi = paket.lokasi_pekerjaan || 'Ruang Server Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+      const defaultDurasi = Number(paket.masa_pelaksanaan_hari || 14);
+      const defaultTglMulai = paket.tgl_mulai_kerja || defaultTglSpp;
+      const defaultTglSelesai = paket.tgl_selesai_kontrak || paket.tgl_selesai_kerja || '2026-06-09';
+      const defaultNoBaSpl = paket.no_ba_spl || activeTRow.no_ba_spl || ('014/BA-SPL/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+      const defaultTglBaSpl = paket.tgl_ba_spl || defaultTglSpp;
+
+      const penyedia = CakraState.activePaketCtx?.penyedia || (CakraState.penyedias || []).find(p => String(p.id) === String(paket.id_penyedia)) || {};
+      const penyediaNama = penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI';
+      const penyediaDirektur = penyedia.nama_direktur || 'HENDRA SURYAWAN';
+      const penyediaJabatan = penyedia.jabatan_penandatangan || 'Direktur';
+      const penyediaAlamat = penyedia.alamat || 'Jl. Ronggowarsito No. 12, Kel. Pelem, Kec. Ngawi, Kab. Ngawi';
+      const penyediaNpwp = penyedia.npwp || '01.445.882.9-646.000';
+
+      const ppk = CakraState.activePaketCtx?.ppk || {};
+      const ppkNama = ppk.nama_lengkap || 'Mohammad Noor Jihan';
+      const ppkNip = ppk.nip || '19910518 201503 1 002';
+
+      const noKontrak = paket.no_kontrak || ('013/SP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+      const tglKontrak = paket.tgl_kontrak || '2026-05-27';
+      const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
+
+      let defaultPicTeknisi = paket.pic_teknisi_rekanan || '';
+      if (!defaultPicTeknisi || defaultPicTeknisi.includes('ANUGERAH BERKAH') || defaultPicTeknisi.includes('Bambang Irawan')) {
+        defaultPicTeknisi = 'Ahmad Fauzi / Tim Teknisi ' + penyediaNama;
+      }
+      const defaultKontakTeknisi = paket.kontak_teknisi_rekanan || '0812-3456-7890';
+      const defaultKondisiRuang = paket.kondisi_ruang_server || 'Ruang Server KPU Kabupaten Ngawi siap 100% (Listrik 220V UPS terproteksi, Grounding 1.8 Ohm, AC Inverter 20°C, Keamanan Terkunci, Jaringan LAN Gigabit)';
+
+      let defaultCatatanSpp = paket.catatan_spp || '';
+      if (!defaultCatatanSpp || defaultCatatanSpp.includes('ANUGERAH BERKAH')) {
+        defaultCatatanSpp = `Penyedia ${penyediaNama} wajib melakukan pengiriman tepat waktu dengan packing kayu aman standar pabrikan, melakukan unboxing bersama PPK & Tim Teknis di Ruang Server Lantai 1, perakitan hardware, setup dual PSU redundant, konfigurasi hardware RAID-1 SSD NVMe, instalasi dan aktivasi OS Windows Server 2025 Standard 64-bit resmi ber-COA, pengujian komisioning fungsi hingga beroperasi normal 100%, serta memberikan garansi resmi on-site selama 1 (satu) tahun penuh.`;
+      }
+
+      const items = CakraState.activePaketCtx?.items || [];
+      let itemRowsHtml = '';
+      if (items.length > 0) {
+        items.forEach((it, idx) => {
+          const volSat = `${it.volume || 1} ${it.satuan || 'Unit'}`;
+          const totHarga = Number(it.jumlah_kontrak || it.jumlah_hps || (it.volume * it.harga_satuan_hps) || 0);
+          itemRowsHtml += `
+            <tr style="border-bottom:1px solid #cbd5e1;">
+              <td style="padding:6px 8px; text-align:center; border:1px solid #cbd5e1;">${idx + 1}</td>
+              <td style="padding:6px 8px; border:1px solid #cbd5e1; font-weight:700; color:#0f172a;">${cakraEsc(it.uraian_item || it.nama_barang || '-')}</td>
+              <td style="padding:6px 8px; border:1px solid #cbd5e1; color:#334155; font-size:10.5px;">${cakraEsc(it.spesifikasi_teknis || '-')}</td>
+              <td style="padding:6px 8px; text-align:center; border:1px solid #cbd5e1; font-weight:700;">${cakraEsc(volSat)}</td>
+              <td style="padding:6px 8px; text-align:right; border:1px solid #cbd5e1; font-weight:800; color:#1e3a8a;">${formatRupiah(totHarga)}</td>
+            </tr>
+          `;
+        });
+      } else {
+        itemRowsHtml = `
+          <tr style="border-bottom:1px solid #cbd5e1;">
+            <td style="padding:6px 8px; text-align:center; border:1px solid #cbd5e1;">1</td>
+            <td style="padding:6px 8px; border:1px solid #cbd5e1; font-weight:700; color:#0f172a;">PC Server Tower Database Operasional</td>
+            <td style="padding:6px 8px; border:1px solid #cbd5e1; color:#334155; font-size:10.5px;">Intel Xeon E-2324G, RAM 32GB ECC, 2x 1TB SSD NVMe RAID-1, Dual PSU 500W Platinum, OS Win Server 2025 Standard</td>
+            <td style="padding:6px 8px; text-align:center; border:1px solid #cbd5e1; font-weight:700;">1 Paket</td>
+            <td style="padding:6px 8px; text-align:right; border:1px solid #cbd5e1; font-weight:800; color:#1e3a8a;">${formatRupiah(nilaiKontrak)}</td>
+          </tr>
+        `;
+      }
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Penyerahan Lokasi Kerja (SPL) &amp; Kick-off MC-0</div>
-        <div>
-          <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Lokasi Pelaksanaan Pekerjaan</label>
-          <input type="text" id="mu_lokasi_pekerjaan" class="cakra-form-control" value="${cakraEsc(paket.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi')}" />
+        <!-- HEADER PANDUAN TAHAP 14 -->
+        <div style="background:linear-gradient(135deg, #1e3a8a 0%, #0369a1 100%); color:#fff; border-radius:8px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 4px rgba(0,0,0,0.08);">
+          <div style="font-size:13px; font-weight:800; display:flex; align-items:center; gap:8px;">
+            <span>🚚 Tahap 14: Pelaksanaan Kontrak — ${docTitle} &amp; BA Kesiapan/Penyerahan Lokasi (BA-SPL)</span>
+          </div>
+          <div style="font-size:11px; opacity:0.95; margin-top:4px; line-height:1.45;">
+            Sesuai <b>Pasal 54 Perpres 16/2018 jo. Perpres 46/2025</b>, PPK menerbitkan SPP untuk memerintahkan pengiriman barang dan bersamaan dengan itu memeriksa kesiapan lokasi instalasi (MC-0) serta memberikan izin akses kerja resmi kepada Teknisi Rekanan.
+          </div>
+        </div>
+
+        <!-- BANNER KONSIDERANS SURAT PESANAN (KONTRAK RUJUKAN DOKUMEN 01 SPP) -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-left:4px solid #1e3a8a; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:11px; font-weight:800; color:#1e3a8a; text-transform:uppercase;">📜 Rujukan Kontrak &amp; Penerima Perintah (Konsiderans SPP)</span>
+            <span class="cakra-badge" style="background:#dbeafe; color:#1e40af; font-size:10px; font-weight:700;">Tahap 13 ➔ Tahap 14</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:10px; font-size:11px; color:#334155;">
+            <div>
+              <div><b>Dasar Surat Pesanan:</b> <span class="cakra-mono" style="font-weight:700; color:#0f172a;">${cakraEsc(noKontrak)}</span></div>
+              <div><b>Tanggal &amp; Nilai Kontrak:</b> ${cakraFormatTanggalIndo(tglKontrak)} | <span style="font-weight:800; color:#15803d;">${formatRupiah(nilaiKontrak)}</span></div>
+              <div><b>Pejabat Pembuat Komitmen:</b> ${cakraEsc(ppkNama)} (NIP. ${cakraEsc(ppkNip)})</div>
+            </div>
+            <div style="border-left:1px dashed #cbd5e1; padding-left:10px;">
+              <div><b>Penyedia Penerima SPP:</b> <span style="font-weight:800; color:#1e3a8a;">${cakraEsc(penyediaNama)}</span></div>
+              <div><b>Direktur / Penanggung Jawab:</b> ${cakraEsc(penyediaDirektur)} (${cakraEsc(penyediaJabatan)})</div>
+              <div><b>NPWP / Alamat:</b> ${cakraEsc(penyediaNpwp)} &bull; ${cakraEsc(penyediaAlamat)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. IDENTITAS DOKUMEN SPP & LOKASI PENGIRIMAN -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>🚚 1. Surat Perintah Pengiriman (SPP - Dokumen 01) &amp; Lokasi Serah Terima</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Dokumen SPP *</label>
+              <input type="text" id="mu_no_spp" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultNoSpp)}" style="font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Penerbitan SPP *</label>
+              <input type="date" id="mu_tgl_spp" class="cakra-form-control" value="${cakraEsc(defaultTglSpp)}" onchange="window.onSppTanggalChange(this.value)" style="font-weight:700;" />
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Alamat &amp; Lokasi Tujuan Penyerahan Barang (Franco) *</label>
+            <input type="text" id="mu_lokasi_pekerjaan" class="cakra-form-control" value="${cakraEsc(defaultLokasi)}" style="font-weight:600;" />
+          </div>
+        </div>
+
+        <!-- 2. KALKULATOR JADWAL DEFINITIF PENGIRIMAN (3-KOLOM: DURASI | TMT | BATAS AKHIR) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>⏱️ 2. Jadwal Pengiriman &amp; Instalasi Definitif (Auto-Calculator)</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1.2fr 1.2fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:4px; display:block;">Durasi (Hari Kalender) *</label>
+              <input type="number" id="mu_masa_pelaksanaan_hari_spp" class="cakra-form-control" value="${defaultDurasi}" min="1" max="365" style="font-weight:700; color:#1e3a8a;" oninput="window.calcSppJadwal('durasi')" onchange="window.calcSppJadwal('durasi')" />
+              <div style="font-size:10px; color:#64748b; margin-top:3px;">⚡ Ketik/atur durasi hari kalender</div>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Mulai Berlaku (TMT) *</label>
+              <input type="date" id="mu_tgl_mulai_kerja_spp" class="cakra-form-control" value="${cakraEsc(defaultTglMulai)}" onchange="window.calcSppJadwal('tmt')" style="font-weight:700;" />
+              <div style="font-size:10px; color:#166534; margin-top:3px;">✏️ Tanggal Mulai Pengiriman &amp; Kerja</div>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Batas Akhir Penyerahan (Sistem) *</label>
+              <input type="date" id="mu_tgl_selesai_kontrak_spp" class="cakra-form-control" value="${cakraEsc(defaultTglSelesai)}" readonly style="font-weight:700; background-color:#f1f5f9; color:#0f172a; cursor:not-allowed; border-color:#cbd5e1;" title="Dihitung otomatis oleh sistem = TMT + (Durasi - 1) Hari Kalender" />
+              <div style="font-size:10px; color:#0284c7; margin-top:3px;">🤖 Dihitung otomatis oleh sistem</div>
+            </div>
+          </div>
+          <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:8px 10px; font-size:11px; color:#475569;">
+            🗓️ <b>Pratinjau Jadwal Definitif:</b> <span id="mu_jadwal_spp_preview" style="font-weight:800; color:#1e40af;">${defaultDurasi} Hari Kalender (<b style="color:#1d4ed8;">${defaultTglMulai}</b> s.d. <b style="color:#dc2626;">${defaultTglSelesai}</b>) — Pengiriman, Perakitan Hardware &amp; Instalasi OS Windows Server 2025.</span>
+          </div>
+        </div>
+
+        <!-- 3. RINCIAN BARANG YANG DIPERINTAHKAN UNTUK DIKIRIM (BoQ SPP - DOKUMEN 01) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
+              <span>📦 3. Daftar Barang yang Diperintahkan untuk Dikirim (BoQ Dokumen 01 SPP)</span>
+            </div>
+            <span class="cakra-badge" style="background:#e0f2fe; color:#0369a1; font-size:10px; font-weight:700;">Sesuai Surat Pesanan E-Purchasing</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="cakra-table" style="width:100%; font-size:11px; border-collapse:collapse;">
+              <thead>
+                <tr style="background:#f1f5f9; color:#334155; font-weight:700; text-align:left;">
+                  <th style="padding:6px 8px; width:35px; text-align:center; border:1px solid #cbd5e1;">No</th>
+                  <th style="padding:6px 8px; border:1px solid #cbd5e1;">Nama Barang</th>
+                  <th style="padding:6px 8px; border:1px solid #cbd5e1;">Spesifikasi Teknis &amp; Kualitas</th>
+                  <th style="padding:6px 8px; width:70px; text-align:center; border:1px solid #cbd5e1;">Vol</th>
+                  <th style="padding:6px 8px; width:120px; text-align:right; border:1px solid #cbd5e1;">Nilai SPP (Rp)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemRowsHtml}
+              </tbody>
+              <tfoot>
+                <tr style="background:#f8fafc; font-weight:800; color:#0f172a;">
+                  <td colspan="4" style="padding:6px 8px; text-align:right; border:1px solid #cbd5e1;">TOTAL NILAI SURAT PERINTAH PENGIRIMAN (TERMASUK PPN 11% &amp; ONGKIR):</td>
+                  <td style="padding:6px 8px; text-align:right; border:1px solid #cbd5e1; color:#15803d; font-size:11.5px;">${formatRupiah(nilaiKontrak)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- KETENTUAN KHUSUS PASCA PENGIRIMAN (DOKUMEN 01 SPP) - 100% DINAMIS & EDITABLE -->
+          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:6px; padding:10px; margin-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+              <div style="font-size:11px; font-weight:800; color:#166534; display:flex; align-items:center; gap:6px;">
+                <span>🛠️ Ketentuan Teknis Pasca Pengiriman (Tercantum pada Dokumen 01 SPP):</span>
+                <span id="pasca_count_badge" class="cakra-badge" style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:700;">5 Klausul</span>
+              </div>
+              <button type="button" class="cakra-btn cakra-btn-sm" onclick="window.addPascaRow()" style="background:#16a34a; color:#ffffff; font-size:10.5px; font-weight:700; border:none; padding:3px 10px; border-radius:5px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                <span>➕ Tambah Ketentuan</span>
+              </button>
+            </div>
+            <div id="pasca_pengiriman_list" style="display:flex; flex-direction:column; gap:6px;">
+              <!-- Dynamic Rows populated by window.renderPascaPengirimanRows -->
+            </div>
+            <div style="font-size:10px; color:#15803d; margin-top:6px; font-style:italic;">
+              💡 <b>Fleksibel &amp; Sesuai Kebutuhan:</b> Anda dapat menambah, mengubah judul/deskripsi, atau menghapus butir SOP pasca pengiriman di atas sesuai karakteristik pengadaan barang (server, perabot, kendaraan, logistik, dll).
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. BERITA ACARA KESIAPAN & PENYERAHAN LOKASI (BA-SPL - DOKUMEN 02) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+            <span>🏢 4. Berita Acara Kesiapan &amp; Penyerahan Lokasi Instalasi (BA-SPL - Dokumen 02)</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Dokumen BA-SPL *</label>
+              <input type="text" id="mu_no_ba_spl" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultNoBaSpl)}" style="font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Dokumen BA-SPL *</label>
+              <input type="date" id="mu_tgl_ba_spl" class="cakra-form-control" value="${cakraEsc(defaultTglBaSpl)}" style="font-weight:700;" />
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nama Teknisi Rekanan (PIC Lapangan Penerima Izin Akses) *</label>
+              <input type="text" id="mu_pic_teknisi_rekanan" class="cakra-form-control" value="${cakraEsc(defaultPicTeknisi)}" style="font-weight:600;" />
+              <div style="font-size:10px; color:#64748b; margin-top:2px;">Teknisi bersertifikasi yang ditugaskan oleh ${cakraEsc(penyediaNama)}</div>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kontak Telepon / WA Teknisi *</label>
+              <input type="text" id="mu_kontak_teknisi_rekanan" class="cakra-form-control cakra-mono" value="${cakraEsc(defaultKontakTeknisi)}" style="font-weight:600;" />
+              <div style="font-size:10px; color:#64748b; margin-top:2px;">No. kontak aktif untuk koordinasi Tim Teknis KPU</div>
+            </div>
+          </div>
+
+          <!-- TOOLBAR PRESET PENGADAAN & TOMBOL TAMBAH BARIS -->
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; margin-top:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:11px; font-weight:800; color:#1e293b;">⚡ Pustaka Preset:</span>
+              <button type="button" class="cakra-btn cakra-btn-sm" onclick="window.applySppPreset('server')" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;" title="Muat Parameter Ruang Server IT">🖥️ Server (IT)</button>
+              <button type="button" class="cakra-btn cakra-btn-sm" onclick="window.applySppPreset('mebeler')" style="background:#fefce8; color:#a16207; border:1px solid #fef08a; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;" title="Muat Parameter Mebeler / Perabot">🪑 Mebeler</button>
+              <button type="button" class="cakra-btn cakra-btn-sm" onclick="window.applySppPreset('kendaraan')" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;" title="Muat Parameter Kendaraan Dinas">🚗 Kendaraan</button>
+              <button type="button" class="cakra-btn cakra-btn-sm" onclick="window.applySppPreset('gudang_logistik')" style="background:#faf5ff; color:#7e22ce; border:1px solid #e9d5ff; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;" title="Muat Parameter Gudang Logistik">📦 Gudang</button>
+              <button type="button" class="cakra-btn cakra-btn-sm" onclick="window.applySppPreset('custom')" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:10.5px; font-weight:600; padding:3px 8px; border-radius:4px; cursor:pointer;" title="Reset Kosong / Buat Kustom Sendiri">📄 Kosongkan</button>
+            </div>
+            <button type="button" class="cakra-btn cakra-btn-sm" onclick="window.addMc0Row()" style="background:#2563eb; color:#ffffff; font-size:10.5px; font-weight:700; border:none; padding:4px 10px; border-radius:5px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+              <span>➕ Tambah Parameter</span>
+            </button>
+          </div>
+
+          <!-- TABEL VERIFIKASI FAKTUAL MC-0 DINAMIS -->
+          <div style="margin-top:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label style="font-size:11px; font-weight:800; color:#1e3a8a; display:block;">
+                🔍 Tabel Verifikasi Faktual Parameter Kesiapan Lokasi (MC-0 Dokumen 02):
+              </label>
+              <span id="mc0_summary_badge" class="cakra-badge" style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:700;">100% Memenuhi Syarat</span>
+            </div>
+            <div style="border:1px solid #cbd5e1; border-radius:6px; overflow-x:auto;">
+              <table class="cakra-table" style="width:100%; font-size:11px; border-collapse:collapse;">
+                <thead>
+                  <tr style="background:#f8fafc; color:#334155; font-weight:700;">
+                    <th style="padding:6px 8px; width:35px; text-align:center; border-bottom:1px solid #cbd5e1;">No</th>
+                    <th style="padding:6px 8px; width:200px; border-bottom:1px solid #cbd5e1;">Parameter Pemeriksaan</th>
+                    <th style="padding:6px 8px; border-bottom:1px solid #cbd5e1;">Kondisi &amp; Hasil Pengukuran Faktual</th>
+                    <th style="padding:6px 8px; width:180px; text-align:center; border-bottom:1px solid #cbd5e1;">Status Verifikasi</th>
+                    <th style="padding:6px 8px; width:45px; text-align:center; border-bottom:1px solid #cbd5e1;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="mc0_table_body">
+                  <!-- Dynamic Rows populated by window.renderMc0TableRows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kesimpulan Catatan Kesiapan Lokasi (Dokumen 02 BA-SPL) *</label>
+            <textarea id="mu_kondisi_ruang_server" class="cakra-form-control" rows="2" style="font-size:11px; line-height:1.45;">${cakraEsc(defaultKondisiRuang)}</textarea>
+          </div>
+
+          <div style="background:#eff6ff; border:1px dashed #93c5fd; border-radius:6px; padding:8px 10px; margin-top:8px; font-size:11px; color:#1e40af;">
+            🔑 <b>Pernyataan Penyerahan Hak Akses:</b> PPK secara resmi menyerahkan hak akses ruang kerja instalasi kepada Teknisi Rekanan (${cakraEsc(penyediaNama)}) terhitung sejak TMT (${cakraFormatTanggalIndo(defaultTglMulai)}) s.d. Batas Akhir (${cakraFormatTanggalIndo(defaultTglSelesai)}).
+          </div>
+        </div>
+
+        <!-- 5. INSTRUKSI KHUSUS & CATATAN PENGIRIMAN PPK -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#1e3a8a; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+            <span>📝 5. Instruksi Khusus &amp; Catatan Pengiriman PPK (Kepada ${cakraEsc(penyediaNama)})</span>
+          </div>
+          <textarea id="mu_catatan_spp" class="cakra-form-control" rows="3" style="font-size:11px; line-height:1.45;">${cakraEsc(defaultCatatanSpp)}</textarea>
         </div>
       `;
+    }
 
     case 15:
       return `
@@ -11487,7 +12309,53 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       tanggalDokumen = extraPaketFields.tgl_kontrak;
     }
   } else if (num === 14) {
+    extraPaketFields.no_spp = getStr('mu_no_spp') || paket.no_spp;
+    extraPaketFields.tgl_spp = getStr('mu_tgl_spp') || paket.tgl_spp || '2026-05-27';
     extraPaketFields.lokasi_pekerjaan = getStr('mu_lokasi_pekerjaan') || paket.lokasi_pekerjaan;
+    extraPaketFields.masa_pelaksanaan_hari = getNum('mu_masa_pelaksanaan_hari_spp') || paket.masa_pelaksanaan_hari || 14;
+    extraPaketFields.tgl_mulai_kerja = getStr('mu_tgl_mulai_kerja_spp') || paket.tgl_mulai_kerja || '2026-05-27';
+    extraPaketFields.tgl_selesai_kontrak = getStr('mu_tgl_selesai_kontrak_spp') || paket.tgl_selesai_kontrak || '2026-06-09';
+    extraPaketFields.tgl_selesai_kerja = extraPaketFields.tgl_selesai_kontrak;
+    extraPaketFields.no_ba_spl = getStr('mu_no_ba_spl') || paket.no_ba_spl;
+    extraPaketFields.tgl_ba_spl = getStr('mu_tgl_ba_spl') || paket.tgl_ba_spl || extraPaketFields.tgl_spp;
+    extraPaketFields.pic_teknisi_rekanan = getStr('mu_pic_teknisi_rekanan') || paket.pic_teknisi_rekanan;
+    extraPaketFields.kontak_teknisi_rekanan = getStr('mu_kontak_teknisi_rekanan') || paket.kontak_teknisi_rekanan;
+    extraPaketFields.kondisi_ruang_server = getStr('mu_kondisi_ruang_server') || paket.kondisi_ruang_server;
+    extraPaketFields.catatan_spp = getStr('mu_catatan_spp') || paket.catatan_spp;
+
+    // Harvest Parameter Kesiapan Lokasi MC-0 (Dinamis)
+    const mc0Rows = [];
+    document.querySelectorAll('#mc0_table_body tr.mc0-row').forEach((tr, idx) => {
+      const param = tr.querySelector('.mc0-param-name')?.value?.trim() || '';
+      const kondisi = tr.querySelector('.mc0-param-kondisi')?.value?.trim() || '';
+      const status = tr.querySelector('.mc0-param-status')?.value || 'MEMENUHI SYARAT';
+      if (param || kondisi) {
+        mc0Rows.push({ no: idx + 1, parameter: param, kondisi: kondisi, status: status });
+      }
+    });
+    if (mc0Rows.length > 0) {
+      extraPaketFields.parameter_kesiapan_lokasi_json = JSON.stringify(mc0Rows);
+    }
+
+    // Harvest Ketentuan Pasca Pengiriman SPP (Dinamis)
+    const pascaRows = [];
+    document.querySelectorAll('#pasca_pengiriman_list .pasca-item-row').forEach((div, idx) => {
+      const judul = div.querySelector('.pasca-judul')?.value?.trim() || '';
+      const deskripsi = div.querySelector('.pasca-deskripsi')?.value?.trim() || '';
+      if (judul || deskripsi) {
+        pascaRows.push({ no: idx + 1, judul: judul, deskripsi: deskripsi });
+      }
+    });
+    if (pascaRows.length > 0) {
+      extraPaketFields.ketentuan_pasca_pengiriman_json = JSON.stringify(pascaRows);
+    }
+
+    if (extraPaketFields.no_spp) {
+      nomorDokumen = extraPaketFields.no_spp;
+    }
+    if (extraPaketFields.tgl_spp) {
+      tanggalDokumen = extraPaketFields.tgl_spp;
+    }
   } else if (num === 15) {
     extraPaketFields.realisasi_fisik_persen = getNum('mu_realisasi_fisik_persen') || paket.realisasi_fisik_persen;
     extraPaketFields.status_scm = getStr('mu_status_scm') || paket.status_scm;
@@ -11518,7 +12386,9 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       no_reviu_dpp: getStr('mu_no_reviu_dpp') || activeTRow.no_reviu_dpp || '',
       no_ba_nego: extraPaketFields.no_ba_nego || activeTRow.no_ba_nego || '',
       no_bahp: extraPaketFields.no_bahp || activeTRow.no_bahp || '',
-      no_ba_reviu_ppk: extraPaketFields.no_ba_reviu_ppk || activeTRow.no_ba_reviu_ppk || ''
+      no_ba_reviu_ppk: extraPaketFields.no_ba_reviu_ppk || activeTRow.no_ba_reviu_ppk || '',
+      no_spp: extraPaketFields.no_spp || activeTRow.no_spp || '',
+      no_ba_spl: extraPaketFields.no_ba_spl || activeTRow.no_ba_spl || ''
     }
   };
 

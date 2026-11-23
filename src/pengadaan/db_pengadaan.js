@@ -195,10 +195,32 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN jenis_meterai VARCHAR(100) DEFAULT 'e-Meterai Resmi Peruri (Rp 10.000)'",
     "ALTER TABLE pbj_paket ADD COLUMN ketentuan_denda VARCHAR(255) DEFAULT '1/1000 (satu permil) per hari keterlambatan dari Nilai Kontrak sebelum PPN'",
     "ALTER TABLE pbj_paket ADD COLUMN catatan_kontrak TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN target_sertifikat_tkdn TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN ketentuan_garansi TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN penyelesaian_sengketa TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN bmn_kondisi_eksisting TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN bmn_kesesuaian_rkbmn TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN tempat_reviu_dpp TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN tempat_pemilihan TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN evaluasi_spek_sla TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN tempat_pam TEXT",
+    "ALTER TABLE pbj_paket MODIFY COLUMN tempat_ttd_kontrak TEXT",
+    "ALTER TABLE pbj_paket ADD COLUMN no_spp VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_spp VARCHAR(32) DEFAULT '2026-05-27'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_ba_spl VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_ba_spl VARCHAR(32) DEFAULT '2026-05-27'",
+    "ALTER TABLE pbj_paket ADD COLUMN kondisi_ruang_server TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN pic_teknisi_rekanan VARCHAR(191) DEFAULT 'Ahmad Fauzi (Lead Systems Engineer)'",
+    "ALTER TABLE pbj_paket ADD COLUMN kontak_teknisi_rekanan VARCHAR(64) DEFAULT '0812-3456-7890'",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_spp TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN parameter_kesiapan_lokasi_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN ketentuan_pasca_pengiriman_json TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_sppbj VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_pam VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_undangan_pam VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_kontrak VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_spp VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_spl VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_reviu_dpp VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_nego VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bahp VARCHAR(191) DEFAULT NULL",
@@ -775,6 +797,8 @@ async function savePaket(data) {
         legalitas_akta_notaris=?, legalitas_nib=?, legalitas_status_fiskal=?, legalitas_status_spt=?,
         kesepakatan_tgl_ttd_kontrak=?, kesepakatan_jadwal_pelaksanaan=?, catatan_pam=?,
         no_kontrak=?, tgl_kontrak=?, tempat_ttd_kontrak=?, jenis_meterai=?, ketentuan_denda=?, catatan_kontrak=?,
+        no_spp=?, tgl_spp=?, no_ba_spl=?, tgl_ba_spl=?, kondisi_ruang_server=?, pic_teknisi_rekanan=?, kontak_teknisi_rekanan=?, catatan_spp=?,
+        parameter_kesiapan_lokasi_json=?, ketentuan_pasca_pengiriman_json=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
         tahap_aktif=?, status_paket=?, skor_kualitas=?, skor_biaya=?, skor_waktu=?, skor_layanan=?,
         nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?
@@ -864,6 +888,16 @@ async function savePaket(data) {
         p.jenis_meterai || cur.jenis_meterai || 'e-Meterai Resmi Peruri (Rp 10.000)',
         p.ketentuan_denda || cur.ketentuan_denda || '1/1000 (satu permil) per hari keterlambatan dari Nilai Kontrak sebelum PPN',
         p.catatan_kontrak || cur.catatan_kontrak || null,
+        p.no_spp || cur.no_spp || null,
+        p.tgl_spp || cur.tgl_spp || '2026-05-27',
+        p.no_ba_spl || cur.no_ba_spl || null,
+        p.tgl_ba_spl || cur.tgl_ba_spl || '2026-05-27',
+        p.kondisi_ruang_server || cur.kondisi_ruang_server || 'Ruang Server KPU Kab. Ngawi Siap 100% (Listrik 220V Terproteksi UPS, Grounding 1.8 Ohm, AC 20°C)',
+        p.pic_teknisi_rekanan || cur.pic_teknisi_rekanan || 'Ahmad Fauzi (Lead Systems Engineer)',
+        p.kontak_teknisi_rekanan || cur.kontak_teknisi_rekanan || '0812-3456-7890',
+        p.catatan_spp || cur.catatan_spp || null,
+        p.parameter_kesiapan_lokasi_json !== undefined ? (typeof p.parameter_kesiapan_lokasi_json === 'string' ? p.parameter_kesiapan_lokasi_json : JSON.stringify(p.parameter_kesiapan_lokasi_json)) : cur.parameter_kesiapan_lokasi_json || null,
+        p.ketentuan_pasca_pengiriman_json !== undefined ? (typeof p.ketentuan_pasca_pengiriman_json === 'string' ? p.ketentuan_pasca_pengiriman_json : JSON.stringify(p.ketentuan_pasca_pengiriman_json)) : cur.ketentuan_pasca_pengiriman_json || null,
         p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
@@ -895,8 +929,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -910,7 +944,9 @@ async function savePaket(data) {
            no_sppbj = VALUES(no_sppbj),
            no_ba_pam = VALUES(no_ba_pam),
            no_undangan_pam = VALUES(no_undangan_pam),
-           no_kontrak = VALUES(no_kontrak)`,
+           no_kontrak = VALUES(no_kontrak),
+           no_spp = VALUES(no_spp),
+           no_ba_spl = VALUES(no_ba_spl)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -925,7 +961,9 @@ async function savePaket(data) {
           su.no_sppbj || existingStage.no_sppbj || p.no_sppbj || null,
           su.no_ba_pam || existingStage.no_ba_pam || p.no_ba_pam || null,
           su.no_undangan_pam || existingStage.no_undangan_pam || p.no_undangan_pam || null,
-          su.no_kontrak || existingStage.no_kontrak || p.no_kontrak || null
+          su.no_kontrak || existingStage.no_kontrak || p.no_kontrak || null,
+          su.no_spp || existingStage.no_spp || p.no_spp || null,
+          su.no_ba_spl || existingStage.no_ba_spl || p.no_ba_spl || null
         ]
       );
 
