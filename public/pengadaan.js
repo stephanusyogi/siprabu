@@ -6582,14 +6582,43 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       const penyedia = CakraState.activePaketCtx?.penyedia || {};
       const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
       const noBaphp = paket.no_baphp || activeTRow.no_baphp || `016/BAPHP/${cleanKode}/PPK/VI/2026`;
-      const tglBaphp = paket.tgl_baphp || activeTRow.tanggal_dokumen || '2026-06-09';
+      const tglBaphp = paket.tgl_baphp || (activeTRow.tanggal_dokumen && activeTRow.tanggal_dokumen > '2026-06-01' ? activeTRow.tanggal_dokumen : '2026-06-10');
       const noBast = paket.no_bast || activeTRow.no_bast || `016/BAST/${cleanKode}/PPK/VI/2026`;
       const tglBast = paket.tgl_bast || tglBaphp;
       const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
-      const hariTerlambat = Number(paket.hari_terlambat || 0);
-      const dendaRp = Number(paket.denda_keterlambatan_rp || 0);
+      let hariTerlambat = Number(paket.hari_terlambat || 0);
+      let dendaRp = Number(paket.denda_keterlambatan_rp || 0);
       const masaGaransiHari = Number(paket.masa_garansi_hari || 365);
-      const tglSelesaiGaransi = paket.tgl_selesai_garansi || '2027-06-09';
+      const tglSelesaiGaransi = paket.tgl_selesai_garansi || '2027-06-10';
+
+      // Parsing atau hitung denda dari realisasi item jika di DB masih 0
+      if (paket.realisasi_item_bast_json) {
+        try {
+          const parsed = typeof paket.realisasi_item_bast_json === 'string'
+            ? JSON.parse(paket.realisasi_item_bast_json)
+            : paket.realisasi_item_bast_json;
+          if (Array.isArray(parsed)) {
+            let sumDenda = 0;
+            let maxLate = 0;
+            parsed.forEach(it => {
+              const ht = Number(it.hari_terlambat || 0);
+              const dn = Number(it.denda_item !== undefined ? it.denda_item : (it.denda_rp || 0));
+              if (ht > 0) {
+                if (ht > maxLate) maxLate = ht;
+                sumDenda += dn;
+              }
+            });
+            if (dendaRp === 0 && sumDenda > 0) dendaRp = sumDenda;
+            if (hariTerlambat === 0 && maxLate > 0) hariTerlambat = maxLate;
+          }
+        } catch (e) {}
+      }
+
+      // Default Skenario Tahap 16 Simulasi Paket 1 KPU Ngawi (1 unit Server terlambat 1 hari)
+      if (Number(paket.id) === 1 && dendaRp === 0) {
+        dendaRp = 56568;
+        hariTerlambat = 1;
+      }
 
       // 1. Parsing 5 Titik Kritis BAPHP
       let baphpList = [];
@@ -6690,7 +6719,7 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
             <div style="font-size:11px; color:#166534; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBast)}</div>
             <div style="margin-top:8px; font-size:10.5px; color:#166534; line-height:1.4;">
               <div>Penyedia: <strong>${cakraEsc(penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI')}</strong></div>
-              <div>Hak Pembayaran: <strong style="color:#15803d;">Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)},-</strong> ${dendaRp > 0 ? `(Netto potong denda Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)})` : '(SPM-LS Lunas)'}</div>
+              <div>Hak Pembayaran: <strong style="color:#15803d;">Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)},-</strong> ${dendaRp > 0 ? `<span style="color:#b91c1c; font-size:9.5px; font-weight:700;">(Netto potong denda Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)})</span>` : '(SPM-LS Lunas)'}</div>
             </div>
           </div>
 
@@ -6698,14 +6727,16 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
           <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <span style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase;">⏱️ KEPATUHAN WAKTU &amp; GARANSI</span>
-              <span class="cakra-badge ${hariTerlambat > 0 ? 'cakra-badge-danger' : 'cakra-badge-info'}" style="font-size:10px; font-weight:800; background:${hariTerlambat > 0 ? '#fee2e2' : '#dbeafe'}; color:${hariTerlambat > 0 ? '#dc2626' : '#1e40af'};">
+              <span class="cakra-badge ${hariTerlambat > 0 ? 'cakra-badge-danger' : 'cakra-badge-info'}" style="font-size:10px; font-weight:800; background:${hariTerlambat > 0 ? '#fee2e2' : '#dbeafe'}; color:${hariTerlambat > 0 ? '#dc2626' : '#1e40af'}; border:1px solid ${hariTerlambat > 0 ? '#fca5a5' : '#bfdbfe'};">
                 ${hariTerlambat > 0 ? `DENDA ${hariTerlambat} HARI` : 'NIHIL DENDA'}
               </span>
             </div>
             <div style="font-size:12.5px; font-weight:800; color:${hariTerlambat > 0 ? '#dc2626' : '#1e3a8a'};">
               ${hariTerlambat > 0 ? `Denda Bagian: Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)}` : 'Selesai Tepat Waktu (0 Hari)'}
             </div>
-            <div style="font-size:11px; color:#1e40af; margin-top:2px;">Masa Kontrak: 14 Hari (27 Mei - 09 Juni 2026)</div>
+            <div style="font-size:11px; color:#1e40af; margin-top:2px;">
+              ${hariTerlambat > 0 ? 'STTBS 09 Juni: 3 PC Workstation | 1 Server: 10 Juni' : 'Masa Kontrak: 14 Hari (27 Mei - 09 Juni 2026)'}
+            </div>
             <div style="margin-top:8px; font-size:10.5px; color:#1e3a8a; line-height:1.4;">
               <div>Garansi: <strong>${masaGaransiHari} Hari (s.d. ${formatTanggalIndo(tglSelesaiGaransi)})</strong></div>
               <div>Retensi: <strong>Bebas Retensi 5% (Garansi Pabrikan)</strong></div>
@@ -6713,15 +6744,34 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
           </div>
 
           <!-- KARTU 4: KESIAPAN PENAGIHAN PEMBAYARAN TAHAP 17 -->
-          <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; padding:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <span style="font-size:10.5px; font-weight:700; color:#7e22ce; text-transform:uppercase;">💳 REKOMENDASI PEMBAYARAN</span>
-              <span class="cakra-badge" style="background:#f3e8ff; color:#7e22ce; font-size:10px; font-weight:800;">SIAP TAHAP 17</span>
+          <div style="background:#faf5ff; border:1px solid #d8b4fe; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:700; color:#7e22ce; text-transform:uppercase;">💳 REKOMENDASI PEMBAYARAN</span>
+                <span class="cakra-badge" style="background:#f3e8ff; color:#7e22ce; font-size:10px; font-weight:800; border:1px solid #d8b4fe;">SIAP TAHAP 17</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#581c87;">Siap Pengajuan SPM-LS KPPN</div>
+              <div style="font-size:11px; color:#7e22ce; margin-top:2px;">Alokasi DIPA APBN 2026 | MAK 532111</div>
             </div>
-            <div style="font-size:12.5px; font-weight:800; color:#581c87;">Siap Pengajuan SPM-LS KPPN</div>
-            <div style="font-size:11px; color:#7e22ce; margin-top:2px;">Alokasi DIPA APBN 2026 | MAK 532111</div>
-            <div style="margin-top:8px; font-size:10.5px; color:#581c87; line-height:1.4;">
-              <div>Pekerjaan diterima 100% sah. Hak pembayaran netto sebesar <strong>Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)},-</strong> ${dendaRp > 0 ? `(dipotong denda keterlambatan bagian kontrak Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)})` : ''}. Siap penerbitan SPP-LS dan SPM-LS Tahap 17.</div>
+            
+            <div style="margin-top:8px; font-size:10.5px; color:#581c87; line-height:1.45; background:#ffffff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span>Bruto Kontrak 100%:</span>
+                <strong>Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak)},-</strong>
+              </div>
+              ${dendaRp > 0 ? `
+                <div style="display:flex; justify-content:space-between; color:#dc2626; font-weight:700; margin-bottom:2px;">
+                  <span>Potongan Denda:</span>
+                  <span>- Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)},-</span>
+                </div>
+                <div style="font-size:9.5px; color:#7e22ce; font-style:italic; margin-bottom:4px; text-align:right;">
+                  (Disetor Kas Negara Akun 425161)
+                </div>
+              ` : ''}
+              <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px; border-top:1px dashed #d8b4fe; font-weight:800; color:#15803d; font-size:11.5px;">
+                <span>Hak Bersih Netto:</span>
+                <span>Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)},-</span>
+              </div>
             </div>
           </div>
         </div>
@@ -6799,9 +6849,14 @@ function renderUniversalStageCard(stageNo, activeStageDef, activeTRow, paket, it
   const driveLink = String(activeTRow.link_drive_dokumen || '').trim();
   const hasDrive = driveLink.length > 5;
   const isDone = activeTRow.status_tahap === 'Selesai' || (hasDrive && activeTRow.status_tahap !== 'Bypass');
+  const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
   const autoDocNo = generateAutoStageDocNumber(num, paket.kode_paket_internal, activeTRow.tanggal_dokumen);
-  const docNo = activeTRow.nomor_dokumen || autoDocNo;
-  const docDate = activeTRow.tanggal_dokumen || '2026-05-18';
+  let docNo = activeTRow.nomor_dokumen || autoDocNo;
+  let docDate = activeTRow.tanggal_dokumen || '2026-05-18';
+  if (num === 16) {
+    docNo = paket.no_bast || activeTRow.no_bast || (activeTRow.nomor_dokumen && !activeTRow.nomor_dokumen.includes('XI') ? activeTRow.nomor_dokumen : `016/BAST/${cleanKode}/PPK/VI/2026`);
+    docDate = paket.tgl_bast || (activeTRow.tanggal_dokumen && activeTRow.tanggal_dokumen > '2026-06-01' ? activeTRow.tanggal_dokumen : '2026-06-10');
+  }
 
   return `
     <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05); overflow:hidden; margin-bottom:18px;">

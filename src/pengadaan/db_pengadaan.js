@@ -284,6 +284,90 @@ async function ensurePaketMissingColumns(pool) {
       await pool.query("REPLACE INTO pbj_settings (`key`, `value`) VALUES ('fix_uang_muka_epurchasing_v1', '1')");
     }
   } catch (e) {}
+
+  // Migrasi otomatis sinkronisasi skenario Tahap 16 BAPHP & BAST (Denda Parsial 1 Hari Rp 56.568 & Tanggal 10 Juni 2026)
+  try {
+    const [t16Flags] = await pool.query("SELECT `value` FROM pbj_settings WHERE `key` = 'sync_tahap16_bast_denda_v2'");
+    if (!t16Flags || !t16Flags.length || t16Flags[0].value !== '1') {
+      const defaultTitikKritisBaphp = [
+        { no: 1, titik_kritis: 'Verifikasi Kuantitas & Keutuhan Fisik Barang', standar: '1 Unit PC Server & 3 Unit PC Workstation lengkap segel pabrikan utuh', hasil: 'Diterima utuh 100% lengkap tanpa cacat fisik atau cacat logistik', status: 'MEMENUHI SYARAT' },
+        { no: 2, titik_kritis: 'Kesesuaian Spesifikasi Teknis & Komponen Inti', standar: 'Dell PowerEdge T350, Dual Xeon, 64GB ECC, 2x 1.92TB NVMe RAID-1, Dual PSU', hasil: 'Spesifikasi hardware identik 100% dengan KAK & Surat Pesanan', status: 'MEMENUHI SYARAT' },
+        { no: 3, titik_kritis: 'Validasi Uji Fungsi & Stabilitas Operasional', standar: 'Burn-in test 24 jam non-stop, redundansi PSU failover, stabilitas jaringan LAN', hasil: 'Sistem lulus uji beban puncak 24 jam tanpa error (BA-KOM terlampir)', status: 'MEMENUHI SYARAT' },
+        { no: 4, titik_kritis: 'Legalitas Lisensi OS & Sertifikat Garansi Resmi', standar: 'Windows Server 2025 Standard COA digital aktif online, garansi pabrikan 1 tahun', hasil: 'Lisensi original teraktivasi digital, sertifikat garansi resmi ATPM sah', status: 'MEMENUHI SYARAT' },
+        { no: 5, titik_kritis: 'Kelengkapan Dokumen Serah Terima & Manual', standar: 'Surat jalan, manual operasional bahasa Indonesia, CD driver/recovery firmware', hasil: 'Seluruh bundel dokumentasi teknis dan panduan operasional diserahkan lengkap', status: 'MEMENUHI SYARAT' }
+      ];
+
+      const realisasiItemBast = [
+        {
+          id: 1,
+          nama_item: 'PC Server Tower Database Operasional SIDALIH & Logistik',
+          volume: 1,
+          satuan: 'Unit',
+          dpp: 56567568,
+          nilai_item: 62790000,
+          tgl_batas: '2026-06-09',
+          tgl_realisasi: '2026-06-10',
+          hari_terlambat: 1,
+          denda_item: 56568,
+          status: 'TERLAMBAT'
+        },
+        {
+          id: 2,
+          nama_item: 'PC Workstation Operasional Pengolah Data SIDALIH',
+          volume: 3,
+          satuan: 'Unit',
+          dpp: 67756757,
+          nilai_item: 75210000,
+          tgl_batas: '2026-06-09',
+          tgl_realisasi: '2026-06-09',
+          hari_terlambat: 0,
+          denda_item: 0,
+          status: 'TEPAT_WAKTU'
+        }
+      ];
+
+      const catatanBastDefault = 'Hasil pemeriksaan fisik faktual dan uji fungsi komisioning 24 jam non-stop atas pengadaan 1 unit PC Server Dell PowerEdge T350 dan 3 unit PC Workstation SIDALIH telah selesai 100% dalam kondisi baik, lengkap, dan beroperasi normal tanpa cacat. Seluruh spesifikasi teknis dan volume sesuai naskah kontrak Surat Pesanan No. 013/SP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026. Sebanyak 3 unit PC Workstation diserahkan tepat waktu pada 09 Juni 2026 dan berfungsi penuh secara mandiri (dibuktikan dengan Surat Tanda Terima Barang Sementara / STTBS No. 016/STTBS/PBJ-2026-001/PPK/VI/2026 tanggal 09 Juni 2026). Adapun 1 unit PC Server diserahkan pada 10 Juni 2026 (terlambat 1 hari kalender dari batas akhir 09 Juni 2026). Pemeriksaan fisik 100% (BAPHP) dan Serah Terima Pertama Pekerjaan (BAST) dilaksanakan pada hari Rabu tanggal 10 Juni 2026 setelah seluruh barang tiba lengkap. Sesuai ketentuan Pasal 79 ayat (4) huruf b Perpres No. 12/2021 dan SSKK Surat Pesanan, penyedia dikenakan sanksi denda keterlambatan bagian kontrak sebesar 1‰ per hari dari DPP bagian pekerjaan yang terlambat (1/1.000 × Rp 56.567.568,- × 1 hari = Rp 56.568,-). Penyedia memberikan jaminan garansi resmi pabrikan selama 365 hari kalender (10 Juni 2026 s.d. 10 Juni 2027) dengan SLA respon 1x24 jam onsite. Pengadaan dibebaskan dari retensi 5% dan berhak menerima pembayaran netto sebesar Rp 137.943.432,- (setelah dipotong denda Rp 56.568,-) melalui SPM-LS KPPN.';
+
+      await pool.query(`
+        UPDATE pbj_paket
+        SET no_baphp = '016/BAPHP/PBJ-2026-001/PPK/VI/2026',
+            tgl_baphp = '2026-06-10',
+            nama_tim_pemeriksa = 'Tim Teknis / Pejabat Pemeriksa Pengadaan KPU Ngawi',
+            nip_tim_pemeriksa = '198503152010121002',
+            kesimpulan_pemeriksaan_baphp = 'Diterima Penuh / Lulus 100% Memenuhi Spesifikasi Teknis & Volume',
+            parameter_pemeriksaan_baphp_json = ?,
+            realisasi_item_bast_json = ?,
+            no_bast = '016/BAST/PBJ-2026-001/PPK/VI/2026',
+            tgl_bast = '2026-06-10',
+            tempat_bast = 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+            catatan_bast = ?,
+            status_denda = 'Dikenakan Denda Keterlambatan Bagian Kontrak Rp 56.568 (PC Server Tower Database Operasional (1 Hari - Denda Rp 56.568))',
+            denda_keterlambatan_rp = 56568.00,
+            tgl_realisasi_selesai = '2026-06-10',
+            hari_terlambat = 1,
+            masa_garansi_hari = 365,
+            tgl_mulai_garansi = '2026-06-10',
+            tgl_selesai_garansi = '2027-06-10'
+        WHERE id = 1
+      `, [JSON.stringify(defaultTitikKritisBaphp), JSON.stringify(realisasiItemBast), catatanBastDefault]);
+
+      await pool.query(`
+        UPDATE pbj_paket_tahap
+        SET nomor_dokumen = '016/BAST/PBJ-2026-001/PPK/VI/2026',
+            tanggal_dokumen = '2026-06-10',
+            status_tahap = 'Draft',
+            no_baphp = '016/BAPHP/PBJ-2026-001/PPK/VI/2026',
+            no_bast = '016/BAST/PBJ-2026-001/PPK/VI/2026',
+            catatan_tahap = 'Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP No. 016/BAPHP/PBJ-2026-001/PPK/VI/2026) dan Berita Acara Serah Terima Pertama Pekerjaan (BAST No. 016/BAST/PBJ-2026-001/PPK/VI/2026) telah terbit resmi bertanggal 10 Juni 2026 dengan hasil Lulus 100% (Denda Bagian Kontrak Rp 56.568,- & Garansi 1 Tahun). Disertai Lampiran Surat Tanda Terima Barang Sementara (STTBS No. 016/STTBS/PBJ-2026-001/PPK/VI/2026 tanggal 09 Juni 2026).'
+        WHERE paket_id = 1 AND no_tahap = 16
+      `);
+
+      await pool.query("REPLACE INTO pbj_settings (`key`, `value`) VALUES ('sync_tahap16_bast_denda_v2', '1')");
+      console.log('[DB-MIGRATE] Skenario Tahap 16 BAPHP & BAST Paket 1 berhasil disinkronkan ke DB.');
+    }
+  } catch (e) {
+    console.warn('[DB-MIGRATE-WARN] Gagal migrasi Tahap 16:', e.message);
+  }
 }
 
 
