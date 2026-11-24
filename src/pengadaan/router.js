@@ -7,6 +7,8 @@
 const archiver = require('archiver');
 const {
   initDatabaseSchemaAndSeed,
+  getCakraPool,
+  ensurePaketMissingColumns,
   getSettingsMap,
   saveSettingsMap,
   getPejabatList,
@@ -84,15 +86,37 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
   try {
     await initDatabaseSchemaAndSeed();
 
+    // Endpoint manual trigger sinkronisasi skenario database Tahap 16 BAPHP, BAST & Denda
+    if (pathname === '/api/cakra/sync-tahap16' && method === 'GET') {
+      const pool = getCakraPool();
+      await ensurePaketMissingColumns(pool);
+      return sendJson(res, 200, {
+        ok: true,
+        message: 'Migrasi & sinkronisasi skenario Tahap 16 BAPHP, BAST & Denda berhasil dijalankan ke database.'
+      });
+    }
+
     // 1. Bootstrap Data Dashboard & Master Pengadaan
     if (pathname === '/api/cakra/bootstrap' && method === 'GET') {
-      const [settings, pejabats, penyedias, pakets, kblis] = await Promise.all([
+      let [settings, pejabats, penyedias, pakets, kblis] = await Promise.all([
         getSettingsMap(),
         getPejabatList(),
         getPenyediaList(),
         getPaketList(),
         getKbliList()
       ]);
+
+      // Self-healing: jika migrasi Tahap 16 belum tertulis di DB (misal di server online belum restart), jalankan on-the-fly
+      if (!settings['sync_tahap16_bast_denda_v2']) {
+        try {
+          const pool = getCakraPool();
+          await ensurePaketMissingColumns(pool);
+          settings = await getSettingsMap();
+          pakets = await getPaketList();
+        } catch (e) {
+          console.warn('[BOOTSTRAP-MIGRATE-WARN]', e.message);
+        }
+      }
 
       let totalPagu = 0;
       let totalPaguBerkontrak = 0;
