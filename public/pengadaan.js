@@ -92,6 +92,10 @@ function cakraFormatTanggalIndo(dateStr) {
   return `${d} ${bulan[m] || ''} ${y}`;
 }
 window.cakraFormatTanggalIndo = cakraFormatTanggalIndo;
+window.formatTanggalIndo = cakraFormatTanggalIndo;
+function formatTanggalIndo(dateStr) {
+  return cakraFormatTanggalIndo(dateStr);
+}
 
 function cakraNotify(msg, type = 'success') {
   if (typeof window.showToast === 'function') {
@@ -2548,6 +2552,13 @@ function renderCockpitRightDock() {
       <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="directDownloadPengadaanDoc('docx', ${paket.id}, ${stageNo})" style="font-weight:700; background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; box-shadow:0 1px 2px rgba(37,99,235,0.2);" title="Unduh Dokumen Word Resmi Tahap ${stageNo}">
         <span>📄 Word Tahap ${stageNo} (.docx)</span>
       </button>
+
+      <!-- Action 2b: Add-On Print STTBS (HANYA MUNCUL DI TAHAP 16 UNTUK PENERIMAAN PARSIAL) -->
+      ${Number(stageNo) === 16 ? `
+        <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.openSttbsModal(${paket.id})" style="font-weight:700; background:#f0fdf4; border:1px solid #86efac; color:#15803d; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Add-On Print: Cetak Surat Tanda Terima Barang Sementara untuk barang yang tiba parsial">
+          <span>📦 Cetak STTBS (Parsial)</span>
+        </button>
+      ` : ''}
 
       <!-- Action 3: Excel Tahap N (.xlsx) - HANYA Muncul di 8 Tahap: 3, 5, 6, 9, 13, 15, 17, 18 -->
       ${[3, 5, 6, 9, 13, 15, 17, 18].includes(Number(stageNo)) ? `
@@ -6567,21 +6578,179 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 16:
+    case 16: {
+      const penyedia = CakraState.activePaketCtx?.penyedia || {};
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const noBaphp = paket.no_baphp || activeTRow.no_baphp || `016/BAPHP/${cleanKode}/PPK/VI/2026`;
+      const tglBaphp = paket.tgl_baphp || activeTRow.tanggal_dokumen || '2026-06-09';
+      const noBast = paket.no_bast || activeTRow.no_bast || `016/BAST/${cleanKode}/PPK/VI/2026`;
+      const tglBast = paket.tgl_bast || tglBaphp;
+      const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
+      const hariTerlambat = Number(paket.hari_terlambat || 0);
+      const dendaRp = Number(paket.denda_keterlambatan_rp || 0);
+      const masaGaransiHari = Number(paket.masa_garansi_hari || 365);
+      const tglSelesaiGaransi = paket.tgl_selesai_garansi || '2027-06-09';
+
+      // 1. Parsing 5 Titik Kritis BAPHP
+      let baphpList = [];
+      if (paket.parameter_pemeriksaan_baphp_json) {
+        try {
+          baphpList = typeof paket.parameter_pemeriksaan_baphp_json === 'string'
+            ? JSON.parse(paket.parameter_pemeriksaan_baphp_json)
+            : paket.parameter_pemeriksaan_baphp_json;
+        } catch (e) {}
+      }
+      if (!Array.isArray(baphpList) || baphpList.length === 0) {
+        baphpList = [
+          { no: 1, titik_kritis: 'Verifikasi Kuantitas & Keutuhan Fisik Barang', standar: '1 Unit PC Server & 3 Unit PC Workstation lengkap segel pabrikan utuh', hasil: 'Diterima utuh 100% lengkap tanpa cacat fisik atau cacat logistik', status: 'MEMENUHI SYARAT' },
+          { no: 2, titik_kritis: 'Kesesuaian Spesifikasi Teknis & Komponen Inti', standar: 'Dell PowerEdge T350, Dual Xeon, 64GB ECC, 2x 1.92TB NVMe RAID-1, Dual PSU', hasil: 'Spesifikasi hardware identik 100% dengan KAK & Surat Pesanan', status: 'MEMENUHI SYARAT' },
+          { no: 3, titik_kritis: 'Validasi Uji Fungsi & Stabilitas Operasional', standar: 'Burn-in test 24 jam non-stop, redundansi PSU failover, stabilitas jaringan LAN', hasil: 'Sistem lulus uji beban puncak 24 jam tanpa error (BA-KOM terlampir)', status: 'MEMENUHI SYARAT' },
+          { no: 4, titik_kritis: 'Legalitas Lisensi OS & Sertifikat Garansi Resmi', standar: 'Windows Server 2025 Standard COA digital aktif online, garansi pabrikan 1 tahun', hasil: 'Lisensi original teraktivasi digital, sertifikat garansi resmi ATPM sah', status: 'MEMENUHI SYARAT' },
+          { no: 5, titik_kritis: 'Kelengkapan Dokumen Serah Terima & Manual', standar: 'Surat jalan, manual operasional bahasa Indonesia, CD driver/recovery firmware', hasil: 'Seluruh bundel dokumentasi teknis dan panduan operasional diserahkan lengkap', status: 'MEMENUHI SYARAT' }
+        ];
+      }
+
+      const totalKritis = baphpList.length;
+      let cntMemenuhi = 0;
+      let cntPerbaikan = 0;
+      let cntTidak = 0;
+      baphpList.forEach(b => {
+        const s = String(b.status || '').toUpperCase();
+        if (s.includes('TIDAK') || s.includes('GAGAL')) cntTidak++;
+        else if (s.includes('PERBAIKAN') || s.includes('PENDING')) cntPerbaikan++;
+        else cntMemenuhi++;
+      });
+      const pctMemenuhi = totalKritis > 0 ? Math.round((cntMemenuhi / totalKritis) * 100) : 100;
+
+      const tableRowsHtml = baphpList.map((b, idx) => {
+        const s = String(b.status || '').toUpperCase();
+        const isTdk = s.includes('TIDAK') || s.includes('GAGAL');
+        const isPrb = !isTdk && (s.includes('PERBAIKAN') || s.includes('PENDING'));
+        const badgeClass = isTdk ? 'cakra-badge-danger' : (isPrb ? 'cakra-badge-warning' : 'cakra-badge-success');
+        const badgeBg = isTdk ? '#fee2e2' : (isPrb ? '#fef3c7' : '#dcfce7');
+        const badgeColor = isTdk ? '#dc2626' : (isPrb ? '#b45309' : '#15803d');
+        const badgeText = isTdk ? '❌ TIDAK MEMENUHI' : (isPrb ? '⏳ PERLU PERBAIKAN' : '✅ MEMENUHI SYARAT');
+        const hslColor = isTdk ? '#dc2626' : (isPrb ? '#b45309' : '#15803d');
+
+        return `
+          <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:6px 8px; text-align:center; font-weight:700; color:#475569;">${idx + 1}</td>
+            <td style="padding:6px 8px; font-weight:700; color:#0f172a;">${cakraEsc(b.titik_kritis || b.parameter || '')}</td>
+            <td style="padding:6px 8px; color:#475569; font-size:10.5px;">${cakraEsc(b.standar || b.metode || '')}</td>
+            <td style="padding:6px 8px; color:${hslColor}; font-weight:600; font-size:10.5px;">${cakraEsc(b.hasil || '')}</td>
+            <td style="padding:6px 8px; text-align:center;">
+              <span class="cakra-badge ${badgeClass}" style="font-size:10px; font-weight:800; background:${badgeBg}; color:${badgeColor}; padding:3px 8px; border-radius:12px;">
+                ${badgeText}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      let baphpCardBadge = '<span class="cakra-badge cakra-badge-success" style="font-size:10px; font-weight:800; background:#dcfce7; color:#15803d;">LULUS 100%</span>';
+      let baphpCardHasil = `<div>Hasil: <strong>${totalKritis} Titik Kritis Terpenuhi Lengkap</strong></div>`;
+      if (cntTidak > 0) {
+        baphpCardBadge = `<span class="cakra-badge cakra-badge-danger" style="font-size:10px; font-weight:800; background:#fee2e2; color:#dc2626;">DITOLAK (${cntTidak} CACAT)</span>`;
+        baphpCardHasil = `<div>Hasil: <strong style="color:#dc2626;">${cntTidak} Titik Kritis Tidak Memenuhi Syarat</strong></div>`;
+      } else if (cntPerbaikan > 0) {
+        baphpCardBadge = `<span class="cakra-badge" style="font-size:10px; font-weight:800; background:#fef3c7; color:#b45309;">BERSYARAT (${cntPerbaikan} CATATAN)</span>`;
+        baphpCardHasil = `<div>Hasil: <strong style="color:#b45309;">${cntPerbaikan} Titik Kritis Perlu Perbaikan (7 Hari)</strong></div>`;
+      }
+
+      let baphpTableBadge = `<span style="font-size:10.5px; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:12px;">Lulus 100% Memenuhi Syarat KAK</span>`;
+      if (cntTidak > 0) {
+        baphpTableBadge = `<span style="font-size:10.5px; font-weight:700; color:#dc2626; background:#fee2e2; padding:2px 8px; border-radius:12px;">${pctMemenuhi}% Memenuhi (${cntTidak} Tidak Memenuhi)</span>`;
+      } else if (cntPerbaikan > 0) {
+        baphpTableBadge = `<span style="font-size:10.5px; font-weight:700; color:#b45309; background:#fef3c7; padding:2px 8px; border-radius:12px;">${pctMemenuhi}% Memenuhi (${cntPerbaikan} Perlu Perbaikan Minor)</span>`;
+      }
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:14px;">
+          <!-- KARTU 1: BAPHP (DOKUMEN 01) -->
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Nomor Berita Acara BAPHP &amp; BAST</div>
-            <div style="font-size:13px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(paket.no_bast || autoDocNo(16, activeTRow.tanggal_dokumen))}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">BAPHP: ${cakraEsc(activeTRow.no_baphp || '016/BAPHP/PBJ-2026-001/PPK/V/2026')}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">🔍 BAPHP (DOKUMEN 01)</span>
+              ${baphpCardBadge}
+            </div>
+            <div style="font-size:12.5px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(noBaphp)}</div>
+            <div style="font-size:11px; color:#64748b; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBaphp)}</div>
+            <div style="margin-top:8px; font-size:10.5px; color:#334155; line-height:1.4;">
+              <div>Koordinator: <strong>${cakraEsc(paket.nama_tim_pemeriksa || 'Tim Teknis / Pejabat Pemeriksa Pengadaan KPU Ngawi')}</strong></div>
+              ${baphpCardHasil}
+            </div>
           </div>
+
+          <!-- KARTU 2: BAST (DOKUMEN 02) -->
           <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">Hasil Uji Kelayakan &amp; Kuantitas</div>
-            <div style="font-size:13.5px; font-weight:800; color:#15803d;">✅ 100% Sesuai Spesifikasi</div>
-            <div style="font-size:11px; color:#166534; margin-top:2px;">Uji fungsi lengkap dan garansi purna jual aktif</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">🤝 BAST (DOKUMEN 02)</span>
+              <span class="cakra-badge cakra-badge-success" style="font-size:10px; font-weight:800; background:#bbf7d0; color:#15803d;">SAH &amp; DITERIMA</span>
+            </div>
+            <div style="font-size:12.5px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(noBast)}</div>
+            <div style="font-size:11px; color:#166534; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBast)}</div>
+            <div style="margin-top:8px; font-size:10.5px; color:#166534; line-height:1.4;">
+              <div>Penyedia: <strong>${cakraEsc(penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI')}</strong></div>
+              <div>Hak Pembayaran: <strong style="color:#15803d;">Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)},-</strong> ${dendaRp > 0 ? `(Netto potong denda Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)})` : '(SPM-LS Lunas)'}</div>
+            </div>
+          </div>
+
+          <!-- KARTU 3: KEPATUHAN WAKTU & GARANSI -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase;">⏱️ KEPATUHAN WAKTU &amp; GARANSI</span>
+              <span class="cakra-badge ${hariTerlambat > 0 ? 'cakra-badge-danger' : 'cakra-badge-info'}" style="font-size:10px; font-weight:800; background:${hariTerlambat > 0 ? '#fee2e2' : '#dbeafe'}; color:${hariTerlambat > 0 ? '#dc2626' : '#1e40af'};">
+                ${hariTerlambat > 0 ? `DENDA ${hariTerlambat} HARI` : 'NIHIL DENDA'}
+              </span>
+            </div>
+            <div style="font-size:12.5px; font-weight:800; color:${hariTerlambat > 0 ? '#dc2626' : '#1e3a8a'};">
+              ${hariTerlambat > 0 ? `Denda Bagian: Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)}` : 'Selesai Tepat Waktu (0 Hari)'}
+            </div>
+            <div style="font-size:11px; color:#1e40af; margin-top:2px;">Masa Kontrak: 14 Hari (27 Mei - 09 Juni 2026)</div>
+            <div style="margin-top:8px; font-size:10.5px; color:#1e3a8a; line-height:1.4;">
+              <div>Garansi: <strong>${masaGaransiHari} Hari (s.d. ${formatTanggalIndo(tglSelesaiGaransi)})</strong></div>
+              <div>Retensi: <strong>Bebas Retensi 5% (Garansi Pabrikan)</strong></div>
+            </div>
+          </div>
+
+          <!-- KARTU 4: KESIAPAN PENAGIHAN PEMBAYARAN TAHAP 17 -->
+          <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:10.5px; font-weight:700; color:#7e22ce; text-transform:uppercase;">💳 REKOMENDASI PEMBAYARAN</span>
+              <span class="cakra-badge" style="background:#f3e8ff; color:#7e22ce; font-size:10px; font-weight:800;">SIAP TAHAP 17</span>
+            </div>
+            <div style="font-size:12.5px; font-weight:800; color:#581c87;">Siap Pengajuan SPM-LS KPPN</div>
+            <div style="font-size:11px; color:#7e22ce; margin-top:2px;">Alokasi DIPA APBN 2026 | MAK 532111</div>
+            <div style="margin-top:8px; font-size:10.5px; color:#581c87; line-height:1.4;">
+              <div>Pekerjaan diterima 100% sah. Hak pembayaran netto sebesar <strong>Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)},-</strong> ${dendaRp > 0 ? `(dipotong denda keterlambatan bagian kontrak Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)})` : ''}. Siap penerbitan SPP-LS dan SPM-LS Tahap 17.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABEL REKAPITULASI 5 TITIK KRITIS PEMERIKSAAN BAPHP -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:11.5px; font-weight:800; color:#0f172a;">📋 Rekapitulasi Hasil Verifikasi Faktual 5 Titik Kritis BAPHP:</span>
+            ${baphpTableBadge}
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+              <thead>
+                <tr style="background:#f1f5f9; color:#334155; font-weight:800; text-align:left;">
+                  <th style="padding:6px 8px; width:35px; text-align:center; border-bottom:1px solid #cbd5e1;">NO</th>
+                  <th style="padding:6px 8px; width:28%; border-bottom:1px solid #cbd5e1;">TITIK KRITIS PEMERIKSAAN BAPHP</th>
+                  <th style="padding:6px 8px; width:28%; border-bottom:1px solid #cbd5e1;">STANDAR KONTRAK / KAK</th>
+                  <th style="padding:6px 8px; width:28%; border-bottom:1px solid #cbd5e1;">HASIL PEMERIKSAAN FAKTUAL</th>
+                  <th style="padding:6px 8px; width:120px; text-align:center; border-bottom:1px solid #cbd5e1;">STATUS EVALUASI</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRowsHtml}
+              </tbody>
+            </table>
           </div>
         </div>
       `;
+    }
 
     case 17:
       return `
@@ -9213,6 +9382,12 @@ function openModalTahapUniversal(stageNo) {
         window.initTahap15DynamicFields();
       }
     }, 50);
+  } else if (num === 16) {
+    setTimeout(() => {
+      if (typeof window.initTahap16DynamicFields === 'function') {
+        window.initTahap16DynamicFields();
+      }
+    }, 50);
   }
 }
 window.openModalTahapUniversal = openModalTahapUniversal;
@@ -10239,6 +10414,459 @@ window.initTahap15DynamicFields = function() {
     window.updateMilestoneSummaryBadge();
   } else if (typeof window.calcScmDeviasi === 'function') {
     window.calcScmDeviasi();
+  }
+};
+
+
+// =============================================================================
+// HELPER PRESET & MANAJEMEN BARIS 5 TITIK KRITIS PEMERIKSAAN BAPHP & BAST (TAHAP 16)
+// =============================================================================
+window.baphpPresets = {
+  server: {
+    nama: 'PC Server & Workstation IT',
+    titik_kritis: [
+      { no: 1, titik_kritis: 'Verifikasi Kuantitas & Keutuhan Fisik Barang', standar: '1 Unit PC Server & 3 Unit PC Workstation lengkap segel pabrikan utuh', hasil: 'Diterima utuh 100% lengkap tanpa cacat fisik atau cacat logistik', status: 'MEMENUHI SYARAT' },
+      { no: 2, titik_kritis: 'Kesesuaian Spesifikasi Teknis & Komponen Inti', standar: 'Dell PowerEdge T350, Dual Xeon, 64GB ECC, 2x 1.92TB NVMe RAID-1, Dual PSU', hasil: 'Spesifikasi hardware identik 100% dengan KAK & Surat Pesanan', status: 'MEMENUHI SYARAT' },
+      { no: 3, titik_kritis: 'Validasi Uji Fungsi & Stabilitas Operasional', standar: 'Burn-in test 24 jam non-stop, redundansi PSU failover, stabilitas jaringan LAN', hasil: 'Sistem lulus uji beban puncak 24 jam tanpa error (BA-KOM terlampir)', status: 'MEMENUHI SYARAT' },
+      { no: 4, titik_kritis: 'Legalitas Lisensi OS & Sertifikat Garansi Resmi', standar: 'Windows Server 2025 Standard COA digital aktif online, garansi pabrikan 1 tahun', hasil: 'Lisensi original teraktivasi digital, sertifikat garansi resmi ATPM sah', status: 'MEMENUHI SYARAT' },
+      { no: 5, titik_kritis: 'Kelengkapan Dokumen Serah Terima & Manual', standar: 'Surat jalan, manual operasional bahasa Indonesia, CD driver/recovery firmware', hasil: 'Seluruh bundel dokumentasi teknis dan panduan operasional diserahkan lengkap', status: 'MEMENUHI SYARAT' }
+    ]
+  },
+  mebeler: {
+    nama: 'Mebeler & Perlengkapan Kantor',
+    titik_kritis: [
+      { no: 1, titik_kritis: 'Kuantitas & Dimensi Fisik Mebeler', standar: 'Jumlah unit sesuai rincian kontrak, dimensi presisi sesuai denah ruangan', hasil: 'Unit lengkap 100%, ukuran presisi sesuai spesifikasi teknis', status: 'MEMENUHI SYARAT' },
+      { no: 2, titik_kritis: 'Material Bahan & Finishing Cat / Lapisan', standar: 'Kayu solid / blokteak anti rayap, finishing melamin / HPL rapi tanpa gores', hasil: 'Bahan kokoh, sambungan presisi, finishing halus merata', status: 'MEMENUHI SYARAT' },
+      { no: 3, titik_kritis: 'Kekuatan Beban & Uji Fungsi Mekanikal', standar: 'Engsel pintu, rel laci smooth bearing, kunci sentral berfungsi normal', hasil: 'Laci dan pintu beroperasi lancar, kunci sentral mengunci sempurna', status: 'MEMENUHI SYARAT' },
+      { no: 4, titik_kritis: 'Uji Ergonomi & Keamanan Penggunaan', standar: 'Ketinggian kursi/meja standar ergonomi kantor, sudut tumpul anti cedera', hasil: 'Sangat nyaman digunakan, stabilitas kaki kokoh', status: 'MEMENUHI SYARAT' },
+      { no: 5, titik_kritis: 'Sertifikat Garansi Konstruksi & Purna Jual', standar: 'Garansi konstruksi mebeler minimal 6 bulan s.d. 1 tahun pabrikan', hasil: 'Surat jaminan garansi resmi diserahkan oleh penyedia', status: 'MEMENUHI SYARAT' }
+    ]
+  },
+  kendaraan: {
+    nama: 'Kendaraan Bermotor Dinas Operasional',
+    titik_kritis: [
+      { no: 1, titik_kritis: 'Kelengkapan Fisik Kendaraan & Aksesoris', standar: 'Unit baru 100% (ODO < 50 km), ban cadangan, dongkrak, toolkit lengkap', hasil: 'Unit 100% baru, nomor rangka dan nomor mesin sesuai faktur', status: 'MEMENUHI SYARAT' },
+      { no: 2, titik_kritis: 'Kesesuaian Tipe & Kapasitas Mesin', standar: 'Kapasitas silinder mesin (cc), transmisi, dan warna sesuai SPK', hasil: 'Sesuai spesifikasi teknis pemesanan e-Katalog', status: 'MEMENUHI SYARAT' },
+      { no: 3, titik_kritis: 'Uji Jalan (Road Test) & Kelaikan Jalan', standar: 'Sistem pengereman ABS, kemudi, transmisi, AC, dan kelistrikan normal', hasil: 'Road test 20 km berjalan prima tanpa getaran atau bunyi abnormal', status: 'MEMENUHI SYARAT' },
+      { no: 4, titik_kritis: 'Legalitas Dokumen Kendaraan Bermotor', standar: 'Faktur dealer resmi, sertifikat uji tipe (SRUT), formulir BPKB/STNK', hasil: 'Dokumen faktur asli dan SRUT terverifikasi lengkap', status: 'MEMENUHI SYARAT' },
+      { no: 5, titik_kritis: 'Buku Garansi & Servis Gratis Berkala', standar: 'Buku servis resmi ATPM (Garansi mesin 3 tahun / 100.000 km)', hasil: 'Buku garansi dan voucher servis berkala diserahkan lengkap', status: 'MEMENUHI SYARAT' }
+    ]
+  },
+  gudang_logistik: {
+    nama: 'Logistik Perlengkapan Pemilu & Gudang',
+    titik_kritis: [
+      { no: 1, titik_kritis: 'Kuantitas & Volume Logistik Pemilu', standar: 'Jumlah pcs/lembar/kotak tepat 100% sesuai alokasi KPU Ngawi', hasil: 'Hitung sampling dan rekapitulasi surat jalan cocok 100%', status: 'MEMENUHI SYARAT' },
+      { no: 2, titik_kritis: 'Spesifikasi Bahan & Ketebalan Material', standar: 'Ketebalan karton duplex / plastik / tinta sesuai standar PKPU', hasil: 'Uji mikrometer dan uji gramatur bahan memenuhi standar', status: 'MEMENUHI SYARAT' },
+      { no: 3, titik_kritis: 'Ketepatan Desain Grafis & Cetakan', standar: 'Tata letak, warna tinta KPU, barcode/QR code terbaca scanner', hasil: 'Hasil cetak tajam, barcode terbaca 100% akurat', status: 'MEMENUHI SYARAT' },
+      { no: 4, titik_kritis: 'Kekuatan Kemasan & Proteksi Cuaca', standar: 'Karton kemasan terbungkus plastik kedap air (waterproof shrink wrap)', hasil: 'Packing aman untuk penyimpanan gudang logistik', status: 'MEMENUHI SYARAT' },
+      { no: 5, titik_kritis: 'Berita Acara Serah Terima Gudang & Sampling', standar: 'Surat jalan pabrik, sertifikat uji laboratorium kemasan', hasil: 'Dokumen pengiriman pabrikan lengkap dan sah', status: 'MEMENUHI SYARAT' }
+    ]
+  },
+  custom: {
+    nama: 'Formulir Kustom Kosong',
+    titik_kritis: [
+      { no: 1, titik_kritis: 'Pemeriksaan Kuantitas & Volume Barang', standar: 'Sesuai rincian Surat Pesanan', hasil: 'Diterima lengkap 100%', status: 'MEMENUHI SYARAT' },
+      { no: 2, titik_kritis: 'Pemeriksaan Mutu & Spesifikasi Teknis', standar: 'Sesuai KAK dan naskah kontrak', hasil: 'Memenuhi spesifikasi teknis', status: 'MEMENUHI SYARAT' },
+      { no: 3, titik_kritis: 'Pemeriksaan Fungsi & Uji Operasional', standar: 'Beroperasi normal tanpa kendala', hasil: 'Lulus uji operasional', status: 'MEMENUHI SYARAT' }
+    ]
+  }
+};
+
+window.renderBaphpTableRows = function(rows) {
+  const tbody = document.getElementById('baphp_table_body');
+  if (!tbody) return;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    rows = window.baphpPresets.server.titik_kritis;
+  }
+  let html = '';
+  rows.forEach((r, idx) => {
+    const no = idx + 1;
+    const titik = r.titik_kritis || r.parameter || `Titik Kritis ${no}: Pemeriksaan Faktual BAPHP`;
+    const standar = r.standar || r.metode || 'Sesuai Spesifikasi Teknis KAK';
+    const hasil = r.hasil || 'Diterima utuh 100% lengkap tanpa cacat (Sesuai KAK)';
+    const status = r.status || 'MEMENUHI SYARAT';
+
+    const statusUpper = String(status).toUpperCase();
+    const isTidak = statusUpper.includes('TIDAK') || statusUpper.includes('GAGAL');
+    const isPerlu = !isTidak && (statusUpper.includes('PERBAIKAN') || statusUpper.includes('PENDING'));
+    const isMemenuhi = !isTidak && !isPerlu;
+
+    const statusColor = isTidak ? '#dc2626' : (isPerlu ? '#b45309' : '#15803d');
+    const statusBg = isTidak ? '#fef2f2' : (isPerlu ? '#fefce8' : '#f0fdf4');
+    const statusBorder = isTidak ? '#fca5a5' : (isPerlu ? '#fde047' : '#86efac');
+
+    html += `
+      <tr class="baphp-row" data-row-idx="${no}">
+        <td style="padding:5px 6px; width:30px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#475569;" class="baphp-no">${no}</td>
+        <td style="padding:5px 6px; border-bottom:1px solid #f1f5f9;">
+          <input type="text" class="cakra-form-control baphp-titik" value="${cakraEsc(titik)}" placeholder="Titik Kritis Pemeriksaan..." style="font-weight:700; font-size:11px;" />
+        </td>
+        <td style="padding:5px 6px; border-bottom:1px solid #f1f5f9;">
+          <input type="text" class="cakra-form-control baphp-standar" value="${cakraEsc(standar)}" placeholder="Standar Kontrak / KAK..." style="font-size:10.5px;" />
+        </td>
+        <td style="padding:5px 6px; border-bottom:1px solid #f1f5f9;">
+          <input type="text" class="cakra-form-control baphp-hasil" value="${cakraEsc(hasil)}" placeholder="Hasil Pemeriksaan Faktual..." style="font-size:10.5px; color:${statusColor}; font-weight:600;" />
+        </td>
+        <td style="padding:5px 6px; width:150px; min-width:140px; text-align:center; border-bottom:1px solid #f1f5f9; white-space:nowrap;">
+          <select class="cakra-form-control baphp-status" style="font-weight:800; font-size:10.5px; width:100% !important; min-width:130px !important; box-sizing:border-box !important; padding:4px 6px; border-radius:6px; background:${statusBg}; border:1px solid ${statusBorder}; color:${statusColor}; cursor:pointer;" onchange="window.onBaphpStatusChange(this)" title="Pilih Status Evaluasi Titik Kritis">
+            <option value="MEMENUHI SYARAT" ${isMemenuhi ? 'selected' : ''}>✅ MEMENUHI</option>
+            <option value="PERLU PERBAIKAN" ${isPerlu ? 'selected' : ''}>⏳ PERBAIKAN</option>
+            <option value="TIDAK MEMENUHI SYARAT" ${isTidak ? 'selected' : ''}>❌ TIDAK SESUAI</option>
+          </select>
+        </td>
+        <td style="padding:5px 6px; width:35px; text-align:center; border-bottom:1px solid #f1f5f9;">
+          <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 6px; font-size:11px; cursor:pointer;" onclick="window.removeBaphpRow(this)" title="Hapus Baris Ini">🗑️</button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+  window.updateBaphpSummaryBadge();
+};
+
+window.onBaphpStatusChange = function(selectEl) {
+  if (!selectEl) return;
+  const tr = selectEl.closest('tr.baphp-row');
+  const val = (selectEl.value || '').toUpperCase();
+
+  if (val.includes('TIDAK')) {
+    selectEl.style.color = '#dc2626';
+    selectEl.style.backgroundColor = '#fef2f2';
+    selectEl.style.borderColor = '#fca5a5';
+  } else if (val.includes('PERBAIKAN')) {
+    selectEl.style.color = '#b45309';
+    selectEl.style.backgroundColor = '#fefce8';
+    selectEl.style.borderColor = '#fde047';
+  } else {
+    selectEl.style.color = '#15803d';
+    selectEl.style.backgroundColor = '#f0fdf4';
+    selectEl.style.borderColor = '#86efac';
+  }
+
+  if (tr) {
+    const hasilInp = tr.querySelector('.baphp-hasil');
+    if (hasilInp) {
+      const curHsl = (hasilInp.value || '').trim();
+      if (!curHsl || curHsl.includes('Memenuhi') || curHsl.includes('Perlu') || curHsl.includes('perbaikan') || curHsl.includes('Tidak') || curHsl.includes('Diterima')) {
+        if (val.includes('TIDAK')) {
+          hasilInp.value = 'Tidak memenuhi spesifikasi teknis / cacat barang (Wajib ganti)';
+          hasilInp.style.color = '#dc2626';
+        } else if (val.includes('PERBAIKAN')) {
+          hasilInp.value = 'Perlu perbaikan/penyempurnaan minor (Masa perbaikan 7 hari)';
+          hasilInp.style.color = '#b45309';
+        } else {
+          hasilInp.value = 'Diterima utuh 100% lengkap tanpa cacat (Sesuai KAK)';
+          hasilInp.style.color = '#15803d';
+        }
+      }
+    }
+  }
+
+  window.updateBaphpSummaryBadge();
+};
+
+window.addBaphpRow = function(titik = '', standar = 'Sesuai Standar KAK', hasil = 'Diterima utuh 100% lengkap tanpa cacat (Sesuai KAK)', status = 'MEMENUHI SYARAT') {
+  const tbody = document.getElementById('baphp_table_body');
+  if (!tbody) return;
+  const currentCount = tbody.querySelectorAll('tr.baphp-row').length;
+  const no = currentCount + 1;
+  const tr = document.createElement('tr');
+  tr.className = 'baphp-row';
+  tr.dataset.rowIdx = no;
+  const defaultTitik = titik || `Titik Kritis ${no}: Pemeriksaan Tambahan`;
+
+  const statusUpper = String(status).toUpperCase();
+  const isTidak = statusUpper.includes('TIDAK') || statusUpper.includes('GAGAL');
+  const isPerlu = !isTidak && (statusUpper.includes('PERBAIKAN') || statusUpper.includes('PENDING'));
+  const isMemenuhi = !isTidak && !isPerlu;
+
+  const statusColor = isTidak ? '#dc2626' : (isPerlu ? '#b45309' : '#15803d');
+  const statusBg = isTidak ? '#fef2f2' : (isPerlu ? '#fefce8' : '#f0fdf4');
+  const statusBorder = isTidak ? '#fca5a5' : (isPerlu ? '#fde047' : '#86efac');
+
+  tr.innerHTML = `
+    <td style="padding:5px 6px; width:30px; text-align:center; border-bottom:1px solid #f1f5f9; font-weight:700; color:#475569;" class="baphp-no">${no}</td>
+    <td style="padding:5px 6px; border-bottom:1px solid #f1f5f9;">
+      <input type="text" class="cakra-form-control baphp-titik" value="${cakraEsc(defaultTitik)}" placeholder="Titik Kritis Pemeriksaan..." style="font-weight:700; font-size:11px;" />
+    </td>
+    <td style="padding:5px 6px; border-bottom:1px solid #f1f5f9;">
+      <input type="text" class="cakra-form-control baphp-standar" value="${cakraEsc(standar)}" placeholder="Standar Kontrak / KAK..." style="font-size:10.5px;" />
+    </td>
+    <td style="padding:5px 6px; border-bottom:1px solid #f1f5f9;">
+      <input type="text" class="cakra-form-control baphp-hasil" value="${cakraEsc(hasil)}" placeholder="Hasil Pemeriksaan Faktual..." style="font-size:10.5px; color:${statusColor}; font-weight:600;" />
+    </td>
+    <td style="padding:5px 6px; width:150px; min-width:140px; text-align:center; border-bottom:1px solid #f1f5f9; white-space:nowrap;">
+      <select class="cakra-form-control baphp-status" style="font-weight:800; font-size:10.5px; width:100% !important; min-width:130px !important; box-sizing:border-box !important; padding:4px 6px; border-radius:6px; background:${statusBg}; border:1px solid ${statusBorder}; color:${statusColor}; cursor:pointer;" onchange="window.onBaphpStatusChange(this)" title="Pilih Status Evaluasi Titik Kritis">
+        <option value="MEMENUHI SYARAT" ${isMemenuhi ? 'selected' : ''}>✅ MEMENUHI</option>
+        <option value="PERLU PERBAIKAN" ${isPerlu ? 'selected' : ''}>⏳ PERBAIKAN</option>
+        <option value="TIDAK MEMENUHI SYARAT" ${isTidak ? 'selected' : ''}>❌ TIDAK SESUAI</option>
+      </select>
+    </td>
+    <td style="padding:5px 6px; width:35px; text-align:center; border-bottom:1px solid #f1f5f9;">
+      <button type="button" class="cakra-btn cakra-btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:3px 6px; font-size:11px; cursor:pointer;" onclick="window.removeBaphpRow(this)" title="Hapus Baris Ini">🗑️</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+  window.updateBaphpSummaryBadge();
+  const inputEl = tr.querySelector('.baphp-titik');
+  if (inputEl) inputEl.focus();
+};
+
+window.removeBaphpRow = function(btn) {
+  const tr = btn.closest('tr.baphp-row');
+  if (!tr) return;
+  const tbody = tr.parentElement;
+  tr.remove();
+  if (tbody) {
+    const rows = tbody.querySelectorAll('tr.baphp-row');
+    rows.forEach((r, idx) => {
+      r.dataset.rowIdx = idx + 1;
+      const noEl = r.querySelector('.baphp-no');
+      if (noEl) noEl.textContent = idx + 1;
+    });
+  }
+  window.updateBaphpSummaryBadge();
+};
+
+window.updateBaphpSummaryBadge = function() {
+  const badgeEl = document.getElementById('baphp_summary_badge');
+  const rows = document.querySelectorAll('#baphp_table_body tr.baphp-row');
+  let memenuhi = 0;
+  let perluPerbaikan = 0;
+  let tidakMemenuhi = 0;
+
+  rows.forEach(r => {
+    const st = (r.querySelector('.baphp-status')?.value || '').toUpperCase();
+    if (st.includes('TIDAK') || st.includes('GAGAL')) tidakMemenuhi++;
+    else if (st.includes('PERBAIKAN') || st.includes('PENDING')) perluPerbaikan++;
+    else memenuhi++;
+  });
+
+  const total = rows.length;
+  const pct = total > 0 ? Math.round((memenuhi / total) * 100) : 0;
+
+  if (badgeEl) {
+    if (total === 0) {
+      badgeEl.style.background = '#f1f5f9';
+      badgeEl.style.color = '#64748b';
+      badgeEl.textContent = 'Belum Ada Titik Kritis';
+    } else if (tidakMemenuhi > 0) {
+      badgeEl.style.background = '#fee2e2';
+      badgeEl.style.color = '#dc2626';
+      badgeEl.textContent = `${total} Titik Kritis (${pct}% Memenuhi | ${tidakMemenuhi} Tidak Memenuhi Syarat)`;
+    } else if (perluPerbaikan > 0) {
+      badgeEl.style.background = '#fef3c7';
+      badgeEl.style.color = '#b45309';
+      badgeEl.textContent = `${total} Titik Kritis (${pct}% Memenuhi | ${perluPerbaikan} Perlu Perbaikan)`;
+    } else {
+      badgeEl.style.background = '#dcfce7';
+      badgeEl.style.color = '#15803d';
+      badgeEl.textContent = `${total} Titik Kritis (100% Memenuhi Syarat - REKOMENDASI TERBIT BAST)`;
+    }
+  }
+
+  // Sinkronisasi dinamis ke Kesimpulan Hasil Pemeriksaan BAPHP
+  const kesimpulanEl = document.getElementById('mu_kesimpulan_pemeriksaan_baphp');
+  if (kesimpulanEl) {
+    if (tidakMemenuhi > 0) {
+      kesimpulanEl.value = 'Ditolak / Tidak Memenuhi Spesifikasi Teknis (Wajib Penggantian Barang Baru)';
+      kesimpulanEl.style.color = '#dc2626';
+      kesimpulanEl.style.backgroundColor = '#fef2f2';
+      kesimpulanEl.style.borderColor = '#fca5a5';
+    } else if (perluPerbaikan > 0) {
+      kesimpulanEl.value = 'Diterima Bersyarat / Perlu Perbaikan Minor (Masa Perbaikan 7 Hari Kalender)';
+      kesimpulanEl.style.color = '#b45309';
+      kesimpulanEl.style.backgroundColor = '#fefce8';
+      kesimpulanEl.style.borderColor = '#fde047';
+    } else if (total > 0) {
+      kesimpulanEl.value = 'Diterima Penuh / Lulus 100% Memenuhi Spesifikasi Teknis & Volume (Rekomendasi Terbit BAST)';
+      kesimpulanEl.style.color = '#15803d';
+      kesimpulanEl.style.backgroundColor = '#f0fdf4';
+      kesimpulanEl.style.borderColor = '#86efac';
+    }
+  }
+};
+
+window.applyBaphpPreset = function(type) {
+  const preset = window.baphpPresets[type] || window.baphpPresets.server;
+  window.renderBaphpTableRows(preset.titik_kritis);
+  cakraNotify(`⚡ Berhasil memuat preset: ${preset.nama}! Titik kritis pemeriksaan BAPHP telah disesuaikan.`, 'success');
+};
+
+window.recalcDendaBast = function() {
+  const tglSelesaiKontrakEl = document.getElementById('mu_tgl_selesai_kontrak');
+  const tglKontrakStr = tglSelesaiKontrakEl ? tglSelesaiKontrakEl.value : '2026-06-09';
+  const dKontrak = new Date(tglKontrakStr + 'T00:00:00');
+
+  let maxDays = 0;
+  let totalDenda = 0;
+  let latestRealDate = tglKontrakStr;
+  const lateItems = [];
+
+  const trRows = document.querySelectorAll('#bast_items_table_body tr.bast-item-row');
+  if (trRows.length > 0) {
+    trRows.forEach(tr => {
+      const uraian = tr.dataset.uraian || 'Item Barang';
+      const dpp = Number(tr.dataset.dpp || 0);
+      const dendaPerHari = Number(tr.dataset.dendaPerHari || Math.round(dpp * 0.001));
+      const tglInp = tr.querySelector('.item-denda-tgl-realisasi');
+      const tglRealStr = tglInp ? (tglInp.value || tglKontrakStr) : tglKontrakStr;
+      const dReal = new Date(tglRealStr + 'T00:00:00');
+
+      let days = 0;
+      if (dReal > dKontrak) {
+        const diff = dReal.getTime() - dKontrak.getTime();
+        days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      }
+
+      if (tglRealStr > latestRealDate) {
+        latestRealDate = tglRealStr;
+      }
+      if (days > maxDays) {
+        maxDays = days;
+      }
+
+      const itemDenda = days * dendaPerHari;
+      totalDenda += itemDenda;
+
+      tr.dataset.itemDays = days;
+      tr.dataset.itemDenda = itemDenda;
+
+      const hariEl = tr.querySelector('.item-denda-hari');
+      if (hariEl) {
+        hariEl.innerText = `${days} Hari`;
+        hariEl.style.color = days > 0 ? '#dc2626' : '#15803d';
+      }
+
+      const dendaEl = tr.querySelector('.item-denda-rp');
+      if (dendaEl) {
+        dendaEl.innerText = `Rp ${new Intl.NumberFormat('id-ID').format(itemDenda)}`;
+        dendaEl.style.color = days > 0 ? '#dc2626' : '#15803d';
+      }
+
+      const badgeEl = tr.querySelector('.item-denda-badge');
+      if (badgeEl) {
+        badgeEl.className = `item-denda-badge cakra-badge ${days > 0 ? 'cakra-badge-danger' : 'cakra-badge-success'}`;
+        badgeEl.style.background = days > 0 ? '#fee2e2' : '#dcfce7';
+        badgeEl.style.color = days > 0 ? '#dc2626' : '#15803d';
+        badgeEl.innerHTML = days > 0 ? `⚠️ Terlambat` : `✅ Tepat Waktu`;
+      }
+
+      if (days > 0) {
+        lateItems.push(`${uraian} (${days} Hari - Denda Rp ${new Intl.NumberFormat('id-ID').format(itemDenda)})`);
+      }
+    });
+  } else {
+    // Fallback jika baris item belum ter-render
+    const tglRealisasiEl = document.getElementById('mu_tgl_realisasi_selesai');
+    const tglRealStr = tglRealisasiEl ? (tglRealisasiEl.value || tglKontrakStr) : tglKontrakStr;
+    const dReal = new Date(tglRealStr + 'T00:00:00');
+    if (dReal > dKontrak) {
+      maxDays = Math.ceil((dReal.getTime() - dKontrak.getTime()) / (1000 * 60 * 60 * 24));
+      latestRealDate = tglRealStr;
+      const nilaiKontrak = Number(CakraState.activePaketCtx?.paket?.nilai_kontrak || 138000000);
+      const dpp = Math.round(nilaiKontrak / 1.11);
+      totalDenda = maxDays * Math.round(dpp * 0.001);
+      lateItems.push(`Total Kontrak (${maxDays} Hari)`);
+    }
+  }
+
+  // Sinkronkan ke input ringkasan Section 4
+  const tglRealisasiGlobalEl = document.getElementById('mu_tgl_realisasi_selesai');
+  if (tglRealisasiGlobalEl) {
+    tglRealisasiGlobalEl.value = latestRealDate;
+  }
+
+  const hariTerlambatEl = document.getElementById('mu_hari_terlambat');
+  if (hariTerlambatEl) {
+    hariTerlambatEl.value = maxDays;
+  }
+
+  const dendaRpEl = document.getElementById('mu_denda_rp');
+  if (dendaRpEl) {
+    dendaRpEl.value = totalDenda;
+  }
+
+  const dendaFmtEl = document.getElementById('mu_denda_rp_fmt');
+  if (dendaFmtEl) {
+    dendaFmtEl.value = `Rp ${new Intl.NumberFormat('id-ID').format(totalDenda)}`;
+    dendaFmtEl.style.color = totalDenda > 0 ? '#dc2626' : '#15803d';
+  }
+
+  const statusDendaEl = document.getElementById('mu_status_denda');
+  if (statusDendaEl) {
+    if (totalDenda > 0) {
+      statusDendaEl.value = `Dikenakan Denda Keterlambatan Bagian Kontrak Rp ${new Intl.NumberFormat('id-ID').format(totalDenda)} (${lateItems.join('; ')})`;
+    } else {
+      statusDendaEl.value = 'Nihil Denda (Seluruh Barang Selesai 100% Tepat Waktu)';
+    }
+  }
+
+  const badgeDendaEl = document.getElementById('bast_denda_badge');
+  if (badgeDendaEl) {
+    if (totalDenda > 0) {
+      badgeDendaEl.className = 'cakra-badge cakra-badge-danger';
+      badgeDendaEl.style.background = '#fee2e2';
+      badgeDendaEl.style.color = '#dc2626';
+      badgeDendaEl.innerHTML = `⚠️ TERLAMBAT ${maxDays} HARI (Denda Bagian Kontrak: Rp ${new Intl.NumberFormat('id-ID').format(totalDenda)})`;
+    } else {
+      badgeDendaEl.className = 'cakra-badge cakra-badge-success';
+      badgeDendaEl.style.background = '#dcfce7';
+      badgeDendaEl.style.color = '#15803d';
+      badgeDendaEl.innerHTML = `✅ TEPAT WAKTU (BEBAS DENDA / Rp 0,-)`;
+    }
+  }
+
+  const rumusEl = document.getElementById('bast_denda_rumus_info');
+  if (rumusEl) {
+    if (totalDenda > 0) {
+      rumusEl.style.display = 'block';
+      rumusEl.innerHTML = `
+        <div style="font-size:10px; color:#991b1b; line-height:1.45; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:8px 10px; margin-top:8px;">
+          ⚖️ <strong>Dasar Regulasi Denda Bagian Kontrak (Pasal 79 ayat 4 huruf b Perpres 12/2021 &amp; SSKK):</strong><br/>
+          Denda dihitung <strong>1‰ (satu permil) per hari dari Harga Bagian Kontrak Sebelum PPN (DPP)</strong> atas item yang terlambat diserahkan, karena item barang lainnya telah diserahkan tepat waktu dan dapat berfungsi secara mandiri.<br/>
+          • Tanggal Serah Terima Lengkap 100% (BAST): <strong>${latestRealDate}</strong> (mengikuti kedatangan barang terakhir).<br/>
+          • Rincian Item Terlambat: <strong>${lateItems.join('; ')}</strong>.<br/>
+          • Total Denda yang Dikenakan: <strong style="color:#b91c1c; font-size:11px;">Rp ${new Intl.NumberFormat('id-ID').format(totalDenda)},-</strong> (Akan dipotong langsung pada pembayaran SPP/SPM-LS Tahap 17).
+        </div>
+      `;
+    } else {
+      rumusEl.style.display = 'block';
+      rumusEl.innerHTML = `
+        <div style="font-size:10px; color:#1e40af; line-height:1.45; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:6px 10px; margin-top:8px;">
+          ⚖️ <strong>Evaluasi Kepatuhan Waktu:</strong> Seluruh item barang diserahkan tepat waktu sesuai batas akhir kontrak (${tglKontrakStr}). Pekerjaan berstatus bebas denda (Nihil Denda / Rp 0,-).
+        </div>
+      `;
+    }
+  }
+
+  // Sinkronkan Tanggal BAPHP dan BAST mengikuti latestRealDate
+  const tglBaphpInp = document.getElementById('mu_tgl_baphp');
+  const tglBastInp = document.getElementById('mu_tgl_bast');
+  const tglDokumenSahInp = document.getElementById('mu_tanggal_dokumen');
+  if (totalDenda > 0 && latestRealDate > tglKontrakStr) {
+    if (tglBaphpInp && tglBaphpInp.value < latestRealDate) tglBaphpInp.value = latestRealDate;
+    if (tglBastInp && tglBastInp.value < latestRealDate) tglBastInp.value = latestRealDate;
+    if (tglDokumenSahInp && tglDokumenSahInp.value < latestRealDate) tglDokumenSahInp.value = latestRealDate;
+  }
+};
+
+window.initTahap16DynamicFields = function() {
+  const paket = (CakraState.activePaketCtx?.paket?.id === CakraState.activePaketId ? CakraState.activePaketCtx.paket : null)
+    || (CakraState.pakets || []).find(p => String(p.id) === String(CakraState.activePaketId)) || {};
+  let baphpData = null;
+
+  if (paket.parameter_pemeriksaan_baphp_json) {
+    try {
+      baphpData = typeof paket.parameter_pemeriksaan_baphp_json === 'string'
+        ? JSON.parse(paket.parameter_pemeriksaan_baphp_json)
+        : paket.parameter_pemeriksaan_baphp_json;
+    } catch (e) {}
+  }
+
+  window.renderBaphpTableRows(baphpData || window.baphpPresets.server.titik_kritis);
+  if (typeof window.recalcDendaBast === 'function') {
+    window.recalcDendaBast();
   }
 };
 
@@ -12803,20 +13431,332 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
     }
 
-    case 16:
+    case 16: {
+      const penyedia = CakraState.activePaketCtx?.penyedia || {};
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const tglMulai = paket.tgl_mulai_kerja || '2026-05-27';
+      const tglSelesaiKontrak = paket.tgl_selesai_kontrak || '2026-06-09';
+      const tglRealSelesai = paket.tgl_realisasi_selesai || '2026-06-10';
+      const noBaphp = paket.no_baphp || activeTRow.no_baphp || `016/BAPHP/${cleanKode}/PPK/VI/2026`;
+      const tglBaphp = paket.tgl_baphp || activeTRow.tanggal_dokumen || tglRealSelesai;
+      const noBast = paket.no_bast || activeTRow.no_bast || `016/BAST/${cleanKode}/PPK/VI/2026`;
+      const tglBast = paket.tgl_bast || tglRealSelesai;
+      const namaPemeriksa = paket.nama_tim_pemeriksa || 'Tim Teknis / Pejabat Pemeriksa Pengadaan KPU Ngawi';
+      const nipPemeriksa = paket.nip_tim_pemeriksa || '198503152010121002';
+      const kesimpulanBaphp = paket.kesimpulan_pemeriksaan_baphp || 'Diterima Penuh / Lulus 100% Memenuhi Spesifikasi Teknis & Volume';
+      const tempatBast = paket.tempat_bast || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+      const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
+      const dpp = Math.round(nilaiKontrak / 1.11);
+      const dendaPerHari = Math.round(dpp * 0.001);
+      const hariTerlambat = paket.hari_terlambat !== undefined && paket.hari_terlambat !== null ? Number(paket.hari_terlambat) : 1;
+      const dendaRp = paket.denda_keterlambatan_rp !== undefined && paket.denda_keterlambatan_rp !== null ? Number(paket.denda_keterlambatan_rp) : 56568;
+      const statusDenda = paket.status_denda || (hariTerlambat > 0 ? `Dikenakan Denda Keterlambatan Bagian Kontrak Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)} (1 Hari Kalender: PC Server Tower Database Operasional)` : 'Nihil Denda (Pekerjaan Selesai 100% Tepat Waktu)');
+      const masaGaransiHari = paket.masa_garansi_hari || 365;
+      const tglMulaiGaransi = paket.tgl_mulai_garansi || tglBast;
+      const tglSelesaiGaransi = paket.tgl_selesai_garansi || '2027-06-10';
+      const catatanBast = paket.catatan_bast || 'Hasil pemeriksaan fisik faktual dan uji fungsi komisioning 24 jam non-stop atas pengadaan 1 unit PC Server Dell PowerEdge T350 dan 3 unit PC Workstation SIDALIH telah selesai 100% dalam kondisi baik, lengkap, dan beroperasi normal tanpa cacat. Seluruh spesifikasi teknis dan volume sesuai naskah kontrak Surat Pesanan No. 013/SP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026. Penyerahan 3 unit PC Workstation diselesaikan tepat waktu pada tanggal 09 Juni 2026, sedangkan penyerahan 1 unit PC Server diselesaikan pada tanggal 10 Juni 2026 (terdapat keterlambatan 1 hari kalender untuk bagian pekerjaan PC Server). Sesuai ketentuan Pasal 79 ayat (4) huruf b Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021 dan klausul SSKK Surat Pesanan, dikenakan sanksi denda keterlambatan sebesar 1‰ per hari dari Harga Bagian Kontrak sebelum PPN (DPP PC Server: Rp 56.567.568,-) dengan total denda sebesar Rp 56.568,- yang akan dipotong langsung pada pembayaran SPP/SPM-LS. Penyedia memberikan jaminan garansi resmi pabrikan selama 365 hari kalender (10 Juni 2026 s.d. 10 Juni 2027) dengan SLA respon 1x24 jam onsite. Pengadaan dibebaskan dari retensi 5% dan berhak menerima pembayaran netto sebesar Rp 137.943.432,- melalui SPM-LS KPPN.';
+
+      // Data item kontrak untuk tabel rincian keterlambatan per item
+      const allItems = (CakraState.activePaketCtx?.items || []).filter(Boolean);
+      const defaultItemsList = [
+        { id: 1, urutan: 1, uraian_item: 'PC Server Tower Database Operasional', volume: 1, satuan: 'Unit', harga_satuan_kontrak: 62790000, jumlah_kontrak: 62790000 },
+        { id: 2, urutan: 2, uraian_item: 'PC Workstation Operasional Pengolah Data SIDALIH', volume: 3, satuan: 'Unit', harga_satuan_kontrak: 25070000, jumlah_kontrak: 75210000 }
+      ];
+      const contractItems = (allItems && allItems.length > 0) ? allItems : defaultItemsList;
+
+      let itemRealisasiMap = {};
+      if (paket.realisasi_item_bast_json) {
+        try {
+          const parsed = typeof paket.realisasi_item_bast_json === 'string'
+            ? JSON.parse(paket.realisasi_item_bast_json)
+            : paket.realisasi_item_bast_json;
+          if (Array.isArray(parsed)) {
+            parsed.forEach(p => {
+              itemRealisasiMap[p.id || p.urutan] = p;
+            });
+          }
+        } catch (e) {}
+      }
+
+      const itemRowsHtml = contractItems.map((it, idx) => {
+        const itId = it.id || (idx + 1);
+        const saved = itemRealisasiMap[itId] || {};
+        const nama = it.uraian_item || it.nama_barang || `Item ${idx + 1}`;
+        const vol = Number(it.volume || 1);
+        const sat = it.satuan || 'Unit';
+        const bruto = Number(it.jumlah_kontrak || (vol * Number(it.harga_satuan_kontrak || 0)));
+        const dppVal = Math.round(bruto / 1.11);
+        const dendaPerHariVal = Math.round(dppVal * 0.001);
+
+        // Asumsi simulasi: PC Server terlambat 1 hari (10/06/2026), Workstation tepat waktu (09/06/2026)
+        const isServerItem = String(nama).toLowerCase().includes('server') || idx === 0;
+        const defaultItemDate = isServerItem ? '2026-06-10' : tglSelesaiKontrak;
+        const itemTglReal = saved.tgl_realisasi || defaultItemDate;
+
+        const dK = new Date(tglSelesaiKontrak + 'T00:00:00');
+        const dR = new Date(itemTglReal + 'T00:00:00');
+        const itemDays = dR > dK ? Math.ceil((dR.getTime() - dK.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+        const itemDenda = itemDays * dendaPerHariVal;
+
+        return `
+          <tr class="bast-item-row" data-item-id="${itId}" data-uraian="${cakraEsc(nama)}" data-volume="${vol}" data-satuan="${cakraEsc(sat)}" data-bruto="${bruto}" data-dpp="${dppVal}" data-denda-per-hari="${dendaPerHariVal}" data-item-days="${itemDays}" data-item-denda="${itemDenda}" style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:6px 8px; text-align:center; font-weight:700; color:#475569;">${idx + 1}</td>
+            <td style="padding:6px 8px;">
+              <div style="font-weight:700; color:#0f172a; font-size:11px;">${cakraEsc(nama)}</div>
+              <div style="font-size:10px; color:#64748b;">Kuantitas: <strong>${vol} ${cakraEsc(sat)}</strong></div>
+            </td>
+            <td style="padding:6px 8px; text-align:right;">
+              <div style="font-weight:700; color:#0f172a; font-size:11px;">Rp ${new Intl.NumberFormat('id-ID').format(bruto)}</div>
+              <div style="font-size:10px; color:#1e40af; font-weight:600;">DPP: Rp ${new Intl.NumberFormat('id-ID').format(dppVal)}</div>
+            </td>
+            <td style="padding:6px 8px; text-align:center;">
+              <span class="cakra-mono" style="font-size:10.5px; font-weight:600; color:#475569;">${cakraEsc(tglSelesaiKontrak)}</span>
+            </td>
+            <td style="padding:6px 8px; text-align:center;">
+              <input type="date" class="cakra-form-control item-denda-tgl-realisasi" value="${itemTglReal}" onchange="window.recalcDendaBast()" style="font-size:11px; padding:3px 6px; width:130px; text-align:center;" />
+            </td>
+            <td style="padding:6px 8px; text-align:center;">
+              <span class="item-denda-hari cakra-mono" style="font-weight:800; font-size:11px; color:${itemDays > 0 ? '#dc2626' : '#15803d'};">${itemDays} Hari</span>
+            </td>
+            <td style="padding:6px 8px; text-align:right;">
+              <span class="item-denda-rp cakra-mono" style="font-weight:800; font-size:11px; color:${itemDays > 0 ? '#dc2626' : '#15803d'};">Rp ${new Intl.NumberFormat('id-ID').format(itemDenda)}</span>
+            </td>
+            <td style="padding:6px 8px; text-align:center;">
+              <span class="item-denda-badge cakra-badge ${itemDays > 0 ? 'cakra-badge-danger' : 'cakra-badge-success'}" style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:10px; background:${itemDays > 0 ? '#fee2e2' : '#dcfce7'}; color:${itemDays > 0 ? '#dc2626' : '#15803d'};">
+                ${itemDays > 0 ? `⚠️ Terlambat` : `✅ Tepat Waktu`}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Pemeriksaan Mutu BAPHP &amp; Berita Acara Serah Terima (BAST)</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor BAPHP (Pemeriksaan)</label>
-            <input type="text" id="mu_no_baphp" class="cakra-form-control cakra-mono" value="${cakraEsc(activeTRow.no_baphp || generateAutoStageDocNumber(16, paket.kode_paket_internal, activeTRow.tanggal_dokumen))}" />
-          </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor BAST (Serah Terima)</label>
-            <input type="text" id="mu_no_bast" class="cakra-form-control cakra-mono" value="${cakraEsc(paket.no_bast || generateAutoStageDocNumber(16, paket.kode_paket_internal, activeTRow.tanggal_dokumen))}" />
+        <!-- HEADER RUJUKAN KONTRAK & KOMISIONING -->
+        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-size:11px; font-weight:700; color:#166534; text-transform:uppercase; letter-spacing:0.5px;">📑 Rujukan Surat Pesanan (Kontrak), SPP &amp; BA Komisioning Teknis</div>
+              <div style="font-size:12px; font-weight:800; color:#0f172a; margin-top:2px;">
+                No. SP/Kontrak: <span class="cakra-mono">${cakraEsc(paket.no_kontrak || `013/SP/${cleanKode}/PPK-PBJ/KPU-NGW/V/2026`)}</span> |
+                No. SPP: <span class="cakra-mono">${cakraEsc(paket.no_spp || `014/SPP/${cleanKode}/PPK/V/2026`)}</span> |
+                BA-KOM: <span class="cakra-mono">${cakraEsc(paket.no_ba_komisioning || `015/BA-KOM/${cleanKode}/PPK/VI/2026`)}</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <span class="cakra-badge" style="background:#dbeafe; color:#1e40af; font-size:10px; font-weight:700;">🏢 ${cakraEsc(penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI')}</span>
+              <span class="cakra-badge" style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800;">💰 Nilai Kontrak: Rp ${new Intl.NumberFormat('id-ID').format(paket.nilai_kontrak || 138000000)},-</span>
+            </div>
           </div>
         </div>
+
+        <!-- 1. IDENTITAS DOKUMEN BAPHP (DOKUMEN 01) -->
+        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+          <span>🔍 1. Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP - Dokumen 01)</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Dokumen BAPHP *</label>
+            <input type="text" id="mu_no_baphp" class="cakra-form-control cakra-mono" value="${cakraEsc(noBaphp)}" required />
+          </div>
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Pelaksanaan Pemeriksaan BAPHP *</label>
+            <input type="date" id="mu_tgl_baphp" class="cakra-form-control" value="${cakraEsc(tglBaphp)}" required />
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Koordinator / Pejabat Pemeriksa Pengadaan *</label>
+            <input type="text" id="mu_nama_tim_pemeriksa" class="cakra-form-control" value="${cakraEsc(namaPemeriksa)}" required />
+          </div>
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">NIP Pejabat Pemeriksa *</label>
+            <input type="text" id="mu_nip_tim_pemeriksa" class="cakra-form-control cakra-mono" value="${cakraEsc(nipPemeriksa)}" required />
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kesimpulan Hasil Uji &amp; Pemeriksaan Faktual BAPHP *</label>
+          <select id="mu_kesimpulan_pemeriksaan_baphp" class="cakra-form-control" style="font-weight:700; color:#15803d; background:#f0fdf4; border-color:#86efac;">
+            <option value="Diterima Penuh / Lulus 100% Memenuhi Spesifikasi Teknis &amp; Volume (Rekomendasi Terbit BAST)" ${kesimpulanBaphp.includes('Penuh') || kesimpulanBaphp.includes('Lulus') || !kesimpulanBaphp ? 'selected' : ''}>✅ Diterima Penuh / Lulus 100% Memenuhi Spesifikasi Teknis &amp; Volume (Rekomendasi Terbit BAST)</option>
+            <option value="Diterima Bersyarat / Perlu Perbaikan Minor (Masa Perbaikan 7 Hari Kalender)" ${kesimpulanBaphp.includes('Bersyarat') || kesimpulanBaphp.includes('Perbaikan') ? 'selected' : ''}>⏳ Diterima Bersyarat / Perlu Perbaikan Minor (Masa Perbaikan 7 Hari Kalender)</option>
+            <option value="Ditolak / Tidak Memenuhi Spesifikasi Teknis (Wajib Penggantian Barang Baru)" ${kesimpulanBaphp.includes('Ditolak') || kesimpulanBaphp.includes('Tidak Sesuai') || kesimpulanBaphp.includes('Tidak Memenuhi') ? 'selected' : ''}>❌ Ditolak / Tidak Memenuhi Spesifikasi Teknis (Wajib Penggantian Barang Baru)</option>
+          </select>
+        </div>
+
+        <!-- 2. TABEL DINAMIS 5 TITIK KRITIS PEMERIKSAAN BAPHP -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:12px; font-weight:800; color:#1e293b;">🔬 Tabel Verifikasi 5 Titik Kritis Pemeriksaan BAPHP:</span>
+              <span id="baphp_summary_badge" style="font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px; background:#dcfce7; color:#15803d;">5 Titik Kritis (100% Memenuhi Syarat)</span>
+            </div>
+            <!-- TOOLBAR PRESET KOMODITAS BAPHP -->
+            <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+              <span style="font-size:10.5px; font-weight:700; color:#64748b; margin-right:4px;">⚡ Load Preset:</span>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyBaphpPreset('server')" title="Preset Server IT &amp; Komputer">🖥️ Server IT</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyBaphpPreset('mebeler')" title="Preset Mebeler Kantor">🪑 Mebeler</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyBaphpPreset('kendaraan')" title="Preset Kendaraan Dinas">🚗 Kendaraan</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyBaphpPreset('gudang_logistik')" title="Preset Logistik Pemilu">📦 Logistik</button>
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10px; padding:3px 7px;" onclick="window.applyBaphpPreset('custom')" title="Preset Kosong">📝 Kustom</button>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table style="width:100%; min-width:760px; border-collapse:collapse; font-size:11px;" id="baphp_table">
+              <thead>
+                <tr style="background:#f1f5f9; color:#334155; font-weight:800; text-align:left;">
+                  <th style="padding:6px 6px; width:30px; text-align:center; border-bottom:1px solid #cbd5e1;">NO</th>
+                  <th style="padding:6px 6px; width:26%; border-bottom:1px solid #cbd5e1;">TITIK KRITIS PEMERIKSAAN</th>
+                  <th style="padding:6px 6px; width:24%; border-bottom:1px solid #cbd5e1;">STANDAR KONTRAK / KAK</th>
+                  <th style="padding:6px 6px; width:24%; border-bottom:1px solid #cbd5e1;">HASIL PEMERIKSAAN FAKTUAL</th>
+                  <th style="padding:6px 6px; width:150px; min-width:140px; text-align:center; border-bottom:1px solid #cbd5e1; white-space:nowrap;">STATUS EVALUASI</th>
+                  <th style="padding:6px 6px; width:35px; text-align:center; border-bottom:1px solid #cbd5e1;">AKSI</th>
+                </tr>
+              </thead>
+              <tbody id="baphp_table_body">
+                <!-- Diisi via renderBaphpTableRows -->
+              </tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10.5px; padding:3px 8px;" onclick="window.addBaphpRow()">
+              ➕ Tambah Titik Kritis
+            </button>
+            <span style="font-size:10px; color:#64748b; font-weight:600;">💡 Data hasil pemeriksaan BAPHP tersimpan permanen dan terhubung langsung ke Naskah Berita Acara BAPHP Dokumen 01.</span>
+          </div>
+        </div>
+
+        <!-- 3. IDENTITAS BERITA ACARA SERAH TERIMA PERTAMA PEKERJAAN (BAST - DOKUMEN 02) -->
+        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+          <span>🤝 3. Berita Acara Serah Terima Pertama Pekerjaan (BAST - Dokumen 02)</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Dokumen BAST *</label>
+            <input type="text" id="mu_no_bast" class="cakra-form-control cakra-mono" value="${cakraEsc(noBast)}" required />
+          </div>
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Penandatanganan BAST *</label>
+            <input type="date" id="mu_tgl_bast" class="cakra-form-control" value="${cakraEsc(tglBast)}" required />
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tempat Penandatanganan BAST *</label>
+          <input type="text" id="mu_tempat_bast" class="cakra-form-control" value="${cakraEsc(tempatBast)}" required />
+        </div>
+
+        <!-- 4. KEPATUHAN WAKTU & KALKULATOR DENDA KETERLAMBATAN (DINAMIS SESUAI DAFTAR BARANG) -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div>
+              <span style="font-size:12px; font-weight:800; color:#1e293b;">⏱️ 4. Evaluasi Kepatuhan Waktu &amp; Denda Keterlambatan Per Item Barang:</span>
+              <div style="font-size:10px; color:#64748b; margin-top:2px;">Sesuai Pasal 79 ayat (4) huruf b Perpres 12/2021: Denda 1‰ per hari dikenakan atas Bagian Kontrak (item barang) yang terlambat jika item lain dapat berfungsi.</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10.5px; padding:3px 9px; background:#f0fdf4; border:1.5px solid #86efac; color:#15803d; font-weight:800; cursor:pointer; border-radius:6px;" onclick="window.openSttbsModal(${paket.id})" title="Add-On Print: Cetak Surat Tanda Terima Barang Sementara untuk barang yang tiba lebih awal (parsial)">
+                📦 Add-On Print: Cetak STTBS (Parsial)
+              </button>
+              <span id="bast_denda_badge" class="cakra-badge ${hariTerlambat > 0 ? 'cakra-badge-danger' : 'cakra-badge-success'}" style="font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:12px; background:${hariTerlambat > 0 ? '#fee2e2' : '#dcfce7'}; color:${hariTerlambat > 0 ? '#dc2626' : '#15803d'};">
+                ${hariTerlambat > 0 ? `⚠️ TERLAMBAT ${hariTerlambat} HARI (Denda Bagian Kontrak: Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)})` : '✅ TEPAT WAKTU (BEBAS DENDA / Rp 0,-)'}
+              </span>
+            </div>
+          </div>
+
+          <!-- TABEL KETERLAMBATAN PER ITEM BARANG -->
+          <div style="overflow-x:auto; margin-bottom:12px;">
+            <table style="width:100%; border-collapse:collapse; font-size:11px;" id="bast_items_table">
+              <thead>
+                <tr style="background:#f1f5f9; color:#334155; font-weight:800; text-align:left;">
+                  <th style="padding:6px 6px; width:30px; text-align:center; border-bottom:1px solid #cbd5e1;">NO</th>
+                  <th style="padding:6px 6px; width:28%; border-bottom:1px solid #cbd5e1;">URAIAN ITEM / BARANG</th>
+                  <th style="padding:6px 6px; width:18%; text-align:right; border-bottom:1px solid #cbd5e1;">NILAI KONTRAK (DPP)</th>
+                  <th style="padding:6px 6px; width:14%; text-align:center; border-bottom:1px solid #cbd5e1;">BATAS KONTRAK</th>
+                  <th style="padding:6px 6px; width:16%; text-align:center; border-bottom:1px solid #cbd5e1;">TGL REALISASI *</th>
+                  <th style="padding:6px 6px; width:10%; text-align:center; border-bottom:1px solid #cbd5e1;">KETERLAMBATAN</th>
+                  <th style="padding:6px 6px; width:14%; text-align:right; border-bottom:1px solid #cbd5e1;">DENDA ITEM (Rp)</th>
+                  <th style="padding:6px 6px; width:110px; text-align:center; border-bottom:1px solid #cbd5e1;">STATUS</th>
+                </tr>
+              </thead>
+              <tbody id="bast_items_table_body">
+                ${itemRowsHtml}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- REKAPITULASI KONTRAK & TOTAL DENDA -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:10px; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px;">
+            <div>
+              <label style="font-size:10px; font-weight:700; color:#64748b; margin-bottom:2px; display:block;">Tgl Mulai Kontrak</label>
+              <input type="date" id="mu_tgl_mulai_kerja" class="cakra-form-control" value="${cakraEsc(tglMulai)}" readonly style="background:#f1f5f9; font-size:11px;" />
+            </div>
+            <div>
+              <label style="font-size:10px; font-weight:700; color:#64748b; margin-bottom:2px; display:block;">Batas Selesai Kontrak</label>
+              <input type="date" id="mu_tgl_selesai_kontrak" class="cakra-form-control" value="${cakraEsc(tglSelesaiKontrak)}" readonly style="background:#f1f5f9; font-size:11px;" />
+            </div>
+            <div>
+              <label style="font-size:10px; font-weight:700; color:#0f172a; margin-bottom:2px; display:block;">Tgl BAST (100% Selesai) *</label>
+              <input type="date" id="mu_tgl_realisasi_selesai" class="cakra-form-control" value="${cakraEsc(tglRealSelesai)}" readonly style="background:#f8fafc; font-size:11px; font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:10px; font-weight:700; color:#64748b; margin-bottom:2px; display:block;">Hari Keterlambatan</label>
+              <input type="number" id="mu_hari_terlambat" class="cakra-form-control cakra-mono" value="${hariTerlambat}" readonly style="background:#f1f5f9; text-align:center; font-weight:800; font-size:11px;" />
+            </div>
+            <div>
+              <label style="font-size:10px; font-weight:700; color:#64748b; margin-bottom:2px; display:block;">Total Denda Bagian (Rp)</label>
+              <input type="text" id="mu_denda_rp_fmt" class="cakra-form-control cakra-mono" value="Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)}" readonly style="background:#f1f5f9; text-align:right; font-weight:800; font-size:11px; color:${hariTerlambat > 0 ? '#dc2626' : '#15803d'};" />
+              <input type="hidden" id="mu_denda_rp" value="${dendaRp}" />
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Status Klausul Kepatuhan Waktu &amp; Denda pada Naskah BAST:</label>
+            <input type="text" id="mu_status_denda" class="cakra-form-control" value="${cakraEsc(statusDenda)}" readonly style="background:#f8fafc; font-weight:700; font-size:11px;" />
+          </div>
+          <div id="bast_denda_rumus_info" style="margin-top:6px;">
+            ${hariTerlambat > 0 ? `
+              <div style="font-size:10px; color:#991b1b; line-height:1.45; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:8px 10px;">
+                ⚖️ <strong>Dasar Regulasi Denda Bagian Kontrak (Pasal 79 ayat 4 huruf b Perpres 12/2021 &amp; SSKK):</strong><br/>
+                Denda dihitung <strong>1‰ (satu permil) per hari dari Harga Bagian Kontrak Sebelum PPN (DPP)</strong> atas item yang terlambat diserahkan, karena item barang lainnya telah diserahkan tepat waktu dan dapat berfungsi secara mandiri.<br/>
+                • Tanggal Serah Terima Lengkap 100% (BAST): <strong>${tglRealSelesai}</strong> (mengikuti kedatangan barang terakhir).<br/>
+                • Total Denda yang Dikenakan: <strong style="color:#b91c1c; font-size:11px;">Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)},-</strong> (Akan dipotong langsung pada pembayaran SPP/SPM-LS Tahap 17).
+              </div>
+            ` : `
+              <div style="font-size:10px; color:#1e40af; line-height:1.45; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:6px 10px;">
+                ⚖️ <strong>Evaluasi Kepatuhan Waktu:</strong> Seluruh item barang diserahkan tepat waktu sesuai batas akhir kontrak (${tglSelesaiKontrak}). Pekerjaan berstatus bebas denda (Nihil Denda / Rp 0,-).
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- 5. JAMINAN PURNA JUAL & GARANSI PABRIKAN -->
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:12px; font-weight:800; color:#1e40af; margin-bottom:8px;">🛡️ 5. Jaminan Purna Jual &amp; Masa Pemeliharaan (Garansi Pabrikan):</div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:8px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#1e40af; margin-bottom:2px; display:block;">Durasi Garansi (Hari)</label>
+              <input type="number" id="mu_masa_garansi_hari" class="cakra-form-control cakra-mono" value="${masaGaransiHari}" min="30" max="1825" style="text-align:center; font-weight:800;" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#1e40af; margin-bottom:2px; display:block;">Tanggal Mulai Garansi</label>
+              <input type="date" id="mu_tgl_mulai_garansi" class="cakra-form-control" value="${cakraEsc(tglMulaiGaransi)}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#1e40af; margin-bottom:2px; display:block;">Tanggal Berakhir Garansi</label>
+              <input type="date" id="mu_tgl_selesai_garansi" class="cakra-form-control" value="${cakraEsc(tglSelesaiGaransi)}" />
+            </div>
+          </div>
+          <div style="font-size:10.5px; color:#1e3a8a; line-height:1.4;">
+            ✨ <strong>Bebas Retensi 5%:</strong> Sesuai Pasal 30 Perpres PBJ dan KAK, pengadaan barang peralatan IT bergaransi resmi pabrikan minimal 1 tahun dibebaskan dari pemotongan uang retensi 5%. Penyedia wajib memberikan respon perbaikan onsite 1x24 jam.
+          </div>
+        </div>
+
+        <!-- 6. CATATAN SUBSTANTIF PENYERAHAN PEKERJAAN BAST -->
+        <div style="margin-bottom:12px;">
+          <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">📝 6. Catatan Substantif Penyerahan Hasil Pekerjaan oleh PPK *</label>
+          <textarea id="mu_catatan_bast" class="cakra-form-control" rows="3" style="font-size:11px; line-height:1.5;">${cakraEsc(catatanBast)}</textarea>
+        </div>
       `;
+    }
 
     case 17:
       return `
@@ -13372,7 +14312,81 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       tanggalDokumen = extraPaketFields.tgl_laporan_pengendalian;
     }
   } else if (num === 16) {
+    extraPaketFields.no_baphp = getStr('mu_no_baphp') || activeTRow.no_baphp || '';
+    extraPaketFields.tgl_baphp = getStr('mu_tgl_baphp') || activeTRow.tanggal_dokumen || '';
+    extraPaketFields.nama_tim_pemeriksa = getStr('mu_nama_tim_pemeriksa') || paket.nama_tim_pemeriksa;
+    extraPaketFields.nip_tim_pemeriksa = getStr('mu_nip_tim_pemeriksa') || paket.nip_tim_pemeriksa;
+    extraPaketFields.kesimpulan_pemeriksaan_baphp = getStr('mu_kesimpulan_pemeriksaan_baphp') || paket.kesimpulan_pemeriksaan_baphp;
     extraPaketFields.no_bast = getStr('mu_no_bast') || paket.no_bast;
+    extraPaketFields.tgl_bast = getStr('mu_tgl_bast') || activeTRow.tanggal_dokumen || '';
+    extraPaketFields.tempat_bast = getStr('mu_tempat_bast') || paket.tempat_bast;
+    extraPaketFields.tgl_realisasi_selesai = getStr('mu_tgl_realisasi_selesai') || paket.tgl_realisasi_selesai;
+    extraPaketFields.hari_terlambat = Number(getStr('mu_hari_terlambat') || 0);
+    extraPaketFields.denda_keterlambatan_rp = Number(getStr('mu_denda_rp') || 0);
+    extraPaketFields.status_denda = getStr('mu_status_denda') || paket.status_denda;
+    extraPaketFields.masa_garansi_hari = Number(getStr('mu_masa_garansi_hari') || 365);
+    extraPaketFields.tgl_mulai_garansi = getStr('mu_tgl_mulai_garansi') || extraPaketFields.tgl_bast;
+    extraPaketFields.tgl_selesai_garansi = getStr('mu_tgl_selesai_garansi') || paket.tgl_selesai_garansi;
+    extraPaketFields.catatan_bast = getStr('mu_catatan_bast') || paket.catatan_bast;
+
+    // Kumpulkan baris tabel 5 Titik Kritis BAPHP
+    const baphpRows = [];
+    const trEls = document.querySelectorAll('#baphp_table_body tr.baphp-row');
+    trEls.forEach((tr, idx) => {
+      const titik = tr.querySelector('.baphp-titik')?.value || '';
+      const std = tr.querySelector('.baphp-standar')?.value || '';
+      const hsl = tr.querySelector('.baphp-hasil')?.value || '';
+      const sts = tr.querySelector('.baphp-status')?.value || 'MEMENUHI SYARAT';
+      if (titik || std) {
+        baphpRows.push({
+          no: idx + 1,
+          titik_kritis: titik,
+          standar: std,
+          hasil: hsl,
+          status: sts
+        });
+      }
+    });
+    if (baphpRows.length > 0) {
+      extraPaketFields.parameter_pemeriksaan_baphp_json = JSON.stringify(baphpRows);
+    }
+
+    // Kumpulkan rincian keterlambatan per item barang
+    const itemRows = [];
+    document.querySelectorAll('#bast_items_table_body tr.bast-item-row').forEach(tr => {
+      const itId = tr.dataset.itemId;
+      const uraian = tr.dataset.uraian;
+      const vol = Number(tr.dataset.volume || 1);
+      const sat = tr.dataset.satuan;
+      const bruto = Number(tr.dataset.bruto || 0);
+      const dpp = Number(tr.dataset.dpp || 0);
+      const dendaPerHari = Number(tr.dataset.dendaPerHari || Math.round(dpp * 0.001));
+      const tglReal = tr.querySelector('.item-denda-tgl-realisasi')?.value || '';
+      const hari = Number(tr.dataset.itemDays || 0);
+      const denda = Number(tr.dataset.itemDenda || 0);
+      itemRows.push({
+        id: itId,
+        uraian_item: uraian,
+        volume: vol,
+        satuan: sat,
+        nilai_kontrak: bruto,
+        dpp: dpp,
+        denda_per_hari: dendaPerHari,
+        tgl_realisasi: tglReal,
+        hari_terlambat: hari,
+        denda_rp: denda
+      });
+    });
+    if (itemRows.length > 0) {
+      extraPaketFields.realisasi_item_bast_json = JSON.stringify(itemRows);
+    }
+
+    if (extraPaketFields.no_bast) {
+      nomorDokumen = extraPaketFields.no_bast;
+    }
+    if (extraPaketFields.tgl_bast) {
+      tanggalDokumen = extraPaketFields.tgl_bast;
+    }
   } else if (num === 17) {
     extraPaketFields.jenis_pph = getStr('mu_jenis_pph') || paket.jenis_pph;
   } else if (num === 18) {
@@ -13400,7 +14414,9 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       no_bahp: extraPaketFields.no_bahp || activeTRow.no_bahp || '',
       no_ba_reviu_ppk: extraPaketFields.no_ba_reviu_ppk || activeTRow.no_ba_reviu_ppk || '',
       no_spp: extraPaketFields.no_spp || activeTRow.no_spp || '',
-      no_ba_spl: extraPaketFields.no_ba_spl || activeTRow.no_ba_spl || ''
+      no_ba_spl: extraPaketFields.no_ba_spl || activeTRow.no_ba_spl || '',
+      no_baphp: extraPaketFields.no_baphp || activeTRow.no_baphp || '',
+      no_bast: extraPaketFields.no_bast || activeTRow.no_bast || ''
     }
   };
 
@@ -14668,3 +15684,514 @@ async function deleteCakraKbli(id) {
   }
 }
 window.deleteCakraKbli = deleteCakraKbli;
+
+
+// =============================================================================
+// ADD-ON PRINT: SURAT TANDA TERIMA BARANG SEMENTARA (STTBS - PARSIAL)
+// Fitur dinamis untuk memuat barang secara parsial (bukan templating)
+// =============================================================================
+window._sttbsActivePaket = null;
+
+window.openSttbsModal = async function(paketId) {
+  try {
+    let ctx = null;
+    if (window.CakraState?.activePaketFull?.paket && Number(window.CakraState.activePaketFull.paket.id) === Number(paketId)) {
+      ctx = window.CakraState.activePaketFull;
+    } else {
+      const resp = await fetch('/api/cakra/paket/' + paketId);
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json.ok) ctx = json.data || json;
+      }
+    }
+
+    if (!ctx || !ctx.paket) {
+      alert('Data paket pengadaan tidak ditemukan.');
+      return;
+    }
+
+    window._sttbsActivePaket = ctx;
+    const p = ctx.paket;
+    const items = ctx.items || [];
+    const cleanKode = String(p.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+
+    // Populate Info Kontrak
+    const elBadge = document.getElementById('sttbs_paket_kode_badge');
+    if (elBadge) elBadge.textContent = cleanKode;
+    const elNama = document.getElementById('sttbs_info_nama_paket');
+    if (elNama) elNama.textContent = p.nama_paket || 'Pengadaan Perangkat IT';
+    const elKontrak = document.getElementById('sttbs_info_kontrak');
+    if (elKontrak) elKontrak.textContent = p.no_kontrak || p.no_sp || ('013/SP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+    const elPenyedia = document.getElementById('sttbs_info_penyedia');
+    if (elPenyedia) elPenyedia.textContent = p.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI';
+    const elBatas = document.getElementById('sttbs_info_batas_kontrak');
+    if (elBatas) elBatas.textContent = p.tgl_selesai_kontrak ? p.tgl_selesai_kontrak : '09 Juni 2026';
+
+    // Populate Parameters
+    const elNo = document.getElementById('sttbs_no');
+    if (elNo) elNo.value = '016/STTBS/' + cleanKode + '/PPK/VI/2026';
+    const elTgl = document.getElementById('sttbs_tgl');
+    if (elTgl) elTgl.value = '2026-06-09';
+    const elJam = document.getElementById('sttbs_jam');
+    if (elJam) elJam.value = '14:30 WIB';
+    const elNoSj = document.getElementById('sttbs_no_sj');
+    if (elNoSj) elNoSj.value = '088/SJ-GP/VI/2026';
+    const elTglSj = document.getElementById('sttbs_tgl_sj');
+    if (elTglSj) elTglSj.value = '2026-06-09';
+    const elPenerima = document.getElementById('sttbs_penerima');
+    if (elPenerima) elPenerima.value = 'Pejabat Pemeriksa Pengadaan / Pengurus Barang KPU Ngawi';
+    const elPenyerah = document.getElementById('sttbs_penyerah');
+    if (elPenyerah) elPenyerah.value = 'Petugas Logistik / Ekspedisi ' + (p.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI');
+
+    // Render Dynamic Items Table
+    window.renderSttbsItemRows(items, p);
+
+    // Show Modal
+    const modal = document.getElementById('modal-sttbs-partial');
+    if (modal) {
+      modal.style.position = 'fixed';
+      modal.style.inset = '0';
+      modal.style.zIndex = '1250';
+      modal.style.display = 'flex';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+    }
+  } catch (err) {
+    console.error('[OPEN-STTBS-MODAL-ERROR]', err);
+    alert('Gagal membuka modal STTBS: ' + err.message);
+  }
+};
+
+window.closeSttbsModal = function() {
+  const modal = document.getElementById('modal-sttbs-partial');
+  if (modal) modal.style.display = 'none';
+};
+
+window.renderSttbsItemRows = function(items, paket) {
+  const tbody = document.getElementById('sttbs_items_table_body');
+  if (!tbody) return;
+
+  let realisasiSaved = null;
+  if (paket && paket.realisasi_item_bast_json) {
+    try { realisasiSaved = JSON.parse(paket.realisasi_item_bast_json); } catch (e) {}
+  }
+
+  let html = '';
+  items.forEach((it, idx) => {
+    const no = idx + 1;
+    const uraian = it.uraian_item || it.nama_barang || it.nama_item || ('Item ' + no);
+    const volKontrak = Number(it.volume || 1);
+    const satuan = it.satuan || 'Unit';
+
+    // Heuristik Default Parsial:
+    // Cek jika item ini adalah item yang tiba tepat waktu pada batas kontrak (misal PC Workstation 3 Unit)
+    let isChecked = false;
+    let volTerima = volKontrak;
+    let kondisi = 'Baik, Utuh & Bersegel Pabrikan';
+    let snText = '';
+
+    if (Array.isArray(realisasiSaved)) {
+      const match = realisasiSaved.find(r => r.id === it.id || r.nama_item === uraian);
+      if (match) {
+        isChecked = match.hari_terlambat === 0 || match.status === 'TEPAT_WAKTU';
+        if (isChecked) {
+          snText = 'S/N: DL-WK-0921 s/d DL-WK-0923 (Segel Utuh)';
+        } else {
+          snText = 'Belum diserahkan (Menyusul)';
+        }
+      }
+    } else {
+      // Default: Jika nama mengandung workstation / non-server, check = true
+      if (uraian.toLowerCase().includes('workstation') || !uraian.toLowerCase().includes('server')) {
+        isChecked = true;
+        snText = 'S/N: DL-WK-0921 s/d DL-WK-0923 (Segel Utuh)';
+      } else {
+        isChecked = false;
+        snText = 'Belum diserahkan (Menyusul)';
+      }
+    }
+
+    html += `
+      <tr class="sttbs-item-row" data-item-id="${it.id || (idx + 1)}" style="background:${isChecked ? '#f0fdf4' : '#ffffff'};">
+        <td style="padding:6px; text-align:center; border-bottom:1px solid #e2e8f0;">
+          <input type="checkbox" class="sttbs-item-check" data-item-id="${it.id || (idx + 1)}" ${isChecked ? 'checked' : ''} onchange="window.onSttbsItemCheckChange(this)" style="cursor:pointer; width:16px; height:16px;" />
+        </td>
+        <td style="padding:6px; text-align:center; font-weight:700; color:#475569; border-bottom:1px solid #e2e8f0;">${no}</td>
+        <td style="padding:6px; border-bottom:1px solid #e2e8f0;">
+          <div class="sttbs-item-name" style="font-weight:700; color:#1e293b; font-size:11.5px;">${uraian}</div>
+          <div style="font-size:10px; color:#64748b;">${it.spesifikasi_singkat || ''}</div>
+        </td>
+        <td style="padding:6px; text-align:center; font-weight:700; color:#334155; border-bottom:1px solid #e2e8f0;">
+          ${volKontrak} ${satuan}
+        </td>
+        <td style="padding:6px; text-align:center; border-bottom:1px solid #e2e8f0;">
+          <input type="number" class="cakra-form-control sttbs-vol-inp" min="1" max="${volKontrak}" value="${volTerima}" style="width:75px; text-align:center; font-weight:800; font-size:11px;" ${isChecked ? '' : 'disabled'} />
+        </td>
+        <td style="padding:6px; border-bottom:1px solid #e2e8f0;">
+          <select class="cakra-form-control sttbs-kondisi-sel" style="font-size:10.5px; width:100%;" ${isChecked ? '' : 'disabled'}>
+            <option value="Baik, Utuh &amp; Bersegel Pabrikan" ${kondisi.includes('Pabrikan') ? 'selected' : ''}>Baik, Utuh &amp; Bersegel Pabrikan</option>
+            <option value="Baik / Segel Utuh" ${kondisi === 'Baik / Segel Utuh' ? 'selected' : ''}>Baik / Segel Utuh</option>
+            <option value="Dus Terbuka (Fisik Utuh)">Dus Terbuka (Fisik Utuh)</option>
+            <option value="Perlu Pemeriksaan Lanjut">Perlu Pemeriksaan Lanjut</option>
+          </select>
+        </td>
+        <td style="padding:6px; border-bottom:1px solid #e2e8f0;">
+          <input type="text" class="cakra-form-control sttbs-sn-inp" value="${snText}" placeholder="S/N atau nomor segel..." style="font-size:10.5px; width:100%;" ${isChecked ? '' : 'disabled'} />
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+  window.updateSttbsCountBadge();
+};
+
+window.onSttbsItemCheckChange = function(chk) {
+  const tr = chk.closest('tr.sttbs-item-row');
+  if (!tr) return;
+  const isChecked = chk.checked;
+  tr.style.background = isChecked ? '#f0fdf4' : '#ffffff';
+
+  const volInp = tr.querySelector('.sttbs-vol-inp');
+  const konSel = tr.querySelector('.sttbs-kondisi-sel');
+  const snInp = tr.querySelector('.sttbs-sn-inp');
+
+  if (volInp) volInp.disabled = !isChecked;
+  if (konSel) konSel.disabled = !isChecked;
+  if (snInp) snInp.disabled = !isChecked;
+
+  window.updateSttbsCountBadge();
+};
+
+window.updateSttbsCountBadge = function() {
+  const badge = document.getElementById('sttbs_selected_count_badge');
+  if (!badge) return;
+  const checks = document.querySelectorAll('#sttbs_items_table_body .sttbs-item-check:checked');
+  const count = checks.length;
+  badge.textContent = count + ' Item Terpilih (Parsial)';
+  if (count === 0) {
+    badge.style.background = '#fee2e2';
+    badge.style.color = '#dc2626';
+  } else {
+    badge.style.background = '#dcfce7';
+    badge.style.color = '#15803d';
+  }
+};
+
+window.collectSttbsData = function() {
+  const no = document.getElementById('sttbs_no')?.value?.trim();
+  const tgl = document.getElementById('sttbs_tgl')?.value;
+  const jam = document.getElementById('sttbs_jam')?.value?.trim() || '14:30 WIB';
+  const noSj = document.getElementById('sttbs_no_sj')?.value?.trim();
+  const tglSj = document.getElementById('sttbs_tgl_sj')?.value;
+  const penerima = document.getElementById('sttbs_penerima')?.value?.trim();
+  const penyerah = document.getElementById('sttbs_penyerah')?.value?.trim();
+  const catatan = document.getElementById('sttbs_catatan')?.value?.trim();
+
+  if (!no) return { ok: false, error: 'Nomor Dokumen STTBS wajib diisi.' };
+  if (!tgl) return { ok: false, error: 'Tanggal kedatangan parsial wajib diisi.' };
+  if (!noSj) return { ok: false, error: 'Nomor Surat Jalan rekanan wajib diisi.' };
+
+  const rows = document.querySelectorAll('#sttbs_items_table_body tr.sttbs-item-row');
+  const selectedItems = [];
+
+  rows.forEach((tr, idx) => {
+    const chk = tr.querySelector('.sttbs-item-check');
+    if (chk && chk.checked) {
+      const namaItem = tr.querySelector('.sttbs-item-name')?.textContent?.trim() || 
+                       tr.querySelector('div[style*="font-weight:700"]')?.textContent?.trim() || 
+                       tr.querySelector('strong')?.textContent?.trim() || 
+                       ('Item ' + (idx + 1));
+      const vol = Number(tr.querySelector('.sttbs-vol-inp')?.value || 1);
+      const kondisi = tr.querySelector('.sttbs-kondisi-sel')?.value || 'Baik';
+      const sn = tr.querySelector('.sttbs-sn-inp')?.value?.trim() || '-';
+      selectedItems.push({
+        id: tr.dataset.itemId ? Number(tr.dataset.itemId) : (idx + 1),
+        nama_item: namaItem,
+        vol_diterima: vol,
+        satuan: 'Unit',
+        kondisi: kondisi,
+        keterangan: sn
+      });
+    }
+  });
+
+  if (selectedItems.length === 0) {
+    return { ok: false, error: 'Pilih minimal 1 item barang yang diterima secara parsial (centang kotak pilihan).' };
+  }
+
+  // Format hari tanggal dalam bahasa Indonesia
+  const d = new Date(tgl + 'T00:00:00');
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const hariStr = days[d.getDay()] || 'Hari';
+  const tglStr = d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  const hariTglLengkap = hariStr + ', ' + tglStr;
+
+  return {
+    ok: true,
+    data: {
+      no_sttbs: no,
+      tgl_sttbs: tgl,
+      waktu_sttbs: jam,
+      no_surat_jalan: noSj,
+      tgl_surat_jalan: tglSj,
+      nama_penerima: penerima,
+      nama_penyerah: penyerah,
+      catatan: catatan,
+      hari_tgl_str: hariTglLengkap,
+      items: selectedItems
+    }
+  };
+};
+
+window.printSttbsPartial = function() {
+  const res = window.collectSttbsData();
+  if (!res.ok) {
+    if (window.cakraNotify) window.cakraNotify(res.error, 'warning');
+    else alert(res.error);
+    return;
+  }
+  const d = res.data;
+  const p = window._sttbsActivePaket?.paket || {};
+  const settings = window.CakraState?.settings || {};
+
+  const cleanKode = String(p.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+  const namaSatker = (settings.nama_satker || 'KOMISI PEMILIHAN UMUM KABUPATEN NGAWI').toUpperCase();
+  const alamatSatker = settings.alamat_satker || 'Jl. Untung Suropati No. 48 Ngawi, Jawa Timur 63218';
+  const telpSatker = settings.telp_satker || '(0351) 743832';
+  const ppkObj = window._sttbsActivePaket?.ppk || {};
+  const ppkNama = ppkObj.nama_lengkap || settings.nama_ppk || 'MOHAMMAD NOOR JIHAN';
+  const ppkNip = ppkObj.nip || settings.nip_ppk || '19840101 200912 1 001';
+
+  let rowsHtml = '';
+  d.items.forEach((it, idx) => {
+    rowsHtml += `
+      <tr>
+        <td style="text-align:center; padding:6px; border:1px solid #000;">${idx + 1}</td>
+        <td style="padding:6px; border:1px solid #000; font-weight:700;">${it.nama_item}</td>
+        <td style="text-align:center; padding:6px; border:1px solid #000;">${it.vol_diterima} ${it.satuan}</td>
+        <td style="padding:6px; border:1px solid #000;">${it.kondisi}</td>
+        <td style="padding:6px; border:1px solid #000;">${it.keterangan || '-'}</td>
+      </tr>
+    `;
+  });
+
+  const printHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>STTBS - ${d.no_sttbs}</title>
+      <style>
+        @page { size: A4 portrait; margin: 15mm 20mm; }
+        body { font-family: 'Cambria', 'Times New Roman', serif; font-size: 11pt; line-height: 1.35; color: #000; margin: 0; padding: 0; }
+        .kop-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+        .kop-table td { vertical-align: middle; }
+        .kop-logo { width: 75px; text-align: center; }
+        .kop-logo img { width: 68px; height: auto; }
+        .kop-text { text-align: center; }
+        .kop-title1 { font-size: 14pt; font-weight: bold; margin: 0; }
+        .kop-title2 { font-size: 15pt; font-weight: bold; margin: 0; }
+        .kop-address { font-size: 9.5pt; margin: 2px 0 0; }
+        .kop-rule { border: 0; border-top: 3px solid #000; border-bottom: 1px solid #000; height: 3px; margin: 4px 0 16px; }
+        .doc-title { text-align: center; font-size: 12.5pt; font-weight: bold; text-decoration: underline; margin-bottom: 2px; }
+        .doc-no { text-align: center; font-size: 10.5pt; font-weight: bold; margin-bottom: 14px; }
+        p { margin: 6px 0; text-align: justify; }
+        .ref-table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 10.5pt; }
+        .ref-table td { padding: 2px 4px; vertical-align: top; }
+        .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }
+        .items-table th { background: #f1f5f9; border: 1px solid #000; padding: 6px; font-weight: bold; text-align: center; }
+        .items-table td { border: 1px solid #000; }
+        .legal-list { margin: 6px 0; padding-left: 20px; font-size: 10pt; text-align: justify; }
+        .legal-list li { margin-bottom: 4px; }
+        .sig-table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 10.5pt; page-break-inside: avoid; }
+        .sig-table td { vertical-align: top; text-align: center; }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+      <table class="kop-table">
+        <tr>
+          <td class="kop-logo">
+            <img src="/assets/kpu_logo_official.png" alt="Logo KPU" />
+          </td>
+          <td class="kop-text">
+            <div class="kop-title1">KOMISI PEMILIHAN UMUM</div>
+            <div class="kop-title2">${namaSatker.replace(/^KOMISI PEMILIHAN UMUM\s*/i, '')}</div>
+            <div class="kop-address">${alamatSatker}</div>
+            <div class="kop-address">Telepon ${telpSatker} | Laman: kab-ngawi.kpu.go.id</div>
+          </td>
+        </tr>
+      </table>
+      <div class="kop-rule"></div>
+
+      <div class="doc-title">SURAT TANDA TERIMA PENERIMAAN BARANG SEMENTARA (PARSIAL)</div>
+      <div class="doc-no">Nomor: ${d.no_sttbs}</div>
+
+      <p>
+        Pada hari ini, <strong>${d.hari_tgl_str}</strong> pukul ${d.waktu_sttbs}, bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi, kami yang bertanda tangan di bawah ini:
+      </p>
+
+      <table class="ref-table">
+        <tr>
+          <td style="width:25px;">1.</td>
+          <td style="width:140px;">Pihak Penerima</td>
+          <td style="width:10px;">:</td>
+          <td><strong>${d.nama_penerima}</strong> (KPU Kabupaten Ngawi)</td>
+        </tr>
+        <tr>
+          <td>2.</td>
+          <td>Pihak Penyerah</td>
+          <td>:</td>
+          <td><strong>${d.nama_penyerah}</strong></td>
+        </tr>
+      </table>
+
+      <p>Menyatakan dengan sebenarnya bahwa telah diserahkan dan diterima sebagian fisik barang pengadaan berdasarkan:</p>
+
+      <table class="ref-table">
+        <tr>
+          <td style="width:20px;">•</td>
+          <td style="width:180px;">Surat Pesanan (Kontrak)</td>
+          <td style="width:10px;">:</td>
+          <td>Nomor ${p.no_kontrak || p.no_sp || ('013/SP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026')} tanggal ${p.tgl_kontrak || p.tgl_sp || '27 Mei 2026'}</td>
+        </tr>
+        <tr>
+          <td>•</td>
+          <td>Surat Jalan Rekanan</td>
+          <td>:</td>
+          <td>Nomor ${d.no_surat_jalan} tanggal ${d.tgl_surat_jalan}</td>
+        </tr>
+        <tr>
+          <td>•</td>
+          <td>Paket Pengadaan</td>
+          <td>:</td>
+          <td>${p.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional'}</td>
+        </tr>
+        <tr>
+          <td>•</td>
+          <td>Penyedia Barang/Jasa</td>
+          <td>:</td>
+          <td>${p.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI'}</td>
+        </tr>
+      </table>
+
+      <div style="font-weight:bold; font-size:10.5pt; margin-top:8px;">RINCIAN BARANG YANG DITERIMA SECARA PARSIAL:</div>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width:30px;">NO</th>
+            <th>NAMA BARANG / ITEM PEKERJAAN</th>
+            <th style="width:90px;">VOL TERIMA</th>
+            <th style="width:140px;">KONDISI KEMASAN</th>
+            <th style="width:160px;">NOMOR SERI / KETERANGAN</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+
+      <div style="font-weight:bold; font-size:10.5pt; margin-top:6px;">CATATAN KHUSUS &amp; KETENTUAN KEDUA BELAH PIHAK:</div>
+      <ol class="legal-list">
+        <li>Dokumen ini <strong>HANYA</strong> merupakan tanda terima fisik sementara atas barang yang tiba di lokasi, dan <strong>BUKAN merupakan Berita Acara Serah Terima (BAST) definitif</strong>.</li>
+        <li>Dokumen ini <strong>TIDAK DAPAT</strong> digunakan sebagai dasar pengajuan atau penagihan pembayaran (SPP-LS / SPM-LS) kepada Kuasa Pengguna Anggaran.</li>
+        <li>Kedatangan fisik atas barang-barang di atas diakui secara sah oleh kedua belah pihak sebagai <strong>bukti pemenuhan batas waktu kontrak tepat waktu</strong> sebelum batas akhir kontrak guna penghitungan denda keterlambatan bagian kontrak (Pasal 79 ayat 4 huruf b Perpres 12/2021).</li>
+        <li>Pemeriksaan substantif, uji komisioning teknis (BAPHP), dan penandatanganan BAST definitif 100% baru akan dilaksanakan setelah seluruh sisa barang tiba lengkap di kantor KPU Kabupaten Ngawi.</li>
+      </ol>
+
+      <p style="font-style:italic; font-size:10pt; margin:4px 0 12px;">Catatan Khusus: ${d.catatan || '-'}</p>
+
+      <table class="sig-table">
+        <tr>
+          <td style="width:50%;">
+            Pihak Penyerah (Penyedia / Ekspedisi),<br/>
+            <strong>${p.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI'}</strong>
+            <div style="height:65px;"></div>
+            <strong>( .................................................... )</strong><br/>
+            <span style="font-size:9.5pt; color:#333;">${d.nama_penyerah}</span>
+          </td>
+          <td style="width:50%;">
+            Pihak Penerima (KPU Kabupaten Ngawi),<br/>
+            <strong>PENGURUS BARANG / TIM TEKNIS</strong>
+            <div style="height:65px;"></div>
+            <strong>( .................................................... )</strong><br/>
+            <span style="font-size:9.5pt; color:#333;">${d.nama_penerima}</span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding-top:16px;">
+            Mengetahui,<br/>
+            <strong>PEJABAT PEMBUAT KOMITMEN (PPK)</strong>
+            <div style="height:60px;"></div>
+            <strong style="text-decoration:underline;">${ppkNama}</strong><br/>
+            <span style="font-size:9.5pt;">NIP. ${ppkNip}</span>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const printWin = window.open('', '_blank', 'width=880,height=900');
+  if (printWin) {
+    printWin.document.open();
+    printWin.document.write(printHtml);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => {
+      printWin.print();
+    }, 500);
+  } else {
+    let printIframe = document.getElementById('sttbs_print_iframe');
+    if (!printIframe) {
+      printIframe = document.createElement('iframe');
+      printIframe.id = 'sttbs_print_iframe';
+      printIframe.style.display = 'none';
+      document.body.appendChild(printIframe);
+    }
+    const doc = printIframe.contentWindow.document;
+    doc.open();
+    doc.write(printHtml);
+    doc.close();
+    setTimeout(() => {
+      printIframe.contentWindow.focus();
+      printIframe.contentWindow.print();
+    }, 500);
+  }
+};
+
+window.downloadSttbsDocx = async function() {
+  const res = window.collectSttbsData();
+  if (!res.ok) {
+    if (window.cakraNotify) window.cakraNotify(res.error, 'warning');
+    else alert(res.error);
+    return;
+  }
+  const paketId = window._sttbsActivePaket?.paket?.id || 1;
+  try {
+    if (window.cakraNotify) window.cakraNotify('Sedang mengunduh naskah resmi STTBS (.docx)...', 'info');
+    const resp = await fetch('/api/cakra/sttbs/docx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paketId, sttbsData: res.data })
+    });
+    if (!resp.ok) throw new Error('Gagal mengunduh berkas Word STTBS');
+    const blob = await resp.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '016_STTBS_Parsial_' + (res.data.no_sttbs || 'PBJ-2026').replace(/[^a-zA-Z0-9_-]/g, '_') + '.docx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    if (window.cakraNotify) window.cakraNotify('Naskah Word STTBS berhasil diunduh!', 'success');
+  } catch (err) {
+    console.error(err);
+    alert('Terjadi kesalahan saat mengunduh berkas Word STTBS: ' + err.message);
+  }
+};

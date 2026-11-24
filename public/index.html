@@ -8982,9 +8982,162 @@
           </div>
         </div>
       </div>
+
+      <!-- MODAL ADD-ON PRINT: SURAT TANDA TERIMA BARANG SEMENTARA (PARSIAL) -->
+      <div id="modal-sttbs-partial" class="modal-backdrop" style="display:none; position:fixed; inset:0; z-index:1250;">
+        <div class="modal-box" style="max-width:940px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+          <!-- HEADER -->
+          <div class="modal-header" style="background: linear-gradient(135deg, #065f46 0%, #047857 100%); color:#fff; padding:16px 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <div>
+                <div style="font-size:11px; font-weight:800; color:#a7f3d0; text-transform:uppercase; letter-spacing:0.5px;">
+                  📦 ADD-ON PRINT &amp; MITIGASI DENDA PBJ
+                </div>
+                <h3 style="margin:2px 0 0; font-size:17px; font-weight:800; color:#fff;">
+                  Surat Tanda Terima Barang Sementara (STTBS - Parsial)
+                </h3>
+                <div style="font-size:11.5px; color:#d1fae5; margin-top:2px;">
+                  Bukti resmi penerimaan fisik barang parsial sebelum BAST definitif (100% selesai)
+                </div>
+              </div>
+              <button type="button" onclick="closeSttbsModal()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer; opacity:0.8; line-height:1;" title="Tutup">&times;</button>
+            </div>
+          </div>
+
+          <!-- BODY -->
+          <div class="modal-body" style="padding:18px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px; background:#f8fafc;">
+            <!-- 1. IDENTITAS KONTRAK & RUJUKAN -->
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:12px; font-weight:800; color:#0f172a;">📑 Informasi Kontrak &amp; Penyedia:</span>
+                <span id="sttbs_paket_kode_badge" class="cakra-badge cakra-badge-info" style="font-size:10.5px; font-weight:700;">PBJ-2026-001</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; font-size:11.5px;">
+                <div>
+                  <span style="color:#64748b; font-size:10.5px; display:block;">Nama Paket:</span>
+                  <strong id="sttbs_info_nama_paket" style="color:#1e293b;">Pengadaan Perangkat Pengolah Data dan PC Server Operasional</strong>
+                </div>
+                <div>
+                  <span style="color:#64748b; font-size:10.5px; display:block;">Surat Pesanan (Kontrak):</span>
+                  <strong id="sttbs_info_kontrak" style="color:#1e293b;">013/SP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026</strong>
+                </div>
+                <div>
+                  <span style="color:#64748b; font-size:10.5px; display:block;">Penyedia:</span>
+                  <strong id="sttbs_info_penyedia" style="color:#1e293b;">CV. GRAFIKA PRATAMA NGAWI</strong>
+                </div>
+                <div>
+                  <span style="color:#64748b; font-size:10.5px; display:block;">Batas Selesai Kontrak:</span>
+                  <strong id="sttbs_info_batas_kontrak" style="color:#dc2626;">09 Juni 2026</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. PARAMETER DOKUMEN STTBS -->
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+              <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:10px;">
+                ⚙️ Parameter Naskah Surat Tanda Terima Sementara:
+              </div>
+              <div style="display:grid; grid-template-columns: 1.5fr 1fr 1fr; gap:12px; margin-bottom:10px;">
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Dokumen STTBS *</label>
+                  <input type="text" id="sttbs_no" class="cakra-form-control cakra-mono" value="016/STTBS/PBJ-2026-001/PPK/VI/2026" required />
+                </div>
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Kedatangan Parsial *</label>
+                  <input type="date" id="sttbs_tgl" class="cakra-form-control" value="2026-06-09" required />
+                </div>
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Waktu / Jam Kedatangan</label>
+                  <input type="text" id="sttbs_jam" class="cakra-form-control" value="14:30 WIB" />
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:12px; margin-bottom:10px;">
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Surat Jalan Rekanan *</label>
+                  <input type="text" id="sttbs_no_sj" class="cakra-form-control cakra-mono" value="088/SJ-GP/VI/2026" placeholder="Nomor Surat Pengantar / Jalan..." required />
+                </div>
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Tanggal Surat Jalan *</label>
+                  <input type="date" id="sttbs_tgl_sj" class="cakra-form-control" value="2026-06-09" required />
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Pihak Penerima (KPU Kabupaten Ngawi) *</label>
+                  <input type="text" id="sttbs_penerima" class="cakra-form-control" value="Pengurus Barang / Pejabat Pemeriksa Pengadaan KPU Ngawi" required />
+                </div>
+                <div>
+                  <label style="font-size:11px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Pihak Penyerah (Penyedia / Ekspedisi) *</label>
+                  <input type="text" id="sttbs_penyerah" class="cakra-form-control" value="Petugas Logistik / Ekspedisi CV. GRAFIKA PRATAMA NGAWI" required />
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. TABEL DINAMIS LOAD BARANG SECARA PARSIAL -->
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div>
+                  <span style="font-size:12px; font-weight:800; color:#0f172a;">📋 Pilih Barang yang Diterima Pada Batch Ini (Parsial):</span>
+                  <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Centang item yang diterima, sesuaikan kuantitas yang tiba, kondisi kemasan, dan nomor seri.</div>
+                </div>
+                <span id="sttbs_selected_count_badge" class="cakra-badge cakra-badge-success" style="font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px; background:#dcfce7; color:#15803d;">
+                  1 Item Terpilih
+                </span>
+              </div>
+
+              <div style="overflow-x:auto;">
+                <table style="width:100%; min-width:760px; border-collapse:collapse; font-size:11px;" id="sttbs_items_table">
+                  <thead>
+                    <tr style="background:#f1f5f9; color:#334155; font-weight:800; text-align:left;">
+                      <th style="padding:6px 6px; width:45px; text-align:center; border-bottom:1px solid #cbd5e1;">PILIH</th>
+                      <th style="padding:6px 6px; width:30px; text-align:center; border-bottom:1px solid #cbd5e1;">NO</th>
+                      <th style="padding:6px 6px; width:32%; border-bottom:1px solid #cbd5e1;">URAIAN ITEM / BARANG</th>
+                      <th style="padding:6px 6px; width:12%; text-align:center; border-bottom:1px solid #cbd5e1;">KONTRAK</th>
+                      <th style="padding:6px 6px; width:14%; text-align:center; border-bottom:1px solid #cbd5e1;">VOL TERIMA *</th>
+                      <th style="padding:6px 6px; width:18%; border-bottom:1px solid #cbd5e1;">KONDISI KEMASAN</th>
+                      <th style="padding:6px 6px; width:20%; border-bottom:1px solid #cbd5e1;">NO. SERI / KETERANGAN</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sttbs_items_table_body">
+                    <!-- Diisi secara dinamis via renderSttbsItemRows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 4. CATATAN TAMBAHAN & DISCLAIMER HUKUM -->
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px;">
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px; display:block;">Catatan Tambahan Penerimaan</label>
+              <textarea id="sttbs_catatan" class="cakra-form-control" rows="2" style="font-size:11px; width:100%; box-sizing:border-box;">Barang diterima secara fisik parsial dalam kondisi baik dan tersegel pabrikan utuh. Pemeriksaan uji fungsi komisioning penuh (BAPHP) dan Berita Acara Serah Terima (BAST) definitif akan diterbitkan setelah seluruh barang (termasuk sisa item) tiba lengkap 100%.</textarea>
+              <div style="margin-top:8px; font-size:10.5px; color:#14532d; line-height:1.45; background:#dcfce7; border-radius:6px; padding:8px 10px;">
+                ⚖️ <strong>Kedudukan Yuridis Surat Tanda Terima Sementara:</strong><br/>
+                • <strong>Bukan BAST Definitif:</strong> Hak kepemilikan dan penyerahan 100% belum beralih penuh kepada PPK sampai BAPHP &amp; BAST sah diterbitkan.<br/>
+                • <strong>Bukan Dasar Tagihan:</strong> Dokumen ini <strong>tidak dapat</strong> digunakan untuk mencairkan SPP-LS / SPM-LS.<br/>
+                • <strong>Bukti Sah Kepatuhan Waktu:</strong> Menjadi bukti otentik kedua belah pihak bahwa barang di atas telah tiba di lokasi tepat waktu untuk menghitung sanksi denda keterlambatan bagian kontrak (Pasal 79 ayat 4b Perpres 12/2021).
+              </div>
+            </div>
+          </div>
+
+          <!-- FOOTER -->
+          <div class="modal-footer" style="padding:14px 20px; background:#f1f5f9; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" class="cakra-btn cakra-btn-secondary" onclick="closeSttbsModal()" style="font-weight:700;">
+              Tutup
+            </button>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button type="button" class="cakra-btn cakra-btn-primary" onclick="downloadSttbsDocx()" style="font-weight:700; padding:8px 16px; font-size:12.5px; background:#2563eb; color:#fff; border:none; border-radius:6px; cursor:pointer;" title="Unduh naskah resmi dalam format Microsoft Word (.docx)">
+                📄 Unduh Word (.docx)
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-success" onclick="printSttbsPartial()" style="font-weight:800; padding:8px 20px; font-size:12.5px; background:#059669; color:#fff; border:none; border-radius:6px; box-shadow:0 2px 6px rgba(5,150,105,0.3); cursor:pointer;" title="Cetak langsung atau simpan sebagai PDF">
+                🖨️ Cetak STTBS (Print / PDF)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
 <script src="/data_juknis.js?v=5.9.5-20261115-tahap9"></script>
     <script src="/app.js?v=5.9.11-20261116-fix-modal-heuristics"></script>
-    <script src="/pengadaan.js?v=5.9.22-20261123-tahap15-live-sync"></script>
+    <script src="/pengadaan.js?v=5.9.25-20261124-tahap16-sttbs-addon-print"></script>
     <!-- Dev Tools: HANYA dimuat di Localhost Pengembang (di-ignore dari git repo) -->
     <script>
       if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {

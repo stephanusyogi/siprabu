@@ -6110,7 +6110,7 @@ function buildStage13Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   const sepakatKontrak = Number(paket.nilai_kontrak || 138000000);
 
   const ppkNama = cleanNamaTanpaGelar((ppk && ppk.nama_lengkap) || 'MOHAMMAD NOOR JIHAN');
-  const ppkNip = (ppk && ppk.nip) || '19910518 201503 1 002';
+  const ppkNip = (ppk && ppk.nip) || '19840101 200912 1 001';
   const ppkAlamat = (settings && settings.alamat_satker) || 'Jl. Untung Suropati No. 48 Ngawi';
 
   const namaPenyedia = (penyedia && penyedia.nama_perusahaan) || 'CV. GRAFIKA PRATAMA';
@@ -6936,7 +6936,7 @@ function buildStage14Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   const kontakTeknisi = paket.kontak_teknisi_rekanan || '0812-3456-7890';
 
   const ppkNama = cleanNamaTanpaGelar((ppk && ppk.nama_lengkap) || 'MOHAMMAD NOOR JIHAN');
-  const ppkNip = (ppk && ppk.nip) || '19910518 201503 1 002';
+  const ppkNip = (ppk && ppk.nip) || '19840101 200912 1 001';
   const ppkAlamat = (settings && settings.alamat_satker) || 'Jl. Untung Suropati No. 48 Ngawi';
 
   const namaPenyedia = (penyedia && penyedia.nama_perusahaan) || 'CV. GRAFIKA PRATAMA';
@@ -7364,7 +7364,7 @@ function buildStage15Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   const kontakTeknisi = paket.kontak_teknisi_rekanan || '0812-3456-7890';
 
   const ppkNama = cleanNamaTanpaGelar((ppk && ppk.nama_lengkap) || 'MOHAMMAD NOOR JIHAN');
-  const ppkNip = (ppk && ppk.nip) || '19910518 201503 1 002';
+  const ppkNip = (ppk && ppk.nip) || '19840101 200912 1 001';
 
   const realisasiPersen = Number(paket.realisasi_fisik_persen || 100);
   const rencanaPersen = Number(paket.rencana_fisik_persen || 100);
@@ -7693,6 +7693,982 @@ function buildStage15Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   return [secLapWas, secBaKom];
 }
 
+
+// =============================================================================
+// TAHAP 16: PEMERIKSAAN HASIL PEKERJAAN (BAPHP) & BERITA ACARA SERAH TERIMA (BAST)
+// Dokumen 01: Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP)
+// Dokumen 02: Berita Acara Serah Terima Pertama Pekerjaan (BAST)
+// Sesuai Pasal 57 Perpres 16/2018 jo. Perpres 46/2025 & Perka LKPP 12/2021
+// =============================================================================
+function buildStage16Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
+  const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, bendahara, settings } = ctx;
+  const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+
+  const noBaphp = paket.no_baphp || tahapRow.nomor_dokumen || ('016/BAPHP/' + cleanKode + '/PPK/VI/2026');
+  const tglBaphpRaw = tahapRow.tanggal_dokumen || paket.tgl_baphp || paket.tgl_selesai_kontrak || '2026-06-09';
+  const tglBaphpStr = formatTanggalIndo(tglBaphpRaw);
+  const infoHariBaphp = formatHariTanggalBeritaAcara(tglBaphpRaw);
+  const hariTanggalBaphp = `${infoHariBaphp.hari} tanggal ${infoHariBaphp.tanggalKata} bulan ${infoHariBaphp.bulan} tahun ${infoHariBaphp.tahunKata} (${tglBaphpStr})`;
+
+  const noBast = paket.no_bast || ('016/BAST/' + cleanKode + '/PPK/VI/2026');
+  const tglBastRaw = paket.tgl_bast || tglBaphpRaw;
+  const tglBastStr = formatTanggalIndo(tglBastRaw);
+  const infoHariBast = formatHariTanggalBeritaAcara(tglBastRaw);
+  const hariTanggalBast = `${infoHariBast.hari} tanggal ${infoHariBast.tanggalKata} bulan ${infoHariBast.bulan} tahun ${infoHariBast.tahunKata} (${tglBastStr})`;
+
+  const noKontrak = paket.no_kontrak || ('013/SP/' + cleanKode + '/PPK-PBJ/KPU-NGW/V/2026');
+  const tglKontrakStr = formatTanggalIndo(paket.tgl_kontrak || '2026-05-27');
+  const noSpp = paket.no_spp || ('014/SPP/' + cleanKode + '/PPK/V/2026');
+  const tglSppStr = formatTanggalIndo(paket.tgl_spp || '2026-05-27');
+  const noBaSpl = paket.no_ba_spl || ('014/BA-SPL/' + cleanKode + '/PPK/V/2026');
+  const noLapWas = paket.no_laporan_pengendalian || ('015/LAP-WAS/' + cleanKode + '/PPK/VI/2026');
+  const tglLapWasStr = formatTanggalIndo(paket.tgl_laporan_pengendalian || '2026-06-08');
+  const noBaKom = paket.no_ba_komisioning || ('015/BA-KOM/' + cleanKode + '/PPK/VI/2026');
+  const tglBaKomStr = formatTanggalIndo(paket.tgl_ba_komisioning || '2026-06-08');
+
+  const durasiHari = Number(paket.masa_pelaksanaan_hari || 14);
+  const tglMulaiStr = formatTanggalIndo(paket.tgl_mulai_kerja || '2026-05-27');
+  const tglSelesaiStr = formatTanggalIndo(paket.tgl_selesai_kontrak || '2026-06-09');
+  const lokasiFranco = paket.lokasi_pekerjaan || 'Ruang Server Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi';
+
+  const namaPenyedia = penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI';
+  const direkturPenyedia = penyedia.nama_direktur || 'HENDRA SURYAWAN';
+  const jabatanPenyedia = penyedia.jabatan_penandatangan || 'Direktur';
+  const teknisiRekanan = paket.pic_teknisi_rekanan || 'Ahmad Fauzi (Lead Systems Engineer)';
+
+  const ppkNama = cleanNamaTanpaGelar((ppk && ppk.nama_lengkap) || 'MOHAMMAD NOOR JIHAN');
+  const ppkNip = (ppk && ppk.nip) || '19840101 200912 1 001';
+  const kpaNama = cleanNamaTanpaGelar((kpa && kpa.nama_lengkap) || 'BUDI RAHAYU');
+  const kpaNip = (kpa && kpa.nip) || '19750824 200501 1 003';
+
+  const nilaiKontrakRp = Number(paket.nilai_kontrak || 138000000);
+  const nilaiKontrakStr = formatRupiah(nilaiKontrakRp);
+  const hariTerlambat = Number(paket.hari_terlambat || 0);
+  const dendaRp = Number(paket.denda_keterlambatan_rp || 0);
+  const masaGaransiHari = Number(paket.masa_garansi_hari || 365);
+  const tglMulaiGaransiStr = formatTanggalIndo(paket.tgl_mulai_garansi || tglBastRaw);
+  const tglSelesaiGaransiStr = formatTanggalIndo(paket.tgl_selesai_garansi || '2027-06-09');
+
+  // Titik Kritis Pemeriksaan BAPHP dinamis
+  let baphpList = [];
+  if (paket.parameter_pemeriksaan_baphp_json) {
+    try {
+      baphpList = typeof paket.parameter_pemeriksaan_baphp_json === 'string'
+        ? JSON.parse(paket.parameter_pemeriksaan_baphp_json)
+        : paket.parameter_pemeriksaan_baphp_json;
+    } catch (e) {}
+  }
+  if (!Array.isArray(baphpList) || baphpList.length === 0) {
+    baphpList = [
+      { no: 1, titik_kritis: 'Verifikasi Kuantitas & Keutuhan Fisik Barang', standar: '1 Unit PC Server & 3 Unit PC Workstation lengkap segel pabrikan utuh', hasil: 'Diterima utuh 100% lengkap tanpa cacat fisik atau cacat logistik', status: 'MEMENUHI SYARAT' },
+      { no: 2, titik_kritis: 'Kesesuaian Spesifikasi Teknis & Komponen Inti', standar: 'Dell PowerEdge T350, Dual Xeon, 64GB ECC, 2x 1.92TB NVMe RAID-1, Dual PSU', hasil: 'Spesifikasi hardware identik 100% dengan KAK & Surat Pesanan', status: 'MEMENUHI SYARAT' },
+      { no: 3, titik_kritis: 'Validasi Uji Fungsi & Stabilitas Operasional', standar: 'Burn-in test 24 jam non-stop, redundansi PSU failover, stabilitas jaringan LAN', hasil: 'Sistem lulus uji beban puncak 24 jam tanpa error (BA-KOM terlampir)', status: 'MEMENUHI SYARAT' },
+      { no: 4, titik_kritis: 'Legalitas Lisensi OS & Sertifikat Garansi Resmi', standar: 'Windows Server 2025 Standard COA digital aktif online, garansi pabrikan 1 tahun', hasil: 'Lisensi original teraktivasi digital, sertifikat garansi resmi ATPM sah', status: 'MEMENUHI SYARAT' },
+      { no: 5, titik_kritis: 'Kelengkapan Dokumen Serah Terima & Manual', standar: 'Surat jalan, manual operasional bahasa Indonesia, CD driver/recovery firmware', hasil: 'Seluruh bundel dokumentasi teknis dan panduan operasional diserahkan lengkap', status: 'MEMENUHI SYARAT' }
+    ];
+  }
+
+  // Tabel 5 Titik Kritis BAPHP
+  let baphpTableRows = [
+    new TableRow({
+      tableHeader: true,
+      cantSplit: true,
+      children: [
+        new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('NO', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('TITIK KRITIS PEMERIKSAAN BAPHP', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('STANDAR KONTRAK / KAK', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 23, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('HASIL PEMERIKSAAN FAKTUAL', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+        new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('KESIMPULAN', { align: AlignmentType.CENTER, bold: true, size: 17 })] })
+      ]
+    })
+  ];
+
+  baphpList.forEach((b, idx) => {
+    const statusStr = String(b.status || 'MEMENUHI SYARAT').toUpperCase();
+    const statusColor = statusStr.includes('TIDAK') || statusStr.includes('GAGAL') ? 'DC2626' : (statusStr.includes('PERBAIKAN') || statusStr.includes('PENDING') ? 'D97706' : '15803D');
+    baphpTableRows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 17 })] }),
+          new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(b.titik_kritis || b.parameter || '', { bold: true, size: 17, color: '0F172A' })] }),
+          new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(b.standar || b.metode || '', { size: 16.5, color: '334155' })] }),
+          new TableCell({ width: { size: 23, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(b.hasil || '', { size: 16.5, color: '334155' })] }),
+          new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(b.status || 'MEMENUHI SYARAT', { align: AlignmentType.CENTER, bold: true, size: 16, color: statusColor })] })
+        ]
+      })
+    );
+  });
+
+  // Builder Tabel Rincian Barang BAPHP & BAST (Menghasilkan instance TableRow fresh)
+  function buildRincianBarangTableRows() {
+    const rows = [
+      new TableRow({
+        tableHeader: true,
+        cantSplit: true,
+        children: [
+          new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('NO', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+          new TableCell({ width: { size: 38, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('NAMA BARANG / DESKRIPSI SPESIFIKASI', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+          new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('VOLUME', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+          new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('HARGA SATUAN (RP)', { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+          new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText('TOTAL HARGA (RP)', { align: AlignmentType.CENTER, bold: true, size: 17 })] })
+        ]
+      })
+    ];
+
+    (items || []).forEach((it, idx) => {
+      const vol = Number(it.volume || 1);
+      const hargaSat = Number(it.harga_satuan_kontrak || it.harga_satuan_hps || 0);
+      const totHarga = vol * hargaSat;
+      const namaBarang = it.uraian_item || it.merk_tipe_katalog || it.nama_barang || it.nama_item || 'Barang Pengadaan';
+      const spekRingkas = it.spesifikasi_ringkas || ((it.merk_tipe_katalog && it.merk_tipe_katalog !== namaBarang ? `[${it.merk_tipe_katalog}] ` : '') + (it.spesifikasi_teknis ? it.spesifikasi_teknis.slice(0, 180) + '...' : ''));
+      rows.push(
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 17 })] }),
+            new TableCell({ width: { size: 38, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [
+              pText(namaBarang, { bold: true, size: 17, color: '0F172A' }),
+              ...(spekRingkas ? [pText(spekRingkas, { italic: true, size: 15, color: '475569', before: 2 })] : [])
+            ] }),
+            new TableCell({ width: { size: 15, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(`${vol} ${it.satuan || 'Unit'}`, { align: AlignmentType.CENTER, bold: true, size: 17 })] }),
+            new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(formatRupiah(hargaSat), { align: AlignmentType.RIGHT, size: 17 })] }),
+            new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(formatRupiah(totHarga), { align: AlignmentType.RIGHT, bold: true, size: 17 })] })
+          ]
+        })
+      );
+    });
+
+    // Baris Total DPP, PPN, dan Total Kontrak
+    rows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ width: { size: 58, type: WidthType.PERCENTAGE }, columnSpan: 3, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText('TOTAL NILAI KONTRAK SEBELUM PPN (DPP)', { bold: true, align: AlignmentType.RIGHT, size: 17 })] }),
+          new TableCell({ width: { size: 42, type: WidthType.PERCENTAGE }, columnSpan: 2, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText(formatRupiah(Math.round(nilaiKontrakRp / 1.11)), { bold: true, align: AlignmentType.RIGHT, size: 17 })] })
+        ]
+      }),
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ width: { size: 58, type: WidthType.PERCENTAGE }, columnSpan: 3, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText('PAJAK PERTAMBAHAN NILAI (PPN 11%)', { bold: true, align: AlignmentType.RIGHT, size: 17 })] }),
+          new TableCell({ width: { size: 42, type: WidthType.PERCENTAGE }, columnSpan: 2, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText(formatRupiah(nilaiKontrakRp - Math.round(nilaiKontrakRp / 1.11)), { bold: true, align: AlignmentType.RIGHT, size: 17 })] })
+        ]
+      }),
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({ width: { size: 58, type: WidthType.PERCENTAGE }, columnSpan: 3, borders: BORDER_TABLE, shading: { fill: 'EFF6FF' }, children: [pText('TOTAL NILAI KONTRAK TERMASUK PPN 11% (LUMPSUM)', { bold: true, align: AlignmentType.RIGHT, size: 17.5, color: '1E3A8A' })] }),
+          new TableCell({ width: { size: 42, type: WidthType.PERCENTAGE }, columnSpan: 2, borders: BORDER_TABLE, shading: { fill: 'EFF6FF' }, children: [pText(formatRupiah(nilaiKontrakRp), { bold: true, align: AlignmentType.RIGHT, size: 17.5, color: '1E3A8A' })] })
+        ]
+      })
+    );
+    return rows;
+  }
+
+  // Builder Tabel Rekonsiliasi Pembayaran Kontrak & Potongan Denda (Khusus Bendahara / Penerbit SPM / Operator SAKTI)
+  function buildRekonsiliasiPembayaranTable(nilaiKontrak, denda) {
+    const dppKontrak = Math.round(nilaiKontrak / 1.11);
+    const ppnKontrak = nilaiKontrak - dppKontrak;
+    const hakBersih = nilaiKontrak - denda;
+
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      alignment: AlignmentType.CENTER,
+      borders: BORDER_TABLE,
+      rows: [
+        new TableRow({
+          tableHeader: true,
+          cantSplit: true,
+          children: [
+            new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('KOMPONEN PEMBAYARAN & POTONGAN', { align: AlignmentType.CENTER, bold: true, size: 16.5 })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('NILAI RUPIAH (RP)', { align: AlignmentType.CENTER, bold: true, size: 16.5 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, shading: { fill: 'F1F5F9' }, borders: BORDER_TABLE, children: [pText('KETERANGAN AKUNTANSI / SAKTI', { align: AlignmentType.CENTER, bold: true, size: 16.5 })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText('1. Nilai Bruto Kontrak (Prestasi Fisik 100%)', { bold: true, size: 16.5, color: '0F172A' })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText(formatRupiah(nilaiKontrak), { align: AlignmentType.RIGHT, bold: true, size: 16.5 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, children: [pText('Beban Pagu Anggaran MAK 532111', { size: 15.5, color: '334155' })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText('   • Dasar Pengenaan Pajak (DPP sebelum PPN)', { size: 16, color: '475569' })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText(formatRupiah(dppKontrak), { align: AlignmentType.RIGHT, size: 16 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText('Dasar Perhitungan Kewajaran & Denda', { size: 15.5, color: '64748B' })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText('   • Pajak Pertambahan Nilai (PPN 11%)', { size: 16, color: '475569' })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText(formatRupiah(ppnKontrak), { align: AlignmentType.RIGHT, size: 16 })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F8FAFC' }, children: [pText('Kewajiban Pungut Pajak Instansi Pemerintah', { size: 15.5, color: '64748B' })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: denda > 0 ? 'FEF2F2' : 'F8FAFC' }, children: [pText('2. Potongan Sanksi Denda Keterlambatan (Pasal 2 BAST)', { bold: true, size: 16.5, color: denda > 0 ? 'DC2626' : '0F172A' })] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: denda > 0 ? 'FEF2F2' : 'F8FAFC' }, children: [pText(denda > 0 ? `(${formatRupiah(denda)})` : 'Rp 0,-', { align: AlignmentType.RIGHT, bold: true, size: 16.5, color: denda > 0 ? 'DC2626' : '15803D' })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: denda > 0 ? 'FEF2F2' : 'F8FAFC' }, children: [pText(denda > 0 ? 'Potongan SPM Akun 425161 (Setor Kas Negara)' : 'Nihil / Tepat Waktu', { size: 15.5, color: denda > 0 ? 'B91C1C' : '15803D' })] })
+          ]
+        }),
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'EFF6FF' }, children: [
+              pText('HAK BERSIH PEMBAYARAN PENYEDIA (NETTO)', { bold: true, size: 17, color: '1E3A8A' }),
+              pText('(Sebelum pemotongan PPh sesuai ketentuan perpajakan)', { italic: true, size: 14.5, color: '475569', before: 2 })
+            ] }),
+            new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'EFF6FF' }, children: [pText(formatRupiah(hakBersih), { align: AlignmentType.RIGHT, bold: true, size: 17.5, color: '1E3A8A' })] }),
+            new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'EFF6FF' }, children: [pText('Nilai Bersih SPP/SPM-LS ke Rekening Penyedia', { bold: true, size: 15.5, color: '1E3A8A' })] })
+          ]
+        })
+      ]
+    });
+  }
+
+  const makeHeader = (title, docNo) => new Header({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 0, after: 30 },
+        children: [
+          new TextRun({
+            text: `SI-PRABU v3.0 — ${title} | ${docNo}`,
+            italic: true,
+            size: 15,
+            font: 'Cambria',
+            color: '64748B'
+          })
+        ]
+      })
+    ]
+  });
+
+  const makeFooter = (label, docNo) => new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 20, after: 0 },
+        children: [
+          new TextRun({
+            text: `Dokumen Sah Tahap 16 (${label}) | Hal. `,
+            size: 15,
+            font: 'Cambria',
+            color: '64748B'
+          }),
+          new TextRun({
+            children: [PageNumber.CURRENT],
+            size: 15,
+            font: 'Cambria',
+            color: '64748B'
+          }),
+          new TextRun({
+            text: ' dari ',
+            size: 15,
+            font: 'Cambria',
+            color: '64748B'
+          }),
+          new TextRun({
+            children: [PageNumber.TOTAL_PAGES],
+            size: 15,
+            font: 'Cambria',
+            color: '64748B'
+          })
+        ]
+      })
+    ]
+  });
+
+  // =========================================================================
+  // DOKUMEN 01: BERITA ACARA PEMERIKSAAN HASIL PEKERJAAN (BAPHP)
+  // =========================================================================
+  const secBaphp = {
+    properties: {
+      page: {
+        margin: { top: 1200, right: 1200, bottom: 1200, left: 1400 },
+        size: { width: 11906, height: 16838 }
+      }
+    },
+    headers: {
+      default: makeHeader('BERITA ACARA PEMERIKSAAN HASIL PEKERJAAN (BAPHP)', noBaphp)
+    },
+    footers: {
+      default: makeFooter('BAPHP Tahap 16', noBaphp)
+    },
+    children: [
+      ...buildKopSuratKpu(settings),
+      pText('BERITA ACARA PEMERIKSAAN HASIL PEKERJAAN (BAPHP)', {
+        align: AlignmentType.CENTER,
+        bold: true,
+        size: 21,
+        color: '0F172A',
+        before: 60,
+        after: 4
+      }),
+      pText(`Nomor: ${noBaphp}`, {
+        align: AlignmentType.CENTER,
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 0,
+        after: 120
+      }),
+      pText(`Pada hari ini, ${hariTanggalBaphp}, bertempat di ${lokasiFranco}, kami yang bertanda tangan di bawah ini:`, {
+        align: AlignmentType.JUSTIFY,
+        size: 18,
+        line: 270,
+        before: 0,
+        after: 40
+      }),
+
+      // Pihak-pihak Pemeriksa
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        alignment: AlignmentType.CENTER,
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('1.', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Nama', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 69, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(ppkNama, { bold: true, size: 17, color: '0F172A' })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('', { size: 17 })] }),
+              new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('NIP', { size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { size: 17 })] }),
+              new TableCell({ width: { size: 69, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(ppkNip, { size: 17 })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('', { size: 17 })] }),
+              new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Jabatan', { size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { size: 17 })] }),
+              new TableCell({ width: { size: 69, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Pejabat Pembuat Komitmen (PPK) / Koordinator Tim Pemeriksa Teknis Pengadaan KPU Kabupaten Ngawi', { size: 17 })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('2.', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Nama Teknisi Rekanan', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 69, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(teknisiRekanan, { bold: true, size: 17, color: '0F172A' })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('', { size: 17 })] }),
+              new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Badan Usaha Penyedia', { size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { size: 17 })] }),
+              new TableCell({ width: { size: 69, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(namaPenyedia, { size: 17 })] })
+            ]
+          })
+        ]
+      }),
+
+      pText('A. RUJUKAN DOKUMEN & DASAR PELAKSANAAN PEMERIKSAAN:', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 120,
+        after: 30
+      }),
+      pText('Pemeriksaan hasil pekerjaan ini dilaksanakan dengan mempedomani ketentuan perundang-undangan dan instrumen kontrak sah sebagai berikut:', {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        before: 0,
+        after: 20
+      }),
+      new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: 'Pasal 57 Perpres No. 16/2018 jo. Perpres No. 12/2021 jo. Perpres No. 46/2025 tentang Pengadaan Barang/Jasa Pemerintah;', size: 17, font: 'Cambria' })]
+      }),
+      new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: 'Peraturan LKPP No. 12 Tahun 2021 tentang Pedoman Pelaksanaan Pengadaan Barang/Jasa Pemerintah Melalui Penyedia;', size: 17, font: 'Cambria' })]
+      }),
+      new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: 'Keputusan KPU No. 1493 Tahun 2024 tentang Pedoman Teknis Pengadaan Barang/Jasa di Lingkungan Komisi Pemilihan Umum;', size: 17, font: 'Cambria' })]
+      }),
+      new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: `Surat Pesanan (Kontrak) Nomor: ${noKontrak} tanggal ${tglKontrakStr};`, size: 17, font: 'Cambria' })]
+      }),
+      new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: `Surat Perintah Pengiriman (SPP) Nomor: ${noSpp} tanggal ${tglSppStr};`, size: 17, font: 'Cambria' })]
+      }),
+      new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: `Berita Acara Serah Terima Lokasi (BA-SPL) Nomor: ${noBaSpl} tanggal ${tglSppStr};`, size: 17, font: 'Cambria' })]
+      }),
+      new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: `Laporan Pengawasan & Pengendalian Kemajuan Kontrak (LAP-WAS) Nomor: ${noLapWas} tanggal ${tglLapWasStr};`, size: 17, font: 'Cambria' })]
+      }),
+      new Paragraph({
+        bullet: { level: 0 },
+        children: [new TextRun({ text: `Berita Acara Pengujian Fungsi & Komisioning Teknis (BA-KOM) Nomor: ${noBaKom} tanggal ${tglBaKomStr} dengan hasil LULUS 100%.`, size: 17, font: 'Cambria' })]
+      }),
+
+      pText('B. HASIL VERIFIKASI 5 TITIK KRITIS PEMERIKSAAN FAKTUAL:', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 120,
+        after: 30
+      }),
+      pText('Berdasarkan pengujian teknis, pengukuran fisik, dan penelaahan administratif yang dilakukan secara bersama-sama di lokasi Franco Kantor KPU Kabupaten Ngawi, diperoleh hasil verifikasi 5 (lima) titik kritis sebagai berikut:', {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        before: 0,
+        after: 30
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        alignment: AlignmentType.CENTER,
+        borders: BORDER_TABLE,
+        rows: baphpTableRows
+      }),
+
+      pText('C. RINCIAN PERANGKAT HASIL PEKERJAAN YANG DIPERIKSA:', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 60,
+        after: 30,
+        pageBreakBefore: true
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        alignment: AlignmentType.CENTER,
+        borders: BORDER_TABLE,
+        rows: buildRincianBarangTableRows()
+      }),
+
+      pText('D. KESIMPULAN & REKOMENDASI HASIL PEMERIKSAAN:', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 120,
+        after: 30
+      }),
+      pText(`Berdasarkan hasil pemeriksaan fisik, verifikasi kuantitas, kesesuaian spesifikasi teknis, pengujian komisioning burn-in 24 jam non-stop, serta kelengkapan administrasi dan garansi resmi, Tim Teknis Pemeriksa Pengadaan KPU Kabupaten Ngawi berkesimpulan bahwa:`, {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 0,
+        after: 20
+      }),
+      (() => {
+        const anyTidakMemenuhi = baphpList.some(b => String(b.status || '').toUpperCase().includes('TIDAK') || String(b.status || '').toUpperCase().includes('GAGAL'));
+        const anyPerluPerbaikan = baphpList.some(b => String(b.status || '').toUpperCase().includes('PERBAIKAN') || String(b.status || '').toUpperCase().includes('PENDING'));
+
+        let p1 = '1. PEKERJAAN TELAH SELESAI 100% (SERATUS PERSEN) DENGAN KONDISI BAIK, BERFUNGSI SEMPURNA, DAN SESUAI DENGAN SPESIFIKASI TEKNIS SERTA VOLUME YANG DITETAPKAN DALAM KONTRAK.';
+        let p2 = '2. Hasil pekerjaan pengadaan dinyatakan DITERIMA DENGAN LENGKAP DAN BAIK, serta DIREKOMENDASIKAN KEPADA PEJABAT PEMBUAT KOMITMEN (PPK) UNTUK SEGERA DITERBITKAN BERITA ACARA SERAH TERIMA PERTAMA PEKERJAAN (BAST).';
+        let c1 = '15803D';
+        let c2 = '1E3A8A';
+
+        if (anyTidakMemenuhi) {
+          p1 = '1. PEKERJAAN BELUM DAPAT DITERIMA KARENA TERDAPAT KETIDAKSESUAIAN SPESIFIKASI TEKNIS ATAU CACAT FISIK PADA KOMPONEN BARANG.';
+          p2 = '2. Hasil pekerjaan pengadaan dinyatakan DITOLAK / DITANGGUHKAN, serta DIREKOMENDASIKAN KEPADA PENYEDIA UNTUK MELAKUKAN PENGGANTIAN UNIT BARANG BARU SESUAI KETENTUAN KONTRAK.';
+          c1 = 'DC2626';
+          c2 = 'DC2626';
+        } else if (anyPerluPerbaikan) {
+          p1 = '1. PEKERJAAN DITERIMA BERSYARAT DENGAN CATATAN PENYEMPURNAAN DAN PERBAIKAN MINOR SECARA TEKNIS.';
+          p2 = '2. Penyedia diberikan tenggang waktu perbaikan selama 7 (tujuh) hari kalender terhitung sejak penandatanganan BAPHP ini sebelum Berita Acara Serah Terima (BAST) diterbitkan.';
+          c1 = 'D97706';
+          c2 = '1E3A8A';
+        }
+
+        return new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: BORDER_NONE,
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({
+                  width: { size: 100, type: WidthType.PERCENTAGE },
+                  borders: BORDER_NONE,
+                  children: [
+                    pText(p1, { bold: true, size: 17.5, color: c1, before: 10, after: 10 }),
+                    pText(p2, { bold: true, size: 17.5, color: c2, before: 0, after: 80 })
+                  ]
+                })
+              ]
+            })
+          ]
+        });
+      })(),
+      pText('Demikian Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP) ini dibuat dengan sebenarnya dalam rangkap secukupnya untuk dipergunakan sebagaimana mestinya.', {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        before: 0,
+        after: 100
+      }),
+
+      // Tanda Tangan BAPHP
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        alignment: AlignmentType.CENTER,
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 48, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Penyedia Barang/Jasa:', { align: AlignmentType.CENTER, size: 17, color: '475569', before: 0, after: 2 }),
+                  pText(namaPenyedia, { align: AlignmentType.CENTER, bold: true, size: 17.5, color: '1E3A8A', before: 0, after: 0 }),
+                  pText('Teknisi Pelaksana / Lead Engineer,', { align: AlignmentType.CENTER, italic: true, size: 16.5, before: 0, after: 80 }),
+                  pText(teknisiRekanan, { align: AlignmentType.CENTER, bold: true, size: 18, color: '0F172A', before: 0, after: 4 }),
+                  pText('Sertifikasi Teknisi Resmi Pabrikan Dell EMC', { align: AlignmentType.CENTER, size: 16, color: '64748B', before: 0, after: 0 })
+                ]
+              }),
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('', { size: 17 })] }),
+              new TableCell({
+                width: { size: 48, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('Pejabat Pembuat Komitmen (PPK)', { align: AlignmentType.CENTER, size: 17, color: '475569', before: 0, after: 2 }),
+                  pText((settings.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase(), { align: AlignmentType.CENTER, bold: true, size: 17.5, color: '1E3A8A', before: 0, after: 0 }),
+                  pText('Koordinator Tim Pemeriksa Teknis,', { align: AlignmentType.CENTER, italic: true, size: 16.5, before: 0, after: 80 }),
+                  pText(ppkNama, { align: AlignmentType.CENTER, bold: true, size: 18, color: '0F172A', before: 0, after: 4 }),
+                  pText(`NIP. ${ppkNip}`, { align: AlignmentType.CENTER, size: 16, color: '64748B', before: 0, after: 0 })
+                ]
+              })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                columnSpan: 3,
+                borders: BORDER_NONE,
+                children: [
+                  pText('Saksi / Tim Teknis Pemeriksa Pengadaan KPU Kabupaten Ngawi:', { align: AlignmentType.CENTER, italic: true, size: 17, color: '475569', before: 60, after: 2 }),
+                  pText('TIM TEKNIS SUBBAGIAN RENDATIN KPU NGAWI', { align: AlignmentType.CENTER, bold: true, size: 17.5, color: '1E3A8A', before: 0, after: 80 }),
+                  pText('( _______________________________ )', { align: AlignmentType.CENTER, bold: true, size: 18, color: '0F172A', before: 0, after: 4 }),
+                  pText('Pranata Komputer / Pengelola TI Satker KPU Kab. Ngawi', { align: AlignmentType.CENTER, size: 16, color: '64748B', before: 0, after: 0 })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  };
+
+  // =========================================================================
+  // DOKUMEN 02: BERITA ACARA SERAH TERIMA PERTAMA PEKERJAAN (BAST)
+  // =========================================================================
+  const secBast = {
+    properties: {
+      page: {
+        margin: { top: 1200, right: 1200, bottom: 1200, left: 1400 },
+        size: { width: 11906, height: 16838 }
+      }
+    },
+    headers: {
+      default: makeHeader('BERITA ACARA SERAH TERIMA PERTAMA PEKERJAAN (BAST)', noBast)
+    },
+    footers: {
+      default: makeFooter('BAST Tahap 16', noBast)
+    },
+    children: [
+      ...buildKopSuratKpu(settings),
+      pText('BERITA ACARA SERAH TERIMA PERTAMA PEKERJAAN (BAST)', {
+        align: AlignmentType.CENTER,
+        bold: true,
+        size: 21,
+        color: '0F172A',
+        before: 60,
+        after: 4
+      }),
+      pText(`Nomor: ${noBast}`, {
+        align: AlignmentType.CENTER,
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 0,
+        after: 120
+      }),
+      pText(`Pada hari ini, ${hariTanggalBast}, bertempat di ${lokasiFranco}, kami yang bertanda tangan di bawah ini:`, {
+        align: AlignmentType.JUSTIFY,
+        size: 18,
+        line: 270,
+        before: 0,
+        after: 40
+      }),
+
+      // Pihak-pihak BAST
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        alignment: AlignmentType.CENTER,
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('1.', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Nama', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 71, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(ppkNama, { bold: true, size: 17, color: '0F172A' })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('', { size: 17 })] }),
+              new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('NIP', { size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { size: 17 })] }),
+              new TableCell({ width: { size: 71, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(ppkNip, { size: 17 })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('', { size: 17 })] }),
+              new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Jabatan', { size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { size: 17 })] }),
+              new TableCell({ width: { size: 71, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Pejabat Pembuat Komitmen (PPK) KPU Kabupaten Ngawi, bertindak untuk dan atas nama Kuasa Pengguna Anggaran KPU Kabupaten Ngawi yang berkedudukan di Jl. Untung Suropati No. 48 Ngawi, selanjutnya disebut sebagai PIHAK KESATU.', { size: 17, line: 240 })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('2.', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Nama', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { bold: true, size: 17 })] }),
+              new TableCell({ width: { size: 71, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(direkturPenyedia, { bold: true, size: 17, color: '0F172A' })] })
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('', { size: 17 })] }),
+              new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('Jabatan', { size: 17 })] }),
+              new TableCell({ width: { size: 3, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(':', { size: 17 })] }),
+              new TableCell({ width: { size: 71, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText(`${jabatanPenyedia} ${namaPenyedia}, bertindak untuk dan atas nama ${namaPenyedia} yang berkedudukan di Jl. PB Sudirman No. 12 Ngawi, selanjutnya disebut sebagai PIHAK KEDUA.`, { size: 17, line: 240 })] })
+            ]
+          })
+        ]
+      }),
+
+      pText('Berdasarkan Surat Pesanan (Kontrak) Nomor: ' + noKontrak + ' tanggal ' + tglKontrakStr + ' dan Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP) Nomor: ' + noBaphp + ' tanggal ' + tglBaphpStr + ', kedua belah pihak secara bersama-sama sepakat mengikatkan diri dalam Berita Acara Serah Terima Pertama Pekerjaan ini dengan ketentuan dan syarat-syarat sebagai berikut:', {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 60,
+        after: 40
+      }),
+
+      // 5 PASAL KESEPAKATAN BAST
+      pText('PASAL 1: PENYERAHAN DAN PENERIMAAN HASIL PEKERJAAN', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 60,
+        after: 10
+      }),
+      pText(`PIHAK KEDUA menyerahkan kepada PIHAK KESATU dan PIHAK KESATU menerima dengan baik, lengkap, dan sempurna hasil pekerjaan pengadaan "${paket.nama_paket}" yang telah terpasang dan beroperasi optimal di ${lokasiFranco} dengan rincian barang serah terima sebagai berikut:`, {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 0,
+        after: 30
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        alignment: AlignmentType.CENTER,
+        borders: BORDER_TABLE,
+        rows: buildRincianBarangTableRows()
+      }),
+
+      pText('PASAL 2: KEPATUHAN WAKTU PELAKSANAAN & EVALUASI DENDA KETERLAMBATAN', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 60,
+        after: 10,
+        pageBreakBefore: true
+      }),
+      pText(`Jangka waktu pelaksanaan pekerjaan ditetapkan selama ${durasiHari} (${terbilangInt(durasiHari)}) hari kalender terhitung sejak tanggal ${tglMulaiStr} sampai dengan tanggal ${tglSelesaiStr}. ${
+        (() => {
+          let rincianLate = [];
+          if (paket.realisasi_item_bast_json) {
+            try {
+              const pItems = typeof paket.realisasi_item_bast_json === 'string'
+                ? JSON.parse(paket.realisasi_item_bast_json)
+                : paket.realisasi_item_bast_json;
+              if (Array.isArray(pItems)) {
+                pItems.forEach(it => {
+                  if (Number(it.hari_terlambat || 0) > 0) {
+                    const dendaNilai = it.denda_rp !== undefined ? it.denda_rp : (it.denda_item || 0);
+                    rincianLate.push(`${it.uraian_item || it.nama_item || 'Item'} (terlambat ${it.hari_terlambat} hari kalender, denda bagian kontrak ${formatRupiah(dendaNilai)})`);
+                  }
+                });
+              }
+            } catch (e) {}
+          }
+
+          if (rincianLate.length > 0) {
+            return `Realisasi penyelesaian fisik dan serah terima pekerjaan diselesaikan pada tanggal ${tglBastStr}. Berdasarkan verifikasi kedatangan barang, terdapat penyerahan bertahap (parsial) dengan kronologis sebagai berikut:\n` +
+              `a. Bagian pekerjaan berupa 3 (tiga) Unit PC Workstation Operasional Pengolah Data SIDALIH telah diserahkan tepat waktu pada tanggal ${tglSelesaiStr} dalam kondisi lengkap dan berfungsi penuh secara mandiri, sebagaimana dibuktikan dengan Surat Tanda Terima Barang Sementara (STTBS) Nomor: 016/STTBS/${cleanKode}/PPK/VI/2026 tanggal ${tglSelesaiStr} (Keterlambatan = 0 hari, Denda = Rp 0,-).\n` +
+              `b. Bagian pekerjaan berupa 1 (satu) Unit PC Server Tower Database Operasional SIDALIH & Logistik diserahkan pada tanggal ${tglBastStr}, sehingga mengalami keterlambatan penyerahan selama 1 (satu) hari kalender dari batas waktu kontrak tanggal ${tglSelesaiStr}.\n` +
+              `Sesuai ketentuan Pasal 79 ayat (4) huruf b Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021 dan klausul SSKK Surat Pesanan, karena bagian pekerjaan yang diserahkan terlebih dahulu telah dapat berfungsi dan dimanfaatkan secara mandiri oleh PPK, maka sanksi denda keterlambatan dikenakan sebesar 1‰ (satu permil) per hari dari Nilai Bagian Kontrak sebelum PPN (DPP) atas item yang terlambat dengan total denda sebesar ${formatRupiah(dendaRp)} (${terbilangRupiah(dendaRp)}). Sanksi denda keterlambatan tersebut disetor ke Kas Negara sebagai Penerimaan Negara Bukan Pajak (PNBP) Akun 425161 melalui mekanisme pemotongan langsung pada pengajuan Surat Perintah Membayar Langsung (SPM-LS).`;
+          } else if (hariTerlambat > 0) {
+            return `Realisasi penyelesaian fisik dan serah terima pekerjaan diselesaikan pada tanggal ${tglBastStr} (terdapat keterlambatan selama ${hariTerlambat} hari kalender dari batas waktu kontrak tanggal ${tglSelesaiStr}). Sesuai ketentuan Pasal 79 ayat (4) huruf a Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021 dan klausul Surat Pesanan, PIHAK KEDUA dikenakan sanksi denda keterlambatan sebesar 1‰ (satu permil) per hari dari Nilai Kontrak sebelum PPN (DPP) dengan total denda sebesar ${formatRupiah(dendaRp)} (${terbilangRupiah(dendaRp)}) yang disetor ke Kas Negara (Akun 425161) melalui pemotongan langsung pada pengajuan SPM-LS.`;
+          } else {
+            return `Realisasi penyelesaian fisik dan serah terima pekerjaan diselesaikan pada tanggal ${tglBastStr} (tepat waktu / 0 hari keterlambatan), sehingga PIHAK KEDUA dibebaskan dari sanksi denda keterlambatan sebesar Rp 0,- (Nihil Rupiah).`;
+          }
+        })()
+      }`, {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 0,
+        after: 40
+      }),
+
+      pText('PASAL 3: NILAI KONTRAK, REKONSILIASI PEMBAYARAN DAN HAK BERSIH PENYEDIA', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 60,
+        after: 10
+      }),
+      pText(`(1) Nilai Kontrak pengadaan sebagaimana tercantum dalam Surat Pesanan Nomor: ${noKontrak} tanggal ${tglKontrakStr} adalah sebesar ${nilaiKontrakStr} (${terbilangRupiah(nilaiKontrakRp)}) termasuk PPN 11%.`, {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 0,
+        after: 20
+      }),
+      pText(`(2) Atas penyelesaian prestasi pekerjaan sebesar 100% (seratus persen) dan dengan memperhitungkan kewajiban sanksi denda keterlambatan sebagaimana ditetapkan pada Pasal 2 di atas, PIHAK KESATU dan PIHAK KEDUA menyepakati rekonsiliasi perhitungan pembayaran tagihan (sebagai pedoman definitif bagi Bendahara Pengeluaran, Pejabat Penandatangan SPM, dan Operator SAKTI) dengan rincian sebagai berikut:`, {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 0,
+        after: 30
+      }),
+      buildRekonsiliasiPembayaranTable(nilaiKontrakRp, dendaRp),
+      pText(`(3) Pembayaran hak bersih sebesar ${formatRupiah(nilaiKontrakRp - dendaRp)} (${terbilangRupiah(nilaiKontrakRp - dendaRp)}) akan dibayarkan secara sekaligus 100% (lunas) melalui mekanisme Surat Perintah Membayar Langsung (SPM-LS) yang diterbitkan oleh Penerbit SPM KPU Kabupaten Ngawi kepada Kantor Pelayanan Perbendaharaan Negara (KPPN) Madiun untuk disalurkan langsung ke rekening resmi PIHAK KEDUA setelah seluruh dokumen pertanggungjawaban dinyatakan lengkap dan sah.`, {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 30,
+        after: 40
+      }),
+
+      pText('PASAL 4: JAMINAN PURNA JUAL & MASA PEMELIHARAAN (GARANSI)', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 60,
+        after: 10
+      }),
+      pText(`PIHAK KEDUA memberikan Jaminan Purna Jual Resmi Pabrikan selama ${masaGaransiHari} (tiga ratus enam puluh lima) hari kalender, terhitung sejak tanggal ${tglMulaiGaransiStr} sampai dengan tanggal ${tglSelesaiGaransiStr}. Selama masa garansi/pemeliharaan ini, PIHAK KEDUA wajib menyediakan layanan perbaikan teknis di lokasi (onsite) dengan Service Level Agreement (SLA) respon perbaikan maksimal 1x24 jam sejak laporan kerusakan diterima tanpa membebankan biaya suku cadang dan jasa teknisi. Sesuai ketentuan dokumen pengadaan dan kepemilikan sertifikat garansi resmi ATPM, pengadaan ini dibebaskan dari pemotongan uang retensi 5%.`, {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 0,
+        after: 40
+      }),
+
+      pText('PASAL 5: PENUTUP & KEKUATAN HUKUM', {
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 60,
+        after: 10
+      }),
+      pText('Berita Acara Serah Terima Pertama Pekerjaan ini dibuat dan ditandatangani oleh kedua belah pihak dalam rangkap 2 (dua) asli bermeterai cukup Rp 10.000,- dan memiliki kekuatan hukum yang sama bagi masing-masing pihak untuk dipergunakan sebagai kelengkapan dokumen pembayaran dan penatausahaan Barang Milik Negara (BMN).', {
+        align: AlignmentType.JUSTIFY,
+        size: 17.5,
+        line: 270,
+        before: 0,
+        after: 80
+      }),
+
+      // Tanda Tangan BAST
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        alignment: AlignmentType.CENTER,
+        borders: BORDER_NONE,
+        rows: [
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 48, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('PIHAK KEDUA', { align: AlignmentType.CENTER, bold: true, size: 17.5, color: '1E3A8A', before: 0, after: 2 }),
+                  pText(namaPenyedia, { align: AlignmentType.CENTER, bold: true, size: 17, color: '0F172A', before: 0, after: 0 }),
+                  pText(jabatanPenyedia + ',', { align: AlignmentType.CENTER, italic: true, size: 16.5, before: 0, after: 10 }),
+                  new Table({
+                    width: { size: 60, type: WidthType.PERCENTAGE },
+                    alignment: AlignmentType.CENTER,
+                    borders: BORDER_TABLE,
+                    rows: [
+                      new TableRow({
+                        children: [
+                          new TableCell({
+                            width: { size: 100, type: WidthType.PERCENTAGE },
+                            borders: BORDER_TABLE,
+                            shading: { fill: 'F8FAFC' },
+                            children: [
+                              pText('METERAI ELEKTRONIK', { align: AlignmentType.CENTER, bold: true, size: 14, color: '64748B', before: 10, after: 2 }),
+                              pText('Rp 10.000,-', { align: AlignmentType.CENTER, bold: true, size: 16, color: '0F172A', before: 0, after: 10 })
+                            ]
+                          })
+                        ]
+                      })
+                    ]
+                  }),
+                  pText(direkturPenyedia, { align: AlignmentType.CENTER, bold: true, size: 18, color: '0F172A', before: 20, after: 4 }),
+                  pText('Penyedia Barang/Jasa Sah Terdaftar SPSE', { align: AlignmentType.CENTER, size: 16, color: '64748B', before: 0, after: 0 })
+                ]
+              }),
+              new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: BORDER_NONE, children: [pText('', { size: 17 })] }),
+              new TableCell({
+                width: { size: 48, type: WidthType.PERCENTAGE },
+                borders: BORDER_NONE,
+                children: [
+                  pText('PIHAK KESATU', { align: AlignmentType.CENTER, bold: true, size: 17.5, color: '1E3A8A', before: 0, after: 2 }),
+                  pText('PEJABAT PEMBUAT KOMITMEN (PPK)', { align: AlignmentType.CENTER, bold: true, size: 17, color: '0F172A', before: 0, after: 0 }),
+                  pText((settings.nama_satker || 'KPU KABUPATEN NGAWI').toUpperCase(), { align: AlignmentType.CENTER, italic: true, size: 16.5, before: 0, after: 70 }),
+                  pText(ppkNama, { align: AlignmentType.CENTER, bold: true, size: 18, color: '0F172A', before: 0, after: 4 }),
+                  pText(`NIP. ${ppkNip}`, { align: AlignmentType.CENTER, size: 16, color: '64748B', before: 0, after: 0 })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  };
+
+  // =========================================================================
+  // DOKUMEN 03: SURAT TANDA TERIMA BARANG SEMENTARA (STTBS - PARSIAL)
+  // Dilampirkan resmi sebagai bukti kedatangan fisik barang parsial tepat waktu
+  // =========================================================================
+  const noSttbs = paket.no_sttbs || ('016/STTBS/' + cleanKode + '/PPK/VI/2026');
+  const tglSttbs = '2026-06-09';
+  const waktuSttbs = '14.30 WIB';
+  const noSj = '088/SJ-GP/VI/2026';
+  const tglSj = '2026-06-09';
+  const namaPenerima = 'Pengurus Barang / Pejabat Pemeriksa Pengadaan KPU Ngawi';
+  const namaPenyerah = `Petugas Logistik / Ekspedisi ${namaPenyedia}`;
+  const catatanSttbs = 'Barang diterima secara fisik parsial dalam kondisi baik dan tersegel pabrikan utuh. Pemeriksaan uji fungsi komisioning penuh (BAPHP) dan Berita Acara Serah Terima (BAST) definitif akan diterbitkan setelah seluruh barang (termasuk sisa item) tiba lengkap 100%.';
+
+  const selectedItemsSttbs = (items || []).filter(it => {
+    const name = (it.uraian_item || it.nama_barang || it.nama_item || '').toLowerCase();
+    return name.includes('workstation') || !name.includes('server');
+  });
+
+  const sttbsTableRows = [
+    new TableRow({
+      tableHeader: true,
+      children: [
+        new TableCell({ width: { size: 6, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('NO', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] }),
+        new TableCell({ width: { size: 44, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('NAMA BARANG / ITEM PEKERJAAN', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] }),
+        new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('VOL DITERIMA', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] }),
+        new TableCell({ width: { size: 17, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('KONDISI KEMASAN', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] }),
+        new TableCell({ width: { size: 17, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('NOMOR SERI / KET', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] })
+      ]
+    })
+  ];
+
+  selectedItemsSttbs.forEach((it, idx) => {
+    sttbsTableRows.push(
+      new TableRow({
+        children: [
+          new TableCell({ borders: BORDER_TABLE, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 17, before: 4, after: 4 })] }),
+          new TableCell({ borders: BORDER_TABLE, children: [pText(it.uraian_item || it.nama_barang || it.nama_item || `Item ${idx + 1}`, { bold: true, size: 17, before: 4, after: 4 })] }),
+          new TableCell({ borders: BORDER_TABLE, children: [pText(`${it.volume || 1} ${it.satuan || 'Unit'}`, { align: AlignmentType.CENTER, size: 17, before: 4, after: 4 })] }),
+          new TableCell({ borders: BORDER_TABLE, children: [pText('Baik, Utuh & Bersegel Pabrikan', { align: AlignmentType.CENTER, size: 17, before: 4, after: 4 })] }),
+          new TableCell({ borders: BORDER_TABLE, children: [pText('S/N: DL-WK-0921 s/d DL-WK-0923 (Segel Utuh)', { size: 16, before: 4, after: 4 })] })
+        ]
+      })
+    );
+  });
+
+  const infoHariSttbs = formatHariTanggalBeritaAcara(tglSttbs);
+  const hariTglSttbsStr = `${infoHariSttbs.hari} tanggal ${infoHariSttbs.tanggalKata} bulan ${infoHariSttbs.bulan} tahun ${infoHariSttbs.tahunKata} (${formatTanggalIndo(tglSttbs)})`;
+
+  const secSttbs = {
+    properties: {
+      page: {
+        margin: { top: 1200, right: 1200, bottom: 1200, left: 1400 },
+        size: { width: 11906, height: 16838 }
+      }
+    },
+    headers: {
+      default: makeHeader('SURAT TANDA TERIMA BARANG SEMENTARA (PARSIAL)', noSttbs)
+    },
+    footers: {
+      default: makeFooter('STTBS Tahap 16 (Parsial)', noSttbs)
+    },
+    children: [
+      ...buildKopSuratKpu(settings),
+      pText('SURAT TANDA TERIMA PENERIMAAN BARANG SEMENTARA (PARSIAL)', {
+        align: AlignmentType.CENTER,
+        bold: true,
+        size: 21,
+        color: '0F172A',
+        before: 60,
+        after: 4
+      }),
+      pText(`Nomor: ${noSttbs}`, {
+        align: AlignmentType.CENTER,
+        bold: true,
+        size: 18,
+        color: '1E3A8A',
+        before: 0,
+        after: 120
+      }),
+      pText(`Pada hari ini, ${hariTglSttbsStr} (pukul ${waktuSttbs}), bertempat di ${lokasiFranco}, kami yang bertanda tangan di bawah ini:`, {
+        align: AlignmentType.JUSTIFY,
+        size: 18,
+        line: 270,
+        before: 0,
+        after: 40
+      }),
+      pListItem('1.', 'Pihak Penerima', `${namaPenerima} (KPU Kabupaten Ngawi)`),
+      pListItem('2.', 'Pihak Penyerah', `${namaPenyerah} (Penyedia / Ekspedisi Logistik)`),
+      pText('Menyatakan dengan sebenarnya bahwa telah diserahkan dan diterima sebagian fisik barang pengadaan berdasarkan:', { before: 20, after: 20 }),
+      pListItem('•', 'Surat Pesanan (Kontrak)', `Nomor ${noKontrak} tanggal ${tglKontrakStr}`),
+      pListItem('•', 'Surat Jalan Rekanan', `Nomor ${noSj} tanggal ${formatTanggalIndo(tglSj)}`),
+      pListItem('•', 'Paket Pekerjaan', `${paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional'}`),
+      pListItem('•', 'Penyedia Barang/Jasa', `${namaPenyedia}`),
+      new Paragraph({ spacing: { before: 50, after: 30 }, children: [new TextRun({ text: 'DENGAN RINCIAN BARANG YANG DITERIMA SECARA PARSIAL SEBAGAI BERIKUT:', bold: true, size: 17, font: 'Cambria' })] }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: sttbsTableRows
+      }),
+      new Paragraph({ spacing: { before: 80, after: 20 }, children: [new TextRun({ text: 'CATATAN KHUSUS & KETENTUAN HUKUM KEDUA BELAH PIHAK:', bold: true, size: 17, font: 'Cambria' })] }),
+      pNumbered('1.', 'Dokumen ini HANYA merupakan tanda terima fisik sementara atas sebagian barang yang telah tiba di lokasi, dan BUKAN merupakan Berita Acara Serah Terima (BAST) definitif.'),
+      pNumbered('2.', 'Dokumen ini TIDAK DAPAT digunakan sebagai dasar pengajuan pembayaran atau penagihan tagihan (SPP-LS / SPM-LS) kepada Kuasa Pengguna Anggaran.'),
+      pNumbered('3.', 'Kedatangan fisik atas barang-barang yang tercantum di atas diakui secara sah oleh kedua belah pihak sebagai bukti pemenuhan batas waktu penyerahan tepat waktu sebelum batas akhir kontrak guna penghitungan evaluasi denda keterlambatan sesuai ketentuan Pasal 79 ayat (4) huruf b Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021.'),
+      pNumbered('4.', 'Pemeriksaan substantif, uji fungsi komisioning faktual (BAPHP), dan penandatanganan BAST definitif 100% baru akan dilaksanakan setelah seluruh sisa barang (termasuk item yang belum diserahkan) tiba lengkap di lokasi kantor KPU Kabupaten Ngawi.'),
+      pText(`Catatan Khusus: ${catatanSttbs}`, { italic: true, size: 16, before: 30, after: 100 }),
+      buildSignatureBlockSttbs(paket, settings, namaPenerima, namaPenyerah, ppk)
+    ]
+  };
+
+  return [secBaphp, secBast, secSttbs];
+}
+
 function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   const { paket, items, tahaps, penyedia, ppk, kpa, pejabatPengadaan, settings } = ctx;
   const def = DEFINISI_18_TAHAP.find(d => d.no === stageNo) || DEFINISI_18_TAHAP[0];
@@ -7744,6 +8720,9 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   }
   if (stageNo === 15) {
     return buildStage15Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
+  if (stageNo === 16) {
+    return buildStage16Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap
@@ -8013,7 +8992,150 @@ async function generateWordBuffer(ctx, modeOrStage = 13) {
   return Buffer.from(buffer);
 }
 
+
+
+function buildSignatureBlockSttbs(paket, settings, namaPenerima, namaPenyerah, ppk = {}) {
+  const ppkNama = (ppk && ppk.nama_lengkap) || (settings && settings.nama_ppk) || (paket && paket.nama_ppk) || 'MOHAMMAD NOOR JIHAN';
+  const ppkNip = (ppk && ppk.nip) || (settings && settings.nip_ppk) || (paket && paket.nip_ppk) || '19840101 200912 1 001';
+  const namaPenyedia = paket.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI';
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: BORDER_NONE,
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: BORDER_NONE,
+            children: [
+              pText('Pihak Penyerah (Penyedia / Ekspedisi),', { align: AlignmentType.CENTER, size: 17, before: 0, after: 2 }),
+              pText(namaPenyedia, { align: AlignmentType.CENTER, bold: true, size: 18, color: '1E3A8A', before: 0, after: 90 }),
+              pText('( ______________________________ )', { align: AlignmentType.CENTER, bold: true, size: 18, before: 0, after: 2 }),
+              pText(namaPenyerah || 'Petugas Logistik / Kurir Rekanan', { align: AlignmentType.CENTER, size: 16, color: '475569', before: 0, after: 0 })
+            ]
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: BORDER_NONE,
+            children: [
+              pText('Pihak Penerima (KPU Kabupaten Ngawi),', { align: AlignmentType.CENTER, size: 17, before: 0, after: 2 }),
+              pText('PENGURUS BARANG / TIM TEKNIS', { align: AlignmentType.CENTER, bold: true, size: 18, color: '1E3A8A', before: 0, after: 90 }),
+              pText('( ______________________________ )', { align: AlignmentType.CENTER, bold: true, size: 18, before: 0, after: 2 }),
+              pText(namaPenerima || 'Pengurus Barang KPU Ngawi', { align: AlignmentType.CENTER, size: 16, color: '475569', before: 0, after: 0 })
+            ]
+          })
+        ]
+      }),
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({
+            columnSpan: 2,
+            borders: BORDER_NONE,
+            children: [
+              pText('Mengetahui,', { align: AlignmentType.CENTER, size: 17, before: 24, after: 2 }),
+              pText('PEJABAT PEMBUAT KOMITMEN (PPK)', { align: AlignmentType.CENTER, bold: true, size: 18, color: '1E3A8A', before: 0, after: 80 }),
+              pText(ppkNama, { align: AlignmentType.CENTER, bold: true, underline: {}, size: 19, before: 0, after: 2 }),
+              pText(`NIP. ${ppkNip}`, { align: AlignmentType.CENTER, size: 17, color: '334155', before: 0, after: 0 })
+            ]
+          })
+        ]
+      })
+    ]
+  });
+}
+
+/**
+ * Generate Buffer Word (.DOCX) Surat Tanda Terima Barang Sementara (STTBS - Parsial)
+ * Menampilkan item-item yang dimuat secara parsial sesuai pilihan aktual pengguna.
+ */
+async function generateSttbsWordBuffer(ctx, sttbsData = {}) {
+  const { paket, items, settings, ppk } = ctx;
+  const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+  const noSttbs = sttbsData.no_sttbs || ('016/STTBS/' + cleanKode + '/PPK/VI/2026');
+  const tglSttbs = sttbsData.tgl_sttbs || '2026-06-09';
+  const waktuSttbs = sttbsData.waktu_sttbs || '14.30 WIB';
+  const noSj = sttbsData.no_surat_jalan || '088/SJ-GP/VI/2026';
+  const tglSj = sttbsData.tgl_surat_jalan || '2026-06-09';
+  const namaPenerima = sttbsData.nama_penerima || 'Pengurus Barang / Pejabat Pemeriksa Pengadaan KPU Ngawi';
+  const namaPenyerah = sttbsData.nama_penyerah || `Petugas Logistik / Ekspedisi ${paket.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI'}`;
+  const catatan = sttbsData.catatan || 'Barang diterima secara fisik parsial dalam kondisi baik dan tersegel. Pemeriksaan uji fungsi komisioning penuh (BAPHP) dan Berita Acara Serah Terima (BAST) definitif akan diterbitkan setelah seluruh barang (termasuk sisa item) tiba lengkap 100%.';
+
+  const selectedItems = Array.isArray(sttbsData.items) && sttbsData.items.length > 0
+    ? sttbsData.items
+    : (items || []).filter(it => !it.hari_terlambat || it.hari_terlambat === 0);
+
+  const itemRows = [
+    new TableRow({
+      tableHeader: true,
+      children: [
+        new TableCell({ width: { size: 6, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('NO', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] }),
+        new TableCell({ width: { size: 44, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('NAMA BARANG / ITEM PEKERJAAN', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] }),
+        new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('VOL DITERIMA', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] }),
+        new TableCell({ width: { size: 17, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('KONDISI KEMASAN', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] }),
+        new TableCell({ width: { size: 17, type: WidthType.PERCENTAGE }, borders: BORDER_TABLE, shading: { fill: 'F1F5F9', type: ShadingType.CLEAR }, children: [pText('NOMOR SERI / KET', { bold: true, align: AlignmentType.CENTER, size: 17, before: 6, after: 6 })] })
+      ]
+    })
+  ];
+
+  selectedItems.forEach((it, idx) => {
+    itemRows.push(
+      new TableRow({
+        children: [
+          new TableCell({ borders: BORDER_TABLE, children: [pText(String(idx + 1), { align: AlignmentType.CENTER, size: 17, before: 4, after: 4 })] }),
+          new TableCell({ borders: BORDER_TABLE, children: [pText(it.nama_item || it.uraian_item || `Item ${idx + 1}`, { bold: true, size: 17, before: 4, after: 4 })] }),
+          new TableCell({ borders: BORDER_TABLE, children: [pText(`${it.vol_diterima || it.volume || 1} ${it.satuan || 'Unit'}`, { align: AlignmentType.CENTER, size: 17, before: 4, after: 4 })] }),
+          new TableCell({ borders: BORDER_TABLE, children: [pText(it.kondisi || 'Baik & Bersegel', { align: AlignmentType.CENTER, size: 17, before: 4, after: 4 })] }),
+          new TableCell({ borders: BORDER_TABLE, children: [pText(it.keterangan || it.serial_number || '-', { size: 16, before: 4, after: 4 })] })
+        ]
+      })
+    );
+  });
+
+  const infoHariSttbs = formatHariTanggalBeritaAcara(tglSttbs);
+  const hariTglSttbsStr = `${infoHariSttbs.hari} tanggal ${infoHariSttbs.tanggalKata} bulan ${infoHariSttbs.bulan} tahun ${infoHariSttbs.tahunKata} (${formatTanggalIndo(tglSttbs)})`;
+
+  const children = [
+    ...buildKopSuratKpu(settings),
+    new Paragraph({ spacing: { before: 100, after: 20 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'SURAT TANDA TERIMA PENERIMAAN BARANG SEMENTARA (PARSIAL)', bold: true, size: 23, font: 'Cambria', underline: {} })] }),
+    new Paragraph({ spacing: { before: 0, after: 100 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Nomor: ${noSttbs}`, bold: true, size: 19, font: 'Cambria' })] }),
+    pText(`Pada hari ini, ${hariTglSttbsStr} (pukul ${waktuSttbs}), bertempat di Kantor Komisi Pemilihan Umum Kabupaten Ngawi, Jalan Untung Suropati No. 48 Ngawi, kami yang bertanda tangan di bawah ini:`),
+    pListItem('1.', 'Pihak Penerima', `${namaPenerima} (KPU Kabupaten Ngawi)`),
+    pListItem('2.', 'Pihak Penyerah', `${namaPenyerah} (Penyedia / Ekspedisi Logistik)`),
+    pText('Menyatakan dengan sebenarnya bahwa telah diserahkan dan diterima sebagian fisik barang pengadaan berdasarkan:', { before: 20, after: 20 }),
+    pListItem('•', 'Surat Pesanan (Kontrak)', `Nomor ${paket.no_kontrak || paket.no_sp || '013/SP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026'} tanggal ${formatTanggalIndo(paket.tgl_kontrak || paket.tgl_sp || '2026-05-27')}`),
+    pListItem('•', 'Surat Jalan / Pengantar', `Nomor ${noSj} tanggal ${formatTanggalIndo(tglSj)}`),
+    pListItem('•', 'Paket Pekerjaan', `${paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional'}`),
+    pListItem('•', 'Penyedia Barang/Jasa', `${paket.nama_penyedia || 'CV. GRAFIKA PRATAMA NGAWI'}`),
+    new Paragraph({ spacing: { before: 50, after: 30 }, children: [new TextRun({ text: 'DENGAN RINCIAN BARANG YANG DITERIMA SECARA PARSIAL SEBAGAI BERIKUT:', bold: true, size: 17, font: 'Cambria' })] }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: itemRows
+    }),
+    new Paragraph({ spacing: { before: 80, after: 20 }, children: [new TextRun({ text: 'CATATAN KHUSUS & KETENTUAN HUKUM KEDUA BELAH PIHAK:', bold: true, size: 17, font: 'Cambria' })] }),
+    pNumbered('1.', 'Dokumen ini HANYA merupakan tanda terima fisik sementara atas sebagian barang yang telah tiba di lokasi, dan BUKAN merupakan Berita Acara Serah Terima (BAST) definitif.'),
+    pNumbered('2.', 'Dokumen ini TIDAK DAPAT digunakan sebagai dasar pengajuan pembayaran atau penagihan tagihan (SPP-LS / SPM-LS) kepada Kuasa Pengguna Anggaran.'),
+    pNumbered('3.', 'Kedatangan fisik atas barang-barang yang tercantum di atas diakui secara sah oleh kedua belah pihak sebagai bukti pemenuhan batas waktu penyerahan tepat waktu sebelum batas akhir kontrak guna penghitungan evaluasi denda keterlambatan sesuai ketentuan Pasal 79 ayat (4) huruf b Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021.'),
+    pNumbered('4.', 'Pemeriksaan substantif, uji fungsi komisioning faktual (BAPHP), dan penandatanganan BAST definitif 100% baru akan dilaksanakan setelah seluruh sisa barang (termasuk item yang belum diserahkan) tiba lengkap di lokasi kantor KPU Kabupaten Ngawi.'),
+    pText(`Catatan Khusus: ${catatan}`, { italic: true, size: 16, before: 30, after: 100 }),
+    buildSignatureBlockSttbs(paket, settings, namaPenerima, namaPenyerah, ppk)
+  ];
+
+  const doc = new Document({
+    creator: 'SI-PRABU KPU Kabupaten Ngawi (by emenje)',
+    title: `STTBS Parsial - ${noSttbs}`,
+    styles: { default: { document: { run: { font: 'Cambria', size: 19 } } } },
+    sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 1000, right: 1000 } } }, children }]
+  });
+
+  const buffer = await Packer.toBuffer(doc);
+  return Buffer.from(buffer);
+}
+
 module.exports = {
   generateWordBuffer,
+  generateSttbsWordBuffer,
   buildSectionsForStage
 };

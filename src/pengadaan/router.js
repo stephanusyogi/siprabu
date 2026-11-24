@@ -39,7 +39,7 @@ const {
 } = require('./utils');
 
 const { generateExcelBuffer } = require('./excel_engine');
-const { generateWordBuffer } = require('./word_engine');
+const { generateWordBuffer, generateSttbsWordBuffer } = require('./word_engine');
 
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
@@ -434,6 +434,26 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
       }
 
       await archive.finalize();
+      return;
+    }
+
+    // 10. Generate STTBS Word (.docx) Parsial
+    if (pathname === '/api/cakra/sttbs/docx' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const paketId = Number(body.paketId || body.paket_id);
+      const ctx = await getPaketFullById(paketId);
+      if (!ctx) return sendJson(res, 404, { ok: false, error: 'Paket tidak ditemukan' });
+
+      const buffer = await generateSttbsWordBuffer(ctx, body.sttbsData || body);
+      const cleanKode = sanitizeFilename(String(ctx.paket.kode_paket_internal || '').replace(/^CAKRA-/i, 'PBJ-'));
+      const filename = `STTBS_Parsial_${cleanKode}.docx`;
+
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': buffer.length
+      });
+      res.end(buffer);
       return;
     }
 

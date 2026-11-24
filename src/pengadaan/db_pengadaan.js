@@ -226,8 +226,26 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN catatan_pengendalian_ppk TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN parameter_komisioning_json TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket ADD COLUMN milestone_pengendalian_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_baphp VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_baphp VARCHAR(32) DEFAULT '2026-06-09'",
+    "ALTER TABLE pbj_paket ADD COLUMN nama_tim_pemeriksa VARCHAR(191) DEFAULT 'Tim Teknis / Pejabat Pemeriksa Pengadaan KPU Ngawi'",
+    "ALTER TABLE pbj_paket ADD COLUMN nip_tim_pemeriksa VARCHAR(64) DEFAULT '198503152010121002'",
+    "ALTER TABLE pbj_paket ADD COLUMN kesimpulan_pemeriksaan_baphp VARCHAR(191) DEFAULT 'Diterima Penuh / Lulus 100% Memenuhi Spesifikasi Teknis & Volume'",
+    "ALTER TABLE pbj_paket ADD COLUMN parameter_pemeriksaan_baphp_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_bast VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_bast VARCHAR(32) DEFAULT '2026-06-09'",
+    "ALTER TABLE pbj_paket ADD COLUMN tempat_bast VARCHAR(255) DEFAULT 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi'",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_bast TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN status_denda VARCHAR(100) DEFAULT 'Nihil Denda (Pekerjaan Selesai 100% Tepat Waktu)'",
+    "ALTER TABLE pbj_paket ADD COLUMN denda_keterlambatan_rp DECIMAL(15,2) DEFAULT 0.00",
+    "ALTER TABLE pbj_paket ADD COLUMN realisasi_item_bast_json TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN masa_garansi_hari INT DEFAULT 365",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_mulai_garansi VARCHAR(32) DEFAULT '2026-06-09'",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_selesai_garansi VARCHAR(32) DEFAULT '2027-06-09'",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_laporan_pengendalian VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_komisioning VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_baphp VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bast VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_sppbj VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_ba_pam VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_undangan_pam VARCHAR(191) DEFAULT NULL",
@@ -243,6 +261,10 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket_item ADD COLUMN evaluasi_pasar_json TEXT DEFAULT NULL",
     "ALTER TABLE pbj_paket_item ADD COLUMN pic_subbag_pengguna VARCHAR(64) DEFAULT 'KUL'"
   ];
+
+  try {
+    await pool.query("SET SESSION innodb_strict_mode = OFF");
+  } catch (e) {}
 
   for (const sql of ddlStatements) {
     try {
@@ -815,6 +837,10 @@ async function savePaket(data) {
         no_laporan_pengendalian=?, tgl_laporan_pengendalian=?, no_ba_komisioning=?, tgl_ba_komisioning=?,
         realisasi_fisik_persen=?, rencana_fisik_persen=?, deviasi_fisik_persen=?, status_scm=?,
         catatan_pengendalian_ppk=?, parameter_komisioning_json=?, milestone_pengendalian_json=?,
+        no_baphp=?, tgl_baphp=?, nama_tim_pemeriksa=?, nip_tim_pemeriksa=?, kesimpulan_pemeriksaan_baphp=?,
+        parameter_pemeriksaan_baphp_json=?,
+        no_bast=?, tgl_bast=?, tempat_bast=?, catatan_bast=?, status_denda=?, denda_keterlambatan_rp=?,
+        masa_garansi_hari=?, tgl_mulai_garansi=?, tgl_selesai_garansi=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
         tahap_aktif=?, status_paket=?, skor_kualitas=?, skor_biaya=?, skor_waktu=?, skor_layanan=?,
         nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?
@@ -925,6 +951,21 @@ async function savePaket(data) {
         p.catatan_pengendalian_ppk || cur.catatan_pengendalian_ppk || null,
         p.parameter_komisioning_json !== undefined ? (typeof p.parameter_komisioning_json === 'string' ? p.parameter_komisioning_json : JSON.stringify(p.parameter_komisioning_json)) : cur.parameter_komisioning_json || null,
         p.milestone_pengendalian_json !== undefined ? (typeof p.milestone_pengendalian_json === 'string' ? p.milestone_pengendalian_json : JSON.stringify(p.milestone_pengendalian_json)) : cur.milestone_pengendalian_json || null,
+        p.no_baphp || cur.no_baphp || null,
+        p.tgl_baphp || cur.tgl_baphp || '2026-06-09',
+        p.nama_tim_pemeriksa || cur.nama_tim_pemeriksa || 'Tim Teknis / Pejabat Pemeriksa Pengadaan KPU Ngawi',
+        p.nip_tim_pemeriksa || cur.nip_tim_pemeriksa || '198503152010121002',
+        p.kesimpulan_pemeriksaan_baphp || cur.kesimpulan_pemeriksaan_baphp || 'Diterima Penuh / Lulus 100% Memenuhi Spesifikasi Teknis & Volume',
+        p.parameter_pemeriksaan_baphp_json !== undefined ? (typeof p.parameter_pemeriksaan_baphp_json === 'string' ? p.parameter_pemeriksaan_baphp_json : JSON.stringify(p.parameter_pemeriksaan_baphp_json)) : cur.parameter_pemeriksaan_baphp_json || null,
+        p.no_bast || cur.no_bast || null,
+        p.tgl_bast || cur.tgl_bast || '2026-06-09',
+        p.tempat_bast || cur.tempat_bast || 'Kantor KPU Kabupaten Ngawi, Jl. Untung Suropati No. 48 Ngawi',
+        p.catatan_bast || cur.catatan_bast || null,
+        p.status_denda || cur.status_denda || 'Nihil Denda (Pekerjaan Selesai 100% Tepat Waktu)',
+        Number(p.denda_keterlambatan_rp ?? cur.denda_keterlambatan_rp ?? 0),
+        Number(p.masa_garansi_hari ?? cur.masa_garansi_hari ?? 365),
+        p.tgl_mulai_garansi || cur.tgl_mulai_garansi || '2026-06-09',
+        p.tgl_selesai_garansi || cur.tgl_selesai_garansi || '2027-06-09',
         p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
@@ -956,8 +997,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning, no_baphp, no_bast)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -975,7 +1016,9 @@ async function savePaket(data) {
            no_spp = VALUES(no_spp),
            no_ba_spl = VALUES(no_ba_spl),
            no_laporan_pengendalian = VALUES(no_laporan_pengendalian),
-           no_ba_komisioning = VALUES(no_ba_komisioning)`,
+           no_ba_komisioning = VALUES(no_ba_komisioning),
+           no_baphp = VALUES(no_baphp),
+           no_bast = VALUES(no_bast)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -994,7 +1037,9 @@ async function savePaket(data) {
           su.no_spp || existingStage.no_spp || p.no_spp || null,
           su.no_ba_spl || existingStage.no_ba_spl || p.no_ba_spl || null,
           su.no_laporan_pengendalian || existingStage.no_laporan_pengendalian || p.no_laporan_pengendalian || null,
-          su.no_ba_komisioning || existingStage.no_ba_komisioning || p.no_ba_komisioning || null
+          su.no_ba_komisioning || existingStage.no_ba_komisioning || p.no_ba_komisioning || null,
+          su.no_baphp || existingStage.no_baphp || p.no_baphp || null,
+          su.no_bast || existingStage.no_bast || p.no_bast || null
         ]
       );
 
