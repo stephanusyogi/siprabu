@@ -290,12 +290,29 @@ async function ensurePaketMissingColumns(pool) {
   try {
     await pool.query("SET SESSION innodb_strict_mode = OFF");
   } catch (e) {}
+  try {
+    await pool.query("ALTER TABLE pbj_paket ROW_FORMAT=DYNAMIC");
+  } catch (e) {}
+  try {
+    await pool.query("ALTER TABLE pbj_paket_tahap ROW_FORMAT=DYNAMIC");
+  } catch (e) {}
 
   for (const sql of ddlStatements) {
     try {
       await pool.query(sql);
     } catch (e) {
-      // Abaikan jika kolom sudah ada
+      if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+        if (sql.includes('VARCHAR')) {
+          try {
+            const textSql = sql.replace(/VARCHAR\(\d+\)/i, 'TEXT');
+            await pool.query(textSql);
+          } catch (e2) {
+            console.warn('[DDL-WARN]', sql, '=>', e.message);
+          }
+        } else {
+          console.warn('[DDL-WARN]', sql, '=>', e.message);
+        }
+      }
     }
   }
 

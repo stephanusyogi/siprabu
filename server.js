@@ -1614,9 +1614,11 @@ const server = http.createServer(async (req, res) => {
 
         // 1. Masukkan pbj_paket
         if (Array.isArray(body.pbj_paket) && body.pbj_paket.length > 0) {
+          const [tableCols] = await pool.query('SHOW COLUMNS FROM pbj_paket');
+          const validColSet = new Set(tableCols.map(c => c.Field));
           for (const row of body.pbj_paket) {
-            const keys = Object.keys(row);
-            const vals = Object.values(row);
+            const keys = Object.keys(row).filter(k => validColSet.has(k));
+            const vals = keys.map(k => row[k]);
             const placeholders = keys.map(() => '?').join(', ');
             const cols = keys.map(k => `\`${k}\``).join(', ');
             await pool.query(`INSERT INTO pbj_paket (${cols}) VALUES (${placeholders})`, vals);
@@ -1625,9 +1627,11 @@ const server = http.createServer(async (req, res) => {
 
         // 2. Masukkan pbj_paket_item
         if (Array.isArray(body.pbj_paket_item) && body.pbj_paket_item.length > 0) {
+          const [itemCols] = await pool.query('SHOW COLUMNS FROM pbj_paket_item');
+          const validItemColSet = new Set(itemCols.map(c => c.Field));
           for (const row of body.pbj_paket_item) {
-            const keys = Object.keys(row);
-            const vals = Object.values(row);
+            const keys = Object.keys(row).filter(k => validItemColSet.has(k));
+            const vals = keys.map(k => row[k]);
             const placeholders = keys.map(() => '?').join(', ');
             const cols = keys.map(k => `\`${k}\``).join(', ');
             await pool.query(`INSERT INTO pbj_paket_item (${cols}) VALUES (${placeholders})`, vals);
@@ -1636,9 +1640,11 @@ const server = http.createServer(async (req, res) => {
 
         // 3. Masukkan pbj_paket_tahap
         if (Array.isArray(body.pbj_paket_tahap) && body.pbj_paket_tahap.length > 0) {
+          const [tahapCols] = await pool.query('SHOW COLUMNS FROM pbj_paket_tahap');
+          const validTahapColSet = new Set(tahapCols.map(c => c.Field));
           for (const row of body.pbj_paket_tahap) {
-            const keys = Object.keys(row);
-            const vals = Object.values(row);
+            const keys = Object.keys(row).filter(k => validTahapColSet.has(k));
+            const vals = keys.map(k => row[k]);
             const placeholders = keys.map(() => '?').join(', ');
             const cols = keys.map(k => `\`${k}\``).join(', ');
             await pool.query(`INSERT INTO pbj_paket_tahap (${cols}) VALUES (${placeholders})`, vals);
