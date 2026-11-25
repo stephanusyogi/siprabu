@@ -97,10 +97,18 @@ async function ensurePenyediaLinkDokumenColumn(pool) {
 }
 
 async function ensurePaketTahapColumns(pool) {
-  try {
-    await pool.query("ALTER TABLE pbj_paket_tahap ADD COLUMN link_drive_dokumen TEXT DEFAULT NULL");
-  } catch (e) {
-    // Abaikan jika kolom link_drive_dokumen sudah ada
+  const cols = [
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN link_drive_dokumen TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_permohonan VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN tgl_permohonan VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_kuitansi VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN tgl_kuitansi VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN tgl_bap VARCHAR(32) DEFAULT NULL"
+  ];
+  for (const q of cols) {
+    try {
+      await pool.query(q);
+    } catch (e) {}
   }
 }
 
@@ -259,7 +267,24 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket_item ADD COLUMN kode_barang_bmn VARCHAR(128) DEFAULT '1.01.03.01.001 (Persediaan / BMN)'",
     "ALTER TABLE pbj_paket_item ADD COLUMN jenis_pencatatan_sakti VARCHAR(64) DEFAULT 'Persediaan'",
     "ALTER TABLE pbj_paket_item ADD COLUMN evaluasi_pasar_json TEXT DEFAULT NULL",
-    "ALTER TABLE pbj_paket_item ADD COLUMN pic_subbag_pengguna VARCHAR(64) DEFAULT 'KUL'"
+    "ALTER TABLE pbj_paket_item ADD COLUMN pic_subbag_pengguna VARCHAR(64) DEFAULT 'KUL'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_bap VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_bap VARCHAR(32) DEFAULT '2026-06-11'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_spp_ls VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_spp_ls VARCHAR(32) DEFAULT '2026-06-12'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_spm_ls VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_spm_ls VARCHAR(32) DEFAULT '2026-06-12'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_bast_kpa VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_bast_kpa VARCHAR(32) DEFAULT '2026-06-11'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_faktur_pajak VARCHAR(191) DEFAULT '010.000-26.00000001'",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_faktur_pajak VARCHAR(32) DEFAULT '2026-06-11'",
+    "ALTER TABLE pbj_paket ADD COLUMN nilai_pembayaran_netto DECIMAL(15,2) DEFAULT 137943432.00",
+    "ALTER TABLE pbj_paket ADD COLUMN nilai_kas_sp2d DECIMAL(15,2) DEFAULT 122403891.00",
+    "ALTER TABLE pbj_paket ADD COLUMN akun_denda_pnbp VARCHAR(32) DEFAULT '425161'",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_pembayaran TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bap VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_spp_ls VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bast_kpa VARCHAR(191) DEFAULT NULL"
   ];
 
   try {
@@ -367,6 +392,50 @@ async function ensurePaketMissingColumns(pool) {
     }
   } catch (e) {
     console.warn('[DB-MIGRATE-WARN] Gagal migrasi Tahap 16:', e.message);
+  }
+
+  // Migrasi otomatis sinkronisasi skenario Tahap 17 Pengajuan Pembayaran (BAP, BAST KPA, SPP-LS & Potongan Denda Akun PNBP 425161)
+  try {
+    const [t17Flags] = await pool.query("SELECT `value` FROM pbj_settings WHERE `key` = 'sync_tahap17_pembayaran_v1'");
+    if (!t17Flags || !t17Flags.length || t17Flags[0].value !== '1') {
+      const catatanTahap17 = 'Berita Acara Pembayaran (BAP No. 017/BAP/PBJ-2026-001/PPK/VI/2026 tanggal 11 Juni 2026), BAST PPK ke KPA (No. 017/BAST-KPA/PBJ-2026-001/PPK/VI/2026 tanggal 11 Juni 2026), dan Surat Permintaan Pembayaran Langsung (SPP-LS No. 00045/SPP-LS/657811/2026 tanggal 12 Juni 2026) telah terbit resmi. Nilai Bruto Rp 138.000.000,- dipotong denda keterlambatan Rp 56.568,- ke Akun PNBP 425161 (Netto sebelum pajak Rp 137.943.432,- / Netto transfer kas SP2D Rp 122.403.891,- setelah dipotong PPN 11% Rp 13.675.676,- dan PPh 22 1,5% Rp 1.864.865,-). Seluruh aset telah diserahkan PPK kepada KPA untuk registrasi NUP BMN pada SAKTI Modul Aset Tetap.';
+
+      await pool.query(`
+        UPDATE pbj_paket
+        SET no_bap = '017/BAP/PBJ-2026-001/PPK/VI/2026',
+            tgl_bap = '2026-06-11',
+            no_bast_kpa = '017/BAST-KPA/PBJ-2026-001/PPK/VI/2026',
+            tgl_bast_kpa = '2026-06-11',
+            no_spp_ls = '00045/SPP-LS/657811/2026',
+            tgl_spp_ls = '2026-06-12',
+            no_spm_ls = '00045/SPM-LS/657811/2026',
+            tgl_spm_ls = '2026-06-12',
+            no_faktur_pajak = '010.000-26.00000001',
+            tgl_faktur_pajak = '2026-06-11',
+            nilai_pembayaran_netto = 137943432.00,
+            nilai_kas_sp2d = 122403891.00,
+            akun_denda_pnbp = '425161',
+            catatan_pembayaran = ?
+        WHERE id = 1
+      `, [catatanTahap17]);
+
+      await pool.query(`
+        UPDATE pbj_paket_tahap
+        SET nomor_dokumen = '017/BAP/PBJ-2026-001/PPK/VI/2026',
+            tanggal_dokumen = '2026-06-11',
+            status_tahap = 'Draft',
+            no_bap = '017/BAP/PBJ-2026-001/PPK/VI/2026',
+            no_bast_kpa = '017/BAST-KPA/PBJ-2026-001/PPK/VI/2026',
+            no_spp_ls = '00045/SPP-LS/657811/2026',
+            catatan_tahap = ?
+        WHERE paket_id = 1 AND no_tahap = 17
+      `, [catatanTahap17]);
+
+      await pool.query("REPLACE INTO pbj_settings (`key`, `value`) VALUES ('sync_tahap17_pembayaran_v1', '1')");
+      console.log('[DB-MIGRATE] Skenario Tahap 17 Pembayaran BAP/SPP-LS Paket 1 berhasil disinkronkan ke DB.');
+    }
+  } catch (e) {
+    console.warn('[DB-MIGRATE-WARN] Gagal migrasi Tahap 17:', e.message);
   }
 }
 
@@ -1081,8 +1150,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning, no_baphp, no_bast)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning, no_baphp, no_bast, no_permohonan, tgl_permohonan, no_kuitansi, tgl_kuitansi, no_bap, tgl_bap, no_spp_ls, no_bast_kpa)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -1102,7 +1171,15 @@ async function savePaket(data) {
            no_laporan_pengendalian = VALUES(no_laporan_pengendalian),
            no_ba_komisioning = VALUES(no_ba_komisioning),
            no_baphp = VALUES(no_baphp),
-           no_bast = VALUES(no_bast)`,
+           no_bast = VALUES(no_bast),
+           no_permohonan = VALUES(no_permohonan),
+           tgl_permohonan = VALUES(tgl_permohonan),
+           no_kuitansi = VALUES(no_kuitansi),
+           tgl_kuitansi = VALUES(tgl_kuitansi),
+           no_bap = VALUES(no_bap),
+           tgl_bap = VALUES(tgl_bap),
+           no_spp_ls = VALUES(no_spp_ls),
+           no_bast_kpa = VALUES(no_bast_kpa)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -1123,7 +1200,15 @@ async function savePaket(data) {
           su.no_laporan_pengendalian || existingStage.no_laporan_pengendalian || p.no_laporan_pengendalian || null,
           su.no_ba_komisioning || existingStage.no_ba_komisioning || p.no_ba_komisioning || null,
           su.no_baphp || existingStage.no_baphp || p.no_baphp || null,
-          su.no_bast || existingStage.no_bast || p.no_bast || null
+          su.no_bast || existingStage.no_bast || p.no_bast || null,
+          su.no_permohonan || existingStage.no_permohonan || null,
+          su.tgl_permohonan || existingStage.tgl_permohonan || null,
+          su.no_kuitansi || existingStage.no_kuitansi || null,
+          su.tgl_kuitansi || existingStage.tgl_kuitansi || null,
+          su.no_bap || existingStage.no_bap || p.no_bap || null,
+          su.tgl_bap || existingStage.tgl_bap || p.tgl_bap || null,
+          su.no_spp_ls || existingStage.no_spp_ls || p.no_spp_ls || null,
+          su.no_bast_kpa || existingStage.no_bast_kpa || p.no_bast_kpa || null
         ]
       );
 

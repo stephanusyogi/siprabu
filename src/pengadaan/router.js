@@ -86,13 +86,13 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
   try {
     await initDatabaseSchemaAndSeed();
 
-    // Endpoint manual trigger sinkronisasi skenario database Tahap 16 BAPHP, BAST & Denda
-    if (pathname === '/api/cakra/sync-tahap16' && method === 'GET') {
+    // Endpoint manual trigger sinkronisasi skenario database Tahap 16 & Tahap 17
+    if ((pathname === '/api/cakra/sync-tahap16' || pathname === '/api/cakra/sync-tahap17') && method === 'GET') {
       const pool = getCakraPool();
       await ensurePaketMissingColumns(pool);
       return sendJson(res, 200, {
         ok: true,
-        message: 'Migrasi & sinkronisasi skenario Tahap 16 BAPHP, BAST & Denda berhasil dijalankan ke database.'
+        message: 'Migrasi & sinkronisasi skenario Tahap 16 & Tahap 17 (BAP, BAST KPA, SPP-LS & Denda) berhasil dijalankan ke database.'
       });
     }
 
@@ -106,8 +106,8 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
         getKbliList()
       ]);
 
-      // Self-healing: jika migrasi Tahap 16 belum tertulis di DB (misal di server online belum restart), jalankan on-the-fly
-      if (!settings['sync_tahap16_bast_denda_v2']) {
+      // Self-healing: jika migrasi Tahap 16 atau Tahap 17 belum tertulis di DB (misal di server online belum restart), jalankan on-the-fly
+      if (!settings['sync_tahap16_bast_denda_v2'] || !settings['sync_tahap17_pembayaran_v1']) {
         try {
           const pool = getCakraPool();
           await ensurePaketMissingColumns(pool);
@@ -383,15 +383,19 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
     if (pathname.match(/^\/api\/cakra\/download\/docx\/\d+$/) && (method === 'GET' || method === 'HEAD')) {
       const paketId = Number(pathname.split('/').pop());
       const stage = query.tahap || '13';
+      const subdoc = query.subdoc || null;
       const ctx = await getPaketFullById(paketId);
       if (!ctx) return sendJson(res, 404, { ok: false, error: 'Paket tidak ditemukan' });
 
-      const buffer = await generateWordBuffer(ctx, stage);
+      const buffer = await generateWordBuffer(ctx, stage, subdoc);
       const def = DEFINISI_18_TAHAP.find(d => d.no === Number(stage));
       const cleanKode = sanitizeFilename(String(ctx.paket.kode_paket_internal || '').replace(/^CAKRA-/i, 'PBJ-'));
-      const suffix = stage === 'ALL'
+      let suffix = stage === 'ALL'
         ? `Bundel_Naskah_Pengadaan_18_Tahap_${cleanKode}`
         : `Naskah_Pengadaan_${cleanKode}_Tahap_${String(stage).padStart(2, '0')}_${sanitizeFilename(def?.kode || 'DOK')}`;
+      if (subdoc) {
+        suffix += `_Dok_${String(subdoc).padStart(2, '0')}`;
+      }
       const filename = `${suffix}.docx`;
 
       res.writeHead(200, {

@@ -45,6 +45,8 @@ const {
   SSUK_67_ROWS,
   buildSskk25Rows
 } = require('./ssuk_sskk_template');
+const { buildStage16Sections: buildStage16SectionsModular } = require('./word_engine_tahap16');
+const { buildStage17Sections } = require('./word_engine_tahap17');
 
 const BORDER_NONE = {
   top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
@@ -8609,7 +8611,7 @@ function buildStage16Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
   const secSttbs = {
     properties: {
       page: {
-        margin: { top: 1200, right: 1200, bottom: 1200, left: 1400 },
+        margin: { top: 900, right: 1000, bottom: 900, left: 1200 },
         size: { width: 11906, height: 16838 }
       }
     },
@@ -8624,49 +8626,53 @@ function buildStage16Sections(ctx, tahapRow, keu, isFirstStageInDoc) {
       pText('SURAT TANDA TERIMA PENERIMAAN BARANG SEMENTARA (PARSIAL)', {
         align: AlignmentType.CENTER,
         bold: true,
-        size: 21,
+        size: 19,
         color: '0F172A',
-        before: 60,
+        before: 40,
         after: 4
       }),
       pText(`Nomor: ${noSttbs}`, {
         align: AlignmentType.CENTER,
         bold: true,
-        size: 18,
+        size: 17,
         color: '1E3A8A',
         before: 0,
-        after: 120
+        after: 80
       }),
       pText(`Pada hari ini, ${hariTglSttbsStr} (pukul ${waktuSttbs}), bertempat di ${lokasiFranco}, kami yang bertanda tangan di bawah ini:`, {
         align: AlignmentType.JUSTIFY,
-        size: 18,
-        line: 270,
+        size: 17,
+        line: 230,
         before: 0,
-        after: 40
+        after: 25
       }),
       pListItem('1.', 'Pihak Penerima', `${namaPenerima} (KPU Kabupaten Ngawi)`),
       pListItem('2.', 'Pihak Penyerah', `${namaPenyerah} (Penyedia / Ekspedisi Logistik)`),
-      pText('Menyatakan dengan sebenarnya bahwa telah diserahkan dan diterima sebagian fisik barang pengadaan berdasarkan:', { before: 20, after: 20 }),
+      pText('Menyatakan dengan sebenarnya bahwa telah diserahkan dan diterima sebagian fisik barang pengadaan berdasarkan:', { size: 17, before: 15, after: 15 }),
       pListItem('•', 'Surat Pesanan (Kontrak)', `Nomor ${noKontrak} tanggal ${tglKontrakStr}`),
       pListItem('•', 'Surat Jalan Rekanan', `Nomor ${noSj} tanggal ${formatTanggalIndo(tglSj)}`),
       pListItem('•', 'Paket Pekerjaan', `${paket.nama_paket || 'Pengadaan Perangkat Pengolah Data dan PC Server Operasional'}`),
       pListItem('•', 'Penyedia Barang/Jasa', `${namaPenyedia}`),
-      new Paragraph({ spacing: { before: 50, after: 30 }, children: [new TextRun({ text: 'DENGAN RINCIAN BARANG YANG DITERIMA SECARA PARSIAL SEBAGAI BERIKUT:', bold: true, size: 17, font: 'Cambria' })] }),
+      new Paragraph({ spacing: { before: 30, after: 15 }, children: [new TextRun({ text: 'DENGAN RINCIAN BARANG YANG DITERIMA SECARA PARSIAL SEBAGAI BERIKUT:', bold: true, size: 16.5, font: 'Cambria' })] }),
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: sttbsTableRows
       }),
-      new Paragraph({ spacing: { before: 80, after: 20 }, children: [new TextRun({ text: 'CATATAN KHUSUS & KETENTUAN HUKUM KEDUA BELAH PIHAK:', bold: true, size: 17, font: 'Cambria' })] }),
-      pNumbered('1.', 'Dokumen ini HANYA merupakan tanda terima fisik sementara atas sebagian barang yang telah tiba di lokasi, dan BUKAN merupakan Berita Acara Serah Terima (BAST) definitif.'),
-      pNumbered('2.', 'Dokumen ini TIDAK DAPAT digunakan sebagai dasar pengajuan pembayaran atau penagihan tagihan (SPP-LS / SPM-LS) kepada Kuasa Pengguna Anggaran.'),
-      pNumbered('3.', 'Kedatangan fisik atas barang-barang yang tercantum di atas diakui secara sah oleh kedua belah pihak sebagai bukti pemenuhan batas waktu penyerahan tepat waktu sebelum batas akhir kontrak guna penghitungan evaluasi denda keterlambatan sesuai ketentuan Pasal 79 ayat (4) huruf b Perpres Nomor 16 Tahun 2018 jo. Perpres Nomor 12 Tahun 2021.'),
-      pNumbered('4.', 'Pemeriksaan substantif, uji fungsi komisioning faktual (BAPHP), dan penandatanganan BAST definitif 100% baru akan dilaksanakan setelah seluruh sisa barang (termasuk item yang belum diserahkan) tiba lengkap di lokasi kantor KPU Kabupaten Ngawi.'),
-      pText(`Catatan Khusus: ${catatanSttbs}`, { italic: true, size: 16, before: 30, after: 100 }),
+      new Paragraph({ spacing: { before: 40, after: 15 }, children: [new TextRun({ text: 'CATATAN KHUSUS & KETENTUAN HUKUM KEDUA BELAH PIHAK:', bold: true, size: 16.5, font: 'Cambria' })] }),
+      pNumbered('1.', 'Dokumen ini HANYA merupakan tanda terima fisik sementara atas sebagian barang yang telah tiba di lokasi, dan BUKAN merupakan Berita Acara Serah Terima (BAST) definitif.', { size: 16, before: 2, after: 3 }),
+      pNumbered('2.', 'Dokumen ini TIDAK DAPAT digunakan sebagai dasar pengajuan pembayaran atau penagihan tagihan (SPP-LS / SPM-LS) kepada Kuasa Pengguna Anggaran.', { size: 16, before: 2, after: 3 }),
+      pNumbered('3.', 'Kedatangan fisik barang di atas diakui sah sebagai bukti pemenuhan batas waktu penyerahan tepat waktu sebelum batas akhir kontrak guna evaluasi denda keterlambatan sesuai Pasal 79 ayat (4) huruf b Perpres PBJ.', { size: 16, before: 2, after: 3 }),
+      pNumbered('4.', 'Pemeriksaan substantif, uji komisioning faktual (BAPHP), dan BAST definitif 100% baru dilaksanakan setelah seluruh sisa barang tiba lengkap di kantor KPU Ngawi.', { size: 16, before: 2, after: 4 }),
+      pText(`Catatan Khusus: ${catatanSttbs}`, { italic: true, size: 15.5, before: 15, after: 40 }),
       buildSignatureBlockSttbs(paket, settings, namaPenerima, namaPenyerah, ppk)
     ]
   };
 
-  return [secBaphp, secBast, secSttbs];
+  return buildStage16SectionsModular(ctx, tahapRow, keu, isFirstStageInDoc, {
+    baphpChildren: secBaphp.children,
+    bastChildren: secBast.children,
+    sttbsChildren: secSttbs.children
+  });
 }
 
 function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
@@ -8723,6 +8729,9 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   }
   if (stageNo === 16) {
     return buildStage16Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
+  if (stageNo === 17) {
+    return buildStage17Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap
@@ -8955,7 +8964,7 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
 /**
  * Generate Buffer Word (.DOCX) untuk 1 Tahap Tertentu (1-18) atau "ALL" (Dokumen Gabungan 18 Tahap Hulu-Hilir)
  */
-async function generateWordBuffer(ctx, modeOrStage = 13) {
+async function generateWordBuffer(ctx, modeOrStage = 13, subdoc = null) {
   const stageNum = Number(modeOrStage);
   let sections = [];
 
@@ -8969,7 +8978,17 @@ async function generateWordBuffer(ctx, modeOrStage = 13) {
       first = false;
     }
   } else {
-    sections.push(...buildSectionsForStage(stageNum, ctx, true));
+    const allSecs = buildSectionsForStage(stageNum, ctx, true);
+    if (subdoc && !isNaN(Number(subdoc))) {
+      const subIdx = Number(subdoc) - 1;
+      if (allSecs[subIdx]) {
+        sections = [allSecs[subIdx]];
+      } else {
+        sections = allSecs;
+      }
+    } else {
+      sections = allSecs;
+    }
   }
 
   const doc = new Document({

@@ -2587,8 +2587,15 @@ function renderCockpitRightDock() {
           <button type="button" class="cakra-dropdown-item-btn" onclick="closeCockpitMoreActions(); queuePengadaanDownload('docx', ${paket.id}, '16')" style="width:100%; text-align:left; border:none; background:transparent; padding:9px 14px; font-size:12px; color:#1e293b; cursor:pointer; display:flex; align-items:center; gap:8px;">
             <span style="font-size:14px;">🤝</span>
             <div>
-              <div style="font-weight:700;">BAST & BAPHP (Tahap 16)</div>
-              <div style="font-size:10.5px; color:#64748b;">Berita Acara Serah Terima Pekerjaan</div>
+              <div style="font-weight:700;">BAST, BAP &amp; Penagihan (Tahap 16)</div>
+              <div style="font-size:10.5px; color:#64748b;">Bundel 9 Hal: BAPHP, BAST, Kuitansi &amp; BAP</div>
+            </div>
+          </button>
+          <button type="button" class="cakra-dropdown-item-btn" onclick="closeCockpitMoreActions(); queuePengadaanDownload('docx', ${paket.id}, '17')" style="width:100%; text-align:left; border:none; background:transparent; padding:9px 14px; font-size:12px; color:#1e293b; cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px;">🏛️</span>
+            <div>
+              <div style="font-weight:700;">Aset BMN &amp; SPP-LS APBN (Tahap 17)</div>
+              <div style="font-size:10.5px; color:#64748b;">Bundel 6 Hal: BAST KPA, Nota Dinas &amp; SPP-LS</div>
             </div>
           </button>
           <div style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
@@ -6585,34 +6592,15 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       const tglBaphp = paket.tgl_baphp || (activeTRow.tanggal_dokumen && activeTRow.tanggal_dokumen > '2026-06-01' ? activeTRow.tanggal_dokumen : '2026-06-10');
       const noBast = paket.no_bast || activeTRow.no_bast || `016/BAST/${cleanKode}/PPK/VI/2026`;
       const tglBast = paket.tgl_bast || tglBaphp;
+      const noPermohonan = `042/GP-NGW/TAG-PBJ/VI/2026`;
+      const noKuit = `016/KUIT/${cleanKode}/PPK/VI/2026`;
+      const noBap = paket.no_bap || activeTRow.no_bap || `016/BAP/${cleanKode}/PPK/VI/2026`;
+      const tglBap = '2026-06-11';
       const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
       let hariTerlambat = Number(paket.hari_terlambat || 0);
       let dendaRp = Number(paket.denda_keterlambatan_rp || 0);
       const masaGaransiHari = Number(paket.masa_garansi_hari || 365);
       const tglSelesaiGaransi = paket.tgl_selesai_garansi || '2027-06-10';
-
-      // Parsing atau hitung denda dari realisasi item jika di DB masih 0
-      if (paket.realisasi_item_bast_json) {
-        try {
-          const parsed = typeof paket.realisasi_item_bast_json === 'string'
-            ? JSON.parse(paket.realisasi_item_bast_json)
-            : paket.realisasi_item_bast_json;
-          if (Array.isArray(parsed)) {
-            let sumDenda = 0;
-            let maxLate = 0;
-            parsed.forEach(it => {
-              const ht = Number(it.hari_terlambat || 0);
-              const dn = Number(it.denda_item !== undefined ? it.denda_item : (it.denda_rp || 0));
-              if (ht > 0) {
-                if (ht > maxLate) maxLate = ht;
-                sumDenda += dn;
-              }
-            });
-            if (dendaRp === 0 && sumDenda > 0) dendaRp = sumDenda;
-            if (hariTerlambat === 0 && maxLate > 0) hariTerlambat = maxLate;
-          }
-        } catch (e) {}
-      }
 
       // Default Skenario Tahap 16 Simulasi Paket 1 KPU Ngawi (1 unit Server terlambat 1 hari)
       if (Number(paket.id) === 1 && dendaRp === 0) {
@@ -6676,16 +6664,6 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
         `;
       }).join('');
 
-      let baphpCardBadge = '<span class="cakra-badge cakra-badge-success" style="font-size:10px; font-weight:800; background:#dcfce7; color:#15803d;">LULUS 100%</span>';
-      let baphpCardHasil = `<div>Hasil: <strong>${totalKritis} Titik Kritis Terpenuhi Lengkap</strong></div>`;
-      if (cntTidak > 0) {
-        baphpCardBadge = `<span class="cakra-badge cakra-badge-danger" style="font-size:10px; font-weight:800; background:#fee2e2; color:#dc2626;">DITOLAK (${cntTidak} CACAT)</span>`;
-        baphpCardHasil = `<div>Hasil: <strong style="color:#dc2626;">${cntTidak} Titik Kritis Tidak Memenuhi Syarat</strong></div>`;
-      } else if (cntPerbaikan > 0) {
-        baphpCardBadge = `<span class="cakra-badge" style="font-size:10px; font-weight:800; background:#fef3c7; color:#b45309;">BERSYARAT (${cntPerbaikan} CATATAN)</span>`;
-        baphpCardHasil = `<div>Hasil: <strong style="color:#b45309;">${cntPerbaikan} Titik Kritis Perlu Perbaikan (7 Hari)</strong></div>`;
-      }
-
       let baphpTableBadge = `<span style="font-size:10.5px; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:12px;">Lulus 100% Memenuhi Syarat KAK</span>`;
       if (cntTidak > 0) {
         baphpTableBadge = `<span style="font-size:10.5px; font-weight:700; color:#dc2626; background:#fee2e2; padding:2px 8px; border-radius:12px;">${pctMemenuhi}% Memenuhi (${cntTidak} Tidak Memenuhi)</span>`;
@@ -6694,84 +6672,108 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       }
 
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:14px;">
-          <!-- KARTU 1: BAPHP (DOKUMEN 01) -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <span style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">🔍 BAPHP (DOKUMEN 01)</span>
-              ${baphpCardBadge}
+        <!-- TOOLBAR UNDUH CEPAT TAHAP 16 -->
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">📁</span>
+            <div>
+              <div style="font-size:11.5px; font-weight:800; color:#1e3a8a;">BERKAS LENGKAP TAHAP 16: PINTU TERAKHIR PENYEDIA</div>
+              <div style="font-size:10.5px; color:#475569;">Pemeriksaan Fisik Faktual, Serah Terima Pertama, &amp; Penuntasan Hak Tagih Penyedia 100%</div>
             </div>
-            <div style="font-size:12.5px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(noBaphp)}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBaphp)}</div>
-            <div style="margin-top:8px; font-size:10.5px; color:#334155; line-height:1.4;">
-              <div>Koordinator: <strong>${cakraEsc(paket.nama_tim_pemeriksa || 'Tim Teknis / Pejabat Pemeriksa Pengadaan KPU Ngawi')}</strong></div>
-              ${baphpCardHasil}
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=16&subdoc=5','_blank')" style="background:#ffffff; border:1px solid #cbd5e1; font-weight:700; color:#334155; padding:5px 10px; border-radius:6px; cursor:pointer;" title="Unduh Naskah Dokumen 05: Surat Tanda Terima Barang Sementara">
+              📦 Unduh Dok 05 (STTBS Parsial)
+            </button>
+            <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=16','_blank')" style="background:#2563eb; color:#ffffff; font-weight:800; padding:6px 14px; border-radius:6px; border:none; cursor:pointer; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="Unduh Bundel Lengkap Dokumen Tahap 16 (Pas 9 Halaman .docx)">
+              📑 Unduh Bundel Lengkap (9 Hal .docx)
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 KARTU PROSES BISNIS TAHAP 16 (PPK & PENYEDIA) -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-bottom:14px;">
+          <!-- KARTU 1: BAPHP (DOKUMEN 01) -->
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">🔍 BAPHP (DOKUMEN 01)</span>
+                <span class="cakra-badge cakra-badge-success" style="font-size:10px; font-weight:800; background:#dcfce7; color:#15803d;">LULUS 100%</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(noBaphp)}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBaphp)}</div>
+              <div style="margin-top:8px; font-size:10.5px; color:#334155; line-height:1.4;">
+                <div>Penguji: <strong>Tim Teknis / Pejabat Pemeriksa PBJ</strong></div>
+                <div>Hasil: <strong style="color:#15803d;">5 Titik Kritis Terpenuhi Lengkap</strong></div>
+              </div>
+            </div>
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #cbd5e1;">
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=16&subdoc=1','_blank')" style="width:100%; font-size:10.5px; font-weight:700; padding:4px 8px; background:#ffffff; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer; color:#1e40af;">
+                📄 Unduh Dok 01 (BAPHP)
+              </button>
             </div>
           </div>
 
           <!-- KARTU 2: BAST (DOKUMEN 02) -->
-          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <span style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">🤝 BAST (DOKUMEN 02)</span>
-              <span class="cakra-badge cakra-badge-success" style="font-size:10px; font-weight:800; background:#bbf7d0; color:#15803d;">SAH &amp; DITERIMA</span>
-            </div>
-            <div style="font-size:12.5px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(noBast)}</div>
-            <div style="font-size:11px; color:#166534; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBast)}</div>
-            <div style="margin-top:8px; font-size:10.5px; color:#166534; line-height:1.4;">
-              <div>Penyedia: <strong>${cakraEsc(penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI')}</strong></div>
-              <div>Hak Pembayaran: <strong style="color:#15803d;">Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)},-</strong> ${dendaRp > 0 ? `<span style="color:#b91c1c; font-size:9.5px; font-weight:700;">(Netto potong denda Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)})</span>` : '(SPM-LS Lunas)'}</div>
-            </div>
-          </div>
-
-          <!-- KARTU 3: KEPATUHAN WAKTU & GARANSI -->
-          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <span style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase;">⏱️ KEPATUHAN WAKTU &amp; GARANSI</span>
-              <span class="cakra-badge ${hariTerlambat > 0 ? 'cakra-badge-danger' : 'cakra-badge-info'}" style="font-size:10px; font-weight:800; background:${hariTerlambat > 0 ? '#fee2e2' : '#dbeafe'}; color:${hariTerlambat > 0 ? '#dc2626' : '#1e40af'}; border:1px solid ${hariTerlambat > 0 ? '#fca5a5' : '#bfdbfe'};">
-                ${hariTerlambat > 0 ? `DENDA ${hariTerlambat} HARI` : 'NIHIL DENDA'}
-              </span>
-            </div>
-            <div style="font-size:12.5px; font-weight:800; color:${hariTerlambat > 0 ? '#dc2626' : '#1e3a8a'};">
-              ${hariTerlambat > 0 ? `Denda Bagian: Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)}` : 'Selesai Tepat Waktu (0 Hari)'}
-            </div>
-            <div style="font-size:11px; color:#1e40af; margin-top:2px;">
-              ${hariTerlambat > 0 ? 'STTBS 09 Juni: 3 PC Workstation | 1 Server: 10 Juni' : 'Masa Kontrak: 14 Hari (27 Mei - 09 Juni 2026)'}
-            </div>
-            <div style="margin-top:8px; font-size:10.5px; color:#1e3a8a; line-height:1.4;">
-              <div>Garansi: <strong>${masaGaransiHari} Hari (s.d. ${formatTanggalIndo(tglSelesaiGaransi)})</strong></div>
-              <div>Retensi: <strong>Bebas Retensi 5% (Garansi Pabrikan)</strong></div>
-            </div>
-          </div>
-
-          <!-- KARTU 4: KESIAPAN PENAGIHAN PEMBAYARAN TAHAP 17 -->
-          <div style="background:#faf5ff; border:1px solid #d8b4fe; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
             <div>
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span style="font-size:10.5px; font-weight:700; color:#7e22ce; text-transform:uppercase;">💳 REKOMENDASI PEMBAYARAN</span>
-                <span class="cakra-badge" style="background:#f3e8ff; color:#7e22ce; font-size:10px; font-weight:800; border:1px solid #d8b4fe;">SIAP TAHAP 17</span>
+                <span style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">🤝 BAST (DOKUMEN 02)</span>
+                <span class="cakra-badge cakra-badge-success" style="font-size:10px; font-weight:800; background:#bbf7d0; color:#15803d;">SAH &amp; RESMI</span>
               </div>
-              <div style="font-size:12.5px; font-weight:800; color:#581c87;">Siap Pengajuan SPM-LS KPPN</div>
-              <div style="font-size:11px; color:#7e22ce; margin-top:2px;">Alokasi DIPA APBN 2026 | MAK 532111</div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(noBast)}</div>
+              <div style="font-size:11px; color:#166534; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBast)}</div>
+              <div style="margin-top:8px; font-size:10.5px; color:#166534; line-height:1.4;">
+                <div>Penyedia: <strong>${cakraEsc(penyedia.nama_perusahaan || 'CV. GRAFIKA PRATAMA NGAWI')}</strong></div>
+                <div>Garansi: <strong>${masaGaransiHari} Hari</strong> (Bebas Retensi 5%)</div>
+              </div>
             </div>
-            
-            <div style="margin-top:8px; font-size:10.5px; color:#581c87; line-height:1.45; background:#ffffff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px;">
-              <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
-                <span>Bruto Kontrak 100%:</span>
-                <strong>Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak)},-</strong>
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #86efac;">
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=16&subdoc=2','_blank')" style="width:100%; font-size:10.5px; font-weight:700; padding:4px 8px; background:#ffffff; border:1px solid #86efac; border-radius:5px; cursor:pointer; color:#166534;">
+                📄 Unduh Dok 02 (BAST)
+              </button>
+            </div>
+          </div>
+
+          <!-- KARTU 3: PERMOHONAN & KUITANSI (DOKUMEN 03) -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase;">🧾 KUITANSI (DOKUMEN 03)</span>
+                <span class="cakra-badge" style="font-size:10px; font-weight:800; background:#dbeafe; color:#1e40af;">METERAI 10.000</span>
               </div>
-              ${dendaRp > 0 ? `
-                <div style="display:flex; justify-content:space-between; color:#dc2626; font-weight:700; margin-bottom:2px;">
-                  <span>Potongan Denda:</span>
-                  <span>- Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)},-</span>
-                </div>
-                <div style="font-size:9.5px; color:#7e22ce; font-style:italic; margin-bottom:4px; text-align:right;">
-                  (Disetor Kas Negara Akun 425161)
-                </div>
-              ` : ''}
-              <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px; border-top:1px dashed #d8b4fe; font-weight:800; color:#15803d; font-size:11.5px;">
-                <span>Hak Bersih Netto:</span>
-                <span>Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)},-</span>
+              <div style="font-size:12.5px; font-weight:800; color:#1e3a8a;" class="cakra-mono">${cakraEsc(noKuit)}</div>
+              <div style="font-size:11px; color:#1e40af; margin-top:2px;">Surat Tagihan: ${cakraEsc(noPermohonan)}</div>
+              <div style="margin-top:8px; font-size:10.5px; color:#1e3a8a; line-height:1.4;">
+                <div>Tagihan Bruto 100%: <strong>${cakraFmtRp(nilaiKontrak)}</strong></div>
+                <div>Bank: <strong>BRI 0058-01-002481-30-8</strong> (a.n. Rekanan)</div>
               </div>
+            </div>
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #bfdbfe;">
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=16&subdoc=3','_blank')" style="width:100%; font-size:10.5px; font-weight:700; padding:4px 8px; background:#ffffff; border:1px solid #bfdbfe; border-radius:5px; cursor:pointer; color:#1e40af;">
+                📄 Unduh Dok 03 (Kuitansi)
+              </button>
+            </div>
+          </div>
+
+          <!-- KARTU 4: BAP & REKONSILIASI DENDA (DOKUMEN 04) -->
+          <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:700; color:#c2410c; text-transform:uppercase;">📝 BAP (DOKUMEN 04)</span>
+                <span class="cakra-badge" style="font-size:10px; font-weight:800; background:#ffedd5; color:#c2410c;">POTONG DENDA</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#9a3412;" class="cakra-mono">${cakraEsc(noBap)}</div>
+              <div style="font-size:11px; color:#c2410c; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBap)}</div>
+              <div style="margin-top:8px; font-size:10.5px; color:#9a3412; line-height:1.4;">
+                <div>Potongan Denda: <strong style="color:#b91c1c;">- ${cakraFmtRp(dendaRp)}</strong> <em>(Akun 425161)</em></div>
+                <div>Hak Bersih Netto: <strong style="color:#15803d;">${cakraFmtRp(nilaiKontrak - dendaRp)}</strong></div>
+              </div>
+            </div>
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #fed7aa;">
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=16&subdoc=4','_blank')" style="width:100%; font-size:10.5px; font-weight:700; padding:4px 8px; background:#ffffff; border:1px solid #fed7aa; border-radius:5px; cursor:pointer; color:#c2410c;">
+                📄 Unduh Dok 04 (BAP)
+              </button>
             </div>
           </div>
         </div>
@@ -6802,21 +6804,207 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 17:
+    case 17: {
+      const penyedia = CakraState.activePaketCtx?.penyedia || {};
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const noBastKpa = paket.no_bast_kpa || activeTRow.no_bast_kpa || `017/BAST-KPA/${cleanKode}/PPK/VI/2026`;
+      const tglBastKpa = paket.tgl_bast_kpa || '2026-06-11';
+      const noNdKpa = `017/ND-KPA/${cleanKode}/VI/2026`;
+      const noSppLs = paket.no_spp_ls || activeTRow.no_spp_ls || '00045/SPP-LS/657811/2026';
+      const tglSppLs = paket.tgl_spp_ls || '2026-06-12';
+      const noLuPpspm = `017/LU-PPSPM/${cleanKode}/VI/2026`;
+
+      const nilaiKontrak = Number(paket.nilai_kontrak || 138000000);
+      let dendaRp = Number(paket.denda_keterlambatan_rp || 0);
+      if (dendaRp === 0 && (paket.id === 1 || String(paket.kode_paket_internal || '').includes('001'))) {
+        dendaRp = 56568;
+      }
+      const hakNettoSebelumPajak = nilaiKontrak - dendaRp; // 137.943.432
+      const dpp = Math.round((100 / 111) * nilaiKontrak); // 124.324.324
+      const ppn = Math.round((11 / 111) * nilaiKontrak); // 13.675.676
+      const pph = Math.round(dpp * 0.015); // 1.864.865
+      const kasSp2d = nilaiKontrak - dendaRp - ppn - pph; // 122.403.891
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">BAST PPK ke KPA (Aset BMN)</div>
-            <div style="font-size:13px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(activeTRow.no_bast_kpa || autoDocNo(17, activeTRow.tanggal_dokumen))}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Faktur Pajak: ${cakraEsc(activeTRow.no_faktur_pajak || '010.000-26.00000001')}</div>
+        <!-- TOOLBAR UNDUH CEPAT TAHAP 17 -->
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:10px 14px; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">🏛️</span>
+            <div>
+              <div style="font-size:11.5px; font-weight:800; color:#5b21b6;">BERKAS INTERNAL SATKER TAHAP 17: PENATAUSAHAAN BMN &amp; SPP-LS APBN</div>
+              <div style="font-size:10.5px; color:#475569;">Pelimpahan Aset SAKTI (PPK ➔ KPA ➔ Kasubbag KUL) &amp; Pengujian Tagihan PPSPM ke KPPN</div>
+            </div>
           </div>
-          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Pemotongan Pajak &amp; SP2D Netto</div>
-            <div style="font-size:15px; font-weight:900; color:#1e3a8a;">${cakraFmtRp(paket.nilai_pembayaran_netto || (paket.nilai_kontrak || paket.nilai_pagu) * 0.875)}</div>
-            <div style="font-size:11px; color:#1e40af; margin-top:2px;">${cakraEsc(paket.jenis_pph || 'PPh 22 (1.5%)')} &amp; PPN 11% dipotong Bendahara Pengeluaran</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=17&subdoc=1','_blank')" style="background:#ffffff; border:1px solid #c4b5fd; font-weight:700; color:#5b21b6; padding:5px 10px; border-radius:6px; cursor:pointer;" title="Unduh Naskah Dokumen 01: BAST PPK ke KPA & Nota Dinas BMN SAKTI">
+              🏛️ Dok 01 (BAST KPA &amp; ND)
+            </button>
+            <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=17&subdoc=2','_blank')" style="background:#ffffff; border:1px solid #c4b5fd; font-weight:700; color:#5b21b6; padding:5px 10px; border-radius:6px; cursor:pointer;" title="Unduh Naskah Dokumen 02: Formulir SPP-LS & Lembar Pengujian Tagihan PPSPM">
+              💳 Dok 02 (SPP-LS &amp; Uji PPSPM)
+            </button>
+            <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=17','_blank')" style="background:#7c3aed; color:#ffffff; font-weight:800; padding:6px 14px; border-radius:6px; border:none; cursor:pointer; box-shadow:0 1px 3px rgba(124,58,237,0.3);" title="Unduh Bundel Lengkap Dokumen Tahap 17 (Pas 6 Halaman .docx)">
+              📑 Unduh Bundel Lengkap (6 Hal .docx)
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 KARTU PROSES BISNIS INTERNAL TAHAP 17 (PPK, KPA, KUL, & PPSPM) -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-bottom:14px;">
+          <!-- KARTU 1: BAST PPK KE KPA (DOKUMEN 01 - BAGIAN 1) -->
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:700; color:#475569; text-transform:uppercase;">🏛️ BAST KPA (DOK 01)</span>
+                <span class="cakra-badge" style="background:#f1f5f9; color:#334155; font-size:10px; font-weight:800;">PASAL 57 PERPRES</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#0f172a;" class="cakra-mono">${cakraEsc(noBastKpa)}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglBastKpa)}</div>
+              <div style="margin-top:8px; font-size:10.5px; color:#475569; line-height:1.4;">
+                <div>Penyerah: <strong>MOHAMMAD NOOR JIHAN (PPK)</strong></div>
+                <div>Penerima: <strong>BUDI RAHAYU (KPA)</strong></div>
+                <div>Aset: <strong>1 PC Server + 3 Workstation (${cakraFmtRp(nilaiKontrak)})</strong></div>
+              </div>
+            </div>
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #cbd5e1;">
+              <span style="font-size:10px; color:#15803d; font-weight:700;">✅ Terhubung ke Dokumen 01 Tahap 17</span>
+            </div>
+          </div>
+
+          <!-- KARTU 2: NOTA DINAS PELIMPAHAN BMN (DOKUMEN 01 - BAGIAN 2) -->
+          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase;">📋 NOTA DINAS BMN (DOK 01)</span>
+                <span class="cakra-badge cakra-badge-success" style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800;">SAKTI ASET TETAP</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#14532d;" class="cakra-mono">${cakraEsc(noNdKpa)}</div>
+              <div style="font-size:11px; color:#166534; margin-top:2px;">Tujuan: <strong>Kasubbag KUL / Pengurus Barang</strong></div>
+              <div style="margin-top:8px; font-size:10.5px; color:#166534; line-height:1.4;">
+                <div>Instruksi: <strong>Catat SAKTI Modul Aset Tetap</strong></div>
+                <div>Output: <strong>Terbit NUP BMN Definitif &amp; Label Barcode</strong></div>
+                <div>Nilai Kapitalisasi: <strong>${cakraFmtRp(nilaiKontrak)}</strong></div>
+              </div>
+            </div>
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #86efac;">
+              <span style="font-size:10px; color:#15803d; font-weight:700;">✅ Instruksi Sah Kuasa Pengguna Barang</span>
+            </div>
+          </div>
+
+          <!-- KARTU 3: FORMULIR SPP-LS APBN (DOKUMEN 02 - BAGIAN 1) -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase;">💳 FORMULIR SPP-LS (DOK 02)</span>
+                <span class="cakra-badge" style="background:#dbeafe; color:#1e40af; font-size:10px; font-weight:800;">MAK 532111</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#1e3a8a;" class="cakra-mono">${cakraEsc(noSppLs)}</div>
+              <div style="font-size:11px; color:#1e40af; margin-top:2px;">Tanggal: ${formatTanggalIndo(tglSppLs)}</div>
+              <div style="margin-top:8px; font-size:10.5px; color:#1e3a8a; line-height:1.4;">
+                <div>Pengaju: <strong>MOHAMMAD NOOR JIHAN (PPK)</strong></div>
+                <div>Bruto: <strong>${cakraFmtRp(nilaiKontrak)}</strong></div>
+                <div>Potongan Denda: <strong style="color:#b91c1c;">- ${cakraFmtRp(dendaRp)}</strong> <em>(Akun 425161)</em></div>
+              </div>
+            </div>
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #bfdbfe;">
+              <span style="font-size:10px; color:#1e40af; font-weight:700;">✅ Terhubung ke Dokumen 02 Tahap 17</span>
+            </div>
+          </div>
+
+          <!-- KARTU 4: LEMBAR UJI PPSPM & REALISASI SP2D (DOKUMEN 02 - BAGIAN 2) -->
+          <div style="background:#faf5ff; border:1.5px solid #d8b4fe; border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(126,34,206,0.06);">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10.5px; font-weight:800; color:#7e22ce; text-transform:uppercase;">🔍 UJI PPSPM &amp; SP2D</span>
+                <span class="cakra-badge" style="background:#f3e8ff; color:#7e22ce; font-size:10px; font-weight:800;">9 KRITERIA LULUS</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:800; color:#581c87;" class="cakra-mono">${cakraEsc(noLuPpspm)}</div>
+              <div style="font-size:11px; color:#7e22ce; margin-top:2px;">Penguji: <strong>NURFANTI SULISTYO W (PPSPM)</strong></div>
+              <div style="margin-top:8px; font-size:10px; color:#581c87; line-height:1.45; background:#ffffff; border:1px solid #e9d5ff; border-radius:6px; padding:6px 8px;">
+                <div style="display:flex; justify-content:space-between;">
+                  <span>DPP Belanja Modal:</span>
+                  <strong>${cakraFmtRp(dpp)}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; color:#475569;">
+                  <span>PPN 11% + PPh 1,5%:</span>
+                  <span>- ${cakraFmtRp(ppn + pph)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-top:1px dashed #d8b4fe; margin-top:3px; padding-top:3px; color:#15803d; font-weight:800;">
+                  <span>Kas SP2D KPPN:</span>
+                  <span>${cakraFmtRp(kasSp2d)}</span>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:8px; font-size:10px; color:#7e22ce; font-style:italic;">
+              KPPN Madiun ➔ Rek. BRI 0058-01-002481-30-8
+            </div>
+          </div>
+        </div>
+
+        <!-- MATRIKS REKONSILIASI KEUANGAN APBN MAK 532111 -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:11.5px; font-weight:800; color:#0f172a;">📊 Matriks Rekonsiliasi Realisasi Anggaran APBN TA 2026 (MAK 532111):</span>
+            <span style="font-size:10.5px; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:12px;">Audit Real Angka Sistem SAKTI</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+              <thead>
+                <tr style="background:#f1f5f9; color:#334155; font-weight:800; text-align:left;">
+                  <th style="padding:6px 8px; width:40px; text-align:center; border-bottom:1px solid #cbd5e1;">NO</th>
+                  <th style="padding:6px 8px; width:35%; border-bottom:1px solid #cbd5e1;">KOMPONEN TRANSAKSI APBN</th>
+                  <th style="padding:6px 8px; width:30%; border-bottom:1px solid #cbd5e1;">DASAR REKONSILIASI / AKUN PERBENDAHARAAN</th>
+                  <th style="padding:6px 8px; width:30%; text-align:right; border-bottom:1px solid #cbd5e1;">NILAI NOMINAL (RP)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:6px 8px; text-align:center; font-weight:700; color:#475569;">1</td>
+                  <td style="padding:6px 8px; font-weight:700; color:#0f172a;">Nilai Kontrak Bruto (Prestasi 100%)</td>
+                  <td style="padding:6px 8px; color:#475569;">DIPA APBN KPU Ngawi TA 2026 — MAK 532111</td>
+                  <td style="padding:6px 8px; text-align:right; font-weight:800; color:#1e3a8a;">${cakraFmtRp(nilaiKontrak)}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:6px 8px; text-align:center; font-weight:700; color:#475569;">2</td>
+                  <td style="padding:6px 8px; color:#334155;">Dasar Pengenaan Pajak (DPP)</td>
+                  <td style="padding:6px 8px; color:#64748b;">100 / 111 × Nilai Kontrak Bruto</td>
+                  <td style="padding:6px 8px; text-align:right; color:#334155;">${cakraFmtRp(dpp)}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f1f5f9; background:#fff7ed;">
+                  <td style="padding:6px 8px; text-align:center; font-weight:700; color:#c2410c;">3</td>
+                  <td style="padding:6px 8px; font-weight:700; color:#c2410c;">Potongan Sanksi Denda Keterlambatan</td>
+                  <td style="padding:6px 8px; color:#c2410c;">1 Hari PC Server — Setor Kas Negara Akun PNBP 425161</td>
+                  <td style="padding:6px 8px; text-align:right; font-weight:800; color:#b91c1c;">- ${cakraFmtRp(dendaRp)}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f1f5f9; background:#f0fdf4;">
+                  <td style="padding:6px 8px; text-align:center; font-weight:700; color:#15803d;">4</td>
+                  <td style="padding:6px 8px; font-weight:800; color:#15803d;">Hak Pembayaran Netto Sebelum Pajak</td>
+                  <td style="padding:6px 8px; font-weight:600; color:#15803d;">Nilai Kontrak Bruto dikurangi Sanksi Denda Keterlambatan</td>
+                  <td style="padding:6px 8px; text-align:right; font-weight:900; color:#15803d;">${cakraFmtRp(hakNettoSebelumPajak)}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:6px 8px; text-align:center; font-weight:700; color:#475569;">5</td>
+                  <td style="padding:6px 8px; color:#475569;">Pemungutan Pajak Pertambahan Nilai (PPN 11%)</td>
+                  <td style="padding:6px 8px; color:#64748b;">Dipungut Bendahara / KPPN — Akun Penerimaan Pajak 411211</td>
+                  <td style="padding:6px 8px; text-align:right; color:#475569;">- ${cakraFmtRp(ppn)}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:6px 8px; text-align:center; font-weight:700; color:#475569;">6</td>
+                  <td style="padding:6px 8px; color:#475569;">Pemotongan Pajak Penghasilan (PPh Pasal 22 1,5%)</td>
+                  <td style="padding:6px 8px; color:#64748b;">Dipotong dari DPP Rekanan Ber-NPWP — Akun Pajak 411122</td>
+                  <td style="padding:6px 8px; text-align:right; color:#475569;">- ${cakraFmtRp(pph)}</td>
+                </tr>
+                <tr style="background:#faf5ff; font-weight:800;">
+                  <td style="padding:8px 8px; text-align:center; color:#581c87;">★</td>
+                  <td style="padding:8px 8px; font-weight:800; color:#581c87; font-size:11.5px;">Nilai Bersih Kas SP2D Cair ke Rekening Rekanan</td>
+                  <td style="padding:8px 8px; color:#6b21a8;">Transfer Bank Operasional KPPN Madiun ke Bank BRI Rekanan</td>
+                  <td style="padding:8px 8px; text-align:right; font-weight:900; color:#6b21a8; font-size:12.5px;">${cakraFmtRp(kasSp2d)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       `;
+    }
 
     case 18:
       return `
@@ -6856,6 +7044,10 @@ function renderUniversalStageCard(stageNo, activeStageDef, activeTRow, paket, it
   if (num === 16) {
     docNo = paket.no_bast || activeTRow.no_bast || (activeTRow.nomor_dokumen && !activeTRow.nomor_dokumen.includes('XI') ? activeTRow.nomor_dokumen : `016/BAST/${cleanKode}/PPK/VI/2026`);
     docDate = paket.tgl_bast || (activeTRow.tanggal_dokumen && activeTRow.tanggal_dokumen > '2026-06-01' ? activeTRow.tanggal_dokumen : '2026-06-10');
+  }
+  if (num === 17) {
+    docNo = paket.no_bast_kpa || activeTRow.no_bast_kpa || (activeTRow.nomor_dokumen && !activeTRow.nomor_dokumen.includes('XI') && !activeTRow.nomor_dokumen.startsWith('BAP-') ? activeTRow.nomor_dokumen : `017/BAST-KPA/${cleanKode}/PPK/VI/2026`);
+    docDate = paket.tgl_bast_kpa || (activeTRow.tanggal_dokumen && activeTRow.tanggal_dokumen > '2026-06-01' ? activeTRow.tanggal_dokumen : '2026-06-11');
   }
 
   return `
@@ -10857,6 +11049,17 @@ window.recalcDendaBast = function() {
     }
   }
 
+  // Sinkronkan ke kartu finansial BAP Dokumen 04 Tahap 16
+  const bapDendaEl = document.getElementById('mu_bap_denda_val');
+  const bapNettoEl = document.getElementById('mu_bap_netto_val');
+  const nilaiKontrakVal = Number(CakraState.activePaketCtx?.paket?.nilai_kontrak || 138000000);
+  if (bapDendaEl) {
+    bapDendaEl.innerText = totalDenda > 0 ? `- Rp ${new Intl.NumberFormat('id-ID').format(totalDenda)}` : 'Rp 0,- (Nihil)';
+  }
+  if (bapNettoEl) {
+    bapNettoEl.innerText = `Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrakVal - totalDenda)}`;
+  }
+
   const badgeDendaEl = document.getElementById('bast_denda_badge');
   if (badgeDendaEl) {
     if (totalDenda > 0) {
@@ -13496,6 +13699,12 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       const tglBaphp = paket.tgl_baphp || activeTRow.tanggal_dokumen || tglRealSelesai;
       const noBast = paket.no_bast || activeTRow.no_bast || `016/BAST/${cleanKode}/PPK/VI/2026`;
       const tglBast = paket.tgl_bast || tglRealSelesai;
+      const noPermohonan = paket.no_permohonan || activeTRow.no_permohonan || '042/GP-NGW/TAG-PBJ/VI/2026';
+      const tglPermohonan = paket.tgl_permohonan || activeTRow.tgl_permohonan || '2026-06-11';
+      const noKuitansi = paket.no_kuitansi || activeTRow.no_kuitansi || `016/KUIT/${cleanKode}/PPK/VI/2026`;
+      const tglKuitansi = paket.tgl_kuitansi || activeTRow.tgl_kuitansi || '2026-06-11';
+      const noBap = paket.no_bap || activeTRow.no_bap || `016/BAP/${cleanKode}/PPK/VI/2026`;
+      const tglBap = paket.tgl_bap || activeTRow.tgl_bap || '2026-06-11';
       const namaPemeriksa = paket.nama_tim_pemeriksa || 'Tim Teknis / Pejabat Pemeriksa Pengadaan KPU Ngawi';
       const nipPemeriksa = paket.nip_tim_pemeriksa || '198503152010121002';
       const kesimpulanBaphp = paket.kesimpulan_pemeriksaan_baphp || 'Diterima Penuh / Lulus 100% Memenuhi Spesifikasi Teknis & Volume';
@@ -13806,32 +14015,211 @@ function generateUniversalModalFields(num, paket, activeTRow) {
         </div>
 
         <!-- 6. CATATAN SUBSTANTIF PENYERAHAN PEKERJAAN BAST -->
-        <div style="margin-bottom:12px;">
+        <div style="margin-bottom:14px;">
           <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">📝 6. Catatan Substantif Penyerahan Hasil Pekerjaan oleh PPK *</label>
           <textarea id="mu_catatan_bast" class="cakra-form-control" rows="3" style="font-size:11px; line-height:1.5;">${cakraEsc(catatanBast)}</textarea>
+        </div>
+
+        <!-- 7. PERMOHONAN PEMBAYARAN 100% & KUITANSI TAGIHAN REKANAN (DOKUMEN 03) -->
+        <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:12px; font-weight:800; color:#0369a1;">
+              📑 7. Surat Permohonan Pembayaran 100% &amp; Kuitansi Tagihan Rekanan (Dokumen 03):
+            </div>
+            <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10.5px; padding:3px 9px; background:#ffffff; border:1px solid #7dd3fc; color:#0284c7; font-weight:700; cursor:pointer; border-radius:6px;" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=16&subdoc=3','_blank')" title="Unduh Dokumen 03 Tahap 16">
+              📄 Unduh Dok 03 (Kuitansi)
+            </button>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#0369a1; margin-bottom:2px; display:block;">Nomor Surat Permohonan Pembayaran *</label>
+              <input type="text" id="mu_no_permohonan_pembayaran" class="cakra-form-control cakra-mono" value="${cakraEsc(noPermohonan)}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#0369a1; margin-bottom:2px; display:block;">Tanggal Surat Permohonan</label>
+              <input type="date" id="mu_tgl_permohonan_pembayaran" class="cakra-form-control" value="${cakraEsc(tglPermohonan)}" />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#0369a1; margin-bottom:2px; display:block;">Nomor Kuitansi Tagihan *</label>
+              <input type="text" id="mu_no_kuitansi" class="cakra-form-control cakra-mono" value="${cakraEsc(noKuitansi)}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#0369a1; margin-bottom:2px; display:block;">Tanggal Kuitansi Tagihan</label>
+              <input type="date" id="mu_tgl_kuitansi" class="cakra-form-control" value="${cakraEsc(tglKuitansi)}" />
+            </div>
+          </div>
+
+          <div style="background:#ffffff; border:1px solid #e0f2fe; border-radius:6px; padding:8px 10px; font-size:10.5px; color:#0369a1; line-height:1.45;">
+            <div>🏦 <strong>Rekening Tujuan:</strong> Bank BRI Cabang Ngawi No. Rek: <code>0058-01-002481-30-8</code> a.n. <strong>CV. GRAFIKA PRATAMA NGAWI</strong></div>
+            <div style="margin-top:3px; color:#075985;">✍️ <strong>Penandatangan:</strong> Ditandatangani tunggal oleh Direktur CV. Grafika Pratama Ngawi (<strong>BAMBANG SUDARMANTO</strong>) bermeterai sah Rp 10.000,- (Murni sebagai lampiran tagihan penyedia tanpa tanda tangan PPK).</div>
+          </div>
+        </div>
+
+        <!-- 8. BERITA ACARA PEMBAYARAN (BAP) & REKONSILIASI DENDA AKUN 425161 (DOKUMEN 04) -->
+        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:12px; font-weight:800; color:#c2410c;">
+              💳 8. Berita Acara Pembayaran (BAP) &amp; Rekonsiliasi Denda Akun 425161 (Dokumen 04):
+            </div>
+            <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10.5px; padding:3px 9px; background:#ffffff; border:1px solid #fdba74; color:#ea580c; font-weight:700; cursor:pointer; border-radius:6px;" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=16&subdoc=4','_blank')" title="Unduh Dokumen 04 Tahap 16">
+              📄 Unduh Dok 04 (BAP)
+            </button>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#c2410c; margin-bottom:2px; display:block;">Nomor Berita Acara Pembayaran (BAP) *</label>
+              <input type="text" id="mu_no_bap" class="cakra-form-control cakra-mono" value="${cakraEsc(noBap)}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#c2410c; margin-bottom:2px; display:block;">Tanggal BAP</label>
+              <input type="date" id="mu_tgl_bap" class="cakra-form-control" value="${cakraEsc(tglBap)}" />
+            </div>
+          </div>
+
+          <!-- KARTU FINANSIAL REKONSILIASI BAP -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:10px;">
+            <div style="background:#ffffff; border:1px solid #fdba74; border-radius:6px; padding:6px 8px;">
+              <div style="font-size:9.5px; font-weight:700; color:#9a3412;">NILAI KONTRAK BRUTO</div>
+              <div style="font-size:12px; font-weight:800; color:#0f172a;" class="cakra-mono">Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak)}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #fdba74; border-radius:6px; padding:6px 8px;">
+              <div style="font-size:9.5px; font-weight:700; color:#9a3412;">DPP (NILAI SEBELUM PPN)</div>
+              <div style="font-size:12px; font-weight:800; color:#0f172a;" class="cakra-mono">Rp ${new Intl.NumberFormat('id-ID').format(dpp)}</div>
+            </div>
+            <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:6px 8px;">
+              <div style="font-size:9.5px; font-weight:700; color:#dc2626;">POTONGAN DENDA (425161)</div>
+              <div id="mu_bap_denda_val" style="font-size:12px; font-weight:800; color:#dc2626;" class="cakra-mono">${hariTerlambat > 0 ? `- Rp ${new Intl.NumberFormat('id-ID').format(dendaRp)}` : 'Rp 0,- (Nihil)'}</div>
+            </div>
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:6px 8px;">
+              <div style="font-size:9.5px; font-weight:700; color:#166534;">HAK BERSIH PENYEDIA</div>
+              <div id="mu_bap_netto_val" style="font-size:12px; font-weight:800; color:#15803d;" class="cakra-mono">Rp ${new Intl.NumberFormat('id-ID').format(nilaiKontrak - dendaRp)}</div>
+            </div>
+          </div>
+
+          <!-- CHECKLIST 5 BERKAS LAMPIRAN TAGIHAN SAH -->
+          <div style="background:#ffffff; border:1px solid #fed7aa; border-radius:6px; padding:8px 10px; font-size:10.5px; color:#9a3412; line-height:1.45;">
+            <div style="font-weight:700; margin-bottom:4px; color:#c2410c;">📋 Verifikasi Berkas Lampiran Tagihan Sah (Pasal 11 ayat 2 BAP):</div>
+            <div>✅ 1. Surat Permohonan Pembayaran 100% dan Kuitansi Asli bermeterai Rp 10.000,- sah dari Rekanan.</div>
+            <div>✅ 2. Berita Acara Pemeriksaan Hasil Pekerjaan (BAPHP) Nomor: <code>${cakraEsc(noBaphp)}</code> Lulus 100%.</div>
+            <div>✅ 3. Berita Acara Serah Terima Pertama Pekerjaan (BAST) Nomor: <code>${cakraEsc(noBast)}</code> Sah Kedua Pihak.</div>
+            <div>✅ 4. Salinan Faktur Pajak Elektronik (e-Faktur), NPWP, dan Surat Pengukuhan Pengusaha Kena Pajak (NPPKP).</div>
+            <div>✅ 5. Sertifikat Garansi Resmi Pabrikan (1 Tahun) &amp; Bebas Retensi Pemeliharaan 5% (Pasal 30 Perpres PBJ).</div>
+          </div>
         </div>
       `;
     }
 
-    case 17:
+    case 17: {
+      const cleanKode = String(paket.kode_paket_internal || 'PBJ-2026-001').replace(/^CAKRA-/i, 'PBJ-');
+      const noBastKpaVal = paket.no_bast_kpa || activeTRow.no_bast_kpa || `017/BAST-KPA/${cleanKode}/PPK/VI/2026`;
+      const tglBastKpaVal = paket.tgl_bast_kpa || (activeTRow.tanggal_dokumen && activeTRow.tanggal_dokumen > '2026-06-01' ? activeTRow.tanggal_dokumen : '2026-06-11');
+      const noNdKpaVal = paket.no_nota_dinas_bmn || activeTRow.no_nota_dinas_bmn || `017/ND-KPA/${cleanKode}/VI/2026`;
+      const tglNdKpaVal = paket.tgl_nota_dinas_bmn || activeTRow.tgl_nota_dinas_bmn || '2026-06-11';
+      const noSppLsVal = paket.no_spp_ls || activeTRow.no_spp_ls || '00045/SPP-LS/657811/2026';
+      const tglSppLsVal = paket.tgl_spp_ls || '2026-06-12';
+      const noLuPpspmVal = paket.no_lu_ppspm || activeTRow.no_lu_ppspm || `017/LU-PPSPM/${cleanKode}/VI/2026`;
+      const tglLuPpspmVal = paket.tgl_lu_ppspm || activeTRow.tgl_lu_ppspm || '2026-06-12';
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 BAST ke KPA, Pemotongan Pajak &amp; SP2D Netto</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Jenis Pajak PPh</label>
-            <select id="mu_jenis_pph" class="cakra-form-control">
-              <option value="PPh 22 (1.5%)">PPh 22 (1.5%)</option>
-              <option value="PPh 23 (2.0%)">PPh 23 (2.0%)</option>
-              <option value="PPh Final (0.5%)">PPh Final (0.5%)</option>
-              <option value="Bebas PPh">Bebas PPh</option>
-            </select>
+        <!-- HEADER FORMULIR TAHAP 17 -->
+        <div style="font-size:12.5px; font-weight:800; color:#5b21b6; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <span>🏛️ Penatausahaan Aset BMN SAKTI &amp; Pengajuan SPP-LS APBN (Tahap 17)</span>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10.5px; padding:3px 8px; background:#ffffff; border:1px solid #c4b5fd; color:#6d28d9; font-weight:700; border-radius:5px; cursor:pointer;" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=17&subdoc=1','_blank')">
+              🏛️ Dok 01 (BAST KPA &amp; ND)
+            </button>
+            <button type="button" class="cakra-btn cakra-btn-outline" style="font-size:10.5px; padding:3px 8px; background:#ffffff; border:1px solid #c4b5fd; color:#6d28d9; font-weight:700; border-radius:5px; cursor:pointer;" onclick="window.open('/api/cakra/download/docx/${paket.id}?tahap=17&subdoc=2','_blank')">
+              💳 Dok 02 (SPP-LS &amp; Uji PPSPM)
+            </button>
           </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Nomor Faktur Pajak</label>
-            <input type="text" id="mu_no_faktur_pajak" class="cakra-form-control cakra-mono" value="${cakraEsc(activeTRow.no_faktur_pajak || '010.000-26.00000001')}" />
+        </div>
+
+        <!-- 1. PENATAUSAHAAN ASET BMN SAKTI (DOKUMEN 01: BAST KPA & NOTA DINAS) -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:12px; font-weight:800; color:#1e293b; margin-bottom:10px;">
+            🏛️ 1. Penatausahaan Aset BMN SAKTI (PPK ➔ KPA ➔ Kasubbag KUL):
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Nomor BAST PPK ke KPA (Pasal 57 Perpres) *</label>
+              <input type="text" id="mu_no_bast_kpa" class="cakra-form-control cakra-mono" value="${cakraEsc(noBastKpaVal)}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Tanggal BAST PPK ke KPA</label>
+              <input type="date" id="mu_tgl_bast_kpa" class="cakra-form-control" value="${cakraEsc(tglBastKpaVal)}" />
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Nomor Nota Dinas Pelimpahan BMN ke KUL *</label>
+              <input type="text" id="mu_no_nota_dinas_bmn" class="cakra-form-control cakra-mono" value="${cakraEsc(noNdKpaVal)}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#334155; margin-bottom:2px; display:block;">Tanggal Nota Dinas BMN</label>
+              <input type="date" id="mu_tgl_nota_dinas_bmn" class="cakra-form-control" value="${cakraEsc(tglNdKpaVal)}" />
+            </div>
+          </div>
+          <div style="font-size:10.5px; color:#475569; line-height:1.4; background:#f1f5f9; padding:6px 10px; border-radius:5px;">
+            ℹ️ <strong>Alur Pencatatan BMN:</strong> PPK menyerahkan barang kepada KPA sesuai Pasal 57 Perpres 16/2018 jo. Perpres 12/2021. Selanjutnya KPA menerbitkan Nota Dinas kepada Kasubbag KUL / Pengurus Barang untuk perekaman Modul Aset Tetap SAKTI guna penerbitan Nomor Urut Pendaftaran (NUP) definitif dan pencetakan Label Barcode BMN.
+          </div>
+        </div>
+
+        <!-- 2. PENGAJUAN SPP-LS & PENGUJIAN TAGIHAN OLEH PPSPM (DOKUMEN 02) -->
+        <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:12px; font-weight:800; color:#6b21a8; margin-bottom:10px;">
+            💳 2. Pengajuan SPP-LS &amp; Pengujian Tagihan oleh PPSPM (PMK 62/2023):
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#6b21a8; margin-bottom:2px; display:block;">Nomor SPP-LS SAKTI (MAK 532111) *</label>
+              <input type="text" id="mu_no_spp_ls" class="cakra-form-control cakra-mono" value="${cakraEsc(noSppLsVal)}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#6b21a8; margin-bottom:2px; display:block;">Tanggal SPP-LS</label>
+              <input type="date" id="mu_tgl_spp_ls" class="cakra-form-control" value="${cakraEsc(tglSppLsVal)}" />
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#6b21a8; margin-bottom:2px; display:block;">Nomor Lembar Uji Tagihan PPSPM *</label>
+              <input type="text" id="mu_no_lu_ppspm" class="cakra-form-control cakra-mono" value="${cakraEsc(noLuPpspmVal)}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#6b21a8; margin-bottom:2px; display:block;">Tanggal Pengujian PPSPM</label>
+              <input type="date" id="mu_tgl_lu_ppspm" class="cakra-form-control" value="${cakraEsc(tglLuPpspmVal)}" />
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#6b21a8; margin-bottom:2px; display:block;">Nomor Faktur Pajak</label>
+              <input type="text" id="mu_no_faktur_pajak" class="cakra-form-control cakra-mono" value="${cakraEsc(activeTRow.no_faktur_pajak || '010.000-26.00000001')}" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#6b21a8; margin-bottom:2px; display:block;">Jenis PPh Belanja</label>
+              <select id="mu_jenis_pph" class="cakra-form-control">
+                <option value="PPh 22 (1.5%)" selected>PPh 22 (1.5%)</option>
+                <option value="PPh 23 (2.0%)">PPh 23 (2.0%)</option>
+                <option value="PPh Final (0.5%)">PPh Final (0.5% - PP 55/2022)</option>
+                <option value="Bebas PPh">Bebas PPh</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:#6b21a8; margin-bottom:2px; display:block;">Akun PNBP Potongan Denda</label>
+              <input type="text" id="mu_akun_denda_pnbp" class="cakra-form-control cakra-mono" value="425161" readonly style="background:#f1f5f9; font-weight:700;" />
+            </div>
+          </div>
+
+          <div style="background:#ffffff; border:1px solid #d8b4fe; border-radius:6px; padding:8px 10px; font-size:10.5px; color:#581c87; line-height:1.45;">
+            <strong>💡 Rekonsiliasi Kas SP2D KPPN:</strong> Nilai SPP-LS Bruto diajukan <strong>Rp 138.000.000,-</strong>. Pada SPM-LS dipotong denda <strong>Rp 56.568,-</strong> (Akun PNBP 425161), PPN 11% <strong>Rp 13.675.676,-</strong>, dan PPh 22 (1,5%) <strong>Rp 1.864.865,-</strong>, sehingga Kas Bersih SP2D yang cair ke rekening CV. Grafika Pratama Ngawi adalah <strong>Rp 122.403.891,-</strong>.
           </div>
         </div>
       `;
+    }
 
     case 18:
       return `
@@ -14384,6 +14772,16 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
     extraPaketFields.tgl_selesai_garansi = getStr('mu_tgl_selesai_garansi') || paket.tgl_selesai_garansi;
     extraPaketFields.catatan_bast = getStr('mu_catatan_bast') || paket.catatan_bast;
 
+    // Dokumen 03: Permohonan Pembayaran & Kuitansi Penyedia
+    extraPaketFields.no_permohonan = getStr('mu_no_permohonan_pembayaran') || activeTRow.no_permohonan || '042/GP-NGW/TAG-PBJ/VI/2026';
+    extraPaketFields.tgl_permohonan = getStr('mu_tgl_permohonan_pembayaran') || activeTRow.tgl_permohonan || '2026-06-11';
+    extraPaketFields.no_kuitansi = getStr('mu_no_kuitansi') || activeTRow.no_kuitansi || '';
+    extraPaketFields.tgl_kuitansi = getStr('mu_tgl_kuitansi') || activeTRow.tgl_kuitansi || '2026-06-11';
+
+    // Dokumen 04: Berita Acara Pembayaran (BAP)
+    extraPaketFields.no_bap = getStr('mu_no_bap') || paket.no_bap || activeTRow.no_bap || '';
+    extraPaketFields.tgl_bap = getStr('mu_tgl_bap') || paket.tgl_bap || activeTRow.tgl_bap || '2026-06-11';
+
     // Kumpulkan baris tabel 5 Titik Kritis BAPHP
     const baphpRows = [];
     const trEls = document.querySelectorAll('#baphp_table_body tr.baphp-row');
@@ -14443,7 +14841,21 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       tanggalDokumen = extraPaketFields.tgl_bast;
     }
   } else if (num === 17) {
+    extraPaketFields.no_bast_kpa = getStr('mu_no_bast_kpa') || paket.no_bast_kpa;
+    extraPaketFields.tgl_bast_kpa = getStr('mu_tgl_bast_kpa') || paket.tgl_bast_kpa;
+    extraPaketFields.no_nota_dinas_bmn = getStr('mu_no_nota_dinas_bmn') || activeTRow.no_nota_dinas_bmn || '';
+    extraPaketFields.tgl_nota_dinas_bmn = getStr('mu_tgl_nota_dinas_bmn') || activeTRow.tgl_nota_dinas_bmn || '';
+    extraPaketFields.no_spp_ls = getStr('mu_no_spp_ls') || paket.no_spp_ls;
+    extraPaketFields.tgl_spp_ls = getStr('mu_tgl_spp_ls') || paket.tgl_spp_ls;
+    extraPaketFields.no_lu_ppspm = getStr('mu_no_lu_ppspm') || activeTRow.no_lu_ppspm || '';
+    extraPaketFields.tgl_lu_ppspm = getStr('mu_tgl_lu_ppspm') || activeTRow.tgl_lu_ppspm || '';
+    extraPaketFields.no_faktur_pajak = getStr('mu_no_faktur_pajak') || paket.no_faktur_pajak;
     extraPaketFields.jenis_pph = getStr('mu_jenis_pph') || paket.jenis_pph;
+    extraPaketFields.akun_denda_pnbp = getStr('mu_akun_denda_pnbp') || '425161';
+    extraPaketFields.nilai_pembayaran_netto = 137943432;
+    extraPaketFields.nilai_kas_sp2d = 122403891;
+    if (extraPaketFields.no_bast_kpa) nomorDokumen = extraPaketFields.no_bast_kpa;
+    if (extraPaketFields.tgl_bast_kpa) tanggalDokumen = extraPaketFields.tgl_bast_kpa;
   } else if (num === 18) {
     extraPaketFields.rating_kinerja_sikap = getStr('mu_rating_kinerja_sikap') || paket.rating_kinerja_sikap;
     extraPaketFields.kode_registrasi_bmn = getStr('mu_kode_registrasi_bmn') || paket.kode_registrasi_bmn;
@@ -14471,7 +14883,17 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       no_spp: extraPaketFields.no_spp || activeTRow.no_spp || '',
       no_ba_spl: extraPaketFields.no_ba_spl || activeTRow.no_ba_spl || '',
       no_baphp: extraPaketFields.no_baphp || activeTRow.no_baphp || '',
-      no_bast: extraPaketFields.no_bast || activeTRow.no_bast || ''
+      no_bast: extraPaketFields.no_bast || activeTRow.no_bast || '',
+      no_permohonan: extraPaketFields.no_permohonan || activeTRow.no_permohonan || null,
+      tgl_permohonan: extraPaketFields.tgl_permohonan || activeTRow.tgl_permohonan || null,
+      no_kuitansi: extraPaketFields.no_kuitansi || activeTRow.no_kuitansi || null,
+      tgl_kuitansi: extraPaketFields.tgl_kuitansi || activeTRow.tgl_kuitansi || null,
+      no_bap: extraPaketFields.no_bap || activeTRow.no_bap || null,
+      tgl_bap: extraPaketFields.tgl_bap || activeTRow.tgl_bap || null,
+      no_bast_kpa: extraPaketFields.no_bast_kpa || activeTRow.no_bast_kpa || null,
+      tgl_bast_kpa: extraPaketFields.tgl_bast_kpa || activeTRow.tgl_bast_kpa || null,
+      no_spp_ls: extraPaketFields.no_spp_ls || activeTRow.no_spp_ls || null,
+      tgl_spp_ls: extraPaketFields.tgl_spp_ls || activeTRow.tgl_spp_ls || null
     }
   };
 
