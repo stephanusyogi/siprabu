@@ -20,14 +20,14 @@ const {
   MARGIN_DINAS,
   buildRunningHeader,
   buildRunningFooter
-} = require('../../scratch/kpu_doc_theme');
+} = require('./kpu_doc_theme');
 
 const {
   buildDoc1PermohonanChildren,
   buildDoc1KuitansiChildren,
   buildDoc2Page1Children,
   buildDoc2Page2Children
-} = require('../../scratch/deploy_tahap17_simulation_folder');
+} = require('./word_builders_tahap16_17');
 
 function buildStage16Sections(ctx, tahapRow, keu, isFirstStageInDoc, oldBuilders) {
   const footerText = 'KPU KABUPATEN NGAWI | TAHUN ANGGARAN 2026';
