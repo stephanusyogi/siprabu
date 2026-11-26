@@ -941,6 +941,13 @@ async function getPaketFullById(paketId) {
     }
   });
   const [tahaps] = await pool.query('SELECT * FROM pbj_paket_tahap WHERE paket_id = ? ORDER BY no_tahap ASC', [paketId]);
+  tahaps.forEach(t => {
+    if (t.tahap_data_json && typeof t.tahap_data_json === 'string') {
+      try { t.tahap_data = JSON.parse(t.tahap_data_json); } catch (e) { t.tahap_data = {}; }
+    } else if (!t.tahap_data) {
+      t.tahap_data = {};
+    }
+  });
   const [pejabats] = await pool.query("SELECT * FROM pbj_pejabat WHERE peran != 'TIM_TEKNIS'");
   const [penyedias] = await pool.query('SELECT * FROM pbj_penyedia WHERE id = ?', [paket.penyedia_id]);
   const settings = await getSettingsMap();
@@ -1244,8 +1251,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning, no_baphp, no_bast, no_permohonan, tgl_permohonan, no_kuitansi, tgl_kuitansi, no_bap, tgl_bap, no_spp_ls, no_bast_kpa, no_skkp)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning, no_baphp, no_bast, no_permohonan, tgl_permohonan, no_kuitansi, tgl_kuitansi, no_bap, tgl_bap, no_spp_ls, no_bast_kpa, no_skkp, tahap_data_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -1274,7 +1281,8 @@ async function savePaket(data) {
            tgl_bap = VALUES(tgl_bap),
            no_spp_ls = VALUES(no_spp_ls),
            no_bast_kpa = VALUES(no_bast_kpa),
-           no_skkp = VALUES(no_skkp)`,
+           no_skkp = VALUES(no_skkp),
+           tahap_data_json = VALUES(tahap_data_json)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -1304,7 +1312,8 @@ async function savePaket(data) {
           su.tgl_bap || existingStage.tgl_bap || p.tgl_bap || null,
           su.no_spp_ls || existingStage.no_spp_ls || p.no_spp_ls || null,
           su.no_bast_kpa || existingStage.no_bast_kpa || p.no_bast_kpa || null,
-          su.no_skkp || existingStage.no_skkp || p.no_skkp || null
+          su.no_skkp || existingStage.no_skkp || p.no_skkp || null,
+          su.tahap_data_json || (su.tahap_data ? JSON.stringify(su.tahap_data) : (existingStage.tahap_data_json || null))
         ]
       );
 

@@ -5154,23 +5154,131 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
   const autoDocNo = (n, tgl) => generateAutoStageDocNumber(n, paket.kode_paket_internal, tgl);
 
   switch (num) {
-    case 3:
+    case 2:
+      const t2Data = activeTRow.tahap_data || {};
+      const noLak = t2Data.no_lak_umk || paket.no_lak_umk || '002/LAK-UMK/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026';
+      const alokasiUmk = t2Data.alokasi_umk_persen || paket.alokasi_umk_persen || '100%';
+      const justifikasiUmk = t2Data.justifikasi_umk || paket.justifikasi_umk || 'Paket bernilai di bawah ambang batas Rp 15 Miliar (Pasal 65 Perpres 16/2018 jo. Perpres 46/2025) dan kemampuan teknis penyedia UMK lokal/regional Jawa Timur memenuhi kualifikasi.';
+      const komitmenPdn = t2Data.komitmen_pdn || paket.komitmen_pdn || 'Prioritas Produk Dalam Negeri (PDN) bersertifikat TKDN valid (Pasal 66 Perpres PBJ)';
+      const paguNum = Number(paket.nilai_pagu || 0);
+      const isDiatas100Jt = paguNum > 100000000;
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Kode RUP SiRUP LKPP</div>
-            <div style="font-size:14px; font-weight:800; color:#1e40af;" class="cakra-mono">${cakraEsc(paket.kode_rup || 'RUP-2026-657811-01')}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Terumumkan di Portal Resmi SiRUP LKPP</div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <!-- KELOMPOK 1: RANCANG BANGUN PENGADAAN & PEMILIHAN -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">1. Jenis Pengadaan</div>
+              <div style="font-size:14px; font-weight:800; color:#1e40af;">${cakraEsc(paket.jenis_pengadaan || 'Barang')}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 18 Perpres PBJ</div>
+            </div>
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">2. Cara Pengadaan</div>
+              <div style="font-size:14px; font-weight:800; color:#15803d;">${cakraEsc(paket.cara_pengadaan || 'Penyedia')}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Kemitraan Pelaku Usaha / Penyedia</div>
+            </div>
+            <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">3. Metode Pemilihan</div>
+              <div style="font-size:14px; font-weight:800; color:#1d4ed8;">${cakraEsc(paket.metode_pemilihan || 'E-Purchasing')}</div>
+              <div style="font-size:11px; color:#1e40af; margin-top:2px;">Katalog Elektronik Versi 6 LKPP</div>
+            </div>
           </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Status Paket dalam Alur RUP</div>
-            <div style="font-size:14px; font-weight:800; color:#15803d;">${cakraEsc(paket.status_paket || 'Perencanaan')}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Sesuai Alur RUP SiRUP LKPP</div>
+
+          <!-- KELOMPOK 2: PERIKATAN HUKUM & KERTAS KERJA HARGA -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Bentuk Kontrak</div>
+              <div style="font-size:13.5px; font-weight:800; color:#0f172a;">${cakraEsc(paket.bentuk_kontrak || 'Surat Pesanan')}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 28 Perpres PBJ (E-Purchasing)</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Jenis Kontrak</div>
+              <div style="font-size:13.5px; font-weight:800; color:#0f172a;">${cakraEsc(paket.jenis_kontrak || 'Lumsum')}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Keluaran (Output) Pasti &amp; Tetap</div>
+            </div>
+            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#92400e; text-transform:uppercase; margin-bottom:4px;">Kertas Kerja Harga (Tahap 6)</div>
+              <div style="font-size:13.5px; font-weight:800; color:#b45309;">${cakraEsc(paket.jenis_kertas_harga || (isDiatas100Jt ? 'HPS' : 'Referensi Harga'))}</div>
+              <div style="font-size:11px; color:#b45309; margin-top:2px;">${isDiatas100Jt ? 'Pagu > Rp 100 Jt Wajib Susun HPS' : 'Pagu <= Rp 100 Jt Cukup Referensi Harga'}</div>
+            </div>
           </div>
-          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">Afirmasi UMK / Koperasi</div>
-            <div style="font-size:14px; font-weight:800; color:#15803d;">✅ Alokasi 100% UMK</div>
-            <div style="font-size:11px; color:#166534; margin-top:2px;">Wajib Min. 40% (Pasal 65 Perpres 46/2025)</div>
+
+          <!-- KELOMPOK 3: AFIRMASI UMK & PRIORITAS PDN -->
+          <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:12px 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+              <div style="font-size:11px; font-weight:800; color:#166534; text-transform:uppercase;">
+                🌱 Afirmasi UMK 100% &amp; Prioritas PDN (Pasal 65 &amp; 66 Perpres PBJ)
+              </div>
+              <span class="cakra-badge cakra-badge-green" style="font-size:10.5px;">Nomor LAK: ${cakraEsc(noLak)}</span>
+            </div>
+            <div style="font-size:12px; color:#14532d; line-height:1.5;">
+              <b>Alokasi UMK:</b> ${cakraEsc(alokasiUmk)} untuk Pelaku Usaha Mikro &amp; Kecil / Koperasi.
+              <br/>
+              <b>Justifikasi:</b> ${cakraEsc(justifikasiUmk)}
+              <br/>
+              <b>Kebijakan PDN:</b> ${cakraEsc(komitmenPdn)}
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 3:
+      const t3Data = activeTRow.tahap_data || {};
+      const noSkKpa = t3Data.no_sk_kpa_rup || paket.no_sk_kpa_rup || '043/KPA/SK-RUP/V/2026';
+      const tglSkKpa = t3Data.tgl_sk_kpa_rup || paket.tgl_sk_kpa_rup || '2026-05-19';
+      const idPaketSirup = t3Data.id_paket_sirup || paket.id_paket_sirup || '51982736';
+      const tglTayangSirup = t3Data.tgl_pengumuman_sirup || paket.tgl_pengumuman_sirup || '2026-05-19';
+      const statusSirup = t3Data.status_pengumuman_sirup || paket.status_pengumuman_sirup || 'Terumumkan / Tayang Publik';
+      const linkSirup = t3Data.link_sirup_lkpp || paket.link_sirup_lkpp || 'https://sirup.lkpp.go.id/sirup/ro/paket/penyedia/51982736';
+      const noBuktiSirup = t3Data.no_bukti_sirup || '003/BKT-SiRUP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026';
+
+      return `
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <!-- KELOMPOK 1: SK KPA PENETAPAN RUP -->
+          <div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:12px 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+              <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase;">
+                📜 Keputusan KPA Penetapan RUP (Pasal 9 Ayat 1 Huruf a Perpres PBJ)
+              </div>
+              <span class="cakra-badge cakra-badge-primary" style="font-size:10.5px;">KPA Satker KPU Kab. Ngawi</span>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-top:8px;">
+              <div>
+                <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Nomor SK KPA RUP</div>
+                <div style="font-size:13px; font-weight:800; color:#1e3a8a;" class="cakra-mono">${cakraEsc(noSkKpa)}</div>
+              </div>
+              <div>
+                <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Tanggal Penetapan SK KPA</div>
+                <div style="font-size:13px; font-weight:800; color:#1e3a8a;">${cakraEsc(tglSkKpa)}</div>
+              </div>
+              <div>
+                <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Pagu &amp; Sumber Dana Sah</div>
+                <div style="font-size:13px; font-weight:800; color:#15803d;">${cakraFmtRp(paket.nilai_pagu || 145000000)} (DIPA APBN)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- KELOMPOK 2: METADATA & BUKTI PENGUMUMAN SiRUP LKPP -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">ID Paket SiRUP LKPP</div>
+              <div style="font-size:14px; font-weight:800; color:#1e40af;" class="cakra-mono">${cakraEsc(idPaketSirup)}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">Kode Internal: ${cakraEsc(paket.kode_rup || 'RUP-2026-657811-01')}</div>
+            </div>
+            <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">Status Tayang SiRUP</div>
+              <div style="font-size:14px; font-weight:800; color:#15803d;">🟢 ${cakraEsc(statusSirup)}</div>
+              <div style="font-size:11px; color:#15803d; margin-top:2px;">Tgl Tayang: ${cakraEsc(tglTayangSirup)}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Bukti Cetak Pengumuman</div>
+              <div style="font-size:12px; font-weight:800; color:#334155;" class="cakra-mono">${cakraEsc(noBuktiSirup)}</div>
+              <div style="margin-top:6px;">
+                <a href="${cakraEsc(linkSirup)}" target="_blank" class="cakra-btn cakra-btn-sm" style="background:#eff6ff; color:#1d4ed8; border:1px solid #93c5fd; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:4px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                  <span>🌐 Cek di SiRUP LKPP</span>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -7550,141 +7658,8 @@ function buildCockpitPhaseWorkspaceHtml(faseNum) {
         </div>
       </div>
     `;
-  } else if (stageNo === 2) {
-    // TAHAP 2: PENETAPAN JENIS, CARA PENGADAAN & PEMAKETAN (FORM MATI RESMI - 100% NON-EDITABLE)
-    const driveLink = String(activeTRow.link_drive_dokumen || '').trim();
-    const hasDrive = driveLink.length > 5;
-    const isDone = activeTRow.status_tahap === 'Selesai' || (hasDrive && activeTRow.status_tahap !== 'Bypass');
-
-    stageFormHtml = `
-      <!-- RESUME RESMI DOKUMEN PENETAPAN PEMAKETAN (FORM MATI) -->
-      <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05); overflow:hidden; margin-bottom:18px;">
-        <!-- HEADER FORM MATI -->
-        <div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:#ffffff; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-          <div>
-            <div style="font-size:10.5px; font-weight:700; letter-spacing:0.5px; color:#93c5fd; text-transform:uppercase;">
-              DOKUMEN RESMI TAHAP 2 &bull; FORM MATI (NON-EDITABLE RESUME)
-            </div>
-            <div style="font-size:15px; font-weight:800; color:#ffffff; margin-top:2px; display:flex; align-items:center; gap:8px;">
-              <span>📋 Berita Acara Penetapan Jenis, Cara Pengadaan, &amp; Pemaketan (BA-PMK)</span>
-              <span class="cakra-badge ${isDone ? 'cakra-badge-green' : 'cakra-badge-amber'}" style="font-size:11px;">
-                ${isDone ? '✅ Selesai (Berkas Sah Terhubung)' : '📝 Draf / Sedang Berjalan'}
-              </span>
-            </div>
-          </div>
-          <div style="font-size:11.5px; color:#cbd5e1; font-weight:600; display:flex; align-items:center; gap:6px;">
-            <span>📋 Pratinjau Naskah Sah (Non-Editable)</span>
-          </div>
-        </div>
-
-        <!-- ISI FORM MATI: RESUME TERTATA RAPI TANPA KOTAK INPUT/DROPDOWN APAPUN -->
-        <div style="padding:18px; display:flex; flex-direction:column; gap:14px; background:#ffffff;">
-          <!-- BARIS 1: IDENTITAS BERKAS PENETAPAN -->
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px;">
-            <div>
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Nomor Dokumen BA-PMK</div>
-              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;" class="cakra-mono">${cakraEsc(activeTRow.nomor_dokumen || '002/PMK/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026')}</div>
-            </div>
-            <div>
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Tanggal Penetapan</div>
-              <div style="font-size:12.5px; font-weight:800; color:#0f172a; margin-top:2px;">${cakraEsc(activeTRow.tanggal_dokumen || '18/05/2026')}</div>
-            </div>
-            <div>
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pejabat Penetap</div>
-              <div style="font-size:12.5px; font-weight:800; color:#1e40af; margin-top:2px;">PPK KPU Kabupaten Ngawi</div>
-            </div>
-          </div>
-
-          <!-- BARIS 2: DASAR PENETAPAN ANGGARAN & REKOMENDASI CERDAS -->
-          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 14px;">
-            <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">
-              💡 Rekomendasi Cerdas Regulasi 2026 Berdasarkan Pagu &amp; MAK:
-            </div>
-            <div style="font-size:12px; color:#1e3a8a; line-height:1.5;">
-              Berdasarkan Pagu <strong>${cakraFmtRp(paket.nilai_pagu)}</strong> dan Akun <strong>${cakraEsc(paket.kode_akun_mak || '532111')}</strong>, sistem merekomendasikan:
-              Kertas Harga: <strong>${cakraEsc(paket.jenis_kertas_harga || 'HPS')}</strong> &bull;
-              Bentuk Kontrak: <strong>${cakraEsc(paket.bentuk_kontrak || 'Surat Pesanan')}</strong> &bull;
-              Jenis Kontrak: <strong>${cakraEsc(paket.jenis_kontrak || 'Lumsum')}</strong> &bull;
-              Pelaksana: <strong>Pejabat Pengadaan</strong>
-            </div>
-          </div>
-
-          <!-- BARIS 3: RANCANG BANGUN PENGADAAN & CARA (READ-ONLY RESUME) -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:-4px;">
-            <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase;">
-              🧭 Rancang Bangun Pengadaan, Cara &amp; Metode Pemilihan:
-            </div>
-            <button type="button" onclick="openModulMetodePemilihan()" class="cakra-btn" style="background:#eff6ff; color:#1d4ed8; border:1px solid #3b82f6; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-              <span>🎯 Buka Modul Metode Pemilihan</span>
-            </button>
-          </div>
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">1. Jenis Pengadaan</div>
-              <div style="font-size:14px; font-weight:800; color:#0f172a;">${cakraEsc(paket.jenis_pengadaan || 'Barang')}</div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 12 Perpres 16/2018 jo. 46/2025</div>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">2. Cara Pengadaan</div>
-              <div style="font-size:14px; font-weight:800; color:#15803d;">${cakraEsc(paket.cara_pengadaan || 'Penyedia')}</div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 18 Perpres PBJ</div>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">3. Metode Pemilihan</div>
-              <div style="font-size:14px; font-weight:800; color:#7c3aed;">${cakraEsc(paket.metode_pemilihan || 'E-Purchasing')}</div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">Katalog Elektronik LKPP v6</div>
-            </div>
-          </div>
-
-          <!-- BARIS 4: PERIKATAN KONTRAK & KERTAS KERJA (READ-ONLY RESUME) -->
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Bentuk Kontrak</div>
-              <div style="font-size:14px; font-weight:800; color:#0f172a;">${cakraEsc(paket.bentuk_kontrak || 'Surat Pesanan')}</div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 28 Perpres PBJ</div>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Jenis Kontrak</div>
-              <div style="font-size:14px; font-weight:800; color:#0f172a;">${cakraEsc(paket.jenis_kontrak || 'Lumsum')}</div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">Pasal 27 Perpres PBJ (Output Pasti &amp; Tetap)</div>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Kertas Kerja Harga (Tahap 6)</div>
-              <div style="font-size:14px; font-weight:800; color:#b45309;">${cakraEsc(paket.jenis_kertas_harga || 'HPS')}</div>
-              <div style="font-size:11px; color:#64748b; margin-top:2px;">Pagu &gt; Rp 100 Juta Wajib HPS</div>
-            </div>
-          </div>
-
-          <!-- BARIS 5: BUKTI DOKUMEN GOOGLE DRIVE (TAHAP 2) -->
-          <div style="background:${hasDrive ? '#f0fdf4' : '#fffbeb'}; border:1px ${hasDrive ? 'solid #86efac' : 'dashed #cbd5e1'}; border-radius:8px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-            <div style="flex:1; min-width:240px;">
-              <div style="font-size:11px; font-weight:700; color:${hasDrive ? '#166534' : '#92400e'}; text-transform:uppercase;">
-                ☁️ Tautan Berkas Fisik Bertandatangan (Google Drive Tahap 2)
-              </div>
-              <div style="font-size:12px; color:${hasDrive ? '#15803d' : '#b45309'}; margin-top:2px; word-break:break-all;">
-                ${hasDrive
-                  ? `<a href="${cakraEsc(driveLink)}" target="_blank" style="color:#047857; font-weight:700; text-decoration:underline;" class="cakra-mono">${cakraEsc(driveLink)}</a>`
-                  : 'Belum ada tautan berkas fisik diunggah. Silakan klik tombol di samping untuk memasukkan tautan Google Drive melalui formulir Pop Up.'
-                }
-              </div>
-            </div>
-            <div style="display:flex; gap:6px; align-items:center;">
-              ${hasDrive ? `
-                <a href="${cakraEsc(driveLink)}" target="_blank" class="cakra-btn cakra-btn-success cakra-btn-sm" style="font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#10b981; color:#fff; padding:6px 12px; border-radius:6px;">
-                  <span>🔗 Buka di Google Drive</span>
-                </a>
-              ` : `
-                <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="openModalTahap2Input()" style="font-size:11px; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer;">
-                  + Tautkan Berkas G-Drive (Pop Up)
-                </button>
-              `}
-            </div></div>
-          </div>
-        </div>
-      </div>
-    `;
   } else {
-    // TAHAP 3 S.D. 18: STANDARISASI MODEL FORM MATI RESMI (100% SERAGAM SESUAI INSTRUKSI MAS EMENJE)
+    // TAHAP 2 S.D. 18: STANDARISASI MODEL FORM MATI RESMI (100% SERAGAM SESUAI INSTRUKSI MAS EMENJE)
     stageFormHtml = renderUniversalStageCard(stageNo, activeStageDef, activeTRow, paket, items, CakraState.penyedias?.find(v => Number(v.id) === Number(paket.penyedia_id)), rekomendasi);
   }
 
@@ -9180,119 +9155,17 @@ async function submitModalTahap1Input(isSelesaiAction = false) {
 window.submitModalTahap1Input = submitModalTahap1Input;
 
 function openModalTahap2Input() {
-  const modal = document.getElementById('modal-tahap2-input');
-  if (!modal) return;
-
-  const paket = (CakraState.pakets || []).find(p => String(p.id) === String(CakraState.activePaketId)) || {};
-  const tahaps = CakraState.activePaketCtx?.tahaps || [];
-  const activeTRow = tahaps.find(t => Number(t.no_tahap) === 2) || {};
-
-  const noDokInp = document.getElementById('m2_nomor_dokumen');
-  const tglDokInp = document.getElementById('m2_tanggal_dokumen');
-  const jenisPengadaanSel = document.getElementById('m2_jenis_pengadaan');
-  const caraPengadaanSel = document.getElementById('m2_cara_pengadaan');
-  const metodePemilihanSel = document.getElementById('m2_metode_pemilihan');
-  const bentukKontrakSel = document.getElementById('m2_bentuk_kontrak');
-  const jenisKontrakSel = document.getElementById('m2_jenis_kontrak');
-  const jenisKertasHargaSel = document.getElementById('m2_jenis_kertas_harga');
-
-  if (noDokInp) noDokInp.value = activeTRow.nomor_dokumen || generateAutoStageDocNumber(2, paket.kode_paket_internal, activeTRow.tanggal_dokumen || '2026-05-18');
-  if (tglDokInp) tglDokInp.value = activeTRow.tanggal_dokumen || '2026-05-18';
-  if (jenisPengadaanSel) jenisPengadaanSel.value = paket.jenis_pengadaan || 'Barang';
-  if (caraPengadaanSel) caraPengadaanSel.value = paket.cara_pengadaan || 'Penyedia';
-  if (metodePemilihanSel) metodePemilihanSel.value = paket.metode_pemilihan || 'E-Purchasing';
-  if (bentukKontrakSel) bentukKontrakSel.value = paket.bentuk_kontrak || 'Surat Pesanan';
-  if (jenisKontrakSel) jenisKontrakSel.value = paket.jenis_kontrak || 'Lumsum';
-  if (jenisKertasHargaSel) jenisKertasHargaSel.value = paket.jenis_kertas_harga || 'HPS';
-  const linkDriveInp = document.getElementById('m2_link_drive_dokumen');
-  if (linkDriveInp) linkDriveInp.value = activeTRow.link_drive_dokumen || '';
-
-  modal.style.display = 'flex';
+  return openModalTahapUniversal(2);
 }
 window.openModalTahap2Input = openModalTahap2Input;
 
 function closeModalTahap2Input() {
-  const modal = document.getElementById('modal-tahap2-input');
-  if (modal) modal.style.display = 'none';
+  return closeModalTahapUniversal();
 }
 window.closeModalTahap2Input = closeModalTahap2Input;
 
 async function submitModalTahap2Input(isSelesaiAction = false) {
-  const paket = (CakraState.activePaketCtx?.paket?.id === CakraState.activePaketId ? CakraState.activePaketCtx.paket : null)
-    || (CakraState.pakets || []).find(p => String(p.id) === String(CakraState.activePaketId));
-  if (!paket) {
-    cakraNotify('❌ Paket aktif tidak ditemukan!', 'error');
-    return;
-  }
-
-  const tahaps = CakraState.activePaketCtx?.tahaps || [];
-  const activeTRow = tahaps.find(t => Number(t.no_tahap) === 2) || {};
-  const activeDef = (CakraState.definisi18Tahap || []).find(d => Number(d.no) === 2) || { nama: 'Penetapan Jenis, Cara Pengadaan, & Pemaketan', fase: 1 };
-
-  const getStr = id => {
-    const el = document.getElementById(id);
-    return el ? String(el.value || '').trim() : '';
-  };
-
-  const nomorDokumen = getStr('m2_nomor_dokumen') || activeTRow.nomor_dokumen || generateAutoStageDocNumber(2, paket.kode_paket_internal, '2026-05-18');
-  const tanggalDokumen = getStr('m2_tanggal_dokumen') || activeTRow.tanggal_dokumen || '2026-05-18';
-  const jenisPengadaan = getStr('m2_jenis_pengadaan') || paket.jenis_pengadaan || 'Barang';
-  const caraPengadaan = getStr('m2_cara_pengadaan') || paket.cara_pengadaan || 'Penyedia';
-  const metodePemilihan = getStr('m2_metode_pemilihan') || paket.metode_pemilihan || 'E-Purchasing';
-  const bentukKontrak = getStr('m2_bentuk_kontrak') || paket.bentuk_kontrak || 'Surat Pesanan';
-  const jenisKontrak = getStr('m2_jenis_kontrak') || paket.jenis_kontrak || 'Lumsum';
-  const jenisKertasHarga = getStr('m2_jenis_kertas_harga') || paket.jenis_kertas_harga || 'HPS';
-  const linkDrive = getStr('m2_link_drive_dokumen') || activeTRow.link_drive_dokumen || '';
-
-  if (isSelesaiAction) {
-    if (!linkDrive || linkDrive.length < 10 || !linkDrive.startsWith('http')) {
-      cakraNotify('⚠️ Tahap 2 belum dapat diselesaikan! Tautan Google Drive Berita Acara Pemaketan bertandatangan PPK wajib diisi.', 'warning');
-      const el = document.getElementById('m2_link_drive_dokumen');
-      if (el) {
-        el.focus();
-        el.style.border = '2px solid #ef4444';
-        setTimeout(() => { if (el) el.style.border = ''; }, 3000);
-      }
-      return;
-    }
-  }
-
-  const statusTahap = isSelesaiAction ? 'Selesai' : (activeTRow.status_tahap === 'Selesai' ? 'Selesai' : 'Draft');
-  const targetStageToOpen = isSelesaiAction ? 3 : 2;
-
-  const payload = {
-    ...paket,
-    jenis_pengadaan: jenisPengadaan,
-    cara_pengadaan: caraPengadaan,
-    metode_pemilihan: metodePemilihan,
-    bentuk_kontrak: bentukKontrak,
-    jenis_kontrak: jenisKontrak,
-    jenis_kertas_harga: jenisKertasHarga,
-    stageUpdate: {
-      no_tahap: 2,
-      fase: activeDef.fase || 1,
-      nama_tahap: activeDef.nama || 'Penetapan Jenis, Cara Pengadaan, & Pemaketan',
-      nomor_dokumen: nomorDokumen,
-      tanggal_dokumen: tanggalDokumen,
-      status_tahap: statusTahap,
-      link_drive_dokumen: linkDrive,
-      catatan_tahap: activeTRow.catatan_tahap || 'Penetapan Pemaketan PBJ'
-    }
-  };
-
-  try {
-    await cakraApiPost('/api/cakra/paket', payload);
-    closeModalTahap2Input();
-    await initCakraApp();
-    await openPaketInCockpit(paket.id, targetStageToOpen, false);
-    if (isSelesaiAction) {
-      cakraNotify('🎉 Tahap 2 (BA-PMK) Resmi Selesai! Membuka Tahap 3: RUP.', 'success');
-    } else {
-      cakraNotify('💾 Draf data Penetapan Pemaketan Tahap 2 berhasil disimpan!', 'success');
-    }
-  } catch (err) {
-    cakraNotify('❌ Gagal menyimpan data Tahap 2: ' + err.message, 'error');
-  }
+  return submitModalTahapUniversal(isSelesaiAction);
 }
 window.submitModalTahap2Input = submitModalTahap2Input;
 
@@ -9616,36 +9489,41 @@ function applyModulMetodeToTahap2() {
   const res = currentModulMetodeResult;
   if (!res) return;
 
-  // Isi ke form modal Tahap 2
-  const jenisSel = document.getElementById('m2_jenis_pengadaan');
-  const caraSel = document.getElementById('m2_cara_pengadaan');
-  const metodeSel = document.getElementById('m2_metode_pemilihan');
-  const bentukSel = document.getElementById('m2_bentuk_kontrak');
-  const jenisKontrakSel = document.getElementById('m2_jenis_kontrak');
-  const kertasHargaSel = document.getElementById('m2_jenis_kertas_harga');
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
 
-  if (jenisSel) jenisSel.value = res.jenisPengadaan;
-  if (caraSel) caraSel.value = res.caraPengadaan.startsWith('Swakelola') ? res.caraPengadaan : 'Penyedia';
-  if (metodeSel) {
-    metodeSel.value = res.metodePemilihan.includes('E-Purchasing') ? 'E-Purchasing' : (res.metodePemilihan.includes('Pengadaan Langsung') ? 'Pengadaan Langsung' : res.metodePemilihan);
-  }
-  if (bentukSel) {
-    bentukSel.value = res.bentukKontrak.includes('Surat Pesanan') ? 'Surat Pesanan' : (res.bentukKontrak.includes('SPK') ? 'SPK' : (res.bentukKontrak.includes('Bukti Pembelian') ? 'Bukti Pembelian' : (res.bentukKontrak.includes('Kuitansi') ? 'Kuitansi' : 'Surat Perjanjian')));
-  }
-  if (jenisKontrakSel) {
-    jenisKontrakSel.value = res.jenisKontrak.includes('Harga Satuan') ? 'Harga Satuan' : 'Lumsum';
-  }
-  if (kertasHargaSel) {
-    kertasHargaSel.value = res.jenisKertasHarga.includes('HPS') ? 'HPS' : res.jenisKertasHarga;
-  }
+  const jenisVal = res.jenisPengadaan;
+  const caraVal = res.caraPengadaan.startsWith('Swakelola') ? res.caraPengadaan : 'Penyedia';
+  const metodeVal = res.metodePemilihan.includes('E-Purchasing') ? 'E-Purchasing' : (res.metodePemilihan.includes('Pengadaan Langsung') ? 'Pengadaan Langsung' : res.metodePemilihan);
+  const bentukVal = res.bentukKontrak.includes('Surat Pesanan') ? 'Surat Pesanan' : (res.bentukKontrak.includes('SPK') ? 'SPK' : (res.bentukKontrak.includes('Bukti Pembelian') ? 'Bukti Pembelian' : (res.bentukKontrak.includes('Kuitansi') ? 'Kuitansi' : 'Surat Perjanjian')));
+  const jenisKontrakVal = res.jenisKontrak.includes('Harga Satuan') ? 'Harga Satuan' : 'Lumsum';
+  const kertasHargaVal = res.jenisKertasHarga.includes('HPS') ? 'HPS' : res.jenisKertasHarga;
+
+  // Set di modal universal (mu_...)
+  setVal('mu_jenis_pengadaan', jenisVal);
+  setVal('mu_cara_pengadaan', caraVal);
+  setVal('mu_metode_pemilihan', metodeVal);
+  setVal('mu_bentuk_kontrak', bentukVal);
+  setVal('mu_jenis_kontrak', jenisKontrakVal);
+  setVal('mu_jenis_kertas_harga', kertasHargaVal);
+
+  // Set di modal lama (m2_...) jika elemen masih ada
+  setVal('m2_jenis_pengadaan', jenisVal);
+  setVal('m2_cara_pengadaan', caraVal);
+  setVal('m2_metode_pemilihan', metodeVal);
+  setVal('m2_bentuk_kontrak', bentukVal);
+  setVal('m2_jenis_kontrak', jenisKontrakVal);
+  setVal('m2_jenis_kertas_harga', kertasHargaVal);
 
   closeModulMetodePemilihan();
   cakraNotify(`✅ Rekomendasi Modul (${res.metodePemilihan}) berhasil diterapkan ke Formulir Tahap 2!`, 'success');
 
-  // Jika modal Tahap 2 belum terbuka, buka sekarang
-  const modalT2 = document.getElementById('modal-tahap2-input');
-  if (modalT2 && modalT2.style.display !== 'flex') {
-    openModalTahap2Input();
+  // Buka modal Tahap 2 di modal universal
+  const modalUni = document.getElementById('modal-tahap-universal');
+  if (!modalUni || modalUni.style.display !== 'flex' || CakraState.activeUniversalStageNo !== 2) {
+    openModalTahapUniversal(2);
   }
 }
 window.applyModulMetodeToTahap2 = applyModulMetodeToTahap2;
@@ -9744,9 +9622,6 @@ function openModalTahapUniversal(stageNo) {
     const pId = CakraState.activePaketId;
     return openModalTahap1Input(pId);
   }
-  if (num === 2) {
-    return openModalTahap2Input();
-  }
 
   const modal = document.getElementById('modal-tahap-universal');
   if (!modal) return;
@@ -9800,7 +9675,11 @@ function openModalTahapUniversal(stageNo) {
   modal.style.display = 'flex';
   const catatanLabel = document.getElementById('mu_catatan_label');
   if (catatanLabel) {
-    if (num === 8) {
+    if (num === 2) {
+      catatanLabel.textContent = 'Catatan PPK atas Penetapan Pemaketan & Kriteria Pemilihan';
+    } else if (num === 3) {
+      catatanLabel.textContent = 'Catatan KPA / PPK atas Penetapan RUP & Pengumuman SiRUP LKPP';
+    } else if (num === 8) {
       catatanLabel.textContent = 'Catatan Hasil Reviu Bersama & Tindak Lanjut Pemilihan (PPK & Pejabat Pengadaan)';
     } else if (num === 6) {
       catatanLabel.textContent = 'Catatan Khusus PPK atas Penetapan HPS / Referensi Harga';
@@ -11487,21 +11366,236 @@ window.onPamPresetCatatanChange = function(val) {
 
 function generateUniversalModalFields(num, paket, activeTRow) {
   switch (num) {
-    case 3:
-      const autoStatus3 = determineStatusPaketByStage(3);
+    case 2:
+      const t2TahapData = activeTRow.tahap_data || {};
+      const noLakVal = t2TahapData.no_lak_umk || paket.no_lak_umk || '002/LAK-UMK/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026';
+      const alokasiUmkVal = t2TahapData.alokasi_umk_persen || paket.alokasi_umk_persen || '100%';
+      const justifikasiUmkVal = t2TahapData.justifikasi_umk || paket.justifikasi_umk || 'Paket bernilai pagu Rp 145.000.000 (di bawah ambang batas Rp 15 Miliar sesuai Pasal 65 Perpres 16/2018 jo. Perpres 46/2025) dan kemampuan teknis penyedia UMK lokal/regional Jawa Timur memenuhi kualifikasi.';
+      const komitmenPdnVal = t2TahapData.komitmen_pdn || paket.komitmen_pdn || 'Prioritas Produk Dalam Negeri (PDN) bersertifikat TKDN valid (Pasal 66 Perpres PBJ)';
+      const paguT2 = Number(paket.nilai_pagu || 145000000);
+      const isAutoHps = paguT2 > 100000000;
+      const recKertas = isAutoHps ? 'HPS' : 'Referensi Harga (E-Purchasing <=100Jt)';
+      const selectedKertas = paket.jenis_kertas_harga || recKertas;
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Parameter SiRUP LKPP &amp; RUP Satker</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kode RUP SiRUP LKPP *</label>
-            <input type="text" id="mu_kode_rup" class="cakra-form-control cakra-mono" value="${cakraEsc(paket.kode_rup || 'RUP-2026-657811-01')}" placeholder="cth: RUP-5091823" style="font-weight:700;" />
+        <!-- KARTU RINGKASAN DATA WARISAN TAHAP 1 -->
+        <div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📌 DATA WARISAN TAHAP 1 (IDENTIFIKASI KEBUTUHAN &amp; DIPA SATKER)</span>
+            <span class="cakra-badge cakra-badge-primary" style="font-size:10px;">Auto-Inherited</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:8px; font-size:11.5px;">
+            <div><b>Nama Paket:</b> <span style="color:#0f172a;">${cakraEsc(paket.nama_paket || 'Pengadaan Perangkat Server dan Jaringan Komputer')}</span></div>
+            <div><b>Pagu Anggaran:</b> <span style="color:#15803d; font-weight:700;">${cakraFmtRp(paguT2)}</span></div>
+            <div><b>MAK Belanja:</b> <span class="cakra-mono">${cakraEsc(paket.kode_akun_mak || '532111')}</span> (${cakraEsc(paket.nama_akun_mak || 'Belanja Modal Peralatan')})</div>
+            <div><b>Subbag Pengusul:</b> <span>${cakraEsc(paket.pic_subbag || 'KUL')}</span></div>
+          </div>
+        </div>
+
+        <!-- BLOK 1: RANCANG BANGUN PENGADAAN & PEMILIHAN -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:14px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:12.5px; font-weight:800; color:#1e3a8a;">
+              🧭 1. Rancang Bangun Pengadaan &amp; Metode Pemilihan (Pasal 18–38 Perpres PBJ)
+            </div>
+            <button type="button" onclick="openModulMetodePemilihan()" class="cakra-btn" style="background:#f0fdf4; color:#15803d; border:1px solid #86efac; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer;">
+              🎯 Buka Modul Metode Pemilihan
+            </button>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">1. Jenis Pengadaan *</label>
+              <select id="mu_jenis_pengadaan" class="cakra-form-control" style="font-size:12px;">
+                ${['Barang', 'Jasa Lainnya', 'Jasa Konsultansi Nonkonstruksi', 'Pekerjaan Konstruksi', 'Jasa Konsultansi Konstruksi', 'Swakelola', 'Dikecualikan'].map(v => `<option value="${v}" ${(paket.jenis_pengadaan || 'Barang') === v ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">2. Cara Pengadaan *</label>
+              <select id="mu_cara_pengadaan" class="cakra-form-control" style="font-size:12px;">
+                ${['Penyedia', 'Swakelola Tipe I', 'Swakelola Tipe II', 'Swakelola Tipe III', 'Swakelola Tipe IV'].map(v => `<option value="${v}" ${(paket.cara_pengadaan || 'Penyedia') === v ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">3. Metode Pemilihan *</label>
+              <select id="mu_metode_pemilihan" class="cakra-form-control" style="font-size:12px;">
+                ${['E-Purchasing', 'Pengadaan Langsung', 'Penunjukan Langsung', 'Repeat Order', 'Tender Cepat', 'Tender', 'Seleksi', 'Mekanisme Pasar (Dikecualikan)'].map(v => `<option value="${v}" ${(paket.metode_pemilihan || 'E-Purchasing') === v ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOK 2: PERIKATAN HUKUM (KONTRAK) & KERTAS KERJA HARGA (AUTO-DETECT CERDAS) -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:14px; margin-bottom:14px;">
+          <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">
+            📜 2. Perikatan Hukum (Kontrak) &amp; Kertas Kerja Harga (Tahap 6)
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Bentuk Kontrak (Pasal 28)</label>
+              <select id="mu_bentuk_kontrak" class="cakra-form-control" style="font-size:12px;">
+                ${['Surat Pesanan', 'SPK', 'Surat Perjanjian', 'Kuitansi', 'Bukti Pembelian', 'Kontrak Swakelola'].map(v => `<option value="${v}" ${(paket.bentuk_kontrak || 'Surat Pesanan') === v ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Jenis Kontrak (Pasal 27)</label>
+              <select id="mu_jenis_kontrak" class="cakra-form-control" style="font-size:12px;">
+                ${['Lumsum', 'Harga Satuan', 'Gabungan Lumsum dan Harga Satuan', 'Kontrak Payung', 'Biaya Plus Imbalan', 'Waktu Penugasan'].map(v => `<option value="${v}" ${(paket.jenis_kontrak || 'Lumsum') === v ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">
+                Pilihan Kertas Kerja Harga (Tahap 6)
+                <span class="cakra-badge ${isAutoHps ? 'cakra-badge-amber' : 'cakra-badge-green'}" style="font-size:9.5px; margin-left:4px;">
+                  ${isAutoHps ? '⚡ Auto: Wajib HPS' : '⚡ Auto: Ref Harga'}
+                </span>
+              </label>
+              <select id="mu_jenis_kertas_harga" class="cakra-form-control" style="font-size:12px;">
+                <option value="HPS" ${selectedKertas === 'HPS' ? 'selected' : ''}>HPS (Wajib Pagu > Rp 100 Juta)</option>
+                <option value="Referensi Harga (E-Purchasing <=100Jt)" ${selectedKertas.includes('Referensi Harga') ? 'selected' : ''}>Referensi Harga (E-Purchasing &le; 100 Jt)</option>
+                <option value="Bebas HPS (<=10Jt)" ${selectedKertas.includes('Bebas HPS') ? 'selected' : ''}>Bebas HPS (&le; 10 Jt)</option>
+                <option value="RAB Swakelola" ${selectedKertas === 'RAB Swakelola' ? 'selected' : ''}>RAB Swakelola</option>
+                <option value="Estimasi Pasar (Dikecualikan)" ${selectedKertas.includes('Estimasi Pasar') ? 'selected' : ''}>Estimasi Pasar (Dikecualikan)</option>
+              </select>
+              <div style="font-size:10.5px; color:#b45309; margin-top:3px; font-weight:600;">
+                💡 Sistem mendeteksi Pagu ${cakraFmtRp(paguT2)} (${isAutoHps ? '> 100 Jt' : '<= 100 Jt'}) &rarr; Direkomendasikan: <b>${recKertas}</b>.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOK 3: LEMBAR ANALISIS KRITERIA & AFIRMASI UMK SERTA PDN (DOKUMEN 02 TAHAP 2) -->
+        <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:12.5px; font-weight:800; color:#166534;">
+              🌱 3. Lembar Analisis Kriteria Pemilihan &amp; Afirmasi UMK / PDN (Dokumen 02 Tahap 2)
+            </div>
+            <span class="cakra-badge cakra-badge-green" style="font-size:10px;">Pasal 65 &amp; 66 Perpres PBJ</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:12px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:3px; display:block;">Nomor Lembar Analisis Kriteria (LAK-UMK) *</label>
+              <input type="text" id="mu_no_lak_umk" class="cakra-form-control cakra-mono" value="${cakraEsc(noLakVal)}" style="font-size:11.5px; font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:3px; display:block;">Porsi Alokasi Belanja UMK *</label>
+              <input type="text" id="mu_alokasi_umk_persen" class="cakra-form-control" value="${cakraEsc(alokasiUmkVal)}" style="font-size:11.5px; font-weight:700;" />
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#14532d; cursor:pointer;">
+              <input type="checkbox" id="mu_peruntukan_umk" value="1" ${(paket.peruntukan_umk ?? 1) ? 'checked' : ''} style="width:16px; height:16px; accent-color:#16a34a;" />
+              <span>Paket ini secara afirmatif diperuntukkan bagi Koperasi / Usaha Mikro dan Usaha Kecil (UMK)</span>
+            </label>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:3px; display:block;">Hasil Telaah PPK &amp; Justifikasi Pemaketan UMK</label>
+            <textarea id="mu_justifikasi_umk" class="cakra-form-control" rows="2" style="font-size:11px; line-height:1.4;">${cakraEsc(justifikasiUmkVal)}</textarea>
           </div>
           <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Status Paket dalam Alur Pengadaan</label>
-            <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; font-size:12.5px; font-weight:700; color:#1e3a8a; display:flex; align-items:center; justify-content:space-between; min-height:38px; box-sizing:border-box;">
-              <span>📌 ${autoStatus3}</span>
-              <span style="font-size:10.5px; color:#64748b; font-weight:600;">(Fase I &bull; Otomatis oleh Sistem)</span>
+            <label style="font-size:11px; font-weight:700; color:#166534; margin-bottom:3px; display:block;">Komitmen Penggunaan Produk Dalam Negeri (PDN / TKDN)</label>
+            <select id="mu_prioritas_pdn_level" class="cakra-form-control" style="font-size:11.5px;">
+              ${[
+                'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)',
+                'Level 2: PDN TKDN >= 25%',
+                'Level 3: PDN TKDN < 25%',
+                'Level 4: PDN Terdaftar SIINas',
+                'Level 5: PDN Pernyataan Mandiri (Self-Declare)',
+                'Level 6: Produk Impor (Izin Menteri/KL)'
+              ].map(lv => `<option value="${lv}" ${(paket.prioritas_pdn_level || 'Level 1: TKDN >= 25% (TKDN+BMP >= 40%)') === lv ? 'selected' : ''}>${lv}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      `;
+
+    case 3:
+      const t3TahapData = activeTRow.tahap_data || {};
+      const noSkKpaVal = t3TahapData.no_sk_kpa_rup || paket.no_sk_kpa_rup || '043/KPA/SK-RUP/V/2026';
+      const tglSkKpaVal = t3TahapData.tgl_sk_kpa_rup || paket.tgl_sk_kpa_rup || '2026-05-19';
+      const idPaketSirupVal = t3TahapData.id_paket_sirup || paket.id_paket_sirup || '51982736';
+      const tglPengumumanVal = t3TahapData.tgl_pengumuman_sirup || paket.tgl_pengumuman_sirup || '2026-05-19';
+      const statusSirupVal = t3TahapData.status_pengumuman_sirup || paket.status_pengumuman_sirup || 'Terumumkan / Tayang Publik';
+      const linkSirupVal = t3TahapData.link_sirup_lkpp || paket.link_sirup_lkpp || 'https://sirup.lkpp.go.id/sirup/ro/paket/penyedia/51982736';
+      const noBuktiSirupVal = t3TahapData.no_bukti_sirup || '003/BKT-SiRUP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026';
+      const autoStatus3 = determineStatusPaketByStage(3);
+
+      return `
+        <!-- KARTU WARISAN DATA DIPA & PEMAKETAN (TAHAP 1 & 2) -->
+        <div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:11px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📌 DATA PAKET &amp; DIPA SATKER (AUTO-INHERIT DARI TAHAP 1 &amp; 2)</span>
+            <span class="cakra-badge cakra-badge-primary" style="font-size:10px;">Sinkron DIPA 2026</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:8px; font-size:11.5px;">
+            <div><b>Nama Paket:</b> <span style="color:#0f172a;">${cakraEsc(paket.nama_paket || 'Pengadaan Perangkat Server dan Jaringan Komputer')}</span></div>
+            <div><b>Pagu Anggaran:</b> <span style="color:#15803d; font-weight:700;">${cakraFmtRp(paket.nilai_pagu || 145000000)}</span></div>
+            <div><b>MAK Belanja:</b> <span class="cakra-mono">${cakraEsc(paket.kode_akun_mak || '532111')}</span> (${cakraEsc(paket.nama_akun_mak || 'Belanja Modal')})</div>
+            <div><b>Metode Terpilih:</b> <span>${cakraEsc(paket.metode_pemilihan || 'E-Purchasing')} (${cakraEsc(paket.jenis_pengadaan || 'Barang')})</span></div>
+          </div>
+        </div>
+
+        <!-- BLOK 1: SK PENETAPAN RUP OLEH KPA -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:14px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:12.5px; font-weight:800; color:#1e3a8a;">
+              📜 1. Surat Keputusan (SK) Penetapan RUP oleh Kuasa Pengguna Anggaran (KPA)
             </div>
+            <span class="cakra-badge cakra-badge-amber" style="font-size:10px;">Pasal 9 Ayat (1) Huruf a Perpres PBJ</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:12px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Nomor SK KPA tentang Penetapan RUP *</label>
+              <input type="text" id="mu_no_sk_kpa_rup" class="cakra-form-control cakra-mono" value="${cakraEsc(noSkKpaVal)}" style="font-size:12px; font-weight:700;" placeholder="cth: 043/KPA/SK-RUP/V/2026" />
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Tanggal Penetapan SK KPA *</label>
+              <input type="date" id="mu_tgl_sk_kpa_rup" class="cakra-form-control" value="${cakraEsc(tglSkKpaVal)}" style="font-size:12px; font-weight:700;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOK 2: PARAMETER & PENGUMUMAN SiRUP LKPP -->
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:12.5px; font-weight:800; color:#1e3a8a;">
+              🌐 2. Parameter SiRUP LKPP &amp; Bukti Pengumuman RUP Terbuka (Pasal 22 Perpres PBJ)
+            </div>
+            <a href="${cakraEsc(linkSirupVal)}" target="_blank" class="cakra-btn" style="background:#eff6ff; color:#1d4ed8; border:1px solid #93c5fd; font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+              <span>🔗 Buka Portal SiRUP LKPP</span>
+            </a>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:12px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">ID Paket SiRUP LKPP *</label>
+              <input type="text" id="mu_id_paket_sirup" class="cakra-form-control cakra-mono" value="${cakraEsc(idPaketSirupVal)}" placeholder="cth: 51982736" style="font-size:12px; font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Kode RUP Internal Satker *</label>
+              <input type="text" id="mu_kode_rup" class="cakra-form-control cakra-mono" value="${cakraEsc(paket.kode_rup || 'RUP-2026-657811-01')}" placeholder="cth: RUP-2026-657811-01" style="font-size:12px; font-weight:700;" />
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Tanggal Pengumuman SiRUP *</label>
+              <input type="date" id="mu_tgl_pengumuman_sirup" class="cakra-form-control" value="${cakraEsc(tglPengumumanVal)}" style="font-size:12px; font-weight:700;" />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Status Pengumuman SiRUP</label>
+              <select id="mu_status_pengumuman_sirup" class="cakra-form-control" style="font-size:12px;">
+                <option value="Terumumkan / Tayang Publik" ${statusSirupVal.includes('Terumumkan') ? 'selected' : ''}>🟢 Terumumkan / Tayang Publik (Aktif)</option>
+                <option value="Draf RUP" ${statusSirupVal.includes('Draf') ? 'selected' : ''}>📝 Draf RUP (Belum Terumumkan)</option>
+                <option value="Revisi RUP" ${statusSirupVal.includes('Revisi') ? 'selected' : ''}>🔄 Revisi RUP Satker</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Nomor Bukti Cetak Pengumuman (Dokumen 02)</label>
+              <input type="text" id="mu_no_bukti_sirup" class="cakra-form-control cakra-mono" value="${cakraEsc(noBuktiSirupVal)}" style="font-size:11.5px; font-weight:700;" />
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:3px; display:block;">Tautan / URL Publik Paket pada SiRUP LKPP</label>
+            <input type="url" id="mu_link_sirup_lkpp" class="cakra-form-control cakra-mono" value="${cakraEsc(linkSirupVal)}" placeholder="https://sirup.lkpp.go.id/sirup/ro/paket/penyedia/51982736" style="font-size:12px;" />
           </div>
         </div>
       `;
@@ -14712,9 +14806,31 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
 
   // Collect stage-specific values
   let extraPaketFields = {};
-  if (num === 3) {
+  let tahapData = {};
+
+  if (num === 2) {
+    extraPaketFields.jenis_pengadaan = getStr('mu_jenis_pengadaan') || paket.jenis_pengadaan || 'Barang';
+    extraPaketFields.cara_pengadaan = getStr('mu_cara_pengadaan') || paket.cara_pengadaan || 'Penyedia';
+    extraPaketFields.metode_pemilihan = getStr('mu_metode_pemilihan') || paket.metode_pemilihan || 'E-Purchasing';
+    extraPaketFields.bentuk_kontrak = getStr('mu_bentuk_kontrak') || paket.bentuk_kontrak || 'Surat Pesanan';
+    extraPaketFields.jenis_kontrak = getStr('mu_jenis_kontrak') || paket.jenis_kontrak || 'Lumsum';
+    extraPaketFields.jenis_kertas_harga = getStr('mu_jenis_kertas_harga') || paket.jenis_kertas_harga || 'HPS';
+    extraPaketFields.peruntukan_umk = document.getElementById('mu_peruntukan_umk')?.checked ? 1 : 0;
+    extraPaketFields.prioritas_pdn_level = getStr('mu_prioritas_pdn_level') || paket.prioritas_pdn_level;
+
+    tahapData.no_lak_umk = getStr('mu_no_lak_umk') || '002/LAK-UMK/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026';
+    tahapData.alokasi_umk_persen = getStr('mu_alokasi_umk_persen') || '100%';
+    tahapData.justifikasi_umk = getStr('mu_justifikasi_umk') || '';
+    tahapData.komitmen_pdn = getStr('mu_komitmen_pdn') || '';
+  } else if (num === 3) {
     extraPaketFields.kode_rup = getStr('mu_kode_rup') || paket.kode_rup;
-    // Status paket otomatis oleh sistem
+    tahapData.no_sk_kpa_rup = getStr('mu_no_sk_kpa_rup') || '043/KPA/SK-RUP/V/2026';
+    tahapData.tgl_sk_kpa_rup = getStr('mu_tgl_sk_kpa_rup') || '2026-05-19';
+    tahapData.id_paket_sirup = getStr('mu_id_paket_sirup') || '51982736';
+    tahapData.tgl_pengumuman_sirup = getStr('mu_tgl_pengumuman_sirup') || '2026-05-19';
+    tahapData.status_pengumuman_sirup = getStr('mu_status_pengumuman_sirup') || 'Terumumkan / Tayang Publik';
+    tahapData.link_sirup_lkpp = getStr('mu_link_sirup_lkpp') || 'https://sirup.lkpp.go.id/sirup/ro/paket/penyedia/51982736';
+    tahapData.no_bukti_sirup = getStr('mu_no_bukti_sirup') || '003/BKT-SiRUP/PBJ-2026-001/PPK-PBJ/KPU-NGW/V/2026';
   } else if (num === 4) {
     extraPaketFields.uraian_pekerjaan = getStr('mu_uraian_pekerjaan') || paket.uraian_pekerjaan;
     extraPaketFields.prioritas_pdn_level = getStr('mu_prioritas_pdn_level') || paket.prioritas_pdn_level;
@@ -15325,6 +15441,8 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       status_tahap: statusTahap,
       link_drive_dokumen: linkDrive,
       catatan_tahap: catatanTahap,
+      tahap_data: tahapData,
+      tahap_data_json: JSON.stringify(tahapData),
       no_reviu_dpp: getStr('mu_no_reviu_dpp') || activeTRow.no_reviu_dpp || '',
       no_ba_nego: extraPaketFields.no_ba_nego || activeTRow.no_ba_nego || '',
       no_bahp: extraPaketFields.no_bahp || activeTRow.no_bahp || '',
