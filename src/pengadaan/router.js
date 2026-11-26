@@ -89,6 +89,28 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
     // Endpoint manual trigger sinkronisasi skenario database Tahap 16, Tahap 17 & Tahap 18
     if ((pathname === '/api/cakra/sync-tahap16' || pathname === '/api/cakra/sync-tahap17' || pathname === '/api/cakra/sync-tahap18') && (method === 'GET' || method === 'POST')) {
       const pool = getCakraPool();
+      try { await pool.query("SET SESSION innodb_strict_mode = OFF"); } catch (e) {}
+      try { await pool.query("ALTER TABLE pbj_paket ROW_FORMAT=DYNAMIC"); } catch (e) {}
+
+      const shrinkQueries = [
+        "ALTER TABLE pbj_paket MODIFY COLUMN uraian_pekerjaan TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN lokasi_pekerjaan TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN alasan_penilaian_ppk_katalog TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN link_produk_katalog_1 TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN link_produk_katalog_2 TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN perihal_nota_dinas TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN bmn_catatan_telaah TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN rkb_program TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN rkb_kegiatan TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN rkb_subkegiatan TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN cara_pembayaran TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN ketentuan_garansi TEXT NULL",
+        "ALTER TABLE pbj_paket MODIFY COLUMN penyelesaian_sengketa TEXT NULL"
+      ];
+      for (const q of shrinkQueries) {
+        try { await pool.query(q); } catch (e) {}
+      }
+
       const alterQueries = [
         "ALTER TABLE pbj_paket ADD COLUMN no_skkp TEXT NULL",
         "ALTER TABLE pbj_paket ADD COLUMN tgl_skkp VARCHAR(32) DEFAULT NULL",

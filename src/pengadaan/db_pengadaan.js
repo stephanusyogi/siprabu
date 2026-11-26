@@ -305,6 +305,28 @@ async function ensurePaketMissingColumns(pool) {
     await pool.query("ALTER TABLE pbj_paket_tahap ROW_FORMAT=DYNAMIC");
   } catch (e) {}
 
+  // Bebaskan ruang in-row InnoDB (konversi kolom narasi/deskripsi panjang dari VARCHAR(255) ke TEXT)
+  const shrinkQueries = [
+    "ALTER TABLE pbj_paket MODIFY COLUMN uraian_pekerjaan TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN lokasi_pekerjaan TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN alasan_penilaian_ppk_katalog TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN link_produk_katalog_1 TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN link_produk_katalog_2 TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN perihal_nota_dinas TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN bmn_catatan_telaah TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN rkb_program TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN rkb_kegiatan TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN rkb_subkegiatan TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN cara_pembayaran TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN ketentuan_garansi TEXT NULL",
+    "ALTER TABLE pbj_paket MODIFY COLUMN penyelesaian_sengketa TEXT NULL"
+  ];
+  for (const q of shrinkQueries) {
+    try {
+      await pool.query(q);
+    } catch (e) {}
+  }
+
   for (const sql of ddlStatements) {
     try {
       await pool.query(sql);
