@@ -282,17 +282,17 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN nilai_kas_sp2d DECIMAL(15,2) DEFAULT 122403891.00",
     "ALTER TABLE pbj_paket ADD COLUMN akun_denda_pnbp VARCHAR(32) DEFAULT '425161'",
     "ALTER TABLE pbj_paket ADD COLUMN catatan_pembayaran TEXT DEFAULT NULL",
-    "ALTER TABLE pbj_paket ADD COLUMN no_skkp VARCHAR(191) DEFAULT '018/SKKP/PBJ-2026-001/PPK/VI/2026'",
-    "ALTER TABLE pbj_paket ADD COLUMN tgl_skkp VARCHAR(32) DEFAULT '2026-06-12'",
-    "ALTER TABLE pbj_paket ADD COLUMN catatan_kualitas TEXT DEFAULT NULL",
-    "ALTER TABLE pbj_paket ADD COLUMN catatan_biaya TEXT DEFAULT NULL",
-    "ALTER TABLE pbj_paket ADD COLUMN catatan_waktu TEXT DEFAULT NULL",
-    "ALTER TABLE pbj_paket ADD COLUMN catatan_layanan TEXT DEFAULT NULL",
-    "ALTER TABLE pbj_paket ADD COLUMN rekomendasi_repeat_order VARCHAR(100) DEFAULT 'MEMENUHI SYARAT REPEAT ORDER (RO)'",
+    "ALTER TABLE pbj_paket ADD COLUMN no_skkp TEXT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_skkp VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_kualitas TEXT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_biaya TEXT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_waktu TEXT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_layanan TEXT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN rekomendasi_repeat_order TEXT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bap VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_spp_ls VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bast_kpa VARCHAR(191) DEFAULT NULL",
-    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_skkp VARCHAR(191) DEFAULT NULL"
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_skkp TEXT NULL"
   ];
 
   try {
@@ -310,15 +310,14 @@ async function ensurePaketMissingColumns(pool) {
       await pool.query(sql);
     } catch (e) {
       if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
-        if (sql.includes('VARCHAR')) {
-          try {
-            const textSql = sql.replace(/VARCHAR\(\d+\)/i, 'TEXT');
-            await pool.query(textSql);
-          } catch (e2) {
-            console.warn('[DDL-WARN]', sql, '=>', e.message);
-          }
-        } else {
-          console.warn('[DDL-WARN]', sql, '=>', e.message);
+        try {
+          const textSql = sql
+            .replace(/VARCHAR\(\d+\)/i, 'TEXT')
+            .replace(/DEFAULT\s+('[^']*'|[^\s,;]+)/i, 'DEFAULT NULL')
+            .trim();
+          await pool.query(textSql);
+        } catch (e2) {
+          console.warn('[DDL-WARN]', sql, '=>', e2.message);
         }
       }
     }
@@ -1223,8 +1222,8 @@ async function savePaket(data) {
       }
 
       await pool.query(
-        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning, no_baphp, no_bast, no_permohonan, tgl_permohonan, no_kuitansi, tgl_kuitansi, no_bap, tgl_bap, no_spp_ls, no_bast_kpa)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pbj_paket_tahap (paket_id, no_tahap, fase, nama_tahap, nomor_dokumen, tanggal_dokumen, status_tahap, link_drive_dokumen, catatan_tahap, no_reviu_dpp, no_ba_nego, no_bahp, no_ba_reviu_ppk, no_sppbj, no_ba_pam, no_undangan_pam, no_kontrak, no_spp, no_ba_spl, no_laporan_pengendalian, no_ba_komisioning, no_baphp, no_bast, no_permohonan, tgl_permohonan, no_kuitansi, tgl_kuitansi, no_bap, tgl_bap, no_spp_ls, no_bast_kpa, no_skkp)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            nomor_dokumen = VALUES(nomor_dokumen),
            tanggal_dokumen = VALUES(tanggal_dokumen),
@@ -1252,7 +1251,8 @@ async function savePaket(data) {
            no_bap = VALUES(no_bap),
            tgl_bap = VALUES(tgl_bap),
            no_spp_ls = VALUES(no_spp_ls),
-           no_bast_kpa = VALUES(no_bast_kpa)`,
+           no_bast_kpa = VALUES(no_bast_kpa),
+           no_skkp = VALUES(no_skkp)`,
         [
           data.id, stageNo, Number(su.fase || 1), su.nama_tahap || existingStage.nama_tahap || '',
           su.nomor_dokumen || existingStage.nomor_dokumen || '',
@@ -1281,7 +1281,8 @@ async function savePaket(data) {
           su.no_bap || existingStage.no_bap || p.no_bap || null,
           su.tgl_bap || existingStage.tgl_bap || p.tgl_bap || null,
           su.no_spp_ls || existingStage.no_spp_ls || p.no_spp_ls || null,
-          su.no_bast_kpa || existingStage.no_bast_kpa || p.no_bast_kpa || null
+          su.no_bast_kpa || existingStage.no_bast_kpa || p.no_bast_kpa || null,
+          su.no_skkp || existingStage.no_skkp || p.no_skkp || null
         ]
       );
 

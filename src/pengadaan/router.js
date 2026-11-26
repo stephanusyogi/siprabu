@@ -87,12 +87,35 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
     await initDatabaseSchemaAndSeed();
 
     // Endpoint manual trigger sinkronisasi skenario database Tahap 16, Tahap 17 & Tahap 18
-    if ((pathname === '/api/cakra/sync-tahap16' || pathname === '/api/cakra/sync-tahap17' || pathname === '/api/cakra/sync-tahap18') && method === 'GET') {
+    if ((pathname === '/api/cakra/sync-tahap16' || pathname === '/api/cakra/sync-tahap17' || pathname === '/api/cakra/sync-tahap18') && (method === 'GET' || method === 'POST')) {
       const pool = getCakraPool();
+      const alterQueries = [
+        "ALTER TABLE pbj_paket ADD COLUMN no_skkp TEXT NULL",
+        "ALTER TABLE pbj_paket ADD COLUMN tgl_skkp VARCHAR(32) DEFAULT NULL",
+        "ALTER TABLE pbj_paket ADD COLUMN catatan_kualitas TEXT NULL",
+        "ALTER TABLE pbj_paket ADD COLUMN catatan_biaya TEXT NULL",
+        "ALTER TABLE pbj_paket ADD COLUMN catatan_waktu TEXT NULL",
+        "ALTER TABLE pbj_paket ADD COLUMN catatan_layanan TEXT NULL",
+        "ALTER TABLE pbj_paket ADD COLUMN rekomendasi_repeat_order TEXT NULL",
+        "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bap VARCHAR(191) DEFAULT NULL",
+        "ALTER TABLE pbj_paket_tahap ADD COLUMN no_spp_ls VARCHAR(191) DEFAULT NULL",
+        "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bast_kpa VARCHAR(191) DEFAULT NULL",
+        "ALTER TABLE pbj_paket_tahap ADD COLUMN no_skkp TEXT NULL"
+      ];
+      const results = [];
+      for (const q of alterQueries) {
+        try {
+          await pool.query(q);
+          results.push({ q, status: 'OK' });
+        } catch (e) {
+          results.push({ q, status: e.message });
+        }
+      }
       await ensurePaketMissingColumns(pool);
       return sendJson(res, 200, {
         ok: true,
-        message: 'Migrasi & sinkronisasi skenario Tahap 16, 17 & 18 (BAPHP, BAST, SPP-LS, SIKaP LKPP & SKKP) berhasil dijalankan ke database.'
+        message: 'Migrasi & sinkronisasi skenario Tahap 16, 17 & 18 (BAPHP, BAST, SPP-LS, SIKaP LKPP & SKKP) berhasil dijalankan ke database.',
+        results
       });
     }
 
