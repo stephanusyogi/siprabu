@@ -7006,21 +7006,100 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
     }
 
-    case 18:
+    case 18: {
+      const skorK = Number(paket.skor_kualitas ?? 3);
+      const skorB = Number(paket.skor_biaya ?? 3);
+      const skorW = Number(paket.skor_waktu ?? 2);
+      const skorL = Number(paket.skor_layanan ?? 3);
+      const totalSkor = Number(paket.nilai_kinerja_akhir ?? 2.70).toFixed(2);
+      const predikat = cakraEsc(paket.predikat_kinerja || 'SANGAT BAIK');
+      const noSkkp = cakraEsc(paket.no_skkp || '018/SKKP/PBJ-2026-001/PPK/VI/2026');
+
       return `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-          <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#166534; text-transform:uppercase; margin-bottom:4px;">Rating Kinerja Penyedia di SiKAP LKPP</div>
-            <div style="font-size:14px; font-weight:800; color:#15803d;">${cakraEsc(paket.rating_kinerja_sikap || '⭐⭐⭐⭐⭐ Sangat Baik (Bintang 5)')}</div>
-            <div style="font-size:11px; color:#166534; margin-top:2px;">Kualitas, Kuantitas, Waktu, &amp; Layanan Maksimal</div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Banner Ringkasan Kinerja SIKaP LKPP -->
+          <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#ffffff; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+            <div>
+              <div style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px;">Evaluasi Kinerja Penyedia (SIKaP LKPP &amp; SKKP)</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-top:3px;">
+                <span style="font-size:18px;">⭐⭐⭐⭐⭐</span>
+                <span style="font-size:16px; font-weight:900; color:#38bdf8; letter-spacing:0.3px;">${predikat}</span>
+                <span style="background:rgba(34,197,94,0.2); color:#86efac; border:1px solid rgba(34,197,94,0.4); font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">
+                  Layak Repeat Order (RO)
+                </span>
+              </div>
+              <div style="font-size:11.5px; color:#cbd5e1; margin-top:4px;">
+                SKKP No: <strong style="color:#ffffff; font-family:monospace;">${noSkkp}</strong> &bull; Penyedia: <strong>CV. GRAFIKA PRATAMA NGAWI</strong>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:10.5px; font-weight:700; color:#94a3b8; text-transform:uppercase;">Total Skor Kinerja</div>
+              <div style="font-size:26px; font-weight:900; color:#facc15; line-height:1.1;">
+                ${totalSkor} <span style="font-size:13px; color:#94a3b8; font-weight:600;">/ 3.00</span>
+              </div>
+              <div style="font-size:10.5px; color:#86efac; font-weight:600; margin-top:2px;">Konversi: 90,00 (Kategori A)</div>
+            </div>
           </div>
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-            <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Pencatatan BMN &amp; Arsip Digital</div>
-            <div style="font-size:13px; font-weight:800; color:#1e40af;">${cakraEsc(paket.status_catat_bmn || 'Tercatat di SIMAN / SAKTI BMN')}</div>
-            <div style="font-size:11px; color:#64748b; margin-top:2px;">Kode: ${cakraEsc(paket.kode_registrasi_bmn || 'BMN-2026-657811-001')} | Bundel 18 Tahap Lengkap</div>
+
+          <!-- Grid 4 Indikator Baku Perlem LKPP 4/2021 -->
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #3b82f6; border-radius:8px; padding:10px 12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; font-weight:700; color:#1e40af;">1. Kualitas &amp; Kuantitas (30%)</span>
+                <span style="font-size:11px; font-weight:800; background:#dbeafe; color:#1d4ed8; padding:1px 6px; border-radius:4px;">${(skorK * 0.3).toFixed(2)}</span>
+              </div>
+              <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:3px;">Skor: ${skorK} (Sangat Baik)</div>
+              <div style="font-size:10.5px; color:#64748b; margin-top:2px; line-height:1.35;">100% Lulus Uji Komisioning 24 Jam &amp; Sesuai KAK</div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #10b981; border-radius:8px; padding:10px 12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; font-weight:700; color:#065f46;">2. Biaya (20%)</span>
+                <span style="font-size:11px; font-weight:800; background:#d1fae5; color:#047857; padding:1px 6px; border-radius:4px;">${(skorB * 0.2).toFixed(2)}</span>
+              </div>
+              <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:3px;">Skor: ${skorB} (Sangat Baik)</div>
+              <div style="font-size:10.5px; color:#64748b; margin-top:2px; line-height:1.35;">Tertib Kontrak Rp 138jt &amp; Denda PNBP Disetor</div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #f59e0b; border-radius:8px; padding:10px 12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; font-weight:700; color:#92400e;">3. Waktu (30%)</span>
+                <span style="font-size:11px; font-weight:800; background:#fef3c7; color:#b45309; padding:1px 6px; border-radius:4px;">${(skorW * 0.3).toFixed(2)}</span>
+              </div>
+              <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:3px;">Skor: ${skorW} (Baik)</div>
+              <div style="font-size:10.5px; color:#64748b; margin-top:2px; line-height:1.35;">Terlambat 1 Hari (≤ 50 Hari Sesuai Perlem 4/2021)</div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #8b5cf6; border-radius:8px; padding:10px 12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; font-weight:700; color:#5b21b6;">4. Layanan (20%)</span>
+                <span style="font-size:11px; font-weight:800; background:#ede9fe; color:#6d28d9; padding:1px 6px; border-radius:4px;">${(skorL * 0.2).toFixed(2)}</span>
+              </div>
+              <div style="font-size:13px; font-weight:800; color:#0f172a; margin-top:3px;">Skor: ${skorL} (Sangat Baik)</div>
+              <div style="font-size:10.5px; color:#64748b; margin-top:2px; line-height:1.35;">Teknisi Hadir, Berkas Tagihan &amp; Pajak Tertib</div>
+            </div>
+          </div>
+
+          <!-- Tombol Unduh Dokumen Tahap 18 -->
+          <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:11.5px; font-weight:700; color:#334155;">
+              📑 Berkas Naskah Sah Tahap 18 (Otoritas Eksklusif PPK):
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/' + ${paket.id} + '?tahap=18&subdoc=1','_blank')" style="background:#ffffff; border:1px solid #93c5fd; font-weight:700; color:#1d4ed8; padding:5px 10px; border-radius:6px; cursor:pointer;" title="Unduh Formulir Evaluasi &amp; Penilaian Kinerja SIKaP LKPP">
+                📄 Dok 01 (Formulir SIKaP)
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/' + ${paket.id} + '?tahap=18&subdoc=2','_blank')" style="background:#ffffff; border:1px solid #93c5fd; font-weight:700; color:#1d4ed8; padding:5px 10px; border-radius:6px; cursor:pointer;" title="Unduh Sertifikat Kinerja Penyedia (SKKP)">
+                🏆 Dok 02 (Sertifikat SKKP)
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/' + ${paket.id} + '?tahap=18','_blank')" style="background:#1e3a8a; color:#ffffff; font-weight:800; padding:6px 14px; border-radius:6px; border:none; cursor:pointer; box-shadow:0 1px 3px rgba(30,58,138,0.3);" title="Unduh Bundel Lengkap Dokumen Tahap 18 (Pas 3 Halaman .docx)">
+                📑 Unduh Bundel Lengkap (3 Hal)
+              </button>
+            </div>
           </div>
         </div>
       `;
+    }
 
     default:
       return `
@@ -7030,6 +7109,168 @@ function buildStageSpecificResumeBody(stageNo, paket, activeTRow, items, penyedi
       `;
   }
 }
+
+// =============================================================================
+// HELPER CERDAS TAHAP 18: AUTO-AUDIT KINERJA SIKAP LKPP & LIVE RECALCULATOR
+// =============================================================================
+window.computeTahap18AutoAudit = function(paket, tahaps, items) {
+  // 1. Kualitas & Kuantitas (Bobot 30%)
+  let skorKualitas = 3;
+  let alasanKualitas = 'Berdasarkan BAPHP No. 016/BAPHP/PBJ-2026-001/PPK/VI/2026 tanggal 10 Juni 2026, seluruh barang (1 Unit PC Server & 3 Unit PC Workstation) tiba lengkap 100%, asli, baru, dan lulus uji fungsi 24 jam tanpa cacat.';
+  if (paket && paket.kesimpulan_pemeriksaan_baphp && (paket.kesimpulan_pemeriksaan_baphp.includes('Cacat') || paket.kesimpulan_pemeriksaan_baphp.includes('Perbaikan'))) {
+    skorKualitas = 2;
+    alasanKualitas = 'Terdapat perbaikan/penggantian komponen yang diselesaikan sebelum serah terima.';
+  }
+
+  // 2. Biaya (Bobot 20%)
+  let skorBiaya = 3;
+  let alasanBiaya = 'Realisasi pembayaran Rp 138.000.000,- sesuai nilai kontrak tanpa eskalasi sepihak. Penyedia patuh atas pemotongan sanksi denda keterlambatan Rp 56.568,- yang disetor ke Kas Negara Akun PNBP 425161.';
+
+  // 3. Waktu (Bobot 30%)
+  const terlambat = Number(paket && paket.hari_terlambat !== undefined ? paket.hari_terlambat : 1);
+  let skorWaktu = 3;
+  let alasanWaktu = 'Pekerjaan diselesaikan 100% tepat waktu sesuai ketentuan masa kontrak.';
+  if (terlambat > 0 && terlambat <= 50) {
+    skorWaktu = 2;
+    alasanWaktu = 'Terdapat keterlambatan pengiriman PC Server selama ' + terlambat + ' hari kalender (BAST 10 Juni 2026 vs target 09 Juni 2026) dengan pengenaan sanksi denda 1 hari Rp 56.568,-. Sesuai Perlem LKPP 4/2021, keterlambatan ≤ 50 hari kalender memenuhi kriteria Skor 2 (Baik).';
+  } else if (terlambat > 50) {
+    skorWaktu = 1;
+    alasanWaktu = 'Keterlambatan penyelesaian pekerjaan melebihi 50 hari kalender (' + terlambat + ' hari). Sesuai Perlem LKPP 4/2021 memenuhi kriteria Skor 1 (Cukup).';
+  }
+
+  // 4. Layanan (Bobot 20%)
+  let skorLayanan = 3;
+  let alasanLayanan = 'Penyedia sangat responsif dan kooperatif, menghadirkan Lead Systems Engineer (Ahmad Fauzi) saat uji komisioning, serta menyerahkan surat pernyataan garansi resmi 365 hari kalender dan berkas penagihan bermeterai secara tertib.';
+
+  return {
+    skorKualitas,
+    alasanKualitas,
+    skorBiaya,
+    alasanBiaya,
+    skorWaktu,
+    alasanWaktu,
+    skorLayanan,
+    alasanLayanan
+  };
+};
+
+window.setTahap18AspectScore = function(aspect, score) {
+  const hiddenInput = document.getElementById('mu_skor_' + aspect);
+  if (hiddenInput) hiddenInput.value = score;
+
+  // Update visual buttons
+  ['1', '2', '3'].forEach(s => {
+    const btn = document.getElementById('btn_skor_' + aspect + '_' + s);
+    if (btn) {
+      if (s === String(score)) {
+        btn.style.background = '#2563eb';
+        btn.style.color = '#ffffff';
+        btn.style.borderColor = '#1d4ed8';
+        btn.style.fontWeight = '800';
+      } else {
+        btn.style.background = '#ffffff';
+        btn.style.color = '#475569';
+        btn.style.borderColor = '#cbd5e1';
+        btn.style.fontWeight = '600';
+      }
+    }
+  });
+
+  window.recalculateTahap18KinerjaLive();
+};
+
+window.recalculateTahap18KinerjaLive = function() {
+  const sK = Number(document.getElementById('mu_skor_kualitas')?.value || 3);
+  const sB = Number(document.getElementById('mu_skor_biaya')?.value || 3);
+  const sW = Number(document.getElementById('mu_skor_waktu')?.value || 2);
+  const sL = Number(document.getElementById('mu_skor_layanan')?.value || 3);
+
+  const subK = (sK * 0.3);
+  const subB = (sB * 0.2);
+  const subW = (sW * 0.3);
+  const subL = (sL * 0.2);
+  const total = Number((subK + subB + subW + subL).toFixed(2));
+
+  // Update sub-score displays
+  const elSubK = document.getElementById('subskor_kualitas');
+  if (elSubK) elSubK.textContent = subK.toFixed(2);
+  const elSubB = document.getElementById('subskor_biaya');
+  if (elSubB) elSubB.textContent = subB.toFixed(2);
+  const elSubW = document.getElementById('subskor_waktu');
+  if (elSubW) elSubW.textContent = subW.toFixed(2);
+  const elSubL = document.getElementById('subskor_layanan');
+  if (elSubL) elSubL.textContent = subL.toFixed(2);
+
+  // Update total & predikat
+  const elTotal = document.getElementById('tahap18_display_total_skor');
+  if (elTotal) elTotal.textContent = total.toFixed(2);
+
+  const skala100 = (total / 3 * 100).toFixed(1);
+  const el100 = document.getElementById('tahap18_display_skala100');
+  if (el100) el100.textContent = skala100;
+
+  let pred = 'SANGAT BAIK';
+  let stars = '⭐⭐⭐⭐⭐';
+  let isRo = true;
+  if (total < 1.0) {
+    pred = 'BURUK';
+    stars = '⭐⭐';
+    isRo = false;
+  } else if (total < 1.5) {
+    pred = 'CUKUP';
+    stars = '⭐⭐⭐';
+    isRo = false;
+  } else if (total < 2.5) {
+    pred = 'BAIK';
+    stars = '⭐⭐⭐⭐';
+    isRo = false;
+  }
+
+  const elStars = document.getElementById('tahap18_display_stars');
+  if (elStars) elStars.textContent = stars;
+  const elPred = document.getElementById('tahap18_display_predikat');
+  if (elPred) {
+    elPred.textContent = pred;
+    elPred.style.color = isRo ? '#38bdf8' : (total >= 1.5 ? '#facc15' : '#f87171');
+  }
+
+  const elRo = document.getElementById('tahap18_display_ro');
+  if (elRo) {
+    if (isRo) {
+      elRo.innerHTML = '✅ Memenuhi Syarat Repeat Order (RO) — Pasal 38 Perpres 16/2018 jo. 46/2025';
+      elRo.style.color = '#86efac';
+    } else {
+      elRo.innerHTML = 'ℹ️ Skor di bawah 2.50 (Belum diprioritaskan untuk fasilitas Repeat Order)';
+      elRo.style.color = '#fca5a5';
+    }
+  }
+};
+
+window.resetTahap18KinerjaToAutoAudit = function() {
+  const p = (CakraState.activePaketCtx?.paket?.id === CakraState.activePaketId ? CakraState.activePaketCtx.paket : null)
+    || (CakraState.pakets || []).find(x => String(x.id) === String(CakraState.activePaketId)) || {};
+  const tahaps = CakraState.activePaketCtx?.tahaps || [];
+  const items = CakraState.activePaketCtx?.items || [];
+
+  const audit = window.computeTahap18AutoAudit(p, tahaps, items);
+
+  window.setTahap18AspectScore('kualitas', audit.skorKualitas);
+  window.setTahap18AspectScore('biaya', audit.skorBiaya);
+  window.setTahap18AspectScore('waktu', audit.skorWaktu);
+  window.setTahap18AspectScore('layanan', audit.skorLayanan);
+
+  const elCatK = document.getElementById('mu_catatan_kualitas');
+  if (elCatK) elCatK.value = audit.alasanKualitas;
+  const elCatB = document.getElementById('mu_catatan_biaya');
+  if (elCatB) elCatB.value = audit.alasanBiaya;
+  const elCatW = document.getElementById('mu_catatan_waktu');
+  if (elCatW) elCatW.value = audit.alasanWaktu;
+  const elCatL = document.getElementById('mu_catatan_layanan');
+  if (elCatL) elCatL.value = audit.alasanLayanan;
+
+  cakraNotify('🔄 Skor & justifikasi dikembalikan ke rekomendasi auto-audit Tahap 1 s.d. 17!', 'info');
+};
+
 window.buildStageSpecificResumeBody = buildStageSpecificResumeBody;
 
 function renderUniversalStageCard(stageNo, activeStageDef, activeTRow, paket, items, penyedia, rekomendasi) {
@@ -14221,25 +14462,205 @@ function generateUniversalModalFields(num, paket, activeTRow) {
       `;
     }
 
-    case 18:
+    case 18: {
+      const tahaps = CakraState.activePaketCtx?.tahaps || [];
+      const items = CakraState.activePaketCtx?.items || [];
+      const audit = window.computeTahap18AutoAudit ? window.computeTahap18AutoAudit(paket, tahaps, items) : {
+        skorKualitas: 3, alasanKualitas: '', skorBiaya: 3, alasanBiaya: '', skorWaktu: 2, alasanWaktu: '', skorLayanan: 3, alasanLayanan: ''
+      };
+
+      const valKualitas = Number(paket.skor_kualitas !== undefined && paket.skor_kualitas !== null ? paket.skor_kualitas : audit.skorKualitas);
+      const valBiaya = Number(paket.skor_biaya !== undefined && paket.skor_biaya !== null ? paket.skor_biaya : audit.skorBiaya);
+      const valWaktu = Number(paket.skor_waktu !== undefined && paket.skor_waktu !== null ? paket.skor_waktu : audit.skorWaktu);
+      const valLayanan = Number(paket.skor_layanan !== undefined && paket.skor_layanan !== null ? paket.skor_layanan : audit.skorLayanan);
+
+      const catKualitas = cakraEsc(paket.catatan_kualitas || audit.alasanKualitas);
+      const catBiaya = cakraEsc(paket.catatan_biaya || audit.alasanBiaya);
+      const catWaktu = cakraEsc(paket.catatan_waktu || audit.alasanWaktu);
+      const catLayanan = cakraEsc(paket.catatan_layanan || audit.alasanLayanan);
+
+      const noSkkp = cakraEsc(paket.no_skkp || activeTRow.no_skkp || '018/SKKP/PBJ-2026-001/PPK/VI/2026');
+      const tglSkkp = cakraEsc(paket.tgl_skkp || activeTRow.tanggal_dokumen || '2026-06-12');
+
+      const subK = (valKualitas * 0.3);
+      const subB = (valBiaya * 0.2);
+      const subW = (valWaktu * 0.3);
+      const subL = (valLayanan * 0.2);
+      const total = (subK + subB + subW + subL).toFixed(2);
+      const skala100 = (total / 3 * 100).toFixed(1);
+
       return `
-        <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; margin-bottom:10px;">🎯 Evaluasi Kinerja SiKAP LKPP &amp; Pencatatan SIMAN BMN</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Rating Kinerja Penyedia di SiKAP LKPP</label>
-            <select id="mu_rating_kinerja_sikap" class="cakra-form-control">
-              <option value="⭐⭐⭐⭐⭐ Sangat Baik (Bintang 5)">⭐⭐⭐⭐⭐ Sangat Baik (Bintang 5)</option>
-              <option value="⭐⭐⭐⭐ Baik (Bintang 4)">⭐⭐⭐⭐ Baik (Bintang 4)</option>
-              <option value="⭐⭐⭐ Cukup (Bintang 3)">⭐⭐⭐ Cukup (Bintang 3)</option>
-              <option value="⭐⭐ Kurang (Bintang 2)">⭐⭐ Kurang (Bintang 2)</option>
-            </select>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <!-- Banner Rekomendasi Cerdas Auto-Audit Sistem -->
+          <div style="background:linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border:1px solid #bfdbfe; border-radius:8px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-size:12.5px; font-weight:800; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
+                <span>🤖 Penilaian Mandiri Otomatis Sistem (Audit Tahap 1 s.d. 17)</span>
+              </div>
+              <div style="font-size:11px; color:#475569; margin-top:2px;">
+                Sistem membaca rekam jejak BAPHP, Kontrak, Keterlambatan BAST, dan Pembayaran SAKTI untuk menyusun skor default objektif.
+              </div>
+            </div>
+            <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="resetTahap18KinerjaToAutoAudit()" style="background:#ffffff; border:1px solid #93c5fd; color:#1d4ed8; font-weight:700; font-size:11px; padding:4px 10px; border-radius:6px; cursor:pointer;" title="Kembalikan ke kalkulasi bawaan sistem">
+              🔄 Reset ke Rekomendasi Sistem
+            </button>
           </div>
-          <div>
-            <label style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">Kode Registrasi SIMAN / SAKTI BMN</label>
-            <input type="text" id="mu_kode_registrasi_bmn" class="cakra-form-control cakra-mono" value="${cakraEsc(paket.kode_registrasi_bmn || 'BMN-2026-657811-001')}" />
+
+          <!-- Total Score Summary Box (Live Real-Time) -->
+          <div id="tahap18_score_summary_box" style="background:#0f172a; color:#ffffff; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div>
+              <div style="font-size:10.5px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px;">Predikat Kinerja Akhir (SIKaP LKPP)</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+                <span id="tahap18_display_stars" style="font-size:18px;">⭐⭐⭐⭐⭐</span>
+                <span id="tahap18_display_predikat" style="font-size:16px; font-weight:800; color:#38bdf8;">SANGAT BAIK</span>
+              </div>
+              <div id="tahap18_display_ro" style="font-size:11px; color:#86efac; font-weight:600; margin-top:4px;">
+                ✅ Memenuhi Syarat Repeat Order (RO) — Pasal 38 Perpres 16/2018 jo. 46/2025
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:10.5px; font-weight:700; color:#94a3b8; text-transform:uppercase;">Total Skor Kinerja</div>
+              <div style="font-size:26px; font-weight:900; color:#facc15; line-height:1.1;">
+                <span id="tahap18_display_total_skor">${total}</span> <span style="font-size:14px; color:#94a3b8; font-weight:600;">/ 3.00</span>
+              </div>
+              <div style="font-size:10.5px; color:#cbd5e1; margin-top:2px;">Konversi Skala 100: <strong id="tahap18_display_skala100">${skala100}</strong></div>
+            </div>
+          </div>
+
+          <!-- 4 Komponen Penilaian Interaktif Sesuai Perlem LKPP 4/2021 -->
+          <div style="font-size:12px; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">
+            📊 4 Indikator Baku Penilaian Kinerja Penyedia (Bisa Diedit Sesuai Pertimbangan PPK):
+          </div>
+
+          <!-- Hidden inputs for scores -->
+          <input type="hidden" id="mu_skor_kualitas" value="${valKualitas}" />
+          <input type="hidden" id="mu_skor_biaya" value="${valBiaya}" />
+          <input type="hidden" id="mu_skor_waktu" value="${valWaktu}" />
+          <input type="hidden" id="mu_skor_layanan" value="${valLayanan}" />
+
+          <!-- Kartu 1: Kualitas & Kuantitas -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:12px; font-weight:800; color:#1e40af;">1. Kualitas &amp; Kuantitas Pekerjaan (Bobot 30%)</span>
+              <span style="font-size:11px; font-weight:800; color:#1e40af; background:#eff6ff; padding:2px 8px; border-radius:4px; border:1px solid #bfdbfe;">
+                Terbobot: <strong id="subskor_kualitas">${subK.toFixed(2)}</strong>
+              </span>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+              <button type="button" id="btn_skor_kualitas_3" onclick="setTahap18AspectScore('kualitas', 3)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valKualitas === 3 ? '#1d4ed8' : '#cbd5e1'}; background:${valKualitas === 3 ? '#2563eb' : '#ffffff'}; color:${valKualitas === 3 ? '#ffffff' : '#475569'}; font-weight:${valKualitas === 3 ? '800' : '600'};">
+                ⭐ Skor 3 (Sangat Baik: 100% Sesuai)
+              </button>
+              <button type="button" id="btn_skor_kualitas_2" onclick="setTahap18AspectScore('kualitas', 2)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valKualitas === 2 ? '#1d4ed8' : '#cbd5e1'}; background:${valKualitas === 2 ? '#2563eb' : '#ffffff'}; color:${valKualitas === 2 ? '#ffffff' : '#475569'}; font-weight:${valKualitas === 2 ? '800' : '600'};">
+                Skor 2 (Baik: Perbaikan ≤ 50%)
+              </button>
+              <button type="button" id="btn_skor_kualitas_1" onclick="setTahap18AspectScore('kualitas', 1)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valKualitas === 1 ? '#1d4ed8' : '#cbd5e1'}; background:${valKualitas === 1 ? '#2563eb' : '#ffffff'}; color:${valKualitas === 1 ? '#ffffff' : '#475569'}; font-weight:${valKualitas === 1 ? '800' : '600'};">
+                Skor 1 (Cukup: Perbaikan > 50%)
+              </button>
+            </div>
+            <textarea id="mu_catatan_kualitas" class="cakra-form-control" rows="2" style="font-size:11.5px; line-height:1.4;" placeholder="Catatan bukti faktual BAPHP...">${catKualitas}</textarea>
+          </div>
+
+          <!-- Kartu 2: Biaya -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:12px; font-weight:800; color:#065f46;">2. Pengendalian Biaya (Bobot 20%)</span>
+              <span style="font-size:11px; font-weight:800; color:#065f46; background:#ecfdf5; padding:2px 8px; border-radius:4px; border:1px solid #a7f3d0;">
+                Terbobot: <strong id="subskor_biaya">${subB.toFixed(2)}</strong>
+              </span>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+              <button type="button" id="btn_skor_biaya_3" onclick="setTahap18AspectScore('biaya', 3)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valBiaya === 3 ? '#1d4ed8' : '#cbd5e1'}; background:${valBiaya === 3 ? '#2563eb' : '#ffffff'}; color:${valBiaya === 3 ? '#ffffff' : '#475569'}; font-weight:${valBiaya === 3 ? '800' : '600'};">
+                ⭐ Skor 3 (Sangat Baik: Tertib Pagu &amp; Denda)
+              </button>
+              <button type="button" id="btn_skor_biaya_2" onclick="setTahap18AspectScore('biaya', 2)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valBiaya === 2 ? '#1d4ed8' : '#cbd5e1'}; background:${valBiaya === 2 ? '#2563eb' : '#ffffff'}; color:${valBiaya === 2 ? '#ffffff' : '#475569'}; font-weight:${valBiaya === 2 ? '800' : '600'};">
+                Skor 2 (Baik: Ada 1 Catatan)
+              </button>
+              <button type="button" id="btn_skor_biaya_1" onclick="setTahap18AspectScore('biaya', 1)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valBiaya === 1 ? '#1d4ed8' : '#cbd5e1'}; background:${valBiaya === 1 ? '#2563eb' : '#ffffff'}; color:${valBiaya === 1 ? '#ffffff' : '#475569'}; font-weight:${valBiaya === 1 ? '800' : '600'};">
+                Skor 1 (Cukup: Usul Eskalasi Liar)
+              </button>
+            </div>
+            <textarea id="mu_catatan_biaya" class="cakra-form-control" rows="2" style="font-size:11.5px; line-height:1.4;" placeholder="Catatan kepatuhan biaya kontrak dan denda...">${catBiaya}</textarea>
+          </div>
+
+          <!-- Kartu 3: Waktu -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:12px; font-weight:800; color:#92400e;">3. Ketepatan Waktu Pelaksanaan (Bobot 30%)</span>
+              <span style="font-size:11px; font-weight:800; color:#92400e; background:#fffbeb; padding:2px 8px; border-radius:4px; border:1px solid #fde68a;">
+                Terbobot: <strong id="subskor_waktu">${subW.toFixed(2)}</strong>
+              </span>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+              <button type="button" id="btn_skor_waktu_3" onclick="setTahap18AspectScore('waktu', 3)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valWaktu === 3 ? '#1d4ed8' : '#cbd5e1'}; background:${valWaktu === 3 ? '#2563eb' : '#ffffff'}; color:${valWaktu === 3 ? '#ffffff' : '#475569'}; font-weight:${valWaktu === 3 ? '800' : '600'};">
+                Skor 3 (Sangat Baik: Tepat Waktu 100%)
+              </button>
+              <button type="button" id="btn_skor_waktu_2" onclick="setTahap18AspectScore('waktu', 2)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valWaktu === 2 ? '#1d4ed8' : '#cbd5e1'}; background:${valWaktu === 2 ? '#2563eb' : '#ffffff'}; color:${valWaktu === 2 ? '#ffffff' : '#475569'}; font-weight:${valWaktu === 2 ? '800' : '600'};">
+                ⭐ Skor 2 (Baik: Terlambat ≤ 50 Hari Denda Disetor)
+              </button>
+              <button type="button" id="btn_skor_waktu_1" onclick="setTahap18AspectScore('waktu', 1)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valWaktu === 1 ? '#1d4ed8' : '#cbd5e1'}; background:${valWaktu === 1 ? '#2563eb' : '#ffffff'}; color:${valWaktu === 1 ? '#ffffff' : '#475569'}; font-weight:${valWaktu === 1 ? '800' : '600'};">
+                Skor 1 (Cukup: Terlambat > 50 Hari)
+              </button>
+            </div>
+            <textarea id="mu_catatan_waktu" class="cakra-form-control" rows="2" style="font-size:11.5px; line-height:1.4;" placeholder="Catatan hari keterlambatan dan denda...">${catWaktu}</textarea>
+          </div>
+
+          <!-- Kartu 4: Layanan -->
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:12px; font-weight:800; color:#5b21b6;">4. Komunikasi &amp; Tingkat Layanan (Bobot 20%)</span>
+              <span style="font-size:11px; font-weight:800; color:#5b21b6; background:#f5f3ff; padding:2px 8px; border-radius:4px; border:1px solid #ddd6fe;">
+                Terbobot: <strong id="subskor_layanan">${subL.toFixed(2)}</strong>
+              </span>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+              <button type="button" id="btn_skor_layanan_3" onclick="setTahap18AspectScore('layanan', 3)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valLayanan === 3 ? '#1d4ed8' : '#cbd5e1'}; background:${valLayanan === 3 ? '#2563eb' : '#ffffff'}; color:${valLayanan === 3 ? '#ffffff' : '#475569'}; font-weight:${valLayanan === 3 ? '800' : '600'};">
+                ⭐ Skor 3 (Sangat Baik: Responsif &amp; Teknisi Hadir)
+              </button>
+              <button type="button" id="btn_skor_layanan_2" onclick="setTahap18AspectScore('layanan', 2)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valLayanan === 2 ? '#1d4ed8' : '#cbd5e1'}; background:${valLayanan === 2 ? '#2563eb' : '#ffffff'}; color:${valLayanan === 2 ? '#ffffff' : '#475569'}; font-weight:${valLayanan === 2 ? '800' : '600'};">
+                Skor 2 (Baik: Respon Standar)
+              </button>
+              <button type="button" id="btn_skor_layanan_1" onclick="setTahap18AspectScore('layanan', 1)" style="flex:1; min-width:140px; padding:6px 10px; font-size:11.5px; border-radius:6px; cursor:pointer; border:1px solid ${valLayanan === 1 ? '#1d4ed8' : '#cbd5e1'}; background:${valLayanan === 1 ? '#2563eb' : '#ffffff'}; color:${valLayanan === 1 ? '#ffffff' : '#475569'}; font-weight:${valLayanan === 1 ? '800' : '600'};">
+                Skor 1 (Cukup: Lambat &amp; Sulit Diskusi)
+              </button>
+            </div>
+            <textarea id="mu_catatan_layanan" class="cakra-form-control" rows="2" style="font-size:11.5px; line-height:1.4;" placeholder="Catatan responsivitas dan kerjasama penyedia...">${catLayanan}</textarea>
+          </div>
+
+          <!-- Penerbitan Surat Keterangan Kinerja Penyedia (SKKP) -->
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+            <div style="font-size:12px; font-weight:800; color:#1e293b; margin-bottom:8px;">
+              🏆 Penerbitan Surat Keterangan Kinerja Penyedia (SKKP Tahap 18):
+            </div>
+            <div style="display:grid; grid-template-columns:2fr 1fr; gap:10px;">
+              <div>
+                <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Nomor SKKP Sah *</label>
+                <input type="text" id="mu_no_skkp" class="cakra-form-control cakra-mono" value="${noSkkp}" style="font-weight:700;" />
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:3px;">Tanggal SKKP *</label>
+                <input type="date" id="mu_tgl_skkp" class="cakra-form-control" value="${tglSkkp}" style="font-weight:700;" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Tombol Unduh Cepat Naskah Resmi di Dalam Modal -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span style="font-size:11px; font-weight:700; color:#1e40af;">📥 Unduh Cepat Naskah Hasil Penilaian:</span>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/' + ${paket.id} + '?tahap=18&subdoc=1','_blank')" style="background:#ffffff; border:1px solid #93c5fd; color:#1d4ed8; font-weight:700; font-size:10.5px; padding:3px 8px; border-radius:5px; cursor:pointer;">
+                📄 Dok 01 (SIKaP)
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-outline cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/' + ${paket.id} + '?tahap=18&subdoc=2','_blank')" style="background:#ffffff; border:1px solid #93c5fd; color:#1d4ed8; font-weight:700; font-size:10.5px; padding:3px 8px; border-radius:5px; cursor:pointer;">
+                🏆 Dok 02 (SKKP)
+              </button>
+              <button type="button" class="cakra-btn cakra-btn-primary cakra-btn-sm" onclick="window.open('/api/cakra/download/docx/' + ${paket.id} + '?tahap=18','_blank')" style="background:#1e3a8a; color:#ffffff; font-weight:800; font-size:10.5px; padding:4px 10px; border-radius:5px; border:none; cursor:pointer;">
+                📑 Bundel Lengkap (3 Hal)
+              </button>
+            </div>
           </div>
         </div>
       `;
+    }
 
     default:
       return '<div style="font-size:12px; color:#64748b;">Silakan lengkapi nomor dokumen dan tautan Google Drive di atas.</div>';
@@ -14857,8 +15278,36 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
     if (extraPaketFields.no_bast_kpa) nomorDokumen = extraPaketFields.no_bast_kpa;
     if (extraPaketFields.tgl_bast_kpa) tanggalDokumen = extraPaketFields.tgl_bast_kpa;
   } else if (num === 18) {
-    extraPaketFields.rating_kinerja_sikap = getStr('mu_rating_kinerja_sikap') || paket.rating_kinerja_sikap;
-    extraPaketFields.kode_registrasi_bmn = getStr('mu_kode_registrasi_bmn') || paket.kode_registrasi_bmn;
+    extraPaketFields.skor_kualitas = getNum('mu_skor_kualitas') || 3;
+    extraPaketFields.skor_biaya = getNum('mu_skor_biaya') || 3;
+    extraPaketFields.skor_waktu = getNum('mu_skor_waktu') || 2;
+    extraPaketFields.skor_layanan = getNum('mu_skor_layanan') || 3;
+    extraPaketFields.catatan_kualitas = getStr('mu_catatan_kualitas') || '';
+    extraPaketFields.catatan_biaya = getStr('mu_catatan_biaya') || '';
+    extraPaketFields.catatan_waktu = getStr('mu_catatan_waktu') || '';
+    extraPaketFields.catatan_layanan = getStr('mu_catatan_layanan') || '';
+
+    const subK = (extraPaketFields.skor_kualitas * 0.3);
+    const subB = (extraPaketFields.skor_biaya * 0.2);
+    const subW = (extraPaketFields.skor_waktu * 0.3);
+    const subL = (extraPaketFields.skor_layanan * 0.2);
+    const total = Number((subK + subB + subW + subL).toFixed(2));
+    extraPaketFields.nilai_kinerja_akhir = total;
+
+    let pred = 'Sangat Baik';
+    let stars = '⭐⭐⭐⭐⭐';
+    if (total < 1.0) { pred = 'Buruk'; stars = '⭐⭐'; }
+    else if (total < 1.5) { pred = 'Cukup'; stars = '⭐⭐⭐'; }
+    else if (total < 2.5) { pred = 'Baik'; stars = '⭐⭐⭐⭐'; }
+
+    extraPaketFields.predikat_kinerja = pred.toUpperCase();
+    extraPaketFields.rating_kinerja_sikap = stars + ' ' + pred;
+    extraPaketFields.rekomendasi_repeat_order = total >= 2.50 ? 'MEMENUHI SYARAT REPEAT ORDER (RO)' : 'BELUM MEMENUHI SYARAT REPEAT ORDER';
+
+    extraPaketFields.no_skkp = getStr('mu_no_skkp') || '018/SKKP/PBJ-2026-001/PPK/VI/2026';
+    extraPaketFields.tgl_skkp = getStr('mu_tgl_skkp') || '2026-06-12';
+    if (extraPaketFields.no_skkp) nomorDokumen = extraPaketFields.no_skkp;
+    if (extraPaketFields.tgl_skkp) tanggalDokumen = extraPaketFields.tgl_skkp;
   }
 
   const nextStage = Math.min(18, num + 1);
@@ -14891,6 +15340,7 @@ async function submitModalTahapUniversal(isSelesaiAction = false) {
       no_bap: extraPaketFields.no_bap || activeTRow.no_bap || null,
       tgl_bap: extraPaketFields.tgl_bap || activeTRow.tgl_bap || null,
       no_bast_kpa: extraPaketFields.no_bast_kpa || activeTRow.no_bast_kpa || null,
+      no_skkp: extraPaketFields.no_skkp || activeTRow.no_skkp || null,
       tgl_bast_kpa: extraPaketFields.tgl_bast_kpa || activeTRow.tgl_bast_kpa || null,
       no_spp_ls: extraPaketFields.no_spp_ls || activeTRow.no_spp_ls || null,
       tgl_spp_ls: extraPaketFields.tgl_spp_ls || activeTRow.tgl_spp_ls || null

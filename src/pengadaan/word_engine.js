@@ -47,6 +47,7 @@ const {
 } = require('./ssuk_sskk_template');
 const { buildStage16Sections: buildStage16SectionsModular } = require('./word_engine_tahap16');
 const { buildStage17Sections } = require('./word_engine_tahap17');
+const { buildStage18Sections } = require('./word_engine_tahap18');
 
 const BORDER_NONE = {
   top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
@@ -8733,6 +8734,9 @@ function buildSectionsForStage(stageNo, ctx, isFirstStageInDoc = true) {
   if (stageNo === 17) {
     return buildStage17Sections(ctx, tahapRow, keu, isFirstStageInDoc);
   }
+  if (stageNo === 18) {
+    return buildStage18Sections(ctx, tahapRow, keu, isFirstStageInDoc);
+  }
 
   // Tentukan pihak penandatangan kiri & label Kotak Paraf sesuai tahap
   let pihakKiri = null;
@@ -8978,16 +8982,22 @@ async function generateWordBuffer(ctx, modeOrStage = 13, subdoc = null) {
       first = false;
     }
   } else {
-    const allSecs = buildSectionsForStage(stageNum, ctx, true);
-    if (subdoc && !isNaN(Number(subdoc))) {
-      const subIdx = Number(subdoc) - 1;
-      if (allSecs[subIdx]) {
-        sections = [allSecs[subIdx]];
+    if (stageNum === 18 && subdoc) {
+      const tRow = (ctx.tahaps || []).find(t => Number(t.no_tahap) === 18) || {};
+      const keu = hitungKeuanganKontrak(ctx.paket);
+      sections = buildStage18Sections(ctx, tRow, keu, true, subdoc);
+    } else {
+      const allSecs = buildSectionsForStage(stageNum, ctx, true);
+      if (subdoc && !isNaN(Number(subdoc))) {
+        const subIdx = Number(subdoc) - 1;
+        if (allSecs[subIdx]) {
+          sections = [allSecs[subIdx]];
+        } else {
+          sections = allSecs;
+        }
       } else {
         sections = allSecs;
       }
-    } else {
-      sections = allSecs;
     }
   }
 

@@ -282,9 +282,17 @@ async function ensurePaketMissingColumns(pool) {
     "ALTER TABLE pbj_paket ADD COLUMN nilai_kas_sp2d DECIMAL(15,2) DEFAULT 122403891.00",
     "ALTER TABLE pbj_paket ADD COLUMN akun_denda_pnbp VARCHAR(32) DEFAULT '425161'",
     "ALTER TABLE pbj_paket ADD COLUMN catatan_pembayaran TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN no_skkp VARCHAR(191) DEFAULT '018/SKKP/PBJ-2026-001/PPK/VI/2026'",
+    "ALTER TABLE pbj_paket ADD COLUMN tgl_skkp VARCHAR(32) DEFAULT '2026-06-12'",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_kualitas TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_biaya TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_waktu TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN catatan_layanan TEXT DEFAULT NULL",
+    "ALTER TABLE pbj_paket ADD COLUMN rekomendasi_repeat_order VARCHAR(100) DEFAULT 'MEMENUHI SYARAT REPEAT ORDER (RO)'",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bap VARCHAR(191) DEFAULT NULL",
     "ALTER TABLE pbj_paket_tahap ADD COLUMN no_spp_ls VARCHAR(191) DEFAULT NULL",
-    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bast_kpa VARCHAR(191) DEFAULT NULL"
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_bast_kpa VARCHAR(191) DEFAULT NULL",
+    "ALTER TABLE pbj_paket_tahap ADD COLUMN no_skkp VARCHAR(191) DEFAULT NULL"
   ];
 
   try {
@@ -453,6 +461,46 @@ async function ensurePaketMissingColumns(pool) {
     }
   } catch (e) {
     console.warn('[DB-MIGRATE-WARN] Gagal migrasi Tahap 17:', e.message);
+  }
+
+  // Migrasi otomatis sinkronisasi skenario Tahap 18 SIKaP LKPP & SKKP (Penilaian Kinerja 4 Aspek & Rekomendasi Repeat Order)
+  try {
+    const [t18Flags] = await pool.query("SELECT `value` FROM pbj_settings WHERE `key` = 'sync_tahap18_sikap_skkp_v1'");
+    if (!t18Flags || !t18Flags.length || t18Flags[0].value !== '1') {
+      const catatanTahap18 = 'Penilaian Kinerja Penyedia pada Aplikasi SIKaP LKPP dan Penerbitan Sertifikat Kinerja Penyedia / Surat Keterangan Kinerja Penyedia (SKKP No. 018/SKKP/PBJ-2026-001/PPK/VI/2026 tanggal 12 Juni 2026) dengan skor total 2.70 (Predikat: SANGAT BAIK). Memenuhi syarat untuk pemberian rekomendasi Repeat Order (RO).';
+      const catKualitas = 'Kualitas dan kuantitas barang 100% lulus uji fungsi tanpa cacat (BAPHP No. 016/BAPHP/PBJ-2026-001/PPK/VI/2026). Nilai Bobot 30% x 3 = 0,90.';
+      const catBiaya = 'Realisasi anggaran 100% tertib, potongan denda Rp 56.568 disetor ke Kas Negara Akun PNBP 425161 (BAP No. 017/BAP/PBJ-2026-001/PPK/VI/2026). Nilai Bobot 20% x 3 = 0,60.';
+      const catWaktu = 'Terdapat keterlambatan 1 hari kalender pada 1 unit server (diserahkan 10 Juni 2026) namun masih di bawah 50 hari kalender dan denda telah dipotong lunas (Perlem LKPP 4/2021). Nilai Bobot 30% x 2 = 0,60.';
+      const catLayanan = 'Penyedia sangat kooperatif, teknisi bersertifikasi hadir mendampingi uji fungsi 24 jam dan menyerahkan jaminan purnajual garansi resmi 1 tahun. Nilai Bobot 20% x 3 = 0,60.';
+
+      await pool.query(`
+        UPDATE pbj_paket
+        SET no_skkp = '018/SKKP/PBJ-2026-001/PPK/VI/2026',
+            tgl_skkp = '2026-06-12',
+            catatan_kualitas = ?,
+            catatan_biaya = ?,
+            catatan_waktu = ?,
+            catatan_layanan = ?,
+            rekomendasi_repeat_order = 'MEMENUHI SYARAT REPEAT ORDER (RO)',
+            rating_sikap = 2.70
+        WHERE id = 1
+      `, [catKualitas, catBiaya, catWaktu, catLayanan]);
+
+      await pool.query(`
+        UPDATE pbj_paket_tahap
+        SET nomor_dokumen = '018/SKKP/PBJ-2026-001/PPK/VI/2026',
+            tanggal_dokumen = '2026-06-12',
+            status_tahap = 'Draft',
+            no_skkp = '018/SKKP/PBJ-2026-001/PPK/VI/2026',
+            catatan_tahap = ?
+        WHERE paket_id = 1 AND no_tahap = 18
+      `, [catatanTahap18]);
+
+      await pool.query("REPLACE INTO pbj_settings (`key`, `value`) VALUES ('sync_tahap18_sikap_skkp_v1', '1')");
+      console.log('[DB-MIGRATE] Skenario Tahap 18 SIKaP LKPP & SKKP Paket 1 berhasil disinkronkan ke DB.');
+    }
+  } catch (e) {
+    console.warn('[DB-MIGRATE-WARN] Gagal migrasi Tahap 18:', e.message);
   }
 }
 
@@ -1013,7 +1061,8 @@ async function savePaket(data) {
         masa_garansi_hari=?, tgl_mulai_garansi=?, tgl_selesai_garansi=?,
         penyedia_id=?, ppk_id=?, pejabat_pengadaan_id=?, kpa_id=?, bendahara_id=?, tim_teknis_id=?,
         tahap_aktif=?, status_paket=?, skor_kualitas=?, skor_biaya=?, skor_waktu=?, skor_layanan=?,
-        nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?
+        nilai_kinerja_akhir=?, predikat_kinerja=?, catatan_khusus_ppk=?,
+        no_skkp=?, tgl_skkp=?, catatan_kualitas=?, catatan_biaya=?, catatan_waktu=?, catatan_layanan=?, rekomendasi_repeat_order=?
        WHERE id=?`,
       [
         p.kode_rup || '', p.nama_paket || cur.nama_paket, p.uraian_pekerjaan || cur.uraian_pekerjaan || '', p.lokasi_pekerjaan || cur.lokasi_pekerjaan || 'Kantor KPU Kabupaten Ngawi',
@@ -1139,6 +1188,13 @@ async function savePaket(data) {
         p.penyedia_id !== undefined ? (p.penyedia_id ? Number(p.penyedia_id) : null) : (cur.penyedia_id ? Number(cur.penyedia_id) : null), Number(p.ppk_id || cur.ppk_id || 2), Number(p.pejabat_pengadaan_id || cur.pejabat_pengadaan_id || 3), Number(p.kpa_id || cur.kpa_id || 1), Number(p.bendahara_id || cur.bendahara_id || 4), null,
         cleanTahapAktif, cleanStatusPaket,
         sKualitas, sBiaya, sWaktu, sLayanan, nilaiKinerja, predikat, p.catatan_khusus_ppk || cur.catatan_khusus_ppk || '',
+        p.no_skkp || cur.no_skkp || '018/SKKP/PBJ-2026-001/PPK/VI/2026',
+        p.tgl_skkp || cur.tgl_skkp || '2026-06-12',
+        p.catatan_kualitas || cur.catatan_kualitas || '',
+        p.catatan_biaya || cur.catatan_biaya || '',
+        p.catatan_waktu || cur.catatan_waktu || '',
+        p.catatan_layanan || cur.catatan_layanan || '',
+        p.rekomendasi_repeat_order || cur.rekomendasi_repeat_order || (nilaiKinerja >= 2.50 ? 'MEMENUHI SYARAT REPEAT ORDER (RO)' : 'BELUM MEMENUHI SYARAT REPEAT ORDER'),
         data.id
       ]
     );
@@ -1243,6 +1299,11 @@ async function savePaket(data) {
         await pool.query(
           `UPDATE pbj_paket SET tahap_aktif = ?, status_paket = ? WHERE id = ?`,
           [updatedTahapAktif, updatedStatusPaket, data.id]
+        );
+      } else if (finalStatus === 'Selesai' && stageNo === 18) {
+        await pool.query(
+          `UPDATE pbj_paket SET tahap_aktif = 18, status_paket = 'Selesai (18/18 Tahap)' WHERE id = ?`,
+          [data.id]
         );
       }
       // Sinkronkan item rincian dengan harga penawaran & kontrak negosiasi pada Tahap 9

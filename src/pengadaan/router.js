@@ -86,13 +86,13 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
   try {
     await initDatabaseSchemaAndSeed();
 
-    // Endpoint manual trigger sinkronisasi skenario database Tahap 16 & Tahap 17
-    if ((pathname === '/api/cakra/sync-tahap16' || pathname === '/api/cakra/sync-tahap17') && method === 'GET') {
+    // Endpoint manual trigger sinkronisasi skenario database Tahap 16, Tahap 17 & Tahap 18
+    if ((pathname === '/api/cakra/sync-tahap16' || pathname === '/api/cakra/sync-tahap17' || pathname === '/api/cakra/sync-tahap18') && method === 'GET') {
       const pool = getCakraPool();
       await ensurePaketMissingColumns(pool);
       return sendJson(res, 200, {
         ok: true,
-        message: 'Migrasi & sinkronisasi skenario Tahap 16 & Tahap 17 (BAP, BAST KPA, SPP-LS & Denda) berhasil dijalankan ke database.'
+        message: 'Migrasi & sinkronisasi skenario Tahap 16, 17 & 18 (BAPHP, BAST, SPP-LS, SIKaP LKPP & SKKP) berhasil dijalankan ke database.'
       });
     }
 
@@ -106,8 +106,8 @@ async function handleCakraApiRequest(req, res, pathname, query = {}) {
         getKbliList()
       ]);
 
-      // Self-healing: jika migrasi Tahap 16 atau Tahap 17 belum tertulis di DB (misal di server online belum restart), jalankan on-the-fly
-      if (!settings['sync_tahap16_bast_denda_v2'] || !settings['sync_tahap17_pembayaran_v1']) {
+      // Self-healing: jika migrasi Tahap 16, 17, atau 18 belum tertulis di DB (misal di server online belum restart), jalankan on-the-fly
+      if (!settings['sync_tahap16_bast_denda_v2'] || !settings['sync_tahap17_pembayaran_v1'] || !settings['sync_tahap18_sikap_skkp_v1']) {
         try {
           const pool = getCakraPool();
           await ensurePaketMissingColumns(pool);
